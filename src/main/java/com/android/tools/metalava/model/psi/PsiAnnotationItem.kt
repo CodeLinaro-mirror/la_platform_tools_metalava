@@ -26,9 +26,10 @@ import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.AnnotationSingleAttributeValue
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.DefaultAnnotationItem
 import com.android.tools.metalava.model.Item
-import com.android.tools.metalava.model.canonicalizeFloatingPointString
-import com.android.tools.metalava.model.javaEscapeString
+import com.android.tools.metalava.model.psi.CodePrinter.Companion.constantToExpression
+import com.android.tools.metalava.model.psi.CodePrinter.Companion.constantToSource
 import com.intellij.psi.PsiAnnotation
 import com.intellij.psi.PsiAnnotationMemberValue
 import com.intellij.psi.PsiArrayInitializerMemberValue
@@ -45,20 +46,26 @@ import org.jetbrains.kotlin.asJava.elements.KtLightNullabilityAnnotation
 class PsiAnnotationItem private constructor(
     override val codebase: PsiBasedCodebase,
     val psiAnnotation: PsiAnnotation
-) : AnnotationItem {
+) : DefaultAnnotationItem(codebase) {
     private var attributes: List<AnnotationAttribute>? = null
 
     override fun toString(): String = toSource()
 
     override fun toSource(): String {
-        val qualifiedName = qualifiedName() ?: return ""
+        val sb = StringBuilder(60)
+        appendAnnotation(sb, psiAnnotation)
+        return sb.toString()
+    }
+
+    private fun appendAnnotation(sb: StringBuilder, psiAnnotation: PsiAnnotation) {
+        val qualifiedName = AnnotationItem.mapName(codebase, psiAnnotation.qualifiedName) ?: return
 
         val attributes = psiAnnotation.parameterList.attributes
         if (attributes.isEmpty()) {
-            return "@$qualifiedName"
+            sb.append("@$qualifiedName")
+            return
         }
 
-        val sb = StringBuilder(30)
         sb.append("@")
         sb.append(qualifiedName)
         sb.append("(")
@@ -79,8 +86,6 @@ class PsiAnnotationItem private constructor(
             }
         }
         sb.append(")")
-
-        return sb.toString()
     }
 
     override fun resolve(): ClassItem? {
@@ -95,7 +100,7 @@ class PsiAnnotationItem private constructor(
         //  @android.support.annotation.RequiresPermission(android.Manifest.permission.ACCESS_COARSE_LOCATION)
         when (value) {
             null -> sb.append("null")
-            is PsiLiteral -> sb.append(literalToString(value.value))
+            is PsiLiteral -> sb.append(constantToSource(value.value))
             is PsiReference -> {
                 val resolved = value.resolve()
                 when (resolved) {
@@ -150,6 +155,9 @@ class PsiAnnotationItem private constructor(
                 }
                 sb.append('}')
             }
+            is PsiAnnotation -> {
+                appendAnnotation(sb, value)
+            }
             else -> {
                 if (value is PsiExpression) {
                     val source = getConstantSource(value)
@@ -175,92 +183,7 @@ class PsiAnnotationItem private constructor(
 
     private fun getConstantSource(value: PsiExpression): String? {
         val constant = JavaConstantExpressionEvaluator.computeConstantExpression(value, false)
-        return when (constant) {
-            is Int -> "0x${Integer.toHexString(constant)}"
-            is String -> "\"${javaEscapeString(constant)}\""
-            is Long -> "${constant}L"
-            is Boolean -> constant.toString()
-            is Byte -> Integer.toHexString(constant.toInt())
-            is Short -> Integer.toHexString(constant.toInt())
-            is Float -> {
-                when (constant) {
-                    Float.POSITIVE_INFINITY -> "Float.POSITIVE_INFINITY"
-                    Float.NEGATIVE_INFINITY -> "Float.NEGATIVE_INFINITY"
-                    Float.NaN -> "Float.NaN"
-                    else -> {
-                        "${canonicalizeFloatingPointString(constant.toString())}F"
-                    }
-                }
-            }
-            is Double -> {
-                when (constant) {
-                    Double.POSITIVE_INFINITY -> "Double.POSITIVE_INFINITY"
-                    Double.NEGATIVE_INFINITY -> "Double.NEGATIVE_INFINITY"
-                    Double.NaN -> "Double.NaN"
-                    else -> {
-                        canonicalizeFloatingPointString(constant.toString())
-                    }
-                }
-            }
-            is Char -> {
-                "'${javaEscapeString(constant.toString())}'"
-            }
-            else -> {
-                null
-            }
-        }
-    }
-
-    private fun literalToString(value: Any?): String {
-        if (value == null) {
-            return "null"
-        }
-
-        when (value) {
-            is Int -> {
-                return value.toString()
-            }
-            is String -> {
-                return "\"${javaEscapeString(value)}\""
-            }
-            is Long -> {
-                return value.toString() + "L"
-            }
-            is Boolean -> {
-                return value.toString()
-            }
-            is Byte -> {
-                return Integer.toHexString(value.toInt())
-            }
-            is Short -> {
-                return Integer.toHexString(value.toInt())
-            }
-            is Float -> {
-                return when (value) {
-                    Float.POSITIVE_INFINITY -> "(1.0f/0.0f)"
-                    Float.NEGATIVE_INFINITY -> "(-1.0f/0.0f)"
-                    Float.NaN -> "(0.0f/0.0f)"
-                    else -> {
-                        canonicalizeFloatingPointString(value.toString()) + "f"
-                    }
-                }
-            }
-            is Double -> {
-                return when (value) {
-                    Double.POSITIVE_INFINITY -> "(1.0/0.0)"
-                    Double.NEGATIVE_INFINITY -> "(-1.0/0.0)"
-                    Double.NaN -> "(0.0/0.0)"
-                    else -> {
-                        canonicalizeFloatingPointString(value.toString())
-                    }
-                }
-            }
-            is Char -> {
-                return String.format("'%s'", javaEscapeString(value.toString()))
-            }
-        }
-
-        return value.toString()
+        return constantToExpression(constant)
     }
 
     override fun qualifiedName() = AnnotationItem.mapName(codebase, psiAnnotation.qualifiedName)

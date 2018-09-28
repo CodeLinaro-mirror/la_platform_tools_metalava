@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava
 
+import com.android.tools.metalava.model.AnnotationTarget
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.FieldItem
@@ -24,12 +25,18 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ModifierList
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
+import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
-import com.android.tools.metalava.model.javaEscapeString
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import java.io.PrintWriter
 import java.util.function.Predicate
+
+/** Current signature format. */
+const val SIGNATURE_FORMAT = "2.0"
+
+/** Marker comment at the beginning of the signature file */
+const val SIGNATURE_FORMAT_PREFIX = "// Signature format: "
 
 class SignatureWriter(
     private val writer: PrintWriter,
@@ -43,11 +50,20 @@ class SignatureWriter(
     methodComparator = MethodItem.comparator,
     fieldComparator = FieldItem.comparator,
     filterEmit = filterEmit,
-    filterReference = filterReference
+    filterReference = filterReference,
+    showUnannotated = options.showUnannotated
 ) {
+    init {
+        if (options.includeSignatureFormatVersion) {
+            writer.print(SIGNATURE_FORMAT_PREFIX)
+            writer.println(SIGNATURE_FORMAT)
+        }
+    }
 
     override fun visitPackage(pkg: PackageItem) {
-        writer.print("package ${pkg.qualifiedName()} {\n\n")
+        writer.print("package ")
+        writeModifiers(pkg)
+        writer.print("${pkg.qualifiedName()} {\n\n")
     }
 
     override fun afterVisitPackage(pkg: PackageItem) {
@@ -76,6 +92,15 @@ class SignatureWriter(
         writer.print(field.name())
         field.writeValueWithSemicolon(writer, allowDefaultValue = false, requireInitialValue = false)
         writer.print("\n")
+    }
+
+    override fun visitProperty(property: PropertyItem) {
+        writer.print("    property ")
+        writeModifiers(property)
+        writeType(property, property.type(), property.modifiers)
+        writer.print(' ')
+        writer.print(property.name())
+        writer.print(";\n")
     }
 
     override fun visitMethod(method: MethodItem) {
@@ -157,13 +182,11 @@ class SignatureWriter(
             writer = writer,
             modifiers = item.modifiers,
             item = item,
+            target = AnnotationTarget.SIGNATURE_FILE,
             includeDeprecated = true,
             includeAnnotations = compatibility.annotationsInSignatures,
             skipNullnessAnnotations = options.outputKotlinStyleNulls,
-            omitCommonPackages = options.omitCommonPackages,
-            onlyIncludeSignatureAnnotations = true,
-            onlyIncludeStubAnnotations = false,
-            onlyIncludeClassRetentionAnnotations = false
+            omitCommonPackages = options.omitCommonPackages
         )
     }
 
@@ -182,7 +205,10 @@ class SignatureWriter(
         else cls.filteredSuperClassType(filterReference)
         if (superClass != null && !superClass.isJavaLangObject()) {
             val superClassString =
-                superClass.toTypeString(erased = compatibility.omitTypeParametersInInterfaces)
+                superClass.toTypeString(
+                    erased = compatibility.omitTypeParametersInInterfaces,
+                    context = superClass.asClass()
+                )
             writer.print(" extends ")
             writer.print(superClassString)
         }
@@ -228,7 +254,12 @@ class SignatureWriter(
             writer.print(label)
             all.sortedWith(TypeItem.comparator).forEach { item ->
                 writer.print(" ")
-                writer.print(item.toTypeString(erased = compatibility.omitTypeParametersInInterfaces))
+                writer.print(
+                    item.toTypeString(
+                        erased = compatibility.omitTypeParametersInInterfaces,
+                        context = item.asClass()
+                    )
+                )
             }
         }
     }
@@ -260,15 +291,14 @@ class SignatureWriter(
                 }
             }
             if (options.outputDefaultValues && parameter.hasDefaultValue()) {
-                writer.print(" = \"")
+                writer.print(" = ")
                 val defaultValue = parameter.defaultValue()
                 if (defaultValue != null) {
-                    writer.print(javaEscapeString(defaultValue))
+                    writer.print(defaultValue)
                 } else {
                     // null is a valid default value!
                     writer.print("null")
                 }
-                writer.print("\"")
             }
         }
         writer.print(")")
@@ -282,9 +312,9 @@ class SignatureWriter(
         type ?: return
 
         var typeString = type.toTypeString(
-            erased = false,
             outerAnnotations = false,
-            innerAnnotations = compatibility.annotationsInSignatures
+            innerAnnotations = compatibility.annotationsInSignatures,
+            erased = false
         )
 
         // Strip java.lang. prefix?
@@ -324,7 +354,7 @@ class SignatureWriter(
             when (nullable) {
                 null -> writer.write("!")
                 true -> writer.write("?")
-            // else: non-null: nothing to write
+                // else: non-null: nothing to write
             }
         }
     }

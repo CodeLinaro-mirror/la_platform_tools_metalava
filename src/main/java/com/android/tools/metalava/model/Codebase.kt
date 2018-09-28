@@ -22,6 +22,7 @@ import com.android.SdkConstants.TAG_PERMISSION
 import com.android.tools.metalava.CodebaseComparator
 import com.android.tools.metalava.ComparisonVisitor
 import com.android.tools.metalava.doclava1.Errors
+import com.android.tools.metalava.model.psi.CodePrinter
 import com.android.tools.metalava.model.text.TextBackedAnnotationItem
 import com.android.tools.metalava.model.visitors.ItemVisitor
 import com.android.tools.metalava.model.visitors.TypeVisitor
@@ -43,6 +44,12 @@ import kotlin.text.Charsets.UTF_8
 interface Codebase {
     /** Description of what this codebase is (useful during debugging) */
     var description: String
+
+    /**
+     * The location of the API. Could point to a signature file, or a directory
+     * root for source files, or a jar file, etc.
+     */
+    var location: File
 
     /** The API level of this codebase, or -1 if not known */
     var apiLevel: Int
@@ -131,11 +138,6 @@ interface Codebase {
         getPackages().packages.forEach { pkg -> pkg.allClasses().forEach { cls -> cls.tag = false } }
     }
 
-    /**
-     * Creates a filtered version of this codebase
-     */
-    fun filter(filterEmit: Predicate<Item>, filterReference: Predicate<Item>): Codebase
-
     /** Reports that the given operation is unsupported for this codebase type */
     fun unsupported(desc: String? = null): Nothing
 
@@ -154,15 +156,28 @@ interface Codebase {
      * when the codebase is not loaded from source, such as from .jar files or
      * from signature files) */
     var units: List<PsiFile>
+
+    /**
+     * Printer which can convert PSI, UAST and constants into source code,
+     * with ability to filter out elements that are not part of a codebase etc
+     */
+    val printer: CodePrinter
+
+    /** If true, this codebase has already been filtered */
+    val preFiltered: Boolean
 }
 
-abstract class DefaultCodebase : Codebase {
+abstract class DefaultCodebase(override var location: File) : Codebase {
     override var manifest: File? = null
     private var permissions: Map<String, String>? = null
     override var original: Codebase? = null
     override var supportsStagedNullability: Boolean = true
     override var units: List<PsiFile> = emptyList()
     override var apiLevel: Int = -1
+    @Suppress("LeakingThis")
+    override val printer = CodePrinter(this)
+    @Suppress("LeakingThis")
+    override val preFiltered: Boolean = original != null
 
     override fun getPermissionLevel(name: String): String? {
         if (permissions == null) {

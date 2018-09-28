@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model
 
+import com.android.tools.metalava.doclava1.TextCodebase
 import com.android.tools.metalava.model.visitors.ItemVisitor
 import com.android.tools.metalava.model.visitors.TypeVisitor
 import java.util.LinkedHashSet
@@ -138,6 +139,12 @@ interface MethodItem : MemberItem {
     var inheritedMethod: Boolean
 
     /**
+     * If this method is inherited from a super class (typically via [duplicate]) this
+     * field points to the original class it was inherited from
+     */
+    var inheritedFrom: ClassItem?
+
+    /**
      * Duplicates this field item. Used when we need to insert inherited fields from
      * interfaces etc.
      */
@@ -236,7 +243,8 @@ interface MethodItem : MemberItem {
                 val p2n = p2.size
                 for (i in 0 until minOf(p1n, p2n)) {
                     val compareTypes =
-                        p1[i].type().toTypeString().compareTo(p2[i].type().toTypeString(), ignoreCase = true)
+                        p1[i].type().toTypeString()
+                            .compareTo(p2[i].type().toTypeString(), ignoreCase = true)
                     if (compareTypes != 0) {
                         return compareTypes
                     }
@@ -258,22 +266,6 @@ interface MethodItem : MemberItem {
                 comparator.compare(o1, o2)
             } else {
                 delta
-            }
-        }
-
-        /** Gets the primary super method from a given method */
-        fun getPrimarySuperMethod(method: MethodItem): MethodItem? {
-            val superMethods = method.superMethods()
-            return when {
-                superMethods.isEmpty() -> null
-                superMethods.size > 1 -> {
-                    // Prefer default methods (or super class method bodies)
-                    superMethods
-                        .filter { it.modifiers.isDefault() || it.containingClass().isClass() }
-                        .forEach { return it }
-                    superMethods[0]
-                }
-                else -> superMethods[0]
             }
         }
 
@@ -410,6 +402,19 @@ interface MethodItem : MemberItem {
     fun defaultValue(): String = ""
 
     /**
+     * Check the declared default annotation value and return true if the defaults
+     * are the same. Only defined on two annotation methods; for all other
+     * methods the result is "true".
+     */
+    fun hasSameValue(other: MethodItem): Boolean {
+        if (!containingClass().isAnnotationType() || !other.containingClass().isAnnotationType()) {
+            return true
+        }
+
+        return defaultValue() == other.defaultValue()
+    }
+
+    /**
      * Returns true if this method is a signature match for the given method (e.g. can
      * be overriding). This checks that the name and parameter lists match, but ignores
      * differences in parameter names, return value types and throws list types.
@@ -431,9 +436,24 @@ interface MethodItem : MemberItem {
         for (i in 0 until parameters1.size) {
             val parameter1 = parameters1[i]
             val parameter2 = parameters2[i]
-            val type1 = parameter1.type().toErasedTypeString()
-            val type2 = parameter2.type().toErasedTypeString()
+            val typeString1 = parameter1.type().toString()
+            val typeString2 = parameter2.type().toString()
+            if (typeString1 == typeString2) {
+                continue
+            }
+            val type1 = parameter1.type().toErasedTypeString(this)
+            val type2 = parameter2.type().toErasedTypeString(other)
+
             if (type1 != type2) {
+                // Workaround for signature-based codebase, where we can't always resolve generic
+                // parameters: if we see a mismatch here which looks like a failure to erase say T into
+                // java.lang.Object, don't treat that as a mismatch. (Similar common case: T[] and Object[])
+                if (typeString1[0].isUpperCase() &&
+                    typeString1.length == 1 || !typeString2[1].isLetterOrDigit() &&
+                    parameter1.codebase is TextCodebase
+                ) {
+                    continue
+                }
                 return false
             }
         }

@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.text
 
+import com.android.tools.metalava.JAVA_LANG_OBJECT
 import com.android.tools.metalava.doclava1.TextCodebase
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Item
@@ -24,6 +25,9 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.TypeParameterList
+import com.android.tools.metalava.model.TypeParameterListOwner
+
+const val ASSUME_TYPE_VARS_EXTEND_OBJECT = false
 
 class TextTypeItem(
     val codebase: TextCodebase,
@@ -31,16 +35,17 @@ class TextTypeItem(
 ) : TypeItem {
     override fun toString(): String = type
 
-    override fun toErasedTypeString(): String {
-        return toTypeString(false, false, true)
+    override fun toErasedTypeString(context: Item?): String {
+        return toTypeString(false, false, true, context)
     }
 
     override fun toTypeString(
         outerAnnotations: Boolean,
         innerAnnotations: Boolean,
-        erased: Boolean
+        erased: Boolean,
+        context: Item?
     ): String {
-        return toTypeString(type, outerAnnotations, innerAnnotations, erased)
+        return toTypeString(type, outerAnnotations, innerAnnotations, erased, context)
     }
 
     override fun asClass(): ClassItem? {
@@ -57,7 +62,7 @@ class TextTypeItem(
                 erased
             }
         }
-        return codebase.findClass(cls) ?: TextClassItem.createClassStub(codebase, cls)
+        return codebase.getOrCreateClass(cls)
     }
 
     fun qualifiedTypeName(): String = type
@@ -116,14 +121,20 @@ class TextTypeItem(
 
     override fun asTypeParameter(context: MemberItem?): TypeParameterItem? {
         return if (isLikelyTypeParameter(toTypeString())) {
-            val typeParameter = TextTypeParameterItem.create(codebase, toTypeString())
+            val typeParameter =
+                TextTypeParameterItem.create(codebase, context as? TypeParameterListOwner, toTypeString())
 
             if (context != null && typeParameter.bounds().isEmpty()) {
                 val bounds = findTypeVariableBounds(context, typeParameter.simpleName())
                 if (bounds.isNotEmpty()) {
                     val filtered = bounds.filter { !it.isJavaLangObject() }
                     if (filtered.isNotEmpty()) {
-                        return TextTypeParameterItem.create(codebase, toTypeString(), bounds)
+                        return TextTypeParameterItem.create(
+                            codebase,
+                            context as? TypeParameterListOwner,
+                            toTypeString(),
+                            bounds
+                        )
                     }
                 }
             }
@@ -172,14 +183,16 @@ class TextTypeItem(
             type: String,
             outerAnnotations: Boolean,
             innerAnnotations: Boolean,
-            erased: Boolean
+            erased: Boolean,
+            context: Item? = null
         ): String {
             return if (erased) {
                 val raw = eraseTypeArguments(type)
+                val concrete = substituteTypeParameters(raw, context)
                 if (outerAnnotations && innerAnnotations) {
-                    raw
+                    concrete
                 } else {
-                    eraseAnnotations(raw, outerAnnotations, innerAnnotations)
+                    eraseAnnotations(concrete, outerAnnotations, innerAnnotations)
                 }
             } else {
                 if (outerAnnotations && innerAnnotations) {
@@ -188,6 +201,31 @@ class TextTypeItem(
                     eraseAnnotations(type, outerAnnotations, innerAnnotations)
                 }
             }
+        }
+
+        private fun substituteTypeParameters(s: String, context: Item?): String {
+            if (context is TypeParameterListOwner) {
+                var end = s.indexOf('[')
+                if (end == -1) {
+                    end = s.length
+                }
+                if (s[0].isUpperCase() && s.lastIndexOf('.', end) == -1) {
+                    val v = s.substring(0, end)
+                    val parameter = context.resolveParameter(v)
+                    if (parameter != null) {
+                        val bounds = parameter.bounds()
+                        if (bounds.isNotEmpty()) {
+                            return bounds.first().qualifiedName() + s.substring(end)
+                        }
+                        @Suppress("ConstantConditionIf")
+                        if (ASSUME_TYPE_VARS_EXTEND_OBJECT) {
+                            return JAVA_LANG_OBJECT + s.substring(end)
+                        }
+                    }
+                }
+            }
+
+            return s
         }
 
         private fun eraseTypeArguments(s: String): String {

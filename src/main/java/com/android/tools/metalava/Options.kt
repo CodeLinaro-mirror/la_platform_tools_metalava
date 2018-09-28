@@ -18,6 +18,7 @@ package com.android.tools.metalava
 
 import com.android.SdkConstants
 import com.android.sdklib.SdkVersionInfo
+import com.android.tools.metalava.CompatibilityCheck.CheckRequest
 import com.android.tools.metalava.doclava1.Errors
 import com.android.utils.SdkUtils.wrap
 import com.google.common.base.CharMatcher
@@ -68,6 +69,10 @@ private const val ARG_PREVIOUS_API = "--previous-api"
 private const val ARG_CURRENT_API = "--current-api"
 private const val ARG_MIGRATE_NULLNESS = "--migrate-nullness"
 private const val ARG_CHECK_COMPATIBILITY = "--check-compatibility"
+private const val ARG_CHECK_COMPATIBILITY_API_CURRENT = "--check-compatibility:api:current"
+private const val ARG_CHECK_COMPATIBILITY_API_RELEASED = "--check-compatibility:api:released"
+private const val ARG_CHECK_COMPATIBILITY_REMOVED_CURRENT = "--check-compatibility:removed:current"
+private const val ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED = "--check-compatibility:removed:released"
 private const val ARG_INPUT_KOTLIN_NULLS = "--input-kotlin-nulls"
 private const val ARG_OUTPUT_KOTLIN_NULLS = "--output-kotlin-nulls"
 private const val ARG_OUTPUT_DEFAULT_VALUES = "--output-default-values"
@@ -104,13 +109,14 @@ private const val ARG_PACKAGE = "--package"
 private const val ARG_PRIVATE = "--private"
 private const val ARG_HIDDEN = "--hidden"
 private const val ARG_NO_DOCS = "--no-docs"
-private const val ARG_GENERATE_DOCUMENTATION = "--generate-documentation"
 private const val ARG_JAVA_SOURCE = "--java-source"
 private const val ARG_REGISTER_ARTIFACT = "--register-artifact"
 private const val ARG_COPY_ANNOTATIONS = "--copy-annotations"
 private const val ARG_INCLUDE_ANNOTATION_CLASSES = "--include-annotation-classes"
 private const val ARG_REWRITE_ANNOTATIONS = "--rewrite-annotations"
 private const val ARG_INCLUDE_SOURCE_RETENTION = "--include-source-retention"
+private const val ARG_INCLUDE_SIG_VERSION = "--include-signature-version"
+const val ARG_GENERATE_DOCUMENTATION = "--generate-documentation"
 
 class Options(
     args: Array<String>,
@@ -198,7 +204,10 @@ class Options(
     /** Whether to include APIs with annotations (intended for documentation purposes) */
     var showAnnotations = mutableShowAnnotations
 
-    /** Whether to include unannotated elements if {@link #showAnnotations} is set */
+    /**
+     * Whether to include unannotated elements if {@link #showAnnotations} is set.
+     * Note: This only applies to signature files, not stub files.
+     */
     var showUnannotated = false
 
     /** Whether to validate the API for Kotlin interop */
@@ -303,20 +312,17 @@ class Options(
     var generateAnnotations = false
 
     /**
-     * A signature file for the previous version of this API (for nullness
-     * migration, possibly for compatibility checking (if [currentApi] is not defined), etc.)
+     * A signature file to migrate nullness data from
      */
-    var previousApi: File? = null
+    var migrateNullsFrom: File? = null
 
-    /**
-     * A signature file for the current version of this API (for compatibility checks).
-     */
-    var currentApi: File? = null
+    /** Private backing list for [compatibilityChecks]] */
+    private var mutableCompatibilityChecks = mutableListOf<CheckRequest>()
 
-    /** Whether we should check API compatibility based on the previous API in [previousApi] */
-    var checkCompatibility: Boolean = false
+    /** The list of compatibility checks to run */
+    val compatibilityChecks: List<CheckRequest> = mutableCompatibilityChecks
 
-    /** Whether we should migrate nulls based on the previous API in [previousApi] */
+    /** Whether we should migrate nulls based on the previous API in [migrateNullsFrom] */
     var migrateNulls: Boolean = false
 
     /** Existing external annotation files to merge in */
@@ -376,6 +382,9 @@ class Options(
     /** Level to include for javadoc */
     var docLevel = DocLevel.PROTECTED
 
+    /** Whether to include the signature file format version number ([SIGNATURE_FORMAT]) in signature files */
+    var includeSignatureFormatVersion: Boolean = !compatOutput
+
     /**
      * Whether to omit locations for warnings and errors. This is not a flag exposed to users
      * or listed in help; this is intended for the unit test suite, used for example for the
@@ -390,6 +399,9 @@ class Options(
 
     /** Map from XML API descriptor file to corresponding artifact id name */
     val artifactRegistrations = ArtifactTagger()
+
+    /** Temporary folder to use insead of the JDK default, if any */
+    var tempFolder: File? = null
 
     init {
         // Pre-check whether --color/--no-color is present and use that to decide how
@@ -441,7 +453,7 @@ class Options(
 
                 ARGS_COMPAT_OUTPUT -> compatOutput = true
 
-            // For now we don't distinguish between bootclasspath and classpath
+                // For now we don't distinguish between bootclasspath and classpath
                 ARG_CLASS_PATH, "-classpath", "-bootclasspath" ->
                     mutableClassPath.addAll(stringToExistingDirsOrJars(getValue(args, ++index)))
 
@@ -504,13 +516,13 @@ class Options(
 
                 ARG_EXCLUDE_ANNOTATIONS -> generateAnnotations = false
 
-            // Note that this only affects stub generation, not signature files.
-            // For signature files, clear the compatibility mode
-            // (--annotations-in-signatures)
+                // Note that this only affects stub generation, not signature files.
+                // For signature files, clear the compatibility mode
+                // (--annotations-in-signatures)
                 "--include-annotations" -> generateAnnotations = true
 
-            // Flag used by test suite to avoid including locations in
-            // the output when diffing against golden files
+                // Flag used by test suite to avoid including locations in
+                // the output when diffing against golden files
                 "--omit-locations" -> omitLocations = true
 
                 ARG_PROGUARD, "-proguard" -> proguard = stringToNewFile(getValue(args, ++index))
@@ -557,13 +569,79 @@ class Options(
                 ARG_INCLUDE_ANNOTATION_CLASSES -> copyStubAnnotationsFrom = stringToExistingDir(getValue(args, ++index))
                 ARG_INCLUDE_SOURCE_RETENTION -> includeSourceRetentionAnnotations = true
 
-                ARG_PREVIOUS_API -> previousApi = stringToExistingFile(getValue(args, ++index))
-                ARG_CURRENT_API -> currentApi = stringToExistingFile(getValue(args, ++index))
+                ARG_PREVIOUS_API -> {
+                    migrateNullsFrom = stringToExistingFile(getValue(args, ++index))
+                    /* Don't flag this yet: allow a short quiet grace period
+                    reporter.report(Errors.DEPRECATED_OPTION, null as File?,
+                        "$ARG_PREVIOUS_API is deprecated; instead " +
+                        "use $ARG_MIGRATE_NULLNESS $migrateNullsFrom")
+                    */
+                }
 
-                ARG_MIGRATE_NULLNESS -> migrateNulls = true
+                ARG_MIGRATE_NULLNESS -> {
+                    migrateNulls = true
+                    // See if the next argument specifies the nullness API codebase
+                    if (index < args.size - 1) {
+                        val nextArg = args[index + 1]
+                        if (!nextArg.startsWith("-")) {
+                            val file = fileForPath(nextArg)
+                            if (file.isFile) {
+                                index++
+                                migrateNullsFrom = file
+                            }
+                        }
+                    }
+                }
+
+                ARG_CURRENT_API -> {
+                    val file = stringToExistingFile(getValue(args, ++index))
+                    mutableCompatibilityChecks.add(CheckRequest(file, ApiType.PUBLIC_API, ReleaseType.DEV))
+                    /* Don't flag this yet: allow a short quiet grace period
+                    reporter.report(Errors.DEPRECATED_OPTION, null as File?,
+                        "$ARG_CURRENT_API is deprecated; instead " +
+                            "use $ARG_CHECK_COMPATIBILITY $checkCompatibilityApiCurrent")
+                    */
+                }
 
                 ARG_CHECK_COMPATIBILITY -> {
-                    checkCompatibility = true
+                    // See if the next argument specifies the compatibility check.
+                    // Synonymous with ARG_CHECK_COMPATIBILITY_API_CURRENT, though
+                    // for backwards compatibility with earlier versions and usages
+                    // can also works in conjunction with ARG_CURRENT_API where the
+                    // usage was to use ARG_CURRENT_API to point to the API file and
+                    // then specify ARG_CHECK_COMPATIBILITY (without an argument) to
+                    // indicate that the current api should also be checked for
+                    // compatibility.
+                    if (index < args.size - 1) {
+                        val nextArg = args[index + 1]
+                        if (!nextArg.startsWith("-")) {
+                            val file = fileForPath(nextArg)
+                            if (file.isFile) {
+                                index++
+                                mutableCompatibilityChecks.add(CheckRequest(file, ApiType.PUBLIC_API, ReleaseType.DEV))
+                            }
+                        }
+                    }
+                }
+
+                ARG_CHECK_COMPATIBILITY_API_CURRENT -> {
+                    val file = stringToExistingFile(getValue(args, ++index))
+                    mutableCompatibilityChecks.add(CheckRequest(file, ApiType.PUBLIC_API, ReleaseType.DEV))
+                }
+
+                ARG_CHECK_COMPATIBILITY_API_RELEASED -> {
+                    val file = stringToExistingFile(getValue(args, ++index))
+                    mutableCompatibilityChecks.add(CheckRequest(file, ApiType.PUBLIC_API, ReleaseType.RELEASED))
+                }
+
+                ARG_CHECK_COMPATIBILITY_REMOVED_CURRENT -> {
+                    val file = stringToExistingFile(getValue(args, ++index))
+                    mutableCompatibilityChecks.add(CheckRequest(file, ApiType.REMOVED, ReleaseType.DEV))
+                }
+
+                ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED -> {
+                    val file = stringToExistingFile(getValue(args, ++index))
+                    mutableCompatibilityChecks.add(CheckRequest(file, ApiType.REMOVED, ReleaseType.RELEASED))
                 }
 
                 ARG_ANNOTATION_COVERAGE_STATS -> dumpAnnotationStatistics = true
@@ -579,10 +657,10 @@ class Options(
                     annotationCoverageMemberReport = stringToNewFile(getValue(args, ++index))
                 }
 
-                ARG_ERROR, "-error" -> Errors.setErrorLevel(getValue(args, ++index), Severity.ERROR)
-                ARG_WARNING, "-warning" -> Errors.setErrorLevel(getValue(args, ++index), Severity.WARNING)
-                ARG_LINT, "-lint" -> Errors.setErrorLevel(getValue(args, ++index), Severity.LINT)
-                ARG_HIDE, "-hide" -> Errors.setErrorLevel(getValue(args, ++index), Severity.HIDDEN)
+                ARG_ERROR, "-error" -> Errors.setErrorLevel(getValue(args, ++index), Severity.ERROR, true)
+                ARG_WARNING, "-warning" -> Errors.setErrorLevel(getValue(args, ++index), Severity.WARNING, true)
+                ARG_LINT, "-lint" -> Errors.setErrorLevel(getValue(args, ++index), Severity.LINT, true)
+                ARG_HIDE, "-hide" -> Errors.setErrorLevel(getValue(args, ++index), Severity.HIDDEN, true)
 
                 ARG_WARNINGS_AS_ERRORS -> warningsAreErrors = true
                 ARG_LINTS_AS_ERRORS -> lintsAreErrors = true
@@ -614,7 +692,7 @@ class Options(
                 ARG_ALLOW_REFERENCING_UNKNOWN_CLASSES -> allowReferencingUnknownClasses = true
                 ARG_NO_UNKNOWN_CLASSES -> noUnknownClasses = true
 
-            // Extracting API levels
+                // Extracting API levels
                 ARG_ANDROID_JAR_PATTERN -> {
                     val list = androidJarPatterns ?: run {
                         val list = arrayListOf<String>()
@@ -693,11 +771,14 @@ class Options(
                     artifactRegistrations.register(artifactId, descriptor)
                 }
 
-            // Doclava1 flag: Already the behavior in metalava
+                "--noop", "--no-op" -> {
+                }
+
+                // Doclava1 flag: Already the behavior in metalava
                 "-keepstubcomments" -> {
                 }
 
-            // Unimplemented doclava1 flags (no arguments)
+                // Unimplemented doclava1 flags (no arguments)
                 "-quiet",
                 "-yamlV2" -> {
                     unimplemented(arg)
@@ -712,7 +793,7 @@ class Options(
                     /* noop */
                 }
 
-            // Unimplemented doclava1 flags (1 argument)
+                // Unimplemented doclava1 flags (1 argument)
                 "-d" -> {
                     unimplemented(arg)
                     index++
@@ -735,14 +816,18 @@ class Options(
                     }
                 }
 
-            // Unimplemented doclava1 flags (2 arguments)
+                "--temp-folder" -> {
+                    tempFolder = stringToNewOrExistingDir(getValue(args, ++index))
+                }
+
+                // Unimplemented doclava1 flags (2 arguments)
                 "-since" -> {
                     unimplemented(arg)
                     index += 2
                 }
 
-            // doclava1 doc-related flags: only supported here to make this command a drop-in
-            // replacement
+                // doclava1 doc-related flags: only supported here to make this command a drop-in
+                // replacement
                 "-referenceonly",
                 "-devsite",
                 "-ignoreJdLinks",
@@ -758,7 +843,7 @@ class Options(
                     javadoc(arg)
                 }
 
-            // doclava1 flags with 1 argument
+                // doclava1 flags with 1 argument
                 "-doclet",
                 "-docletpath",
                 "-templatedir",
@@ -781,7 +866,7 @@ class Options(
                     index++
                 }
 
-            // doclava1 flags with two arguments
+                // doclava1 flags with two arguments
                 "-federate",
                 "-federationapi",
                 "-htmldir2" -> {
@@ -789,13 +874,13 @@ class Options(
                     index += 2
                 }
 
-            // doclava1 flags with three arguments
+                // doclava1 flags with three arguments
                 "-samplecode" -> {
                     javadoc(arg)
                     index += 3
                 }
 
-            // doclava1 flag with variable number of arguments; skip everything until next arg
+                // doclava1 flag with variable number of arguments; skip everything until next arg
                 "-hdf" -> {
                     javadoc(arg)
                     index++
@@ -843,6 +928,10 @@ class Options(
                         compatOutput = if (arg == ARGS_COMPAT_OUTPUT)
                             true
                         else yesNo(arg.substring(ARGS_COMPAT_OUTPUT.length + 1))
+                    } else if (arg.startsWith(ARG_INCLUDE_SIG_VERSION)) {
+                        includeSignatureFormatVersion = if (arg == ARG_INCLUDE_SIG_VERSION)
+                            true
+                        else yesNo(arg.substring(ARG_INCLUDE_SIG_VERSION.length + 1))
                     } else if (arg.startsWith("-")) {
                         // Compatibility flag; map to mutable properties in the Compatibility
                         // class and assign it
@@ -972,11 +1061,7 @@ class Options(
 
     /** Makes sure that the flag combinations make sense */
     private fun checkFlagConsistency() {
-        if (checkCompatibility && currentApi == null && previousApi == null) {
-            throw DriverException(stderr = "$ARG_CHECK_COMPATIBILITY requires $ARG_CURRENT_API")
-        }
-
-        if (migrateNulls && previousApi == null) {
+        if (migrateNulls && migrateNullsFrom == null) {
             throw DriverException(stderr = "$ARG_MIGRATE_NULLNESS requires $ARG_PREVIOUS_API")
         }
 
@@ -986,14 +1071,21 @@ class Options(
 
         if (compatOutput && outputKotlinStyleNulls) {
             throw DriverException(
-                stderr = "$ARG_OUTPUT_KOTLIN_NULLS should not be combined with " +
+                stderr = "$ARG_OUTPUT_KOTLIN_NULLS=yes should not be combined with " +
                     "$ARGS_COMPAT_OUTPUT=yes"
             )
         }
 
         if (compatOutput && outputDefaultValues) {
             throw DriverException(
-                stderr = "$ARG_OUTPUT_DEFAULT_VALUES should not be combined with " +
+                stderr = "$ARG_OUTPUT_DEFAULT_VALUES=yes should not be combined with " +
+                    "$ARGS_COMPAT_OUTPUT=yes"
+            )
+        }
+
+        if (compatOutput && includeSignatureFormatVersion) {
+            throw DriverException(
+                stderr = "$ARG_INCLUDE_SIG_VERSION=yes should not be combined with " +
                     "$ARGS_COMPAT_OUTPUT=yes"
             )
         }
@@ -1151,18 +1243,34 @@ class Options(
         return output
     }
 
+    private fun stringToNewOrExistingDir(value: String): File {
+        val dir = fileForPath(value)
+        if (!dir.isDirectory) {
+            val ok = dir.mkdirs()
+            if (!ok) {
+                throw DriverException("Could not create $dir")
+            }
+        }
+        return dir
+    }
+
     private fun stringToNewDir(value: String): File {
         val output = fileForPath(value)
-
-        if (output.exists()) {
-            if (output.isDirectory) {
-                output.deleteRecursively()
+        val ok =
+            if (output.exists()) {
+                if (output.isDirectory) {
+                    output.deleteRecursively()
+                }
+                if (output.exists()) {
+                    true
+                } else {
+                    output.mkdir()
+                }
+            } else {
+                output.mkdirs()
             }
-        } else if (output.parentFile != null && !output.parentFile.exists()) {
-            val ok = output.parentFile.mkdirs()
-            if (!ok) {
-                throw DriverException("Could not create ${output.parentFile}")
-            }
+        if (!ok) {
+            throw DriverException("Could not create $output")
         }
 
         return output
@@ -1219,9 +1327,10 @@ class Options(
                 "`${File.pathSeparator}`) containing classes that should be on the classpath when parsing the " +
                 "source files",
 
-            "$ARG_MERGE_ANNOTATIONS <file>", "An external annotations file (using IntelliJ's external " +
-                "annotations database format) to merge and overlay the sources. A subset of .jaif files " +
-                "is also supported.",
+            "$ARG_MERGE_ANNOTATIONS <file>", "An external annotations file to merge and overlay " +
+                "the sources, or a directory of such files. Formats supported are: IntelliJ's " +
+                "external annotations database format, .jar or .zip files containing those, " +
+                "Android signature files, and Java stub files.",
 
             "$ARG_INPUT_API_JAR <file>", "A .jar file to read APIs from directly",
 
@@ -1259,6 +1368,8 @@ class Options(
             "$ARG_OMIT_COMMON_PACKAGES[=yes|no]", "Skip common package prefixes like java.lang.* and " +
                 "kotlin.* in signature files, along with packages for well known annotations like @Nullable and " +
                 "@NonNull.",
+            "$ARG_INCLUDE_SIG_VERSION[=yes|no]", "Whether the signature files should include a comment listing " +
+                "the format version of the signature file.",
 
             "$ARG_PROGUARD <file>", "Write a ProGuard keep file for the API",
             "$ARG_SDK_VALUES <dir>", "Write SDK values files to the given directory",
@@ -1283,19 +1394,19 @@ class Options(
                 "level stub class in that API.",
 
             "", "\nDiffs and Checks:",
-            "$ARG_PREVIOUS_API <signature file>", "A signature file for the previous version of this " +
-                "API to apply diffs with",
             "$ARG_INPUT_KOTLIN_NULLS[=yes|no]", "Whether the signature file being read should be " +
                 "interpreted as having encoded its types using Kotlin style types: a suffix of \"?\" for nullable " +
                 "types, no suffix for non nullable types, and \"!\" for unknown. The default is no.",
-            ARG_CHECK_COMPATIBILITY, "Check compatibility with the previous API",
+            "$ARG_CHECK_COMPATIBILITY:type:state <file>", "Check compatibility. Type is one of 'api' " +
+                "and 'removed', which checks either the public api or the removed api. State is one of " +
+                "'current' and 'released', to check either the currently in development API or the last publicly " +
+                "released API, respectively. Different compatibility checks apply in the two scenarios. " +
+                "For example, to check the code base against the current public API, use " +
+                "$ARG_CHECK_COMPATIBILITY:api:current.",
             ARG_CHECK_KOTLIN_INTEROP, "Check API intended to be used from both Kotlin and Java for interoperability " +
                 "issues",
-            "$ARG_CURRENT_API <signature file>", "A signature file for the current version of this " +
-                "API to check compatibility with. If not specified, $ARG_PREVIOUS_API will be used " +
-                "instead.",
-            ARG_MIGRATE_NULLNESS, "Compare nullness information with the previous API and mark newly " +
-                "annotated APIs as under migration.",
+            "$ARG_MIGRATE_NULLNESS <api file>", "Compare nullness information with the previous stable API " +
+                "and mark newly annotated APIs as under migration.",
             ARG_WARNINGS_AS_ERRORS, "Promote all warnings to errors",
             ARG_LINTS_AS_ERRORS, "Promote all API lint warnings to errors",
             "$ARG_ERROR <id>", "Report issues of the given id as errors",
@@ -1344,7 +1455,15 @@ class Options(
                 "is \$ANDROID_HOME/platforms/android-%/android.jar.",
             ARG_CURRENT_VERSION, "Sets the current API level of the current source code",
             ARG_CURRENT_CODENAME, "Sets the code name for the current source code",
-            ARG_CURRENT_JAR, "Points to the current API jar, if any"
+            ARG_CURRENT_JAR, "Points to the current API jar, if any",
+
+            "", "\nEnvironment Variables:",
+            ENV_VAR_METALAVA_DUMP_ARGV, "Set to true to have metalava emit all the arguments it was invoked with. " +
+                "Helpful when debugging or reproducing under a debugger what the build system is doing.",
+            ENV_VAR_METALAVA_PREPEND_ARGS, "One or more arguments (concatenated by space) to insert into the " +
+                "command line, before the documentation flags.",
+            ENV_VAR_METALAVA_APPEND_ARGS, "One or more arguments (concatenated by space) to append to the " +
+                "end of the command line, after the generate documentation flags."
         )
 
         var argWidth = 0

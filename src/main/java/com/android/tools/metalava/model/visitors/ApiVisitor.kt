@@ -18,7 +18,6 @@ package com.android.tools.metalava.model.visitors
 
 import com.android.tools.metalava.doclava1.ApiPredicate
 import com.android.tools.metalava.model.ClassItem
-import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MethodItem
@@ -51,6 +50,7 @@ open class ApiVisitor(
 
     /** The filter to use to determine if we should emit an item */
     val filterEmit: Predicate<Item>,
+
     /** The filter to use to determine if we should emit a reference to an item */
     val filterReference: Predicate<Item>,
 
@@ -60,10 +60,18 @@ open class ApiVisitor(
      * Typically these are not included in signature files, but when generating
      * stubs we need to include them.
      */
-    val includeEmptyOuterClasses: Boolean = false
+    val includeEmptyOuterClasses: Boolean = false,
+
+    /**
+     * Whether this visitor should visit elements that have not been
+     * annotated with one of the annotations passed in using the
+     * --show-annotation flag. This is normally true, but signature files
+     * sometimes sets this to false to make the signature file only contain
+     * the "diff" of the annotated API relative to the base API.
+     */
+    val showUnannotated: Boolean = true
 ) : ItemVisitor(visitConstructorsAsMethods, nestInnerClasses) {
     constructor(
-        codebase: Codebase,
         /**
          * Whether constructors should be visited as part of a [#visitMethod] call
          * instead of just a [#visitConstructor] call. Helps simplify visitors that
@@ -92,8 +100,8 @@ open class ApiVisitor(
         visitConstructorsAsMethods, nestInnerClasses,
         true, methodComparator,
         fieldComparator,
-        ApiPredicate(codebase, ignoreShown = ignoreShown, matchRemoved = remove),
-        ApiPredicate(codebase, ignoreShown = true, ignoreRemoved = remove)
+        ApiPredicate(ignoreShown = ignoreShown, matchRemoved = remove),
+        ApiPredicate(ignoreShown = true, ignoreRemoved = remove)
     )
 
     // The API visitor lazily visits packages only when there's a match within at least one class;

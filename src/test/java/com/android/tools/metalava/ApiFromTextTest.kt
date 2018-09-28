@@ -43,6 +43,94 @@ class ApiFromTextTest : DriverTest() {
     }
 
     @Test
+    fun `Handle lambas as default values`() {
+        val source = """
+            // Signature format: $SIGNATURE_FORMAT
+            package androidx.collection {
+              public final class LruCacheKt {
+                ctor public LruCacheKt();
+                method public static <K, V> androidx.collection.LruCache<K,V> lruCache(int maxSize, kotlin.jvm.functions.Function2<? super K,? super V,java.lang.Integer> sizeOf = { _, _ -> 1 }, kotlin.jvm.functions.Function1<? super K,? extends V> create = { null as V? }, kotlin.jvm.functions.Function4<? super java.lang.Boolean,? super K,? super V,? super V,kotlin.Unit> onEntryRemoved = { _, _, _, _ -> });
+              }
+            }
+        """
+
+        check(
+            compatibilityMode = false,
+            inputKotlinStyleNulls = true,
+            signatureSource = source,
+            includeSignatureVersion = true,
+            api = source
+        )
+    }
+
+    @Test
+    fun `Handle enum constants as default values`() {
+        val source = """
+            // Signature format: $SIGNATURE_FORMAT
+            package test.pkg {
+              public final class Foo {
+                ctor public Foo();
+                method public android.graphics.Bitmap? drawToBitmap(android.view.View, android.graphics.Bitmap.Config config = android.graphics.Bitmap.Config.ARGB_8888);
+                method public void emptyLambda(kotlin.jvm.functions.Function0<kotlin.Unit> sizeOf = {});
+                method public void method1(int p = 42, Integer? int2 = null, int p1 = 42, String str = "hello world", java.lang.String... args);
+                method public void method2(int p, int int2 = (2 * int) * some.other.pkg.Constants.Misc.SIZE);
+                method public void method3(String str, int p, int int2 = double(int) + str.length);
+                field public static final test.pkg.Foo.Companion! Companion;
+              }
+              public static final class Foo.Companion {
+                method public int double(int p);
+                method public void print(test.pkg.Foo foo = test.pkg.Foo());
+              }
+              public final class LruCacheKt {
+                ctor public LruCacheKt();
+                method public static <K, V> android.util.LruCache<K,V> lruCache(int maxSize, kotlin.jvm.functions.Function2<? super K,? super V,java.lang.Integer> sizeOf = { _, _ -> 1 }, kotlin.jvm.functions.Function1<? super K,? extends V> create = { (V)null }, kotlin.jvm.functions.Function4<? super java.lang.Boolean,? super K,? super V,? super V,kotlin.Unit> onEntryRemoved = { _, _, _, _ ->  });
+              }
+            }
+            """
+
+        check(
+            compatibilityMode = false,
+            inputKotlinStyleNulls = true,
+            signatureSource = source,
+            includeSignatureVersion = true,
+            api = source
+        )
+    }
+
+    @Test
+    fun `Handle complex expressions as default values`() {
+        val source = """
+            // Signature format: $SIGNATURE_FORMAT
+            package androidx.paging {
+              public final class PagedListConfigKt {
+                ctor public PagedListConfigKt();
+                method public static androidx.paging.PagedList.Config Config(int pageSize, int prefetchDistance = pageSize, boolean enablePlaceholders = true, int initialLoadSizeHint = pageSize * PagedList.Config.Builder.DEFAULT_INITIAL_PAGE_MULTIPLIER, int maxSize = PagedList.Config.MAX_SIZE_UNBOUNDED);
+              }
+              public final class PagedListKt {
+                ctor public PagedListKt();
+                method public static <Key, Value> androidx.paging.PagedList<Value> PagedList(androidx.paging.DataSource<Key,Value> dataSource, androidx.paging.PagedList.Config config, java.util.concurrent.Executor notifyExecutor, java.util.concurrent.Executor fetchExecutor, androidx.paging.PagedList.BoundaryCallback<Value>? boundaryCallback = null, Key? initialKey = null);
+              }
+            }
+            package test.pkg {
+              public final class Foo {
+                ctor public Foo();
+                method public void method1(int p = 42, Integer? int2 = null, int p1 = 42, String str = "hello world", java.lang.String... args);
+                method public void method2(int p, int int2 = (2 * int) * some.other.pkg.Constants.Misc.SIZE);
+                method public void method3(str: String = "unbalanced), string", str2: String = ",");
+              }
+            }
+        """
+
+        check(
+            compatibilityMode = false,
+            inputKotlinStyleNulls = true,
+            signatureSource = source,
+            includeSignatureVersion = true,
+            api = source
+        )
+    }
+
+    @Test
     fun `Annotation signatures requiring more complicated token matching`() {
         val source = """
                 package test {
@@ -82,19 +170,25 @@ class ApiFromTextTest : DriverTest() {
 
     @Test
     fun `Native and strictfp keywords`() {
-        val source = """
-                package test.pkg {
-                  public class MyTest {
-                    method public native float dotWithNormal(float, float, float);
-                    method public static strictfp double toDegrees(double);
-                  }
-                }
-                """
         check(
             compatibilityMode = false,
             outputKotlinStyleNulls = false,
-            signatureSource = source,
-            api = source
+            signatureSource = """
+                    package test.pkg {
+                      public class MyTest {
+                        method public native float dotWithNormal(float, float, float);
+                        method public static strictfp double toDegrees(double);
+                      }
+                    }
+                    """,
+            api = """
+                    package test.pkg {
+                      public class MyTest {
+                        method public float dotWithNormal(float, float, float);
+                        method public static double toDegrees(double);
+                      }
+                    }
+                    """
         )
     }
 
@@ -374,6 +468,24 @@ class ApiFromTextTest : DriverTest() {
     }
 
     @Test
+    fun `Annotations on packages`() {
+        val source = """
+                package @RestrictTo(androidx.annotation.RestrictTo.Scope.SUBCLASSES) @RestrictTo(androidx.annotation.RestrictTo.Scope.SUBCLASSES) test.pkg {
+                  public abstract class Class1 {
+                    ctor public Class1();
+                  }
+                }
+                """
+
+        check(
+            compatibilityMode = false,
+            outputKotlinStyleNulls = false,
+            signatureSource = source,
+            api = source
+        )
+    }
+
+    @Test
     fun `Enums and annotations exported to compat`() {
         val source = """
                 package android.annotation {
@@ -442,11 +554,11 @@ class ApiFromTextTest : DriverTest() {
                 package test.pkg {
                   public final class Foo {
                     ctor public Foo();
-                    method public final void error(int p = "42", java.lang.Integer? int2 = "null");
+                    method public final void error(int p = 42, java.lang.Integer? int2 = null);
                   }
                   public class Foo2 {
                     ctor public Foo2();
-                    method public void foo(java.lang.String! = "null", java.lang.String! = "\"Hello World\"", int = "42");
+                    method public void foo(java.lang.String! = null, java.lang.String! = "(Hello) World", int = 42);
                   }
                 }
                 """
@@ -476,6 +588,52 @@ class ApiFromTextTest : DriverTest() {
         check(
             inputKotlinStyleNulls = true,
             compatibilityMode = false,
+            signatureSource = source,
+            api = source
+        )
+    }
+
+    @Test
+    fun `Signatures with many annotations`() {
+        val source = """
+            package libcore.util {
+              @java.lang.annotation.Documented @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.SOURCE) public @interface NonNull {
+                method public abstract int from() default java.lang.Integer.MIN_VALUE;
+                method public abstract int to() default java.lang.Integer.MAX_VALUE;
+              }
+            }
+            package test.pkg {
+              public class Test {
+                ctor public Test();
+                method @NonNull public Object compute();
+              }
+            }
+        """
+
+        check(
+            compatibilityMode = false,
+            signatureSource = source,
+            outputKotlinStyleNulls = false,
+            api = source
+        )
+    }
+
+    @Test
+    fun `Kotlin Properties`() {
+        val source = """
+                package test.pkg {
+                  public final class Kotlin {
+                    ctor public Kotlin(java.lang.String property1, int arg2);
+                    method public java.lang.String getProperty1();
+                    method public java.lang.String getProperty2();
+                    method public void setProperty2(java.lang.String p);
+                    property public final java.lang.String property2;
+                  }
+                }
+                """
+
+        check(
+            compatibilityMode = true,
             signatureSource = source,
             api = source
         )

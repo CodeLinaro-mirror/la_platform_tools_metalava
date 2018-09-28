@@ -54,7 +54,6 @@ class NullnessMigrationTest : DriverTest() {
     @Test
     fun `Method which is now marked null should be marked as recently migrated null`() {
         check(
-            migrateNulls = true,
             outputKotlinStyleNulls = false,
             compatibilityMode = false,
             signatureSource = """
@@ -64,7 +63,7 @@ class NullnessMigrationTest : DriverTest() {
                   }
                 }
                 """,
-            previousApi = """
+            migrateNullsApi = """
                 package test.pkg {
                   public abstract class MyTest {
                     method public Double convert1(Float);
@@ -84,7 +83,6 @@ class NullnessMigrationTest : DriverTest() {
     @Test
     fun `Parameter which is now marked null should be marked as recently migrated null`() {
         check(
-            migrateNulls = true,
             outputKotlinStyleNulls = false,
             compatibilityMode = false,
             signatureSource = """
@@ -94,7 +92,7 @@ class NullnessMigrationTest : DriverTest() {
                   }
                 }
                 """,
-            previousApi = """
+            migrateNullsApi = """
                 package test.pkg {
                   public abstract class MyTest {
                     method public Double convert1(Float);
@@ -114,7 +112,6 @@ class NullnessMigrationTest : DriverTest() {
     @Test
     fun `Comprehensive check of migration`() {
         check(
-            migrateNulls = true,
             outputKotlinStyleNulls = false,
             compatibilityMode = false,
             signatureSource = """
@@ -129,7 +126,7 @@ class NullnessMigrationTest : DriverTest() {
                   }
                 }
                 """,
-            previousApi = """
+            migrateNullsApi = """
                 package test.pkg {
                   public class MyTest {
                     ctor public MyTest();
@@ -159,7 +156,6 @@ class NullnessMigrationTest : DriverTest() {
     @Test
     fun `Comprehensive check of migration, Kotlin-style output`() {
         check(
-            migrateNulls = true,
             outputKotlinStyleNulls = true,
             compatibilityMode = false,
             signatureSource = """
@@ -174,7 +170,7 @@ class NullnessMigrationTest : DriverTest() {
                   }
                 }
                 """,
-            previousApi = """
+            migrateNullsApi = """
                 package test.pkg {
                   public class MyTest {
                     ctor public MyTest();
@@ -236,18 +232,18 @@ class NullnessMigrationTest : DriverTest() {
                 )
             ),
             api = """
-                    package libcore.util {
-                      public @interface NonNull {
-                        method public abstract int from() default java.lang.Integer.MIN_VALUE;
-                        method public abstract int to() default java.lang.Integer.MAX_VALUE;
-                      }
-                    }
-                    package test.pkg {
-                      public class Test {
-                        ctor public Test();
-                        method @NonNull public Object compute();
-                      }
-                    }
+                package libcore.util {
+                  @java.lang.annotation.Documented @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.SOURCE) public @interface NonNull {
+                    method public abstract int from() default java.lang.Integer.MIN_VALUE;
+                    method public abstract int to() default java.lang.Integer.MAX_VALUE;
+                  }
+                }
+                package test.pkg {
+                  public class Test {
+                    ctor public Test();
+                    method @NonNull public Object compute();
+                  }
+                }
                 """
         )
     }
@@ -357,7 +353,6 @@ class NullnessMigrationTest : DriverTest() {
         check(
             outputKotlinStyleNulls = false,
             compatibilityMode = false,
-            migrateNulls = true,
             sourceFiles = *arrayOf(
                 java(
                     """
@@ -378,7 +373,7 @@ class NullnessMigrationTest : DriverTest() {
             ),
             extraArguments = arrayOf("--hide-package", "androidx.annotation"),
             // TODO: Handle multiple nullness annotations
-            previousApi =
+            migrateNullsApi =
             """
                 package test.pkg {
                   public class Foo {
@@ -399,7 +394,8 @@ class NullnessMigrationTest : DriverTest() {
                     public static char @androidx.annotation.RecentlyNonNull [] toChars(int codePoint) { throw new RuntimeException("Stub!"); }
                     public static int codePointAt(char @androidx.annotation.RecentlyNonNull [] a, int index) { throw new RuntimeException("Stub!"); }
                     public <T> T @androidx.annotation.RecentlyNonNull [] toArray(T @androidx.annotation.RecentlyNonNull [] a) { throw new RuntimeException("Stub!"); }
-                    @androidx.annotation.NonNull public static java.lang.String newMethod(@androidx.annotation.Nullable java.lang.String argument) { throw new RuntimeException("Stub!"); }
+                    @androidx.annotation.NonNull
+                    public static java.lang.String newMethod(@androidx.annotation.Nullable java.lang.String argument) { throw new RuntimeException("Stub!"); }
                     }
                 """
                 )
@@ -413,7 +409,8 @@ class NullnessMigrationTest : DriverTest() {
                     public static char[] toChars(int codePoint) { throw new RuntimeException("Stub!"); }
                     public static int codePointAt(char[] a, int index) { throw new RuntimeException("Stub!"); }
                     public <T> T[] toArray(T[] a) { throw new RuntimeException("Stub!"); }
-                    @androidx.annotation.NonNull public static java.lang.String newMethod(@androidx.annotation.Nullable java.lang.String argument) { throw new RuntimeException("Stub!"); }
+                    @androidx.annotation.NonNull
+                    public static java.lang.String newMethod(@androidx.annotation.Nullable java.lang.String argument) { throw new RuntimeException("Stub!"); }
                     }
                     """
                 )
@@ -426,7 +423,6 @@ class NullnessMigrationTest : DriverTest() {
         check(
             outputKotlinStyleNulls = false,
             compatibilityMode = false,
-            migrateNulls = true,
             sourceFiles = *arrayOf(
                 java(
                     """
@@ -445,7 +441,7 @@ class NullnessMigrationTest : DriverTest() {
             ),
             extraArguments = arrayOf("--hide-package", "androidx.annotation"),
             // TODO: Handle multiple nullness annotations
-            previousApi =
+            migrateNullsApi =
             """
                 package test.pkg {
                   public class Foo {
@@ -491,7 +487,6 @@ class NullnessMigrationTest : DriverTest() {
         check(
             outputKotlinStyleNulls = false,
             compatibilityMode = false,
-            migrateNulls = true,
             sourceFiles = *arrayOf(
                 java(
                     """
@@ -513,7 +508,7 @@ class NullnessMigrationTest : DriverTest() {
                 androidxNonNullSource,
                 androidxNullableSource
             ),
-            previousApi = """
+            migrateNullsApi = """
                 package test.pkg {
                   public class Foo {
                     ctor public Foo();
@@ -530,8 +525,10 @@ class NullnessMigrationTest : DriverTest() {
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class Foo {
                     public Foo() { throw new RuntimeException("Stub!"); }
-                    @androidx.annotation.RecentlyNonNull public java.lang.reflect.Constructor<?> @androidx.annotation.RecentlyNonNull [] getConstructors() { throw new RuntimeException("Stub!"); }
-                    @androidx.annotation.RecentlyNonNull public synchronized java.lang.reflect.TypeVariable<java.lang.@androidx.annotation.RecentlyNonNull Class<T>> @androidx.annotation.RecentlyNonNull [] getTypeParameters() { throw new RuntimeException("Stub!"); }
+                    @androidx.annotation.RecentlyNonNull
+                    public java.lang.reflect.Constructor<?> @androidx.annotation.RecentlyNonNull [] getConstructors() { throw new RuntimeException("Stub!"); }
+                    @androidx.annotation.RecentlyNonNull
+                    public synchronized java.lang.reflect.TypeVariable<java.lang.@androidx.annotation.RecentlyNonNull Class<T>> @androidx.annotation.RecentlyNonNull [] getTypeParameters() { throw new RuntimeException("Stub!"); }
                     }
                     """
                 )
@@ -542,12 +539,120 @@ class NullnessMigrationTest : DriverTest() {
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class Foo {
                     public Foo() { throw new RuntimeException("Stub!"); }
-                    @androidx.annotation.RecentlyNonNull public java.lang.reflect.Constructor<?>[] getConstructors() { throw new RuntimeException("Stub!"); }
-                    @androidx.annotation.RecentlyNonNull public synchronized java.lang.reflect.TypeVariable<java.lang.Class<T>>[] getTypeParameters() { throw new RuntimeException("Stub!"); }
+                    @androidx.annotation.RecentlyNonNull
+                    public java.lang.reflect.Constructor<?>[] getConstructors() { throw new RuntimeException("Stub!"); }
+                    @androidx.annotation.RecentlyNonNull
+                    public synchronized java.lang.reflect.TypeVariable<java.lang.Class<T>>[] getTypeParameters() { throw new RuntimeException("Stub!"); }
                     }
                     """
                 )
             }
+        )
+    }
+
+    @Test
+    fun `Test inherited methods`() {
+        check(
+            warnings = """
+                """,
+            migrateNullsApi = """
+                package test.pkg {
+                  public class Child1 extends test.pkg.Parent {
+                  }
+                  public class Child2 extends test.pkg.Parent {
+                    method public void method0(java.lang.String, int);
+                    method public void method4(java.lang.String, int);
+                  }
+                  public class Parent {
+                    method public void method1(java.lang.String, int);
+                    method public void method2(java.lang.String, int);
+                    method public void method3(java.lang.String, int);
+                  }
+                }
+                """,
+            sourceFiles = *arrayOf(
+                java(
+                    """
+                    package test.pkg;
+
+                    import androidx.annotation.NonNull;
+
+                    public class Child1 extends Parent {
+                        private Child1() {}
+                        @Override
+                        public void method1(@NonNull String first, int second) {
+                        }
+                    }
+                    """
+                ),
+                java(
+                    """
+                    package test.pkg;
+
+                    import androidx.annotation.NonNull;
+
+                    public class Child2 extends Parent {
+                        private Child2() {}
+                        @Override
+                        public void method0(String first, int second) {
+                        }
+                        @Override
+                        public void method1(String first, int second) {
+                        }
+                        @Override
+                        public void method2(@NonNull String first, int second) {
+                        }
+                        @Override
+                        public void method3(String first, int second) {
+                        }
+                        @Override
+                        public void method4(String first, int second) {
+                        }
+                    }
+                    """
+                ),
+                java(
+                    """
+                    package test.pkg;
+
+                    import androidx.annotation.Nullable;
+                    import androidx.annotation.NonNull;
+
+                    public class Parent {
+                        private Parent() { }
+                        public void method1(String first, int second) {
+                        }
+                        public void method2(@NonNull String first, int second) {
+                        }
+                        public void method3(String first, int second) {
+                        }
+                    }
+                    """
+                ),
+                androidxNonNullSource
+            ),
+            stubs = arrayOf(
+                """
+                package test.pkg;
+                @SuppressWarnings({"unchecked", "deprecation", "all"})
+                public class Child1 extends test.pkg.Parent {
+                Child1() { throw new RuntimeException("Stub!"); }
+                public void method1(@androidx.annotation.RecentlyNonNull java.lang.String first, int second) { throw new RuntimeException("Stub!"); }
+                }
+                """,
+                """
+                package test.pkg;
+                @SuppressWarnings({"unchecked", "deprecation", "all"})
+                public class Child2 extends test.pkg.Parent {
+                Child2() { throw new RuntimeException("Stub!"); }
+                public void method0(java.lang.String first, int second) { throw new RuntimeException("Stub!"); }
+                public void method1(java.lang.String first, int second) { throw new RuntimeException("Stub!"); }
+                public void method2(@androidx.annotation.RecentlyNonNull java.lang.String first, int second) { throw new RuntimeException("Stub!"); }
+                public void method3(java.lang.String first, int second) { throw new RuntimeException("Stub!"); }
+                public void method4(java.lang.String first, int second) { throw new RuntimeException("Stub!"); }
+                }
+                """
+            )
         )
     }
 }

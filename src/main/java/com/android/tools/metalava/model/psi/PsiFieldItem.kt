@@ -79,8 +79,9 @@ class PsiFieldItem(
 
     override fun duplicate(targetContainingClass: ClassItem): PsiFieldItem {
         val duplicated = create(codebase, targetContainingClass as PsiClassItem, psiField)
+        duplicated.inheritedFrom = containingClass
 
-        // Preserve flags that may have been inherited (propagated) fro surrounding packages
+        // Preserve flags that may have been inherited (propagated) from surrounding packages
         if (targetContainingClass.hidden) {
             duplicated.hidden = true
         }
@@ -93,6 +94,8 @@ class PsiFieldItem(
 
         return duplicated
     }
+
+    override var inheritedFrom: ClassItem? = null
 
     override fun equals(other: Any?): Boolean {
         if (this === other) {
@@ -127,22 +130,6 @@ class PsiFieldItem(
                 fieldType = fieldType,
                 isEnumConstant = isEnumConstant,
                 initialValue = initialValue
-            )
-            field.modifiers.setOwner(field)
-            return field
-        }
-
-        fun create(codebase: PsiBasedCodebase, containingClass: PsiClassItem, original: PsiFieldItem): PsiFieldItem {
-            val field = PsiFieldItem(
-                codebase = codebase,
-                psiField = original.psiField,
-                containingClass = containingClass,
-                name = original.name,
-                documentation = original.documentation,
-                modifiers = PsiModifierItem.create(codebase, original.modifiers),
-                fieldType = PsiTypeItem.create(codebase, original.fieldType),
-                isEnumConstant = original.isEnumConstant,
-                initialValue = original.initialValue
             )
             field.modifiers.setOwner(field)
             return field

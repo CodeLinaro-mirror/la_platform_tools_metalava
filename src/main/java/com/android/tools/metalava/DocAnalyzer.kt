@@ -93,7 +93,7 @@ class DocAnalyzer(
         // set also requires updating framework source code, so this doesn't seem
         // like an unreasonable burden.
 
-        codebase.accept(object : ApiVisitor(codebase) {
+        codebase.accept(object : ApiVisitor() {
             override fun visitItem(item: Item) {
                 val annotations = item.modifiers.annotations()
                 if (annotations.isEmpty()) {
@@ -554,10 +554,15 @@ class DocAnalyzer(
         "LemonMeringuePie" to "Lollipop",
         "LMP" to "Lollipop",
         "KeyLimePie" to "KitKat",
-        "KLP" to "KitKat"
+        "KLP" to "KitKat",
+        "teh" to "the"
     )
 
     private fun tweakGrammar() {
+        if (reporter.isSuppressed(Errors.TYPO)) {
+            return
+        }
+
         codebase.accept(object : VisibleItemVisitor() {
             override fun visitItem(item: Item) {
                 var doc = item.documentation
@@ -568,13 +573,16 @@ class DocAnalyzer(
                 for (typo in typos.keys) {
                     if (doc.contains(typo)) {
                         val replacement = typos[typo] ?: continue
-                        reporter.report(
-                            Errors.TYPO,
-                            item,
-                            "Replaced $typo with $replacement in documentation for $item"
-                        )
-                        doc = doc.replace(typo, replacement, false)
-                        item.documentation = doc
+                        val new = doc.replace(Regex("\\b$typo\\b"), replacement)
+                        if (new != doc) {
+                            reporter.report(
+                                Errors.TYPO,
+                                item,
+                                "Replaced $typo with $replacement in the documentation for $item"
+                            )
+                            doc = new
+                            item.documentation = doc
+                        }
                     }
                 }
 
@@ -616,7 +624,7 @@ class DocAnalyzer(
 
         val apiLookup = ApiLookup.get(client)
 
-        codebase.accept(object : ApiVisitor(codebase, visitConstructorsAsMethods = false) {
+        codebase.accept(object : ApiVisitor(visitConstructorsAsMethods = false) {
             override fun visitMethod(method: MethodItem) {
                 val psiMethod = method.psi() as PsiMethod
                 addApiLevelDocumentation(apiLookup.getMethodVersion(psiMethod), method)

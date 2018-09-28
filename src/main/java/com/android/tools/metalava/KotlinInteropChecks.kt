@@ -35,10 +35,9 @@ import org.jetbrains.uast.kotlin.KotlinUField
 class KotlinInteropChecks {
     fun check(codebase: Codebase) {
         codebase.accept(object : ApiVisitor(
-            codebase,
             // Sort by source order such that warnings follow source line number order
-            fieldComparator = FieldItem.comparator,
-            methodComparator = MethodItem.sourceOrderComparator
+            methodComparator = MethodItem.sourceOrderComparator,
+            fieldComparator = FieldItem.comparator
         ) {
             override fun visitMethod(method: MethodItem) {
                 checkMethod(method)
@@ -232,8 +231,7 @@ class KotlinInteropChecks {
         if (parameters.isNotEmpty() && method.isJava()) {
             // Public java parameter names should also not use Kotlin keywords as names
             for (parameter in parameters) {
-                val defaultValue = parameter.defaultValue()
-                if (defaultValue != null) {
+                if (parameter.hasDefaultValue()) {
                     haveDefault = true
                     break
                 }
@@ -345,7 +343,7 @@ class KotlinInteropChecks {
     }
 
     /** Returns true if the given string is a reserved Java keyword  */
-    fun isJavaKeyword(keyword: String): Boolean {
+    private fun isJavaKeyword(keyword: String): Boolean {
         // TODO when we built on top of IDEA core replace this with
         //   JavaLexer.isKeyword(candidate, LanguageLevel.JDK_1_5)
         when (keyword) {

@@ -181,17 +181,17 @@ interface ModifierList {
             writer: Writer,
             modifiers: ModifierList,
             item: Item,
+            target: AnnotationTarget,
             // TODO: "deprecated" isn't a modifier; clarify method name
             includeDeprecated: Boolean = false,
             includeAnnotations: Boolean = true,
+            runtimeAnnotationsOnly: Boolean = false,
             skipNullnessAnnotations: Boolean = false,
             omitCommonPackages: Boolean = false,
             removeAbstract: Boolean = false,
             removeFinal: Boolean = false,
             addPublic: Boolean = false,
-            onlyIncludeSignatureAnnotations: Boolean = true,
-            onlyIncludeStubAnnotations: Boolean = false,
-            onlyIncludeClassRetentionAnnotations: Boolean = false
+            separateLines: Boolean = false
         ) {
 
             val list = if (removeAbstract || removeFinal || addPublic) {
@@ -214,19 +214,40 @@ interface ModifierList {
             }
 
             if (includeAnnotations) {
+                //  if includeDepecated we want to do it
+                //  unless runtimeOnly is false, in which case we'd include it too
+                // e.g. emit @Deprecated if includeDeprecated && !runtimeOnly
+                if (item.deprecated &&
+                    (!options.compatOutput || target == AnnotationTarget.STUBS_FILE) &&
+                    (runtimeAnnotationsOnly || includeDeprecated)
+                ) {
+                    writer.write("@Deprecated")
+                    writer.write(if (separateLines) "\n" else " ")
+                }
+
                 writeAnnotations(
                     list = list,
+                    runtimeAnnotationsOnly = runtimeAnnotationsOnly,
                     skipNullnessAnnotations = skipNullnessAnnotations,
                     omitCommonPackages = omitCommonPackages,
-                    separateLines = false,
+                    separateLines = separateLines,
                     writer = writer,
-                    onlyIncludeSignatureAnnotations = onlyIncludeSignatureAnnotations,
-                    onlyIncludeStubAnnotations = onlyIncludeStubAnnotations,
-                    onlyIncludeClassRetentionAnnotations = onlyIncludeClassRetentionAnnotations
+                    target = target
                 )
+            } else {
+                // We always include @Deprecated annotation in stub files
+                if (item.deprecated && target == AnnotationTarget.STUBS_FILE) {
+                    writer.write("@Deprecated")
+                    writer.write(if (separateLines) "\n" else " ")
+                }
             }
 
-            if (compatibility.doubleSpaceForPackagePrivate && item.isPackagePrivate && item is MemberItem) {
+            if (item is PackageItem) {
+                // Packages use a modifier list, but only annotations apply
+                return
+            }
+
+            if (compatibility.extraSpaceForEmptyModifiers && item.isPackagePrivate && item is MemberItem) {
                 writer.write(" ")
             }
 
@@ -290,11 +311,11 @@ interface ModifierList {
                     writer.write("abstract ")
                 }
 
-                if (!compatibility.skipNativeModifier && list.isNative()) {
+                if (list.isNative() && (target == AnnotationTarget.STUBS_FILE || !compatibility.skipNativeModifier)) {
                     writer.write("native ")
                 }
 
-                if (item.deprecated && includeDeprecated) {
+                if (item.deprecated && includeDeprecated && target != AnnotationTarget.STUBS_FILE && options.compatOutput) {
                     writer.write("deprecated ")
                 }
 
@@ -314,7 +335,7 @@ interface ModifierList {
                     writer.write("volatile ")
                 }
             } else {
-                if (item.deprecated && includeDeprecated) {
+                if (item.deprecated && includeDeprecated && target != AnnotationTarget.STUBS_FILE && options.compatOutput) {
                     writer.write("deprecated ")
                 }
 
@@ -378,7 +399,7 @@ interface ModifierList {
                     writer.write("synchronized ")
                 }
 
-                if (!compatibility.skipNativeModifier && list.isNative()) {
+                if (list.isNative() && (target == AnnotationTarget.STUBS_FILE || !compatibility.skipNativeModifier)) {
                     writer.write("native ")
                 }
 
@@ -391,31 +412,38 @@ interface ModifierList {
         fun writeAnnotations(
             list: ModifierList,
             skipNullnessAnnotations: Boolean = false,
+            runtimeAnnotationsOnly: Boolean = false,
             omitCommonPackages: Boolean = false,
             separateLines: Boolean = false,
             filterDuplicates: Boolean = false,
             writer: Writer,
-            onlyIncludeSignatureAnnotations: Boolean = true,
-            onlyIncludeStubAnnotations: Boolean = true,
-            onlyIncludeClassRetentionAnnotations: Boolean = false
+            target: AnnotationTarget
         ) {
             val annotations = list.annotations()
+
+            // Ensure stable signature file order
+            if (annotations.size > 2) {
+                annotations.sortedBy { it.qualifiedName() }
+            }
+
             if (annotations.isNotEmpty()) {
                 var index = -1
                 for (annotation in annotations) {
                     index++
-                    if (onlyIncludeSignatureAnnotations && !annotation.isSignificantInSignatures()) {
+
+                    if (runtimeAnnotationsOnly && annotation.retention != AnnotationRetention.RUNTIME) {
                         continue
-                    } else if (onlyIncludeStubAnnotations && !annotation.isSignificantInStubs()) {
+                    }
+
+                    if (!annotation.targets().contains(target)) {
                         continue
-                    } else if (onlyIncludeClassRetentionAnnotations && !annotation.hasClassRetention() &&
-                        !options.includeSourceRetentionAnnotations
-                    ) {
-                        continue
-                    } else if ((annotation.isNonNull() || annotation.isNullable())) {
+                    } else if ((annotation.isNullnessAnnotation())) {
                         if (skipNullnessAnnotations) {
                             continue
                         }
+                    } else if (annotation.qualifiedName() == "java.lang.Deprecated") {
+                        // Special cased in stubs and signature files: emitted first
+                        continue
                     }
 
                     // Optionally filter out duplicates

@@ -19,7 +19,6 @@ package com.android.tools.metalava
 import com.android.tools.metalava.doclava1.ApiPredicate
 import com.android.tools.metalava.doclava1.Errors
 import com.android.tools.metalava.doclava1.FilterPredicate
-import com.android.tools.metalava.doclava1.TextCodebase
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.Item
 import java.io.File
@@ -59,7 +58,7 @@ import java.util.function.Predicate
  */
 class AnnotationsDiffer(
     private val superset: Codebase,
-    private val codebase: Codebase
+    codebase: Codebase
 ) {
     private val relevant = HashSet<Item>(1000)
 
@@ -103,7 +102,7 @@ class AnnotationsDiffer(
         }
         val filter =
             if (codebase.supportsDocumentation()) {
-                ApiPredicate(codebase)
+                ApiPredicate()
             } else {
                 Predicate<Item> { true }
             }
@@ -112,8 +111,8 @@ class AnnotationsDiffer(
 
     fun writeDiffSignature(apiFile: File) {
         val codebase = superset
-        val apiFilter = FilterPredicate(ApiPredicate(codebase))
-        val apiReference = ApiPredicate(codebase, ignoreShown = true)
+        val apiFilter = FilterPredicate(ApiPredicate())
+        val apiReference = ApiPredicate(ignoreShown = true)
         val apiEmit = apiFilter.and(predicate)
 
         progress("\nWriting annotation diff file: ")
@@ -121,8 +120,7 @@ class AnnotationsDiffer(
             val stringWriter = StringWriter()
             val writer = PrintWriter(stringWriter)
             writer.use { printWriter ->
-                val preFiltered = codebase.original != null || codebase is TextCodebase
-                val apiWriter = SignatureWriter(printWriter, apiEmit, apiReference, preFiltered)
+                val apiWriter = SignatureWriter(printWriter, apiEmit, apiReference, codebase.preFiltered)
                 codebase.accept(apiWriter)
             }
 

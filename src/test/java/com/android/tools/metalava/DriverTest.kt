@@ -46,20 +46,20 @@ import org.junit.Assert.fail
 import org.junit.Rule
 import org.junit.rules.TemporaryFolder
 import java.io.File
+import java.io.FileNotFoundException
 import java.io.PrintWriter
 import java.io.StringWriter
 import java.net.URL
 
 const val CHECK_OLD_DOCLAVA_TOO = false
 const val CHECK_STUB_COMPILATION = false
-const val SKIP_NON_COMPAT = false
 
 abstract class DriverTest {
     @get:Rule
     var temporaryFolder = TemporaryFolder()
 
-    protected fun createProject(vararg files: TestFile): File {
-        val dir = temporaryFolder.newFolder()
+    private fun createProject(vararg files: TestFile): File {
+        val dir = temporaryFolder.newFolder("project")
 
         files
             .map { it.createFile(dir) }
@@ -74,9 +74,18 @@ abstract class DriverTest {
         val sw = StringWriter()
         val writer = PrintWriter(sw)
         if (!com.android.tools.metalava.run(arrayOf(*args), writer, writer)) {
-            val actualFail = sw.toString().trim()
+            val actualFail = sw.toString().trim().replace(temporaryFolder.root.path, "TESTROOT")
             if (expectedFail != actualFail.replace(".", "").trim()) {
-                fail(actualFail)
+                if (expectedFail == "Aborting: Found compatibility problems with --check-compatibility" &&
+                    actualFail.startsWith("Aborting: Found compatibility problems checking the ")
+                ) {
+                    // Special case for compat checks; we don't want to force each one of them
+                    // to pass in the right string (which may vary based on whether writing out
+                    // the signature was passed at the same time
+                    // ignore
+                } else {
+                    fail(actualFail)
+                }
             }
         }
 
@@ -155,22 +164,26 @@ abstract class DriverTest {
         checkCompilation: Boolean = false,
         /** Annotations to merge in (in .xml format) */
         @Language("XML") mergeXmlAnnotations: String? = null,
-        /** Annotations to merge in (in .jaif format) */
-        @Language("TEXT") mergeJaifAnnotations: String? = null,
         /** Annotations to merge in (in .txt/.signature format) */
         @Language("TEXT") mergeSignatureAnnotations: String? = null,
+        /** Annotations to merge in (in Java stub format) */
+        @Language("JAVA") mergeJavaStubAnnotations: String? = null,
         /** An optional API signature file content to load **instead** of Java/Kotlin source files */
         @Language("TEXT") signatureSource: String? = null,
         /** An optional API jar file content to load **instead** of Java/Kotlin source files */
         apiJar: File? = null,
-        /** An optional API signature representing the previous API level to diff */
-        @Language("TEXT") previousApi: String? = null,
+        /** An optional API signature to check the current API's compatibility with */
+        @Language("TEXT") checkCompatibilityApi: String? = null,
+        /** An optional API signature to check the last released API's compatibility with */
+        @Language("TEXT") checkCompatibilityApiReleased: String? = null,
+        /** An optional API signature to check the current removed API's compatibility with */
+        @Language("TEXT") checkCompatibilityRemovedApiCurrent: String? = null,
+        /** An optional API signature to check the last released removed API's compatibility with */
+        @Language("TEXT") checkCompatibilityRemovedApiReleased: String? = null,
+        /** An optional API signature to compute nullness migration status from */
+        @Language("TEXT") migrateNullsApi: String? = null,
         /** An optional Proguard keep file to generate */
         @Language("Proguard") proguard: String? = null,
-        /** Whether we should migrate nullness information */
-        migrateNulls: Boolean = false,
-        /** Whether we should check compatibility */
-        checkCompatibility: Boolean = false,
         /** Show annotations (--show-annotation arguments) */
         showAnnotations: Array<String> = emptyArray(),
         /** If using [showAnnotations], whether to include unannotated */
@@ -224,7 +237,11 @@ abstract class DriverTest {
          * Whether to include source retention annotations in the stubs (in that case they do not
          * go into the extracted annotations zip file)
          */
-        includeSourceRetentionAnnotations: Boolean = true
+        includeSourceRetentionAnnotations: Boolean = true,
+        /**
+         * Whether to include the signature version in signatures
+         */
+        includeSignatureVersion: Boolean = false
     ) {
         System.setProperty(ENV_VAR_METALAVA_TESTS_RUNNING, VALUE_TRUE)
 
@@ -239,27 +256,30 @@ abstract class DriverTest {
 
         if (compatibilityMode && mergeXmlAnnotations != null) {
             fail(
-                "Can't specify both compatibilityMode and mergeAnnotations: there were no " +
+                "Can't specify both compatibilityMode and mergeXmlAnnotations: there were no " +
                     "annotations output in doclava1"
             )
         }
-        if (compatibilityMode && mergeJaifAnnotations != null) {
-            fail(
-                "Can't specify both compatibilityMode and mergeJaifAnnotations: there were no " +
-                    "annotations output in doclava1"
-            )
-        }
-
         if (compatibilityMode && mergeSignatureAnnotations != null) {
             fail(
                 "Can't specify both compatibilityMode and mergeSignatureAnnotations: there were no " +
                     "annotations output in doclava1"
             )
         }
+        if (compatibilityMode && mergeJavaStubAnnotations != null) {
+            fail(
+                "Can't specify both compatibilityMode and mergeJavaStubAnnotations: there were no " +
+                    "annotations output in doclava1"
+            )
+        }
         Errors.resetLevels()
 
         /** Expected output if exiting with an error code */
-        val expectedFail = if (checkCompatibility) {
+        val expectedFail = if (checkCompatibilityApi != null ||
+            checkCompatibilityApiReleased != null ||
+            checkCompatibilityRemovedApiCurrent != null ||
+            checkCompatibilityRemovedApiReleased != null
+        ) {
             "Aborting: Found compatibility problems with --check-compatibility"
         } else {
             ""
@@ -300,21 +320,13 @@ abstract class DriverTest {
         val reportedWarnings = StringBuilder()
         reporter = object : Reporter(project) {
             override fun print(message: String) {
-                reportedWarnings.append(message.replace(project.path, "TESTROOT").trim()).append('\n')
+                reportedWarnings.append(cleanupString(message, project).trim()).append('\n')
             }
         }
 
         val mergeAnnotationsArgs = if (mergeXmlAnnotations != null) {
             val merged = File(project, "merged-annotations.xml")
             Files.asCharSink(merged, Charsets.UTF_8).write(mergeXmlAnnotations.trimIndent())
-            arrayOf("--merge-annotations", merged.path)
-        } else {
-            emptyArray()
-        }
-
-        val jaifAnnotationsArgs = if (mergeJaifAnnotations != null) {
-            val merged = File(project, "merged-annotations.jaif")
-            Files.asCharSink(merged, Charsets.UTF_8).write(mergeJaifAnnotations.trimIndent())
             arrayOf("--merge-annotations", merged.path)
         } else {
             emptyArray()
@@ -328,23 +340,77 @@ abstract class DriverTest {
             emptyArray()
         }
 
-        val previousApiFile = if (previousApi != null) {
-            val prevApiJar = File(previousApi)
-            if (prevApiJar.isFile) {
-                prevApiJar
+        val javaStubAnnotationsArgs = if (mergeJavaStubAnnotations != null) {
+            val merged = File(project, "merged-annotations.java")
+            Files.asCharSink(merged, Charsets.UTF_8).write(mergeJavaStubAnnotations.trimIndent())
+            arrayOf("--merge-annotations", merged.path)
+        } else {
+            emptyArray()
+        }
+
+        val checkCompatibilityApiFile = if (checkCompatibilityApi != null) {
+            val jar = File(checkCompatibilityApi)
+            if (jar.isFile) {
+                jar
             } else {
-                val file = File(project, "previous-api.txt")
-                Files.asCharSink(file, Charsets.UTF_8).write(previousApi.trimIndent())
+                val file = File(project, "current-api.txt")
+                Files.asCharSink(file, Charsets.UTF_8).write(checkCompatibilityApi.trimIndent())
                 file
             }
         } else {
             null
         }
 
-        val previousApiArgs = if (previousApiFile != null) {
-            arrayOf("--previous-api", previousApiFile.path)
+        val checkCompatibilityApiReleasedFile = if (checkCompatibilityApiReleased != null) {
+            val jar = File(checkCompatibilityApiReleased)
+            if (jar.isFile) {
+                jar
+            } else {
+                val file = File(project, "released-api.txt")
+                Files.asCharSink(file, Charsets.UTF_8).write(checkCompatibilityApiReleased.trimIndent())
+                file
+            }
         } else {
-            emptyArray()
+            null
+        }
+
+        val checkCompatibilityRemovedApiCurrentFile = if (checkCompatibilityRemovedApiCurrent != null) {
+            val jar = File(checkCompatibilityRemovedApiCurrent)
+            if (jar.isFile) {
+                jar
+            } else {
+                val file = File(project, "removed-current-api.txt")
+                Files.asCharSink(file, Charsets.UTF_8).write(checkCompatibilityRemovedApiCurrent.trimIndent())
+                file
+            }
+        } else {
+            null
+        }
+
+        val checkCompatibilityRemovedApiReleasedFile = if (checkCompatibilityRemovedApiReleased != null) {
+            val jar = File(checkCompatibilityRemovedApiReleased)
+            if (jar.isFile) {
+                jar
+            } else {
+                val file = File(project, "removed-released-api.txt")
+                Files.asCharSink(file, Charsets.UTF_8).write(checkCompatibilityRemovedApiReleased.trimIndent())
+                file
+            }
+        } else {
+            null
+        }
+
+        val migrateNullsApiFile = if (migrateNullsApi != null) {
+            val jar = File(migrateNullsApi)
+            if (jar.isFile) {
+                jar
+            } else {
+                val file = File(project, "stable-api.txt")
+                Files.asCharSink(file, Charsets.UTF_8).write(migrateNullsApi.trimIndent())
+                file
+            }
+        } else {
+            null
         }
 
         val manifestFileArgs = if (manifest != null) {
@@ -355,14 +421,32 @@ abstract class DriverTest {
             emptyArray()
         }
 
-        val migrateNullsArguments = if (migrateNulls) {
-            arrayOf("--migrate-nullness")
+        val migrateNullsArguments = if (migrateNullsApiFile != null) {
+            arrayOf("--migrate-nullness", migrateNullsApiFile.path)
         } else {
             emptyArray()
         }
 
-        val checkCompatibilityArguments = if (checkCompatibility) {
-            arrayOf("--check-compatibility")
+        val checkCompatibilityArguments = if (checkCompatibilityApiFile != null) {
+            arrayOf("--check-compatibility:api:current", checkCompatibilityApiFile.path)
+        } else {
+            emptyArray()
+        }
+
+        val checkCompatibilityApiReleasedArguments = if (checkCompatibilityApiReleasedFile != null) {
+            arrayOf("--check-compatibility:api:released", checkCompatibilityApiReleasedFile.path)
+        } else {
+            emptyArray()
+        }
+
+        val checkCompatibilityRemovedCurrentArguments = if (checkCompatibilityRemovedApiCurrentFile != null) {
+            arrayOf("--check-compatibility:removed:current", checkCompatibilityRemovedApiCurrentFile.path)
+        } else {
+            emptyArray()
+        }
+
+        val checkCompatibilityRemovedReleasedArguments = if (checkCompatibilityRemovedApiReleasedFile != null) {
+            arrayOf("--check-compatibility:removed:released", checkCompatibilityRemovedApiReleasedFile.path)
         } else {
             emptyArray()
         }
@@ -411,6 +495,10 @@ abstract class DriverTest {
             if (includeSystemApiAnnotations && !args.contains("android.annotation.SystemService")) {
                 args.add("--show-annotation")
                 args.add("android.annotation.SystemService")
+            }
+            if (includeSystemApiAnnotations && !args.contains("android.annotation.TestApi")) {
+                args.add("--show-annotation")
+                args.add("android.annotation.TestApi")
             }
             args.toTypedArray()
         } else {
@@ -586,6 +674,12 @@ abstract class DriverTest {
             "--no-color",
             "--no-banner",
 
+            // Tell metalava where to store temp folder: place them under the
+            // test root folder such that we clean up the output strings referencing
+            // paths to the temp folder
+            "--temp-folder",
+            temporaryFolder.newFolder("temp").path,
+
             // For the tests we want to treat references to APIs like java.io.Closeable
             // as a class that is part of the API surface, not as a hidden class as would
             // be the case when analyzing a complete API surface
@@ -614,14 +708,17 @@ abstract class DriverTest {
             "--output-kotlin-nulls=${if (outputKotlinStyleNulls) "yes" else "no"}",
             "--input-kotlin-nulls=${if (inputKotlinStyleNulls) "yes" else "no"}",
             "--omit-common-packages=${if (omitCommonPackages) "yes" else "no"}",
+            "--include-signature-version=${if (includeSignatureVersion) "yes" else "no"}",
             *coverageStats,
             *quiet,
             *mergeAnnotationsArgs,
-            *jaifAnnotationsArgs,
             *signatureAnnotationsArgs,
-            *previousApiArgs,
+            *javaStubAnnotationsArgs,
             *migrateNullsArguments,
             *checkCompatibilityArguments,
+            *checkCompatibilityApiReleasedArguments,
+            *checkCompatibilityRemovedCurrentArguments,
+            *checkCompatibilityRemovedReleasedArguments,
             *proguardKeepArguments,
             *manifestFileArgs,
             *applyApiLevelsXmlArgs,
@@ -744,10 +841,7 @@ abstract class DriverTest {
         if (warnings != null) {
             assertEquals(
                 warnings.trimIndent().trim(),
-                reportedWarnings.toString().replace(project.path, "TESTROOT").replace(
-                    project.canonicalPath,
-                    "TESTROOT"
-                ).trim()
+                cleanupString(reportedWarnings.toString(), project)
             )
         }
 
@@ -763,7 +857,7 @@ abstract class DriverTest {
 
         if (stubs.isNotEmpty() && stubsDir != null) {
             for (i in 0 until stubs.size) {
-                val stub = stubs[i]
+                var stub = stubs[i].trimIndent()
                 val sourceFile = sourceFiles[i]
                 val targetPath = if (sourceFile.targetPath.endsWith(DOT_KT)) {
                     // Kotlin source stubs are rewritten as .java files for now
@@ -771,9 +865,35 @@ abstract class DriverTest {
                 } else {
                     sourceFile.targetPath
                 }
-                val stubFile = File(stubsDir, targetPath.substring("src/".length))
+                var stubFile = File(stubsDir, targetPath.substring("src/".length))
+                if (!stubFile.isFile) {
+                    if (stub.startsWith("[") && stub.contains("]")) {
+                        val pathEnd = stub.indexOf("]\n")
+                        val path = stub.substring(1, pathEnd)
+                        stubFile = File(stubsDir, path)
+                        if (stubFile.isFile) {
+                            stub = stub.substring(pathEnd + 2)
+                        }
+                    }
+                    if (!stubFile.exists()) {
+                        /* Example:
+                            stubs = arrayOf(
+                                """
+                                [test/visible/package-info.java]
+                                <html>My package docs</html>
+                                package test.visible;
+                                """,
+                                ...
+                           Here the stub will be read from $stubsDir/test/visible/package-info.java.
+                         */
+                        throw FileNotFoundException(
+                            "Could not find generated stub for $targetPath; consider " +
+                                "setting target relative path in stub header as prefix surrounded by []"
+                        )
+                    }
+                }
                 val expectedText = readFile(stubFile, stripBlankLines, trim)
-                assertEquals(stub.trimIndent(), expectedText)
+                assertEquals(stub, expectedText)
             }
         }
 
@@ -1006,6 +1126,27 @@ abstract class DriverTest {
         }
     }
 
+    /** Hides path prefixes from /tmp folders used by the testing infrastructure */
+    private fun cleanupString(string: String, project: File?): String {
+        var s = string
+
+        if (project != null) {
+            s = s.replace(project.path, "TESTROOT")
+            s = s.replace(project.canonicalPath, "TESTROOT")
+        }
+
+        s = s.replace(temporaryFolder.root.path, "TESTROOT")
+
+        val tmp = System.getProperty("java.io.tmpdir")
+        if (tmp != null) {
+            s = s.replace(tmp, "TEST")
+        }
+
+        s = s.trim()
+
+        return s
+    }
+
     private fun checkSignaturesWithDoclava1(
         api: String,
         argument: String,
@@ -1131,6 +1272,20 @@ abstract class DriverTest {
         ) {
             return
         }
+
+        // If there's a discrepancy between doclava1 and metalava, you can debug
+        // doclava; to do this, open the Doclava project, and take all the
+        // metalava arguments, drop the ones that don't apply and use the
+        // doclava-style names instead of metalava (e.g. -stubs instead of --stubs,
+        // -showAnnotation instead of --show-annotation, -sourcepath instead of
+        // --sourcepath, and so on. Finally, and most importantly, add these
+        // 4 arguments at the beginning:
+        //   "-doclet",
+        //   "com.google.doclava.Doclava",
+        //   "-docletpath",
+        //   "out/host/linux-x86/framework/jsilver.jar:out/host/linux-x86/framework/doclava.jar",
+        // ..and finally from your Main entry point take this array of strings
+        // and call Doclava.main(newArgs)
 
         val expectedText = readFile(expected, stripBlankLines, trim)
         assertEquals(stripComments(api, stripLineComments = false).trimIndent(), expectedText)
@@ -1646,6 +1801,29 @@ val widgetSource: TestFile = java(
     @Target({ ElementType.TYPE })
     @Retention(RetentionPolicy.SOURCE)
     public @interface Widget {
+    }
+    """
+).indented()
+
+val restrictToSource: TestFile = java(
+    """
+    package androidx.annotation;
+    import java.lang.annotation.*;
+    import static java.lang.annotation.ElementType.*;
+    import static java.lang.annotation.RetentionPolicy.*;
+    @SuppressWarnings("WeakerAccess")
+    @Retention(CLASS)
+    @Target({ANNOTATION_TYPE, TYPE, METHOD, CONSTRUCTOR, FIELD, PACKAGE})
+    public @interface RestrictTo {
+        Scope[] value();
+        enum Scope {
+            LIBRARY,
+            LIBRARY_GROUP,
+            @Deprecated
+            GROUP_ID,
+            TESTS,
+            SUBCLASSES,
+        }
     }
     """
 ).indented()

@@ -16,16 +16,20 @@
 
 package com.android.tools.metalava.doclava1;
 
+import com.android.ide.common.repository.GradleVersion;
 import com.android.tools.lint.checks.infrastructure.ClassNameKt;
 import com.android.tools.metalava.model.AnnotationItem;
+import com.android.tools.metalava.model.DefaultModifierList;
 import com.android.tools.metalava.model.TypeParameterList;
 import com.android.tools.metalava.model.text.TextClassItem;
 import com.android.tools.metalava.model.text.TextConstructorItem;
 import com.android.tools.metalava.model.text.TextFieldItem;
 import com.android.tools.metalava.model.text.TextMethodItem;
+import com.android.tools.metalava.model.text.TextModifiers;
 import com.android.tools.metalava.model.text.TextPackageItem;
 import com.android.tools.metalava.model.text.TextParameterItem;
 import com.android.tools.metalava.model.text.TextParameterItemKt;
+import com.android.tools.metalava.model.text.TextPropertyItem;
 import com.android.tools.metalava.model.text.TextTypeItem;
 import com.android.tools.metalava.model.text.TextTypeParameterList;
 import com.google.common.base.Charsets;
@@ -43,6 +47,7 @@ import static com.android.tools.metalava.ConstantsKt.ANDROIDX_NULLABLE;
 import static com.android.tools.metalava.ConstantsKt.JAVA_LANG_ANNOTATION;
 import static com.android.tools.metalava.ConstantsKt.JAVA_LANG_ENUM;
 import static com.android.tools.metalava.ConstantsKt.JAVA_LANG_STRING;
+import static com.android.tools.metalava.SignatureWriterKt.SIGNATURE_FORMAT_PREFIX;
 import static com.android.tools.metalava.model.FieldItemKt.javaUnescapeString;
 
 //
@@ -64,12 +69,31 @@ public class ApiFile {
     public static TextCodebase parseApi(String filename, String apiText,
                                         boolean kotlinStyleNulls,
                                         boolean supportsStagedNullability) throws ApiParseException {
+        GradleVersion format = null;
+        if (apiText.startsWith(SIGNATURE_FORMAT_PREFIX)) {
+            int begin = SIGNATURE_FORMAT_PREFIX.length();
+            int end = apiText.indexOf('\n', begin);
+            if (end == -1) {
+                end = apiText.length();
+            } else if (end > 0 && apiText.charAt(end - 1) == '\r') {
+                end--;
+            }
+            String formatString = apiText.substring(begin, end).trim();
+            if (!formatString.isEmpty()) {
+                format = GradleVersion.tryParse(formatString);
+            }
+        }
+
         if (apiText.contains("/*")) {
             apiText = ClassNameKt.stripComments(apiText, false); // line comments are used to stash field constants
         }
 
         final Tokenizer tokenizer = new Tokenizer(filename, apiText.toCharArray());
-        final TextCodebase api = new TextCodebase();
+        final TextCodebase api = new TextCodebase(new File(filename));
+        api.setDescription("Codebase loaded from " + filename);
+        if (format != null) {
+            api.setFormat(format);
+        }
         api.setSupportsStagedNullability(supportsStagedNullability);
         api.setKotlinStyleNulls(kotlinStyleNulls);
 
@@ -97,9 +121,20 @@ public class ApiFile {
         TextPackageItem pkg;
 
         token = tokenizer.requireToken();
+
+        // Metalava: including annotations in file now
+        List<String> annotations = getAnnotations(tokenizer, token);
+        TextModifiers modifiers = new TextModifiers(api, DefaultModifierList.PUBLIC, null);
+        if (annotations != null) {
+            modifiers.addAnnotations(annotations);
+        }
+
+        token = tokenizer.getCurrent();
+
         assertIdent(tokenizer, token);
         name = token;
-        pkg = new TextPackageItem(api, name, tokenizer.pos());
+        pkg = new TextPackageItem(api, name, modifiers, tokenizer.pos());
+
         token = tokenizer.requireToken();
         if (!"{".equals(token)) {
             throw new ApiParseException("expected '{' got " + token, tokenizer);
@@ -117,74 +152,20 @@ public class ApiFile {
 
     private static void parseClass(TextCodebase api, TextPackageItem pkg, Tokenizer tokenizer, String token)
         throws ApiParseException {
-        boolean isPublic = false;
-        boolean isProtected = false;
-        boolean isPrivate = false;
-        boolean internal = false;
-        boolean isStatic = false;
-        boolean isFinal = false;
-        boolean isAbstract = false;
-        boolean isDeprecated = false;
         boolean isInterface = false;
         boolean isAnnotation = false;
         boolean isEnum = false;
-        boolean sealed = false;
         String name;
         String qualifiedName;
         String ext = null;
         TextClassItem cl;
 
         // Metalava: including annotations in file now
-        List<String> annotations = null;
-        Pair<String, List<String>> result = getAnnotations(tokenizer, token);
-        if (result != null) {
-            token = result.component1();
-            annotations = result.component2();
-        }
+        List<String> annotations = getAnnotations(tokenizer, token);
+        token = tokenizer.getCurrent();
 
-        processModifiers:
-        while (true) {
-            switch (token) {
-                case "public":
-                    isPublic = true;
-                    token = tokenizer.requireToken();
-                    break;
-                case "protected":
-                    isProtected = true;
-                    token = tokenizer.requireToken();
-                    break;
-                case "private":
-                    isPrivate = true;
-                    token = tokenizer.requireToken();
-                    break;
-                case "internal":
-                    internal = true;
-                    token = tokenizer.requireToken();
-                    break;
-                case "static":
-                    isStatic = true;
-                    token = tokenizer.requireToken();
-                    break;
-                case "final":
-                    isFinal = true;
-                    token = tokenizer.requireToken();
-                    break;
-                case "abstract":
-                    isAbstract = true;
-                    token = tokenizer.requireToken();
-                    break;
-                case "deprecated":
-                    isDeprecated = true;
-                    token = tokenizer.requireToken();
-                    break;
-                case "sealed":
-                    sealed = true;
-                    token = tokenizer.requireToken();
-                    break;
-                default:
-                    break processModifiers;
-            }
-        }
+        TextModifiers modifiers = parseModifiers(api, tokenizer, token, annotations);
+        token = tokenizer.getCurrent();
 
         if ("class".equals(token)) {
             token = tokenizer.requireToken();
@@ -193,12 +174,12 @@ public class ApiFile {
             token = tokenizer.requireToken();
         } else if ("@interface".equals(token)) {
             // Annotation
-            isAbstract = true;
+            modifiers.setAbstract(true);
             isAnnotation = true;
             token = tokenizer.requireToken();
         } else if ("enum".equals(token)) {
             isEnum = true;
-            isFinal = true;
+            modifiers.setFinal(true);
             ext = JAVA_LANG_ENUM;
             token = tokenizer.requireToken();
         } else {
@@ -218,13 +199,12 @@ public class ApiFile {
 
         token = tokenizer.requireToken();
 
-        cl = new TextClassItem(api, tokenizer.pos(), isPublic, isProtected,
-            isPrivate, internal, isStatic, isInterface, isAbstract, isEnum, isAnnotation,
-            isFinal, sealed, typeInfo.toErasedTypeString(), typeInfo.qualifiedTypeName(),
+        cl = new TextClassItem(api, tokenizer.pos(), modifiers, isInterface, isEnum, isAnnotation,
+            typeInfo.toErasedTypeString(null), typeInfo.qualifiedTypeName(),
             rawName, annotations);
         cl.setContainingPackage(pkg);
         cl.setTypeInfo(typeInfo);
-        cl.setDeprecated(isDeprecated);
+        cl.setDeprecated(modifiers.isDeprecated());
         if ("extends".equals(token)) {
             token = tokenizer.requireToken();
             assertIdent(tokenizer, token);
@@ -276,6 +256,9 @@ public class ApiFile {
             } else if ("enum_constant".equals(token)) {
                 token = tokenizer.requireToken();
                 parseField(api, tokenizer, cl, token, true);
+            } else if ("property".equals(token)) {
+                token = tokenizer.requireToken();
+                parseProperty(api, tokenizer, cl, token);
             } else {
                 throw new ApiParseException("expected ctor, enum_constant, field or method", tokenizer);
             }
@@ -304,7 +287,7 @@ public class ApiFile {
         return new Pair<>(type, annotations);
     }
 
-    private static Pair<String, List<String>> getAnnotations(Tokenizer tokenizer, String token) throws ApiParseException {
+    private static List<String> getAnnotations(Tokenizer tokenizer, String token) throws ApiParseException {
         List<String> annotations = null;
 
         while (true) {
@@ -334,59 +317,20 @@ public class ApiFile {
             }
         }
 
-        if (annotations != null) {
-            //noinspection unchecked
-            return new Pair<>(token, annotations);
-        } else {
-            return null;
-        }
+        return annotations;
     }
 
     private static void parseConstructor(TextCodebase api, Tokenizer tokenizer, TextClassItem cl, String token)
         throws ApiParseException {
-        boolean isPublic = false;
-        boolean isProtected = false;
-        boolean isPrivate = false;
-        boolean isInternal = false;
-        boolean isDeprecated = false;
         String name;
         TextConstructorItem method;
 
         // Metalava: including annotations in file now
-        List<String> annotations = null;
-        Pair<String, List<String>> result = getAnnotations(tokenizer, token);
-        if (result != null) {
-            token = result.component1();
-            annotations = result.component2();
-        }
+        List<String> annotations = getAnnotations(tokenizer, token);
+        token = tokenizer.getCurrent();
 
-        processModifiers:
-        while (true) {
-            switch (token) {
-                case "public":
-                    isPublic = true;
-                    token = tokenizer.requireToken();
-                    break;
-                case "protected":
-                    isProtected = true;
-                    token = tokenizer.requireToken();
-                    break;
-                case "private":
-                    isPrivate = true;
-                    token = tokenizer.requireToken();
-                    break;
-                case "internal":
-                    isInternal = true;
-                    token = tokenizer.requireToken();
-                    break;
-                case "deprecated":
-                    isDeprecated = true;
-                    token = tokenizer.requireToken();
-                    break;
-                default:
-                    break processModifiers;
-            }
-        }
+        TextModifiers modifiers = parseModifiers(api, tokenizer, token, annotations);
+        token = tokenizer.getCurrent();
 
         assertIdent(tokenizer, token);
         name = token.substring(token.lastIndexOf('.') + 1); // For inner classes, strip outer classes from name
@@ -394,14 +338,8 @@ public class ApiFile {
         if (!"(".equals(token)) {
             throw new ApiParseException("expected (", tokenizer);
         }
-        method = new TextConstructorItem(api, /*typeParameters*/
-            name, /*signature*/ cl, isPublic, isProtected, isPrivate, isInternal, false/*isFinal*/,
-            false/*isStatic*/, /*isSynthetic*/ false/*isAbstract*/, false/*isSynthetic*/,
-            false/*isNative*/, false/* isDefault */,
-            /*isAnnotationElement*/  /*flatSignature*/
-            /*overriddenMethod*/ cl.asTypeInfo(),
-            /*thrownExceptions*/ tokenizer.pos(), annotations);
-        method.setDeprecated(isDeprecated);
+        method = new TextConstructorItem(api, name, cl, modifiers, cl.asTypeInfo(), tokenizer.pos());
+        method.setDeprecated(modifiers.isDeprecated());
         parseParameterList(api, tokenizer, method);
         token = tokenizer.requireToken();
         if ("throws".equals(token)) {
@@ -415,104 +353,17 @@ public class ApiFile {
 
     private static void parseMethod(TextCodebase api, Tokenizer tokenizer, TextClassItem cl, String token)
         throws ApiParseException {
-        boolean isPublic = false;
-        boolean isProtected = false;
-        boolean isPrivate = false;
-        boolean isInternal = false;
-        boolean isStatic = false;
-        boolean isFinal = false;
-        boolean isAbstract = false;
-        boolean isDeprecated = false;
-        boolean isSynchronized = false;
-        boolean isDefault = false;
-        boolean isInfix = false;
-        boolean isOperator = false;
-        boolean isInline = false;
-        boolean isNative = false;
-        boolean isStrictFp = false;
         TextTypeItem returnType;
         String name;
         TextMethodItem method;
         TypeParameterList typeParameterList = TypeParameterList.Companion.getNONE();
 
         // Metalava: including annotations in file now
-        List<String> annotations = null;
-        Pair<String, List<String>> result = getAnnotations(tokenizer, token);
-        if (result != null) {
-            token = result.component1();
-            annotations = result.component2();
-        }
+        List<String> annotations = getAnnotations(tokenizer, token);
+        token = tokenizer.getCurrent();
 
-        // Parse modifiers; we loop here because we're not sure about the order (which can vary
-        // based on metalava's preference flags)
-
-        processModifiers:
-        while (true) {
-            switch (token) {
-                case "public":
-                    isPublic = true;
-                    token = tokenizer.requireToken();
-                    break;
-                case "protected":
-                    isProtected = true;
-                    token = tokenizer.requireToken();
-                    break;
-                case "private":
-                    isPrivate = true;
-                    token = tokenizer.requireToken();
-                    break;
-                case "internal":
-                    isInternal = true;
-                    token = tokenizer.requireToken();
-                    break;
-                case "default":
-                    isDefault = true;
-                    token = tokenizer.requireToken();
-                    break;
-                case "static":
-                    isStatic = true;
-                    token = tokenizer.requireToken();
-                    break;
-                case "final":
-                    isFinal = true;
-                    token = tokenizer.requireToken();
-                    break;
-                case "abstract":
-                    isAbstract = true;
-                    token = tokenizer.requireToken();
-                    break;
-                case "deprecated":
-                    isDeprecated = true;
-                    token = tokenizer.requireToken();
-                    break;
-                case "synchronized":
-                    isSynchronized = true;
-                    token = tokenizer.requireToken();
-                    break;
-                case "native":
-                    isNative = true;
-                    token = tokenizer.requireToken();
-                    break;
-                case "strictfp":
-                    isStrictFp = true;
-                    token = tokenizer.requireToken();
-                    break;
-                case "infix":
-                    isInfix = true;
-                    token = tokenizer.requireToken();
-                    break;
-                case "operator":
-                    isOperator = true;
-                    token = tokenizer.requireToken();
-                    break;
-                case "inline":
-                    isInline = true;
-                    token = tokenizer.requireToken();
-                    break;
-                default:
-                    break processModifiers;
-            }
-        }
+        TextModifiers modifiers = parseModifiers(api, tokenizer, token, null);
+        token = tokenizer.getCurrent();
 
         if ("<".equals(token)) {
             typeParameterList = parseTypeParameterList(api, tokenizer);
@@ -523,6 +374,7 @@ public class ApiFile {
         Pair<String, List<String>> kotlinTypeSuffix = processKotlinTypeSuffix(api, token, annotations);
         token = kotlinTypeSuffix.getFirst();
         annotations = kotlinTypeSuffix.getSecond();
+        modifiers.addAnnotations(annotations);
         String returnTypeString = token;
 
         token = tokenizer.requireToken();
@@ -552,13 +404,12 @@ public class ApiFile {
 
         assertIdent(tokenizer, token);
         name = token;
-        method = new TextMethodItem(
-            api, name, /*signature*/ cl,
-            isPublic, isProtected, isPrivate, isInternal, isFinal, isStatic, isAbstract,
-            isSynchronized, isNative, isDefault, isStrictFp, isInfix, isOperator, isInline,
-            returnType, tokenizer.pos(), annotations);
-        method.setDeprecated(isDeprecated);
+        method = new TextMethodItem(api, name, cl, modifiers, returnType, tokenizer.pos());
+        method.setDeprecated(modifiers.isDeprecated());
         method.setTypeParameterList(typeParameterList);
+        if (typeParameterList instanceof TextTypeParameterList) {
+            ((TextTypeParameterList) typeParameterList).setOwner(method);
+        }
         token = tokenizer.requireToken();
         if (!"(".equals(token)) {
             throw new ApiParseException("expected (, was " + token, tokenizer);
@@ -592,104 +443,36 @@ public class ApiFile {
 
     private static void parseField(TextCodebase api, Tokenizer tokenizer, TextClassItem cl, String token, boolean isEnum)
         throws ApiParseException {
-        boolean isPublic = false;
-        boolean isProtected = false;
-        boolean isPrivate = false;
-        boolean isInternal = false;
-        boolean isStatic = false;
-        boolean isFinal = false;
-        boolean isDeprecated = false;
-        boolean isTransient = false;
-        boolean isVolatile = false;
-        String type;
-        String name;
-        String val = null;
-        Object v;
-        TextFieldItem field;
+        List<String> annotations = getAnnotations(tokenizer, token);
+        token = tokenizer.getCurrent();
 
-        // Metalava: including annotations in file now
-        List<String> annotations = null;
-        Pair<String, List<String>> result = getAnnotations(tokenizer, token);
-        if (result != null) {
-            token = result.component1();
-            annotations = result.component2();
-        }
-
-        processModifiers:
-        while (true) {
-            switch (token) {
-                case "public":
-                    isPublic = true;
-                    token = tokenizer.requireToken();
-                    break;
-                case "protected":
-                    isProtected = true;
-                    token = tokenizer.requireToken();
-                    break;
-                case "private":
-                    isPrivate = true;
-                    token = tokenizer.requireToken();
-                    break;
-                case "internal":
-                    isInternal = true;
-                    token = tokenizer.requireToken();
-                    break;
-                case "static":
-                    isStatic = true;
-                    token = tokenizer.requireToken();
-                    break;
-                case "final":
-                    isFinal = true;
-                    token = tokenizer.requireToken();
-                    break;
-                case "deprecated":
-                    isDeprecated = true;
-                    token = tokenizer.requireToken();
-                    break;
-                case "transient":
-                    isTransient = true;
-                    token = tokenizer.requireToken();
-                    break;
-                case "volatile":
-                    isVolatile = true;
-                    token = tokenizer.requireToken();
-                    break;
-                default:
-                    break processModifiers;
-            }
-        }
-
+        TextModifiers modifiers = parseModifiers(api, tokenizer, token, null);
+        token = tokenizer.getCurrent();
         assertIdent(tokenizer, token);
 
         Pair<String, List<String>> kotlinTypeSuffix = processKotlinTypeSuffix(api, token, annotations);
         token = kotlinTypeSuffix.getFirst();
         annotations = kotlinTypeSuffix.getSecond();
-        type = token;
+        modifiers.addAnnotations(annotations);
+
+        String type = token;
         TextTypeItem typeInfo = api.obtainTypeFromString(type);
 
         token = tokenizer.requireToken();
         assertIdent(tokenizer, token);
-        name = token;
+        String name = token;
         token = tokenizer.requireToken();
+        Object value = null;
         if ("=".equals(token)) {
             token = tokenizer.requireToken(false);
-            val = token;
+            value = parseValue(type, token);
             token = tokenizer.requireToken();
         }
         if (!";".equals(token)) {
             throw new ApiParseException("expected ; found " + token, tokenizer);
         }
-        try {
-            v = parseValue(type, val);
-        } catch (ApiParseException ex) {
-            ex.line = tokenizer.getLine();
-            throw ex;
-        }
-
-        field = new TextFieldItem(api, name, cl, isPublic, isProtected, isPrivate, isInternal, isFinal, isStatic,
-            isTransient, isVolatile, typeInfo, v, tokenizer.pos(),
-            annotations);
-        field.setDeprecated(isDeprecated);
+        TextFieldItem field = new TextFieldItem(api, name, cl, modifiers, typeInfo, value, tokenizer.pos());
+        field.setDeprecated(modifiers.isDeprecated());
         if (isEnum) {
             cl.addEnumConstant(field);
         } else {
@@ -697,7 +480,106 @@ public class ApiFile {
         }
     }
 
-    public static Object parseValue(String type, String val) throws ApiParseException {
+    private static TextModifiers parseModifiers(
+        TextCodebase api,
+        Tokenizer tokenizer,
+        String token,
+        List<String> annotations) throws ApiParseException {
+
+        TextModifiers modifiers = new TextModifiers(api, 0, null);
+
+        processModifiers:
+        while (true) {
+            switch (token) {
+                case "public":
+                    modifiers.setPublic(true);
+                    token = tokenizer.requireToken();
+                    break;
+                case "protected":
+                    modifiers.setProtected(true);
+                    token = tokenizer.requireToken();
+                    break;
+                case "private":
+                    modifiers.setPrivate(true);
+                    token = tokenizer.requireToken();
+                    break;
+                case "internal":
+                    modifiers.setInternal(true);
+                    token = tokenizer.requireToken();
+                    break;
+                case "static":
+                    modifiers.setStatic(true);
+                    token = tokenizer.requireToken();
+                    break;
+                case "final":
+                    modifiers.setFinal(true);
+                    token = tokenizer.requireToken();
+                    break;
+                case "deprecated":
+                    modifiers.setDeprecated(true);
+                    token = tokenizer.requireToken();
+                    break;
+                case "abstract":
+                    modifiers.setAbstract(true);
+                    token = tokenizer.requireToken();
+                    break;
+                case "transient":
+                    modifiers.setTransient(true);
+                    token = tokenizer.requireToken();
+                    break;
+                case "volatile":
+                    modifiers.setVolatile(true);
+                    token = tokenizer.requireToken();
+                    break;
+                case "sealed":
+                    modifiers.setSealed(true);
+                    token = tokenizer.requireToken();
+                    break;
+                case "default":
+                    modifiers.setDefault(true);
+                    token = tokenizer.requireToken();
+                    break;
+                case "synchronized":
+                    modifiers.setSynchronized(true);
+                    token = tokenizer.requireToken();
+                    break;
+                case "native":
+                    modifiers.setNative(true);
+                    token = tokenizer.requireToken();
+                    break;
+                case "strictfp":
+                    modifiers.setStrictFp(true);
+                    token = tokenizer.requireToken();
+                    break;
+                case "infix":
+                    modifiers.setInfix(true);
+                    token = tokenizer.requireToken();
+                    break;
+                case "operator":
+                    modifiers.setOperator(true);
+                    token = tokenizer.requireToken();
+                    break;
+                case "inline":
+                    modifiers.setInline(true);
+                    token = tokenizer.requireToken();
+                    break;
+                case "vararg":
+                    modifiers.setVarArg(true);
+                    token = tokenizer.requireToken();
+                    break;
+                default:
+                    break processModifiers;
+            }
+        }
+
+        if (annotations != null) {
+            modifiers.addAnnotations(annotations);
+        }
+
+        return modifiers;
+    }
+
+    private static Object parseValue(String type, String val) {
         if (val != null) {
             if ("boolean".equals(type)) {
                 return "true".equals(val) ? Boolean.TRUE : Boolean.FALSE;
@@ -746,6 +628,39 @@ public class ApiFile {
         }
     }
 
+    private static void parseProperty(TextCodebase api, Tokenizer tokenizer, TextClassItem cl, String token)
+        throws ApiParseException {
+        String type;
+        String name;
+
+        // Metalava: including annotations in file now
+        List<String> annotations = getAnnotations(tokenizer, token);
+        token = tokenizer.getCurrent();
+
+        TextModifiers modifiers = parseModifiers(api, tokenizer, token, null);
+        token = tokenizer.getCurrent();
+        assertIdent(tokenizer, token);
+
+        Pair<String, List<String>> kotlinTypeSuffix = processKotlinTypeSuffix(api, token, annotations);
+        token = kotlinTypeSuffix.getFirst();
+        annotations = kotlinTypeSuffix.getSecond();
+        modifiers.addAnnotations(annotations);
+        type = token;
+        TextTypeItem typeInfo = api.obtainTypeFromString(type);
+
+        token = tokenizer.requireToken();
+        assertIdent(tokenizer, token);
+        name = token;
+        token = tokenizer.requireToken();
+        if (!";".equals(token)) {
+            throw new ApiParseException("expected ; found " + token, tokenizer);
+        }
+
+        TextPropertyItem property = new TextPropertyItem(api, name, cl, modifiers, typeInfo, tokenizer.pos());
+        property.setDeprecated(modifiers.isDeprecated());
+        cl.addProperty(property);
+    }
+
     private static TypeParameterList parseTypeParameterList(TextCodebase codebase, Tokenizer tokenizer) throws ApiParseException {
         String token;
 
@@ -764,7 +679,7 @@ public class ApiFile {
         if (typeParameterList.isEmpty()) {
             return TypeParameterList.Companion.getNONE();
         } else {
-            return TextTypeParameterList.Companion.create(codebase, typeParameterList);
+            return TextTypeParameterList.Companion.create(codebase, null, typeParameterList);
         }
     }
 
@@ -781,18 +696,11 @@ public class ApiFile {
             // annotations optional-modifiers type-with-use-annotations-and-generics optional-name optional-equals-default-value
 
             // Metalava: including annotations in file now
-            List<String> annotations = null;
-            Pair<String, List<String>> result = getAnnotations(tokenizer, token);
-            if (result != null) {
-                token = result.component1();
-                annotations = result.component2();
-            }
+            List<String> annotations = getAnnotations(tokenizer, token);
+            token = tokenizer.getCurrent();
 
-            boolean vararg = false;
-            if ("vararg".equals(token)) {
-                vararg = true;
-                token = tokenizer.requireToken();
-            }
+            TextModifiers modifiers = parseModifiers(api, tokenizer, token, null);
+            token = tokenizer.getCurrent();
 
             // Token should now represent the type
             String type = token;
@@ -811,6 +719,10 @@ public class ApiFile {
             Pair<String, List<String>> kotlinTypeSuffix = processKotlinTypeSuffix(api, type, annotations);
             String typeString = kotlinTypeSuffix.getFirst();
             annotations = kotlinTypeSuffix.getSecond();
+            modifiers.addAnnotations(annotations);
+            if (typeString.endsWith("...")) {
+                modifiers.setVarArg(true);
+            }
             TextTypeItem typeInfo = api.obtainTypeFromString(typeString);
 
             String name;
@@ -826,14 +738,43 @@ public class ApiFile {
 
             String defaultValue = TextParameterItemKt.NO_DEFAULT_VALUE;
             if ("=".equals(token)) {
-                token = tokenizer.requireToken(false);
-                try {
-                    defaultValue = (String) parseValue(JAVA_LANG_STRING, token);
-                } catch (ApiParseException ex) {
-                    ex.line = tokenizer.getLine();
-                    throw ex;
+                defaultValue = tokenizer.requireToken(true);
+                StringBuilder sb = new StringBuilder(defaultValue);
+                if (defaultValue.equals("{")) {
+                    int balance = 1;
+                    while (balance > 0) {
+                        token = tokenizer.requireToken(false, false);
+                        sb.append(token);
+                        if (token.equals("{")) {
+                            balance++;
+                        } else if (token.equals("}")) {
+                            balance--;
+                            if (balance == 0) {
+                                break;
+                            }
+                        }
+                    }
+                    token = tokenizer.requireToken();
+                } else {
+                    int balance = defaultValue.equals("(") ? 1 : 0;
+                    while (true) {
+                        token = tokenizer.requireToken(true, false);
+                        if (token.endsWith(",") || token.endsWith(")") && balance <= 0) {
+                            if (token.length() > 1) {
+                                sb.append(token, 0, token.length() - 1);
+                                token = Character.toString(token.charAt(token.length() - 1));
+                            }
+                            break;
+                        }
+                        sb.append(token);
+                        if (token.equals("(")) {
+                            balance++;
+                        } else if (token.equals(")")) {
+                            balance--;
+                        }
+                    }
                 }
-                token = tokenizer.requireToken();
+                defaultValue = sb.toString();
             }
 
             if (",".equals(token)) {
@@ -843,12 +784,9 @@ public class ApiFile {
                 throw new ApiParseException("expected , or ), found " + token, tokenizer);
             }
 
-            method.addParameter(new TextParameterItem(api, method, name, publicName, defaultValue, index, typeString,
-                typeInfo,
-                vararg || typeString.endsWith("..."),
-                tokenizer.pos(),
-                annotations));
-            if (typeString.endsWith("...")) {
+            method.addParameter(new TextParameterItem(api, method, name, publicName, defaultValue, index,
+                typeInfo, modifiers, tokenizer.pos()));
+            if (modifiers.isVarArg()) {
                 method.setVarargs(true);
             }
             index++;
@@ -908,7 +846,7 @@ public class ApiFile {
 
     static class Tokenizer {
         final char[] mBuf;
-        String mFilename;
+        final String mFilename;
         int mPos;
         int mLine = 1;
 
@@ -917,7 +855,7 @@ public class ApiFile {
             mBuf = buf;
         }
 
-        public SourcePositionInfo pos() {
+        SourcePositionInfo pos() {
             return new SourcePositionInfo(mFilename, mLine, 0);
         }
 
@@ -955,12 +893,16 @@ public class ApiFile {
             }
         }
 
-        public String requireToken() throws ApiParseException {
+        String requireToken() throws ApiParseException {
             return requireToken(true);
         }
 
-        public String requireToken(boolean parenIsSep) throws ApiParseException {
-            final String token = getToken(parenIsSep);
+        String requireToken(boolean parenIsSep) throws ApiParseException {
+            return requireToken(parenIsSep, true);
+        }
+
+        String requireToken(boolean parenIsSep, boolean eatWhitespace) throws ApiParseException {
+            final String token = getToken(parenIsSep, eatWhitespace);
             if (token != null) {
                 return token;
             } else {
@@ -968,20 +910,32 @@ public class ApiFile {
             }
         }
 
-        public String getToken() throws ApiParseException {
+        String getToken() throws ApiParseException {
             return getToken(true);
         }
 
-        public int offset() {
+        int offset() {
             return mPos;
         }
 
-        public String getStringFromOffset(int offset) {
+        String getStringFromOffset(int offset) {
             return new String(mBuf, offset, mPos - offset);
         }
 
-        public String getToken(boolean parenIsSep) throws ApiParseException {
-            eatWhitespaceAndComments();
+        String getToken(boolean parenIsSep) throws ApiParseException {
+            return getToken(parenIsSep, true);
+        }
+
+        String getCurrent() {
+            return mCurrent;
+        }
+
+        private String mCurrent = null;
+
+        String getToken(boolean parenIsSep, boolean eatWhitespace) throws ApiParseException {
+            if (eatWhitespace) {
+                eatWhitespaceAndComments();
+            }
             if (mPos >= mBuf.length) {
                 return null;
             }
@@ -1010,7 +964,8 @@ public class ApiFile {
                                     mPos++;
                                     break;
                                 case '"':
-                                    return new String(mBuf, start, mPos - start);
+                                    mCurrent = new String(mBuf, start, mPos - start);
+                                    return mCurrent;
                             }
                         case STATE_ESCAPE:
                             state = STATE_BEGIN;
@@ -1018,7 +973,8 @@ public class ApiFile {
                     }
                 }
             } else if (isSeparator(c, parenIsSep)) {
-                return "" + c;
+                mCurrent = Character.toString(c);
+                return mCurrent;
             } else {
                 int genericDepth = 0;
                 do {
@@ -1058,7 +1014,8 @@ public class ApiFile {
                 if (mPos >= mBuf.length) {
                     throw new ApiParseException("Unexpected end of file for \" starting at " + line, mLine);
                 }
-                return new String(mBuf, start, mPos - start);
+                mCurrent = new String(mBuf, start, mPos - start);
+                return mCurrent;
             }
         }
 
@@ -1068,15 +1025,15 @@ public class ApiFile {
         }
     }
 
-    static boolean isSpace(char c) {
+    private static boolean isSpace(char c) {
         return c == ' ' || c == '\t' || c == '\n' || c == '\r';
     }
 
-    static boolean isNewline(char c) {
+    private static boolean isNewline(char c) {
         return c == '\n' || c == '\r';
     }
 
-    static boolean isSeparator(char c, boolean parenIsSep) {
+    private static boolean isSeparator(char c, boolean parenIsSep) {
         if (parenIsSep) {
             if (c == '(' || c == ')') {
                 return true;

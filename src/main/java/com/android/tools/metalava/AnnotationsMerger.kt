@@ -53,11 +53,10 @@ import com.android.tools.metalava.model.AnnotationAttributeValue
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.DefaultAnnotationItem
 import com.android.tools.metalava.model.DefaultAnnotationValue
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MethodItem
-import com.android.tools.metalava.model.PackageItem
-import com.android.tools.metalava.model.SUPPORT_TYPE_USE_ANNOTATIONS
 import com.android.tools.metalava.model.psi.PsiAnnotationItem
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.utils.XmlUtils
@@ -81,15 +80,23 @@ class AnnotationsMerger(
     private val codebase: Codebase
 ) {
     fun merge(mergeAnnotations: List<File>) {
-        mergeAnnotations.forEach { mergeExisting(it) }
+        val javaStubFiles = mutableListOf<File>()
+        mergeAnnotations.forEach { mergeExisting(it, javaStubFiles) }
+        mergeAnnotationsFromJavaStubFiles(javaStubFiles)
     }
 
-    private fun mergeExisting(file: File) {
+    /**
+     * Merges annotations from `file`, or from all the files under it if `file` is a directory.
+     * Exception: Java stub files are not merged by this method, instead they are added to
+     * `javaStubFiles` and should be merged by [mergeAnnotationsFromJavaStubFiles] later (so that
+     * all the Java stubs can be loaded as a single codebase).
+     */
+    private fun mergeExisting(file: File, javaStubFiles: MutableList<File>) {
         if (file.isDirectory) {
             val files = file.listFiles()
             if (files != null) {
                 for (child in files) {
-                    mergeExisting(child)
+                    mergeExisting(child, javaStubFiles)
                 }
             }
         } else if (file.isFile) {
@@ -102,13 +109,8 @@ class AnnotationsMerger(
                 } catch (e: IOException) {
                     error("Aborting: I/O problem during transform: " + e.toString())
                 }
-            } else if (file.path.endsWith(".jaif")) {
-                try {
-                    val jaif = Files.asCharSource(file, Charsets.UTF_8).read()
-                    mergeAnnotationsJaif(file.path, jaif)
-                } catch (e: IOException) {
-                    error("Aborting: I/O problem during transform: " + e.toString())
-                }
+            } else if (file.path.endsWith(".java")) {
+                javaStubFiles.add(file)
             } else if (file.path.endsWith(".txt") ||
                 file.path.endsWith(".signatures") ||
                 file.path.endsWith(".api")
@@ -175,138 +177,53 @@ class AnnotationsMerger(
             val supportsStagedNullability = true
             val signatureCodebase = ApiFile.parseApi(File(path), kotlinStyleNulls, supportsStagedNullability)
             signatureCodebase.description = "Signature files for annotation merger: loaded from $path"
-            val visitor = object : ComparisonVisitor() {
-                override fun compare(old: Item, new: Item) {
-                    val newModifiers = new.modifiers
-                    for (annotation in old.modifiers.annotations()) {
-                        var addAnnotation = false
-                        if (annotation.isNullnessAnnotation()) {
-                            if (!newModifiers.hasNullnessInfo()) {
-                                addAnnotation = true
-                            }
-                        } else {
-                            // TODO: Check for other incompatibilities than nullness?
-                            val qualifiedName = annotation.qualifiedName() ?: continue
-                            if (newModifiers.findAnnotation(qualifiedName) == null) {
-                                addAnnotation = true
-                            }
-                        }
-
-                        if (addAnnotation) {
-                            // Don't map annotation names - this would turn newly non null back into non null
-                            new.mutableModifiers().addAnnotation(
-                                new.codebase.createAnnotation(
-                                    annotation.toSource(),
-                                    new,
-                                    mapName = false
-                                )
-                            )
-                        }
-                    }
-                }
-            }
-            CodebaseComparator().compare(visitor, signatureCodebase, codebase, ApiPredicate(signatureCodebase))
+            mergeAnnotationsFromCodebase(signatureCodebase)
         } catch (ex: ApiParseException) {
             val message = "Unable to parse signature file $path: ${ex.message}"
             throw DriverException(message)
         }
     }
 
-    private fun mergeAnnotationsJaif(path: String, jaif: String) {
-        var pkgItem: PackageItem? = null
-        var clsItem: ClassItem? = null
-        var methodItem: MethodItem? = null
-        var curr: Item? = null
-
-        for (rawLine in jaif.split("\n")) {
-            val line = rawLine.trim()
-            if (line.isEmpty()) {
-                continue
-            }
-            if (line.startsWith("//")) {
-                continue
-            }
-            if (line.startsWith("package ")) {
-                val pkg = line.substring("package ".length, line.length - 1)
-                pkgItem = codebase.findPackage(pkg)
-                curr = pkgItem
-            } else if (line.startsWith("class ")) {
-                val cls = line.substring("class ".length, line.length - 1)
-                clsItem = if (pkgItem != null)
-                    codebase.findClass(pkgItem.qualifiedName() + "." + cls)
-                else
-                    null
-                curr = clsItem
-            } else if (line.startsWith("annotation ")) {
-                val cls = line.substring("annotation ".length, line.length - 1)
-                clsItem = if (pkgItem != null)
-                    codebase.findClass(pkgItem.qualifiedName() + "." + cls)
-                else
-                    null
-                curr = clsItem
-            } else if (line.startsWith("method ")) {
-                val method = line.substring("method ".length, line.length - 1)
-                methodItem = null
-                if (clsItem != null) {
-                    val index = method.indexOf('(')
-                    if (index != -1) {
-                        val name = method.substring(0, index)
-                        val desc = method.substring(index)
-                        methodItem = clsItem.findMethodByDesc(name, desc, true, true)
-                    }
-                }
-                curr = methodItem
-            } else if (line.startsWith("field ")) {
-                val field = line.substring("field ".length, line.length - 1)
-                val fieldItem = clsItem?.findField(field, true, true)
-                curr = fieldItem
-            } else if (line.startsWith("parameter #")) {
-                val parameterIndex = line.substring("parameter #".length, line.length - 1).toInt()
-                val parameterItem = if (methodItem != null) {
-                    methodItem.parameters()[parameterIndex]
-                } else {
-                    null
-                }
-                curr = parameterItem
-            } else if (line.startsWith("type: ") && SUPPORT_TYPE_USE_ANNOTATIONS) {
-                val typeAnnotation = line.substring("type: ".length)
-                if (curr != null) {
-                    mergeJaifAnnotation(path, curr, typeAnnotation)
-                }
-            } else if (line.startsWith("return: ")) {
-                val annotation = line.substring("return: ".length)
-                if (methodItem != null) {
-                    mergeJaifAnnotation(path, methodItem, annotation)
-                }
-            } else if (line.startsWith("inner-type") && SUPPORT_TYPE_USE_ANNOTATIONS) {
-                warning("$path: Skipping inner-type annotations for now ($line)")
-            } else if (line.startsWith("int ")) {
-                // warning("Skipping int attribute definitions for annotations now ($line)")
-            }
-        }
+    private fun mergeAnnotationsFromJavaStubFiles(sources: List<File>) {
+        // TODO: We really want to fail, or at least issue a warning, if there are errors in the sources.
+        val externalCodebase = parseSources(sources, "Codebase loaded from stubs")
+        mergeAnnotationsFromCodebase(externalCodebase)
     }
 
-    private fun mergeJaifAnnotation(
-        path: String,
-        item: Item,
-        annotationSource: String
-    ) {
-        if (annotationSource.isEmpty()) {
-            return
-        }
+    private fun mergeAnnotationsFromCodebase(externalCodebase: Codebase) {
+        val visitor = object : ComparisonVisitor() {
+            override fun compare(old: Item, new: Item) {
+                val newModifiers = new.modifiers
+                for (annotation in old.modifiers.annotations()) {
+                    var addAnnotation = false
+                    if (annotation.isNullnessAnnotation()) {
+                        if (!newModifiers.hasNullnessInfo()) {
+                            addAnnotation = true
+                        }
+                    } else {
+                        // TODO: Check for other incompatibilities than nullness?
+                        val qualifiedName = annotation.qualifiedName() ?: continue
+                        if (newModifiers.findAnnotation(qualifiedName) == null) {
+                            addAnnotation = true
+                        }
+                    }
 
-        if (annotationSource.contains("(")) {
-            warning("$path: Can't merge complex annotations from jaif yet: $annotationSource")
-            return
+                    if (addAnnotation) {
+                        // Don't map annotation names - this would turn newly non null back into non null
+                        new.mutableModifiers().addAnnotation(
+                            new.codebase.createAnnotation(
+                                annotation.toSource(),
+                                new,
+                                mapName = false
+                            )
+                        )
+                    }
+                }
+            }
         }
-        val originalName = annotationSource.substring(1) // remove "@"
-        val qualifiedName = AnnotationItem.mapName(codebase, originalName) ?: originalName
-        if (hasNullnessConflicts(item, qualifiedName)) {
-            return
-        }
-
-        val annotationItem = codebase.createAnnotation("@$qualifiedName")
-        item.mutableModifiers().addAnnotation(annotationItem)
+        CodebaseComparator().compare(
+            visitor, externalCodebase, codebase, ApiPredicate()
+        )
     }
 
     internal fun error(message: String) {
@@ -591,7 +508,7 @@ class AnnotationsMerger(
 
                         // Attempt to sort in reflection order
                         if (!found && reflectionFields != null) {
-                            val filterEmit = ApiVisitor(codebase).filterEmit
+                            val filterEmit = ApiVisitor().filterEmit
 
                             // Attempt with reflection
                             var first = true
@@ -759,10 +676,10 @@ data class XmlBackedAnnotationAttribute(
 
 // TODO: Replace with usage of DefaultAnnotationAttribute?
 class XmlBackedAnnotationItem(
-    override var codebase: Codebase,
+    codebase: Codebase,
     private val qualifiedName: String,
     private val attributes: List<XmlBackedAnnotationAttribute> = emptyList()
-) : AnnotationItem {
+) : DefaultAnnotationItem(codebase) {
     override fun qualifiedName(): String? = AnnotationItem.mapName(codebase, qualifiedName)
 
     override fun attributes() = attributes

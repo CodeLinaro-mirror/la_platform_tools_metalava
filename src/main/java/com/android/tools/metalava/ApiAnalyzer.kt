@@ -491,6 +491,8 @@ class ApiAnalyzer(
                     method.documentation
              */
             method.inheritedMethod = true
+            method.inheritedFrom = it.containingClass()
+
             // The documentation may use relative references to classes in import statements
             // in the original class, so expand the documentation to be fully qualified
             method.documentation = it.fullyQualifiedDocumentation()
@@ -626,7 +628,7 @@ class ApiAnalyzer(
     }
 
     private fun checkHiddenTypes() {
-        packages.accept(object : ApiVisitor(codebase, visitConstructorsAsMethods = false) {
+        packages.accept(object : ApiVisitor(visitConstructorsAsMethods = false) {
             override fun visitMethod(method: MethodItem) {
                 checkType(method, method.returnType() ?: return) // constructors don't have
             }
@@ -688,7 +690,7 @@ class ApiAnalyzer(
             // Look for Android @SystemApi exposed outside the normal SDK; we require
             // that they're protected with a system permission.
 
-            packages.accept(object : ApiVisitor(codebase) {
+            packages.accept(object : ApiVisitor() {
                 override fun visitClass(cls: ClassItem) {
                     // This class is a system service if it's annotated with @SystemService,
                     // or if it's android.content.pm.PackageManager
@@ -794,7 +796,7 @@ class ApiAnalyzer(
         ensureSystemServicesProtectedWithPermission()
         checkHiddenTypes()
 
-        packages.accept(object : ApiVisitor(codebase) {
+        packages.accept(object : ApiVisitor() {
             override fun visitItem(item: Item) {
                 // TODO: Check annotations and also mark removed/hidden based on annotations
                 if (item.deprecated && !item.documentation.contains("@deprecated") &&
@@ -843,7 +845,7 @@ class ApiAnalyzer(
     private fun handleStripping(stubImportPackages: Set<String>) {
         val notStrippable = HashSet<ClassItem>(5000)
 
-        val filter = ApiPredicate(codebase, ignoreShown = true)
+        val filter = ApiPredicate(ignoreShown = true)
 
         // If a class is public or protected, not hidden, not imported and marked as included,
         // then we can't strip it

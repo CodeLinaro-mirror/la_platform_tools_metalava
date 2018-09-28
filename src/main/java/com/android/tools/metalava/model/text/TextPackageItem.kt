@@ -24,10 +24,11 @@ import com.android.tools.metalava.model.PackageItem
 class TextPackageItem(
     codebase: TextCodebase,
     private val name: String,
+    modifiers: TextModifiers,
     position: SourcePositionInfo
-) : TextItem(codebase, position, modifiers = TextModifiers(codebase = codebase, public = true)), PackageItem {
+) : TextItem(codebase, position, modifiers = modifiers), PackageItem {
     init {
-        (modifiers as TextModifiers).owner = this
+        modifiers.setOwner(this)
     }
 
     private val classes = ArrayList<TextClassItem>(100)
@@ -36,6 +37,16 @@ class TextPackageItem(
 
     fun addClass(classInfo: TextClassItem) {
         classes.add(classInfo)
+    }
+
+    internal fun pruneClassList() {
+        val iterator = classes.listIterator()
+        while (iterator.hasNext()) {
+            val cls = iterator.next()
+            if (cls.isInnerClass()) {
+                iterator.remove()
+            }
+        }
     }
 
     internal fun classList(): List<ClassItem> = classes
@@ -55,5 +66,5 @@ class TextPackageItem(
         return name.hashCode()
     }
 
-    override fun toString(): String = name
+    override fun toString(): String = "package $name"
 }

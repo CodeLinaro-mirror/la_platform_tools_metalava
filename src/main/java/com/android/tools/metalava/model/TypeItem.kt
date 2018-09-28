@@ -48,11 +48,12 @@ interface TypeItem {
     fun toTypeString(
         outerAnnotations: Boolean = false,
         innerAnnotations: Boolean = outerAnnotations,
-        erased: Boolean = false
+        erased: Boolean = false,
+        context: Item? = null
     ): String
 
     /** Alias for [toTypeString] with erased=true */
-    fun toErasedTypeString(): String
+    fun toErasedTypeString(context: Item? = null): String
 
     /** Returns the internal name of the type, as seen in bytecode */
     fun internalName(): String {
@@ -213,7 +214,7 @@ interface TypeItem {
 
             var cleaned = type
 
-            if (compatibility.spacesAfterCommas && cleaned.indexOf(',') != -1) {
+            if (compatibility.spaceAfterCommaInTypes && cleaned.indexOf(',') != -1) {
                 // The compat files have spaces after commas where we normally don't
                 cleaned = cleaned.replace(",", ", ").replace(",  ", ", ")
             }

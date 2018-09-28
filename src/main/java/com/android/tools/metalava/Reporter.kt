@@ -25,6 +25,7 @@ import com.android.tools.metalava.Severity.WARNING
 import com.android.tools.metalava.doclava1.Errors
 import com.android.tools.metalava.model.AnnotationArrayAttributeValue
 import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.model.configuration
 import com.android.tools.metalava.model.psi.PsiConstructorItem
 import com.android.tools.metalava.model.psi.PsiItem
 import com.android.tools.metalava.model.text.TextItem
@@ -66,39 +67,40 @@ enum class Severity(private val displayName: String) {
 }
 
 open class Reporter(private val rootFolder: File? = null) {
-    var hasErrors = false
+    private var hasErrors = false
 
-    fun error(item: Item?, message: String, id: Errors.Error? = null) {
-        error(item?.psi(), message, id)
+    fun error(item: Item?, message: String, id: Errors.Error? = null): Boolean {
+        return error(item?.psi(), message, id)
     }
 
-    fun warning(item: Item?, message: String, id: Errors.Error? = null) {
-        warning(item?.psi(), message, id)
+    fun warning(item: Item?, message: String, id: Errors.Error? = null): Boolean {
+        return warning(item?.psi(), message, id)
     }
 
-    fun error(element: PsiElement?, message: String, id: Errors.Error? = null) {
+    fun error(element: PsiElement?, message: String, id: Errors.Error? = null): Boolean {
         // Using lowercase since that's the convention doclava1 is using
-        report(ERROR, element, message, id)
+        return report(ERROR, element, message, id)
     }
 
-    fun warning(element: PsiElement?, message: String, id: Errors.Error? = null) {
-        report(WARNING, element, message, id)
+    fun warning(element: PsiElement?, message: String, id: Errors.Error? = null): Boolean {
+        return report(WARNING, element, message, id)
     }
 
-    fun report(id: Errors.Error, element: PsiElement?, message: String) {
-        report(id.level, element, message, id)
+    fun report(id: Errors.Error, element: PsiElement?, message: String): Boolean {
+        return report(configuration.getSeverity(id), element, message, id)
     }
 
-    fun report(id: Errors.Error, file: File?, message: String) {
-        report(id.level, file?.path, message, id)
+    fun report(id: Errors.Error, file: File?, message: String): Boolean {
+        return report(configuration.getSeverity(id), file?.path, message, id)
     }
 
-    fun report(id: Errors.Error, item: Item?, message: String) {
-        if (isSuppressed(id, item)) {
-            return
+    fun report(id: Errors.Error, item: Item?, message: String): Boolean {
+        if (isSuppressed(id, item, message)) {
+            return false
         }
 
-        when (item) {
+        val severity = configuration.getSeverity(id)
+        return when (item) {
             is PsiItem -> {
                 var psi = item.psi()
 
@@ -111,17 +113,22 @@ open class Reporter(private val rootFolder: File? = null) {
                     psi = item.containingClass().psi()
                 }
 
-                report(id.level, psi, message, id)
+                report(severity, psi, message, id)
             }
-            is TextItem -> report(id.level, (item as? TextItem)?.position.toString(), message, id)
-            else -> report(id.level, "<unknown location>", message, id)
+            is TextItem -> report(severity, (item as? TextItem)?.position.toString(), message, id)
+            else -> report(severity, "<unknown location>", message, id)
         }
     }
 
-    private fun isSuppressed(id: Errors.Error, item: Item?): Boolean {
+    fun isSuppressed(id: Errors.Error, item: Item? = null, message: String? = null): Boolean {
+        val severity = configuration.getSeverity(id)
+        if (severity == HIDDEN) {
+            return true
+        }
+
         item ?: return false
 
-        if (id.level == LINT || id.level == WARNING || id.level == ERROR) {
+        if (severity == LINT || severity == WARNING || severity == ERROR) {
             val id1 = "Doclava${id.code}"
             val id2 = id.name
             val annotation = item.modifiers.findAnnotation("android.annotation.SuppressLint")
@@ -132,20 +139,38 @@ open class Reporter(private val rootFolder: File? = null) {
                     if (value is AnnotationArrayAttributeValue) {
                         // Example: @SuppressLint({"DocLava1", "DocLava2"})
                         for (innerValue in value.values) {
-                            val string = innerValue.value()
-                            if (id1 == string || id2 != null && id2 == string) {
+                            val string = innerValue.value()?.toString() ?: continue
+                            if (suppressMatches(string, id1, message) || suppressMatches(string, id2, message)) {
                                 return true
                             }
                         }
                     } else {
                         // Example: @SuppressLint("DocLava1")
-                        val string = value.value()
-                        if (id1 == string || id2 != null && id2 == string) {
+                        val string = value.value()?.toString()
+                        if (string != null && (
+                                suppressMatches(string, id1, message) || suppressMatches(string, id2, message))
+                        ) {
                             return true
                         }
                     }
                 }
             }
+        }
+
+        return false
+    }
+
+    private fun suppressMatches(value: String, id: String?, message: String?): Boolean {
+        id ?: return false
+
+        if (value == id) {
+            return true
+        }
+
+        if (message != null && value.startsWith(id) && value.endsWith(message) &&
+            (value == "$id:$message" || value == "$id: $message")
+        ) {
+            return true
         }
 
         return false
@@ -205,12 +230,12 @@ open class Reporter(private val rootFolder: File? = null) {
         return line
     }
 
-    open fun report(severity: Severity, element: PsiElement?, message: String, id: Errors.Error? = null) {
+    open fun report(severity: Severity, element: PsiElement?, message: String, id: Errors.Error? = null): Boolean {
         if (severity == HIDDEN) {
-            return
+            return false
         }
 
-        report(severity, elementToLocation(element), message, id)
+        return report(severity, elementToLocation(element), message, id)
     }
 
     open fun report(
@@ -219,9 +244,9 @@ open class Reporter(private val rootFolder: File? = null) {
         message: String,
         id: Errors.Error? = null,
         color: Boolean = options.color
-    ) {
+    ): Boolean {
         if (severity == HIDDEN) {
-            return
+            return false
         }
 
         val effectiveSeverity =
@@ -289,6 +314,7 @@ open class Reporter(private val rootFolder: File? = null) {
             }
         }
         print(sb.toString())
+        return true
     }
 
     open fun print(message: String) {

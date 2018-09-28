@@ -19,9 +19,9 @@ package com.android.tools.metalava
 import com.android.SdkConstants
 import com.android.tools.lint.annotations.Extractor
 import com.android.tools.lint.client.api.AnnotationLookup
-import com.android.tools.lint.detector.api.ConstantEvaluator
 import com.android.tools.metalava.doclava1.Errors
 import com.android.tools.metalava.model.AnnotationItem
+import com.android.tools.metalava.model.AnnotationTarget
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.FieldItem
@@ -30,37 +30,31 @@ import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
-import com.android.tools.metalava.model.canonicalizeFloatingPointString
-import com.android.tools.metalava.model.javaEscapeString
+import com.android.tools.metalava.model.psi.CodePrinter
 import com.android.tools.metalava.model.psi.PsiAnnotationItem
 import com.android.tools.metalava.model.psi.PsiClassItem
+import com.android.tools.metalava.model.psi.PsiMethodItem
 import com.android.tools.metalava.model.visitors.ApiVisitor
-import com.android.utils.XmlUtils
 import com.google.common.base.Charsets
 import com.google.common.xml.XmlEscapers
+import com.intellij.psi.JavaRecursiveElementVisitor
 import com.intellij.psi.PsiAnnotation
-import com.intellij.psi.PsiAnnotationMemberValue
-import com.intellij.psi.PsiArrayInitializerMemberValue
 import com.intellij.psi.PsiClass
-import com.intellij.psi.PsiClassObjectAccessExpression
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiField
-import com.intellij.psi.PsiLiteral
+import com.intellij.psi.PsiModifier
 import com.intellij.psi.PsiNameValuePair
-import com.intellij.psi.PsiReference
-import com.intellij.psi.PsiTypeCastExpression
+import com.intellij.psi.PsiReferenceExpression
+import com.intellij.psi.PsiReturnStatement
 import org.jetbrains.uast.UAnnotation
-import org.jetbrains.uast.UBinaryExpressionWithType
 import org.jetbrains.uast.UCallExpression
 import org.jetbrains.uast.UExpression
-import org.jetbrains.uast.ULiteralExpression
 import org.jetbrains.uast.UNamedExpression
 import org.jetbrains.uast.UReferenceExpression
+import org.jetbrains.uast.USimpleNameReferenceExpression
 import org.jetbrains.uast.UastEmptyExpression
 import org.jetbrains.uast.java.JavaUAnnotation
 import org.jetbrains.uast.java.expressions.JavaUAnnotationCallExpression
-import org.jetbrains.uast.util.isArrayInitializer
-import org.jetbrains.uast.util.isTypeCast
 import java.io.BufferedOutputStream
 import java.io.File
 import java.io.FileOutputStream
@@ -76,7 +70,7 @@ import java.util.jar.JarOutputStream
 class ExtractAnnotations(
     private val codebase: Codebase,
     private val outputFile: File
-) : ApiVisitor(codebase) {
+) : ApiVisitor() {
     // Used linked hash map for order such that we always emit parameters after their surrounding method etc
     private val packageToAnnotationPairs = LinkedHashMap<PackageItem, MutableList<Pair<Item, AnnotationHolder>>>()
 
@@ -86,6 +80,20 @@ class ExtractAnnotations(
         val annotationClass: ClassItem?,
         val annotationItem: AnnotationItem,
         val uAnnotation: UAnnotation?
+    )
+
+    private val fieldNamePrinter = CodePrinter(
+        codebase = codebase,
+        filterReference = filterReference,
+        inlineFieldValues = false,
+        skipUnknown = true
+    )
+
+    private val fieldValuePrinter = CodePrinter(
+        codebase = codebase,
+        filterReference = filterReference,
+        inlineFieldValues = true,
+        skipUnknown = true
     )
 
     private val classToAnnotationHolder = mutableMapOf<String, AnnotationHolder>()
@@ -189,7 +197,7 @@ class ExtractAnnotations(
                 if (annotation.isTypeDefAnnotation()) {
                     // Imported typedef
                     addItem(item, AnnotationHolder(null, annotation, null))
-                } else if (annotation.isSignificantInStubs() && !annotation.hasClassRetention() &&
+                } else if (annotation.targets().contains(AnnotationTarget.EXTERNAL_ANNOTATIONS_FILE) &&
                     !options.includeSourceRetentionAnnotations
                 ) {
                     addItem(item, AnnotationHolder(null, annotation, null))
@@ -237,11 +245,75 @@ class ExtractAnnotations(
                         )
                         classToAnnotationHolder[className] = result
                         addItem(item, result)
+
+                        if (item is PsiMethodItem && result.uAnnotation != null &&
+                            !reporter.isSuppressed(Errors.RETURNING_UNEXPECTED_CONSTANT)
+                        ) {
+                            verifyReturnedConstants(item, result.uAnnotation, result, className)
+                        }
+
                         continue
                     }
                 }
             }
         }
+    }
+
+    /**
+     * Given a method whose return value is annotated with a typedef, runs checks on the typedef
+     * and flags any returned constants not in the list.
+     */
+    private fun verifyReturnedConstants(
+        item: PsiMethodItem,
+        uAnnotation: UAnnotation,
+        result: AnnotationHolder,
+        className: String
+    ) {
+        val method = item.psiMethod
+        if (method.body != null) {
+            method.body?.accept(object : JavaRecursiveElementVisitor() {
+                private var constants: List<String>? = null
+
+                override fun visitReturnStatement(statement: PsiReturnStatement) {
+                    val value = statement.returnValue
+                    if (value is PsiReferenceExpression) {
+                        val resolved = value.resolve() as? PsiField ?: return
+                        val modifiers = resolved.modifierList ?: return
+                        if (modifiers.hasModifierProperty(PsiModifier.STATIC) &&
+                            modifiers.hasModifierProperty(PsiModifier.FINAL)
+                        ) {
+                            if (resolved.type.arrayDimensions > 0) {
+                                return
+                            }
+                            val name = resolved.name
+
+                            // Make sure this is one of the allowed annotations
+                            val names = constants ?: run {
+                                constants = computeValidConstantNames(uAnnotation)
+                                constants!!
+                            }
+                            if (names.isNotEmpty() && !names.contains(name)) {
+                                val expected = names.joinToString { it }
+                                reporter.report(
+                                    Errors.RETURNING_UNEXPECTED_CONSTANT, value as PsiElement,
+                                    "Returning unexpected constant $name; is @${result.annotationClass?.simpleName()
+                                        ?: className} missing this constant? Expected one of $expected"
+                                )
+                            }
+                        }
+                    }
+                }
+            })
+        }
+    }
+
+    private fun computeValidConstantNames(annotation: UAnnotation): List<String> {
+        val constants = annotation.findAttributeValue(SdkConstants.ATTR_VALUE) ?: return emptyList()
+        if (constants is UCallExpression) {
+            return constants.valueArguments.mapNotNull { (it as? USimpleNameReferenceExpression)?.identifier }.toList()
+        }
+
+        return emptyList()
     }
 
     private fun hasSourceRetention(annotationClass: ClassItem): Boolean {
@@ -270,7 +342,10 @@ class ExtractAnnotations(
         if ("java.lang.annotation.Retention" == qualifiedName || "kotlin.annotation.Retention" == qualifiedName) {
             val attributes = annotation.attributeValues
             if (attributes.size != 1) {
-                error("Expected exactly one parameter passed to @Retention")
+                reporter.report(
+                    Severity.ERROR, null as PsiElement?,
+                    "Expected exactly one parameter passed to @Retention", Errors.ANNOTATION_EXTRACTION
+                )
                 return false
             }
             val value = attributes[0].expression
@@ -364,7 +439,10 @@ class ExtractAnnotations(
                     if (i > 0) {
                         sb.append(',').append(' ')
                     }
-                    val type = parameterList[i].type().toTypeString().replace(" ", "")
+                    val type = parameterList[i].type().toTypeString()
+                        .replace(" ", "")
+                        .replace("?extends", "? extends ")
+                        .replace("?super", "? super ")
                     sb.append(type)
                     i++
                 }
@@ -373,11 +451,11 @@ class ExtractAnnotations(
             }
 
             is FieldItem -> {
-                return escapeXml(containingClass().qualifiedName()) + ' '.toString() + name()
+                return escapeXml(containingClass().qualifiedName()) + " " + name()
             }
 
             is ParameterItem -> {
-                return containingMethod().getExternalAnnotationSignature() + ' '.toString() + this.parameterIndex
+                return containingMethod().getExternalAnnotationSignature() + " " + this.parameterIndex
             }
         }
 
@@ -504,126 +582,18 @@ class ExtractAnnotations(
         writer.println("    </annotation>")
     }
 
-    private fun attributeString(value: UExpression?, inlineConstants: Boolean): String? {
-        value ?: return null
-        val sb = StringBuilder()
-        return if (appendExpression(sb, value, inlineConstants)) {
-            sb.toString()
-        } else {
-            null
-        }
-    }
-
-    private fun appendExpression(
-        sb: StringBuilder,
-        expression: UExpression,
+    private fun attributeString(
+        value: UExpression?,
         inlineConstants: Boolean
-    ): Boolean {
-        if (expression.isArrayInitializer()) {
-            val call = expression as UCallExpression
-            val initializers = call.valueArguments
-            sb.append('{')
-            var first = true
-            val initialLength = sb.length
-            for (e in initializers) {
-                val length = sb.length
-                if (first) {
-                    first = false
-                } else {
-                    sb.append(", ")
-                }
-                val appended = appendExpression(sb, e, inlineConstants)
-                if (!appended) {
-                    // trunk off comma if it bailed for some reason (e.g. constant
-                    // filtered out by API etc)
-                    sb.setLength(length)
-                    if (length == initialLength) {
-                        first = true
-                    }
-                }
-            }
-            sb.append('}')
-            return sb.length != 2
-        } else if (expression is UReferenceExpression) {
-            val resolved = expression.resolve()
-            if (resolved is PsiField) {
-                val field = resolved as PsiField?
-                if (!inlineConstants) {
-                    // Inline constants
-                    val value = field!!.computeConstantValue()
-                    if (appendLiteralValue(sb, value)) {
-                        return true
-                    }
-                }
-
-                val declaringClass = field!!.containingClass
-                if (declaringClass == null) {
-                    error("No containing class found for " + field.name)
-                    return false
-                }
-                val qualifiedName = declaringClass.qualifiedName
-                val fieldName = field.name
-
-                if (qualifiedName != null) {
-                    val cls = codebase.findClass(qualifiedName)
-                    val fld = cls?.findField(fieldName, true)
-                    if (fld == null || !filterReference.test(fld)) {
-                        // This field is not visible: remove from typedef
-                        if (fld != null) {
-                            reporter.report(
-                                Errors.HIDDEN_TYPEDEF_CONSTANT, fld,
-                                "Typedef class references hidden field $fld: removed from typedef metadata"
-                            )
-                        }
-                        return false
-                    }
-                    sb.append(qualifiedName)
-                    sb.append('.')
-                    sb.append(fieldName)
-                    return true
-                }
-                return false
+    ): String? {
+        val printer =
+            if (inlineConstants) {
+                fieldValuePrinter
             } else {
-                warning("Unexpected reference to $expression")
-                return false
+                fieldNamePrinter
             }
-        } else if (expression is ULiteralExpression) {
-            val literalValue = expression.value
-            if (appendLiteralValue(sb, literalValue)) {
-                return true
-            }
-        } else if (expression is UBinaryExpressionWithType) {
-            if ((expression).isTypeCast()) {
-                val operand = expression.operand
-                return appendExpression(sb, operand, inlineConstants)
-            }
-            return false
-        }
 
-        // For example, binary expressions like 3 + 4
-        val literalValue = ConstantEvaluator.evaluate(null, expression)
-        if (literalValue != null) {
-            if (appendLiteralValue(sb, literalValue)) {
-                return true
-            }
-        }
-
-        warning("Unexpected annotation expression of type ${expression.javaClass} and is $expression")
-
-        return false
-    }
-
-    private fun appendLiteralValue(sb: StringBuilder, literalValue: Any?): Boolean {
-        if (literalValue is Number || literalValue is Boolean) {
-            sb.append(literalValue.toString())
-            return true
-        } else if (literalValue is String || literalValue is Char) {
-            sb.append('"')
-            XmlUtils.appendXmlAttributeValue(sb, literalValue.toString())
-            sb.append('"')
-            return true
-        }
-        return false
+        return printer.toSourceString(value)
     }
 
     private fun isInlinedConstant(annotationItem: AnnotationItem): Boolean {
@@ -632,141 +602,4 @@ class ExtractAnnotations(
 
     /** Whether to sort annotation attributes (otherwise their declaration order is used)  */
     private val sortAnnotations: Boolean = true
-
-    private fun warning(string: String) {
-        reporter.report(Severity.ERROR, null as PsiElement?, string, Errors.ANNOTATION_EXTRACTION)
-    }
-
-    private fun error(string: String) {
-        reporter.report(Severity.WARNING, null as PsiElement?, string, Errors.ANNOTATION_EXTRACTION)
-    }
-
-    companion object {
-        /** Given an annotation member value, returns the corresponding Java source expression */
-        fun toSourceExpression(value: PsiAnnotationMemberValue, owner: Item): String {
-            val sb = StringBuilder()
-            appendSourceExpression(value, sb, owner)
-            return sb.toString()
-        }
-
-        private fun appendSourceExpression(value: PsiAnnotationMemberValue, sb: StringBuilder, owner: Item): Boolean {
-            if (value is PsiReference) {
-                val resolved = value.resolve()
-                if (resolved is PsiField) {
-                    sb.append(resolved.containingClass?.qualifiedName).append('.').append(resolved.name)
-                    return true
-                }
-            } else if (value is PsiLiteral) {
-                return appendSourceLiteral(value.value, sb, owner)
-            } else if (value is PsiClassObjectAccessExpression) {
-                sb.append(value.operand.type.canonicalText).append(".class")
-                return true
-            } else if (value is PsiArrayInitializerMemberValue) {
-                sb.append('{')
-                var first = true
-                val initialLength = sb.length
-                for (e in value.initializers) {
-                    val length = sb.length
-                    if (first) {
-                        first = false
-                    } else {
-                        sb.append(", ")
-                    }
-                    val appended = appendSourceExpression(e, sb, owner)
-                    if (!appended) {
-                        // trunk off comma if it bailed for some reason (e.g. constant
-                        // filtered out by API etc)
-                        sb.setLength(length)
-                        if (length == initialLength) {
-                            first = true
-                        }
-                    }
-                }
-                sb.append('}')
-                return true
-            } else if (value is PsiAnnotation) {
-                sb.append('@').append(value.qualifiedName)
-                return true
-            } else {
-                if (value is PsiTypeCastExpression) {
-                    val type = value.castType?.type
-                    val operand = value.operand
-                    if (type != null && operand is PsiAnnotationMemberValue) {
-                        sb.append('(')
-                        sb.append(type.canonicalText)
-                        sb.append(')')
-                        return appendSourceExpression(operand, sb, owner)
-                    }
-                }
-                val constant = ConstantEvaluator.evaluate(null, value)
-                if (constant != null) {
-                    return appendSourceLiteral(constant, sb, owner)
-                }
-            }
-            reporter.report(Errors.INTERNAL_ERROR, owner, "Unexpected annotation default value $value")
-            return false
-        }
-
-        private fun appendSourceLiteral(v: Any?, sb: StringBuilder, owner: Item): Boolean {
-            if (v == null) {
-                sb.append("null")
-                return true
-            }
-            when (v) {
-                is Int, is Long, is Boolean, is Byte, is Short -> {
-                    sb.append(v.toString())
-                    return true
-                }
-                is String -> {
-                    sb.append('"').append(javaEscapeString(v)).append('"')
-                    return true
-                }
-                is Float -> {
-                    return when (v) {
-                        Float.POSITIVE_INFINITY -> {
-                            // This convention (displaying fractions) is inherited from doclava
-                            sb.append("(1.0f/0.0f)"); true
-                        }
-                        Float.NEGATIVE_INFINITY -> {
-                            sb.append("(-1.0f/0.0f)"); true
-                        }
-                        Float.NaN -> {
-                            sb.append("(0.0f/0.0f)"); true
-                        }
-                        else -> {
-                            sb.append(canonicalizeFloatingPointString(v.toString()) + "f")
-                            true
-                        }
-                    }
-                }
-                is Double -> {
-                    return when (v) {
-                        Double.POSITIVE_INFINITY -> {
-                            // This convention (displaying fractions) is inherited from doclava
-                            sb.append("(1.0/0.0)"); true
-                        }
-                        Double.NEGATIVE_INFINITY -> {
-                            sb.append("(-1.0/0.0)"); true
-                        }
-                        Double.NaN -> {
-                            sb.append("(0.0/0.0)"); true
-                        }
-                        else -> {
-                            sb.append(canonicalizeFloatingPointString(v.toString()))
-                            true
-                        }
-                    }
-                }
-                is Char -> {
-                    sb.append('\'').append(javaEscapeString(v.toString())).append('\'')
-                    return true
-                }
-                else -> {
-                    reporter.report(Errors.INTERNAL_ERROR, owner, "Unexpected literal value $v")
-                }
-            }
-
-            return false
-        }
-    }
 }

@@ -69,7 +69,8 @@ class PsiTypeItem private constructor(private val codebase: PsiBasedCodebase, pr
     override fun toTypeString(
         outerAnnotations: Boolean,
         innerAnnotations: Boolean,
-        erased: Boolean
+        erased: Boolean,
+        context: Item?
     ): String {
         assert(innerAnnotations || !outerAnnotations) // Can't supply outer=true,inner=false
 
@@ -123,8 +124,8 @@ class PsiTypeItem private constructor(private val codebase: PsiBasedCodebase, pr
         }
     }
 
-    override fun toErasedTypeString(): String {
-        return toTypeString(outerAnnotations = false, innerAnnotations = false, erased = true)
+    override fun toErasedTypeString(context: Item?): String {
+        return toTypeString(outerAnnotations = false, innerAnnotations = false, erased = true, context = context)
     }
 
     override fun arrayDimensions(): Int {
@@ -381,7 +382,7 @@ class PsiTypeItem private constructor(private val codebase: PsiBasedCodebase, pr
                 }
                 val annotation = string.substring(start + 1, index)
 
-                val mapped = AnnotationItem.mapName(codebase, annotation, ApiPredicate(codebase))
+                val mapped = AnnotationItem.mapName(codebase, annotation, ApiPredicate())
                 if (mapped != null) {
                     if (mapped != annotation) {
                         s = string.substring(0, start + 1) + mapped + s.substring(index)
