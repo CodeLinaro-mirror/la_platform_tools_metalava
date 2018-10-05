@@ -60,7 +60,7 @@ class TextCodebase(location: File) : DefaultCodebase(location) {
     private val mClassToInterface = HashMap<TextClassItem, ArrayList<String>>(10000)
 
     override var description = "Codebase"
-    override val preFiltered: Boolean = true
+    override var preFiltered: Boolean = true
 
     override fun trustedApi(): Boolean = true
 
@@ -73,7 +73,7 @@ class TextCodebase(location: File) : DefaultCodebase(location) {
     override fun getPackages(): PackageList {
         val list = ArrayList<PackageItem>(mPackages.values)
         list.sortWith(PackageItem.comparator)
-        return PackageList(list)
+        return PackageList(this, list)
     }
 
     override fun size(): Int {
@@ -214,7 +214,8 @@ class TextCodebase(location: File) : DefaultCodebase(location) {
     }
 
     fun getOrCreateClass(name: String, isInterface: Boolean = false): TextClassItem {
-        val cls = mAllClasses[name]
+        val erased = TextTypeItem.eraseTypeArguments(name)
+        val cls = mAllClasses[erased]
         if (cls != null) {
             return cls
         }
@@ -223,21 +224,21 @@ class TextCodebase(location: File) : DefaultCodebase(location) {
         } else {
             TextClassItem.createClassStub(this, name)
         }
-        mAllClasses[name] = newClass
+        mAllClasses[erased] = newClass
         newClass.emit = false
 
         val fullName = newClass.fullName()
         if (fullName.contains('.')) {
             // We created a new inner class stub. We need to fully initialize it with outer classes, themselves
             // possibly stubs
-            val outerName = name.substring(0, name.lastIndexOf('.'))
+            val outerName = erased.substring(0, erased.lastIndexOf('.'))
             val outerClass = getOrCreateClass(outerName, false)
             newClass.containingClass = outerClass
             outerClass.addInnerClass(newClass)
         } else {
             // Add to package
-            val endIndex = name.lastIndexOf('.')
-            val pkgPath = if (endIndex != -1) name.substring(0, endIndex) else ""
+            val endIndex = erased.lastIndexOf('.')
+            val pkgPath = if (endIndex != -1) erased.substring(0, endIndex) else ""
             val pkg = findPackage(pkgPath) as? TextPackageItem ?: run {
                 val newPkg = TextPackageItem(
                     this,

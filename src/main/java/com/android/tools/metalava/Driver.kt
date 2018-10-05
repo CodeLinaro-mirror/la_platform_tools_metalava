@@ -115,7 +115,7 @@ fun run(
                 } else {
                     val newArgs =
                         if (index != -1) {
-                            args.sliceArray(0..index) + prepend + args.sliceArray(index..args.size) + append
+                            args.sliceArray(0 until index) + prepend + args.sliceArray(index until args.size) + append
                         } else {
                             prepend + args + append
                         }
@@ -181,21 +181,7 @@ private fun exit(exitCode: Int = 0) {
 private fun processFlags() {
     val stopwatch = Stopwatch.createStarted()
 
-    // --copy-annotations?
-    val privateAnnotationsSource = options.privateAnnotationsSource
-    val privateAnnotationsTarget = options.privateAnnotationsTarget
-    if (privateAnnotationsSource != null && privateAnnotationsTarget != null) {
-        val rewrite = RewriteAnnotations()
-        // Support pointing to both stub-annotations and stub-annotations/src/main/java
-        val src = File(privateAnnotationsSource, "src${File.separator}main${File.separator}java")
-        val source = if (src.isDirectory) src else privateAnnotationsSource
-        source.listFiles()?.forEach { file ->
-            rewrite.modifyAnnotationSources(null, file, File(privateAnnotationsTarget, file.name))
-        }
-    }
-
-    // --rewrite-annotations?
-    options.rewriteAnnotations?.let { RewriteAnnotations().rewriteAnnotations(it) }
+    processNonCodebaseFlags()
 
     val codebase =
         if (options.sources.size == 1 && options.sources[0].path.endsWith(SdkConstants.DOT_TXT)) {
@@ -290,6 +276,32 @@ private fun processFlags() {
         createReportFile(
             codebase, apiFile, "DEX API"
         ) { printWriter -> DexApiWriter(printWriter, dexApiEmit, apiReference) }
+    }
+
+    options.apiXmlFile?.let { apiFile ->
+        val apiType = ApiType.PUBLIC_API
+        val apiEmit = apiType.getEmitFilter()
+        val apiReference = apiType.getReferenceFilter()
+
+        createReportFile(codebase, apiFile, "XML API") { printWriter ->
+            JDiffXmlWriter(printWriter, apiEmit, apiReference, codebase.preFiltered)
+        }
+    }
+
+    options.dexApiMappingFile?.let { apiFile ->
+        val apiType = ApiType.ALL
+        val apiEmit = apiType.getEmitFilter()
+        val apiReference = apiType.getReferenceFilter()
+
+        createReportFile(
+            codebase, apiFile, "DEX API Mapping"
+        ) { printWriter ->
+            DexApiWriter(
+                printWriter, apiEmit, apiReference,
+                membersOnly = true,
+                includePositions = true
+            )
+        }
     }
 
     options.removedApiFile?.let { apiFile ->
@@ -410,13 +422,53 @@ private fun processFlags() {
 
     Disposer.dispose(LintCoreApplicationEnvironment.get().parentDisposable)
 
-    if (!options.quiet) {
+    if (options.verbose) {
         val packageCount = codebase.size()
         options.stdout.println("\n$PROGRAM_NAME finished handling $packageCount packages in $stopwatch")
         options.stdout.flush()
     }
 
     invokeDocumentationTool()
+}
+
+fun processNonCodebaseFlags() {
+    // --copy-annotations?
+    val privateAnnotationsSource = options.privateAnnotationsSource
+    val privateAnnotationsTarget = options.privateAnnotationsTarget
+    if (privateAnnotationsSource != null && privateAnnotationsTarget != null) {
+        val rewrite = RewriteAnnotations()
+        // Support pointing to both stub-annotations and stub-annotations/src/main/java
+        val src = File(privateAnnotationsSource, "src${File.separator}main${File.separator}java")
+        val source = if (src.isDirectory) src else privateAnnotationsSource
+        source.listFiles()?.forEach { file ->
+            rewrite.modifyAnnotationSources(null, file, File(privateAnnotationsTarget, file.name))
+        }
+    }
+
+    // --rewrite-annotations?
+    options.rewriteAnnotations?.let { RewriteAnnotations().rewriteAnnotations(it) }
+
+    // Convert android.jar files?
+    options.androidJarSignatureFiles?.let { root ->
+        // Generate API signature files for all the historical JAR files
+        ConvertJarsToSignatureFiles().convertJars(root)
+    }
+
+    for ((signatureFile, jDiffFile) in options.convertToXmlFiles) {
+        val apiType = ApiType.ALL
+        val apiEmit = apiType.getEmitFilter()
+        val apiReference = apiType.getReferenceFilter()
+
+        val signatureApi = SignatureFileLoader.load(
+            file = signatureFile,
+            kotlinStyleNulls = options.inputKotlinStyleNulls,
+            supportsStagedNullability = true
+        )
+
+        createReportFile(signatureApi, jDiffFile, "JDiff File") { printWriter ->
+            JDiffXmlWriter(printWriter, apiEmit, apiReference, signatureApi.preFiltered)
+        }
+    }
 }
 
 /**
@@ -579,20 +631,18 @@ fun invokeDocumentationTool() {
 }
 
 private fun migrateNulls(codebase: Codebase, previous: Codebase) {
-    if (options.migrateNulls) {
-        val codebaseSupportsNullability = previous.supportsStagedNullability
-        val prevSupportsNullability = previous.supportsStagedNullability
-        try {
-            previous.supportsStagedNullability = true
-            codebase.supportsStagedNullability = true
-            previous.compareWith(
-                NullnessMigration(), codebase,
-                ApiPredicate()
-            )
-        } finally {
-            previous.supportsStagedNullability = prevSupportsNullability
-            codebase.supportsStagedNullability = codebaseSupportsNullability
-        }
+    val codebaseSupportsNullability = codebase.supportsStagedNullability
+    val prevSupportsNullability = previous.supportsStagedNullability
+    try {
+        previous.supportsStagedNullability = true
+        codebase.supportsStagedNullability = true
+        previous.compareWith(
+            NullnessMigration(), codebase,
+            ApiPredicate()
+        )
+    } finally {
+        previous.supportsStagedNullability = prevSupportsNullability
+        codebase.supportsStagedNullability = codebaseSupportsNullability
     }
 }
 
@@ -684,10 +734,10 @@ internal fun parseSources(sources: List<File>, description: String): PsiBasedCod
     return codebase
 }
 
-private fun loadFromJarFile(apiJar: File, manifest: File? = null): Codebase {
+fun loadFromJarFile(apiJar: File, manifest: File? = null, preFiltered: Boolean = false): Codebase {
     val projectEnvironment = createProjectEnvironment()
 
-    progress("Processing jar file: ")
+    progress("\nProcessing jar file: ")
 
     // Create project environment with those paths
     val project = projectEnvironment.project
@@ -697,12 +747,16 @@ private fun loadFromJarFile(apiJar: File, manifest: File? = null): Codebase {
     val trace = KotlinLintAnalyzerFacade().analyze(kotlinFiles, listOf(apiJar), project)
 
     val codebase = PsiBasedCodebase(apiJar, "Codebase loaded from $apiJar")
-    codebase.initialize(project, apiJar)
+    codebase.initialize(project, apiJar, preFiltered)
     if (manifest != null) {
         codebase.manifest = options.manifest
     }
+    val apiEmit = ApiPredicate(ignoreShown = true)
+    val apiReference = ApiPredicate(ignoreShown = true)
     val analyzer = ApiAnalyzer(codebase)
+    analyzer.computeApi()
     analyzer.mergeExternalAnnotations()
+    analyzer.generateInheritedStubs(apiEmit, apiReference)
     codebase.bindingContext = trace.bindingContext
     return codebase
 }
@@ -768,15 +822,11 @@ private fun createStubFiles(stubDir: File, codebase: Codebase, docStubs: Boolean
         compatibility.useErasureInThrows = prevCompatibility.useErasureInThrows
     }
 
-    // Fow now, we don't put annotations into documentation stub files, unless you're explicitly
-    // generating only documentation stubs *and* asked to include annotations
-    val generateAnnotations = options.generateAnnotations && (!docStubs || options.stubsDir == null)
-
     val stubWriter =
         StubWriter(
             codebase = codebase,
             stubsDir = stubDir,
-            generateAnnotations = generateAnnotations,
+            generateAnnotations = options.generateAnnotations,
             preFiltered = codebase.preFiltered,
             docStubs = docStubs
         )
@@ -821,7 +871,7 @@ fun progress(message: String) {
     }
 }
 
-private fun createReportFile(
+fun createReportFile(
     codebase: Codebase,
     apiFile: File,
     description: String?,

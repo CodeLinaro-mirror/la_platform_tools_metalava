@@ -420,8 +420,7 @@ class DocAnalyzerTest : DriverTest() {
                 """
                 package android.widget;
                 /**
-                 * Requires API level 21
-                 * @since 5.0 Lollipop (21)
+                 * @since 21
                  */
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                 public class Toolbar2 {
@@ -431,9 +430,7 @@ class DocAnalyzerTest : DriverTest() {
                  * <br>
                  * This method must be called on the thread that originally created
                  * this UI element. This is typically the main thread of your app.
-                 * <br>
-                 * Requires API level 24
-                 * @since 7.0 Nougat (24)
+                 * @since 24
                  * @return blah blah blah
                  */
                 @androidx.annotation.UiThread
@@ -1072,17 +1069,14 @@ class DocAnalyzerTest : DriverTest() {
                 """
                 package android.widget;
                 /**
-                 * Requires API level 21
-                 * @since 5.0 Lollipop (21)
+                 * @since 21
                  */
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                 public class Toolbar {
                 public Toolbar() { throw new RuntimeException("Stub!"); }
                 /**
                  * Existing documentation for {@linkplain #getCurrentContentInsetEnd()} here.
-                 * <br>
-                 * Requires API level 24
-                 * @since 7.0 Nougat (24)
+                 * @since 24
                  * @return blah blah blah
                  */
                 public int getCurrentContentInsetEnd() { throw new RuntimeException("Stub!"); }
@@ -1142,12 +1136,10 @@ class DocAnalyzerTest : DriverTest() {
                 public class Camera {
                 public Camera() { throw new RuntimeException("Stub!"); }
                 /**
-                 *
-                 * Requires API level 14
                  * @deprecated
                  * <p class="caution"><strong>This class was deprecated in API level 21.</strong></p>
                  *  Use something else.
-                 * @since 4.0 IceCreamSandwich (14)
+                 * @since 14
                  */
                 @Deprecated public static final java.lang.String ACTION_NEW_VIDEO = "android.hardware.action.NEW_VIDEO";
                 }
@@ -1274,14 +1266,13 @@ class DocAnalyzerTest : DriverTest() {
 
                 requiresApiSource
             ),
-            checkCompilation = true,
+            checkCompilation = false, // duplicate class: androidx.annotation.RequiresApi
             checkDoclava1 = false,
             stubs = arrayOf(
                 """
                 package test.pkg;
                 /**
-                 * Requires API level 21
-                 * @since 5.0 Lollipop (21)
+                 * @since 21
                  */
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                 @androidx.annotation.RequiresApi(21)
@@ -1354,6 +1345,124 @@ class DocAnalyzerTest : DriverTest() {
     }
 
     @Test
+    fun `Annotation annotating self`() {
+        check(
+            sourceFiles = *arrayOf(
+                java(
+                    """
+                        package test.pkg;
+                        import java.lang.annotation.Retention;
+                        import java.lang.annotation.RetentionPolicy;
+                        /**
+                         * Documentation here
+                         */
+                        @SuppressWarnings("WeakerAccess")
+                        @MyAnnotation
+                        @Retention(RetentionPolicy.SOURCE)
+                        public @interface MyAnnotation {
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+
+                        /**
+                         * Other documentation here
+                         */
+                        @SuppressWarnings("WeakerAccess")
+                        @MyAnnotation
+                        public class OtherClass {
+                        }
+                    """
+                )
+            ),
+            checkCompilation = true,
+            checkDoclava1 = false,
+            stubs = arrayOf(
+                """
+                package test.pkg;
+                /**
+                 * Documentation here
+                 */
+                @SuppressWarnings({"unchecked", "deprecation", "all"})
+                @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.SOURCE)
+                public @interface MyAnnotation {
+                }
+                """,
+                """
+                package test.pkg;
+                /**
+                 * Other documentation here
+                 */
+                @SuppressWarnings({"unchecked", "deprecation", "all"})
+                public class OtherClass {
+                public OtherClass() { throw new RuntimeException("Stub!"); }
+                }
+                """
+            )
+        )
+    }
+
+    @Test
+    fun `Annotation annotating itself indirectly`() {
+        check(
+            sourceFiles = *arrayOf(
+                java(
+                    """
+                        package test.pkg;
+
+                        /**
+                         * Documentation 1 here
+                         */
+                        @SuppressWarnings("WeakerAccess")
+                        @MyAnnotation2
+                        public @interface MyAnnotation1 {
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+
+                        /**
+                         * Documentation 2 here
+                         */
+                        @SuppressWarnings("WeakerAccess")
+                        @MyAnnotation1
+                        public @interface MyAnnotation2 {
+                        }
+                    """
+                )
+            ),
+            checkCompilation = true,
+            checkDoclava1 = false,
+            stubs = arrayOf(
+                """
+                package test.pkg;
+                /**
+                 * Documentation 1 here
+                 */
+                @SuppressWarnings({"unchecked", "deprecation", "all"})
+                @test.pkg.MyAnnotation2
+                public @interface MyAnnotation1 {
+                }
+                """,
+                """
+                package test.pkg;
+                /**
+                 * Documentation 2 here
+                 */
+                @SuppressWarnings({"unchecked", "deprecation", "all"})
+                @test.pkg.MyAnnotation1
+                public @interface MyAnnotation2 {
+                }
+                """
+            )
+        )
+    }
+
+    @Test
     fun `Invoke external documentation tool`() {
         val jdkPath = getJdkPath()
         if (jdkPath == null) {
@@ -1377,9 +1486,9 @@ class DocAnalyzerTest : DriverTest() {
 
         check(
             extraArguments = arrayOf(
-                "--write-stubs-source-list",
+                ARG_STUBS_SOURCE_LIST,
                 sourceList,
-                "--generate-documentation",
+                ARG_GENERATE_DOCUMENTATION,
                 javadoc.path,
                 "-sourcepath",
                 "STUBS_DIR",

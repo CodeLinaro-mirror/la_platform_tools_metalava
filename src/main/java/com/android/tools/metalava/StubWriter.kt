@@ -59,6 +59,7 @@ class StubWriter(
     filterReference = ApiPredicate(ignoreShown = true, includeDocOnly = docStubs),
     includeEmptyOuterClasses = true
 ) {
+    private val annotationTarget = if (docStubs) AnnotationTarget.DOC_STUBS_FILE else AnnotationTarget.SDK_STUBS_FILE
 
     private val sourceList = StringBuilder(20000)
 
@@ -74,7 +75,7 @@ class StubWriter(
     fun writeSourceList(target: File, root: File?) {
         target.parentFile?.mkdirs()
         val contents = if (root != null) {
-            val path = root.path.replace('\\', '/')
+            val path = root.path.replace('\\', '/') + "/"
             sourceList.toString().replace(path, "")
         } else {
             sourceList.toString()
@@ -143,7 +144,7 @@ class StubWriter(
                     // Some bug in UAST triggers duplicate nullability annotations
                     // here; make sure the are filtered out
                     filterDuplicates = true,
-                    target = AnnotationTarget.STUBS_FILE,
+                    target = annotationTarget,
                     writer = writer
                 )
             }
@@ -258,6 +259,21 @@ class StubWriter(
                         writer.write(",\n")
                     }
                     appendDocumentation(field, writer)
+
+                    // Can't just appendModifiers(field, true, true): enum constants
+                    // don't take modifier lists, only annotations
+                    ModifierList.writeAnnotations(
+                        item = field,
+                        target = annotationTarget,
+                        runtimeAnnotationsOnly = !generateAnnotations,
+                        includeDeprecated = true,
+                        writer = writer,
+                        separateLines = true,
+                        list = field.modifiers,
+                        skipNullnessAnnotations = false,
+                        omitCommonPackages = false
+                    )
+
                     writer.write(field.name())
                 }
             }
@@ -306,7 +322,7 @@ class StubWriter(
 
         ModifierList.write(
             writer, modifiers, item,
-            target = AnnotationTarget.STUBS_FILE,
+            target = annotationTarget,
             includeAnnotations = true,
             includeDeprecated = true,
             runtimeAnnotationsOnly = !generateAnnotations,

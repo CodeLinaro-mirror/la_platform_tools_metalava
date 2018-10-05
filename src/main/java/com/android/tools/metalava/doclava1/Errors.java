@@ -207,11 +207,17 @@ public class Errors {
     public static final Error ANNOTATION_EXTRACTION = new Error(146, ERROR);
     public static final Error SUPERFLUOUS_PREFIX = new Error(147, WARNING);
     public static final Error HIDDEN_TYPEDEF_CONSTANT = new Error(148, ERROR);
-    public static final Error EXPECTED_PLATFORM_TYPE = new Error(149, WARNING);
+    public static final Error EXPECTED_PLATFORM_TYPE = new Error(149, HIDDEN);
     public static final Error INTERNAL_ERROR = new Error(150, ERROR);
     public static final Error RETURNING_UNEXPECTED_CONSTANT = new Error(151, WARNING);
     public static final Error DEPRECATED_OPTION = new Error(152, WARNING);
     public static final Error BOTH_PACKAGE_INFO_AND_HTML = new Error(153, WARNING);
+    // The plan is for this to be set as an error once (1) existing code is marked as @deprecated
+    // and (2) the principle is adopted by the API council
+    public static final Error REFERENCES_DEPRECATED = new Error(154, HIDDEN);
+    // Hidden until (1) API council agrees this should be an error, and (2) existing
+    // violations are annotated as @hide
+    public static final Error UNHIDDEN_SYSTEM_API = new Error(155, HIDDEN);
 
     static {
         // Attempt to initialize error names based on the field names

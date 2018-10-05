@@ -39,6 +39,13 @@ General:
 --color                                  Attempt to colorize the output (defaults to true
                                          if ${"$"}TERM is xterm)
 --no-color                               Do not attempt to colorize the output
+--no-docs                                Cancel any other documentation flags supplied to
+                                         metalava. This is here to make it easier
+                                         customize build system tasks.
+--update-api                             Cancel any other "action" flags other than
+                                         generating signature files. This is here to make
+                                         it easier customize build system tasks,
+                                         particularly for the "make update-api" task.
 
 API sources:
 --source-files <files>                   A comma separated list of source files to be
@@ -86,6 +93,8 @@ Extracting Signature Files:
                                          the APIs
 --private-dex-api <file>                 Generate a DEX signature descriptor file listing
                                          the exact private APIs
+--dex-api-mapping <file>                 Generate a DEX signature descriptor along with
+                                         file and line numbers
 --removed-api <file>                     Generate a signature descriptor file for APIs
                                          that have been removed
 --output-kotlin-nulls[=yes|no]           Controls whether nullness annotations should be
@@ -165,6 +174,13 @@ Diffs and Checks:
                                          lint-severity
 --hide <id>                              Hide/skip issues of the given id
 
+JDiff:
+--api-xml <file>                         Like --api, but emits the API in the JDiff XML
+                                         format instead
+--convert-to-jdiff <sig> <xml>           Reads in the given signature file, and writes it
+                                         out in the JDiff XML format. Can be specified
+                                         multiple times.
+
 Statistics:
 --annotation-coverage-stats              Whether metalava should emit coverage statistics
                                          for annotations, listing the percentage of the
@@ -234,7 +250,7 @@ METALAVA_APPEND_ARGS                     One or more arguments (concatenated by 
 
     @Test
     fun `Test invalid arguments`() {
-        val args = listOf("--no-color", "--blah-blah-blah")
+        val args = listOf(ARG_NO_COLOR, "--blah-blah-blah")
 
         val stdout = StringWriter()
         val stderr = StringWriter()
@@ -257,7 +273,7 @@ $FLAGS
 
     @Test
     fun `Test help`() {
-        val args = listOf("--no-color", "--help")
+        val args = listOf(ARG_NO_COLOR, "--help")
 
         val stdout = StringWriter()
         val stderr = StringWriter()

@@ -165,11 +165,27 @@ interface ModifierList {
         }
     }
 
+    /** User visible description of the visibility in this modifier list */
     fun getVisibilityString(): String {
         return when {
             isPublic() -> "public"
             isProtected() -> "protected"
             isPackagePrivate() -> "package private"
+            isInternal() -> "internal"
+            isPrivate() -> "private"
+            else -> error(toString())
+        }
+    }
+
+    /**
+     * Like [getVisibilityString], but package private has no modifiers; this typically corresponds to
+     * the source code for the visibility modifiers in the modifier list
+     */
+    fun getVisibilityModifiers(): String {
+        return when {
+            isPublic() -> "public"
+            isProtected() -> "protected"
+            isPackagePrivate() -> ""
             isInternal() -> "internal"
             isPrivate() -> "private"
             else -> error(toString())
@@ -214,29 +230,20 @@ interface ModifierList {
             }
 
             if (includeAnnotations) {
-                //  if includeDepecated we want to do it
-                //  unless runtimeOnly is false, in which case we'd include it too
-                // e.g. emit @Deprecated if includeDeprecated && !runtimeOnly
-                if (item.deprecated &&
-                    (!options.compatOutput || target == AnnotationTarget.STUBS_FILE) &&
-                    (runtimeAnnotationsOnly || includeDeprecated)
-                ) {
-                    writer.write("@Deprecated")
-                    writer.write(if (separateLines) "\n" else " ")
-                }
-
                 writeAnnotations(
-                    list = list,
-                    runtimeAnnotationsOnly = runtimeAnnotationsOnly,
-                    skipNullnessAnnotations = skipNullnessAnnotations,
-                    omitCommonPackages = omitCommonPackages,
-                    separateLines = separateLines,
-                    writer = writer,
-                    target = target
+                    item,
+                    target,
+                    runtimeAnnotationsOnly,
+                    includeDeprecated,
+                    writer,
+                    separateLines,
+                    list,
+                    skipNullnessAnnotations,
+                    omitCommonPackages
                 )
             } else {
                 // We always include @Deprecated annotation in stub files
-                if (item.deprecated && target == AnnotationTarget.STUBS_FILE) {
+                if (item.deprecated && target.isStubsFile()) {
                     writer.write("@Deprecated")
                     writer.write(if (separateLines) "\n" else " ")
                 }
@@ -311,15 +318,15 @@ interface ModifierList {
                     writer.write("abstract ")
                 }
 
-                if (list.isNative() && (target == AnnotationTarget.STUBS_FILE || !compatibility.skipNativeModifier)) {
+                if (list.isNative() && (target.isStubsFile() || !compatibility.skipNativeModifier)) {
                     writer.write("native ")
                 }
 
-                if (item.deprecated && includeDeprecated && target != AnnotationTarget.STUBS_FILE && options.compatOutput) {
+                if (item.deprecated && includeDeprecated && !target.isStubsFile() && options.compatOutput) {
                     writer.write("deprecated ")
                 }
 
-                if (list.isSynchronized()) {
+                if (list.isSynchronized() && (options.compatOutput || target.isStubsFile())) {
                     writer.write("synchronized ")
                 }
 
@@ -335,7 +342,7 @@ interface ModifierList {
                     writer.write("volatile ")
                 }
             } else {
-                if (item.deprecated && includeDeprecated && target != AnnotationTarget.STUBS_FILE && options.compatOutput) {
+                if (item.deprecated && includeDeprecated && !target.isStubsFile() && options.compatOutput) {
                     writer.write("deprecated ")
                 }
 
@@ -395,11 +402,11 @@ interface ModifierList {
                     writer.write("volatile ")
                 }
 
-                if (list.isSynchronized()) {
+                if (list.isSynchronized() && (options.compatOutput || target.isStubsFile())) {
                     writer.write("synchronized ")
                 }
 
-                if (list.isNative() && (target == AnnotationTarget.STUBS_FILE || !compatibility.skipNativeModifier)) {
+                if (list.isNative() && (target.isStubsFile() || !compatibility.skipNativeModifier)) {
                     writer.write("native ")
                 }
 
@@ -407,6 +414,39 @@ interface ModifierList {
                     writer.write("strictfp ")
                 }
             }
+        }
+
+        fun writeAnnotations(
+            item: Item,
+            target: AnnotationTarget,
+            runtimeAnnotationsOnly: Boolean,
+            includeDeprecated: Boolean,
+            writer: Writer,
+            separateLines: Boolean,
+            list: ModifierList,
+            skipNullnessAnnotations: Boolean,
+            omitCommonPackages: Boolean
+        ) {
+            //  if includeDeprecated we want to do it
+            //  unless runtimeOnly is false, in which case we'd include it too
+            // e.g. emit @Deprecated if includeDeprecated && !runtimeOnly
+            if (item.deprecated &&
+                (!options.compatOutput || target.isStubsFile()) &&
+                (runtimeAnnotationsOnly || includeDeprecated)
+            ) {
+                writer.write("@Deprecated")
+                writer.write(if (separateLines) "\n" else " ")
+            }
+
+            writeAnnotations(
+                list = list,
+                runtimeAnnotationsOnly = runtimeAnnotationsOnly,
+                skipNullnessAnnotations = skipNullnessAnnotations,
+                omitCommonPackages = omitCommonPackages,
+                separateLines = separateLines,
+                writer = writer,
+                target = target
+            )
         }
 
         fun writeAnnotations(

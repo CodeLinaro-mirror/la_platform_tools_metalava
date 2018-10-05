@@ -248,7 +248,7 @@ CompatibilityCheckTest : DriverTest() {
                 ),
                 supportParameterName
             ),
-            extraArguments = arrayOf("--hide-package", "androidx.annotation")
+            extraArguments = arrayOf(ARG_HIDE_PACKAGE, "androidx.annotation")
         )
     }
 
@@ -796,7 +796,7 @@ CompatibilityCheckTest : DriverTest() {
                 ),
                 suppressLintSource
             ),
-            extraArguments = arrayOf("--hide-package", "android.annotation")
+            extraArguments = arrayOf(ARG_HIDE_PACKAGE, "android.annotation")
         )
     }
 
@@ -1684,14 +1684,6 @@ CompatibilityCheckTest : DriverTest() {
                 src/test/pkg/Bar.java:17: error: Added method test.pkg.Bar.Inner1.Inner2.addedMethod() to the system API [AddedMethod:4]
                 TESTROOT/current-api.txt:4: error: Removed method test.pkg.Bar.Inner1.Inner2.removedMethod() [RemovedMethod:9]
                 """,
-            api = """
-                package test.pkg {
-                  public class Bar.Inner1.Inner2 {
-                    method public void addedMethod();
-                    method public void method();
-                  }
-                }
-                """,
             sourceFiles = *arrayOf(
                 java(
                     """
@@ -1736,9 +1728,9 @@ CompatibilityCheckTest : DriverTest() {
             ),
 
             extraArguments = arrayOf(
-                "--show-annotation", "android.annotation.TestApi",
-                "--hide-package", "android.annotation",
-                "--hide-package", "android.support.annotation"
+                ARG_SHOW_ANNOTATION, "android.annotation.TestApi",
+                ARG_HIDE_PACKAGE, "android.annotation",
+                ARG_HIDE_PACKAGE, "android.support.annotation"
             ),
 
             checkCompatibilityApi =
@@ -1947,6 +1939,118 @@ CompatibilityCheckTest : DriverTest() {
         )
     }
 
+    @Test
+    fun `Implicit nullness`() {
+        check(
+            compatibilityMode = false,
+            inputKotlinStyleNulls = true,
+            checkCompatibilityApi = """
+                // Signature format: 2.0
+                package androidx.annotation {
+                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS) @java.lang.annotation.Target({java.lang.annotation.ElementType.ANNOTATION_TYPE, java.lang.annotation.ElementType.TYPE, java.lang.annotation.ElementType.METHOD, java.lang.annotation.ElementType.CONSTRUCTOR, java.lang.annotation.ElementType.FIELD, java.lang.annotation.ElementType.PACKAGE}) public @interface RestrictTo {
+                    method public abstract androidx.annotation.RestrictTo.Scope[] value();
+                  }
+
+                  public static enum RestrictTo.Scope {
+                    enum_constant @Deprecated public static final androidx.annotation.RestrictTo.Scope GROUP_ID;
+                    enum_constant public static final androidx.annotation.RestrictTo.Scope LIBRARY;
+                    enum_constant public static final androidx.annotation.RestrictTo.Scope LIBRARY_GROUP;
+                    enum_constant public static final androidx.annotation.RestrictTo.Scope SUBCLASSES;
+                    enum_constant public static final androidx.annotation.RestrictTo.Scope TESTS;
+                  }
+                }
+                """,
+
+            sourceFiles = *arrayOf(
+                restrictToSource
+            )
+        )
+    }
+
+    @Test
+    fun `Java String constants`() {
+        check(
+            compatibilityMode = false,
+            inputKotlinStyleNulls = true,
+            checkCompatibilityApi = """
+                package androidx.browser.browseractions {
+                  public class BrowserActionsIntent {
+                    field public static final String EXTRA_APP_ID = "androidx.browser.browseractions.APP_ID";
+                  }
+                }
+                """,
+
+            sourceFiles = *arrayOf(
+                java(
+                    """
+                     package androidx.browser.browseractions;
+                     public class BrowserActionsIntent {
+                        private BrowserActionsIntent() { }
+                        public static final String EXTRA_APP_ID = "androidx.browser.browseractions.APP_ID";
+
+                     }
+                    """
+                ).indented()
+            )
+        )
+    }
+
+    @Test
+    fun `Classes with maps`() {
+        check(
+            compatibilityMode = false,
+            inputKotlinStyleNulls = true,
+            checkCompatibilityApi = """
+                // Signature format: 2.0
+                package androidx.collection {
+                  public class SimpleArrayMap<K, V> {
+                  }
+                }
+                """,
+
+            sourceFiles = *arrayOf(
+                java(
+                    """
+                    package androidx.collection;
+
+                    public class SimpleArrayMap<K, V> {
+                    }
+                    """
+                ).indented()
+            )
+        )
+    }
+
+    @Test
+    fun `Referencing type parameters in types`() {
+        check(
+            compatibilityMode = false,
+            inputKotlinStyleNulls = true,
+            checkCompatibilityApi = """
+                // Signature format: 2.0
+                package androidx.collection {
+                  public class MyMap<Key, Value> {
+                    field public Key! myField;
+                    method public Key! getReplacement(Key!);
+                  }
+                }
+                """,
+
+            sourceFiles = *arrayOf(
+                java(
+                    """
+                    package androidx.collection;
+
+                    public class MyMap<Key, Value> {
+                        public Key getReplacement(Key key) { return null; }
+                        public Key myField = null;
+                    }
+                    """
+                ).indented()
+            )
+        )
+    }
+
     @Ignore("Not currently working: we're getting the wrong PSI results; I suspect caching across the two codebases")
     @Test
     fun `Test All Android API levels`() {
@@ -2061,7 +2165,7 @@ CompatibilityCheckTest : DriverTest() {
                 checkDoclava1 = false,
                 extraArguments = arrayOf(
                     "--omit-locations",
-                    "--hide",
+                    ARG_HIDE,
                     suppressLevels[apiLevel]
                         ?: "AddedPackage,AddedClass,AddedMethod,AddedInterface,AddedField,ChangedDeprecated,RemovedField,RemovedClass,RemovedDeprecatedClass" +
                         (if ((apiLevel == 19 || apiLevel == 20) && loadPrevAsSignature) ",ChangedType" else "")
@@ -2088,7 +2192,7 @@ CompatibilityCheckTest : DriverTest() {
                     checkDoclava1 = false,
                     extraArguments = arrayOf(
                         "--omit-locations",
-                        "--hide",
+                        ARG_HIDE,
                         suppressLevels[apiLevel]
                             ?: "AddedPackage,AddedClass,AddedMethod,AddedInterface,AddedField,ChangedDeprecated,RemovedField,RemovedClass,RemovedDeprecatedClass"
                     ),

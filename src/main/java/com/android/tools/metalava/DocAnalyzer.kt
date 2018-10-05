@@ -1,7 +1,6 @@
 package com.android.tools.metalava
 
 import com.android.SdkConstants.ATTR_VALUE
-import com.android.SdkConstants.VALUE_TRUE
 import com.android.sdklib.SdkVersionInfo
 import com.android.sdklib.repository.AndroidSdkHandler
 import com.android.tools.lint.LintCliClient
@@ -27,6 +26,13 @@ import com.intellij.psi.PsiMethod
 import java.io.File
 import java.util.HashMap
 import java.util.regex.Pattern
+
+/**
+ * Whether to include textual descriptions of the API requirements instead
+ * of just inserting a since-tag. This should be off if there is post-processing
+ * to convert since tags in the documentation tool used.
+ */
+const val ADD_API_LEVEL_TEXT = false
 
 /**
  * Walk over the API and apply tweaks to the documentation, such as
@@ -176,6 +182,12 @@ class DocAnalyzer(
                     return
                 }
 
+                if (item is ClassItem && name == item.qualifiedName()) {
+                    // The annotation annotates itself; we shouldn't attempt to recursively
+                    // pull in documentation from it; the documentation is already complete.
+                    return
+                }
+
                 // Some annotations include the documentation they want inlined into usage docs.
                 // Copy those here:
 
@@ -204,8 +216,9 @@ class DocAnalyzer(
                             "Unbounded recursion, processing annotation " +
                                 "${annotation.toSource()} in $item in ${item.compilationUnit()} "
                         )
+                    } else if (nested.qualifiedName() != annotation.qualifiedName()) {
+                        handleAnnotation(nested, item, depth + 1)
                     }
-                    handleAnnotation(nested, item, depth + 1)
                 }
             }
 
@@ -596,6 +609,7 @@ class DocAnalyzer(
     }
 
     fun applyApiLevels(applyApiLevelsXml: File) {
+        @Suppress("DEPRECATION") // still using older lint-api when building with soong
         val client = object : LintCliClient() {
             override fun findResource(relativePath: String): File? {
                 if (relativePath == ApiLookup.XML_FILE_PATH) {
@@ -609,7 +623,7 @@ class DocAnalyzer(
             }
 
             override fun getCacheDir(name: String?, create: Boolean): File? {
-                if (create && System.getProperty(ENV_VAR_METALAVA_TESTS_RUNNING) == VALUE_TRUE) {
+                if (create && java.lang.Boolean.getBoolean(ENV_VAR_METALAVA_TESTS_RUNNING)) {
                     // Pick unique directory during unit tests
                     return Files.createTempDir()
                 }
@@ -647,13 +661,16 @@ class DocAnalyzer(
 
     private fun addApiLevelDocumentation(level: Int, item: Item) {
         if (level > 1) {
-            appendDocumentation("Requires API level $level", item, false)
+            @Suppress("ConstantConditionIf")
+            if (ADD_API_LEVEL_TEXT) { // See 113933920: Remove "Requires API level" from method comment
+                appendDocumentation("Requires API level ${describeApiLevel(level)}", item, false)
+            }
             // Also add @since tag, unless already manually entered.
             // TODO: Override it everywhere in case the existing doc is wrong (we know
             // better), and at least for OpenJDK sources we *should* since the since tags
             // are talking about language levels rather than API levels!
             if (!item.documentation.contains("@since")) {
-                item.appendDocumentation(describeApiLevel(level), "@since")
+                item.appendDocumentation(level.toString(), "@since")
             }
         }
     }
@@ -668,7 +685,7 @@ class DocAnalyzer(
     }
 
     private fun describeApiLevel(level: Int): String {
-        return "${SdkVersionInfo.getVersionString(level)} ${SdkVersionInfo.getCodeName(level)} ($level)"
+        return "$level (Android ${SdkVersionInfo.getVersionString(level)}, ${SdkVersionInfo.getCodeName(level)})"
     }
 }
 

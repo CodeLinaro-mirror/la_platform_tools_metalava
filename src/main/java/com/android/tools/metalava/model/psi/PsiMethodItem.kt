@@ -256,7 +256,9 @@ open class PsiMethodItem(
         if (targetContainingClass.docOnly) {
             duplicated.docOnly = true
         }
-
+        if (targetContainingClass.deprecated && compatibility.propagateDeprecatedMembers) {
+            duplicated.deprecated = true
+        }
         duplicated.throwsTypes = throwsTypes
         return duplicated
     }
@@ -281,7 +283,7 @@ open class PsiMethodItem(
         val modifierString = StringWriter()
         ModifierList.write(
             modifierString, method.modifiers, method,
-            target = AnnotationTarget.STUBS_FILE,
+            target = AnnotationTarget.SDK_STUBS_FILE,
             removeAbstract = false,
             removeFinal = false,
             addPublic = true
