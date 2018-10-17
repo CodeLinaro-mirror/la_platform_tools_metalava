@@ -64,6 +64,10 @@ class StubsTest : DriverTest() {
             sourceFiles = *arrayOf(
                 java(
                     """
+                    /*
+                     * This is the copyright header.
+                     */
+
                     package test.pkg;
                     /** This is the documentation for the class */
                     @SuppressWarnings("ALL")
@@ -91,6 +95,9 @@ class StubsTest : DriverTest() {
                 )
             ),
             source = """
+                /*
+                 * This is the copyright header.
+                 */
                 package test.pkg;
                 /** This is the documentation for the class */
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
@@ -2989,107 +2996,6 @@ class StubsTest : DriverTest() {
     }
 
     @Test
-    fun `Rewrite relative documentation links`() {
-        // When generating casts in super constructor calls, use raw types
-        checkStubs(
-            checkDoclava1 = false,
-            sourceFiles =
-            *arrayOf(
-                java(
-                    """
-                    package test.pkg1;
-                    import java.io.IOException;
-                    import test.pkg2.OtherClass;
-
-                    /**
-                     *  Blah blah {@link OtherClass} blah blah.
-                     *  Referencing <b>field</b> {@link OtherClass#foo},
-                     *  and referencing method {@link OtherClass#bar(int,
-                     *   boolean)}.
-                     *  And relative method reference {@link #baz()}.
-                     *  And relative field reference {@link #importance}.
-                     *  Here's an already fully qualified reference: {@link test.pkg2.OtherClass}.
-                     *  And here's one in the same package: {@link LocalClass}.
-                     *
-                     *  @deprecated For some reason
-                     *  @see OtherClass
-                     *  @see OtherClass#bar(int, boolean)
-                     */
-                    @SuppressWarnings("all")
-                    public class SomeClass {
-                       /**
-                       * My method.
-                       * @param focus The focus to find. One of {@link OtherClass#FOCUS_INPUT} or
-                       *         {@link OtherClass#FOCUS_ACCESSIBILITY}.
-                       * @throws IOException when blah blah blah
-                       * @throws {@link RuntimeException} when blah blah blah
-                       */
-                       public void baz(int focus) throws IOException;
-                       public boolean importance;
-                    }
-                    """
-                ),
-                java(
-                    """
-                    package test.pkg2;
-
-                    @SuppressWarnings("all")
-                    public class OtherClass {
-                        public static final int FOCUS_INPUT = 1;
-                        public static final int FOCUS_ACCESSIBILITY = 2;
-                        public int foo;
-                        public void bar(int baz, boolean bar);
-                    }
-                    """
-                ),
-                java(
-                    """
-                    package test.pkg1;
-
-                    @SuppressWarnings("all")
-                    public class LocalClass {
-                    }
-                    """
-                )
-            ),
-            warnings = "",
-            source = """
-                    package test.pkg1;
-                    import test.pkg2.OtherClass;
-                    import java.io.IOException;
-                    /**
-                     *  Blah blah {@link OtherClass} blah blah.
-                     *  Referencing <b>field</b> {@link OtherClass#foo},
-                     *  and referencing method {@link OtherClass#bar(int,
-                     *   boolean)}.
-                     *  And relative method reference {@link #baz()}.
-                     *  And relative field reference {@link #importance}.
-                     *  Here's an already fully qualified reference: {@link test.pkg2.OtherClass}.
-                     *  And here's one in the same package: {@link LocalClass}.
-                     *
-                     *  @deprecated For some reason
-                     *  @see OtherClass
-                     *  @see OtherClass#bar(int, boolean)
-                     */
-                    @SuppressWarnings({"unchecked", "deprecation", "all"})
-                    @Deprecated
-                    public class SomeClass {
-                    public SomeClass() { throw new RuntimeException("Stub!"); }
-                    /**
-                     * My method.
-                     * @param focus The focus to find. One of {@link OtherClass#FOCUS_INPUT} or
-                     *         {@link OtherClass#FOCUS_ACCESSIBILITY}.
-                     * @throws IOException when blah blah blah
-                     * @throws {@link RuntimeException} when blah blah blah
-                     */
-                    public void baz(int focus) throws java.io.IOException { throw new RuntimeException("Stub!"); }
-                    public boolean importance;
-                    }
-                    """
-        )
-    }
-
-    @Test
     fun `Annotation default values`() {
         checkStubs(
             compatibilityMode = false,
@@ -3585,6 +3491,106 @@ class StubsTest : DriverTest() {
                 }
                 """
             )
+        )
+    }
+
+    @Test
+    fun `Generate stubs with --exclude-documentation-from-stubs`() {
+        checkStubs(
+            extraArguments = arrayOf(ARG_EXCLUDE_DOCUMENTATION_FROM_STUBS),
+            compatibilityMode = false,
+            sourceFiles = *arrayOf(
+                java(
+                    """
+                    /*
+                     * This is the copyright header.
+                     */
+
+                    package test.pkg;
+
+                    /** This is the documentation for the class */
+                    public class Foo {
+
+                        /** My field doc */
+                        protected static final String field = "a\nb\n\"test\"";
+
+                        /**
+                         * Method documentation.
+                         */
+                        protected static void onCreate(String parameter1) {
+                            // This is not in the stub
+                            System.out.println(parameter1);
+                        }
+                    }
+                    """
+                )
+            ),
+            // Excludes javadoc because of ARG_EXCLUDE_DOCUMENTATION_FROM_STUBS:
+            source = """
+                /*
+                 * This is the copyright header.
+                 */
+                package test.pkg;
+                @SuppressWarnings({"unchecked", "deprecation", "all"})
+                public class Foo {
+                public Foo() { throw new RuntimeException("Stub!"); }
+                protected static void onCreate(java.lang.String parameter1) { throw new RuntimeException("Stub!"); }
+                protected static final java.lang.String field = "a\nb\n\"test\"";
+                }
+                """
+        )
+    }
+
+    @Test
+    fun `Generate documentation stubs with --exclude-documentation-from-stubs`() {
+        checkStubs(
+            extraArguments = arrayOf(ARG_EXCLUDE_DOCUMENTATION_FROM_STUBS),
+            compatibilityMode = false,
+            sourceFiles = *arrayOf(
+                java(
+                    """
+                    /*
+                     * This is the copyright header.
+                     */
+
+                    package test.pkg;
+
+                    /** This is the documentation for the class */
+                    public class Foo {
+
+                        /** My field doc */
+                        protected static final String field = "a\nb\n\"test\"";
+
+                        /**
+                         * Method documentation.
+                         */
+                        protected static void onCreate(String parameter1) {
+                            // This is not in the stub
+                            System.out.println(parameter1);
+                        }
+                    }
+                    """
+                )
+            ),
+            docStubs = true,
+            // Includes javadoc despite ARG_EXCLUDE_DOCUMENTATION_FROM_STUBS, because of docStubs:
+            source = """
+                /*
+                 * This is the copyright header.
+                 */
+                package test.pkg;
+                /** This is the documentation for the class */
+                @SuppressWarnings({"unchecked", "deprecation", "all"})
+                public class Foo {
+                public Foo() { throw new RuntimeException("Stub!"); }
+                /**
+                 * Method documentation.
+                 */
+                protected static void onCreate(java.lang.String parameter1) { throw new RuntimeException("Stub!"); }
+                /** My field doc */
+                protected static final java.lang.String field = "a\nb\n\"test\"";
+                }
+                """
         )
     }
 

@@ -58,18 +58,30 @@ API sources:
 --classpath <paths>                      One or more directories or jars (separated by
                                          `:`) containing classes that should be on the
                                          classpath when parsing the source files
---merge-annotations <file>               An external annotations file to merge and overlay
-                                         the sources, or a directory of such files.
+--merge-qualifier-annotations <file>     An external annotations file to merge and overlay
+                                         the sources, or a directory of such files. Should
+                                         be used for annotations intended for inclusion in
+                                         the API to be written out, e.g. nullability.
                                          Formats supported are: IntelliJ's external
                                          annotations database format, .jar or .zip files
                                          containing those, Android signature files, and
                                          Java stub files.
+--merge-inclusion-annotations <file>     An external annotations file to merge and overlay
+                                         the sources, or a directory of such files. Should
+                                         be used for annotations which determine inclusion
+                                         in the API to be written out, i.e. show and hide.
+                                         The only format supported is Java stub files.
 --input-api-jar <file>                   A .jar file to read APIs from directly
 --manifest <file>                        A manifest file, used to for check permissions to
                                          cross check APIs
 --hide-package <package>                 Remove the given packages from the API even if
                                          they have not been marked with @hide
---show-annotation <annotation class>     Include the given annotation in the API analysis
+--show-annotation <annotation class>     Unhide any hidden elements that are also
+                                         annotated with the given annotation
+--show-single-annotation <annotation>    Like --show-annotation, but does not apply to
+                                         members; these must also be explicitly annotated
+--hide-annotation <annotation class>     Treat any elements annotated with the given
+                                         annotation as hidden
 --show-unannotated                       Include un-annotated public APIs in the signature
                                          file as well
 --java-source <level>                    Sets the source level for Java source files;
@@ -133,6 +145,11 @@ Generating Stubs:
                                          stubs, but not regular stubs, etc.
 --exclude-annotations                    Exclude annotations such as @Nullable from the
                                          stub files
+--exclude-documentation-from-stubs       Exclude element documentation (javadoc and kdoc)
+                                         from the generated stubs. (Copyright notices are
+                                         not affected by this, they are always included.
+                                         Documentation stubs (--doc-stubs) are not
+                                         affected.)
 --write-stubs-source-list <file>         Write the list of generated stub files into the
                                          given source list file. If generating
                                          documentation stubs and you haven't also

@@ -55,7 +55,8 @@ const val ARG_PRIVATE_DEX_API = "--private-dex-api"
 const val ARG_SDK_VALUES = "--sdk-values"
 const val ARG_REMOVED_API = "--removed-api"
 const val ARG_REMOVED_DEX_API = "--removed-dex-api"
-const val ARG_MERGE_ANNOTATIONS = "--merge-annotations"
+const val ARG_MERGE_QUALIFIER_ANNOTATIONS = "--merge-qualifier-annotations"
+const val ARG_MERGE_INCLUSION_ANNOTATIONS = "--merge-inclusion-annotations"
 const val ARG_INPUT_API_JAR = "--input-api-jar"
 const val ARG_EXACT_API = "--exact-api"
 const val ARG_STUBS = "--stubs"
@@ -65,6 +66,7 @@ const val ARG_DOC_STUBS_SOURCE_LIST = "--write-doc-stubs-source-list"
 const val ARG_PROGUARD = "--proguard"
 const val ARG_EXTRACT_ANNOTATIONS = "--extract-annotations"
 const val ARG_EXCLUDE_ANNOTATIONS = "--exclude-annotations"
+const val ARG_EXCLUDE_DOCUMENTATION_FROM_STUBS = "--exclude-documentation-from-stubs"
 const val ARG_HIDE_PACKAGE = "--hide-package"
 const val ARG_MANIFEST = "--manifest"
 const val ARG_MIGRATE_NULLNESS = "--migrate-nullness"
@@ -83,6 +85,8 @@ const val ARG_WRITE_MEMBER_COVERAGE_TO = "--write-member-coverage-to"
 const val ARG_WARNINGS_AS_ERRORS = "--warnings-as-errors"
 const val ARG_LINTS_AS_ERRORS = "--lints-as-errors"
 const val ARG_SHOW_ANNOTATION = "--show-annotation"
+const val ARG_SHOW_SINGLE_ANNOTATION = "--show-single-annotation"
+const val ARG_HIDE_ANNOTATION = "--hide-annotation"
 const val ARG_SHOW_UNANNOTATED = "--show-unannotated"
 const val ARG_COLOR = "--color"
 const val ARG_NO_COLOR = "--no-color"
@@ -137,12 +141,16 @@ class Options(
     private val mutableClassPath: MutableList<File> = mutableListOf()
     /** Internal list backing [showAnnotations] */
     private val mutableShowAnnotations: MutableList<String> = mutableListOf()
+    /** Internal list backing [showSingleAnnotations] */
+    private val mutableShowSingleAnnotations: MutableList<String> = mutableListOf()
     /** Internal list backing [hideAnnotations] */
     private val mutableHideAnnotations: MutableList<String> = mutableListOf()
     /** Internal list backing [stubImportPackages] */
     private val mutableStubImportPackages: MutableSet<String> = mutableSetOf()
-    /** Internal list backing [mergeAnnotations] */
-    private val mutableMergeAnnotations: MutableList<File> = mutableListOf()
+    /** Internal list backing [mergeQualifierAnnotations] */
+    private val mutableMergeQualifierAnnotations: MutableList<File> = mutableListOf()
+    /** Internal list backing [mergeInclusionAnnotations] */
+    private val mutableMergeInclusionAnnotations: MutableList<File> = mutableListOf()
     /** Internal list backing [annotationCoverageOf] */
     private val mutableAnnotationCoverageOf: MutableList<File> = mutableListOf()
     /** Internal list backing [hidePackages] */
@@ -166,6 +174,13 @@ class Options(
      * been configured via ${#ARG_GENERATE_DOCUMENTATION}
      */
     var noDocs = false
+
+    /**
+     * Whether to include element documentation (javadoc and KDoc) is in the generated stubs.
+     * (Copyright notices are not affected by this, they are always included. Documentation stubs
+     * (--doc-stubs) are not affected.)
+     */
+    var includeDocumentationInStubs = true
 
     /**
      * Whether metalava is invoked as part of updating the API files. When this is true, metalava
@@ -218,7 +233,14 @@ class Options(
     var sources: List<File> = mutableSources
 
     /** Whether to include APIs with annotations (intended for documentation purposes) */
-    var showAnnotations = mutableShowAnnotations
+    var showAnnotations: List<String> = mutableShowAnnotations
+
+    /**
+     * Like [showAnnotations], but does not work recursively. Note that
+     * these annotations are *also* show annotations and will be added to the above list;
+     * this is a subset.
+     */
+    val showSingleAnnotations: List<String> = mutableShowSingleAnnotations
 
     /**
      * Whether to include unannotated elements if {@link #showAnnotations} is set.
@@ -236,15 +258,15 @@ class Options(
     var stubImportPackages: Set<String> = mutableStubImportPackages
 
     /** Packages to exclude/hide */
-    var hidePackages = mutableHidePackages
+    var hidePackages: List<String> = mutableHidePackages
 
     /** Packages that we should skip generating even if not hidden; typically only used by tests */
-    var skipEmitPackages = mutableSkipEmitPackages
+    var skipEmitPackages: List<String> = mutableSkipEmitPackages
 
     var showAnnotationOverridesVisibility: Boolean = false
 
     /** Annotations to hide */
-    var hideAnnotations = mutableHideAnnotations
+    var hideAnnotations: List<String> = mutableHideAnnotations
 
     /** Whether to report warnings and other diagnostics along the way */
     var quiet = false
@@ -339,13 +361,14 @@ class Options(
     var migrateNullsFrom: File? = null
 
     /** Private backing list for [compatibilityChecks]] */
-    private var mutableCompatibilityChecks = mutableListOf<CheckRequest>()
+    private var mutableCompatibilityChecks: MutableList<CheckRequest> = mutableListOf<CheckRequest>()
 
     /** The list of compatibility checks to run */
     val compatibilityChecks: List<CheckRequest> = mutableCompatibilityChecks
 
     /** Existing external annotation files to merge in */
-    var mergeAnnotations: List<File> = mutableMergeAnnotations
+    var mergeQualifierAnnotations: List<File> = mutableMergeQualifierAnnotations
+    var mergeInclusionAnnotations: List<File> = mutableMergeInclusionAnnotations
 
     /** Set of jars and class files for existing apps that we want to measure coverage of */
     var annotationCoverageOf: List<File> = mutableAnnotationCoverageOf
@@ -423,7 +446,7 @@ class Options(
     val artifactRegistrations = ArtifactTagger()
 
     /** List of signature files to export as JDiff files */
-    val convertToXmlFiles = mutableConvertToXmlFiles
+    val convertToXmlFiles: List<Pair<File, File>> = mutableConvertToXmlFiles
 
     /** Temporary folder to use instead of the JDK default, if any */
     var tempFolder: File? = null
@@ -499,7 +522,14 @@ class Options(
                     }
                 }
 
-                ARG_MERGE_ANNOTATIONS, "--merge-zips" -> mutableMergeAnnotations.addAll(
+                // TODO: Remove the legacy --merge-annotations flag once it's no longer used to update P docs
+                ARG_MERGE_QUALIFIER_ANNOTATIONS, "--merge-zips", "--merge-annotations" -> mutableMergeQualifierAnnotations.addAll(
+                    stringToExistingDirsOrFiles(
+                        getValue(args, ++index)
+                    )
+                )
+
+                ARG_MERGE_INCLUSION_ANNOTATIONS -> mutableMergeInclusionAnnotations.addAll(
                     stringToExistingDirsOrFiles(
                         getValue(args, ++index)
                     )
@@ -526,6 +556,13 @@ class Options(
 
                 ARG_SHOW_ANNOTATION, "-showAnnotation" -> mutableShowAnnotations.add(getValue(args, ++index))
 
+                ARG_SHOW_SINGLE_ANNOTATION -> {
+                    val annotation = getValue(args, ++index)
+                    mutableShowSingleAnnotations.add(annotation)
+                    // These should also be counted as show annotations
+                    mutableShowAnnotations.add(annotation)
+                }
+
                 ARG_SHOW_UNANNOTATED, "-showUnannotated" -> showUnannotated = true
 
                 "--showAnnotationOverridesVisibility" -> {
@@ -533,7 +570,8 @@ class Options(
                     showAnnotationOverridesVisibility = true
                 }
 
-                "--hideAnnotations", "-hideAnnotation" -> mutableHideAnnotations.add(getValue(args, ++index))
+                ARG_HIDE_ANNOTATION, "--hideAnnotations", "-hideAnnotation" ->
+                    mutableHideAnnotations.add(getValue(args, ++index))
 
                 ARG_STUBS, "-stubs" -> stubsDir = stringToNewDir(getValue(args, ++index))
                 ARG_DOC_STUBS -> docStubsDir = stringToNewDir(getValue(args, ++index))
@@ -541,6 +579,8 @@ class Options(
                 ARG_DOC_STUBS_SOURCE_LIST -> docStubsSourceList = stringToNewFile(getValue(args, ++index))
 
                 ARG_EXCLUDE_ANNOTATIONS -> generateAnnotations = false
+
+                ARG_EXCLUDE_DOCUMENTATION_FROM_STUBS -> includeDocumentationInStubs = false
 
                 // Note that this only affects stub generation, not signature files.
                 // For signature files, clear the compatibility mode
@@ -1400,10 +1440,16 @@ class Options(
                 "`${File.pathSeparator}`) containing classes that should be on the classpath when parsing the " +
                 "source files",
 
-            "$ARG_MERGE_ANNOTATIONS <file>", "An external annotations file to merge and overlay " +
-                "the sources, or a directory of such files. Formats supported are: IntelliJ's " +
-                "external annotations database format, .jar or .zip files containing those, " +
-                "Android signature files, and Java stub files.",
+            "$ARG_MERGE_QUALIFIER_ANNOTATIONS <file>", "An external annotations file to merge and overlay " +
+                "the sources, or a directory of such files. Should be used for annotations intended for " +
+                "inclusion in the API to be written out, e.g. nullability. Formats supported are: IntelliJ's " +
+                "external annotations database format, .jar or .zip files containing those, Android signature " +
+                "files, and Java stub files.",
+
+            "$ARG_MERGE_INCLUSION_ANNOTATIONS <file>", "An external annotations file to merge and overlay " +
+                "the sources, or a directory of such files. Should be used for annotations which determine " +
+                "inclusion in the API to be written out, i.e. show and hide. The only format supported is " +
+                "Java stub files.",
 
             "$ARG_INPUT_API_JAR <file>", "A .jar file to read APIs from directly",
 
@@ -1412,7 +1458,12 @@ class Options(
             "$ARG_HIDE_PACKAGE <package>", "Remove the given packages from the API even if they have not been " +
                 "marked with @hide",
 
-            "$ARG_SHOW_ANNOTATION <annotation class>", "Include the given annotation in the API analysis",
+            "$ARG_SHOW_ANNOTATION <annotation class>", "Unhide any hidden elements that are also annotated " +
+                "with the given annotation",
+            "$ARG_SHOW_SINGLE_ANNOTATION <annotation>", "Like $ARG_SHOW_ANNOTATION, but does not apply " +
+                "to members; these must also be explicitly annotated",
+            "$ARG_HIDE_ANNOTATION <annotation class>", "Treat any elements annotated with the given annotation " +
+                "as hidden",
             ARG_SHOW_UNANNOTATED, "Include un-annotated public APIs in the signature file as well",
             "$ARG_JAVA_SOURCE <level>", "Sets the source level for Java source files; default is 1.8.",
 
@@ -1457,6 +1508,9 @@ class Options(
                 "just list this as @NonNull. Another difference is that @doconly elements are included in " +
                 "documentation stubs, but not regular stubs, etc.",
             ARG_EXCLUDE_ANNOTATIONS, "Exclude annotations such as @Nullable from the stub files",
+            ARG_EXCLUDE_DOCUMENTATION_FROM_STUBS, "Exclude element documentation (javadoc and kdoc) " +
+                "from the generated stubs. (Copyright notices are not affected by this, they are always included. " +
+                "Documentation stubs (--doc-stubs) are not affected.)",
             "$ARG_STUBS_SOURCE_LIST <file>", "Write the list of generated stub files into the given source " +
                 "list file. If generating documentation stubs and you haven't also specified " +
                 "$ARG_DOC_STUBS_SOURCE_LIST, this list will refer to the documentation stubs; " +

@@ -58,6 +58,7 @@ interface ModifierList {
     fun isEmpty(): Boolean
 
     fun isPackagePrivate() = !(isPublic() || isProtected() || isPrivate())
+    fun isPublicOrProtected() = isPublic() || isProtected()
 
     // Rename? It's not a full equality, it's whether an override's modifier set is significant
     fun equivalentTo(other: ModifierList): Boolean {
@@ -103,6 +104,19 @@ interface ModifierList {
         }
     }
 
+    /**
+     * Returns true if this modifier list contains any annotations explicitly passed in
+     * via [Options.showSingleAnnotations]
+     */
+    fun hasShowSingleAnnotation(): Boolean {
+
+        if (options.showSingleAnnotations.isEmpty()) {
+            return false
+        }
+        return annotations().any {
+            options.showSingleAnnotations.contains(it.qualifiedName())
+        }
+    }
     /**
      * Returns true if this modifier list contains any annotations explicitly passed in
      * via [Options.hideAnnotations]
