@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava
 
+import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.AnnotationTarget
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ConstructorItem
@@ -343,12 +344,15 @@ class SignatureWriter(
         writer.print(typeString)
 
         if (options.outputKotlinStyleNulls && !type.primitive) {
-            var nullable: Boolean? = null
-            for (annotation in modifiers.annotations()) {
-                if (annotation.isNullable()) {
-                    nullable = true
-                } else if (annotation.isNonNull()) {
-                    nullable = false
+            var nullable: Boolean? = AnnotationItem.getImplicitNullness(item)
+
+            if (nullable == null) {
+                for (annotation in modifiers.annotations()) {
+                    if (annotation.isNullable()) {
+                        nullable = true
+                    } else if (annotation.isNonNull()) {
+                        nullable = false
+                    }
                 }
             }
             when (nullable) {

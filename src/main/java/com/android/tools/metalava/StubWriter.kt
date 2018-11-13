@@ -30,6 +30,7 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ModifierList
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.TypeParameterList
+import com.android.tools.metalava.model.psi.EXPAND_DOCUMENTATION
 import com.android.tools.metalava.model.psi.PsiClassItem
 import com.android.tools.metalava.model.psi.trimDocIndent
 import com.android.tools.metalava.model.visitors.ApiVisitor
@@ -59,6 +60,7 @@ class StubWriter(
     filterReference = ApiPredicate(ignoreShown = true, includeDocOnly = docStubs),
     includeEmptyOuterClasses = true
 ) {
+    private val annotationTarget = if (docStubs) AnnotationTarget.DOC_STUBS_FILE else AnnotationTarget.SDK_STUBS_FILE
 
     private val sourceList = StringBuilder(20000)
 
@@ -74,7 +76,7 @@ class StubWriter(
     fun writeSourceList(target: File, root: File?) {
         target.parentFile?.mkdirs()
         val contents = if (root != null) {
-            val path = root.path.replace('\\', '/')
+            val path = root.path.replace('\\', '/') + "/"
             sourceList.toString().replace(path, "")
         } else {
             sourceList.toString()
@@ -143,7 +145,7 @@ class StubWriter(
                     // Some bug in UAST triggers duplicate nullability annotations
                     // here; make sure the are filtered out
                     filterDuplicates = true,
-                    target = AnnotationTarget.STUBS_FILE,
+                    target = annotationTarget,
                     writer = writer
                 )
             }
@@ -205,18 +207,20 @@ class StubWriter(
                 writer.println()
             }
 
-            compilationUnit?.getImportStatements(filterReference)?.let {
-                for (item in it) {
-                    when (item) {
-                        is PackageItem ->
-                            writer.println("import ${item.qualifiedName()}.*;")
-                        is ClassItem ->
-                            writer.println("import ${item.qualifiedName()};")
-                        is MemberItem ->
-                            writer.println("import static ${item.containingClass().qualifiedName()}.${item.name()};")
+            if (EXPAND_DOCUMENTATION) {
+                compilationUnit?.getImportStatements(filterReference)?.let {
+                    for (item in it) {
+                        when (item) {
+                            is PackageItem ->
+                                writer.println("import ${item.qualifiedName()}.*;")
+                            is ClassItem ->
+                                writer.println("import ${item.qualifiedName()};")
+                            is MemberItem ->
+                                writer.println("import static ${item.containingClass().qualifiedName()}.${item.name()};")
+                        }
                     }
+                    writer.println()
                 }
-                writer.println()
             }
         }
 
@@ -258,6 +262,21 @@ class StubWriter(
                         writer.write(",\n")
                     }
                     appendDocumentation(field, writer)
+
+                    // Can't just appendModifiers(field, true, true): enum constants
+                    // don't take modifier lists, only annotations
+                    ModifierList.writeAnnotations(
+                        item = field,
+                        target = annotationTarget,
+                        runtimeAnnotationsOnly = !generateAnnotations,
+                        includeDeprecated = true,
+                        writer = writer,
+                        separateLines = true,
+                        list = field.modifiers,
+                        skipNullnessAnnotations = false,
+                        omitCommonPackages = false
+                    )
+
                     writer.write(field.name())
                 }
             }
@@ -268,11 +287,17 @@ class StubWriter(
     }
 
     private fun appendDocumentation(item: Item, writer: PrintWriter) {
-        val documentation = item.documentation
-        if (documentation.isNotBlank()) {
-            val trimmed = trimDocIndent(documentation)
-            writer.println(trimmed)
-            writer.println()
+        if (options.includeDocumentationInStubs || docStubs) {
+            val documentation = if (docStubs && EXPAND_DOCUMENTATION) {
+                item.fullyQualifiedDocumentation()
+            } else {
+                item.documentation
+            }
+            if (documentation.isNotBlank()) {
+                val trimmed = trimDocIndent(documentation)
+                writer.println(trimmed)
+                writer.println()
+            }
         }
     }
 
@@ -306,7 +331,7 @@ class StubWriter(
 
         ModifierList.write(
             writer, modifiers, item,
-            target = AnnotationTarget.STUBS_FILE,
+            target = annotationTarget,
             includeAnnotations = true,
             includeDeprecated = true,
             runtimeAnnotationsOnly = !generateAnnotations,

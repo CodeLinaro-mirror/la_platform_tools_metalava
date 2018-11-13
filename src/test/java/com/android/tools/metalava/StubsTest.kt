@@ -22,6 +22,7 @@ import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.metalava.model.SUPPORT_TYPE_USE_ANNOTATIONS
 import org.intellij.lang.annotations.Language
 import org.junit.Test
+import java.io.FileNotFoundException
 
 @SuppressWarnings("ALL")
 class StubsTest : DriverTest() {
@@ -63,6 +64,10 @@ class StubsTest : DriverTest() {
             sourceFiles = *arrayOf(
                 java(
                     """
+                    /*
+                     * This is the copyright header.
+                     */
+
                     package test.pkg;
                     /** This is the documentation for the class */
                     @SuppressWarnings("ALL")
@@ -90,6 +95,9 @@ class StubsTest : DriverTest() {
                 )
             ),
             source = """
+                /*
+                 * This is the copyright header.
+                 */
                 package test.pkg;
                 /** This is the documentation for the class */
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
@@ -269,7 +277,7 @@ class StubsTest : DriverTest() {
                     package test.pkg;
                     @SuppressWarnings("ALL")
                     public enum Foo {
-                        A, B;
+                        A, /** @deprecated */ @Deprecated B;
                     }
                     """
                 )
@@ -279,6 +287,8 @@ class StubsTest : DriverTest() {
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                 public enum Foo {
                 A,
+                /** @deprecated */
+                @Deprecated
                 B;
                 }
                 """
@@ -2986,107 +2996,6 @@ class StubsTest : DriverTest() {
     }
 
     @Test
-    fun `Rewrite relative documentation links`() {
-        // When generating casts in super constructor calls, use raw types
-        checkStubs(
-            checkDoclava1 = false,
-            sourceFiles =
-            *arrayOf(
-                java(
-                    """
-                    package test.pkg1;
-                    import java.io.IOException;
-                    import test.pkg2.OtherClass;
-
-                    /**
-                     *  Blah blah {@link OtherClass} blah blah.
-                     *  Referencing <b>field</b> {@link OtherClass#foo},
-                     *  and referencing method {@link OtherClass#bar(int,
-                     *   boolean)}.
-                     *  And relative method reference {@link #baz()}.
-                     *  And relative field reference {@link #importance}.
-                     *  Here's an already fully qualified reference: {@link test.pkg2.OtherClass}.
-                     *  And here's one in the same package: {@link LocalClass}.
-                     *
-                     *  @deprecated For some reason
-                     *  @see OtherClass
-                     *  @see OtherClass#bar(int, boolean)
-                     */
-                    @SuppressWarnings("all")
-                    public class SomeClass {
-                       /**
-                       * My method.
-                       * @param focus The focus to find. One of {@link OtherClass#FOCUS_INPUT} or
-                       *         {@link OtherClass#FOCUS_ACCESSIBILITY}.
-                       * @throws IOException when blah blah blah
-                       * @throws {@link RuntimeException} when blah blah blah
-                       */
-                       public void baz(int focus) throws IOException;
-                       public boolean importance;
-                    }
-                    """
-                ),
-                java(
-                    """
-                    package test.pkg2;
-
-                    @SuppressWarnings("all")
-                    public class OtherClass {
-                        public static final int FOCUS_INPUT = 1;
-                        public static final int FOCUS_ACCESSIBILITY = 2;
-                        public int foo;
-                        public void bar(int baz, boolean bar);
-                    }
-                    """
-                ),
-                java(
-                    """
-                    package test.pkg1;
-
-                    @SuppressWarnings("all")
-                    public class LocalClass {
-                    }
-                    """
-                )
-            ),
-            warnings = "",
-            source = """
-                    package test.pkg1;
-                    import test.pkg2.OtherClass;
-                    import java.io.IOException;
-                    /**
-                     *  Blah blah {@link OtherClass} blah blah.
-                     *  Referencing <b>field</b> {@link OtherClass#foo},
-                     *  and referencing method {@link OtherClass#bar(int,
-                     *   boolean)}.
-                     *  And relative method reference {@link #baz()}.
-                     *  And relative field reference {@link #importance}.
-                     *  Here's an already fully qualified reference: {@link test.pkg2.OtherClass}.
-                     *  And here's one in the same package: {@link LocalClass}.
-                     *
-                     *  @deprecated For some reason
-                     *  @see OtherClass
-                     *  @see OtherClass#bar(int, boolean)
-                     */
-                    @SuppressWarnings({"unchecked", "deprecation", "all"})
-                    @Deprecated
-                    public class SomeClass {
-                    public SomeClass() { throw new RuntimeException("Stub!"); }
-                    /**
-                     * My method.
-                     * @param focus The focus to find. One of {@link OtherClass#FOCUS_INPUT} or
-                     *         {@link OtherClass#FOCUS_ACCESSIBILITY}.
-                     * @throws IOException when blah blah blah
-                     * @throws {@link RuntimeException} when blah blah blah
-                     */
-                    public void baz(int focus) throws java.io.IOException { throw new RuntimeException("Stub!"); }
-                    public boolean importance;
-                    }
-                    """
-        )
-    }
-
-    @Test
     fun `Annotation default values`() {
         checkStubs(
             compatibilityMode = false,
@@ -3153,7 +3062,7 @@ class StubsTest : DriverTest() {
             api = """
                 package test.pkg {
                   @java.lang.annotation.Target({java.lang.annotation.ElementType.FIELD, java.lang.annotation.ElementType.METHOD}) @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) public @interface ExportedProperty {
-                    method public abstract String! category() default "";
+                    method public abstract String category() default "";
                     method public abstract float floating() default 1.0f;
                     method public abstract boolean formatToHexString() default false;
                     method public abstract double from() default java.lang.Double.NEGATIVE_INFINITY;
@@ -3163,16 +3072,16 @@ class StubsTest : DriverTest() {
                     method public abstract double large_floating() default 1.0;
                     method public abstract long large_integer() default 1L;
                     method public abstract char letter() default 'a';
-                    method public abstract char[]! letters1() default {};
-                    method public abstract char[]! letters2() default {'a', 'b', 'c'};
+                    method public abstract char[] letters1() default {};
+                    method public abstract char[] letters2() default {'a', 'b', 'c'};
                     method public abstract int math() default 7;
                     method public abstract short medium() default 1;
-                    method public abstract Class<? extends java.lang.Number>! myCls() default java.lang.Integer.class;
-                    method public abstract String! prefix() default "";
+                    method public abstract Class<? extends java.lang.Number> myCls() default java.lang.Integer.class;
+                    method public abstract String prefix() default "";
                     method public abstract boolean resolveId() default false;
                     method public abstract byte small() default 1;
                     method @test.pkg.ExportedProperty.InnerAnnotation public abstract int unit() default test.pkg.ExportedProperty.PX;
-                    method public abstract test.pkg.ExportedProperty.InnerAnnotation! value() default @test.pkg.ExportedProperty.InnerAnnotation;
+                    method public abstract test.pkg.ExportedProperty.InnerAnnotation value() default @test.pkg.ExportedProperty.InnerAnnotation;
                     field public static final int DP = 0; // 0x0
                     field public static final int PX = 1; // 0x1
                     field public static final int SP = 2; // 0x2
@@ -3329,14 +3238,14 @@ class StubsTest : DriverTest() {
                 @androidx.annotation.Nullable
                 package test.pkg;
                 """,
-            extraArguments = arrayOf("--hide-package", "androidx.annotation")
+            extraArguments = arrayOf(ARG_HIDE_PACKAGE, "androidx.annotation")
         )
     }
 
     @Test
     fun `Test package-info documentation`() {
         check(
-            checkDoclava1 = true,
+            checkDoclava1 = false,
             sourceFiles = *arrayOf(
                 java(
                     """
@@ -3407,14 +3316,14 @@ class StubsTest : DriverTest() {
                 }
                 """
             ),
-            extraArguments = arrayOf("--hide-package", "androidx.annotation")
+            extraArguments = arrayOf(ARG_HIDE_PACKAGE, "androidx.annotation")
         )
     }
 
     @Test
     fun `Ensure we emit both deprecated javadoc and annotation with exclude-annotations`() {
         check(
-            extraArguments = arrayOf("--exclude-annotations"),
+            extraArguments = arrayOf(ARG_EXCLUDE_ANNOTATIONS),
             compatibilityMode = false,
             sourceFiles = *arrayOf(
                 java(
@@ -3452,7 +3361,7 @@ class StubsTest : DriverTest() {
     @Test
     fun `Ensure we emit runtime and deprecated annotations in stubs with exclude-annotations`() {
         check(
-            extraArguments = arrayOf("--exclude-annotations"),
+            extraArguments = arrayOf(ARG_EXCLUDE_ANNOTATIONS),
             compatibilityMode = false,
             sourceFiles = *arrayOf(
                 java(
@@ -3530,6 +3439,8 @@ class StubsTest : DriverTest() {
                     @Deprecated
                     public class Foo {
                         private Foo() {}
+                        protected int foo;
+                        public void bar();
                     }
                     """
                 ),
@@ -3574,11 +3485,155 @@ class StubsTest : DriverTest() {
                 @test.pkg.MyRuntimeRetentionAnnotation
                 public class Foo {
                 Foo() { throw new RuntimeException("Stub!"); }
+                @Deprecated
+                public void bar() { throw new RuntimeException("Stub!"); }
+                @Deprecated protected int foo;
                 }
                 """
             )
         )
     }
+
+    @Test
+    fun `Generate stubs with --exclude-documentation-from-stubs`() {
+        checkStubs(
+            extraArguments = arrayOf(ARG_EXCLUDE_DOCUMENTATION_FROM_STUBS),
+            compatibilityMode = false,
+            sourceFiles = *arrayOf(
+                java(
+                    """
+                    /*
+                     * This is the copyright header.
+                     */
+
+                    package test.pkg;
+
+                    /** This is the documentation for the class */
+                    public class Foo {
+
+                        /** My field doc */
+                        protected static final String field = "a\nb\n\"test\"";
+
+                        /**
+                         * Method documentation.
+                         */
+                        protected static void onCreate(String parameter1) {
+                            // This is not in the stub
+                            System.out.println(parameter1);
+                        }
+                    }
+                    """
+                )
+            ),
+            // Excludes javadoc because of ARG_EXCLUDE_DOCUMENTATION_FROM_STUBS:
+            source = """
+                /*
+                 * This is the copyright header.
+                 */
+                package test.pkg;
+                @SuppressWarnings({"unchecked", "deprecation", "all"})
+                public class Foo {
+                public Foo() { throw new RuntimeException("Stub!"); }
+                protected static void onCreate(java.lang.String parameter1) { throw new RuntimeException("Stub!"); }
+                protected static final java.lang.String field = "a\nb\n\"test\"";
+                }
+                """
+        )
+    }
+
+    @Test
+    fun `Generate documentation stubs with --exclude-documentation-from-stubs`() {
+        checkStubs(
+            extraArguments = arrayOf(ARG_EXCLUDE_DOCUMENTATION_FROM_STUBS),
+            compatibilityMode = false,
+            sourceFiles = *arrayOf(
+                java(
+                    """
+                    /*
+                     * This is the copyright header.
+                     */
+
+                    package test.pkg;
+
+                    /** This is the documentation for the class */
+                    public class Foo {
+
+                        /** My field doc */
+                        protected static final String field = "a\nb\n\"test\"";
+
+                        /**
+                         * Method documentation.
+                         */
+                        protected static void onCreate(String parameter1) {
+                            // This is not in the stub
+                            System.out.println(parameter1);
+                        }
+                    }
+                    """
+                )
+            ),
+            docStubs = true,
+            // Includes javadoc despite ARG_EXCLUDE_DOCUMENTATION_FROM_STUBS, because of docStubs:
+            source = """
+                /*
+                 * This is the copyright header.
+                 */
+                package test.pkg;
+                /** This is the documentation for the class */
+                @SuppressWarnings({"unchecked", "deprecation", "all"})
+                public class Foo {
+                public Foo() { throw new RuntimeException("Stub!"); }
+                /**
+                 * Method documentation.
+                 */
+                protected static void onCreate(java.lang.String parameter1) { throw new RuntimeException("Stub!"); }
+                /** My field doc */
+                protected static final java.lang.String field = "a\nb\n\"test\"";
+                }
+                """
+        )
+    }
+
+    @Test(expected = FileNotFoundException::class)
+    fun `Test update-api should not generate stubs`() {
+        check(
+            extraArguments = arrayOf(
+                ARG_UPDATE_API,
+                ARG_EXCLUDE_ANNOTATIONS
+            ),
+            compatibilityMode = false,
+            sourceFiles = *arrayOf(
+                java(
+                    """
+                    package test.pkg;
+                    public class Foo {
+                        /**
+                         * @deprecated Use checkPermission instead.
+                         */
+                        @Deprecated
+                        protected boolean inClass(String name) {
+                            return false;
+                        }
+                    }
+                    """
+                )
+            ),
+            api = """
+            package test.pkg {
+              public class Foo {
+                ctor public Foo();
+                method @Deprecated protected boolean inClass(String!);
+              }
+            }
+            """,
+            stubs = arrayOf(
+                """
+                This file should not be generated since --update-api is supplied.
+                """
+            )
+        )
+    }
+
 // TODO: Add in some type variables in method signatures and constructors!
 // TODO: Test what happens when a class extends a hidden extends a public in separate packages,
 // and the hidden has a @hide constructor so the stub in the leaf class doesn't compile -- I should

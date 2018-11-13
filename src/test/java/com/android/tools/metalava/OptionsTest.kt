@@ -39,6 +39,13 @@ General:
 --color                                  Attempt to colorize the output (defaults to true
                                          if ${"$"}TERM is xterm)
 --no-color                               Do not attempt to colorize the output
+--no-docs                                Cancel any other documentation flags supplied to
+                                         metalava. This is here to make it easier
+                                         customize build system tasks.
+--update-api                             Cancel any other "action" flags other than
+                                         generating signature files. This is here to make
+                                         it easier customize build system tasks,
+                                         particularly for the "make update-api" task.
 
 API sources:
 --source-files <files>                   A comma separated list of source files to be
@@ -51,18 +58,30 @@ API sources:
 --classpath <paths>                      One or more directories or jars (separated by
                                          `:`) containing classes that should be on the
                                          classpath when parsing the source files
---merge-annotations <file>               An external annotations file to merge and overlay
-                                         the sources, or a directory of such files.
+--merge-qualifier-annotations <file>     An external annotations file to merge and overlay
+                                         the sources, or a directory of such files. Should
+                                         be used for annotations intended for inclusion in
+                                         the API to be written out, e.g. nullability.
                                          Formats supported are: IntelliJ's external
                                          annotations database format, .jar or .zip files
                                          containing those, Android signature files, and
                                          Java stub files.
+--merge-inclusion-annotations <file>     An external annotations file to merge and overlay
+                                         the sources, or a directory of such files. Should
+                                         be used for annotations which determine inclusion
+                                         in the API to be written out, i.e. show and hide.
+                                         The only format supported is Java stub files.
 --input-api-jar <file>                   A .jar file to read APIs from directly
 --manifest <file>                        A manifest file, used to for check permissions to
                                          cross check APIs
 --hide-package <package>                 Remove the given packages from the API even if
                                          they have not been marked with @hide
---show-annotation <annotation class>     Include the given annotation in the API analysis
+--show-annotation <annotation class>     Unhide any hidden elements that are also
+                                         annotated with the given annotation
+--show-single-annotation <annotation>    Like --show-annotation, but does not apply to
+                                         members; these must also be explicitly annotated
+--hide-annotation <annotation class>     Treat any elements annotated with the given
+                                         annotation as hidden
 --show-unannotated                       Include un-annotated public APIs in the signature
                                          file as well
 --java-source <level>                    Sets the source level for Java source files;
@@ -86,6 +105,8 @@ Extracting Signature Files:
                                          the APIs
 --private-dex-api <file>                 Generate a DEX signature descriptor file listing
                                          the exact private APIs
+--dex-api-mapping <file>                 Generate a DEX signature descriptor along with
+                                         file and line numbers
 --removed-api <file>                     Generate a signature descriptor file for APIs
                                          that have been removed
 --output-kotlin-nulls[=yes|no]           Controls whether nullness annotations should be
@@ -124,6 +145,11 @@ Generating Stubs:
                                          stubs, but not regular stubs, etc.
 --exclude-annotations                    Exclude annotations such as @Nullable from the
                                          stub files
+--exclude-documentation-from-stubs       Exclude element documentation (javadoc and kdoc)
+                                         from the generated stubs. (Copyright notices are
+                                         not affected by this, they are always included.
+                                         Documentation stubs (--doc-stubs) are not
+                                         affected.)
 --write-stubs-source-list <file>         Write the list of generated stub files into the
                                          given source list file. If generating
                                          documentation stubs and you haven't also
@@ -164,6 +190,13 @@ Diffs and Checks:
 --lint <id>                              Report issues of the given id as having
                                          lint-severity
 --hide <id>                              Hide/skip issues of the given id
+
+JDiff:
+--api-xml <file>                         Like --api, but emits the API in the JDiff XML
+                                         format instead
+--convert-to-jdiff <sig> <xml>           Reads in the given signature file, and writes it
+                                         out in the JDiff XML format. Can be specified
+                                         multiple times.
 
 Statistics:
 --annotation-coverage-stats              Whether metalava should emit coverage statistics
@@ -234,7 +267,7 @@ METALAVA_APPEND_ARGS                     One or more arguments (concatenated by 
 
     @Test
     fun `Test invalid arguments`() {
-        val args = listOf("--no-color", "--blah-blah-blah")
+        val args = listOf(ARG_NO_COLOR, "--blah-blah-blah")
 
         val stdout = StringWriter()
         val stderr = StringWriter()
@@ -257,7 +290,7 @@ $FLAGS
 
     @Test
     fun `Test help`() {
-        val args = listOf("--no-color", "--help")
+        val args = listOf(ARG_NO_COLOR, "--help")
 
         val stdout = StringWriter()
         val stderr = StringWriter()

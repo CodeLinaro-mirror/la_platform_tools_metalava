@@ -8,6 +8,7 @@
       <w>bytecode</w>
       <w>canonicalized</w>
       <w>codebases</w>
+      <w>compat</w>
       <w>ctor</w>
       <w>dataname</w>
       <w>devsite</w>
@@ -26,8 +27,10 @@
       <w>inheritdoc</w>
       <w>initializers</w>
       <w>interop</w>
+      <w>intra</w>
       <w>jaif</w>
       <w>javadocs</w>
+      <w>jdiff</w>
       <w>jvmstatic</w>
       <w>knowntags</w>
       <w>kotlinx</w>
@@ -35,13 +38,16 @@
       <w>libcore</w>
       <w>libraryroot</w>
       <w>metalava</w>
+      <w>mmodule</w>
       <w>navtree</w>
       <w>navtreeonly</w>
       <w>nodefaultassets</w>
       <w>nodocs</w>
       <w>nullable</w>
+      <w>nullness</w>
       <w>offlinemode</w>
       <w>parsecomments</w>
+      <w>proguard</w>
       <w>realtime</w>
       <w>referenceonly</w>
       <w>resourcesdir</w>
