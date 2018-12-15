@@ -23,6 +23,7 @@ import com.intellij.psi.PsiCompiledElement
 import com.intellij.psi.PsiDocCommentOwner
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiModifierListOwner
+import org.jetbrains.kotlin.idea.KotlinLanguage
 import org.jetbrains.kotlin.kdoc.psi.api.KDoc
 import org.jetbrains.uast.UElement
 import org.jetbrains.uast.sourcePsiElement
@@ -34,6 +35,7 @@ abstract class PsiItem(
     override var documentation: String
 ) : DefaultItem() {
 
+    @Suppress("LeakingThis")
     override var deprecated: Boolean = modifiers.isDeprecated()
 
     @Suppress("LeakingThis") // Documentation can change, but we don't want to pick up subsequent @docOnly mutations
@@ -177,7 +179,7 @@ abstract class PsiItem(
         }
 
         fun isKotlin(element: PsiElement): Boolean {
-            return element.language.id == "kotlin"
+            return element.language === KotlinLanguage.INSTANCE
         }
     }
 }
