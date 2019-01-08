@@ -298,6 +298,8 @@ abstract class DriverTest {
         artifacts: Map<String, String>? = null,
         /** Extract annotations and check that the given packages contain the given extracted XML files */
         extractAnnotations: Map<String, String>? = null,
+        /** Creates the nullability annotations validator, and check that the report has the given lines (does not define files to be validated) */
+        validateNullability: Set<String>? = null,
         /**
          * Whether to include source retention annotations in the stubs (in that case they do not
          * go into the extracted annotations zip file)
@@ -311,7 +313,11 @@ abstract class DriverTest {
          * List of signature files to convert to JDiff XML and the
          * expected XML output
          */
-        convertToJDiff: List<Pair<String, String>> = emptyList()
+        convertToJDiff: List<Pair<String, String>> = emptyList(),
+        /**
+         * Signature file format
+         */
+        format: Int? = null
     ) {
         // Ensure different API clients don't interfere with each other
         try {
@@ -808,6 +814,24 @@ abstract class DriverTest {
             emptyArray()
         }
 
+        val validateNullabilityTxt: File?
+        val validateNullabilityArgs = if (validateNullability != null) {
+            validateNullabilityTxt = temporaryFolder.newFile("validate-nullability.txt")
+            arrayOf(
+                ARG_NULLABILITY_WARNINGS_TXT, validateNullabilityTxt.path,
+                ARG_NULLABILITY_ERRORS_NON_FATAL // for testing, report on errors instead of throwing
+            )
+        } else {
+            validateNullabilityTxt = null
+            emptyArray()
+        }
+
+        val signatureFormatArgs = if (format != null) {
+            arrayOf("$ARG_FORMAT=v$format")
+        } else {
+            emptyArray()
+        }
+
         val actualOutput = runDriver(
             ARG_NO_COLOR,
             ARG_NO_BANNER,
@@ -845,7 +869,7 @@ abstract class DriverTest {
             *dexApiMappingArgs,
             *stubsArgs,
             *stubsSourceListArgs,
-            "$ARGS_COMPAT_OUTPUT=${if (compatibilityMode) "yes" else "no"}",
+            "$ARG_COMPAT_OUTPUT=${if (compatibilityMode) "yes" else "no"}",
             "$ARG_OUTPUT_KOTLIN_NULLS=${if (outputKotlinStyleNulls) "yes" else "no"}",
             "$ARG_INPUT_KOTLIN_NULLS=${if (inputKotlinStyleNulls) "yes" else "no"}",
             "$ARG_OMIT_COMMON_PACKAGES=${if (omitCommonPackages) "yes" else "no"}",
@@ -874,6 +898,8 @@ abstract class DriverTest {
             *skipEmitPackagesArgs.toTypedArray(),
             *artifactArgs,
             *extractAnnotationsArgs,
+            *validateNullabilityArgs,
+            *signatureFormatArgs,
             *sourceList,
             *extraArguments,
             expectedFail = expectedFail
@@ -1036,6 +1062,16 @@ abstract class DriverTest {
             for ((pkg, xml) in extractAnnotations) {
                 assertPackageXml(pkg, extractedAnnotationsZip, xml)
             }
+        }
+
+        if (validateNullabilityTxt != null) {
+            assertTrue(
+                "Using $ARG_NULLABILITY_WARNINGS_TXT but $validateNullabilityTxt was not created",
+                validateNullabilityTxt.isFile
+            )
+            val actualReport =
+                Files.asCharSource(validateNullabilityTxt, Charsets.UTF_8).readLines().map(String::trim).toSet()
+            assertEquals(validateNullability, actualReport)
         }
 
         if (stubs.isNotEmpty() && stubsDir != null) {
