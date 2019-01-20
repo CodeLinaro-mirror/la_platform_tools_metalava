@@ -46,7 +46,7 @@ import java.util.function.Predicate
  */
 class CompatibilityCheck(
     val filterReference: Predicate<Item>,
-    oldCodebase: Codebase,
+    private val oldCodebase: Codebase,
     private val apiType: ApiType,
     private val base: Codebase? = null
 ) : ComparisonVisitor() {
@@ -55,9 +55,16 @@ class CompatibilityCheck(
      * Request for compatibility checks.
      * [file] represents the signature file to be checked. [apiType] represents which
      * part of the API should be checked, [releaseType] represents what kind of codebase
-     * we are comparing it against.
+     * we are comparing it against. If [codebase] is specified, compare the signature file
+     * against the codebase instead of metalava's current source tree configured via the
+     * normal source path flags.
      */
-    data class CheckRequest(val file: File, val apiType: ApiType, val releaseType: ReleaseType) {
+    data class CheckRequest(
+        val file: File,
+        val apiType: ApiType,
+        val releaseType: ReleaseType,
+        val codebase: File? = null
+    ) {
         override fun toString(): String {
             return "--check-compatibility:${apiType.flagName}:${releaseType.flagName} $file"
         }
@@ -70,7 +77,7 @@ class CompatibilityCheck(
      * so in these cases we want to ignore certain changes such as considering
      * StringBuilder.setLength a newly added method.
      */
-    private val comparingWithPartialSignatures = oldCodebase is TextCodebase && oldCodebase.format.major < 2
+    private val comparingWithPartialSignatures = oldCodebase is TextCodebase && oldCodebase.format == FileFormat.V1
 
     var foundProblems = false
 
@@ -703,19 +710,6 @@ class CompatibilityCheck(
         val error = if (new.isInterface()) {
             Errors.ADDED_INTERFACE
         } else {
-            if (options.compatOutput &&
-                new.qualifiedName() == "android.telephony.ims.feature.ImsFeature.Capabilities"
-            ) {
-                // Special case: Doclava and metalava signature files for the system api
-                // differ in only one way: Metalava believes ImsFeature.Capabilities should
-                // be in the signature file for @SystemApi, and doclava does not. However,
-                // this API is referenced from other system APIs that doclava does include
-                // (MmTelFeature.MmTelCapabilities's constructor) so it is clearly part of the
-                // API even if it's not listed in the signature file and we should not list
-                // this as an incompatible, added API.
-                return
-            }
-
             Errors.ADDED_CLASS
         }
         handleAdded(error, new)
@@ -753,22 +747,27 @@ class CompatibilityCheck(
                 includeInterfaces = false
             )
         }
-        if (inherited == null || !inherited.modifiers.isAbstract()) {
+
+        // Builtin annotation methods: just a difference in signature file
+        if ((new.name() == "values" && new.parameters().isEmpty() || new.name() == "valueOf" &&
+                new.parameters().size == 1) && new.containingClass().isEnum()
+        ) {
+            return
+        }
+
+        // In old signature files, annotation methods are missing! This will show up as an added method.
+        if (new.containingClass().isAnnotationType() && oldCodebase is TextCodebase && oldCodebase.format == FileFormat.V1) {
+            return
+        }
+
+        if (inherited == null || inherited == new || !inherited.modifiers.isAbstract()) {
             val error = if (new.modifiers.isAbstract()) Errors.ADDED_ABSTRACT_METHOD else Errors.ADDED_METHOD
             handleAdded(error, new)
         }
     }
 
     override fun added(new: FieldItem) {
-        val codebase = new.codebase
-        if (new.inheritedFrom != null &&
-            // In old signature files, methods inherited from hidden super classes
-            // are not included. An example of this is StringBuilder.setLength.
-            // More details about this are listed in Compatibility.skipInheritedMethods.
-            // We may see these in the codebase but not in the (old) signature files,
-            // so skip these -- they're not really "added".
-            (codebase is TextCodebase && codebase.format.major < 2)
-        ) {
+        if (new.inheritedFrom != null && comparingWithPartialSignatures) {
             return
         }
 
@@ -794,13 +793,14 @@ class CompatibilityCheck(
         val inherited = if (old.isConstructor()) {
             null
         } else {
+            // This can also return self, specially handled below
             from?.findMethod(
                 old,
                 includeSuperClasses = true,
                 includeInterfaces = from.isInterface()
             )
         }
-        if (inherited == null) {
+        if (inherited == null || inherited != old && inherited.isHiddenOrRemoved()) {
             val error = if (old.deprecated) Errors.REMOVED_DEPRECATED_METHOD else Errors.REMOVED_METHOD
             handleRemoved(error, old)
         }

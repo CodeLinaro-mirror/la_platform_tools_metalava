@@ -33,6 +33,7 @@ import com.android.tools.metalava.Options
 import com.android.tools.metalava.RECENTLY_NONNULL
 import com.android.tools.metalava.RECENTLY_NULLABLE
 import com.android.tools.metalava.doclava1.ApiPredicate
+import com.android.tools.metalava.model.psi.PsiBasedCodebase
 import com.android.tools.metalava.options
 import java.util.function.Predicate
 
@@ -52,8 +53,11 @@ interface AnnotationItem {
     /** Fully qualified name of the annotation */
     fun qualifiedName(): String?
 
+    /** Fully qualified name of the annotation (prior to name mapping) */
+    fun originalName(): String?
+
     /** Generates source code for this annotation (using fully qualified names) */
-    fun toSource(): String
+    fun toSource(target: AnnotationTarget = AnnotationTarget.SIGNATURE_FILE): String
 
     /** The applicable targets for this annotation */
     fun targets(): Set<AnnotationTarget>
@@ -117,11 +121,13 @@ interface AnnotationItem {
     /** Returns the retention of this annotation */
     val retention: AnnotationRetention
         get() {
-            val qualifiedName = qualifiedName()
-            if (qualifiedName != null) {
-                val cls = codebase.findClass(qualifiedName)
-                if (cls != null && cls.isAnnotationType()) {
-                    return cls.getRetention()
+            val name = qualifiedName()
+            if (name != null) {
+                val cls = codebase.findClass(name) ?: (codebase as? PsiBasedCodebase)?.findOrCreateClass(name)
+                if (cls != null) {
+                    if (cls.isAnnotationType()) {
+                        return cls.getRetention()
+                    }
                 }
             }
 
@@ -139,7 +145,12 @@ interface AnnotationItem {
          * Maps an annotation name to the name to be used in signatures/stubs/external annotation files.
          * Annotations that should not be exported are mapped to null.
          */
-        fun mapName(codebase: Codebase, qualifiedName: String?, filter: Predicate<Item>? = null): String? {
+        fun mapName(
+            codebase: Codebase,
+            qualifiedName: String?,
+            filter: Predicate<Item>? = null,
+            target: AnnotationTarget = AnnotationTarget.SIGNATURE_FILE
+        ): String? {
             qualifiedName ?: return null
 
             when (qualifiedName) {
@@ -292,9 +303,7 @@ interface AnnotationItem {
                 "android.annotation.TargetApi",
                 "android.annotation.SuppressLint" -> return qualifiedName
 
-                // We only change recently/newly nullable annotation if the codebase supports it
-                RECENTLY_NULLABLE -> return if (codebase.supportsStagedNullability) qualifiedName else ANDROIDX_NULLABLE
-                RECENTLY_NONNULL -> return if (codebase.supportsStagedNullability) qualifiedName else ANDROIDX_NONNULL
+                RECENTLY_NULLABLE, RECENTLY_NONNULL -> return qualifiedName
 
                 else -> {
                     // Some new annotations added to the platform: assume they are support annotations?
@@ -325,7 +334,8 @@ interface AnnotationItem {
                             return mapName(
                                 codebase,
                                 ANDROIDX_ANNOTATION_PREFIX + qualifiedName.substring(ANDROID_SUPPORT_ANNOTATION_PREFIX.length),
-                                filter
+                                filter,
+                                target
                             )
                         }
 

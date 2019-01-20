@@ -378,11 +378,13 @@ class JavadocTest : DriverTest() {
                     package android.accessibilityservice;
 
                     import android.view.accessibility.AccessibilityEvent;
+                    import android.view.accessibility.AccessibilityRecord;
 
                     /**
                      * <p>
                      * Window content may be retrieved with
-                     * {@link AccessibilityEvent#getSource() AccessibilityEvent.getSource()},
+                     * {@link AccessibilityEvent#getSource() AccessibilityEvent.getSource()}.
+                     * Mention AccessibilityRecords here.
                      * </p>
                      */
                     @SuppressWarnings("all")
@@ -419,7 +421,8 @@ class JavadocTest : DriverTest() {
                 /**
                  * <p>
                  * Window content may be retrieved with
-                 * {@link android.view.accessibility.AccessibilityEvent#getSource() AccessibilityEvent#getSource()},
+                 * {@link android.view.accessibility.AccessibilityEvent#getSource() AccessibilityEvent#getSource()}.
+                 * Mention AccessibilityRecords here.
                  * </p>
                  */
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
@@ -877,8 +880,8 @@ class JavadocTest : DriverTest() {
             warnings =
             if (REPORT_UNRESOLVED_SYMBOLS) {
                 """
-                src/test/pkg1/Test.java:6: lint: Unresolved documentation reference: SomethingMissing [UnresolvedLink:101]
-                src/test/pkg1/Test.java:6: lint: Unresolved documentation reference: OtherMissing [UnresolvedLink:101]
+                src/test/pkg1/Test.java:6: lint: Unresolved documentation reference: SomethingMissing [UnresolvedLink]
+                src/test/pkg1/Test.java:6: lint: Unresolved documentation reference: OtherMissing [UnresolvedLink]
             """
             } else {
                 ""

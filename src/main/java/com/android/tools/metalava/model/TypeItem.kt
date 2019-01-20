@@ -19,8 +19,8 @@ package com.android.tools.metalava.model
 import com.android.tools.lint.detector.api.ClassContext
 import com.android.tools.metalava.JAVA_LANG_OBJECT
 import com.android.tools.metalava.JAVA_LANG_PREFIX
+import com.android.tools.metalava.JAVA_LANG_STRING
 import com.android.tools.metalava.compatibility
-import com.android.tools.metalava.options
 import java.util.function.Predicate
 
 /**
@@ -110,6 +110,10 @@ interface TypeItem {
         return toTypeString() == JAVA_LANG_OBJECT
     }
 
+    fun isString(): Boolean {
+        return toTypeString() == JAVA_LANG_STRING
+    }
+
     fun defaultValue(): Any? {
         return when (toTypeString()) {
             "boolean" -> false
@@ -157,10 +161,13 @@ interface TypeItem {
      */
     fun markRecent()
 
+    /** Returns true if this type represents an array of one or more dimensions */
+    fun isArray(): Boolean = arrayDimensions() > 0
+
     companion object {
         /** Shortens types, if configured */
         fun shortenTypes(type: String): String {
-            if (options.omitCommonPackages) {
+            if (compatibility.omitCommonPackages) {
                 var cleaned = type
                 if (cleaned.contains("@androidx.annotation.")) {
                     cleaned = cleaned.replace("@androidx.annotation.", "@")

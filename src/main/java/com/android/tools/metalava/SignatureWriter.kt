@@ -33,12 +33,6 @@ import com.android.tools.metalava.model.visitors.ApiVisitor
 import java.io.PrintWriter
 import java.util.function.Predicate
 
-/** Current signature format. */
-const val SIGNATURE_FORMAT = "2.0"
-
-/** Marker comment at the beginning of the signature file */
-const val SIGNATURE_FORMAT_PREFIX = "// Signature format: "
-
 class SignatureWriter(
     private val writer: PrintWriter,
     filterEmit: Predicate<Item>,
@@ -56,8 +50,7 @@ class SignatureWriter(
 ) {
     init {
         if (options.includeSignatureFormatVersion) {
-            writer.print(SIGNATURE_FORMAT_PREFIX)
-            writer.println(SIGNATURE_FORMAT)
+            writer.print(options.outputFormat.header())
         }
     }
 
@@ -83,6 +76,10 @@ class SignatureWriter(
     }
 
     override fun visitField(field: FieldItem) {
+        if (compatibility.skipInheritedConstants && field.inheritedField) {
+            return
+        }
+
         val name = if (field.isEnumConstant()) "enum_constant" else "field"
         writer.print("    ")
         writer.print(name)
@@ -141,10 +138,6 @@ class SignatureWriter(
     override fun visitClass(cls: ClassItem) {
         writer.print("  ")
 
-        if (compatibility.extraSpaceForEmptyModifiers && cls.isPackagePrivate && cls.isPackagePrivate) {
-            writer.print(" ")
-        }
-
         writeModifiers(cls)
 
         if (cls.isAnnotationType()) {
@@ -187,7 +180,7 @@ class SignatureWriter(
             includeDeprecated = true,
             includeAnnotations = compatibility.annotationsInSignatures,
             skipNullnessAnnotations = options.outputKotlinStyleNulls,
-            omitCommonPackages = options.omitCommonPackages
+            omitCommonPackages = compatibility.omitCommonPackages
         )
     }
 
@@ -319,7 +312,7 @@ class SignatureWriter(
         )
 
         // Strip java.lang. prefix?
-        if (options.omitCommonPackages) {
+        if (compatibility.omitCommonPackages) {
             typeString = TypeItem.shortenTypes(typeString)
         }
 

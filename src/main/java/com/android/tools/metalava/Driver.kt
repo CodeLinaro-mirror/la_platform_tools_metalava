@@ -37,6 +37,7 @@ import com.android.tools.metalava.apilevels.ApiGenerator
 import com.android.tools.metalava.doclava1.ApiPredicate
 import com.android.tools.metalava.doclava1.Errors
 import com.android.tools.metalava.doclava1.FilterPredicate
+import com.android.tools.metalava.doclava1.TextCodebase
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.PackageDocs
@@ -102,6 +103,9 @@ fun run(
         stdout.println("----------------------------")
     }
 
+    var exitValue: Boolean
+    var exitCode = 0
+
     try {
         val modifiedArgs =
             if (args.isEmpty()) {
@@ -135,13 +139,11 @@ fun run(
         compatibility = Compatibility(compat = Options.useCompatMode(args))
         options = Options(modifiedArgs, stdout, stderr)
         processFlags()
-        stdout.flush()
-        stderr.flush()
 
-        if (setExitCode && reporter.hasErrors()) {
-            exit(-1)
+        if (reporter.hasErrors() && !options.updateBaseline) {
+            exitCode = -1
         }
-        return true
+        exitValue = true
     } catch (e: DriverException) {
         if (e.stderr.isNotBlank()) {
             stderr.println("\n${e.stderr}")
@@ -149,15 +151,26 @@ fun run(
         if (e.stdout.isNotBlank()) {
             stdout.println("\n${e.stdout}")
         }
-        stderr.flush()
-        stdout.flush()
-        if (setExitCode) { // always true in production; not set from tests
-            exit(e.exitCode)
-        }
+        exitCode = e.exitCode
+        exitValue = false
     }
+
+    if (options.updateBaseline) {
+        if (options.verbose) {
+            options.baseline?.dumpStats(options.stdout)
+        }
+        stdout.println("$PROGRAM_NAME wrote updated baseline to ${options.baseline?.file}")
+    }
+    options.baseline?.close()
+
     stdout.flush()
     stderr.flush()
-    return false
+
+    if (setExitCode && reporter.hasErrors()) {
+        exit(exitCode)
+    }
+
+    return exitValue
 }
 
 /**
@@ -187,8 +200,7 @@ private fun processFlags() {
         if (options.sources.size == 1 && options.sources[0].path.endsWith(SdkConstants.DOT_TXT)) {
             SignatureFileLoader.load(
                 file = options.sources[0],
-                kotlinStyleNulls = options.inputKotlinStyleNulls,
-                supportsStagedNullability = true
+                kotlinStyleNulls = options.inputKotlinStyleNulls
             )
         } else if (options.apiJar != null) {
             loadFromJarFile(options.apiJar!!)
@@ -355,8 +367,7 @@ private fun processFlags() {
             } else {
                 SignatureFileLoader.load(
                     file = previousApiFile,
-                    kotlinStyleNulls = options.inputKotlinStyleNulls,
-                    supportsStagedNullability = true
+                    kotlinStyleNulls = options.inputKotlinStyleNulls
                 )
             }
 
@@ -454,19 +465,72 @@ fun processNonCodebaseFlags() {
         ConvertJarsToSignatureFiles().convertJars(root)
     }
 
-    for ((signatureFile, jDiffFile) in options.convertToXmlFiles) {
-        val apiType = ApiType.ALL
-        val apiEmit = apiType.getEmitFilter()
-        val apiReference = apiType.getReferenceFilter()
-
+    for (convert in options.convertToXmlFiles) {
         val signatureApi = SignatureFileLoader.load(
-            file = signatureFile,
-            kotlinStyleNulls = options.inputKotlinStyleNulls,
-            supportsStagedNullability = true
+            file = convert.fromApiFile,
+            kotlinStyleNulls = options.inputKotlinStyleNulls
         )
 
-        createReportFile(signatureApi, jDiffFile, "JDiff File") { printWriter ->
-            JDiffXmlWriter(printWriter, apiEmit, apiReference, signatureApi.preFiltered)
+        val apiType = ApiType.ALL
+        val apiEmit = apiType.getEmitFilter()
+        val strip = convert.strip
+        val apiReference = if (strip) apiType.getEmitFilter() else apiType.getReferenceFilter()
+        val baseFile = convert.baseApiFile
+
+        val outputApi =
+            if (baseFile != null) {
+                // Convert base on a diff
+                val baseApi = SignatureFileLoader.load(
+                    file = baseFile,
+                    kotlinStyleNulls = options.inputKotlinStyleNulls
+                )
+
+                val includeFields =
+                    if (convert.outputFormat == FileFormat.V2) true else compatibility.includeFieldsInApiDiff
+                TextCodebase.computeDelta(baseFile, baseApi, signatureApi, includeFields)
+            } else {
+                signatureApi
+            }
+
+        if (outputApi.isEmpty() && baseFile != null && compatibility.compat) {
+            // doclava compatibility: emits error warning instead of emitting empty <api/> element
+            options.stdout.println("No API change detected, not generating diff")
+        } else {
+            val output = convert.outputFile
+            if (convert.outputFormat == FileFormat.JDIFF) {
+                // See JDiff's XMLToAPI#nameAPI
+                val apiName = convert.outputFile.nameWithoutExtension.replace(' ', '_')
+                createReportFile(outputApi, output, "JDiff File") { printWriter ->
+                    JDiffXmlWriter(printWriter, apiEmit, apiReference, signatureApi.preFiltered && !strip, apiName)
+                }
+            } else {
+                val prevOptions = options
+                val prevCompatibility = compatibility
+                try {
+                    when (convert.outputFormat) {
+                        FileFormat.V1 -> {
+                            compatibility = Compatibility(true)
+                            options = Options(emptyArray(), options.stdout, options.stderr)
+                            FileFormat.V1.configureOptions(options, compatibility)
+                        }
+                        FileFormat.V2 -> {
+                            compatibility = Compatibility(false)
+                            options = Options(emptyArray(), options.stdout, options.stderr)
+                            FileFormat.V2.configureOptions(options, compatibility)
+                        }
+                        else -> error("Unsupported format ${convert.outputFormat}")
+                    }
+
+                    createReportFile(outputApi, output, "Diff API File") { printWriter ->
+                        SignatureWriter(
+                            printWriter, apiEmit, apiReference, signatureApi.preFiltered && !strip
+                        )
+                    }
+                } finally {
+                    options = prevOptions
+                    compatibility = prevCompatibility
+                }
+            }
         }
     }
 }
@@ -487,10 +551,13 @@ fun checkCompatibility(
         } else {
             SignatureFileLoader.load(
                 file = signatureFile,
-                kotlinStyleNulls = options.inputKotlinStyleNulls,
-                supportsStagedNullability = true
+                kotlinStyleNulls = options.inputKotlinStyleNulls
             )
         }
+
+    if (current is TextCodebase && current.format > FileFormat.V1 && options.outputFormat == FileFormat.V1) {
+        throw DriverException("Cannot perform compatibility check of signature file $signatureFile in format ${current.format} without analyzing current codebase with $ARG_FORMAT=${current.format}")
+    }
 
     var base: Codebase? = null
     val releaseType = check.releaseType
@@ -505,7 +572,12 @@ fun checkCompatibility(
     // file. If we've only emitted one for the new API, use it directly, if not, generate
     // it first
     val new =
-        if (options.showAnnotations.isNotEmpty() || apiType != ApiType.PUBLIC_API) {
+        if (check.codebase != null) {
+            SignatureFileLoader.load(
+                file = check.codebase,
+                kotlinStyleNulls = options.inputKotlinStyleNulls
+            )
+        } else if (options.showAnnotations.isNotEmpty() || apiType != ApiType.PUBLIC_API) {
             val apiFile = apiType.getOptionFile() ?: run {
                 val tempFile = createTempFile("compat-check-signatures-$apiType", DOT_TXT)
                 tempFile.deleteOnExit()
@@ -528,8 +600,7 @@ fun checkCompatibility(
 
             SignatureFileLoader.load(
                 file = apiFile,
-                kotlinStyleNulls = options.inputKotlinStyleNulls,
-                supportsStagedNullability = true
+                kotlinStyleNulls = options.inputKotlinStyleNulls
             )
         } else {
             // Fast path: if we've already generated a signature file and it's identical, we're good!
@@ -656,19 +727,7 @@ class PrintWriterOutputStream(private val writer: PrintWriter) : OutputStream() 
 }
 
 private fun migrateNulls(codebase: Codebase, previous: Codebase) {
-    val codebaseSupportsNullability = codebase.supportsStagedNullability
-    val prevSupportsNullability = previous.supportsStagedNullability
-    try {
-        previous.supportsStagedNullability = true
-        codebase.supportsStagedNullability = true
-        previous.compareWith(
-            NullnessMigration(), codebase,
-            ApiPredicate()
-        )
-    } finally {
-        previous.supportsStagedNullability = prevSupportsNullability
-        codebase.supportsStagedNullability = codebaseSupportsNullability
-    }
+    previous.compareWith(NullnessMigration(), codebase, ApiPredicate())
 }
 
 private fun loadFromSources(): Codebase {
@@ -702,6 +761,23 @@ private fun loadFromSources(): Codebase {
 
     // General API checks for Android APIs
     AndroidApiChecks().check(codebase)
+
+    if (options.checkApi) {
+        val localTimer = Stopwatch.createStarted()
+        // See if we should provide a previous codebase to provide a delta from?
+        val previousApiFile = options.checkApiBaselineApiFile
+        val previous =
+            when {
+                previousApiFile == null -> null
+                previousApiFile.path.endsWith(SdkConstants.DOT_JAR) -> loadFromJarFile(previousApiFile)
+                else -> SignatureFileLoader.load(
+                    file = previousApiFile,
+                    kotlinStyleNulls = options.inputKotlinStyleNulls
+                )
+            }
+        ApiLint.check(codebase, previous)
+        progress("\n$PROGRAM_NAME ran api-lint in ${localTimer.elapsed(SECONDS)} seconds")
+    }
 
     val filterEmit = ApiPredicate(ignoreShown = true, ignoreRemoved = false)
     val apiEmit = ApiPredicate(ignoreShown = true)
@@ -846,9 +922,6 @@ private fun createStubFiles(stubDir: File, codebase: Codebase, docStubs: Boolean
     val localTimer = Stopwatch.createStarted()
     val prevCompatibility = compatibility
     if (compatibility.compat) {
-        // if (!options.quiet) {
-        //    options.stderr.println("Warning: Turning off compat mode when generating stubs")
-        // }
         compatibility = Compatibility(false)
         // But preserve the setting for whether we want to erase throws signatures (to ensure the API
         // stays compatible)
@@ -948,11 +1021,18 @@ fun tick() {
     }
 }
 
+private fun skippableDirectory(file: File): Boolean = file.path.endsWith(".git") && file.name == ".git"
+
 private fun addSourceFiles(list: MutableList<File>, file: File) {
     if (file.isDirectory) {
+        if (skippableDirectory(file)) {
+            return
+        }
         if (java.nio.file.Files.isSymbolicLink(file.toPath())) {
-            reporter.report(Errors.IGNORING_SYMLINK, file,
-                "Ignoring symlink during source file discovery directory traversal")
+            reporter.report(
+                Errors.IGNORING_SYMLINK, file,
+                "Ignoring symlink during source file discovery directory traversal"
+            )
             return
         }
         val files = file.listFiles()
@@ -988,10 +1068,15 @@ private fun addHiddenPackages(
     pkg: String
 ) {
     if (file.isDirectory) {
+        if (skippableDirectory(file)) {
+            return
+        }
         // Ignore symbolic links during traversal
         if (java.nio.file.Files.isSymbolicLink(file.toPath())) {
-            reporter.report(Errors.IGNORING_SYMLINK, file,
-                "Ignoring symlink during package.html discovery directory traversal")
+            reporter.report(
+                Errors.IGNORING_SYMLINK, file,
+                "Ignoring symlink during package.html discovery directory traversal"
+            )
             return
         }
         val files = file.listFiles()
@@ -1055,15 +1140,15 @@ private fun addHiddenPackages(
 private fun gatherHiddenPackagesFromJavaDocs(sourcePath: List<File>): PackageDocs {
     val packageComments = HashMap<String, String>(100)
     val overviewHtml = HashMap<String, String>(10)
-    val set = HashSet<String>(100)
+    val hiddenPackages = HashSet<String>(100)
     for (file in sourcePath) {
         if (file.path.isBlank()) {
             // Ignoring empty paths, which means "no source path search". Use "." for current directory.
             continue
         }
-        addHiddenPackages(packageComments, overviewHtml, set, file, "")
+        addHiddenPackages(packageComments, overviewHtml, hiddenPackages, file, "")
     }
-    return PackageDocs(packageComments, overviewHtml, set)
+    return PackageDocs(packageComments, overviewHtml, hiddenPackages)
 }
 
 private fun extractRoots(sources: List<File>, sourceRoots: MutableList<File> = mutableListOf()): List<File> {

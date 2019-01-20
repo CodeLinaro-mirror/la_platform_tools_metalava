@@ -201,6 +201,9 @@ Diffs and Checks:
                                           to check the code base against the current
                                           public API, use
                                           --check-compatibility:api:current.
+--api-lint [api file]                     Check API for Android API best practices. If a
+                                          signature file is provided, only the APIs that
+                                          are new since the API will be checked.
 --check-kotlin-interop                    Check API intended to be used from both Kotlin
                                           and Java for interoperability issues
 --migrate-nullness <api file>             Compare nullness information with the previous
@@ -213,6 +216,16 @@ Diffs and Checks:
 --lint <id>                               Report issues of the given id as having
                                           lint-severity
 --hide <id>                               Hide/skip issues of the given id
+--baseline <file>                         Filter out any errors already reported in the
+                                          given baseline file, or create if it does not
+                                          already exist
+--update-baseline [file]                  Rewrite the existing baseline file with the
+                                          current set of warnings. If some warnings have
+                                          been fixed, this will delete them from the
+                                          baseline files. If a file is provided, the
+                                          updated baseline is written to the given file;
+                                          otherwise the original source baseline file is
+                                          updated.
 
 JDiff:
 --api-xml <file>                          Like --api, but emits the API in the JDiff XML
@@ -220,6 +233,18 @@ JDiff:
 --convert-to-jdiff <sig> <xml>            Reads in the given signature file, and writes it
                                           out in the JDiff XML format. Can be specified
                                           multiple times.
+--convert-new-to-jdiff <old> <new> <xml>  Reads in the given old and new api files,
+                                          computes the difference, and writes out only the
+                                          new parts of the API in the JDiff XML format.
+--convert-to-v1 <sig> <sig>               Reads in the given signature file and writes it
+                                          out as a signature file in the original
+                                          v1/doclava format.
+--convert-to-v2 <sig> <sig>               Reads in the given signature file and writes it
+                                          out as a signature file in the new signature
+                                          format, v2.
+--convert-new-to-v2 <old> <new> <sig>     Reads in the given old and new api files,
+                                          computes the difference, and writes out only the
+                                          new parts of the API in the v2 format.
 
 Statistics:
 --annotation-coverage-stats               Whether metalava should emit coverage statistics

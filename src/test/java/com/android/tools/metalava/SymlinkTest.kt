@@ -38,7 +38,7 @@ class SymlinkTest : DriverTest() {
         val before = System.getProperty("user.dir")
         try {
             check(
-                warnings = "TESTROOT/src/test/pkg/sub1/sub2/sub3: info: Ignoring symlink during package.html discovery directory traversal [IgnoringSymlink:159]",
+                warnings = "TESTROOT/src/test/pkg/sub1/sub2/sub3: info: Ignoring symlink during package.html discovery directory traversal [IgnoringSymlink]",
                 sourceFiles = *arrayOf(
                     java(
                         """
@@ -77,9 +77,11 @@ class SymlinkTest : DriverTest() {
                     // root, which makes a cycle
                     val file = File(dir, "src/test/pkg/sub1/sub2")
                     file.mkdirs()
-                    val symlinkFile = File(file, "sub3")
-                    val symlink = symlinkFile.toPath()
+                    val symlink = File(file, "sub3").toPath()
                     java.nio.file.Files.createSymbolicLink(symlink, dir.toPath())
+
+                    val git = File(file, ".git").toPath()
+                    java.nio.file.Files.createSymbolicLink(git, dir.toPath())
                 },
                 // Empty source path: don't pick up random directory stuff
                 extraArguments = arrayOf(

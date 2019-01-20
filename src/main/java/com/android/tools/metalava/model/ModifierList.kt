@@ -53,6 +53,7 @@ interface ModifierList {
 
     fun isInternal(): Boolean = false
     fun isInfix(): Boolean = false
+    fun isSuspend(): Boolean = false
     fun isOperator(): Boolean = false
     fun isInline(): Boolean = false
     fun isEmpty(): Boolean
@@ -68,10 +69,8 @@ interface ModifierList {
 
         if (isStatic() != other.isStatic()) return false
         if (isAbstract() != other.isAbstract()) return false
-        if (isFinal() != other.isFinal()) return false
-        if (!compatibility.skipNativeModifier && isNative() != other.isNative()) return false
-        if (isSynchronized() != other.isSynchronized()) return false
-        if (!compatibility.skipStrictFpModifier && isStrictFp() != other.isStrictFp()) return false
+        if (isFinal() != other.isFinal()) { return false }
+        if (compatibility.includeSynchronized && isSynchronized() != other.isSynchronized()) return false
         if (isTransient() != other.isTransient()) return false
         if (isVolatile() != other.isVolatile()) return false
 
@@ -269,10 +268,6 @@ interface ModifierList {
                 return
             }
 
-            if (compatibility.extraSpaceForEmptyModifiers && item.isPackagePrivate && item is MemberItem) {
-                writer.write(" ")
-            }
-
             // Kotlin order:
             //   https://kotlinlang.org/docs/reference/coding-conventions.html#modifiers
 
@@ -294,7 +289,7 @@ interface ModifierList {
                     writer.write("default ")
                 }
 
-                if (list.isStatic()) {
+                if (list.isStatic() && (compatibility.staticEnums || classItem == null || !classItem.isEnum())) {
                     writer.write("static ")
                 }
 
@@ -310,6 +305,10 @@ interface ModifierList {
 
                 if (list.isSealed()) {
                     writer.write("sealed ")
+                }
+
+                if (list.isSuspend()) {
+                    writer.write("suspend ")
                 }
 
                 if (list.isInline()) {
@@ -337,20 +336,16 @@ interface ModifierList {
                     writer.write("abstract ")
                 }
 
-                if (list.isNative() && (target.isStubsFile() || !compatibility.skipNativeModifier)) {
+                if (list.isNative() && target.isStubsFile()) {
                     writer.write("native ")
                 }
 
-                if (item.deprecated && includeDeprecated && !target.isStubsFile() && options.compatOutput) {
+                if (item.deprecated && includeDeprecated && !target.isStubsFile() && !compatibility.deprecatedAsAnnotation) {
                     writer.write("deprecated ")
                 }
 
-                if (list.isSynchronized() && (options.compatOutput || target.isStubsFile())) {
+                if (list.isSynchronized() && (compatibility.includeSynchronized || target.isStubsFile())) {
                     writer.write("synchronized ")
-                }
-
-                if (!compatibility.skipStrictFpModifier && list.isStrictFp()) {
-                    writer.write("strictfp ")
                 }
 
                 if (list.isTransient()) {
@@ -361,7 +356,7 @@ interface ModifierList {
                     writer.write("volatile ")
                 }
             } else {
-                if (item.deprecated && includeDeprecated && !target.isStubsFile() && options.compatOutput) {
+                if (item.deprecated && includeDeprecated && !target.isStubsFile() && !compatibility.deprecatedAsAnnotation) {
                     writer.write("deprecated ")
                 }
 
@@ -389,7 +384,7 @@ interface ModifierList {
                     writer.write("default ")
                 }
 
-                if (list.isStatic()) {
+                if (list.isStatic() && (compatibility.staticEnums || classItem == null || !classItem.isEnum())) {
                     writer.write("static ")
                 }
 
@@ -403,6 +398,10 @@ interface ModifierList {
 
                 if (list.isSealed()) {
                     writer.write("sealed ")
+                }
+
+                if (list.isSuspend()) {
+                    writer.write("suspend ")
                 }
 
                 if (list.isInline()) {
@@ -425,16 +424,12 @@ interface ModifierList {
                     writer.write("volatile ")
                 }
 
-                if (list.isSynchronized() && (options.compatOutput || target.isStubsFile())) {
+                if (list.isSynchronized() && (compatibility.includeSynchronized || target.isStubsFile())) {
                     writer.write("synchronized ")
                 }
 
-                if (list.isNative() && (target.isStubsFile() || !compatibility.skipNativeModifier)) {
+                if (list.isNative() && target.isStubsFile()) {
                     writer.write("native ")
-                }
-
-                if (!compatibility.skipStrictFpModifier && list.isStrictFp()) {
-                    writer.write("strictfp ")
                 }
             }
         }
@@ -454,7 +449,7 @@ interface ModifierList {
             //  unless runtimeOnly is false, in which case we'd include it too
             // e.g. emit @Deprecated if includeDeprecated && !runtimeOnly
             if (item.deprecated &&
-                (!options.compatOutput || target.isStubsFile()) &&
+                (compatibility.deprecatedAsAnnotation || target.isStubsFile()) &&
                 (runtimeAnnotationsOnly || includeDeprecated)
             ) {
                 writer.write("@Deprecated")
@@ -482,11 +477,11 @@ interface ModifierList {
             writer: Writer,
             target: AnnotationTarget
         ) {
-            val annotations = list.annotations()
+            var annotations = list.annotations()
 
             // Ensure stable signature file order
             if (annotations.size > 2) {
-                annotations.sortedBy { it.qualifiedName() }
+                annotations = annotations.sortedBy { it.qualifiedName() }
             }
 
             if (annotations.isNotEmpty()) {
@@ -525,7 +520,7 @@ interface ModifierList {
                         }
                     }
 
-                    val source = annotation.toSource()
+                    val source = annotation.toSource(target)
                     if (omitCommonPackages) {
                         writer.write(AnnotationItem.shortenAnnotation(source))
                     } else {
