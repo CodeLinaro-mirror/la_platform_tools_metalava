@@ -282,7 +282,7 @@ class ApiFileTest : DriverTest() {
                 package androidx.core.util {
                   public final class TestKt {
                     ctor public TestKt();
-                    method public static <K, V> android.util.LruCache<K,V> lruCache(int maxSize, kotlin.jvm.functions.Function2<? super K,? super V,java.lang.Integer> sizeOf = { _, _ -> 1 }, kotlin.jvm.functions.Function1<? super K,? extends V> create = { (V)null }, kotlin.jvm.functions.Function4<? super java.lang.Boolean,? super K,? super V,? super V,kotlin.Unit> onEntryRemoved = { _, _, _, _ ->  });
+                    method public static inline <K, V> android.util.LruCache<K,V> lruCache(int maxSize, kotlin.jvm.functions.Function2<? super K,? super V,java.lang.Integer> sizeOf = { _, _ -> 1 }, kotlin.jvm.functions.Function1<? super K,? extends V> create = { (V)null }, kotlin.jvm.functions.Function4<? super java.lang.Boolean,? super K,? super V,? super V,kotlin.Unit> onEntryRemoved = { _, _, _, _ ->  });
                   }
                 }
                 """,
@@ -349,9 +349,9 @@ class ApiFileTest : DriverTest() {
                   }
                   public final class KotlinKt {
                     ctor public KotlinKt();
-                    method public static operator java.lang.String component1(java.lang.String);
-                    method public static int getRed(int);
-                    method public static boolean isSrgb(long);
+                    method public static inline operator java.lang.String component1(java.lang.String);
+                    method public static inline int getRed(int);
+                    method public static inline boolean isSrgb(long);
                   }
                   public class Parent {
                     ctor public Parent();
@@ -419,7 +419,42 @@ class ApiFileTest : DriverTest() {
                   }
                   public final class _java_Kt {
                     ctor public _java_Kt();
-                    method public static java.lang.String systemService2(test.pkg.Context);
+                    method public static inline <reified T> T systemService1(test.pkg.Context);
+                    method public static inline java.lang.String systemService2(test.pkg.Context);
+                  }
+                }
+                """,
+            checkDoclava1 = false /* doesn't support Kotlin... */
+        )
+    }
+
+    @Test
+    fun `Kotlin Reified Methods 2`() {
+        check(
+            sourceFiles = *arrayOf(
+                kotlin(
+                    """
+                    @file:Suppress("NOTHING_TO_INLINE", "RedundantVisibilityModifier", "unused")
+
+                    package test.pkg
+
+                    inline fun <T> a(t: T) { }
+                    inline fun <reified T> b(t: T) { }
+                    private inline fun <reified T> c(t: T) { } // hide
+                    internal inline fun <reified T> d(t: T) { } // hide
+                    public inline fun <reified T> e(t: T) { }
+                    inline fun <reified T> T.f(t: T) { }
+                    """
+                )
+            ),
+            api = """
+                package test.pkg {
+                  public final class TestKt {
+                    ctor public TestKt();
+                    method public static inline <T> void a(T t);
+                    method public static inline <reified T> void b(T t);
+                    method public static inline <reified T> void e(T t);
+                    method public static inline <reified T> void f(T, T t);
                   }
                 }
                 """,
@@ -543,7 +578,7 @@ class ApiFileTest : DriverTest() {
                   }
                   public final class TestKt {
                     ctor public TestKt();
-                    method public static operator <F, S> F! component1(androidx.util.PlatformJavaPair<F,S>);
+                    method public static inline operator <F, S> F! component1(androidx.util.PlatformJavaPair<F,S>);
                   }
                 }
                 """,
@@ -681,8 +716,8 @@ class ApiFileTest : DriverTest() {
                     method public static void blahblahblah(String, String firstArg = "hello", int secondArg = 42);
                     method public static void blahblahblah(String, String firstArg = "hello");
                     method public static void blahblahblah(String);
-                    method public static void edit(android.content.SharedPreferences, boolean commit = false, kotlin.jvm.functions.Function1<? super android.content.SharedPreferences.Editor,kotlin.Unit> action);
-                    method public static void edit(android.content.SharedPreferences, kotlin.jvm.functions.Function1<? super android.content.SharedPreferences.Editor,kotlin.Unit> action);
+                    method public static inline void edit(android.content.SharedPreferences, boolean commit = false, kotlin.jvm.functions.Function1<? super android.content.SharedPreferences.Editor,kotlin.Unit> action);
+                    method public static inline void edit(android.content.SharedPreferences, kotlin.jvm.functions.Function1<? super android.content.SharedPreferences.Editor,kotlin.Unit> action);
                   }
                 }
                 """,
@@ -2362,9 +2397,9 @@ class ApiFileTest : DriverTest() {
                 Ltest/pkg/Child;-><init>()V
                 src/test/pkg/Child.java:2
                 Ltest/pkg/Child;->hiddenApi()V
-                src/test/pkg/Child.java:13
+                src/test/pkg/Child.java:16
                 Ltest/pkg/Child;->toString()Ljava/lang/String;
-                src/test/pkg/Child.java:4
+                src/test/pkg/Child.java:8
                 Ltest/pkg/Parent;-><init>()V
                 src/test/pkg/Parent.java:2
                 Ltest/pkg/Parent;->toString()Ljava/lang/String;
@@ -2394,7 +2429,7 @@ class ApiFileTest : DriverTest() {
             api = """
                 package test.pkg {
                   public final class -Foo {
-                    method public static void printHelloWorld(java.lang.String);
+                    method public static inline void printHelloWorld(java.lang.String);
                   }
                 }
                 """
@@ -2788,65 +2823,6 @@ class ApiFileTest : DriverTest() {
                   public abstract interface XmlPullParser {
                   }
                 }
-                """
-        )
-    }
-
-    @Test
-    fun `Including private interfaces from types`() {
-        check(
-            checkDoclava1 = true,
-            sourceFiles = *arrayOf(
-                java("""package test.pkg1; interface Interface1 { }"""),
-                java("""package test.pkg1; abstract class Class1 { }"""),
-                java("""package test.pkg1; abstract class Class2 { }"""),
-                java("""package test.pkg1; abstract class Class3 { }"""),
-                java("""package test.pkg1; abstract class Class4 { }"""),
-                java("""package test.pkg1; abstract class Class5 { }"""),
-                java("""package test.pkg1; abstract class Class6 { }"""),
-                java("""package test.pkg1; abstract class Class7 { }"""),
-                java("""package test.pkg1; abstract class Class8 { }"""),
-                java("""package test.pkg1; abstract class Class9 { }"""),
-                java(
-                    """
-                    package test.pkg1;
-
-                    import java.util.List;
-                    import java.util.Map;
-                    public abstract class Usage implements List<Class1> {
-                       <T extends java.lang.Comparable<? super T>> void sort(java.util.List<T> list) {}
-                       public Class3 myClass1 = null;
-                       public List<? extends Class4> myClass2 = null;
-                       public Map<String, ? extends Class5> myClass3 = null;
-                       public <T extends Class6> void mySort(List<Class7> list, T element) {}
-                       public void ellipsisType(Class8... myargs);
-                       public void arrayType(Class9[] myargs);
-                    }
-                    """
-                )
-            ),
-
-            // TODO: Test annotations! (values, annotation classes, etc.)
-            warnings = """
-                    src/test/pkg1/Usage.java:12: warning: Parameter myargs references hidden type test.pkg1.Class9[]. [HiddenTypeParameter:121]
-                    src/test/pkg1/Usage.java:11: warning: Parameter myargs references hidden type test.pkg1.Class8.... [HiddenTypeParameter:121]
-                    src/test/pkg1/Usage.java:10: warning: Parameter list references hidden type class test.pkg1.Class7. [HiddenTypeParameter:121]
-                    src/test/pkg1/Usage.java:7: warning: Field Usage.myClass1 references hidden type test.pkg1.Class3. [HiddenTypeParameter:121]
-                    src/test/pkg1/Usage.java:8: warning: Field Usage.myClass2 references hidden type class test.pkg1.Class4. [HiddenTypeParameter:121]
-                    src/test/pkg1/Usage.java:9: warning: Field Usage.myClass3 references hidden type class test.pkg1.Class5. [HiddenTypeParameter:121]
-                    """,
-            api = """
-                    package test.pkg1 {
-                      public abstract class Usage implements java.util.List {
-                        ctor public Usage();
-                        method public void arrayType(test.pkg1.Class9[]);
-                        method public void ellipsisType(test.pkg1.Class8...);
-                        method public <T extends test.pkg1.Class6> void mySort(java.util.List<test.pkg1.Class7>, T);
-                        field public test.pkg1.Class3 myClass1;
-                        field public java.util.List<? extends test.pkg1.Class4> myClass2;
-                        field public java.util.Map<java.lang.String, ? extends test.pkg1.Class5> myClass3;
-                      }
-                    }
                 """
         )
     }

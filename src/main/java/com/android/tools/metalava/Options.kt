@@ -38,7 +38,8 @@ var options = Options(emptyArray())
 
 private const val MAX_LINE_WIDTH = 90
 
-const val ARGS_COMPAT_OUTPUT = "--compatible-output"
+const val ARG_COMPAT_OUTPUT = "--compatible-output"
+const val ARG_FORMAT = "--format"
 const val ARG_HELP = "--help"
 const val ARG_VERSION = "--version"
 const val ARG_QUIET = "--quiet"
@@ -57,6 +58,9 @@ const val ARG_REMOVED_API = "--removed-api"
 const val ARG_REMOVED_DEX_API = "--removed-dex-api"
 const val ARG_MERGE_QUALIFIER_ANNOTATIONS = "--merge-qualifier-annotations"
 const val ARG_MERGE_INCLUSION_ANNOTATIONS = "--merge-inclusion-annotations"
+const val ARG_VALIDATE_NULLABILITY_FROM_MERGED_STUBS = "--validate-nullability-from-merged-stubs"
+const val ARG_NULLABILITY_WARNINGS_TXT = "--nullability-warnings-txt"
+const val ARG_NULLABILITY_ERRORS_NON_FATAL = "--nullability-errors-non-fatal"
 const val ARG_INPUT_API_JAR = "--input-api-jar"
 const val ARG_EXACT_API = "--exact-api"
 const val ARG_STUBS = "--stubs"
@@ -174,6 +178,28 @@ class Options(
      * been configured via ${#ARG_GENERATE_DOCUMENTATION}
      */
     var noDocs = false
+
+    /**
+     * Validator for nullability annotations, if validation is enabled.
+     */
+    var nullabilityAnnotationsValidator: NullabilityAnnotationsValidator? = null
+
+    /**
+     * Whether nullability validation errors should be considered fatal.
+     */
+    var nullabilityErrorsFatal = true
+
+    /**
+     * A file to write non-fatal nullability validation issues to. If null, all issues are treated
+     * as fatal or else logged as warnings, depending on the value of [nullabilityErrorsFatal].
+     */
+    var nullabilityWarningsTxt: File? = null
+
+    /**
+     * Whether to validate nullability for all the classes where we are merging annotations from
+     * external java stub files. If true, [nullabilityAnnotationsValidator] must be set.
+     */
+    var validateNullabilityFromMergedStubs = false
 
     /**
      * Whether to include element documentation (javadoc and KDoc) is in the generated stubs.
@@ -361,7 +387,7 @@ class Options(
     var migrateNullsFrom: File? = null
 
     /** Private backing list for [compatibilityChecks]] */
-    private var mutableCompatibilityChecks: MutableList<CheckRequest> = mutableListOf<CheckRequest>()
+    private var mutableCompatibilityChecks: MutableList<CheckRequest> = mutableListOf()
 
     /** The list of compatibility checks to run */
     val compatibilityChecks: List<CheckRequest> = mutableCompatibilityChecks
@@ -499,7 +525,7 @@ class Options(
                     throw DriverException(stdout = "$PROGRAM_NAME version: ${Version.VERSION}")
                 }
 
-                ARGS_COMPAT_OUTPUT -> compatOutput = true
+                ARG_COMPAT_OUTPUT -> compatOutput = true
 
                 // For now we don't distinguish between bootclasspath and classpath
                 ARG_CLASS_PATH, "-classpath", "-bootclasspath" ->
@@ -534,6 +560,16 @@ class Options(
                         getValue(args, ++index)
                     )
                 )
+
+                ARG_VALIDATE_NULLABILITY_FROM_MERGED_STUBS -> {
+                    validateNullabilityFromMergedStubs = true
+                    nullabilityAnnotationsValidator =
+                        nullabilityAnnotationsValidator ?: NullabilityAnnotationsValidator()
+                }
+                ARG_NULLABILITY_WARNINGS_TXT ->
+                    nullabilityWarningsTxt = stringToNewFile(getValue(args, ++index))
+                ARG_NULLABILITY_ERRORS_NON_FATAL ->
+                    nullabilityErrorsFatal = false
 
                 "-sdkvalues", ARG_SDK_VALUES -> sdkValueDir = stringToNewDir(getValue(args, ++index))
                 ARG_API, "-api" -> apiFile = stringToNewFile(getValue(args, ++index))
@@ -637,9 +673,11 @@ class Options(
 
                 "--previous-api" -> {
                     migrateNullsFrom = stringToExistingFile(getValue(args, ++index))
-                    reporter.report(Errors.DEPRECATED_OPTION, null as File?,
+                    reporter.report(
+                        Errors.DEPRECATED_OPTION, null as File?,
                         "--previous-api is deprecated; instead " +
-                        "use $ARG_MIGRATE_NULLNESS $migrateNullsFrom")
+                            "use $ARG_MIGRATE_NULLNESS $migrateNullsFrom"
+                    )
                 }
 
                 ARG_MIGRATE_NULLNESS -> {
@@ -659,9 +697,11 @@ class Options(
                 "--current-api" -> {
                     val file = stringToExistingFile(getValue(args, ++index))
                     mutableCompatibilityChecks.add(CheckRequest(file, ApiType.PUBLIC_API, ReleaseType.DEV))
-                    reporter.report(Errors.DEPRECATED_OPTION, null as File?,
+                    reporter.report(
+                        Errors.DEPRECATED_OPTION, null as File?,
                         "--current-api is deprecated; instead " +
-                            "use $ARG_CHECK_COMPATIBILITY_API_CURRENT")
+                            "use $ARG_CHECK_COMPATIBILITY_API_CURRENT"
+                    )
                 }
 
                 ARG_CHECK_COMPATIBILITY -> {
@@ -1008,14 +1048,21 @@ class Options(
                         } else {
                             yesNo(arg.substring(ARG_OMIT_COMMON_PACKAGES.length + 1))
                         }
-                    } else if (arg.startsWith(ARGS_COMPAT_OUTPUT)) {
-                        compatOutput = if (arg == ARGS_COMPAT_OUTPUT)
+                    } else if (arg.startsWith(ARG_COMPAT_OUTPUT)) {
+                        compatOutput = if (arg == ARG_COMPAT_OUTPUT)
                             true
-                        else yesNo(arg.substring(ARGS_COMPAT_OUTPUT.length + 1))
+                        else yesNo(arg.substring(ARG_COMPAT_OUTPUT.length + 1))
                     } else if (arg.startsWith(ARG_INCLUDE_SIG_VERSION)) {
                         includeSignatureFormatVersion = if (arg == ARG_INCLUDE_SIG_VERSION)
                             true
                         else yesNo(arg.substring(ARG_INCLUDE_SIG_VERSION.length + 1))
+                    } else if (arg.startsWith(ARG_FORMAT)) {
+                        when (arg) {
+                            "$ARG_FORMAT=v1" -> setFormat(1)
+                            "$ARG_FORMAT=v2" -> setFormat(2)
+                            "$ARG_FORMAT=v3" -> setFormat(3)
+                            else -> throw DriverException(stderr = "Unexpected signature format; expected v1, v2 or v3")
+                        }
                     } else if (arg.startsWith("-")) {
                         // Compatibility flag; map to mutable properties in the Compatibility
                         // class and assign it
@@ -1090,6 +1137,14 @@ class Options(
         }
 
         checkFlagConsistency()
+    }
+
+    private fun setFormat(format: Int) {
+        compatOutput = format == 1
+        outputKotlinStyleNulls = format >= 3
+        outputDefaultValues = format >= 2
+        omitCommonPackages = format >= 2
+        includeSignatureFormatVersion = format >= 2
     }
 
     private fun findCompatibilityFlag(arg: String): KMutableProperty1<Compatibility, Boolean>? {
@@ -1177,21 +1232,21 @@ class Options(
         if (compatOutput && outputKotlinStyleNulls) {
             throw DriverException(
                 stderr = "$ARG_OUTPUT_KOTLIN_NULLS=yes should not be combined with " +
-                    "$ARGS_COMPAT_OUTPUT=yes"
+                    "$ARG_COMPAT_OUTPUT=yes"
             )
         }
 
         if (compatOutput && outputDefaultValues) {
             throw DriverException(
                 stderr = "$ARG_OUTPUT_DEFAULT_VALUES=yes should not be combined with " +
-                    "$ARGS_COMPAT_OUTPUT=yes"
+                    "$ARG_COMPAT_OUTPUT=yes"
             )
         }
 
         if (compatOutput && includeSignatureFormatVersion) {
             throw DriverException(
                 stderr = "$ARG_INCLUDE_SIG_VERSION=yes should not be combined with " +
-                    "$ARGS_COMPAT_OUTPUT=yes"
+                    "$ARG_COMPAT_OUTPUT=yes"
             )
         }
     }
@@ -1451,6 +1506,16 @@ class Options(
                 "inclusion in the API to be written out, i.e. show and hide. The only format supported is " +
                 "Java stub files.",
 
+            ARG_VALIDATE_NULLABILITY_FROM_MERGED_STUBS, "Triggers validation of nullability annotations " +
+                "for any class where $ARG_MERGE_QUALIFIER_ANNOTATIONS includes a Java stub file.",
+
+            "$ARG_NULLABILITY_WARNINGS_TXT <file>", "Specifies where to write warnings encountered during " +
+                "validation of nullability annotations. (Does not trigger validation by itself.)",
+
+            ARG_NULLABILITY_ERRORS_NON_FATAL, "Specifies that errors encountered during validation of " +
+                "nullability annotations should not be treated as errors. They will be written out to the " +
+                "file specified in $ARG_NULLABILITY_WARNINGS_TXT instead.",
+
             "$ARG_INPUT_API_JAR <file>", "A .jar file to read APIs from directly",
 
             "$ARG_MANIFEST <file>", "A manifest file, used to for check permissions to cross check APIs",
@@ -1482,12 +1547,13 @@ class Options(
             "$ARG_PRIVATE_DEX_API <file>", "Generate a DEX signature descriptor file listing the exact private APIs",
             "$ARG_DEX_API_MAPPING <file>", "Generate a DEX signature descriptor along with file and line numbers",
             "$ARG_REMOVED_API <file>", "Generate a signature descriptor file for APIs that have been removed",
+            "$ARG_FORMAT=<v1,v2,v3,...>", "Sets the output signature file format to be the given version.",
             "$ARG_OUTPUT_KOTLIN_NULLS[=yes|no]", "Controls whether nullness annotations should be formatted as " +
                 "in Kotlin (with \"?\" for nullable types, \"\" for non nullable types, and \"!\" for unknown. " +
                 "The default is yes.",
             "$ARG_OUTPUT_DEFAULT_VALUES[=yes|no]", "Controls whether default values should be included in " +
                 "signature files. The default is yes.",
-            "$ARGS_COMPAT_OUTPUT=[yes|no]", "Controls whether to keep signature files compatible with the " +
+            "$ARG_COMPAT_OUTPUT=[yes|no]", "Controls whether to keep signature files compatible with the " +
                 "historical format (with its various quirks) or to generate the new format (which will also include " +
                 "annotations that are part of the API, etc.)",
             "$ARG_OMIT_COMMON_PACKAGES[=yes|no]", "Skip common package prefixes like java.lang.* and " +
@@ -1654,7 +1720,8 @@ class Options(
     companion object {
         /** Whether we should use [Compatibility] mode */
         fun useCompatMode(args: Array<String>): Boolean {
-            return COMPAT_MODE_BY_DEFAULT && !args.contains("$ARGS_COMPAT_OUTPUT=no")
+            return COMPAT_MODE_BY_DEFAULT && !args.contains("$ARG_COMPAT_OUTPUT=no") &&
+                (args.none { it.startsWith("$ARG_FORMAT=") } || args.contains("--format=v1"))
         }
     }
 }
