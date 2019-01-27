@@ -112,6 +112,54 @@ class JDiffXmlTest : DriverTest() {
     }
 
     @Test
+    fun `Abstract interfaces`() {
+        check(
+            compatibilityMode = true,
+            format = FileFormat.V2,
+            signatureSource =
+            """
+            // Signature format: 2.0
+            package test.pkg {
+              public interface MyBaseInterface {
+                method public abstract void fun(int, String);
+              }
+            }
+            """,
+            apiXml =
+            """
+            <api>
+            <package name="test.pkg"
+            >
+            <interface name="MyBaseInterface"
+             abstract="true"
+             static="false"
+             final="false"
+             deprecated="not deprecated"
+             visibility="public"
+            >
+            <method name="fun"
+             return="void"
+             abstract="true"
+             native="false"
+             synchronized="false"
+             static="false"
+             final="false"
+             deprecated="not deprecated"
+             visibility="public"
+            >
+            <parameter name="null" type="int">
+            </parameter>
+            <parameter name="null" type="java.lang.String">
+            </parameter>
+            </method>
+            </interface>
+            </package>
+            </api>
+            """
+        )
+    }
+
+    @Test
     fun `Test generics, superclasses and interfaces`() {
         val source = """
             package a.b.c {
@@ -170,6 +218,30 @@ class JDiffXmlTest : DriverTest() {
              deprecated="not deprecated"
              visibility="public"
             >
+            <method name="valueOf"
+             return="test.pkg.Foo"
+             abstract="false"
+             native="false"
+             synchronized="false"
+             static="true"
+             final="false"
+             deprecated="not deprecated"
+             visibility="public"
+            >
+            <parameter name="null" type="java.lang.String">
+            </parameter>
+            </method>
+            <method name="values"
+             return="test.pkg.Foo[]"
+             abstract="false"
+             native="false"
+             synchronized="false"
+             static="true"
+             final="true"
+             deprecated="not deprecated"
+             visibility="public"
+            >
+            </method>
             <constructor name="Foo"
              type="test.pkg.Foo"
              static="false"
@@ -317,9 +389,9 @@ class JDiffXmlTest : DriverTest() {
             }
             """
         check(
-            compatibilityMode = true,
+            compatibilityMode = false,
             signatureSource = source,
-            checkDoclava1 = false, // broken because doclava1 does not include enum fields
+            checkDoclava1 = false, // because doclava1 does not include enum fields; see compat mode below
             apiXml =
             """
             <api>
@@ -407,6 +479,114 @@ class JDiffXmlTest : DriverTest() {
     }
 
     @Test
+    fun `Test enums compat mode`() {
+        val source = """
+            package test.pkg {
+              public final class Foo extends java.lang.Enum {
+                ctor public Foo(int);
+                ctor public Foo(int, int);
+                method public static test.pkg.Foo valueOf(java.lang.String);
+                method public static final test.pkg.Foo[] values();
+                enum_constant public static final test.pkg.Foo A;
+                enum_constant public static final test.pkg.Foo B;
+              }
+            }
+            """
+        check(
+            compatibilityMode = true,
+            signatureSource = source,
+            checkDoclava1 = true,
+            apiXml =
+            """
+            <api>
+            <package name="test.pkg"
+            >
+            <class name="Foo"
+             extends="java.lang.Enum"
+             abstract="false"
+             static="false"
+             final="true"
+             deprecated="not deprecated"
+             visibility="public"
+            >
+            <method name="valueOf"
+             return="test.pkg.Foo"
+             abstract="false"
+             native="false"
+             synchronized="false"
+             static="true"
+             final="false"
+             deprecated="not deprecated"
+             visibility="public"
+            >
+            <parameter name="null" type="java.lang.String">
+            </parameter>
+            </method>
+            <method name="values"
+             return="test.pkg.Foo[]"
+             abstract="false"
+             native="false"
+             synchronized="false"
+             static="true"
+             final="true"
+             deprecated="not deprecated"
+             visibility="public"
+            >
+            </method>
+            <constructor name="Foo"
+             type="test.pkg.Foo"
+             static="false"
+             final="false"
+             deprecated="not deprecated"
+             visibility="public"
+            >
+            <parameter name="null" type="int">
+            </parameter>
+            </constructor>
+            <constructor name="Foo"
+             type="test.pkg.Foo"
+             static="false"
+             final="false"
+             deprecated="not deprecated"
+             visibility="public"
+            >
+            <parameter name="null" type="int">
+            </parameter>
+            <parameter name="null" type="int">
+            </parameter>
+            </constructor>
+            <method name="valueOf"
+             return="test.pkg.Foo"
+             abstract="false"
+             native="false"
+             synchronized="false"
+             static="true"
+             final="false"
+             deprecated="not deprecated"
+             visibility="public"
+            >
+            <parameter name="null" type="java.lang.String">
+            </parameter>
+            </method>
+            <method name="values"
+             return="test.pkg.Foo[]"
+             abstract="false"
+             native="false"
+             synchronized="false"
+             static="true"
+             final="true"
+             deprecated="not deprecated"
+             visibility="public"
+            >
+            </method>
+            </class>
+            </package>
+            </api>
+            """
+        )
+    }
+
+    @Test
     fun `Throws Lists`() {
         check(
             compatibilityMode = true,
@@ -476,72 +656,6 @@ class JDiffXmlTest : DriverTest() {
     }
 
     @Test
-    fun `Test conversion flag`() {
-        check(
-            compatibilityMode = true,
-            convertToJDiff = listOf(
-                Pair(
-                    """
-                    package test.pkg {
-                      public class MyTest1 {
-                        ctor public MyTest1();
-                      }
-                    }
-                    """,
-                    """
-                    <api>
-                    <package name="test.pkg"
-                    >
-                    <class name="MyTest1"
-                     extends="java.lang.Object"
-                     abstract="false"
-                     static="false"
-                     final="false"
-                     deprecated="not deprecated"
-                     visibility="public"
-                    >
-                    <constructor name="MyTest1"
-                     type="test.pkg.MyTest1"
-                     static="false"
-                     final="false"
-                     deprecated="not deprecated"
-                     visibility="public"
-                    >
-                    </constructor>
-                    </class>
-                    </package>
-                    </api>
-                    """
-                ),
-                Pair(
-                    """
-                    package test.pkg {
-                      public class MyTest2 {
-                      }
-                    }
-                    """,
-                    """
-                    <api>
-                    <package name="test.pkg"
-                    >
-                    <class name="MyTest2"
-                     extends="java.lang.Object"
-                     abstract="false"
-                     static="false"
-                     final="false"
-                     deprecated="not deprecated"
-                     visibility="public"
-                    >
-                    </class>
-                    </package>
-                    </api>
-                    """
-                )
-            )
-        )
-    }
-
-    @Test
     fun `Generics in interfaces`() {
         check(
             compatibilityMode = false,
@@ -598,7 +712,7 @@ class JDiffXmlTest : DriverTest() {
             >
             <interface name="AbstractList"
              extends="test.pkg.List&lt;A,B,C>"
-             abstract="false"
+             abstract="true"
              static="false"
              final="false"
              deprecated="not deprecated"
@@ -607,7 +721,7 @@ class JDiffXmlTest : DriverTest() {
             </interface>
             <interface name="ConcreteList"
              extends="test.pkg.AbstractList&lt;D,E,F>"
-             abstract="false"
+             abstract="true"
              static="false"
              final="false"
              deprecated="not deprecated"
@@ -615,7 +729,7 @@ class JDiffXmlTest : DriverTest() {
             >
             </interface>
             <interface name="List"
-             abstract="false"
+             abstract="true"
              static="false"
              final="false"
              deprecated="not deprecated"
@@ -728,6 +842,71 @@ class JDiffXmlTest : DriverTest() {
                 </class>
                 </package>
                 </api>
+            """
+        )
+    }
+
+    @Test
+    fun `Interface extends, compat mode`() {
+        check(
+            compatibilityMode = true,
+            format = FileFormat.V1,
+            signatureSource = """
+            // Signature format: 2.0
+            package android.companion {
+              public interface DeviceFilter<D extends android.os.Parcelable> extends android.os.Parcelable {
+              }
+            }
+            """,
+            apiXml =
+            """
+            <api>
+            <package name="android.companion"
+            >
+            <interface name="DeviceFilter"
+             abstract="true"
+             static="false"
+             final="false"
+             deprecated="not deprecated"
+             visibility="public"
+            >
+            <implements name="android.os.Parcelable">
+            </implements>
+            </interface>
+            </package>
+            </api>
+            """
+        )
+    }
+
+    @Test
+    fun `Interface extends, non-compat mode`() {
+        check(
+            compatibilityMode = false,
+            format = FileFormat.V2,
+            signatureSource = """
+            // Signature format: 2.0
+            package android.companion {
+              public interface DeviceFilter<D extends android.os.Parcelable> extends android.os.Parcelable {
+              }
+            }
+            """,
+            apiXml =
+            """
+            <api>
+            <package name="android.companion"
+            >
+            <interface name="DeviceFilter"
+             extends="android.os.Parcelable"
+             abstract="true"
+             static="false"
+             final="false"
+             deprecated="not deprecated"
+             visibility="public"
+            >
+            </interface>
+            </package>
+            </api>
             """
         )
     }

@@ -57,6 +57,7 @@ import java.net.URL
 import kotlin.text.Charsets.UTF_8
 
 const val CHECK_OLD_DOCLAVA_TOO = false
+const val CHECK_JDIFF = true
 const val CHECK_STUB_COMPILATION = false
 
 abstract class DriverTest {
@@ -180,6 +181,15 @@ abstract class DriverTest {
         return System.getenv("JAVA_HOME")
     }
 
+    /** File conversion tasks */
+    data class ConvertData(
+        val fromApi: String,
+        val outputFile: String,
+        val baseApi: String? = null,
+        val strip: Boolean = true,
+        val format: FileFormat = FileFormat.JDIFF
+    )
+
     protected fun check(
         /** The source files to pass to the analyzer */
         vararg sourceFiles: TestFile,
@@ -212,8 +222,10 @@ abstract class DriverTest {
         /** Whether the stubs should be written as documentation stubs instead of plain stubs. Decides
          * whether the stubs include @doconly elements, uses rewritten/migration annotations, etc */
         docStubs: Boolean = false,
+        /** Signature file format */
+        format: FileFormat? = null,
         /** Whether to run in doclava1 compat mode */
-        compatibilityMode: Boolean = true,
+        compatibilityMode: Boolean = format == null || format == FileFormat.V1,
         /** Whether to trim the output (leading/trailing whitespace removal) */
         trim: Boolean = true,
         /** Whether to remove blank lines in the output (the signature file usually contains a lot of these) */
@@ -221,7 +233,7 @@ abstract class DriverTest {
         /** Warnings expected to be generated when analyzing these sources */
         warnings: String? = "",
         /** Whether to run doclava1 on the test output and assert that the output is identical */
-        checkDoclava1: Boolean = compatibilityMode,
+        checkDoclava1: Boolean = compatibilityMode && (format == null || format == FileFormat.V1),
         checkCompilation: Boolean = false,
         /** Annotations to merge in (in .xml format) */
         @Language("XML") mergeXmlAnnotations: String? = null,
@@ -256,7 +268,7 @@ abstract class DriverTest {
         /** Additional arguments to supply */
         extraArguments: Array<String> = emptyArray(),
         /** Whether we should emit Kotlin-style null signatures */
-        outputKotlinStyleNulls: Boolean = !compatibilityMode,
+        outputKotlinStyleNulls: Boolean = format != null && format.useKotlinStyleNulls(),
         /** Whether we should interpret API files being read as having Kotlin-style nullness types */
         inputKotlinStyleNulls: Boolean = false,
         /** Whether we should omit java.lang. etc from signature files */
@@ -300,6 +312,8 @@ abstract class DriverTest {
         extractAnnotations: Map<String, String>? = null,
         /** Creates the nullability annotations validator, and check that the report has the given lines (does not define files to be validated) */
         validateNullability: Set<String>? = null,
+        /** Enable nullability validation for the listed classes */
+        validateNullabilityFromList: String? = null,
         /**
          * Whether to include source retention annotations in the stubs (in that case they do not
          * go into the extracted annotations zip file)
@@ -311,13 +325,23 @@ abstract class DriverTest {
         includeSignatureVersion: Boolean = false,
         /**
          * List of signature files to convert to JDiff XML and the
-         * expected XML output
+         * expected XML output.
          */
-        convertToJDiff: List<Pair<String, String>> = emptyList(),
+        convertToJDiff: List<ConvertData> = emptyList(),
         /**
-         * Signature file format
+         * Hook for performing additional initialization of the project
+         * directory
          */
-        format: Int? = null
+        projectSetup: ((File) -> Unit)? = null,
+        /** Baseline file to use, if any */
+        baseline: String? = null,
+        /** Whether to create the baseline if it does not exist. Requires [baseline] to be set. */
+        updateBaseline: Boolean = false,
+        /**
+         * If non null, enable API lint. If non-blank, a codebase where only new APIs not in the codebase
+         * are linted.
+         */
+        @Language("TEXT") apiLint: String? = null
     ) {
         // Ensure different API clients don't interfere with each other
         try {
@@ -381,7 +405,7 @@ abstract class DriverTest {
                 sourcePathDir.mkdirs()
                 assert(sourceFiles.isEmpty()) { "Shouldn't combine sources with signature file loads" }
                 val signatureFile = File(project, "load-api.txt")
-                Files.asCharSink(signatureFile, Charsets.UTF_8).write(signatureSource.trimIndent())
+                signatureFile.writeText(signatureSource.trimIndent())
                 if (includeStrippedSuperclassWarnings) {
                     arrayOf(signatureFile.path)
                 } else {
@@ -419,7 +443,7 @@ abstract class DriverTest {
 
         val mergeAnnotationsArgs = if (mergeXmlAnnotations != null) {
             val merged = File(project, "merged-annotations.xml")
-            Files.asCharSink(merged, Charsets.UTF_8).write(mergeXmlAnnotations.trimIndent())
+            merged.writeText(mergeXmlAnnotations.trimIndent())
             arrayOf(ARG_MERGE_QUALIFIER_ANNOTATIONS, merged.path)
         } else {
             emptyArray()
@@ -427,7 +451,7 @@ abstract class DriverTest {
 
         val signatureAnnotationsArgs = if (mergeSignatureAnnotations != null) {
             val merged = File(project, "merged-annotations.txt")
-            Files.asCharSink(merged, Charsets.UTF_8).write(mergeSignatureAnnotations.trimIndent())
+            merged.writeText(mergeSignatureAnnotations.trimIndent())
             arrayOf(ARG_MERGE_QUALIFIER_ANNOTATIONS, merged.path)
         } else {
             emptyArray()
@@ -435,7 +459,7 @@ abstract class DriverTest {
 
         val javaStubAnnotationsArgs = if (mergeJavaStubAnnotations != null) {
             val merged = File(project, "merged-qualifier-annotations.java")
-            Files.asCharSink(merged, Charsets.UTF_8).write(mergeJavaStubAnnotations.trimIndent())
+            merged.writeText(mergeJavaStubAnnotations.trimIndent())
             arrayOf(ARG_MERGE_QUALIFIER_ANNOTATIONS, merged.path)
         } else {
             emptyArray()
@@ -443,10 +467,22 @@ abstract class DriverTest {
 
         val inclusionAnnotationsArgs = if (mergeInclusionAnnotations != null) {
             val merged = File(project, "merged-inclusion-annotations.java")
-            Files.asCharSink(merged, Charsets.UTF_8).write(mergeInclusionAnnotations.trimIndent())
+            merged.writeText(mergeInclusionAnnotations.trimIndent())
             arrayOf(ARG_MERGE_INCLUSION_ANNOTATIONS, merged.path)
         } else {
             emptyArray()
+        }
+
+        val apiLintArgs = if (apiLint != null) {
+            if (apiLint.isBlank()) {
+                arrayOf(ARG_API_LINT)
+            } else {
+                val file = File(project, "prev-api-lint.txt")
+                file.writeText(apiLint.trimIndent())
+                arrayOf(ARG_API_LINT, file.path)
+            }
+        } else {
+            emptyArray<String>()
         }
 
         val checkCompatibilityApiFile = if (checkCompatibilityApi != null) {
@@ -455,7 +491,7 @@ abstract class DriverTest {
                 jar
             } else {
                 val file = File(project, "current-api.txt")
-                Files.asCharSink(file, Charsets.UTF_8).write(checkCompatibilityApi.trimIndent())
+                file.writeText(checkCompatibilityApi.trimIndent())
                 file
             }
         } else {
@@ -468,7 +504,7 @@ abstract class DriverTest {
                 jar
             } else {
                 val file = File(project, "released-api.txt")
-                Files.asCharSink(file, Charsets.UTF_8).write(checkCompatibilityApiReleased.trimIndent())
+                file.writeText(checkCompatibilityApiReleased.trimIndent())
                 file
             }
         } else {
@@ -481,7 +517,7 @@ abstract class DriverTest {
                 jar
             } else {
                 val file = File(project, "removed-current-api.txt")
-                Files.asCharSink(file, Charsets.UTF_8).write(checkCompatibilityRemovedApiCurrent.trimIndent())
+                file.writeText(checkCompatibilityRemovedApiCurrent.trimIndent())
                 file
             }
         } else {
@@ -494,7 +530,7 @@ abstract class DriverTest {
                 jar
             } else {
                 val file = File(project, "removed-released-api.txt")
-                Files.asCharSink(file, Charsets.UTF_8).write(checkCompatibilityRemovedApiReleased.trimIndent())
+                file.writeText(checkCompatibilityRemovedApiReleased.trimIndent())
                 file
             }
         } else {
@@ -507,7 +543,7 @@ abstract class DriverTest {
                 jar
             } else {
                 val file = File(project, "stable-api.txt")
-                Files.asCharSink(file, Charsets.UTF_8).write(migrateNullsApi.trimIndent())
+                file.writeText(migrateNullsApi.trimIndent())
                 file
             }
         } else {
@@ -516,7 +552,7 @@ abstract class DriverTest {
 
         val manifestFileArgs = if (manifest != null) {
             val file = File(project, "manifest.xml")
-            Files.asCharSink(file, Charsets.UTF_8).write(manifest.trimIndent())
+            file.writeText(manifest.trimIndent())
             arrayOf(ARG_MANIFEST, file.path)
         } else {
             emptyArray()
@@ -699,18 +735,46 @@ abstract class DriverTest {
             emptyArray()
         }
 
-        val convertToJDiffFiles = mutableListOf<Pair<File, File>>()
-        val convertToJDiffArgs = if (convertToJDiff.isNotEmpty()) {
+        val convertFiles = mutableListOf<Options.ConvertFile>()
+        val convertArgs = if (convertToJDiff.isNotEmpty()) {
             val args = mutableListOf<String>()
             var index = 1
-            for ((signatures, _) in convertToJDiff) {
-                val convertSig = temporaryFolder.newFile("jdiff-signatures$index.txt")
-                convertSig.writeText(signatures.trimIndent(), Charsets.UTF_8)
-                val output = temporaryFolder.newFile("jdiff-output$index.xml")
-                convertToJDiffFiles += Pair(convertSig, output)
+            for (convert in convertToJDiff) {
+                val signature = convert.fromApi
+                val base = convert.baseApi
+                val convertSig = temporaryFolder.newFile("convert-signatures$index.txt")
+                convertSig.writeText(signature.trimIndent(), Charsets.UTF_8)
+                val extension = convert.format.preferredExtension()
+                val output = temporaryFolder.newFile("convert-output$index$extension")
+                val baseFile = if (base != null) {
+                    val baseFile = temporaryFolder.newFile("convert-signatures$index-base.txt")
+                    baseFile.writeText(base.trimIndent(), Charsets.UTF_8)
+                    baseFile
+                } else {
+                    null
+                }
+                convertFiles += Options.ConvertFile(convertSig, output, baseFile,
+                    strip = true, outputFormat = convert.format)
                 index++
 
-                args += ARG_CONVERT_TO_JDIFF
+                if (baseFile != null) {
+                    args +=
+                        when {
+                            convert.format == FileFormat.V1 -> ARG_CONVERT_NEW_TO_V1
+                            convert.format == FileFormat.V2 -> ARG_CONVERT_NEW_TO_V2
+                            convert.strip -> "-new_api"
+                            else -> ARG_CONVERT_NEW_TO_JDIFF
+                        }
+                    args += baseFile.path
+                } else {
+                    args +=
+                        when {
+                            convert.format == FileFormat.V1 -> ARG_CONVERT_TO_V1
+                            convert.format == FileFormat.V2 -> ARG_CONVERT_TO_V2
+                            convert.strip -> "-convert2xml"
+                            else -> ARG_CONVERT_TO_JDIFF
+                        }
+                }
                 args += convertSig.path
                 args += output.path
             }
@@ -743,8 +807,21 @@ abstract class DriverTest {
         val applyApiLevelsXmlArgs = if (applyApiLevelsXml != null) {
             ApiLookup::class.java.getDeclaredMethod("dispose").apply { isAccessible = true }.invoke(null)
             applyApiLevelsXmlFile = temporaryFolder.newFile("api-versions.xml")
-            Files.asCharSink(applyApiLevelsXmlFile!!, Charsets.UTF_8).write(applyApiLevelsXml.trimIndent())
+            applyApiLevelsXmlFile?.writeText(applyApiLevelsXml.trimIndent())
             arrayOf(ARG_APPLY_API_LEVELS, applyApiLevelsXmlFile.path)
+        } else {
+            emptyArray()
+        }
+
+        var baselineFile: File? = null
+        val baselineArgs = if (baseline != null) {
+            baselineFile = temporaryFolder.newFile("baseline.txt")
+            baselineFile?.writeText(baseline.trimIndent())
+            if (!updateBaseline) {
+                arrayOf(ARG_BASELINE, baselineFile.path)
+            } else {
+                arrayOf(ARG_BASELINE, baselineFile.path, ARG_UPDATE_BASELINE, baselineFile.path)
+            }
         } else {
             emptyArray()
         }
@@ -793,7 +870,7 @@ abstract class DriverTest {
             var index = 1
             for ((artifactId, signatures) in artifacts) {
                 val signatureFile = temporaryFolder.newFile("signature-file-$index.txt")
-                Files.asCharSink(signatureFile, Charsets.UTF_8).write(signatures.trimIndent())
+                signatureFile.writeText(signatures.trimIndent())
                 index++
 
                 args.add(ARG_REGISTER_ARTIFACT)
@@ -825,12 +902,25 @@ abstract class DriverTest {
             validateNullabilityTxt = null
             emptyArray()
         }
-
-        val signatureFormatArgs = if (format != null) {
-            arrayOf("$ARG_FORMAT=v$format")
+        val validateNullablityFromListFile: File?
+        val validateNullabilityFromListArgs = if (validateNullabilityFromList != null) {
+            validateNullablityFromListFile = temporaryFolder.newFile("validate-nullability-classes.txt")
+            validateNullablityFromListFile.writeText(validateNullabilityFromList)
+            arrayOf(
+                ARG_VALIDATE_NULLABILITY_FROM_LIST, validateNullablityFromListFile.path
+            )
         } else {
             emptyArray()
         }
+
+        val signatureFormatArgs = if (format != null) {
+            arrayOf(format.outputFlag())
+        } else {
+            emptyArray()
+        }
+
+        // Run optional additional setup steps on the project directory
+        projectSetup?.invoke(project)
 
         val actualOutput = runDriver(
             ARG_NO_COLOR,
@@ -887,18 +977,21 @@ abstract class DriverTest {
             *checkCompatibilityRemovedReleasedArguments,
             *proguardKeepArguments,
             *manifestFileArgs,
-            *convertToJDiffArgs,
+            *convertArgs,
             *applyApiLevelsXmlArgs,
+            *baselineArgs,
             *showAnnotationArguments,
             *hideAnnotationArguments,
             *showUnannotatedArgs,
             *includeSourceRetentionAnnotationArgs,
+            *apiLintArgs,
             *sdkFilesArgs,
             *importedPackageArgs.toTypedArray(),
             *skipEmitPackagesArgs.toTypedArray(),
             *artifactArgs,
             *extractAnnotationsArgs,
             *validateNullabilityArgs,
+            *validateNullabilityFromListArgs,
             *signatureFormatArgs,
             *sourceList,
             *extraArguments,
@@ -914,26 +1007,46 @@ abstract class DriverTest {
             val actualText = readFile(apiFile, stripBlankLines, trim)
             assertEquals(stripComments(api, stripLineComments = false).trimIndent(), actualText)
             // Make sure we can read back the files we write
-            ApiFile.parseApi(apiFile, options.outputKotlinStyleNulls, true)
+            ApiFile.parseApi(apiFile, options.outputKotlinStyleNulls)
         }
 
         if (apiXml != null && apiXmlFile != null) {
-            assertTrue("${apiXmlFile.path} does not exist even though $ARG_XML_API was used",
-                apiXmlFile.exists())
+            assertTrue(
+                "${apiXmlFile.path} does not exist even though $ARG_XML_API was used",
+                apiXmlFile.exists()
+            )
             val actualText = readFile(apiXmlFile, stripBlankLines, trim)
             assertEquals(stripComments(apiXml, stripLineComments = false).trimIndent(), actualText)
             // Make sure we can read back the files we write
             parseDocument(apiXmlFile.readText(Charsets.UTF_8), false)
         }
 
-        if (convertToJDiffFiles.isNotEmpty()) {
+        if (baseline != null && baselineFile != null) {
+            assertTrue(
+                "${baselineFile.path} does not exist even though $ARG_BASELINE was used",
+                baselineFile.exists()
+            )
+            val actualText = readFile(baselineFile, stripBlankLines, trim)
+            assertEquals(stripComments(baseline, stripLineComments = false).trimIndent(), actualText)
+        }
+
+        if (convertFiles.isNotEmpty()) {
             for (i in 0 until convertToJDiff.size) {
-                val expected = convertToJDiff[i].second
-                val converted = convertToJDiffFiles[i].second
-                assertTrue("${converted.path} does not exist even though $ARG_CONVERT_TO_JDIFF was used",
-                    converted.exists())
+                val expected = convertToJDiff[i].outputFile
+                val converted = convertFiles[i].outputFile
+                if (convertToJDiff[i].baseApi != null &&
+                    compatibilityMode &&
+                    actualOutput.contains("No API change detected, not generating diff")) {
+                    continue
+                }
+                assertTrue(
+                    "${converted.path} does not exist even though $ARG_CONVERT_TO_JDIFF was used",
+                    converted.exists()
+                )
                 val actualText = readFile(converted, stripBlankLines, trim)
-                parseDocument(converted.readText(Charsets.UTF_8), false)
+                if (actualText.contains("<api")) {
+                    parseDocument(actualText, false)
+                }
                 assertEquals(stripComments(expected, stripLineComments = false).trimIndent(), actualText)
                 // Make sure we can read back the files we write
             }
@@ -947,7 +1060,7 @@ abstract class DriverTest {
             val actualText = readFile(removedApiFile, stripBlankLines, trim)
             assertEquals(stripComments(removedApi, stripLineComments = false).trimIndent(), actualText)
             // Make sure we can read back the files we write
-            ApiFile.parseApi(removedApiFile, options.outputKotlinStyleNulls, true)
+            ApiFile.parseApi(removedApiFile, options.outputKotlinStyleNulls)
         }
 
         if (removedDexApi != null && removedDexApiFile != null) {
@@ -967,7 +1080,7 @@ abstract class DriverTest {
             val actualText = readFile(exactApiFile, stripBlankLines, trim)
             assertEquals(stripComments(exactApi, stripLineComments = false).trimIndent(), actualText)
             // Make sure we can read back the files we write
-            ApiFile.parseApi(exactApiFile, options.outputKotlinStyleNulls, true)
+            ApiFile.parseApi(exactApiFile, options.outputKotlinStyleNulls)
         }
 
         if (privateApi != null && privateApiFile != null) {
@@ -978,7 +1091,7 @@ abstract class DriverTest {
             val actualText = readFile(privateApiFile, stripBlankLines, trim)
             assertEquals(stripComments(privateApi, stripLineComments = false).trimIndent(), actualText)
             // Make sure we can read back the files we write
-            ApiFile.parseApi(privateApiFile, options.outputKotlinStyleNulls, true)
+            ApiFile.parseApi(privateApiFile, options.outputKotlinStyleNulls)
         }
 
         if (dexApi != null && dexApiFile != null) {
@@ -1193,10 +1306,43 @@ abstract class DriverTest {
                 }
 
             // Need to emit the codebase
-            generateJDiffXmlWithDoclava1(signatureFile, apiXmlFile)
+            generateJDiffXmlWithDoclava1(signatureFile, apiXmlFile, null)
 
             val actualText = cleanupString(readFile(apiXmlFile, stripBlankLines, trim), project, true)
             assertEquals(stripComments(apiXml, stripLineComments = false).trimIndent(), actualText)
+        }
+
+        if (CHECK_JDIFF && apiXmlFile != null && convertToJDiff.isNotEmpty()) {
+            // Parse the XML file with jdiff too
+        }
+
+        if (CHECK_OLD_DOCLAVA_TOO && checkDoclava1 && convertToJDiff.isNotEmpty()) {
+            var index = 1
+            for (convert in convertToJDiff) {
+                if (convert.format != FileFormat.JDIFF) {
+                    continue
+                }
+                val signature = convert.fromApi
+                val expectedXml = convert.outputFile
+                val base = convert.baseApi
+                val strip = convert.strip
+                val convertSig = temporaryFolder.newFile("doclava-jdiff-signatures$index.txt")
+                convertSig.writeText(signature.trimIndent(), Charsets.UTF_8)
+                val output = temporaryFolder.newFile("doclava-jdiff-output$index.xml")
+                val baseFile = if (base != null) {
+                    val baseFile = temporaryFolder.newFile("doclava-jdiff-signatures$index-base.txt")
+                    baseFile.writeText(base.trimIndent(), Charsets.UTF_8)
+                    baseFile
+                } else {
+                    null
+                }
+
+                generateJDiffXmlWithDoclava1(convertSig, output, baseFile, strip = strip)
+
+                val actualText = cleanupString(readFile(output, stripBlankLines, trim), project, true)
+                assertEquals(stripComments(expectedXml, stripLineComments = false).trimIndent(), actualText)
+                index++
+            }
         }
 
         if (CHECK_OLD_DOCLAVA_TOO && checkDoclava1 && signatureSource == null &&
@@ -1434,17 +1580,36 @@ abstract class DriverTest {
         return s
     }
 
-    private fun generateJDiffXmlWithDoclava1(signatureFile: File, xmlOutput: File) {
+    private fun generateJDiffXmlWithDoclava1(
+        signatureFile: File,
+        xmlOutput: File,
+        baseFile: File?,
+        strip: Boolean = false
+    ) {
         val docLava1 = findDoclava()
 
-        val args = arrayOf(
-            "-convert2xml",
-            signatureFile.path,
-            xmlOutput.path
-        )
+        val args = if (baseFile != null) {
+            arrayOf(
+                if (strip) "-new_api" else "-new_api_no_strip",
+                baseFile.path,
+                signatureFile.path,
+                xmlOutput.path
+            )
+        } else {
+            arrayOf(
+                if (strip) "-convert2xml" else "-convert2xmlnostrip",
+                signatureFile.path,
+                xmlOutput.path
+            )
+        }
 
         val message = "\n${args.joinToString(separator = "\n") { "\"$it\"," }}"
         println("Running doclava1 with the following args:\n$message")
+
+        println("My args:")
+        args.forEach {
+            println("\"$it\",")
+        }
 
         val jdkPath = findJdk()
         if (!runCommand(
@@ -1491,25 +1656,26 @@ abstract class DriverTest {
             else -> if (argument.startsWith("--")) argument.substring(1) else argument
         }
 
-        val showAnnotationArgsDoclava1: Array<String> = if (showAnnotationArgs.isNotEmpty() || extraArguments.isNotEmpty()) {
-            val shown = mutableListOf<String>()
-            extraArguments.forEachIndexed { index, s ->
-                if (s == ARG_SHOW_ANNOTATION) {
-                    shown += "-showAnnotation"
-                    shown += extraArguments[index + 1]
+        val showAnnotationArgsDoclava1: Array<String> =
+            if (showAnnotationArgs.isNotEmpty() || extraArguments.isNotEmpty()) {
+                val shown = mutableListOf<String>()
+                extraArguments.forEachIndexed { index, s ->
+                    if (s == ARG_SHOW_ANNOTATION) {
+                        shown += "-showAnnotation"
+                        shown += extraArguments[index + 1]
+                    }
                 }
-            }
-            showAnnotationArgs.forEach { s ->
-                shown += if (s == ARG_SHOW_ANNOTATION) {
-                    "-showAnnotation"
-                } else {
-                    s
+                showAnnotationArgs.forEach { s ->
+                    shown += if (s == ARG_SHOW_ANNOTATION) {
+                        "-showAnnotation"
+                    } else {
+                        s
+                    }
                 }
+                shown.toTypedArray()
+            } else {
+                emptyArray()
             }
-            shown.toTypedArray()
-        } else {
-            emptyArray()
-        }
         val hideAnnotationArgsDoclava1: Array<String> = if (extraArguments.isNotEmpty()) {
             val hidden = mutableListOf<String>()
             extraArguments.forEachIndexed { index, s ->

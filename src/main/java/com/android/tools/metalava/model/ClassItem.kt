@@ -21,7 +21,6 @@ import com.android.tools.metalava.ApiAnalyzer
 import com.android.tools.metalava.JAVA_LANG_ANNOTATION
 import com.android.tools.metalava.JAVA_LANG_ENUM
 import com.android.tools.metalava.JAVA_LANG_OBJECT
-import com.android.tools.metalava.compatibility
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.model.visitors.ItemVisitor
 import com.android.tools.metalava.model.visitors.TypeVisitor
@@ -375,12 +374,7 @@ interface ClassItem : Item {
             a.qualifiedName().compareTo(b.qualifiedName())
         }
 
-        fun classNameSorter(): Comparator<in ClassItem> =
-            if (compatibility.sortClassesBySimpleName) {
-                ClassItem.comparator
-            } else {
-                ClassItem.qualifiedComparator
-            }
+        fun classNameSorter(): Comparator<in ClassItem> = ClassItem.qualifiedComparator
     }
 
     fun findMethod(
@@ -585,9 +579,27 @@ interface ClassItem : Item {
                 }
                 for (field in clazz.fields()) {
                     if (!predicate.test(field)) {
-                        val clz = this
-                        val duplicated = field.duplicate(clz)
+                        val duplicated = field.duplicate(this)
                         if (predicate.test(duplicated)) {
+                            fields.remove(duplicated)
+                            fields.add(duplicated)
+                        }
+                    }
+                }
+            }
+
+            val superClass = superClass()
+            if (superClass != null && !predicate.test(superClass) && predicate.test(this)) {
+                // Include constants from hidden super classes.
+                for (field in superClass.fields()) {
+                    val fieldModifiers = field.modifiers
+                    if (!fieldModifiers.isStatic() || !fieldModifiers.isFinal() || !fieldModifiers.isPublic()) {
+                        continue
+                    }
+                    if (!field.originallyHidden) {
+                        val duplicated = field.duplicate(this)
+                        if (predicate.test(duplicated)) {
+                            duplicated.inheritedField = true
                             fields.remove(duplicated)
                             fields.add(duplicated)
                         }
@@ -647,6 +659,18 @@ interface ClassItem : Item {
                 if (!predicate.test(superClass)) {
                     superClass.filteredInterfaceTypes(predicate, types, true, includeParents, target)
                 } else if (includeSelf && superClass.isInterface()) {
+                    // Special case: Arguably, IInterface should be included in the system API by the
+                    // general rules. However, this was just added to the system API in 28 at the same
+                    // time as metalava, which did not include some hidden super classes in its analysis.
+                    // This is now marked as an incompatible API change, so treat this the same way as in
+                    // API 28 until this is clarified.
+                    if (superClass.simpleName() == "IInterface" &&
+                        (target.qualifiedName() == "android.telephony.mbms.vendor.MbmsDownloadServiceBase" ||
+                            target.qualifiedName() == "android.telephony.mbms.vendor.MbmsStreamingServiceBase")
+                    ) {
+                        return types
+                    }
+
                     types.add(superClassType)
                     if (includeParents) {
                         superClass.filteredInterfaceTypes(predicate, types, true, includeParents, target)
@@ -791,6 +815,10 @@ class VisitCandidate(private val cls: ClassItem, private val visitor: ApiVisitor
             return true
         }
 
+        return emitInner()
+    }
+
+    private fun emitInner(): Boolean {
         return innerClasses.any { it.emit() }
     }
 
@@ -815,12 +843,14 @@ class VisitCandidate(private val cls: ClassItem, private val visitor: ApiVisitor
             return
         }
 
-        if (!emit()) {
+        val emitClass = emitClass()
+        val emit = emitClass || emitInner()
+        if (!emit) {
             return
         }
 
-        val emitClass = if (visitor.includeEmptyOuterClasses) emit() else emitClass()
-        if (emitClass) {
+        val emitThis = if (visitor.includeEmptyOuterClasses) emit else emitClass
+        if (emitThis) {
             if (!visitor.visitingPackage) {
                 visitor.visitingPackage = true
                 val pkg = cls.containingPackage()
@@ -870,7 +900,7 @@ class VisitCandidate(private val cls: ClassItem, private val visitor: ApiVisitor
             innerClasses.forEach { it.accept() }
         }
 
-        if (emitClass) {
+        if (emitThis) {
             visitor.afterVisitClass(cls)
             visitor.afterVisitItem(cls)
         }

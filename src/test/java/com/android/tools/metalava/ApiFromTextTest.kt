@@ -45,7 +45,7 @@ class ApiFromTextTest : DriverTest() {
     @Test
     fun `Handle lambas as default values`() {
         val source = """
-            // Signature format: $SIGNATURE_FORMAT
+            // Signature format: 3.0
             package androidx.collection {
               public final class LruCacheKt {
                 ctor public LruCacheKt();
@@ -55,6 +55,7 @@ class ApiFromTextTest : DriverTest() {
         """
 
         check(
+            format = FileFormat.V3,
             compatibilityMode = false,
             inputKotlinStyleNulls = true,
             signatureSource = source,
@@ -66,7 +67,7 @@ class ApiFromTextTest : DriverTest() {
     @Test
     fun `Handle enum constants as default values`() {
         val source = """
-            // Signature format: $SIGNATURE_FORMAT
+            // Signature format: 3.0
             package test.pkg {
               public final class Foo {
                 ctor public Foo();
@@ -89,6 +90,7 @@ class ApiFromTextTest : DriverTest() {
             """
 
         check(
+            format = FileFormat.V3,
             compatibilityMode = false,
             inputKotlinStyleNulls = true,
             signatureSource = source,
@@ -100,7 +102,7 @@ class ApiFromTextTest : DriverTest() {
     @Test
     fun `Handle complex expressions as default values`() {
         val source = """
-            // Signature format: $SIGNATURE_FORMAT
+            // Signature format: 3.0
             package androidx.paging {
               public final class PagedListConfigKt {
                 ctor public PagedListConfigKt();
@@ -122,6 +124,7 @@ class ApiFromTextTest : DriverTest() {
         """
 
         check(
+            format = FileFormat.V3,
             compatibilityMode = false,
             inputKotlinStyleNulls = true,
             signatureSource = source,
@@ -286,7 +289,7 @@ class ApiFromTextTest : DriverTest() {
                 package test.pkg {
                   public deprecated class MyTest {
                     ctor public deprecated MyTest(int, int);
-                    method public static final deprecated void edit(android.content.SharedPreferences, kotlin.jvm.functions.Function1<? super android.content.SharedPreferences.Editor,kotlin.Unit> action);
+                    method public static final deprecated void edit(android.content.SharedPreferences, kotlin.jvm.functions.Function1<? super android.content.SharedPreferences.Editor,kotlin.Unit>);
                     field public static deprecated java.util.List<java.lang.String> LIST;
                   }
                 }
@@ -387,7 +390,7 @@ class ApiFromTextTest : DriverTest() {
                   }
                   protected static abstract deprecated interface Foo.Inner3 {
                     method public default void method3();
-                    method public static void method4(int);
+                    method public static abstract void method4(int);
                   }
                 }
                 """
@@ -421,20 +424,19 @@ class ApiFromTextTest : DriverTest() {
     fun `Loading a signature file with annotations on classes, fields, methods and parameters`() {
         @Language("TEXT")
         val source = """
+                // Signature format: 3.0
                 package test.pkg {
-                  @androidx.annotation.UiThread public class MyTest {
+                  @UiThread public class MyTest {
                     ctor public MyTest();
-                    method @androidx.annotation.IntRange(from=10, to=20) public int clamp(int);
-                    method public java.lang.Double? convert(java.lang.Float myPublicName);
-                    field public java.lang.Number? myNumber;
+                    method @IntRange(from=10, to=20) public int clamp(int);
+                    method public Double? convert(Float myPublicName);
+                    field public Number? myNumber;
                   }
                 }
                 """
 
         check(
-            compatibilityMode = false,
-            inputKotlinStyleNulls = true,
-            omitCommonPackages = false,
+            format = FileFormat.V3,
             signatureSource = source,
             api = source
         )
@@ -551,22 +553,21 @@ class ApiFromTextTest : DriverTest() {
     fun `Loading a signature file with default values`() {
         @Language("TEXT")
         val source = """
+                // Signature format: 3.0
                 package test.pkg {
                   public final class Foo {
                     ctor public Foo();
-                    method public final void error(int p = 42, java.lang.Integer? int2 = null);
+                    method public final void error(int p = 42, Integer? int2 = null);
                   }
                   public class Foo2 {
                     ctor public Foo2();
-                    method public void foo(java.lang.String! = null, java.lang.String! = "(Hello) World", int = 42);
+                    method public void foo(String! = null, String! = "(Hello) World", int = 42);
                   }
                 }
                 """
 
         check(
-            compatibilityMode = false,
-            inputKotlinStyleNulls = true,
-            omitCommonPackages = false,
+            format = FileFormat.V3,
             signatureSource = source,
             api = source
         )
@@ -575,6 +576,7 @@ class ApiFromTextTest : DriverTest() {
     @Test
     fun `Signatures with default annotation method values`() {
         val source = """
+                // Signature format: 3.0
                 package libcore.util {
                   public @interface NonNull {
                     method public abstract int from() default java.lang.Integer.MIN_VALUE;
@@ -586,8 +588,7 @@ class ApiFromTextTest : DriverTest() {
                 """
 
         check(
-            inputKotlinStyleNulls = true,
-            compatibilityMode = false,
+            format = FileFormat.V3,
             signatureSource = source,
             api = source
         )
@@ -596,6 +597,7 @@ class ApiFromTextTest : DriverTest() {
     @Test
     fun `Signatures with many annotations`() {
         val source = """
+            // Signature format: 2.0
             package libcore.util {
               @java.lang.annotation.Documented @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.SOURCE) public @interface NonNull {
                 method public abstract int from() default java.lang.Integer.MIN_VALUE;
@@ -611,9 +613,9 @@ class ApiFromTextTest : DriverTest() {
         """
 
         check(
+            format = FileFormat.V2,
             compatibilityMode = false,
             signatureSource = source,
-            outputKotlinStyleNulls = false,
             api = source
         )
     }
@@ -621,19 +623,20 @@ class ApiFromTextTest : DriverTest() {
     @Test
     fun `Kotlin Properties`() {
         val source = """
+                // Signature format: 2.0
                 package test.pkg {
                   public final class Kotlin {
-                    ctor public Kotlin(java.lang.String property1, int arg2);
-                    method public java.lang.String getProperty1();
-                    method public java.lang.String getProperty2();
-                    method public void setProperty2(java.lang.String p);
-                    property public final java.lang.String property2;
+                    ctor public Kotlin(String property1, int arg2);
+                    method public String getProperty1();
+                    method public String getProperty2();
+                    method public void setProperty2(String p);
+                    property public final String property2;
                   }
                 }
                 """
 
         check(
-            compatibilityMode = true,
+            format = FileFormat.V2,
             signatureSource = source,
             api = source
         )
@@ -646,7 +649,7 @@ class ApiFromTextTest : DriverTest() {
                   @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS) @java.lang.annotation.Target({java.lang.annotation.ElementType.ANNOTATION_TYPE, java.lang.annotation.ElementType.TYPE, java.lang.annotation.ElementType.METHOD, java.lang.annotation.ElementType.CONSTRUCTOR, java.lang.annotation.ElementType.FIELD, java.lang.annotation.ElementType.PACKAGE}) public @interface RestrictTo {
                     method public abstract androidx.annotation.RestrictTo.Scope[] value();
                   }
-                  public static enum RestrictTo.Scope {
+                  public enum RestrictTo.Scope {
                     enum_constant @Deprecated public static final androidx.annotation.RestrictTo.Scope GROUP_ID;
                     enum_constant public static final androidx.annotation.RestrictTo.Scope LIBRARY;
                     enum_constant public static final androidx.annotation.RestrictTo.Scope LIBRARY_GROUP;
@@ -716,16 +719,51 @@ class ApiFromTextTest : DriverTest() {
                 package test.pkg {
                   public final class TestKt {
                     ctor public TestKt();
-                    method public static inline <T> void a(T t);
-                    method public static inline <reified T> void b(T t);
-                    method public static inline <reified T> void e(T t);
-                    method public static inline <reified T> void f(T, T t);
+                    method public static inline <T> void a(T);
+                    method public static inline <reified T> void b(T);
+                    method public static inline <reified T> void e(T);
+                    method public static inline <reified T> void f(T, T);
                   }
                 }
                 """
 
         check(
             compatibilityMode = true,
+            signatureSource = source,
+            api = source
+        )
+    }
+
+    @Test
+    fun `Suspended methods`() {
+        val source = """
+                package test.pkg {
+                  public final class TestKt {
+                    ctor public TestKt();
+                    method public static suspend inline java.lang.Object hello(kotlin.coroutines.experimental.Continuation<? super kotlin.Unit>);
+                  }
+                }
+                """
+
+        check(
+            compatibilityMode = true,
+            signatureSource = source,
+            api = source
+        )
+    }
+
+    @Test
+    fun `Complicated annotations`() {
+        val source = """
+                package android.app {
+                  public static class ActionBar {
+                    field @android.view.ViewDebug.ExportedProperty(category="layout", mapping={@android.view.ViewDebug.IntToString(from=0xffffffff, to="NONE"), @android.view.ViewDebug.IntToString(from=android.view.Gravity.NO_GRAVITY, to="NONE"), @android.view.ViewDebug.IntToString(from=android.view.Gravity.TOP, to="TOP"), @android.view.ViewDebug.IntToString(from=android.view.Gravity.BOTTOM, to="BOTTOM"), @android.view.ViewDebug.IntToString(from=android.view.Gravity.LEFT, to="LEFT"), @android.view.ViewDebug.IntToString(from=android.view.Gravity.RIGHT, to="RIGHT"), @android.view.ViewDebug.IntToString(from=android.view.Gravity.START, to="START"), @android.view.ViewDebug.IntToString(from=android.view.Gravity.END, to="END"), @android.view.ViewDebug.IntToString(from=android.view.Gravity.CENTER_VERTICAL, to="CENTER_VERTICAL"), @android.view.ViewDebug.IntToString(from=android.view.Gravity.FILL_VERTICAL, to="FILL_VERTICAL"), @android.view.ViewDebug.IntToString(from=android.view.Gravity.CENTER_HORIZONTAL, to="CENTER_HORIZONTAL"), @android.view.ViewDebug.IntToString(from=android.view.Gravity.FILL_HORIZONTAL, to="FILL_HORIZONTAL"), @android.view.ViewDebug.IntToString(from=android.view.Gravity.CENTER, to="CENTER"), @android.view.ViewDebug.IntToString(from=android.view.Gravity.FILL, to="FILL")}) public int gravity;
+                  }
+                }
+                """
+
+        check(
+            compatibilityMode = false,
             signatureSource = source,
             api = source
         )

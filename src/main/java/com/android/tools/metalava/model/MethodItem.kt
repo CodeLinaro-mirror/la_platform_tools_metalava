@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model
 
+import com.android.tools.metalava.compatibility
 import com.android.tools.metalava.doclava1.TextCodebase
 import com.android.tools.metalava.model.visitors.ItemVisitor
 import com.android.tools.metalava.model.visitors.TypeVisitor
@@ -111,7 +112,7 @@ interface MethodItem : MemberItem {
     ): LinkedHashSet<ClassItem> {
 
         for (cls in throwsTypes()) {
-            if (predicate.test(cls)) {
+            if (predicate.test(cls) || cls.isTypeParameter && !compatibility.useErasureInThrows) {
                 classes.add(cls)
             } else {
                 // Excluded, but it may have super class throwables that are included; if so, include those
@@ -276,8 +277,8 @@ interface MethodItem : MemberItem {
                 return false
             }
 
-            // IntentService#onStart - is it here because they vary in deprecation status?
-            if (method.deprecated != superMethod.deprecated) {
+            if (method.deprecated != superMethod.deprecated &&
+                (!compatibility.hideDifferenceImplicit || !method.deprecated)) {
                 return false
             }
 
@@ -458,6 +459,49 @@ interface MethodItem : MemberItem {
             }
         }
         return true
+    }
+
+    /** Returns whether this method has any types in its signature that does not match the given filter */
+    fun hasHiddenType(filterReference: Predicate<Item>): Boolean {
+        for (parameter in parameters()) {
+            val type = parameter.type()
+            if (type.hasTypeArguments()) {
+                for (argument in type.typeArgumentClasses()) {
+                    if (!filterReference.test(argument)) {
+                        return true
+                    }
+                }
+            }
+            val clz = type.asClass() ?: continue
+            if (!filterReference.test(clz)) {
+                return true
+            }
+        }
+
+        val returnType = returnType()
+        if (returnType != null) {
+            val returnTypeClass = returnType.asClass()
+            if (returnTypeClass != null && !filterReference.test(returnTypeClass)) {
+                return true
+            }
+            if (returnType.hasTypeArguments()) {
+                for (argument in returnType.typeArgumentClasses()) {
+                    if (!filterReference.test(argument)) {
+                        return true
+                    }
+                }
+            }
+        }
+
+        if (typeParameterList().typeParameterCount() > 0) {
+            for (argument in typeArgumentClasses()) {
+                if (!filterReference.test(argument)) {
+                    return true
+                }
+            }
+        }
+
+        return false
     }
 
     /** Whether this method is a getter/setter for an underlying Kotlin property (val/var) */

@@ -418,6 +418,11 @@ class ApiAnalyzer(
                 if (method.modifiers.isAbstract() || !method.modifiers.isPublic()) {
                     continue
                 }
+
+                if (method.hasHiddenType(filterReference)) {
+                    continue
+                }
+
                 val name = method.name()
                 val list = interfaceNames[name] ?: run {
                     val list = ArrayList<MethodItem>()
@@ -477,7 +482,9 @@ class ApiAnalyzer(
         map.values.forEach { methods ->
             if (methods.size >= 2) {
                 for (candidate in ArrayList(methods)) {
-                    methods.removeAll(candidate.superMethods())
+                    for (superMethod in candidate.allSuperMethods()) {
+                        methods.remove(superMethod)
+                    }
                 }
             }
         }
@@ -615,11 +622,7 @@ class ApiAnalyzer(
                     val containingClass = method.containingClass()
                     if (containingClass.hidden) {
                         method.hidden = true
-                    } else if (containingClass.originallyHidden && containingClass.modifiers.hasShowSingleAnnotation() &&
-                        // As a special case, we leave default constructors public if the surrounding class is
-                        // unhidden
-                        !method.isImplicitConstructor()
-                    ) {
+                    } else if (containingClass.originallyHidden && containingClass.modifiers.hasShowSingleAnnotation()) {
                         // This is a member in a class that was hidden but then unhidden;
                         // but it was unhidden by a non-recursive (single) show annotation, so
                         // don't inherit the show annotation into this item.
@@ -1040,9 +1043,13 @@ class ApiAnalyzer(
             return
         }
 
-        if ((cl.isHiddenOrRemoved() || cl.isPackagePrivate) && !cl.isTypeParameter) {
-            reporter.report(Errors.REFERENCES_HIDDEN, from,
-                "Class ${cl.qualifiedName()} is ${if (cl.isHiddenOrRemoved()) "hidden" else "not public"} but was referenced ($usage) from public ${from.describe(false)}")
+        if ((cl.isHiddenOrRemoved() || cl.isPackagePrivate && !cl.checkLevel()) && !cl.isTypeParameter) {
+            reporter.report(
+                Errors.REFERENCES_HIDDEN, from,
+                "Class ${cl.qualifiedName()} is ${if (cl.isHiddenOrRemoved()) "hidden" else "not public"} but was referenced ($usage) from public ${from.describe(
+                    false
+                )}"
+            )
         }
 
         if (!notStrippable.add(cl)) {
@@ -1093,9 +1100,6 @@ class ApiAnalyzer(
                 // this is not a desired practice but it's happened, so we deal
                 // with it by finding the first super class which passes checkLevel for purposes of
                 // generating the doc & stub information, and proceeding normally.
-                val publicSuper = cl.publicSuperClass()
-                // TODO: Initialize and pass super type too (in case generics are involved)
-                cl.setSuperClass(publicSuper)
                 if (!superClass.isFromClassPath()) {
                     reporter.report(
                         Errors.HIDDEN_SUPERCLASS, cl, "Public class " + cl.qualifiedName() +
@@ -1130,11 +1134,25 @@ class ApiAnalyzer(
                 continue
             }
             for (typeParameterClass in method.typeArgumentClasses()) {
-                cantStripThis(typeParameterClass, filter, notStrippable, stubImportPackages, method, "as type parameter")
+                cantStripThis(
+                    typeParameterClass,
+                    filter,
+                    notStrippable,
+                    stubImportPackages,
+                    method,
+                    "as type parameter"
+                )
             }
             for (parameter in method.parameters()) {
                 for (parameterTypeClass in parameter.type().typeArgumentClasses()) {
-                    cantStripThis(parameterTypeClass, filter, notStrippable, stubImportPackages, parameter, "as parameter type")
+                    cantStripThis(
+                        parameterTypeClass,
+                        filter,
+                        notStrippable,
+                        stubImportPackages,
+                        parameter,
+                        "as parameter type"
+                    )
                     for (tcl in parameter.type().typeArgumentClasses()) {
                         if (tcl == parameterTypeClass) {
                             continue
@@ -1146,7 +1164,14 @@ class ApiAnalyzer(
                                     "in ${method.containingClass().qualifiedName()}.${method.name()}()"
                             )
                         } else {
-                            cantStripThis(tcl, filter, notStrippable, stubImportPackages, parameter, "as type parameter")
+                            cantStripThis(
+                                tcl,
+                                filter,
+                                notStrippable,
+                                stubImportPackages,
+                                parameter,
+                                "as type parameter"
+                            )
                         }
                     }
                 }
@@ -1163,7 +1188,14 @@ class ApiAnalyzer(
                         if (tyItem == returnTypeClass) {
                             continue
                         }
-                        cantStripThis(tyItem, filter, notStrippable, stubImportPackages, method, "as return type parameter")
+                        cantStripThis(
+                            tyItem,
+                            filter,
+                            notStrippable,
+                            stubImportPackages,
+                            method,
+                            "as return type parameter"
+                        )
                     }
                 }
             }

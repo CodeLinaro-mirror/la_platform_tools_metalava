@@ -83,7 +83,6 @@ class CoreApiTest : DriverTest() {
                 }
                 package test.pkg {
                   public class Exposed {
-                    ctor public Exposed();
                     method public void exposed();
                     field public java.lang.String exposed;
                   }
@@ -106,7 +105,7 @@ class CoreApiTest : DriverTest() {
                  */
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                 public class Exposed {
-                public Exposed() { throw new RuntimeException("Stub!"); }
+                Exposed() { throw new RuntimeException("Stub!"); }
                 public void exposed() { throw new RuntimeException("Stub!"); }
                 public java.lang.String exposed;
                 }
@@ -268,9 +267,9 @@ class CoreApiTest : DriverTest() {
                 ARG_HIDE_ANNOTATION, "libcore.api.LibCoreHidden"
             ),
             warnings = """
-            src/test/pkg/Exposed.java:11: error: Attempting to unhide method test.pkg.Exposed.exposed(), but surrounding class test.pkg.Exposed is hidden and should also be annotated with @libcore.api.IntraCoreApi [ShowingMemberInHiddenClass:156]
-            src/test/pkg/Exposed.java:14: error: Attempting to unhide field test.pkg.Exposed.exposed, but surrounding class test.pkg.Exposed is hidden and should also be annotated with @libcore.api.IntraCoreApi [ShowingMemberInHiddenClass:156]
-            src/test/pkg/Exposed.java:17: error: Attempting to unhide class test.pkg.Exposed.StillHidden, but surrounding class test.pkg.Exposed is hidden and should also be annotated with @libcore.api.IntraCoreApi [ShowingMemberInHiddenClass:156]
+            src/test/pkg/Exposed.java:11: error: Attempting to unhide method test.pkg.Exposed.exposed(), but surrounding class test.pkg.Exposed is hidden and should also be annotated with @libcore.api.IntraCoreApi [ShowingMemberInHiddenClass]
+            src/test/pkg/Exposed.java:14: error: Attempting to unhide field test.pkg.Exposed.exposed, but surrounding class test.pkg.Exposed is hidden and should also be annotated with @libcore.api.IntraCoreApi [ShowingMemberInHiddenClass]
+            src/test/pkg/Exposed.java:17: error: Attempting to unhide class test.pkg.Exposed.StillHidden, but surrounding class test.pkg.Exposed is hidden and should also be annotated with @libcore.api.IntraCoreApi [ShowingMemberInHiddenClass]
             """
         )
     }
