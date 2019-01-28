@@ -117,14 +117,23 @@ class PsiModifierItem(
 
                         // Workaround for b/117565118:
                         if ((flags or PRIVATE) != 0 && element is PsiMethod) {
-                            val t = ((element as? UMethod)?.sourcePsi as? KtNamedFunction)?.typeParameterList?.text ?: ""
+                            val t =
+                                ((element as? UMethod)?.sourcePsi as? KtNamedFunction)?.typeParameterList?.text ?: ""
                             if (t.contains("reified") &&
                                 !ktModifierList.hasModifier(KtTokens.PRIVATE_KEYWORD) &&
-                                !ktModifierList.hasModifier(KtTokens.INTERNAL_KEYWORD)) {
+                                !ktModifierList.hasModifier(KtTokens.INTERNAL_KEYWORD)
+                            ) {
                                 // Switch back from private to public
                                 flags = (flags and PRIVATE.inv()) or PUBLIC
                             }
                         }
+                    }
+                    if (ktModifierList.hasModifier(KtTokens.SUSPEND_KEYWORD)) {
+                        flags = flags or SUSPEND
+
+                        // Workaround for b/117565118:
+                        // Switch back from private to public
+                        flags = (flags and PRIVATE.inv()) or PUBLIC
                     }
                 }
             }

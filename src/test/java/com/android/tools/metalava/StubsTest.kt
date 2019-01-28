@@ -751,6 +751,12 @@ class StubsTest : DriverTest() {
                         public static final String CONSTANT = "MyConstant";
                         protected int mContext;
                         public void method3() { }
+                        // Static: should be included
+                        public static void method3b() { }
+                        // References hidden type: don't inherit
+                        public void method3c(HiddenParent p) { }
+                        // References hidden type: don't inherit
+                        public void method3d(java.util.List<HiddenParent> p) { }
                     }
                     """
                 ), java(
@@ -778,9 +784,15 @@ class StubsTest : DriverTest() {
                 public class MyClass extends test.pkg.PublicParent {
                 public MyClass() { throw new RuntimeException("Stub!"); }
                 public void method4() { throw new RuntimeException("Stub!"); }
+                public static void method3b() { throw new RuntimeException("Stub!"); }
+                public void method2() { throw new RuntimeException("Stub!"); }
+                public void method3() { throw new RuntimeException("Stub!"); }
+                public static final java.lang.String CONSTANT = "MyConstant";
                 }
                 """,
-            warnings = "src/test/pkg/MyClass.java:2: warning: Public class test.pkg.MyClass stripped of unavailable superclass test.pkg.HiddenParent [HiddenSuperclass:111]"
+            warnings = """
+                src/test/pkg/MyClass.java:2: warning: Public class test.pkg.MyClass stripped of unavailable superclass test.pkg.HiddenParent [HiddenSuperclass]
+                """
         )
     }
 
@@ -819,6 +831,7 @@ class StubsTest : DriverTest() {
                     public MyClass() { throw new RuntimeException("Stub!"); }
                     public void method1() { throw new RuntimeException("Stub!"); }
                     public void method2() { throw new RuntimeException("Stub!"); }
+                    public static final java.lang.String CONSTANT = "MyConstant";
                     }
                 """
         )
@@ -1196,7 +1209,7 @@ class StubsTest : DriverTest() {
                 ),
                 requiresPermissionSource
             ),
-            warnings = "src/test/pkg/HiddenPermission.java:7: lint: Permission android.Manifest.permission.INTERACT_ACROSS_USERS required by method test.pkg.HiddenPermission.removeStickyBroadcast(Object) is hidden or removed [MissingPermission:132]",
+            warnings = "src/test/pkg/HiddenPermission.java:7: lint: Permission android.Manifest.permission.INTERACT_ACROSS_USERS required by method test.pkg.HiddenPermission.removeStickyBroadcast(Object) is hidden or removed [MissingPermission]",
             source = """
                     package test.pkg;
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
@@ -1428,7 +1441,7 @@ class StubsTest : DriverTest() {
                 package test.pkg {
                   public class Foo {
                     ctor public Foo();
-                    method public void foo(int, java.util.Map<java.lang.String, java.lang.String>!);
+                    method public void foo(int, java.util.Map<java.lang.String, java.lang.String>);
                   }
                 }
                 """
@@ -1437,7 +1450,7 @@ class StubsTest : DriverTest() {
                 package test.pkg {
                   public class Foo {
                     ctor public Foo();
-                    method public void foo(int, java.util.Map<java.lang.String,java.lang.String>!);
+                    method public void foo(int, java.util.Map<java.lang.String,java.lang.String>);
                   }
                 }
                 """
@@ -2229,18 +2242,18 @@ class StubsTest : DriverTest() {
                   }
                   public class Generics.MyClass<X, Y extends java.lang.Number> extends test.pkg.Generics.PublicParent<X,Y> implements test.pkg.Generics.PublicInterface<X,Y> {
                     ctor public Generics.MyClass();
-                    method public java.util.Map<X,java.util.Map<Y,java.lang.String>>! createMap(java.util.List<X>!) throws java.io.IOException;
-                    method public java.util.List<X>! foo();
+                    method public java.util.Map<X,java.util.Map<Y,java.lang.String>> createMap(java.util.List<X>) throws java.io.IOException;
+                    method public java.util.List<X> foo();
                   }
                   public static interface Generics.PublicInterface<A, B> {
-                    method public java.util.Map<A,java.util.Map<B,java.lang.String>>! createMap(java.util.List<A>!) throws java.io.IOException;
+                    method public java.util.Map<A,java.util.Map<B,java.lang.String>> createMap(java.util.List<A>) throws java.io.IOException;
                   }
                   public abstract class Generics.PublicParent<A, B extends java.lang.Number> {
                     ctor public Generics.PublicParent();
-                    method protected abstract java.util.List<A>! foo();
+                    method protected abstract java.util.List<A> foo();
                   }
                 }
-                    """,
+                """,
             source = """
                     package test.pkg;
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
@@ -3622,7 +3635,7 @@ class StubsTest : DriverTest() {
             package test.pkg {
               public class Foo {
                 ctor public Foo();
-                method @Deprecated protected boolean inClass(String!);
+                method @Deprecated protected boolean inClass(String);
               }
             }
             """,

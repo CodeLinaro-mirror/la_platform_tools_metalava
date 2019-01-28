@@ -151,9 +151,6 @@ interface Codebase {
         description += " [disposed]"
     }
 
-    /** Whether this codebase supports staged nullability (RecentlyNullable etc) */
-    var supportsStagedNullability: Boolean
-
     /** If this codebase was filtered from another codebase, this points to the original */
     var original: Codebase?
 
@@ -253,13 +250,16 @@ interface Codebase {
             null
         }
     }
+
+    fun isEmpty(): Boolean {
+        return getPackages().packages.isEmpty()
+    }
 }
 
 abstract class DefaultCodebase(override var location: File) : Codebase {
     override var manifest: File? = null
     private var permissions: Map<String, String>? = null
     override var original: Codebase? = null
-    override var supportsStagedNullability: Boolean = true
     override var units: List<PsiFile> = emptyList()
     override var apiLevel: Int = -1
     @Suppress("LeakingThis")

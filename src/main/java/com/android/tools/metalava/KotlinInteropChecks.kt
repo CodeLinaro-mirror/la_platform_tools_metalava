@@ -17,6 +17,7 @@
 package com.android.tools.metalava
 
 import com.android.tools.metalava.doclava1.Errors
+import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
@@ -24,6 +25,7 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.visitors.ApiVisitor
+import com.intellij.lang.java.lexer.JavaLexer
 import org.jetbrains.kotlin.psi.KtProperty
 import org.jetbrains.kotlin.psi.psiUtil.containingClassOrObject
 import org.jetbrains.uast.kotlin.KotlinUField
@@ -34,34 +36,46 @@ import org.jetbrains.uast.kotlin.KotlinUField
 // Also potentially makes other API suggestions.
 class KotlinInteropChecks {
     fun check(codebase: Codebase) {
+
         codebase.accept(object : ApiVisitor(
             // Sort by source order such that warnings follow source line number order
             methodComparator = MethodItem.sourceOrderComparator,
             fieldComparator = FieldItem.comparator
         ) {
+            private var isKotlin = false
+
+            override fun visitClass(cls: ClassItem) {
+                isKotlin = cls.isKotlin()
+            }
+
             override fun visitMethod(method: MethodItem) {
-                checkMethod(method)
+                checkMethod(method, isKotlin)
             }
 
             override fun visitField(field: FieldItem) {
-                checkField(field)
+                checkField(field, isKotlin)
             }
         })
     }
 
-    fun checkField(field: FieldItem) {
-        ensureCompanionFieldJvmField(field)
+    fun checkField(field: FieldItem, isKotlin: Boolean = field.isKotlin()) {
+        if (isKotlin) {
+            ensureCompanionFieldJvmField(field)
+        }
         ensureFieldNameNotKeyword(field)
     }
 
-    fun checkMethod(method: MethodItem) {
+    fun checkMethod(method: MethodItem, isKotlin: Boolean = method.isKotlin()) {
         if (!method.isConstructor()) {
-            ensureMethodNameNotKeyword(method)
-            ensureParameterNamesNotKeywords(method)
-            ensureDefaultParamsHaveJvmOverloads(method)
-            ensureCompanionJvmStatic(method)
+            if (isKotlin) {
+                ensureDefaultParamsHaveJvmOverloads(method)
+                ensureCompanionJvmStatic(method)
+                ensureExceptionsDocumented(method)
+            } else {
+                ensureMethodNameNotKeyword(method)
+                ensureParameterNamesNotKeywords(method)
+            }
             ensureLambdaLastParameter(method)
-            ensureExceptionsDocumented(method)
         }
     }
 
@@ -219,6 +233,7 @@ class KotlinInteropChecks {
         if (!method.isKotlin()) {
             // Rule does not apply for Java, e.g. if you specify @DefaultValue
             // in Java you still don't have the option of adding @JvmOverloads
+            return
         }
         val parameters = method.parameters()
         if (parameters.size <= 1) {
@@ -343,64 +358,6 @@ class KotlinInteropChecks {
 
     /** Returns true if the given string is a reserved Java keyword  */
     private fun isJavaKeyword(keyword: String): Boolean {
-        // TODO when we built on top of IDEA core replace this with
-        //   JavaLexer.isKeyword(candidate, LanguageLevel.JDK_1_5)
-        when (keyword) {
-            "abstract",
-            "assert",
-            "boolean",
-            "break",
-            "byte",
-            "case",
-            "catch",
-            "char",
-            "class",
-            "const",
-            "continue",
-            "default",
-            "do",
-            "double",
-            "else",
-            "enum",
-            "extends",
-            "false",
-            "final",
-            "finally",
-            "float",
-            "for",
-            "goto",
-            "if",
-            "implements",
-            "import",
-            "instanceof",
-            "int",
-            "interface",
-            "long",
-            "native",
-            "new",
-            "null",
-            "package",
-            "private",
-            "protected",
-            "public",
-            "return",
-            "short",
-            "static",
-            "strictfp",
-            "super",
-            "switch",
-            "synchronized",
-            "this",
-            "throw",
-            "throws",
-            "transient",
-            "true",
-            "try",
-            "void",
-            "volatile",
-            "while" -> return true
-        }
-
-        return false
+        return JavaLexer.isKeyword(keyword, options.javaLanguageLevel)
     }
 }

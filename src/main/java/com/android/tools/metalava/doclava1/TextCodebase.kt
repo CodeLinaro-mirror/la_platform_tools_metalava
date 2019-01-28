@@ -16,27 +16,36 @@
 
 package com.android.tools.metalava.doclava1
 
-import com.android.ide.common.repository.GradleVersion
+import com.android.tools.metalava.ApiType
 import com.android.tools.metalava.CodebaseComparator
 import com.android.tools.metalava.ComparisonVisitor
+import com.android.tools.metalava.FileFormat
 import com.android.tools.metalava.JAVA_LANG_ANNOTATION
 import com.android.tools.metalava.JAVA_LANG_ENUM
 import com.android.tools.metalava.JAVA_LANG_OBJECT
 import com.android.tools.metalava.JAVA_LANG_THROWABLE
+import com.android.tools.metalava.compatibility
 import com.android.tools.metalava.model.AnnotationItem
+import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.DefaultCodebase
 import com.android.tools.metalava.model.DefaultModifierList
+import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PackageList
+import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.text.TextBackedAnnotationItem
 import com.android.tools.metalava.model.text.TextClassItem
+import com.android.tools.metalava.model.text.TextConstructorItem
+import com.android.tools.metalava.model.text.TextFieldItem
 import com.android.tools.metalava.model.text.TextMethodItem
 import com.android.tools.metalava.model.text.TextModifiers
 import com.android.tools.metalava.model.text.TextPackageItem
+import com.android.tools.metalava.model.text.TextPropertyItem
 import com.android.tools.metalava.model.text.TextTypeItem
 import com.android.tools.metalava.model.visitors.ItemVisitor
 import com.android.tools.metalava.model.visitors.TypeVisitor
@@ -68,7 +77,7 @@ class TextCodebase(location: File) : DefaultCodebase(location) {
      * Signature file format version, if found. Type "GradleVersion" is misleading; it's just a convenient
      * version class.
      */
-    var format: GradleVersion = GradleVersion.parse("1.0") // not specifying format: assumed to be doclava, 1.0
+    var format: FileFormat = FileFormat.V1 // not specifying format: assumed to be doclava, 1.0
 
     override fun getPackages(): PackageList {
         val list = ArrayList<PackageItem>(mPackages.values)
@@ -132,7 +141,11 @@ class TextCodebase(location: File) : DefaultCodebase(location) {
                 scName = when {
                     cl.isEnum() -> JAVA_LANG_ENUM
                     cl.isAnnotationType() -> JAVA_LANG_ANNOTATION
-                    else -> JAVA_LANG_OBJECT
+                    else -> {
+                        val existing = cl.superClassType()?.toTypeString()
+                        val s = existing ?: JAVA_LANG_OBJECT
+                        s // unnecessary variable, works around current compiler believing the expression to be nullable
+                    }
                 }
             }
 
@@ -149,18 +162,6 @@ class TextCodebase(location: File) : DefaultCodebase(location) {
             for (methodItem in cl.methods()) {
                 resolveThrowsClasses(methodItem)
             }
-
-            // java.lang.Object has no superclass
-            var scName: String? = mClassToSuper[cl]
-            if (scName == null) {
-                // Make sure we don't set java.lang.Object's super class to itself
-                if (cl.qualifiedName == JAVA_LANG_OBJECT) {
-                    continue
-                }
-                scName = JAVA_LANG_OBJECT
-            }
-            val superclass = getOrCreateClass(scName)
-            cl.setSuperClass(superclass)
         }
     }
 
@@ -212,6 +213,10 @@ class TextCodebase(location: File) : DefaultCodebase(location) {
         for (pkg in packages) {
             pkg.pruneClassList()
         }
+    }
+
+    fun registerClass(cls: TextClassItem) {
+        mAllClasses[cls.qualifiedName] = cls
     }
 
     fun getOrCreateClass(name: String, isInterface: Boolean = false): TextClassItem {
@@ -268,7 +273,7 @@ class TextCodebase(location: File) : DefaultCodebase(location) {
     }
 
     override fun findPackage(pkgName: String): PackageItem? {
-        return mPackages.values.firstOrNull { pkgName == it.qualifiedName() }
+        return mPackages[pkgName]
     }
 
     override fun accept(visitor: ItemVisitor) {
@@ -329,6 +334,96 @@ class TextCodebase(location: File) : DefaultCodebase(location) {
         }
 
         return obtainTypeFromString(type)
+    }
+
+    companion object {
+        fun computeDelta(
+            baseFile: File,
+            baseApi: Codebase,
+            signatureApi: Codebase,
+            includeFieldsInApiDiff: Boolean = compatibility.includeFieldsInApiDiff
+        ): TextCodebase {
+            // Compute just the delta
+            val delta = TextCodebase(baseFile)
+            delta.description = "Delta between $baseApi and $signatureApi"
+
+            CodebaseComparator().compare(object : ComparisonVisitor() {
+                override fun added(new: PackageItem) {
+                    delta.addPackage(new as TextPackageItem)
+                }
+
+                override fun added(new: ClassItem) {
+                    val pkg = getOrAddPackage(new.containingPackage().qualifiedName())
+                    pkg.addClass(new as TextClassItem)
+                }
+
+                override fun added(new: ConstructorItem) {
+                    val cls = getOrAddClass(new.containingClass())
+                    cls.addConstructor(new as TextConstructorItem)
+                }
+
+                override fun added(new: MethodItem) {
+                    val cls = getOrAddClass(new.containingClass())
+                    cls.addMethod(new as TextMethodItem)
+                }
+
+                override fun added(new: FieldItem) {
+                    if (!includeFieldsInApiDiff) {
+                        return
+                    }
+                    val cls = getOrAddClass(new.containingClass())
+                    cls.addField(new as TextFieldItem)
+                }
+
+                override fun added(new: PropertyItem) {
+                    val cls = getOrAddClass(new.containingClass())
+                    cls.addProperty(new as TextPropertyItem)
+                }
+
+                private fun getOrAddClass(fullClass: ClassItem): TextClassItem {
+                    val cls = delta.findClass(fullClass.qualifiedName())
+                    if (cls != null) {
+                        return cls
+                    }
+                    val textClass = fullClass as TextClassItem
+                    val newClass = TextClassItem(
+                        delta,
+                        SourcePositionInfo.UNKNOWN,
+                        textClass.modifiers,
+                        textClass.isInterface(),
+                        textClass.isEnum(),
+                        textClass.isAnnotationType(),
+                        textClass.qualifiedName,
+                        textClass.qualifiedName,
+                        textClass.name,
+                        textClass.annotations
+                    )
+                    val pkg = getOrAddPackage(fullClass.containingPackage().qualifiedName())
+                    pkg.addClass(newClass)
+                    newClass.setContainingPackage(pkg)
+                    delta.registerClass(newClass)
+                    return newClass
+                }
+
+                private fun getOrAddPackage(pkgName: String): TextPackageItem {
+                    val pkg = delta.findPackage(pkgName) as? TextPackageItem
+                    if (pkg != null) {
+                        return pkg
+                    }
+                    val newPkg = TextPackageItem(
+                        delta,
+                        pkgName,
+                        TextModifiers(delta, DefaultModifierList.PUBLIC),
+                        SourcePositionInfo.UNKNOWN
+                    )
+                    delta.addPackage(newPkg)
+                    return newPkg
+                }
+            }, baseApi, signatureApi, ApiType.ALL.getReferenceFilter())
+
+            delta.postProcess()
+            return delta
+        }
     }
 
     // Copied from Converter:

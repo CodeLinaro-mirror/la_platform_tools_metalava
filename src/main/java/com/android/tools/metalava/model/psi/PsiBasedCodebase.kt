@@ -17,7 +17,6 @@
 package com.android.tools.metalava.model.psi
 
 import com.android.SdkConstants
-import com.android.tools.metalava.compatibility
 import com.android.tools.metalava.doclava1.Errors
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.DefaultCodebase
@@ -125,7 +124,8 @@ open class PsiBasedCodebase(location: File, override var description: String = "
         this.methodMap = HashMap(METHOD_ESTIMATE)
         topLevelClassesFromSource = ArrayList(CLASS_ESTIMATE)
 
-        for (unit in units) {
+        // Make sure we only process the units once; sometimes there's overlap in the source lists
+        for (unit in units.asSequence().distinct()) {
             tick() // show progress
 
             var classes = (unit as? PsiClassOwner)?.classes?.toList() ?: emptyList()
@@ -153,7 +153,8 @@ open class PsiBasedCodebase(location: File, override var description: String = "
                                 Errors.BOTH_PACKAGE_INFO_AND_HTML,
                                 unit,
                                 "It is illegal to provide both a package-info.java file and a " +
-                                    "package.html file for the same package")
+                                    "package.html file for the same package"
+                            )
                         }
                         packageDocs[packageName] = text
                     }
@@ -412,7 +413,7 @@ open class PsiBasedCodebase(location: File, override var description: String = "
                     }
                 }
                 val last = pkg.lastIndexOf('.')
-                if (last == -1 || !compatibility.inheritPackageDocs) {
+                if (last == -1) {
                     hiddenPackages[packageName] = false
                     break
                 } else {
@@ -509,6 +510,12 @@ open class PsiBasedCodebase(location: File, override var description: String = "
     open fun findClass(psiClass: PsiClass): PsiClassItem? {
         val qualifiedName: String = psiClass.qualifiedName ?: psiClass.name!!
         return classMap[qualifiedName]
+    }
+
+    open fun findOrCreateClass(qualifiedName: String): PsiClassItem? {
+        val finder = JavaPsiFacade.getInstance(project)
+        val psiClass = finder.findClass(qualifiedName, GlobalSearchScope.allScope(project)) ?: return null
+        return findOrCreateClass(psiClass)
     }
 
     open fun findOrCreateClass(psiClass: PsiClass): PsiClassItem {
