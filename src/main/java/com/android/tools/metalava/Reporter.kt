@@ -112,7 +112,7 @@ open class Reporter(private val rootFolder: File? = null) {
         return report(severity, file?.path, message, id)
     }
 
-    fun report(id: Errors.Error, item: Item?, message: String): Boolean {
+    fun report(id: Errors.Error, item: Item?, message: String, psi: PsiElement? = null): Boolean {
         if (isSuppressed(id, item, message)) {
             return false
         }
@@ -123,16 +123,33 @@ open class Reporter(private val rootFolder: File? = null) {
             return false
         }
 
+        // If we are only emitting some packages (--stub-packages), don't report
+        // issues from other packages
+        if (item != null) {
+            val packageFilter = options.stubPackages
+            if (packageFilter != null) {
+                val pkg = item.containingPackage(false)
+                if (pkg != null && !packageFilter.matches(pkg)) {
+                    return false
+                }
+            }
+        }
+
         val baseline = options.baseline
         if (item != null && baseline != null && baseline.mark(item, message, id)) {
             return false
+        } else if (psi != null && baseline != null && baseline.mark(psi, message, id)) {
+            return false
         }
 
-        return when (item) {
-            is PsiItem -> {
+        return when {
+            psi != null -> {
+                report(severity, psi, message, id)
+            }
+            item is PsiItem -> {
                 report(severity, item.psi(), message, id)
             }
-            is TextItem -> report(severity, (item as? TextItem)?.position.toString(), message, id)
+            item is TextItem -> report(severity, (item as? TextItem)?.position.toString(), message, id)
             else -> report(severity, null as String?, message, id)
         }
     }

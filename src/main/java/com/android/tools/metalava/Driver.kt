@@ -20,7 +20,6 @@ package com.android.tools.metalava
 import com.android.SdkConstants
 import com.android.SdkConstants.DOT_JAVA
 import com.android.SdkConstants.DOT_KT
-import com.android.SdkConstants.DOT_TXT
 import com.android.ide.common.process.CachedProcessOutputHandler
 import com.android.ide.common.process.DefaultProcessExecutor
 import com.android.ide.common.process.ProcessInfoBuilder
@@ -92,8 +91,7 @@ fun run(
     setExitCode: Boolean = false
 ): Boolean {
 
-    if (System.getenv(ENV_VAR_METALAVA_DUMP_ARGV) != null &&
-        !java.lang.Boolean.getBoolean(ENV_VAR_METALAVA_TESTS_RUNNING)
+    if (System.getenv(ENV_VAR_METALAVA_DUMP_ARGV) != null && !isUnderTest()
     ) {
         stdout.println("---Running $PROGRAM_NAME----")
         stdout.println("pwd=${File("").absolutePath}")
@@ -131,6 +129,7 @@ fun run(
                             stdout.println("\"$arg\",")
                         }
                         stdout.println("----------------------------")
+                        stdout.flush()
                     }
                     newArgs
                 }
@@ -145,6 +144,8 @@ fun run(
         }
         exitValue = true
     } catch (e: DriverException) {
+        stdout.flush()
+        stderr.flush()
         if (e.stderr.isNotBlank()) {
             stderr.println("\n${e.stderr}")
         }
@@ -166,7 +167,7 @@ fun run(
     stdout.flush()
     stderr.flush()
 
-    if (setExitCode && reporter.hasErrors()) {
+    if (setExitCode) {
         exit(exitCode)
     }
 
@@ -578,18 +579,7 @@ fun checkCompatibility(
                 kotlinStyleNulls = options.inputKotlinStyleNulls
             )
         } else if (options.showAnnotations.isNotEmpty() || apiType != ApiType.PUBLIC_API) {
-            val apiFile = apiType.getOptionFile() ?: run {
-                val tempFile = createTempFile("compat-check-signatures-$apiType", DOT_TXT)
-                tempFile.deleteOnExit()
-                val apiEmit = apiType.getEmitFilter()
-                val apiReference = apiType.getReferenceFilter()
-
-                createReportFile(codebase, tempFile, null) { printWriter ->
-                    SignatureWriter(printWriter, apiEmit, apiReference, codebase.preFiltered)
-                }
-
-                tempFile
-            }
+            val apiFile = apiType.getSignatureFile(codebase, "compat-check-signatures-$apiType")
 
             // Fast path: if the signature files are identical, we're already good!
             if (apiFile.readText(UTF_8) == signatureFile.readText(UTF_8)) {
@@ -615,6 +605,41 @@ fun checkCompatibility(
     // If configured, compares the new API with the previous API and reports
     // any incompatibilities.
     CompatibilityCheck.checkCompatibility(new, current, releaseType, apiType, base)
+
+    // Make sure the text files are identical too? (only applies for *current.txt;
+    // last-released is expected to differ)
+    if (releaseType == ReleaseType.DEV && !options.allowCompatibleDifferences) {
+        val apiFile = if (new.location.isFile)
+            new.location
+        else
+            apiType.getSignatureFile(codebase, "compat-diff-signatures-$apiType")
+
+        fun getCanonicalSignatures(file: File): String {
+            // Get rid of trailing newlines and Windows line endings
+            val text = file.readText(UTF_8)
+            return text.replace("\r\n", "\n").trim()
+        }
+        val currentTxt = getCanonicalSignatures(signatureFile)
+        val newTxt = getCanonicalSignatures(apiFile)
+        if (newTxt != currentTxt) {
+            val diff = getNativeDiff(signatureFile, apiFile) ?: getDiff(currentTxt, newTxt, 1)
+            val updateApi = if (isBuildingAndroid())
+                "Run make update-api to update.\n"
+            else
+                ""
+            val message =
+                """
+                    Aborting: Your changes have resulted in differences in the signature file
+                    for the ${apiType.displayName} API.
+
+                    The changes may be compatible, but the signature file needs to be updated.
+                    $updateApi
+                    Diffs:
+                """.trimIndent() + "\n" + diff
+
+            throw DriverException(exitCode = -1, stderr = message)
+        }
+    }
 }
 
 fun createTempFile(namePrefix: String, nameSuffix: String): File {
@@ -877,7 +902,7 @@ private fun createProjectEnvironment(): LintCoreProjectEnvironment {
 
     if (!assertionsEnabled() &&
         System.getenv(ENV_VAR_METALAVA_DUMP_ARGV) == null &&
-        !java.lang.Boolean.getBoolean(ENV_VAR_METALAVA_TESTS_RUNNING)
+        !isUnderTest()
     ) {
         DefaultLogger.disableStderrDumping(parentDisposable)
     }
@@ -912,6 +937,11 @@ private fun extractAnnotations(codebase: Codebase, file: File) {
 private fun createStubFiles(stubDir: File, codebase: Codebase, docStubs: Boolean, writeStubList: Boolean) {
     // Generating stubs from a sig-file-based codebase is problematic
     assert(codebase.supportsDocumentation())
+
+    // Temporary bug workaround for org.chromium.arc
+    if (options.sourcePath.firstOrNull()?.path?.endsWith("org.chromium.arc") == true) {
+        codebase.findClass("org.chromium.mojo.bindings.Callbacks")?.hidden = true
+    }
 
     if (docStubs) {
         progress("\nGenerating documentation stub files: ")
@@ -1204,3 +1234,9 @@ fun findPackage(file: File): String? {
 fun findPackage(source: String): String? {
     return ClassName(source).packageName
 }
+
+/** Whether metalava is running unit tests */
+fun isUnderTest() = java.lang.Boolean.getBoolean(ENV_VAR_METALAVA_TESTS_RUNNING)
+
+/** Whether metalava is being invoked as part of an Android platform build */
+fun isBuildingAndroid() = System.getenv("ANDROID_BUILD_TOP") != null && !isUnderTest()

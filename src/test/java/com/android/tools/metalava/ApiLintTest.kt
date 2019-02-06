@@ -22,7 +22,7 @@ class ApiLintTest : DriverTest() {
 
     @Test
     fun `Test names`() {
-        // Make sure we only flag isses in new API
+        // Make sure we only flag issues in new API
         check(
             apiLint = "", // enabled
             compatibilityMode = false,
@@ -587,7 +587,14 @@ class ApiLintTest : DriverTest() {
             apiLint = "", // enabled
             compatibilityMode = false,
             warnings = """
-                src/android/pkg/CheckSynchronization.java:5: error: Internal locks must not be exposed: method android.pkg.CheckSynchronization.method2(Runnable) [VisiblySynchronized] [Rule M5 in go/android-api-guidelines]
+                src/android/pkg/CheckSynchronization.java:10: error: Internal locks must not be exposed: method android.pkg.CheckSynchronization.errorMethod1(Runnable) [VisiblySynchronized] [Rule M5 in go/android-api-guidelines]
+                src/android/pkg/CheckSynchronization.java:12: error: Internal locks must not be exposed (synchronizing on this or class is still externally observable): method android.pkg.CheckSynchronization.errorMethod2() [VisiblySynchronized] [Rule M5 in go/android-api-guidelines]
+                src/android/pkg/CheckSynchronization.java:16: error: Internal locks must not be exposed (synchronizing on this or class is still externally observable): method android.pkg.CheckSynchronization.errorMethod2() [VisiblySynchronized] [Rule M5 in go/android-api-guidelines]
+                src/android/pkg/CheckSynchronization.java:21: error: Internal locks must not be exposed (synchronizing on this or class is still externally observable): method android.pkg.CheckSynchronization.errorMethod3() [VisiblySynchronized] [Rule M5 in go/android-api-guidelines]
+                src/android/pkg/CheckSynchronization2.kt:5: error: Internal locks must not be exposed (synchronizing on this or class is still externally observable): method android.pkg.CheckSynchronization2.errorMethod1() [VisiblySynchronized] [Rule M5 in go/android-api-guidelines]
+                src/android/pkg/CheckSynchronization2.kt:8: error: Internal locks must not be exposed (synchronizing on this or class is still externally observable): method android.pkg.CheckSynchronization2.errorMethod2() [VisiblySynchronized] [Rule M5 in go/android-api-guidelines]
+                src/android/pkg/CheckSynchronization2.kt:16: error: Internal locks must not be exposed (synchronizing on this or class is still externally observable): method android.pkg.CheckSynchronization2.errorMethod4() [VisiblySynchronized] [Rule M5 in go/android-api-guidelines]
+                src/android/pkg/CheckSynchronization2.kt:18: error: Internal locks must not be exposed (synchronizing on this or class is still externally observable): method android.pkg.CheckSynchronization2.errorMethod5() [VisiblySynchronized] [Rule M5 in go/android-api-guidelines]
                 """,
             sourceFiles = *arrayOf(
                 java(
@@ -595,8 +602,55 @@ class ApiLintTest : DriverTest() {
                     package android.pkg;
 
                     public class CheckSynchronization {
-                        public void method1(Runnable r) { } // OK
-                        public synchronized void method2(Runnable r) { } // ERROR
+                        public void okMethod1(Runnable r) { }
+                        private static final Object LOCK = new Object();
+                        public void okMethod2() {
+                            synchronized(LOCK) {
+                            }
+                        }
+                        public synchronized void errorMethod1(Runnable r) { } // ERROR
+                        public void errorMethod2() {
+                            synchronized(this) {
+                            }
+                        }
+                        public void errorMethod2() {
+                            synchronized(CheckSynchronization.class) {
+                            }
+                        }
+                        public void errorMethod3() {
+                            if (true) {
+                                synchronized(CheckSynchronization.class) {
+                                }
+                            }
+                        }
+                    }
+                    """
+                ),
+                kotlin(
+                    """
+                    package android.pkg;
+
+                    class CheckSynchronization2 {
+                        fun errorMethod1() {
+                            synchronized(this) { println("hello") }
+                        }
+                        fun errorMethod2() {
+                            synchronized(CheckSynchronization2::class.java) { println("hello") }
+                        }
+                        fun errorMethod3() {
+                            @Suppress("ConstantConditionIf")
+                            if (true) {
+                                synchronized(CheckSynchronization2::class.java) { println("hello") }
+                            }
+                        }
+                        fun errorMethod4() = synchronized(this) { println("hello") }
+                        fun errorMethod5() {
+                            synchronized(CheckSynchronization2::class) { println("hello") }
+                        }
+                        fun okMethod() {
+                            val lock = Object()
+                            synchronized(lock) { println("hello") }
+                        }
                     }
                     """
                 )
@@ -639,9 +693,11 @@ class ApiLintTest : DriverTest() {
                 src/android/pkg/MyClass1.java:3: error: Inconsistent class name; should be `<Foo>Activity`, was `MyClass1` [ContextNameSuffix] [Rule C4 in go/android-api-guidelines]
                 src/android/pkg/MyClass1.java:6: warning: Methods implemented by developers should follow the on<Something> style, was `badlyNamedAbstractMethod` [OnNameExpected]
                 src/android/pkg/MyClass1.java:7: warning: If implemented by developer, should follow the on<Something> style; otherwise consider marking final [OnNameExpected]
+                src/android/pkg/MyClass1.java:3: error: MyClass1 should not extend `Activity`. Activity subclasses are impossible to compose. Expose a composable API instead. [ForbiddenSuperClass]
                 src/android/pkg/MyClass2.java:3: error: Inconsistent class name; should be `<Foo>Provider`, was `MyClass2` [ContextNameSuffix] [Rule C4 in go/android-api-guidelines]
                 src/android/pkg/MyClass3.java:3: error: Inconsistent class name; should be `<Foo>Service`, was `MyClass3` [ContextNameSuffix] [Rule C4 in go/android-api-guidelines]
                 src/android/pkg/MyClass4.java:3: error: Inconsistent class name; should be `<Foo>Receiver`, was `MyClass4` [ContextNameSuffix] [Rule C4 in go/android-api-guidelines]
+                src/android/pkg/MyOkActivity.java:3: error: MyOkActivity should not extend `Activity`. Activity subclasses are impossible to compose. Expose a composable API instead. [ForbiddenSuperClass]
                 """,
             sourceFiles = *arrayOf(
                 java(
@@ -956,7 +1012,7 @@ class ApiLintTest : DriverTest() {
                 src/android/pkg/MyClass.java:8: error: Methods must not throw generic exceptions (`java.lang.Error`) [GenericException] [Rule S1 in go/android-api-guidelines]
                 src/android/pkg/MyClass.java:9: warning: Methods taking no arguments should throw `IllegalStateException` instead of `java.lang.IllegalArgumentException` [IllegalStateException] [Rule S1 in go/android-api-guidelines]
                 src/android/pkg/MyClass.java:10: warning: Methods taking no arguments should throw `IllegalStateException` instead of `java.lang.NullPointerException` [IllegalStateException] [Rule S1 in go/android-api-guidelines]
-                src/android/pkg/MyClass.java:11: error: Methods calling into system server should rethrow `RemoteException` as `RuntimeException` [RethrowRemoteException] [Rule FW9 in go/android-api-guidelines]
+                src/android/pkg/MyClass.java:11: error: Methods calling into system server should rethrow `RemoteException` as `RuntimeException` (but do not list it in the throws clause) [RethrowRemoteException] [Rule FW9 in go/android-api-guidelines]
                 """,
             sourceFiles = *arrayOf(
                 java(
@@ -1674,12 +1730,12 @@ class ApiLintTest : DriverTest() {
             apiLint = "", // enabled
             compatibilityMode = false,
             warnings = """
-                src/android/pkg/KotlinOperatorTest.java:4: warning: Method can be invoked with an indexing operator from Kotlin: `get` [KotlinOperator]
-                src/android/pkg/KotlinOperatorTest.java:5: warning: Method can be invoked with an indexing operator from Kotlin: `set` [KotlinOperator]
-                src/android/pkg/KotlinOperatorTest.java:6: warning: Method can be invoked with function call syntax from Kotlin: `invoke` [KotlinOperator]
-                src/android/pkg/KotlinOperatorTest.java:7: warning: Method can be invoked as a binary operator from Kotlin: `plus` [KotlinOperator]
+                src/android/pkg/KotlinOperatorTest.java:4: info: Method can be invoked with an indexing operator from Kotlin: `get` (this is usually desirable; just make sure it makes sense for this type of object) [KotlinOperator]
+                src/android/pkg/KotlinOperatorTest.java:5: info: Method can be invoked with an indexing operator from Kotlin: `set` (this is usually desirable; just make sure it makes sense for this type of object) [KotlinOperator]
+                src/android/pkg/KotlinOperatorTest.java:6: info: Method can be invoked with function call syntax from Kotlin: `invoke` (this is usually desirable; just make sure it makes sense for this type of object) [KotlinOperator]
+                src/android/pkg/KotlinOperatorTest.java:7: info: Method can be invoked as a binary operator from Kotlin: `plus` (this is usually desirable; just make sure it makes sense for this type of object) [KotlinOperator]
                 src/android/pkg/KotlinOperatorTest.java:7: error: Only one of `plus` and `plusAssign` methods should be present for Kotlin [UniqueKotlinOperator]
-                src/android/pkg/KotlinOperatorTest.java:8: warning: Method can be invoked as a compound assignment operator from Kotlin: `plusAssign` [KotlinOperator]
+                src/android/pkg/KotlinOperatorTest.java:8: info: Method can be invoked as a compound assignment operator from Kotlin: `plusAssign` (this is usually desirable; just make sure it makes sense for this type of object) [KotlinOperator]
                 """,
             sourceFiles = *arrayOf(
                 java(
@@ -1970,6 +2026,45 @@ class ApiLintTest : DriverTest() {
                         public static MySingleton2 getMyInstance() { return null; }
                         private MySingleton2() { } // OK, private
                         public void foo() { }
+                    }
+                    """
+                )
+            )
+        )
+    }
+
+    @Test
+    fun `Check forbidden super-classes`() {
+        check(
+            apiLint = "", // enabled
+            compatibilityMode = false,
+            warnings = """
+                src/android/pkg/FirstActivity.java:2: error: FirstActivity should not extend `Activity`. Activity subclasses are impossible to compose. Expose a composable API instead. [ForbiddenSuperClass]
+                src/android/pkg/IndirectActivity.java:2: error: IndirectActivity should not extend `Activity`. Activity subclasses are impossible to compose. Expose a composable API instead. [ForbiddenSuperClass]
+                src/android/pkg/MyTask.java:2: error: MyTask should not extend `AsyncTask`. AsyncTask is an implementation detail. Expose a listener or, in androidx, a `ListenableFuture` API instead [ForbiddenSuperClass]
+                """,
+            sourceFiles = *arrayOf(
+                java(
+                    """
+                    package android.pkg;
+                    public abstract class FirstActivity extends android.app.Activity {
+                        private FirstActivity() { }
+                    }
+                    """
+                ),
+                java(
+                    """
+                    package android.pkg;
+                    public abstract class IndirectActivity extends android.app.ListActivity {
+                        private IndirectActivity() { }
+                    }
+                    """
+                ),
+                java(
+                    """
+                    package android.pkg;
+                    public abstract class MyTask extends android.os.AsyncTask<String,String,String> {
+                        private MyTask() { }
                     }
                     """
                 )

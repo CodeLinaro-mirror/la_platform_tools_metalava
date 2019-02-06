@@ -248,14 +248,15 @@ public class Errors {
     // The plan is for this to be set as an error once (1) existing code is marked as @deprecated
     // and (2) the principle is adopted by the API council
     public static final Error REFERENCES_DEPRECATED = new Error(154, HIDDEN);
-    // Hidden until (1) API council agrees this should be an error, and (2) existing
-    // violations are annotated as @hide
-    public static final Error UNHIDDEN_SYSTEM_API = new Error(155, HIDDEN);
+    public static final Error UNHIDDEN_SYSTEM_API = new Error(155, ERROR);
     public static final Error SHOWING_MEMBER_IN_HIDDEN_CLASS = new Error(156, ERROR);
     public static final Error INVALID_NULLABILITY_ANNOTATION = new Error(157, ERROR);
     public static final Error REFERENCES_HIDDEN = new Error(158, ERROR);
     public static final Error IGNORING_SYMLINK = new Error(159, INFO);
     public static final Error INVALID_NULLABILITY_ANNOTATION_WARNING = new Error(160, WARNING);
+    // The plan is for this to be set as an error once (1) existing code is marked as @deprecated
+    // and (2) the principle is adopted by the API council
+    public static final Error EXTENDS_DEPRECATED = new Error(161, HIDDEN);
 
     // API lint
     public static final Error START_WITH_LOWER = new Error(300, ERROR, Category.API_LINT, "S1");
@@ -322,7 +323,7 @@ public class Errors {
     public static final Error FRACTION_FLOAT = new Error(362, ERROR, Category.API_LINT);
     public static final Error PERCENTAGE_INT = new Error(363, ERROR, Category.API_LINT);
     public static final Error NOT_CLOSEABLE = new Error(364, WARNING, Category.API_LINT);
-    public static final Error KOTLIN_OPERATOR = new Error(365, WARNING, Category.API_LINT);
+    public static final Error KOTLIN_OPERATOR = new Error(365, INFO, Category.API_LINT);
     public static final Error ARRAY_RETURN = new Error(366, WARNING, Category.API_LINT);
     public static final Error USER_HANDLE = new Error(367, WARNING, Category.API_LINT);
     public static final Error USER_HANDLE_NAME = new Error(368, WARNING, Category.API_LINT);
@@ -341,6 +342,7 @@ public class Errors {
     public static final Error MISSING_JVMSTATIC = new Error(381, WARNING, Category.API_LINT); // Formerly 143
     public static final Error DEFAULT_VALUE_CHANGE = new Error(382, ERROR, Category.API_LINT); // Formerly 144
     public static final Error DOCUMENT_EXCEPTIONS = new Error(383, ERROR, Category.API_LINT); // Formerly 145
+    public static final Error FORBIDDEN_SUPER_CLASS = new Error(384, ERROR, Category.API_LINT);
 
     static {
         // Attempt to initialize error names based on the field names
