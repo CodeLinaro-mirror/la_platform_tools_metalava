@@ -19,6 +19,7 @@ package com.android.tools.metalava
 import org.junit.Ignore
 import org.junit.Test
 import java.io.File
+import kotlin.text.Charsets.UTF_8
 
 class
 CompatibilityCheckTest : DriverTest() {
@@ -148,6 +149,11 @@ CompatibilityCheckTest : DriverTest() {
                     method @NonNull public Double convert4(@NonNull Float);
                     method @Nullable public Double convert5(@Nullable Float);
                     method @NonNull public Double convert6(@NonNull Float);
+                    // booleans cannot reasonably be annotated with @Nullable/@NonNull but
+                    // the compiler accepts it and we had a few of these accidentally annotated
+                    // that way in API 28, such as Boolean.getBoolean. Make sure we don't flag
+                    // these as incompatible changes when they're dropped.
+                    method public void convert7(@NonNull boolean);
                   }
                 }
                 """,
@@ -161,6 +167,7 @@ CompatibilityCheckTest : DriverTest() {
                     method public Double convert4(Float);
                     method @NonNull public Double convert5(@NonNull Float);
                     method @Nullable public Double convert6(@Nullable Float);
+                    method public void convert7(boolean);
                   }
                 }
                 """
@@ -280,6 +287,32 @@ CompatibilityCheckTest : DriverTest() {
                     """
                 )
             )
+        )
+    }
+
+    @Test
+    fun `Kotlin Coroutines`() {
+        check(
+            warnings = "",
+            compatibilityMode = false,
+            inputKotlinStyleNulls = true,
+            outputKotlinStyleNulls = true,
+            checkCompatibilityApi = """
+                package test.pkg {
+                  public final class TestKt {
+                    ctor public TestKt();
+                    method public static suspend inline java.lang.Object hello(kotlin.coroutines.experimental.Continuation<? super kotlin.Unit>);
+                  }
+                }
+                """,
+            signatureSource = """
+                package test.pkg {
+                  public final class TestKt {
+                    ctor public TestKt();
+                    method public static suspend inline Object hello(@NonNull kotlin.coroutines.Continuation<? super kotlin.Unit> p);
+                  }
+                }
+                """
         )
     }
 
@@ -2249,6 +2282,30 @@ CompatibilityCheckTest : DriverTest() {
     }
 
     @Test
+    fun `Insignificant type formatting differences`() {
+        check(
+            checkCompatibilityApi = """
+                package test.pkg {
+                  public final class UsageStatsManager {
+                    method public java.util.Map<java.lang.String, java.lang.Integer> getAppStandbyBuckets();
+                    method public void setAppStandbyBuckets(java.util.Map<java.lang.String, java.lang.Integer>);
+                    field public java.util.Map<java.lang.String, java.lang.Integer> map;
+                  }
+                }
+                """,
+            signatureSource = """
+                package test.pkg {
+                  public final class UsageStatsManager {
+                    method public java.util.Map<java.lang.String,java.lang.Integer> getAppStandbyBuckets();
+                    method public void setAppStandbyBuckets(java.util.Map<java.lang.String,java.lang.Integer>);
+                    field public java.util.Map<java.lang.String,java.lang.Integer> map;
+                  }
+                }
+                """
+        )
+    }
+
+    @Test
     fun `Adding and removing reified`() {
         check(
             compatibilityMode = false,
@@ -2421,7 +2478,7 @@ CompatibilityCheckTest : DriverTest() {
                     println("Couldn't find $signatureFile: Check that pwd for test is correct. Skipping this test.")
                     return
                 }
-                val previousSignatureApi = signatureFile.readText(Charsets.UTF_8)
+                val previousSignatureApi = signatureFile.readText(UTF_8)
 
                 check(
                     checkDoclava1 = false,

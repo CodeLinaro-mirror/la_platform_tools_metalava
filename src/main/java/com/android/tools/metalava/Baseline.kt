@@ -35,6 +35,7 @@ import com.intellij.psi.PsiParameter
 import org.jetbrains.kotlin.psi.psiUtil.parameterIndex
 import java.io.File
 import java.io.PrintWriter
+import kotlin.text.Charsets.UTF_8
 
 const val DEFAULT_BASELINE_NAME = "baseline.txt"
 
@@ -181,7 +182,7 @@ class Baseline(
 
     private fun read() {
         val file = this.file ?: return
-        val lines = file.readLines(Charsets.UTF_8)
+        val lines = file.readLines(UTF_8)
         for (i in 0 until lines.size - 1) {
             val line = lines[i]
             if (line.startsWith("//") ||
@@ -218,7 +219,7 @@ class Baseline(
 
     private fun write() {
         val updateFile = this.updateFile ?: return
-        if (!map.isEmpty()) {
+        if (!map.isEmpty() || !options.deleteEmptyBaselines) {
             val sb = StringBuilder()
             sb.append(format.header())
             sb.append(headerComment)
@@ -234,8 +235,13 @@ class Baseline(
                 }
                 sb.append("\n\n")
             }
+
+            if (sb.endsWith("\n\n")) {
+                sb.setLength(sb.length - 2)
+            }
+
             updateFile.parentFile?.mkdirs()
-            updateFile.writeText(sb.toString(), Charsets.UTF_8)
+            updateFile.writeText(sb.toString(), UTF_8)
         } else {
             updateFile.delete()
         }

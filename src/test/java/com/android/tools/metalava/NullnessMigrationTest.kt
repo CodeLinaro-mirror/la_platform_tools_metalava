@@ -210,12 +210,12 @@ class NullnessMigrationTest : DriverTest() {
                 public java.lang.Double convert0(java.lang.Float f) { throw new RuntimeException("Stub!"); }
                 @androidx.annotation.RecentlyNullable
                 public java.lang.Double convert1(@androidx.annotation.RecentlyNonNull java.lang.Float f) { throw new RuntimeException("Stub!"); }
-                @androidx.annotation.Nullable
-                public java.lang.Double convert2(@androidx.annotation.NonNull java.lang.Float f) { throw new RuntimeException("Stub!"); }
-                @androidx.annotation.Nullable
-                public java.lang.Double convert3(@androidx.annotation.NonNull java.lang.Float f) { throw new RuntimeException("Stub!"); }
-                @androidx.annotation.Nullable
-                public java.lang.Double convert4(@androidx.annotation.NonNull java.lang.Float f) { throw new RuntimeException("Stub!"); }
+                @android.annotation.Nullable
+                public java.lang.Double convert2(@android.annotation.NonNull java.lang.Float f) { throw new RuntimeException("Stub!"); }
+                @android.annotation.Nullable
+                public java.lang.Double convert3(@android.annotation.NonNull java.lang.Float f) { throw new RuntimeException("Stub!"); }
+                @android.annotation.Nullable
+                public java.lang.Double convert4(@android.annotation.NonNull java.lang.Float f) { throw new RuntimeException("Stub!"); }
                 }
                 """
             ),
@@ -259,6 +259,7 @@ class NullnessMigrationTest : DriverTest() {
                 }
                 """,
             api = """
+                // Signature format: 3.0
                 package test.pkg {
                   public class MyTest {
                     ctor public MyTest();
@@ -471,9 +472,9 @@ class NullnessMigrationTest : DriverTest() {
                     public Foo() { throw new RuntimeException("Stub!"); }
                     public static char @androidx.annotation.RecentlyNonNull [] toChars(int codePoint) { throw new RuntimeException("Stub!"); }
                     public static int codePointAt(char @androidx.annotation.RecentlyNonNull [] a, int index) { throw new RuntimeException("Stub!"); }
-                    public <T> T @androidx.annotation.RecentlyNonNull [] toArray(T @androidx.annotation.RecentlyNonNull [] a) { throw new RuntimeException("Stub!"); }
+                    public <T> T @android.annotation.RecentlyNonNull [] toArray(T @androidx.annotation.RecentlyNonNull [] a) { throw new RuntimeException("Stub!"); }
                     @androidx.annotation.NonNull
-                    public static java.lang.String newMethod(@androidx.annotation.Nullable java.lang.String argument) { throw new RuntimeException("Stub!"); }
+                    public static java.lang.String newMethod(@android.annotation.Nullable java.lang.String argument) { throw new RuntimeException("Stub!"); }
                     }
                 """
                 )
@@ -487,8 +488,8 @@ class NullnessMigrationTest : DriverTest() {
                     public static char[] toChars(int codePoint) { throw new RuntimeException("Stub!"); }
                     public static int codePointAt(char[] a, int index) { throw new RuntimeException("Stub!"); }
                     public <T> T[] toArray(T[] a) { throw new RuntimeException("Stub!"); }
-                    @androidx.annotation.NonNull
-                    public static java.lang.String newMethod(@androidx.annotation.Nullable java.lang.String argument) { throw new RuntimeException("Stub!"); }
+                    @android.annotation.NonNull
+                    public static java.lang.String newMethod(@android.annotation.Nullable java.lang.String argument) { throw new RuntimeException("Stub!"); }
                     }
                     """
                 )
