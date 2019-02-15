@@ -57,7 +57,7 @@ import java.net.URL
 import kotlin.text.Charsets.UTF_8
 
 const val CHECK_OLD_DOCLAVA_TOO = false
-const val CHECK_JDIFF = true
+const val CHECK_JDIFF = false
 const val CHECK_STUB_COMPILATION = false
 
 abstract class DriverTest {
@@ -97,7 +97,9 @@ abstract class DriverTest {
             val writer = PrintWriter(sw)
             if (!com.android.tools.metalava.run(arrayOf(*args), writer, writer)) {
                 val actualFail = cleanupString(sw.toString(), null)
-                if (expectedFail != actualFail.replace(".", "").trim()) {
+                if (cleanupString(expectedFail, null).replace(".", "").trim() !=
+                    actualFail.replace(".", "").trim()
+                ) {
                     if (expectedFail == "Aborting: Found compatibility problems with --check-compatibility" &&
                         actualFail.startsWith("Aborting: Found compatibility problems checking the ")
                     ) {
@@ -106,6 +108,7 @@ abstract class DriverTest {
                         // the signature was passed at the same time
                         // ignore
                     } else {
+                        assertEquals(expectedFail, actualFail)
                         fail(actualFail)
                     }
                 }
@@ -191,8 +194,6 @@ abstract class DriverTest {
     )
 
     protected fun check(
-        /** The source files to pass to the analyzer */
-        vararg sourceFiles: TestFile,
         /** Any jars to add to the class path */
         classpath: Array<TestFile>? = null,
         /** The API signature content (corresponds to --api) */
@@ -256,6 +257,7 @@ abstract class DriverTest {
         /** An optional API signature to check the last released removed API's compatibility with */
         @Language("TEXT") checkCompatibilityRemovedApiReleased: String? = null,
         /** An optional API signature to compute nullness migration status from */
+        allowCompatibleDifferences: Boolean = true,
         @Language("TEXT") migrateNullsApi: String? = null,
         /** An optional Proguard keep file to generate */
         @Language("Proguard") proguard: String? = null,
@@ -275,6 +277,8 @@ abstract class DriverTest {
         omitCommonPackages: Boolean = !compatibilityMode,
         /** Expected output (stdout and stderr combined). If null, don't check. */
         expectedOutput: String? = null,
+        /** Expected fail message and state, if any */
+        expectedFail: String? = null,
         /** List of extra jar files to record annotation coverage from */
         coverageJars: Array<TestFile>? = null,
         /** Optional manifest to load and associate with the codebase */
@@ -337,11 +341,15 @@ abstract class DriverTest {
         baseline: String? = null,
         /** Whether to create the baseline if it does not exist. Requires [baseline] to be set. */
         updateBaseline: Boolean = false,
+        /** Merge instead of replacing the baseline */
+        mergeBaseline: String? = null,
         /**
          * If non null, enable API lint. If non-blank, a codebase where only new APIs not in the codebase
          * are linted.
          */
-        @Language("TEXT") apiLint: String? = null
+        @Language("TEXT") apiLint: String? = null,
+        /** The source files to pass to the analyzer */
+        vararg sourceFiles: TestFile
     ) {
         // Ensure different API clients don't interfere with each other
         try {
@@ -377,8 +385,8 @@ abstract class DriverTest {
         }
         Errors.resetLevels()
 
-        /** Expected output if exiting with an error code */
-        val expectedFail = if (checkCompatibilityApi != null ||
+        @Suppress("NAME_SHADOWING")
+        val expectedFail = expectedFail ?: if (checkCompatibilityApi != null ||
             checkCompatibilityApiReleased != null ||
             checkCompatibilityRemovedApiCurrent != null ||
             checkCompatibilityRemovedApiReleased != null
@@ -565,7 +573,12 @@ abstract class DriverTest {
         }
 
         val checkCompatibilityArguments = if (checkCompatibilityApiFile != null) {
-            arrayOf(ARG_CHECK_COMPATIBILITY_API_CURRENT, checkCompatibilityApiFile.path)
+            val extra: Array<String> = if (allowCompatibleDifferences) {
+                arrayOf(ARG_ALLOW_COMPATIBLE_DIFFERENCES)
+            } else {
+                emptyArray()
+            }
+            arrayOf(ARG_CHECK_COMPATIBILITY_API_CURRENT, checkCompatibilityApiFile.path, *extra)
         } else {
             emptyArray()
         }
@@ -577,7 +590,12 @@ abstract class DriverTest {
         }
 
         val checkCompatibilityRemovedCurrentArguments = if (checkCompatibilityRemovedApiCurrentFile != null) {
-            arrayOf(ARG_CHECK_COMPATIBILITY_REMOVED_CURRENT, checkCompatibilityRemovedApiCurrentFile.path)
+            val extra: Array<String> = if (allowCompatibleDifferences) {
+                arrayOf(ARG_ALLOW_COMPATIBLE_DIFFERENCES)
+            } else {
+                emptyArray()
+            }
+            arrayOf(ARG_CHECK_COMPATIBILITY_REMOVED_CURRENT, checkCompatibilityRemovedApiCurrentFile.path, *extra)
         } else {
             emptyArray()
         }
@@ -817,10 +835,13 @@ abstract class DriverTest {
         val baselineArgs = if (baseline != null) {
             baselineFile = temporaryFolder.newFile("baseline.txt")
             baselineFile?.writeText(baseline.trimIndent())
-            if (!updateBaseline) {
+            if (!(updateBaseline || mergeBaseline != null)) {
                 arrayOf(ARG_BASELINE, baselineFile.path)
             } else {
-                arrayOf(ARG_BASELINE, baselineFile.path, ARG_UPDATE_BASELINE, baselineFile.path)
+                arrayOf(ARG_BASELINE,
+                    baselineFile.path,
+                    if (mergeBaseline != null) ARG_MERGE_BASELINE else ARG_UPDATE_BASELINE,
+                    baselineFile.path)
             }
         } else {
             emptyArray()
@@ -1027,7 +1048,8 @@ abstract class DriverTest {
                 baselineFile.exists()
             )
             val actualText = readFile(baselineFile, stripBlankLines, trim)
-            assertEquals(stripComments(baseline, stripLineComments = false).trimIndent(), actualText)
+            val sourceFile = mergeBaseline ?: baseline
+            assertEquals(stripComments(sourceFile, stripLineComments = false).trimIndent(), actualText)
         }
 
         if (convertFiles.isNotEmpty()) {
@@ -1313,7 +1335,7 @@ abstract class DriverTest {
         }
 
         if (CHECK_JDIFF && apiXmlFile != null && convertToJDiff.isNotEmpty()) {
-            // Parse the XML file with jdiff too
+            // TODO: Parse the XML file with jdiff too
         }
 
         if (CHECK_OLD_DOCLAVA_TOO && checkDoclava1 && convertToJDiff.isNotEmpty()) {
@@ -2350,6 +2372,23 @@ val restrictToSource: TestFile = java(
             TESTS,
             SUBCLASSES,
         }
+    }
+    """
+).indented()
+
+val visibleForTestingSource: TestFile = java(
+    """
+    package androidx.annotation;
+    import static java.lang.annotation.RetentionPolicy.CLASS;
+    import java.lang.annotation.Retention;
+    @Retention(CLASS)
+    @SuppressWarnings("WeakerAccess")
+    public @interface VisibleForTesting {
+        int otherwise() default PRIVATE;
+        int PRIVATE = 2;
+        int PACKAGE_PRIVATE = 3;
+        int PROTECTED = 4;
+        int NONE = 5;
     }
     """
 ).indented()

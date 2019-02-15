@@ -3116,4 +3116,219 @@ class ApiFileTest : DriverTest() {
                 """
         )
     }
+
+    @Test
+    fun `Skip incorrect inherit`() {
+        check(
+            // Simulate test-mock scenario for getIContentProvider
+            extraArguments = arrayOf("--stub-packages", "android.test.mock"),
+            compatibilityMode = false,
+            warnings = "src/android/test/mock/MockContentProvider.java:6: warning: Public class android.test.mock.MockContentProvider stripped of unavailable superclass android.content.ContentProvider [HiddenSuperclass]",
+            sourceFiles = *arrayOf(
+                java(
+                    """
+                    package android.test.mock;
+
+                    import android.content.ContentProvider;
+                    import android.content.IContentProvider;
+
+                    public abstract class MockContentProvider extends ContentProvider {
+                        /**
+                         * Returns IContentProvider which calls back same methods in this class.
+                         * By overriding this class, we avoid the mechanism hidden behind ContentProvider
+                         * (IPC, etc.)
+                         *
+                         * @hide
+                         */
+                        @Override
+                        public final IContentProvider getIContentProvider() {
+                            return mIContentProvider;
+                        }
+                    }
+                    """
+                ),
+                java(
+                    """
+                    package android.content;
+
+                    /** @hide */
+                    public abstract class ContentProvider {
+                        protected boolean isTemporary() {
+                            return false;
+                        }
+
+                        // This is supposed to be @hide, but in turbine-combined/framework.jar included
+                        // by java_sdk_library like test-mock, it's not; this is what the special
+                        // flag is used to test
+                        public IContentProvider getIContentProvider() {
+                            return null;
+                        }
+                    }
+                    """
+                ),
+                java(
+                    """
+                    package android.content;
+                    import android.os.IInterface;
+
+                    /**
+                     * The ipc interface to talk to a content provider.
+                     * @hide
+                     */
+                    public interface IContentProvider extends IInterface {
+                    }
+                    """
+                ),
+                java(
+                    """
+                    package android.content;
+
+                    // Not hidden. Here to make sure that we respect stub-packages
+                    // and exclude it from everything, including signatures.
+                    public class ClipData {
+                    }
+                    """
+                )
+            ),
+            api = """
+                package android.test.mock {
+                  public abstract class MockContentProvider {
+                    ctor public MockContentProvider();
+                  }
+                }
+                """
+        )
+    }
+
+    @Test
+    fun `Test Visible For Testing`() {
+        // Use the otherwise= visibility in signatures
+        // Regression test for issue 118763806
+        check(
+            sourceFiles = *arrayOf(
+                java(
+                    """
+                    package test.pkg;
+                    import androidx.annotation.VisibleForTesting;
+
+                    @SuppressWarnings({"ClassNameDiffersFromFileName", "WeakerAccess"})
+                    public class ProductionCode {
+                        private ProductionCode() { }
+
+                        @VisibleForTesting(otherwise = VisibleForTesting.PROTECTED)
+                        public void shouldBeProtected() {
+                        }
+
+                        @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
+                        protected void shouldBePrivate1() {
+                        }
+
+                        @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
+                        public void shouldBePrivate2() {
+                        }
+
+                        @VisibleForTesting(otherwise = VisibleForTesting.PACKAGE_PRIVATE)
+                        public void shouldBePackagePrivate() {
+                        }
+
+                        @VisibleForTesting(otherwise = VisibleForTesting.NONE)
+                        public void shouldBeHidden() {
+                        }
+                    }
+                    """
+                ).indented(),
+                kotlin(
+                    """
+                    package test.pkg
+                    import androidx.annotation.VisibleForTesting
+
+                    open class ProductionCode2 private constructor() {
+
+                        @VisibleForTesting(otherwise = VisibleForTesting.PROTECTED)
+                        fun shouldBeProtected() {
+                        }
+
+                        @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
+                        protected fun shouldBePrivate1() {
+                        }
+
+                        @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
+                        fun shouldBePrivate2() {
+                        }
+
+                        @VisibleForTesting(otherwise = VisibleForTesting.PACKAGE_PRIVATE)
+                        fun shouldBePackagePrivate() {
+                        }
+
+                        @VisibleForTesting(otherwise = VisibleForTesting.NONE)
+                        fun shouldBeHidden() {
+                        }
+                    }
+                    """
+                ).indented(),
+                visibleForTestingSource
+            ),
+            api = """
+                package test.pkg {
+                  public class ProductionCode {
+                    method protected void shouldBeProtected();
+                  }
+                  public class ProductionCode2 {
+                    method protected final void shouldBeProtected();
+                  }
+                }
+                """,
+            extraArguments = arrayOf(ARG_HIDE_PACKAGE, "androidx.annotation")
+        )
+    }
+
+    @Test
+    fun `References Deprecated`() {
+        check(
+            extraArguments = arrayOf(
+                ARG_ERROR, "ReferencesDeprecated",
+                ARG_ERROR, "ExtendsDeprecated"
+            ),
+            warnings = """
+            src/test/pkg/MyClass.java:3: error: Parameter of deprecated type test.pkg.DeprecatedClass in test.pkg.MyClass.method1(): this method should also be deprecated [ReferencesDeprecated]
+            src/test/pkg/MyClass.java:4: error: Return type of deprecated type test.pkg.DeprecatedInterface in test.pkg.MyClass.method2(): this method should also be deprecated [ReferencesDeprecated]
+            src/test/pkg/MyClass.java:4: error: Returning deprecated type test.pkg.DeprecatedInterface from test.pkg.MyClass.method2(): this method should also be deprecated [ReferencesDeprecated]
+            src/test/pkg/MyClass.java:2: error: Extending deprecated super class class test.pkg.DeprecatedClass from test.pkg.MyClass: this class should also be deprecated [ExtendsDeprecated]
+            src/test/pkg/MyClass.java:2: error: Implementing interface of deprecated type test.pkg.DeprecatedInterface in test.pkg.MyClass: this class should also be deprecated [ExtendsDeprecated]
+            """,
+            sourceFiles = *arrayOf(
+                java(
+                    """
+                    package test.pkg;
+                    /** @deprecated */
+                    @Deprecated
+                    public class DeprecatedClass {
+                    }
+                    """
+                ),
+                java(
+                    """
+                    package test.pkg;
+                    /** @deprecated */
+                    @Deprecated
+                    public interface DeprecatedInterface {
+                    }
+                    """
+                ),
+                java(
+                    """
+                    package test.pkg;
+                    public class MyClass extends DeprecatedClass implements DeprecatedInterface {
+                        public void method1(DeprecatedClass p, int i) { }
+                        public DeprecatedInterface method2(int i) { return null; }
+
+                        /** @deprecated */
+                        @Deprecated
+                        public void method3(DeprecatedClass p, int i) { }
+                    }
+                    """
+                )
+            )
+        )
+    }
 }

@@ -189,6 +189,12 @@ interface ClassItem : Item {
     /** The containing package */
     fun containingPackage(): PackageItem
 
+    override fun containingPackage(strict: Boolean): PackageItem = containingPackage()
+
+    override fun containingClass(strict: Boolean): ClassItem? {
+        return if (strict) containingClass() else this
+    }
+
     /** Gets the type for this class */
     fun toType(): TypeItem
 
@@ -217,6 +223,9 @@ interface ClassItem : Item {
     val isTypeParameter: Boolean
 
     var hasPrivateConstructor: Boolean
+
+    /** If true, this is an invisible element that was referenced by a public API. */
+    var notStrippable: Boolean
 
     /**
      * Maven artifact of this class, if any. (Not used for the Android SDK, but used in
@@ -849,7 +858,7 @@ class VisitCandidate(private val cls: ClassItem, private val visitor: ApiVisitor
             return
         }
 
-        val emitThis = if (visitor.includeEmptyOuterClasses) emit else emitClass
+        val emitThis = cls.emit && if (visitor.includeEmptyOuterClasses) emit else emitClass
         if (emitThis) {
             if (!visitor.visitingPackage) {
                 visitor.visitingPackage = true
