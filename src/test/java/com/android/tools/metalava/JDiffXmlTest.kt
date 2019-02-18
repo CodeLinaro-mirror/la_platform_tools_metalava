@@ -711,7 +711,7 @@ class JDiffXmlTest : DriverTest() {
             <package name="test.pkg"
             >
             <interface name="AbstractList"
-             extends="test.pkg.List&lt;A,B,C>"
+             extends="test.pkg.List&lt;A, B, C>"
              abstract="true"
              static="false"
              final="false"
@@ -720,7 +720,7 @@ class JDiffXmlTest : DriverTest() {
             >
             </interface>
             <interface name="ConcreteList"
-             extends="test.pkg.AbstractList&lt;D,E,F>"
+             extends="test.pkg.AbstractList&lt;D, E, F>"
              abstract="true"
              static="false"
              final="false"
@@ -905,6 +905,223 @@ class JDiffXmlTest : DriverTest() {
              visibility="public"
             >
             </interface>
+            </package>
+            </api>
+            """
+        )
+    }
+
+    @Test
+    fun `Test default methods from signature files`() {
+        // Ensure that we treat not just static but default methods in interfaces as non-abstract
+        check(
+            compatibilityMode = true,
+            checkDoclava1 = true,
+            format = FileFormat.V1,
+            signatureSource = """
+                package test.pkg {
+                  public abstract interface MethodHandleInfo {
+                    method public static boolean refKindIsField(int);
+                  }
+                }
+            """,
+            apiXml =
+            """
+            <api>
+            <package name="test.pkg"
+            >
+            <interface name="MethodHandleInfo"
+             abstract="true"
+             static="false"
+             final="false"
+             deprecated="not deprecated"
+             visibility="public"
+            >
+            <method name="refKindIsField"
+             return="boolean"
+             abstract="false"
+             native="false"
+             synchronized="false"
+             static="true"
+             final="false"
+             deprecated="not deprecated"
+             visibility="public"
+            >
+            <parameter name="null" type="int">
+            </parameter>
+            </method>
+            </interface>
+            </package>
+            </api>
+            """
+        )
+    }
+
+    @Test
+    fun `Test partial signature files`() {
+        // Partial signature files, such as the system and test files which contain only the
+        // *diffs* relative to the base API, are tricky: They may for example list just an
+        // inner class. See 122926140 for a scenario where this happens.
+        check(
+            compatibilityMode = true,
+            checkDoclava1 = true,
+            format = FileFormat.V1,
+            signatureSource = """
+            // Signature format: 2.0
+            package android {
+
+              public static final class Manifest.permission {
+                field public static final String ACCESS_AMBIENT_LIGHT_STATS = "android.permission.ACCESS_AMBIENT_LIGHT_STATS";
+                field public static final String ACCESS_BROADCAST_RADIO = "android.permission.ACCESS_BROADCAST_RADIO";
+                field public static final String ACCESS_CACHE_FILESYSTEM = "android.permission.ACCESS_CACHE_FILESYSTEM";
+                field public static final String ACCESS_DRM_CERTIFICATES = "android.permission.ACCESS_DRM_CERTIFICATES";
+              }
+            }
+            """,
+            apiXml =
+            """
+            <api>
+            <package name="android"
+            >
+            <class name="Manifest.permission"
+             extends="java.lang.Object"
+             abstract="false"
+             static="true"
+             final="true"
+             deprecated="not deprecated"
+             visibility="public"
+            >
+            <field name="ACCESS_AMBIENT_LIGHT_STATS"
+             type="java.lang.String"
+             transient="false"
+             volatile="false"
+             value="&quot;android.permission.ACCESS_AMBIENT_LIGHT_STATS&quot;"
+             static="true"
+             final="true"
+             deprecated="not deprecated"
+             visibility="public"
+            >
+            </field>
+            <field name="ACCESS_BROADCAST_RADIO"
+             type="java.lang.String"
+             transient="false"
+             volatile="false"
+             value="&quot;android.permission.ACCESS_BROADCAST_RADIO&quot;"
+             static="true"
+             final="true"
+             deprecated="not deprecated"
+             visibility="public"
+            >
+            </field>
+            <field name="ACCESS_CACHE_FILESYSTEM"
+             type="java.lang.String"
+             transient="false"
+             volatile="false"
+             value="&quot;android.permission.ACCESS_CACHE_FILESYSTEM&quot;"
+             static="true"
+             final="true"
+             deprecated="not deprecated"
+             visibility="public"
+            >
+            </field>
+            <field name="ACCESS_DRM_CERTIFICATES"
+             type="java.lang.String"
+             transient="false"
+             volatile="false"
+             value="&quot;android.permission.ACCESS_DRM_CERTIFICATES&quot;"
+             static="true"
+             final="true"
+             deprecated="not deprecated"
+             visibility="public"
+            >
+            </field>
+            </class>
+            </package>
+            </api>
+            """
+        )
+    }
+
+    @Test
+    fun `Spaces in type argument lists`() {
+        // JDiff expects spaces in type argument lists
+        // Regression test for 123140708
+        check(
+            compatibilityMode = false,
+            checkDoclava1 = true,
+            format = FileFormat.V2,
+            signatureSource = """
+            // Signature format: 2.0
+            package org.apache.http.impl.conn.tsccm {
+              @Deprecated public class ConnPoolByRoute extends org.apache.http.impl.conn.tsccm.AbstractConnPool {
+                field @Deprecated protected final java.util.Map<org.apache.http.conn.routing.HttpRoute,org.apache.http.impl.conn.tsccm.RouteSpecificPool> routeToPool;
+                field @Deprecated protected java.util.Queue<org.apache.http.impl.conn.tsccm.WaitingThread> waitingThreads;
+              }
+            }
+            package test.pkg {
+              public abstract class MyClass extends HashMap<String,String> implements Map<String,String>  {
+                field public Map<String,String> map;
+              }
+            }
+            """,
+            apiXml =
+            """
+            <api>
+            <package name="org.apache.http.impl.conn.tsccm"
+            >
+            <class name="ConnPoolByRoute"
+             extends="org.apache.http.impl.conn.tsccm.AbstractConnPool"
+             abstract="false"
+             static="false"
+             final="false"
+             deprecated="deprecated"
+             visibility="public"
+            >
+            <field name="routeToPool"
+             type="java.util.Map&lt;org.apache.http.conn.routing.HttpRoute, org.apache.http.impl.conn.tsccm.RouteSpecificPool>"
+             transient="false"
+             volatile="false"
+             static="false"
+             final="true"
+             deprecated="deprecated"
+             visibility="protected"
+            >
+            </field>
+            <field name="waitingThreads"
+             type="java.util.Queue&lt;org.apache.http.impl.conn.tsccm.WaitingThread>"
+             transient="false"
+             volatile="false"
+             static="false"
+             final="false"
+             deprecated="deprecated"
+             visibility="protected"
+            >
+            </field>
+            </class>
+            </package>
+            <package name="test.pkg"
+            >
+            <class name="MyClass"
+             extends="java.lang.HashMap&lt;String, String>"
+             abstract="true"
+             static="false"
+             final="false"
+             deprecated="not deprecated"
+             visibility="public"
+            >
+            <implements name="java.lang.Map&lt;String, String>">
+            </implements>
+            <field name="map"
+             type="java.lang.Map&lt;String, String>"
+             transient="false"
+             volatile="false"
+             static="false"
+             final="false"
+             deprecated="not deprecated"
+             visibility="public"
+            >
+            </field>
+            </class>
             </package>
             </api>
             """

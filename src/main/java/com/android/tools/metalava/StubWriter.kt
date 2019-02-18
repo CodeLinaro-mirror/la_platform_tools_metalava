@@ -54,21 +54,17 @@ class StubWriter(
     // Methods are by default sorted in source order in stubs, to encourage methods
     // that are near each other in the source to show up near each other in the documentation
     methodComparator = MethodItem.sourceOrderComparator,
-    filterEmit = FilterPredicate(ApiPredicate(ignoreShown = true, includeDocOnly = docStubs)),
+    filterEmit = FilterPredicate(ApiPredicate(ignoreShown = true, includeDocOnly = docStubs))
+        // In stubs we have to include non-strippable things too. This is an error in the API,
+        // and we've removed all of it from the framework, but there are libraries which still
+        // have reference errors.
+        .or { it is ClassItem && it.notStrippable },
     filterReference = ApiPredicate(ignoreShown = true, includeDocOnly = docStubs),
     includeEmptyOuterClasses = true
 ) {
     private val annotationTarget = if (docStubs) AnnotationTarget.DOC_STUBS_FILE else AnnotationTarget.SDK_STUBS_FILE
 
     private val sourceList = StringBuilder(20000)
-
-    override fun include(cls: ClassItem): Boolean {
-        val filter = options.stubPackages
-        if (filter != null && !filter.matches(cls.containingPackage())) {
-            return false
-        }
-        return super.include(cls)
-    }
 
     /** Writes a source file list of the generated stubs */
     fun writeSourceList(target: File, root: File?) {
@@ -246,8 +242,9 @@ class StubWriter(
 
         generateTypeParameterList(typeList = cls.typeParameterList(), addSpace = false)
         generateSuperClassStatement(cls)
-        generateInterfaceList(cls)
-
+        if (!cls.notStrippable) {
+            generateInterfaceList(cls)
+        }
         writer.print(" {\n")
 
         if (cls.isEnum()) {
@@ -414,6 +411,9 @@ class StubWriter(
     }
 
     override fun visitConstructor(constructor: ConstructorItem) {
+        if (constructor.containingClass().notStrippable) {
+            return
+        }
         writeConstructor(constructor, constructor.superConstructor)
     }
 
@@ -457,14 +457,17 @@ class StubWriter(
                         writer.write(", ")
                     }
                     val type = parameter.type()
-                    val typeString = type.toErasedTypeString(it)
                     if (!type.primitive) {
                         if (includeCasts) {
-                            writer.write("(")
-
                             // Types with varargs can't appear as varargs when used as an argument
-                            if (typeString.contains("...")) {
-                                writer.write(typeString.replace("...", "[]"))
+                            val typeString = type.toErasedTypeString(it).replace("...", "[]")
+                            writer.write("(")
+                            if (type.asTypeParameter(superConstructor) != null) {
+                                // It's a type parameter: see if we should map the type back to the concrete
+                                // type in this class
+                                val map = constructor?.containingClass()?.mapTypeVariables(it.containingClass())
+                                val cast = map?.get(type.toTypeString(context = it)) ?: typeString
+                                writer.write(cast)
                             } else {
                                 writer.write(typeString)
                             }
@@ -472,6 +475,8 @@ class StubWriter(
                         }
                         writer.write("null")
                     } else {
+                        // Add cast for things like shorts and bytes
+                        val typeString = type.toTypeString(context = it)
                         if (typeString != "boolean" && typeString != "int" && typeString != "long") {
                             writer.write("(")
                             writer.write(typeString)
@@ -498,6 +503,9 @@ class StubWriter(
     }
 
     override fun visitMethod(method: MethodItem) {
+        if (method.containingClass().notStrippable) {
+            return
+        }
         writeMethod(method.containingClass(), method, false)
     }
 
@@ -559,6 +567,10 @@ class StubWriter(
     override fun visitField(field: FieldItem) {
         // Handled earlier in visitClass
         if (field.isEnumConstant()) {
+            return
+        }
+
+        if (field.containingClass().notStrippable) {
             return
         }
 

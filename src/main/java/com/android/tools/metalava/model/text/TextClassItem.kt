@@ -57,6 +57,8 @@ open class TextClassItem(
 
     override val isTypeParameter: Boolean = false
 
+    override var notStrippable = false
+
     override var artifact: String? = null
 
     override fun equals(other: Any?): Boolean {
@@ -251,6 +253,10 @@ open class TextClassItem(
     override fun fullName(): String = fullName
     override fun qualifiedName(): String = qualifiedName
     override fun toString(): String = qualifiedName()
+
+    override fun mapTypeVariables(target: ClassItem): Map<String, String> {
+        return emptyMap()
+    }
 
     companion object {
         fun createClassStub(codebase: TextCodebase, name: String): TextClassItem =

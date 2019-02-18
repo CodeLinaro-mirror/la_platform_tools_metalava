@@ -23,6 +23,7 @@ import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
+import com.android.tools.metalava.model.configuration
 import com.intellij.openapi.vfs.VfsUtilCore
 import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiElement
@@ -40,6 +41,7 @@ const val DEFAULT_BASELINE_NAME = "baseline.txt"
 class Baseline(
     val file: File?,
     var updateFile: File?,
+    var merge: Boolean = false,
     private var headerComment: String = "",
     /**
      * Whether, when updating the baseline, we should fail the build if the main baseline does not
@@ -53,7 +55,7 @@ class Baseline(
     private val map = HashMap<Errors.Error, MutableMap<String, String>>()
 
     init {
-        if (file?.isFile == true && !silentUpdate) {
+        if (file?.isFile == true && (!silentUpdate || merge)) {
             // We've set a baseline for a nonexistent file: read it
             read()
         }
@@ -80,6 +82,9 @@ class Baseline(
     private fun mark(elementId: String, @Suppress("UNUSED_PARAMETER") message: String, error: Errors.Error): Boolean {
         val idMap: MutableMap<String, String>? = map[error] ?: run {
             if (updateFile != null) {
+                if (options.baselineErrorsOnly && configuration.getSeverity(error) != Severity.ERROR) {
+                    return true
+                }
                 val new = HashMap<String, String>()
                 map[error] = new
                 new
@@ -176,33 +181,37 @@ class Baseline(
 
     private fun read() {
         val file = this.file ?: return
-        file.readLines(Charsets.UTF_8).forEach { line ->
-            if (!(line.startsWith("//") || line.startsWith("#") || line.isBlank() || line.startsWith(" "))) {
-                val idEnd = line.indexOf(':')
-                val elementEnd = line.indexOf(':', idEnd + 1)
-                if (idEnd == -1 || elementEnd == -1) {
-                    println("Invalid metalava baseline format: $line")
-                }
-                val errorId = line.substring(0, idEnd).trim()
-                val elementId = line.substring(idEnd + 2, elementEnd).trim()
+        val lines = file.readLines(Charsets.UTF_8)
+        for (i in 0 until lines.size - 1) {
+            val line = lines[i]
+            if (line.startsWith("//") ||
+                line.startsWith("#") ||
+                line.isBlank() ||
+                line.startsWith(" ")) {
+                continue
+            }
+            val idEnd = line.indexOf(':')
+            val elementEnd = line.indexOf(':', idEnd + 1)
+            if (idEnd == -1 || elementEnd == -1) {
+                println("Invalid metalava baseline format: $line")
+            }
+            val errorId = line.substring(0, idEnd).trim()
+            val elementId = line.substring(idEnd + 2, elementEnd).trim()
 
-                // For now we don't need the actual messages since we're only matching by
-                // issue id and API location, so don't bother reading. (These are listed
-                // on separate, indented, lines, so to read them we'd need to alternate
-                // line readers.)
-                val message = ""
+            // Unless merging, we don't need the actual messages since we're only matching by
+            // issue id and API location, so don't bother computing.
+            val message = if (merge) lines[i + 1].trim() else ""
 
-                val error = Errors.findErrorById(errorId)
-                if (error == null) {
-                    println("Invalid metalava baseline file: unknown error id '$errorId'")
-                } else {
-                    val newIdMap = map[error] ?: run {
-                        val new = HashMap<String, String>()
-                        map[error] = new
-                        new
-                    }
-                    newIdMap[elementId] = message
+            val error = Errors.findErrorById(errorId)
+            if (error == null) {
+                println("Invalid metalava baseline file: unknown error id '$errorId'")
+            } else {
+                val newIdMap = map[error] ?: run {
+                    val new = HashMap<String, String>()
+                    map[error] = new
+                    new
                 }
+                newIdMap[elementId] = message
             }
         }
     }
