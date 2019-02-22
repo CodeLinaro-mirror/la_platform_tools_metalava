@@ -285,7 +285,7 @@ class ApiFileTest : DriverTest() {
                 package androidx.core.util {
                   public final class TestKt {
                     ctor public TestKt();
-                    method public static inline <K, V> android.util.LruCache<K,V> lruCache(int maxSize, kotlin.jvm.functions.Function2<? super K,? super V,java.lang.Integer> sizeOf = { _, _ -> 1 }, kotlin.jvm.functions.Function1<? super K,? extends V> create = { (V)null }, kotlin.jvm.functions.Function4<? super java.lang.Boolean,? super K,? super V,? super V,kotlin.Unit> onEntryRemoved = { _, _, _, _ ->  });
+                    method public static inline <K, V> android.util.LruCache<K,V> lruCache(int maxSize, kotlin.jvm.functions.Function2<? super K,? super V,java.lang.Integer> sizeOf = { _, _ -> 1 }, kotlin.jvm.functions.Function1<? super K,? extends V> create = { (java.lang.Object)null }, kotlin.jvm.functions.Function4<? super java.lang.Boolean,? super K,? super V,? super V,kotlin.Unit> onEntryRemoved = { _, _, _, _ ->  });
                   }
                 }
                 """,
@@ -457,10 +457,10 @@ class ApiFileTest : DriverTest() {
                 package test.pkg {
                   public final class TestKt {
                     ctor public TestKt();
-                    method public static inline <T> void a(T t);
-                    method public static inline <reified T> void b(T t);
-                    method public static inline <reified T> void e(T t);
-                    method public static inline <reified T> void f(T, T t);
+                    method public static inline <T> void a(@Nullable T t);
+                    method public static inline <reified T> void b(@Nullable T t);
+                    method public static inline <reified T> void e(@Nullable T t);
+                    method public static inline <reified T> void f(@Nullable T, @Nullable T t);
                   }
                 }
                 """,
@@ -484,7 +484,7 @@ class ApiFileTest : DriverTest() {
                 package test.pkg {
                   public final class TestKt {
                     ctor public TestKt();
-                    method public static suspend inline Object hello(kotlin.coroutines.experimental.Continuation<? super kotlin.Unit> p);
+                    method public static suspend inline Object hello(@NonNull kotlin.coroutines.Continuation<? super kotlin.Unit> p);
                   }
                 }
                 """,
@@ -613,6 +613,7 @@ class ApiFileTest : DriverTest() {
                 androidxNullableSource
             ),
             api = """
+                // Signature format: 3.0
                 package androidx.util {
                   public class NonNullableJavaPair<F, S> {
                     ctor public NonNullableJavaPair(F, S);
@@ -712,6 +713,7 @@ class ApiFileTest : DriverTest() {
                 androidxNullableSource
             ),
             api = """
+                // Signature format: 3.0
                 package test {
                   public class MyClass {
                     ctor public MyClass();
@@ -1419,12 +1421,12 @@ class ApiFileTest : DriverTest() {
             ),
 
             warnings = """
-                    src/test/pkg/Foo.java:7: warning: Method test.pkg.Foo.method1(): @Deprecated annotation (present) and @deprecated doc tag (not present) do not match [DeprecationMismatch]
-                    src/test/pkg/Foo.java:8: warning: Method test.pkg.Foo.method2(): @Deprecated annotation (present) and @deprecated doc tag (not present) do not match [DeprecationMismatch]
-                    src/test/pkg/Foo.java:9: warning: Class test.pkg.Foo.Inner1: @Deprecated annotation (present) and @deprecated doc tag (not present) do not match [DeprecationMismatch]
-                    src/test/pkg/Foo.java:10: warning: Class test.pkg.Foo.Inner2: @Deprecated annotation (present) and @deprecated doc tag (not present) do not match [DeprecationMismatch]
-                    src/test/pkg/Foo.java:11: warning: Class test.pkg.Foo.Inner3: @Deprecated annotation (present) and @deprecated doc tag (not present) do not match [DeprecationMismatch]
-                        """,
+                src/test/pkg/Foo.java:7: error: Method test.pkg.Foo.method1(): @Deprecated annotation (present) and @deprecated doc tag (not present) do not match [DeprecationMismatch]
+                src/test/pkg/Foo.java:8: error: Method test.pkg.Foo.method2(): @Deprecated annotation (present) and @deprecated doc tag (not present) do not match [DeprecationMismatch]
+                src/test/pkg/Foo.java:9: error: Class test.pkg.Foo.Inner1: @Deprecated annotation (present) and @deprecated doc tag (not present) do not match [DeprecationMismatch]
+                src/test/pkg/Foo.java:10: error: Class test.pkg.Foo.Inner2: @Deprecated annotation (present) and @deprecated doc tag (not present) do not match [DeprecationMismatch]
+                src/test/pkg/Foo.java:11: error: Class test.pkg.Foo.Inner3: @Deprecated annotation (present) and @deprecated doc tag (not present) do not match [DeprecationMismatch]
+                """,
 
             api = """
                     package test.pkg {
@@ -3212,8 +3214,8 @@ class ApiFileTest : DriverTest() {
                     import androidx.annotation.VisibleForTesting;
 
                     @SuppressWarnings({"ClassNameDiffersFromFileName", "WeakerAccess"})
-                    public class ProductionCode {
-                        private ProductionCode() { }
+                    public class ProductionCodeJava {
+                        private ProductionCodeJava() { }
 
                         @VisibleForTesting(otherwise = VisibleForTesting.PROTECTED)
                         public void shouldBeProtected() {
@@ -3242,7 +3244,7 @@ class ApiFileTest : DriverTest() {
                     package test.pkg
                     import androidx.annotation.VisibleForTesting
 
-                    open class ProductionCode2 private constructor() {
+                    open class ProductionCodeKotlin private constructor() {
 
                         @VisibleForTesting(otherwise = VisibleForTesting.PROTECTED)
                         fun shouldBeProtected() {
@@ -3270,10 +3272,10 @@ class ApiFileTest : DriverTest() {
             ),
             api = """
                 package test.pkg {
-                  public class ProductionCode {
+                  public class ProductionCodeJava {
                     method protected void shouldBeProtected();
                   }
-                  public class ProductionCode2 {
+                  public class ProductionCodeKotlin {
                     method protected final void shouldBeProtected();
                   }
                 }

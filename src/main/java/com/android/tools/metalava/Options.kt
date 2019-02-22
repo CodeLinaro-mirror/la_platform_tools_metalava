@@ -33,6 +33,7 @@ import java.io.StringWriter
 import java.util.Locale
 import kotlin.reflect.KMutableProperty1
 import kotlin.reflect.full.memberProperties
+import kotlin.text.Charsets.UTF_8
 
 /** Global options for the metadata extraction tool */
 var options = Options(emptyArray())
@@ -136,6 +137,7 @@ const val ARG_REWRITE_ANNOTATIONS = "--rewrite-annotations"
 const val ARG_INCLUDE_SOURCE_RETENTION = "--include-source-retention"
 const val ARG_INCLUDE_SIG_VERSION = "--include-signature-version"
 const val ARG_UPDATE_API = "--update-api"
+const val ARG_PASS_BASELINE_UPDATES = "--pass-baseline-updates"
 const val ARG_DEX_API_MAPPING = "--dex-api-mapping"
 const val ARG_GENERATE_DOCUMENTATION = "--generate-documentation"
 const val ARG_BASELINE = "--baseline"
@@ -143,9 +145,10 @@ const val ARG_UPDATE_BASELINE = "--update-baseline"
 const val ARG_MERGE_BASELINE = "--merge-baseline"
 const val ARG_STUB_PACKAGES = "--stub-packages"
 const val ARG_STUB_IMPORT_PACKAGES = "--stub-import-packages"
+const val ARG_DELETE_EMPTY_BASELINES = "--delete-empty-baselines"
 
 class Options(
-    args: Array<String>,
+    private val args: Array<String>,
     /** Writer to direct output to */
     var stdout: PrintWriter = PrintWriter(OutputStreamWriter(System.out)),
     /** Writer to direct error messages to */
@@ -502,6 +505,12 @@ class Options(
     /** Whether all baseline files need to be updated */
     var updateBaseline = false
 
+    /** If updating baselines, don't fail the build */
+    var passBaselineUpdates = false
+
+    /** If updating baselines and the baseline is empty, delete the file */
+    var deleteEmptyBaselines = false
+
     /** Whether the baseline should only contain errors */
     var baselineErrorsOnly = false
 
@@ -568,6 +577,7 @@ class Options(
         var baselineFile: File? = null
         var mergeBaseline = false
         var delayedCheckApiFiles = false
+        var skipGenerateAnnotations = false
 
         var index = 0
         while (index < args.size) {
@@ -750,6 +760,8 @@ class Options(
                         }
                     }
                 }
+                ARG_PASS_BASELINE_UPDATES -> passBaselineUpdates = true
+                ARG_DELETE_EMPTY_BASELINES -> deleteEmptyBaselines = true
 
                 ARG_PUBLIC, "-public" -> docLevel = DocLevel.PUBLIC
                 ARG_PROTECTED, "-protected" -> docLevel = DocLevel.PROTECTED
@@ -1237,18 +1249,19 @@ class Options(
                             true
                         else yesNo(arg.substring(ARG_INCLUDE_SIG_VERSION.length + 1))
                     } else if (arg.startsWith(ARG_FORMAT)) {
-                        when (arg) {
+                        outputFormat = when (arg) {
                             "$ARG_FORMAT=v1" -> {
-                                FileFormat.V1.configureOptions(this, compatibility)
+                                FileFormat.V1
                             }
                             "$ARG_FORMAT=v2" -> {
-                                FileFormat.V2.configureOptions(this, compatibility)
+                                FileFormat.V2
                             }
                             "$ARG_FORMAT=v3" -> {
-                                FileFormat.V3.configureOptions(this, compatibility)
+                                FileFormat.V3
                             }
                             else -> throw DriverException(stderr = "Unexpected signature format; expected v1, v2 or v3")
                         }
+                        outputFormat.configureOptions(this, compatibility)
                     } else if (arg.startsWith("-")) {
                         // Compatibility flag; map to mutable properties in the Compatibility
                         // class and assign it
@@ -1293,6 +1306,12 @@ class Options(
                         } else {
                             // All args that don't start with "-" are taken to be filenames
                             mutableSources.addAll(stringToExistingFiles(arg))
+
+                            // Temporary workaround for
+                            // aosp/I73ff403bfc3d9dfec71789a3e90f9f4ea95eabe3
+                            if (arg.endsWith("hwbinder-stubs-docs-stubs.srcjar.rsp")) {
+                                skipGenerateAnnotations = true
+                            }
                         }
                     }
                 }
@@ -1302,13 +1321,19 @@ class Options(
         }
 
         if (generateApiLevelXml != null) {
-            if (androidJarPatterns == null) {
-                androidJarPatterns = mutableListOf(
-                    "prebuilts/tools/common/api-versions/android-%/android.jar",
-                    "prebuilts/sdk/%/public/android.jar"
-                )
+            val patterns = androidJarPatterns ?: run {
+                mutableListOf<String>()
             }
-            apiLevelJars = findAndroidJars(androidJarPatterns!!, currentApiLevel, currentCodeName, currentJar)
+            // Fallbacks
+            patterns.add("prebuilts/tools/common/api-versions/android-%/android.jar")
+            patterns.add("prebuilts/sdk/%/public/android.jar")
+            apiLevelJars = findAndroidJars(patterns, currentApiLevel, currentCodeName, currentJar)
+        }
+
+        // outputKotlinStyleNulls implies format=v3
+        if (outputKotlinStyleNulls) {
+            outputFormat = FileFormat.V3
+            outputFormat.configureOptions(this, compatibility)
         }
 
         // If the caller has not explicitly requested that unannotated classes and
@@ -1319,6 +1344,10 @@ class Options(
 
         if (noUnknownClasses) {
             allowReferencingUnknownClasses = false
+        }
+
+        if (skipGenerateAnnotations) {
+            generateAnnotations = false
         }
 
         if (updateApi) {
@@ -1349,6 +1378,9 @@ class Options(
         if (baselineFile == null) {
             val defaultBaselineFile = getDefaultBaselineFile()
             if (defaultBaselineFile != null && defaultBaselineFile.isFile) {
+                if (updateBaseline && updateBaselineFile == null) {
+                    updateBaselineFile = defaultBaselineFile
+                }
                 baseline = Baseline(defaultBaselineFile, updateBaselineFile, mergeBaseline)
             } else if (updateBaselineFile != null) {
                 baseline = Baseline(null, updateBaselineFile, mergeBaseline)
@@ -1359,6 +1391,9 @@ class Options(
                 "// See tools/metalava/API-LINT.md for how to update this file.\n\n"
             else
                 ""
+            if (updateBaseline && updateBaselineFile == null) {
+                updateBaselineFile = baselineFile
+            }
             baseline = Baseline(baselineFile, updateBaselineFile, mergeBaseline, headerComment)
         }
 
@@ -1440,6 +1475,19 @@ class Options(
                     if (verbose) {
                         stdout.println("Last API level found: ${apiLevel - 1}")
                     }
+
+                    if (apiLevel < 28) {
+                        // Clearly something is wrong with the patterns; this should result in a build error
+                        val argList = mutableListOf<String>()
+                        args.forEachIndexed { index, arg ->
+                            if (arg == ARG_ANDROID_JAR_PATTERN) {
+                                argList.add(args[index + 1])
+                            }
+                        }
+                        throw DriverException(stderr = "Could not find android.jar for API level $apiLevel; the " +
+                            "$ARG_ANDROID_JAR_PATTERN set might be invalid: ${argList.joinToString()}")
+                    }
+
                     break
                 }
                 if (verbose) {
@@ -1609,7 +1657,7 @@ class Options(
                     if (!listFile.isFile) {
                         throw DriverException("$listFile is not a file")
                     }
-                    val contents = Files.asCharSource(listFile, Charsets.UTF_8).read()
+                    val contents = Files.asCharSource(listFile, UTF_8).read()
                     val pathList = Splitter.on(CharMatcher.whitespace()).trimResults().omitEmptyStrings().split(
                         contents
                     )
@@ -1886,6 +1934,11 @@ class Options(
                 "in the baseline, it will merge the existing baseline with the new baseline. This is useful " +
                 "if $PROGRAM_NAME runs multiple times on the same source tree with different flags at different " +
                 "times, such as occasionally with $ARG_API_LINT.",
+            ARG_PASS_BASELINE_UPDATES, "Normally, encountering error will fail the build, even when updating " +
+                "baselines. This flag allows you to tell $PROGRAM_NAME to continue without errors, such that " +
+                "all the baselines in the source tree can be updated in one go.",
+            ARG_DELETE_EMPTY_BASELINES, "Whether to delete baseline files if they are updated and there is nothing " +
+                "to include.",
 
             "", "\nJDiff:",
             "$ARG_XML_API <file>", "Like $ARG_API, but emits the API in the JDiff XML format instead",
