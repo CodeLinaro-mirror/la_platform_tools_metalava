@@ -110,7 +110,10 @@ class ApiLintTest : DriverTest() {
                     """
                 )
             ),
-            expectedOutput = "9 new API lint issues were found. See tools/metalava/API-LINT.md for how to handle these."
+            expectedOutput = """
+                9 new API lint issues were found.
+                See tools/metalava/API-LINT.md for how to handle these.
+            """
         )
     }
 
@@ -1453,7 +1456,7 @@ class ApiLintTest : DriverTest() {
                     import java.io.InputStream;
 
                     public class CheckFiles {
-                        public MyClass(Context context, File file) {
+                        public CheckFiles(Context context, File file) {
                         }
                         public void ok(int i, File file) { }
                         public void ok(int i, InputStream stream) { }
@@ -1484,7 +1487,7 @@ class ApiLintTest : DriverTest() {
                     import java.io.InputStream;
 
                     public class CheckFiles {
-                        public MyClass(Context context, File file) {
+                        public CheckFiles(Context context, File file) {
                         }
                         public void ok(int i, File file) { }
                         public void ok(int i, InputStream stream) { }
