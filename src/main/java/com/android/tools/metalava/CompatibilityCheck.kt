@@ -114,6 +114,9 @@ class CompatibilityCheck(
                     return
                 }
                 val name = AnnotationItem.simpleName(oldNullnessAnnotation)
+                if (old.type()?.primitive == true) {
+                    return
+                }
                 report(
                     Errors.INVALID_NULL_CONVERSION, new,
                     "Attempted to remove $name annotation from ${describe(new)}"
@@ -510,7 +513,7 @@ class CompatibilityCheck(
             }
         }
 
-        if (new.modifiers.isInline() && new.isKotlin()) {
+        if (new.modifiers.isInline()) {
             val oldTypes = old.typeParameterList().typeParameters()
             val newTypes = new.typeParameterList().typeParameters()
             for (i in 0 until oldTypes.size) {

@@ -48,9 +48,13 @@ import com.android.utils.StdLogger.Level.ERROR
 import com.google.common.base.Stopwatch
 import com.google.common.collect.Lists
 import com.google.common.io.Files
+import com.intellij.core.CoreApplicationEnvironment
 import com.intellij.openapi.diagnostic.DefaultLogger
+import com.intellij.openapi.extensions.Extensions
 import com.intellij.openapi.roots.LanguageLevelProjectExtension
 import com.intellij.openapi.util.Disposer
+import com.intellij.psi.javadoc.CustomJavadocTagProvider
+import com.intellij.psi.javadoc.JavadocTagInfo
 import com.intellij.util.execution.ParametersListUtil
 import java.io.File
 import java.io.IOException
@@ -139,7 +143,7 @@ fun run(
         options = Options(modifiedArgs, stdout, stderr)
         processFlags()
 
-        if (reporter.hasErrors() && !options.updateBaseline) {
+        if (reporter.hasErrors() && !options.passBaselineUpdates) {
             exitCode = -1
         }
         exitValue = true
@@ -154,13 +158,17 @@ fun run(
         }
         exitCode = e.exitCode
         exitValue = false
+    } finally {
+        Disposer.dispose(LintCoreApplicationEnvironment.get().parentDisposable)
     }
 
     if (options.updateBaseline) {
         if (options.verbose) {
             options.baseline?.dumpStats(options.stdout)
         }
-        stdout.println("$PROGRAM_NAME wrote updated baseline to ${options.baseline?.file}")
+        if (!options.quiet) {
+            stdout.println("$PROGRAM_NAME wrote updated baseline to ${options.baseline?.updateFile}")
+        }
     }
     options.baseline?.close()
 
@@ -431,8 +439,6 @@ private fun processFlags() {
         progress("\nMeasuring annotation coverage: ")
         AnnotationStatistics(codebase).measureCoverageOf(options.annotationCoverageOf)
     }
-
-    Disposer.dispose(LintCoreApplicationEnvironment.get().parentDisposable)
 
     if (options.verbose) {
         val packageCount = codebase.size()
@@ -731,7 +737,7 @@ fun invokeDocumentationTool() {
 class PrintWriterOutputStream(private val writer: PrintWriter) : OutputStream() {
 
     override fun write(b: ByteArray) {
-        writer.write(String(b, Charsets.UTF_8))
+        writer.write(String(b, UTF_8))
     }
 
     override fun write(b: Int) {
@@ -739,7 +745,7 @@ class PrintWriterOutputStream(private val writer: PrintWriter) : OutputStream() 
     }
 
     override fun write(b: ByteArray, off: Int, len: Int) {
-        writer.write(String(b, off, len, Charsets.UTF_8))
+        writer.write(String(b, off, len, UTF_8))
     }
 
     override fun flush() {
@@ -898,7 +904,7 @@ fun loadFromJarFile(apiJar: File, manifest: File? = null, preFiltered: Boolean =
 private fun createProjectEnvironment(): LintCoreProjectEnvironment {
     ensurePsiFileCapacity()
     val appEnv = LintCoreApplicationEnvironment.get()
-    val parentDisposable = Disposer.newDisposable()
+    val parentDisposable = appEnv.parentDisposable
 
     if (!assertionsEnabled() &&
         System.getenv(ENV_VAR_METALAVA_DUMP_ARGV) == null &&
@@ -907,7 +913,20 @@ private fun createProjectEnvironment(): LintCoreProjectEnvironment {
         DefaultLogger.disableStderrDumping(parentDisposable)
     }
 
-    return LintCoreProjectEnvironment.create(parentDisposable, appEnv)
+    val environment = LintCoreProjectEnvironment.create(parentDisposable, appEnv)
+
+    // Missing service needed in metalava but not in lint: javadoc handling
+    environment.project.registerService(
+        com.intellij.psi.javadoc.JavadocManager::class.java,
+        com.intellij.psi.impl.source.javadoc.JavadocManagerImpl::class.java
+    )
+    environment.registerProjectExtensionPoint(JavadocTagInfo.EP_NAME,
+        com.intellij.psi.javadoc.JavadocTagInfo::class.java)
+    CoreApplicationEnvironment.registerExtensionPoint(
+        Extensions.getRootArea(), CustomJavadocTagProvider.EP_NAME, CustomJavadocTagProvider::class.java
+    )
+
+    return environment
 }
 
 private fun ensurePsiFileCapacity() {
@@ -1018,7 +1037,7 @@ fun createReportFile(
     }
     val localTimer = Stopwatch.createStarted()
     try {
-        val writer = PrintWriter(Files.asCharSink(apiFile, Charsets.UTF_8).openBufferedStream())
+        val writer = PrintWriter(Files.asCharSink(apiFile, UTF_8).openBufferedStream())
         writer.use { printWriter ->
             val apiWriter = createVisitor(printWriter)
             codebase.accept(apiWriter)
@@ -1139,7 +1158,7 @@ private fun addHiddenPackages(
             }
             else -> return
         }
-        var contents = Files.asCharSource(file, Charsets.UTF_8).read()
+        var contents = Files.asCharSource(file, UTF_8).read()
         if (javadoc) {
             contents = packageHtmlToJavadoc(contents)
         }
@@ -1226,7 +1245,7 @@ private fun findRoot(file: File): File? {
 
 /** Finds the package of the given Java/Kotlin source file, if possible */
 fun findPackage(file: File): String? {
-    val source = Files.asCharSource(file, Charsets.UTF_8).read()
+    val source = Files.asCharSource(file, UTF_8).read()
     return findPackage(source)
 }
 
