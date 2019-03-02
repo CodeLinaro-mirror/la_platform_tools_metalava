@@ -538,7 +538,8 @@ fun containsLinkTags(documentation: String): Boolean {
             !documentation.startsWith("@param", index) &&
             !documentation.startsWith("@deprecated", index) &&
             !documentation.startsWith("@inheritDoc", index) &&
-            !documentation.startsWith("@return", index)) {
+            !documentation.startsWith("@return", index)
+        ) {
             return true
         }
 
@@ -760,6 +761,7 @@ fun handleTag(
                 val referencedElement = referenceElement!!.resolve()
                 if (referencedElement is PsiClass) {
                     var className = PsiClassItem.computeFullClassName(referencedElement)
+                    val fullName = className
                     if (className.indexOf('.') != -1 && !referenceText.startsWith(className)) {
                         val simpleName = referencedElement.name
                         if (simpleName != null && referenceText.startsWith(simpleName)) {
@@ -771,7 +773,15 @@ fun handleTag(
                         sb.append(element.name)
                         sb.append(' ')
                         sb.append(referencedElement.qualifiedName)
-                        val suffix = referenceText.substring(className.length)
+                        var suffix = referenceText.substring(className.length)
+                        if (suffix.startsWith("#") && suffix.startsWith(className, 1) &&
+                            (suffix.length == className.length + 1 || suffix[className.length + 1] == '(')
+                        ) {
+                            // It's a constructor reference. Unfortunately, javadoc doesn't
+                            // handle this, so we'll need to work around by placing the full
+                            // name as the method name
+                            suffix = "#" + fullName + suffix.substring(className.length + 1)
+                        }
                         if (suffix.contains("(") && suffix.contains(")")) {
                             expandArgumentList(element, suffix, sb)
                         } else {

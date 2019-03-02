@@ -27,7 +27,6 @@ import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
-import com.android.tools.metalava.options
 import com.intellij.lang.jvm.types.JvmReferenceType
 import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiClassType
@@ -80,6 +79,7 @@ open class PsiClassItem(
     }
 
     override var defaultConstructor: ConstructorItem? = null
+    override var notStrippable = false
     override var artifact: String? = null
 
     private var containingClass: PsiClassItem? = null
@@ -408,7 +408,7 @@ open class PsiClassItem(
 
             if (classType == ClassType.ENUM) {
                 addEnumMethods(codebase, item, psiClass, methods)
-            } else if (classType == ClassType.ANNOTATION_TYPE && !options.compatOutput &&
+            } else if (classType == ClassType.ANNOTATION_TYPE && compatibility.explicitlyListClassRetention &&
                 modifiers.findAnnotation("java.lang.annotation.Retention") == null
             ) {
                 // By policy, include explicit retention policy annotation if missing
@@ -419,6 +419,8 @@ open class PsiClassItem(
                     )
                 )
             }
+
+            val isKotlin = isKotlin(psiClass)
 
             val constructors: MutableList<PsiConstructorItem> = ArrayList(5)
             for (psiMethod in psiMethods) {
@@ -468,7 +470,7 @@ open class PsiClassItem(
             item.fields = fields
 
             item.properties = emptyList()
-            if (isKotlin(psiClass)) {
+            if (isKotlin) {
                 // Try to initialize the Kotlin properties
                 val properties = mutableListOf<PsiPropertyItem>()
                 for (method in psiMethods) {
@@ -519,7 +521,7 @@ open class PsiClassItem(
             //    method public static android.graphics.ColorSpace.Adaptation valueOf(java.lang.String);
             //    method public static final android.graphics.ColorSpace.Adaptation[] values();
 
-            if (compatibility.defaultAnnotationMethods) {
+            if (compatibility.defaultEnumMethods) {
                 // TODO: Skip if we already have these methods here (but that shouldn't happen; nobody would
                 // type this by hand)
                 addEnumMethod(

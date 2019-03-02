@@ -43,7 +43,7 @@ class StubsTest : DriverTest() {
         vararg sourceFiles: TestFile
     ) {
         check(
-            *sourceFiles,
+            sourceFiles = *sourceFiles,
             showAnnotations = showAnnotations,
             stubs = arrayOf(source),
             compatibilityMode = compatibilityMode,
@@ -751,6 +751,12 @@ class StubsTest : DriverTest() {
                         public static final String CONSTANT = "MyConstant";
                         protected int mContext;
                         public void method3() { }
+                        // Static: should be included
+                        public static void method3b() { }
+                        // References hidden type: don't inherit
+                        public void method3c(HiddenParent p) { }
+                        // References hidden type: don't inherit
+                        public void method3d(java.util.List<HiddenParent> p) { }
                     }
                     """
                 ), java(
@@ -778,9 +784,15 @@ class StubsTest : DriverTest() {
                 public class MyClass extends test.pkg.PublicParent {
                 public MyClass() { throw new RuntimeException("Stub!"); }
                 public void method4() { throw new RuntimeException("Stub!"); }
+                public static void method3b() { throw new RuntimeException("Stub!"); }
+                public void method2() { throw new RuntimeException("Stub!"); }
+                public void method3() { throw new RuntimeException("Stub!"); }
+                public static final java.lang.String CONSTANT = "MyConstant";
                 }
                 """,
-            warnings = "src/test/pkg/MyClass.java:2: warning: Public class test.pkg.MyClass stripped of unavailable superclass test.pkg.HiddenParent [HiddenSuperclass:111]"
+            warnings = """
+                src/test/pkg/MyClass.java:2: warning: Public class test.pkg.MyClass stripped of unavailable superclass test.pkg.HiddenParent [HiddenSuperclass]
+                """
         )
     }
 
@@ -819,6 +831,7 @@ class StubsTest : DriverTest() {
                     public MyClass() { throw new RuntimeException("Stub!"); }
                     public void method1() { throw new RuntimeException("Stub!"); }
                     public void method2() { throw new RuntimeException("Stub!"); }
+                    public static final java.lang.String CONSTANT = "MyConstant";
                     }
                 """
         )
@@ -1196,7 +1209,7 @@ class StubsTest : DriverTest() {
                 ),
                 requiresPermissionSource
             ),
-            warnings = "src/test/pkg/HiddenPermission.java:7: lint: Permission android.Manifest.permission.INTERACT_ACROSS_USERS required by method test.pkg.HiddenPermission.removeStickyBroadcast(Object) is hidden or removed [MissingPermission:132]",
+            warnings = "src/test/pkg/HiddenPermission.java:7: lint: Permission android.Manifest.permission.INTERACT_ACROSS_USERS required by method test.pkg.HiddenPermission.removeStickyBroadcast(Object) is hidden or removed [MissingPermission]",
             source = """
                     package test.pkg;
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
@@ -1339,17 +1352,17 @@ class StubsTest : DriverTest() {
                     /** My class doc */
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public final class Kotlin extends test.pkg.Parent {
-                    public Kotlin(@androidx.annotation.NonNull java.lang.String property1, int arg2) { throw new RuntimeException("Stub!"); }
-                    @androidx.annotation.NonNull
+                    public Kotlin(@android.annotation.NonNull java.lang.String property1, int arg2) { throw new RuntimeException("Stub!"); }
+                    @android.annotation.NonNull
                     public java.lang.String method() { throw new RuntimeException("Stub!"); }
                     /** My method doc */
                     public void otherMethod(boolean ok, int times) { throw new RuntimeException("Stub!"); }
                     /** property doc */
-                    @androidx.annotation.Nullable
+                    @android.annotation.Nullable
                     public java.lang.String getProperty2() { throw new RuntimeException("Stub!"); }
                     /** property doc */
-                    public void setProperty2(@androidx.annotation.Nullable java.lang.String p) { throw new RuntimeException("Stub!"); }
-                    @androidx.annotation.NonNull
+                    public void setProperty2(@android.annotation.Nullable java.lang.String p) { throw new RuntimeException("Stub!"); }
+                    @android.annotation.NonNull
                     public java.lang.String getProperty1() { throw new RuntimeException("Stub!"); }
                     public int someField2;
                     }
@@ -1428,7 +1441,7 @@ class StubsTest : DriverTest() {
                 package test.pkg {
                   public class Foo {
                     ctor public Foo();
-                    method public void foo(int, java.util.Map<java.lang.String, java.lang.String>!);
+                    method public void foo(int, java.util.Map<java.lang.String, java.lang.String>);
                   }
                 }
                 """
@@ -1437,7 +1450,7 @@ class StubsTest : DriverTest() {
                 package test.pkg {
                   public class Foo {
                     ctor public Foo();
-                    method public void foo(int, java.util.Map<java.lang.String,java.lang.String>!);
+                    method public void foo(int, java.util.Map<java.lang.String,java.lang.String>);
                   }
                 }
                 """
@@ -2229,18 +2242,18 @@ class StubsTest : DriverTest() {
                   }
                   public class Generics.MyClass<X, Y extends java.lang.Number> extends test.pkg.Generics.PublicParent<X,Y> implements test.pkg.Generics.PublicInterface<X,Y> {
                     ctor public Generics.MyClass();
-                    method public java.util.Map<X,java.util.Map<Y,java.lang.String>>! createMap(java.util.List<X>!) throws java.io.IOException;
-                    method public java.util.List<X>! foo();
+                    method public java.util.Map<X,java.util.Map<Y,java.lang.String>> createMap(java.util.List<X>) throws java.io.IOException;
+                    method public java.util.List<X> foo();
                   }
                   public static interface Generics.PublicInterface<A, B> {
-                    method public java.util.Map<A,java.util.Map<B,java.lang.String>>! createMap(java.util.List<A>!) throws java.io.IOException;
+                    method public java.util.Map<A,java.util.Map<B,java.lang.String>> createMap(java.util.List<A>) throws java.io.IOException;
                   }
                   public abstract class Generics.PublicParent<A, B extends java.lang.Number> {
                     ctor public Generics.PublicParent();
-                    method protected abstract java.util.List<A>! foo();
+                    method protected abstract java.util.List<A> foo();
                   }
                 }
-                    """,
+                """,
             source = """
                     package test.pkg;
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
@@ -3233,9 +3246,9 @@ class StubsTest : DriverTest() {
                     ctor public Test();
                   }
                 }
-            """, // WRONG: I should include package annotations!
+            """, // WRONG: I should include package annotations in the signature file!
             source = """
-                @androidx.annotation.Nullable
+                @android.annotation.Nullable
                 package test.pkg;
                 """,
             extraArguments = arrayOf(ARG_HIDE_PACKAGE, "androidx.annotation")
@@ -3594,6 +3607,70 @@ class StubsTest : DriverTest() {
         )
     }
 
+    @Test
+    fun `Annotation nested rewriting`() {
+        checkStubs(
+            sourceFiles = *arrayOf(
+                java(
+                    """
+                    package test.pkg;
+
+                    import android.view.Gravity;
+
+                    public class ActionBar {
+                        @ViewDebug.ExportedProperty(category = "layout", mapping = {
+                                @ViewDebug.IntToString(from =  -1,                       to = "NONE"),
+                                @ViewDebug.IntToString(from = Gravity.NO_GRAVITY,        to = "NONE"),
+                                @ViewDebug.IntToString(from = Gravity.TOP,               to = "TOP"),
+                                @ViewDebug.IntToString(from = Gravity.BOTTOM,            to = "BOTTOM"),
+                        })
+                        public int gravity = Gravity.NO_GRAVITY;
+                    }
+                    """
+                ),
+                java(
+                    """
+                    package test.pkg;
+
+                    import java.lang.annotation.ElementType;
+                    import java.lang.annotation.Retention;
+                    import java.lang.annotation.RetentionPolicy;
+                    import java.lang.annotation.Target;
+
+                    public class ViewDebug {
+                        @Target({ElementType.FIELD, ElementType.METHOD})
+                        @Retention(RetentionPolicy.RUNTIME)
+                        public @interface ExportedProperty {
+                            boolean resolveId() default false;
+                            IntToString[] mapping() default {};
+                            IntToString[] indexMapping() default {};
+                            boolean deepExport() default false;
+                            String prefix() default "";
+                            String category() default "";
+                            boolean formatToHexString() default false;
+                            boolean hasAdjacentMapping() default false;
+                        }
+                        @Target({ElementType.TYPE})
+                        @Retention(RetentionPolicy.RUNTIME)
+                        public @interface IntToString {
+                            int from();
+                            String to();
+                        }
+                    }
+                    """
+                )
+            ),
+            source = """
+                package test.pkg;
+                @SuppressWarnings({"unchecked", "deprecation", "all"})
+                public class ActionBar {
+                public ActionBar() { throw new RuntimeException("Stub!"); }
+                @test.pkg.ViewDebug.ExportedProperty(category="layout", mapping={@test.pkg.ViewDebug.IntToString(from=0xffffffff, to="NONE"), @test.pkg.ViewDebug.IntToString(from=android.view.Gravity.NO_GRAVITY, to="NONE"), @test.pkg.ViewDebug.IntToString(from=android.view.Gravity.TOP, to="TOP"), @test.pkg.ViewDebug.IntToString(from=android.view.Gravity.BOTTOM, to="BOTTOM")}) public int gravity = 0; // 0x0
+                }
+                """
+        )
+    }
+
     @Test(expected = FileNotFoundException::class)
     fun `Test update-api should not generate stubs`() {
         check(
@@ -3622,7 +3699,7 @@ class StubsTest : DriverTest() {
             package test.pkg {
               public class Foo {
                 ctor public Foo();
-                method @Deprecated protected boolean inClass(String!);
+                method @Deprecated protected boolean inClass(String);
               }
             }
             """,
@@ -3634,10 +3711,323 @@ class StubsTest : DriverTest() {
         )
     }
 
-// TODO: Add in some type variables in method signatures and constructors!
-// TODO: Test what happens when a class extends a hidden extends a public in separate packages,
-// and the hidden has a @hide constructor so the stub in the leaf class doesn't compile -- I should
-// check for this and fail build.
+    @Test
+    fun `Include package private classes referenced from public API`() {
+        // Real world example: android.net.http.Connection in apache-http referenced from RequestHandle
+        check(
+            compatibilityMode = false,
+            warnings = """
+                src/test/pkg/PublicApi.java:4: error: Class test.pkg.HiddenType is not public but was referenced (as return type) from public method test.pkg.PublicApi.getHiddenType() [ReferencesHidden]
+                src/test/pkg/PublicApi.java:5: error: Class test.pkg.HiddenType4 is hidden but was referenced (as return type) from public method test.pkg.PublicApi.getHiddenType4() [ReferencesHidden]
+                src/test/pkg/PublicApi.java:5: warning: Method test.pkg.PublicApi.getHiddenType4 returns unavailable type HiddenType4 [UnavailableSymbol]
+                src/test/pkg/PublicApi.java:4: warning: Method test.pkg.PublicApi.getHiddenType() references hidden type test.pkg.HiddenType. [HiddenTypeParameter]
+                src/test/pkg/PublicApi.java:5: warning: Method test.pkg.PublicApi.getHiddenType4() references hidden type test.pkg.HiddenType4. [HiddenTypeParameter]
+                """,
+            sourceFiles = *arrayOf(
+                java(
+                    """
+                    package test.pkg;
 
-// TODO: Test -stubPackages
+                    public class PublicApi {
+                        public HiddenType getHiddenType() { return null; }
+                        public HiddenType4 getHiddenType4() { return null; }
+                    }
+                    """
+                ),
+                java(
+                    """
+                    package test.pkg;
+
+                    public class PublicInterface {
+                    }
+                    """
+                ),
+                java(
+                    """
+                    package test.pkg;
+
+                    // Class exposed via public api above
+                    final class HiddenType extends HiddenType2 implements HiddenType3, PublicInterface {
+                        HiddenType(int i1, int i2) { }
+                        public HiddenType2 getHiddenType2() { return null; }
+                        public int field;
+                        @Override public String toString() { return "hello"; }
+                    }
+                    """
+                ),
+                java(
+                    """
+                    package test.pkg;
+
+                    /** @hide */
+                    public class HiddenType4 {
+                        void foo();
+                    }
+                    """
+                ),
+                java(
+                    """
+                    package test.pkg;
+
+                    // Class not exposed; only referenced from HiddenType
+                    class HiddenType2 {
+                        HiddenType2(float f) { }
+                    }
+                    """
+                ),
+                java(
+                    """
+                    package test.pkg;
+
+                    // Class not exposed; only referenced from HiddenType
+                    interface HiddenType3 {
+                    }
+                    """
+                )
+            ),
+            api = """
+                package test.pkg {
+                  public class PublicApi {
+                    ctor public PublicApi();
+                    method public test.pkg.HiddenType getHiddenType();
+                    method public test.pkg.HiddenType4 getHiddenType4();
+                  }
+                  public class PublicInterface {
+                    ctor public PublicInterface();
+                  }
+                }
+                """,
+            stubs = arrayOf(
+                """
+                package test.pkg;
+                @SuppressWarnings({"unchecked", "deprecation", "all"})
+                public class PublicApi {
+                public PublicApi() { throw new RuntimeException("Stub!"); }
+                public test.pkg.HiddenType getHiddenType() { throw new RuntimeException("Stub!"); }
+                public test.pkg.HiddenType4 getHiddenType4() { throw new RuntimeException("Stub!"); }
+                }
+                """,
+                """
+                package test.pkg;
+                @SuppressWarnings({"unchecked", "deprecation", "all"})
+                public class PublicInterface {
+                public PublicInterface() { throw new RuntimeException("Stub!"); }
+                }
+                """,
+                """
+                package test.pkg;
+                @SuppressWarnings({"unchecked", "deprecation", "all"})
+                final class HiddenType {
+                }
+                """,
+                """
+                package test.pkg;
+                /** @hide */
+                @SuppressWarnings({"unchecked", "deprecation", "all"})
+                public class HiddenType4 {
+                }
+                """
+            )
+        )
+    }
+
+    @Test
+    fun `Include hidden inner classes referenced from public API`() {
+        // Real world example: hidden android.car.vms.VmsOperationRecorder.Writer in android.car-system-stubs
+        // referenced from outer class constructor
+        check(
+            compatibilityMode = false,
+            warnings = """
+                src/test/pkg/PublicApi.java:4: error: Class test.pkg.PublicApi.HiddenInner is hidden but was referenced (as parameter type) from public parameter inner in test.pkg.PublicApi(test.pkg.PublicApi.HiddenInner inner) [ReferencesHidden]
+                src/test/pkg/PublicApi.java:4: warning: Parameter inner references hidden type test.pkg.PublicApi.HiddenInner. [HiddenTypeParameter]
+                """,
+            sourceFiles = *arrayOf(
+                java(
+                    """
+                    package test.pkg;
+
+                    public class PublicApi {
+                        public PublicApi(HiddenInner inner) { }
+                        /** @hide */
+                        public static class HiddenInner {
+                           public void someHiddenMethod(); // should not be in stub
+                        }
+                    }
+                    """
+                )
+            ),
+            api = """
+                package test.pkg {
+                  public class PublicApi {
+                    ctor public PublicApi(test.pkg.PublicApi.HiddenInner);
+                  }
+                }
+                """,
+            stubs = arrayOf(
+                """
+                package test.pkg;
+                @SuppressWarnings({"unchecked", "deprecation", "all"})
+                public class PublicApi {
+                public PublicApi(test.pkg.PublicApi.HiddenInner inner) { throw new RuntimeException("Stub!"); }
+                /** @hide */
+                @SuppressWarnings({"unchecked", "deprecation", "all"})
+                public static class HiddenInner {
+                }
+                }
+                """
+            )
+        )
+    }
+
+    @Test
+    fun `Use type argument in constructor cast`() {
+        check(
+            compatibilityMode = false,
+            sourceFiles = *arrayOf(
+                java(
+                    """
+                    package test.pkg;
+                    /** @deprecated */
+                    @Deprecated
+                    public class BasicPoolEntryRef extends WeakRef<BasicPoolEntry> {
+                        public BasicPoolEntryRef(BasicPoolEntry entry) {
+                            super(entry);
+                        }
+                    }
+                    """
+                ),
+                java(
+                    """
+                    package test.pkg;
+
+                    public class WeakRef<T> {
+                        public WeakRef(T foo) {
+                        }
+                        // need to have more than one constructor to trigger casts in stubs
+                        public WeakRef(T foo, int size) {
+                        }
+                    }
+                    """
+                ),
+                java(
+                    """
+                    package test.pkg;
+
+                    public class BasicPoolEntry {
+                    }
+                    """
+                )
+            ),
+            api = """
+                package test.pkg {
+                  public class BasicPoolEntry {
+                    ctor public BasicPoolEntry();
+                  }
+                  @Deprecated public class BasicPoolEntryRef extends test.pkg.WeakRef<test.pkg.BasicPoolEntry> {
+                    ctor @Deprecated public BasicPoolEntryRef(test.pkg.BasicPoolEntry);
+                  }
+                  public class WeakRef<T> {
+                    ctor public WeakRef(T);
+                    ctor public WeakRef(T, int);
+                  }
+                }
+                """,
+            stubs = arrayOf(
+                """
+                package test.pkg;
+                /** @deprecated */
+                @SuppressWarnings({"unchecked", "deprecation", "all"})
+                @Deprecated
+                public class BasicPoolEntryRef extends test.pkg.WeakRef<test.pkg.BasicPoolEntry> {
+                @Deprecated
+                public BasicPoolEntryRef(test.pkg.BasicPoolEntry entry) { super((test.pkg.BasicPoolEntry)null); throw new RuntimeException("Stub!"); }
+                }
+                """
+            )
+        )
+    }
+
+    @Test
+    fun `Regression test for 116777737`() {
+        // Regression test for 116777737: Stub generation broken for Bouncycastle
+        // """
+        //    It appears as though metalava does not handle the case where:
+        //    1) class Alpha extends Beta<Orange>.
+        //    2) class Beta<T> extends Charlie<T>.
+        //    3) class Beta is hidden.
+        //
+        //    It should result in a stub where Alpha extends Charlie<Orange> but
+        //    instead results in a stub where Alpha extends Charlie<T>, so the
+        //    type substitution of Orange for T is lost.
+        // """
+        check(
+            compatibilityMode = false,
+            warnings = "src/test/pkg/Alpha.java:2: warning: Public class test.pkg.Alpha stripped of unavailable superclass test.pkg.Beta [HiddenSuperclass]",
+            sourceFiles = *arrayOf(
+                java(
+                    """
+                    package test.pkg;
+                    public class Orange {
+                        private Orange() { }
+                    }
+                    """
+                ),
+                java(
+                    """
+                    package test.pkg;
+                    public class Alpha extends Beta<Orange> {
+                        private Alpha() { }
+                    }
+                    """
+                ),
+                java(
+                    """
+                    package test.pkg;
+                    /** @hide */
+                    public class Beta<T> extends Charlie<T> {
+                        private Beta() { }
+                    }
+                    """
+                ),
+                java(
+                    """
+                    package test.pkg;
+                    public class Charlie<T> {
+                        private Charlie() { }
+                    }
+                    """
+                )
+            ),
+            api = """
+                package test.pkg {
+                  public class Alpha extends test.pkg.Charlie<test.pkg.Orange> {
+                  }
+                  public class Charlie<T> {
+                  }
+                  public class Orange {
+                  }
+                }
+                """,
+            stubs = arrayOf(
+                """
+                package test.pkg;
+                @SuppressWarnings({"unchecked", "deprecation", "all"})
+                public class Orange {
+                Orange() { throw new RuntimeException("Stub!"); }
+                }
+                """,
+                """
+                package test.pkg;
+                @SuppressWarnings({"unchecked", "deprecation", "all"})
+                public class Alpha extends test.pkg.Charlie<test.pkg.Orange> {
+                Alpha() { throw new RuntimeException("Stub!"); }
+                }
+                """
+            )
+        )
+    }
+
+    // TODO: Test what happens when a class extends a hidden extends a public in separate packages,
+    // and the hidden has a @hide constructor so the stub in the leaf class doesn't compile -- I should
+    // check for this and fail build.
 }

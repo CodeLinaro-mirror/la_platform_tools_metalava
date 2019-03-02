@@ -51,17 +51,22 @@ import com.android.tools.metalava.doclava1.ApiPredicate
 import com.android.tools.metalava.model.AnnotationAttribute
 import com.android.tools.metalava.model.AnnotationAttributeValue
 import com.android.tools.metalava.model.AnnotationItem
+import com.android.tools.metalava.model.AnnotationTarget
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.DefaultAnnotationItem
 import com.android.tools.metalava.model.DefaultAnnotationValue
+import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MethodItem
+import com.android.tools.metalava.model.ModifierList
+import com.android.tools.metalava.model.ParameterItem
+import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.parseDocument
 import com.android.tools.metalava.model.psi.PsiAnnotationItem
 import com.android.tools.metalava.model.psi.PsiBasedCodebase
+import com.android.tools.metalava.model.psi.PsiTypeItem
 import com.android.tools.metalava.model.visitors.ApiVisitor
-import com.google.common.base.Charsets
 import com.google.common.io.ByteStreams
 import com.google.common.io.Closeables
 import com.google.common.io.Files
@@ -75,6 +80,7 @@ import java.lang.reflect.Field
 import java.util.jar.JarInputStream
 import java.util.regex.Pattern
 import java.util.zip.ZipEntry
+import kotlin.text.Charsets.UTF_8
 
 /** Merges annotations into classes already registered in the given [Codebase] */
 class AnnotationsMerger(
@@ -84,20 +90,23 @@ class AnnotationsMerger(
     /** Merge annotations which will appear in the output API. */
     fun mergeQualifierAnnotations(files: List<File>) {
         mergeAll(
-                files,
-                ::mergeQualifierAnnotationsFromFile,
-                ::mergeAndValidateQualifierAnnotationsFromJavaStubsCodebase)
+            files,
+            ::mergeQualifierAnnotationsFromFile,
+            ::mergeAndValidateQualifierAnnotationsFromJavaStubsCodebase
+        )
     }
 
     /** Merge annotations which control what is included in the output API. */
     fun mergeInclusionAnnotations(files: List<File>) {
         mergeAll(
-                files,
-                {
-                    throw DriverException(
-                            "External inclusion annotations files must be .java, found ${it.path}")
-                },
-                ::mergeInclusionAnnotationsFromCodebase)
+            files,
+            {
+                throw DriverException(
+                    "External inclusion annotations files must be .java, found ${it.path}"
+                )
+            },
+            ::mergeInclusionAnnotationsFromCodebase
+        )
     }
 
     private fun mergeAll(
@@ -148,7 +157,7 @@ class AnnotationsMerger(
             mergeFromJar(file)
         } else if (file.path.endsWith(DOT_XML)) {
             try {
-                val xml = Files.asCharSource(file, Charsets.UTF_8).read()
+                val xml = Files.asCharSource(file, UTF_8).read()
                 mergeAnnotationsXml(file.path, xml)
             } catch (e: IOException) {
                 error("Aborting: I/O problem during transform: " + e.toString())
@@ -178,7 +187,7 @@ class AnnotationsMerger(
             while (entry != null) {
                 if (entry.name.endsWith(".xml")) {
                     val bytes = ByteStreams.toByteArray(zis)
-                    val xml = String(bytes, Charsets.UTF_8)
+                    val xml = String(bytes, UTF_8)
                     mergeAnnotationsXml(jar.path + ": " + entry, xml)
                 }
                 entry = zis.nextEntry
@@ -212,11 +221,7 @@ class AnnotationsMerger(
 
     private fun mergeAnnotationsSignatureFile(path: String) {
         try {
-            // Old style signature files don't support annotations anyway, so we might as well
-            // accept
-            val kotlinStyleNulls = true
-            val supportsStagedNullability = true
-            val signatureCodebase = ApiFile.parseApi(File(path), kotlinStyleNulls, supportsStagedNullability)
+            val signatureCodebase = ApiFile.parseApi(File(path), options.inputKotlinStyleNulls)
             signatureCodebase.description = "Signature files for annotation merger: loaded from $path"
             mergeQualifierAnnotationsFromCodebase(signatureCodebase)
         } catch (ex: ApiParseException) {
@@ -230,7 +235,8 @@ class AnnotationsMerger(
         if (options.validateNullabilityFromMergedStubs) {
             options.nullabilityAnnotationsValidator?.validateAll(
                 codebase,
-                javaStubsCodebase.getTopLevelClassesFromSource().map(ClassItem::qualifiedName))
+                javaStubsCodebase.getTopLevelClassesFromSource().map(ClassItem::qualifiedName)
+            )
         }
     }
 
@@ -239,32 +245,70 @@ class AnnotationsMerger(
             override fun compare(old: Item, new: Item) {
                 val newModifiers = new.modifiers
                 for (annotation in old.modifiers.annotations()) {
-                    var addAnnotation = false
-                    if (annotation.isNullnessAnnotation()) {
-                        if (!newModifiers.hasNullnessInfo()) {
-                            addAnnotation = true
-                        }
-                    } else {
-                        // TODO: Check for other incompatibilities than nullness?
-                        val qualifiedName = annotation.qualifiedName() ?: continue
-                        if (newModifiers.findAnnotation(qualifiedName) == null) {
-                            addAnnotation = true
-                        }
-                    }
+                    mergeAnnotation(annotation, newModifiers, new)
+                }
+            }
 
-                    if (addAnnotation) {
-                        // Don't map annotation names - this would turn newly non null back into non null
-                        new.mutableModifiers().addAnnotation(
-                            new.codebase.createAnnotation(
-                                annotation.toSource(),
-                                new,
-                                mapName = false
-                            )
+            private fun mergeAnnotation(
+                annotation: AnnotationItem,
+                newModifiers: ModifierList,
+                new: Item
+            ) {
+                var addAnnotation = false
+                if (annotation.isNullnessAnnotation()) {
+                    if (!newModifiers.hasNullnessInfo()) {
+                        addAnnotation = true
+                    }
+                } else {
+                    // TODO: Check for other incompatibilities than nullness?
+                    val qualifiedName = annotation.qualifiedName() ?: return
+                    if (newModifiers.findAnnotation(qualifiedName) == null) {
+                        addAnnotation = true
+                    }
+                }
+
+                if (addAnnotation) {
+                    // Don't map annotation names - this would turn newly non null back into non null
+                    new.mutableModifiers().addAnnotation(
+                        new.codebase.createAnnotation(
+                            annotation.toSource(),
+                            new,
+                            mapName = false
                         )
+                    )
+                }
+            }
+
+            override fun compare(old: ParameterItem, new: ParameterItem) {
+                mergeTypeAnnotations(old.type(), new)
+            }
+
+            override fun compare(old: FieldItem, new: FieldItem) {
+                mergeTypeAnnotations(old.type(), new)
+            }
+
+            override fun compare(old: MethodItem, new: MethodItem) {
+                mergeTypeAnnotations(old.returnType(), new)
+            }
+
+            // Merge in type annotations
+            private fun mergeTypeAnnotations(
+                typeItem: TypeItem?,
+                new: Item
+            ) {
+                typeItem ?: return
+                val type = (typeItem as? PsiTypeItem)?.psiType ?: return
+                val typeAnnotations = type.annotations
+                if (typeAnnotations.isNotEmpty()) {
+                    for (annotation in typeAnnotations) {
+                        val codebase = new.codebase as PsiBasedCodebase
+                        val annotationItem = PsiAnnotationItem.create(codebase, annotation)
+                        mergeAnnotation(annotationItem, new.modifiers, new)
                     }
                 }
             }
         }
+
         CodebaseComparator().compare(
             visitor, externalCodebase, codebase, ApiPredicate()
         )
@@ -749,12 +793,14 @@ class XmlBackedAnnotationItem(
     private val qualifiedName: String,
     private val attributes: List<XmlBackedAnnotationAttribute> = emptyList()
 ) : DefaultAnnotationItem(codebase) {
+
+    override fun originalName(): String? = qualifiedName
     override fun qualifiedName(): String? = AnnotationItem.mapName(codebase, qualifiedName)
 
     override fun attributes() = attributes
 
-    override fun toSource(): String {
-        val qualifiedName = qualifiedName() ?: return ""
+    override fun toSource(target: AnnotationTarget): String {
+        val qualifiedName = AnnotationItem.mapName(codebase, qualifiedName, null, target) ?: return ""
 
         if (attributes.isEmpty()) {
             return "@$qualifiedName"

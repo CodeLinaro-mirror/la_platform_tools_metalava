@@ -30,8 +30,10 @@ import java.io.IOException
 import java.io.OutputStreamWriter
 import java.io.PrintWriter
 import java.io.StringWriter
+import java.util.Locale
 import kotlin.reflect.KMutableProperty1
 import kotlin.reflect.full.memberProperties
+import kotlin.text.Charsets.UTF_8
 
 /** Global options for the metadata extraction tool */
 var options = Options(emptyArray())
@@ -50,6 +52,11 @@ const val ARG_SOURCE_FILES = "--source-files"
 const val ARG_API = "--api"
 const val ARG_XML_API = "--api-xml"
 const val ARG_CONVERT_TO_JDIFF = "--convert-to-jdiff"
+const val ARG_CONVERT_NEW_TO_JDIFF = "--convert-new-to-jdiff"
+const val ARG_CONVERT_TO_V1 = "--convert-to-v1"
+const val ARG_CONVERT_TO_V2 = "--convert-to-v2"
+const val ARG_CONVERT_NEW_TO_V1 = "--convert-new-to-v1"
+const val ARG_CONVERT_NEW_TO_V2 = "--convert-new-to-v2"
 const val ARG_PRIVATE_API = "--private-api"
 const val ARG_DEX_API = "--dex-api"
 const val ARG_PRIVATE_DEX_API = "--private-dex-api"
@@ -59,6 +66,7 @@ const val ARG_REMOVED_DEX_API = "--removed-dex-api"
 const val ARG_MERGE_QUALIFIER_ANNOTATIONS = "--merge-qualifier-annotations"
 const val ARG_MERGE_INCLUSION_ANNOTATIONS = "--merge-inclusion-annotations"
 const val ARG_VALIDATE_NULLABILITY_FROM_MERGED_STUBS = "--validate-nullability-from-merged-stubs"
+const val ARG_VALIDATE_NULLABILITY_FROM_LIST = "--validate-nullability-from-list"
 const val ARG_NULLABILITY_WARNINGS_TXT = "--nullability-warnings-txt"
 const val ARG_NULLABILITY_ERRORS_NON_FATAL = "--nullability-errors-non-fatal"
 const val ARG_INPUT_API_JAR = "--input-api-jar"
@@ -79,6 +87,8 @@ const val ARG_CHECK_COMPATIBILITY_API_CURRENT = "--check-compatibility:api:curre
 const val ARG_CHECK_COMPATIBILITY_API_RELEASED = "--check-compatibility:api:released"
 const val ARG_CHECK_COMPATIBILITY_REMOVED_CURRENT = "--check-compatibility:removed:current"
 const val ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED = "--check-compatibility:removed:released"
+const val ARG_ALLOW_COMPATIBLE_DIFFERENCES = "--allow-compatible-differences"
+const val ARG_NO_NATIVE_DIFF = "--no-native-diff"
 const val ARG_INPUT_KOTLIN_NULLS = "--input-kotlin-nulls"
 const val ARG_OUTPUT_KOTLIN_NULLS = "--output-kotlin-nulls"
 const val ARG_OUTPUT_DEFAULT_VALUES = "--output-default-values"
@@ -111,6 +121,7 @@ const val ARG_CURRENT_VERSION = "--current-version"
 const val ARG_CURRENT_CODENAME = "--current-codename"
 const val ARG_CURRENT_JAR = "--current-jar"
 const val ARG_CHECK_KOTLIN_INTEROP = "--check-kotlin-interop"
+const val ARG_API_LINT = "--api-lint"
 const val ARG_PUBLIC = "--public"
 const val ARG_PROTECTED = "--protected"
 const val ARG_PACKAGE = "--package"
@@ -126,11 +137,18 @@ const val ARG_REWRITE_ANNOTATIONS = "--rewrite-annotations"
 const val ARG_INCLUDE_SOURCE_RETENTION = "--include-source-retention"
 const val ARG_INCLUDE_SIG_VERSION = "--include-signature-version"
 const val ARG_UPDATE_API = "--update-api"
+const val ARG_PASS_BASELINE_UPDATES = "--pass-baseline-updates"
 const val ARG_DEX_API_MAPPING = "--dex-api-mapping"
 const val ARG_GENERATE_DOCUMENTATION = "--generate-documentation"
+const val ARG_BASELINE = "--baseline"
+const val ARG_UPDATE_BASELINE = "--update-baseline"
+const val ARG_MERGE_BASELINE = "--merge-baseline"
+const val ARG_STUB_PACKAGES = "--stub-packages"
+const val ARG_STUB_IMPORT_PACKAGES = "--stub-import-packages"
+const val ARG_DELETE_EMPTY_BASELINES = "--delete-empty-baselines"
 
 class Options(
-    args: Array<String>,
+    private val args: Array<String>,
     /** Writer to direct output to */
     var stdout: PrintWriter = PrintWriter(OutputStreamWriter(System.out)),
     /** Writer to direct error messages to */
@@ -162,7 +180,7 @@ class Options(
     /** Internal list backing [skipEmitPackages] */
     private val mutableSkipEmitPackages: MutableList<String> = mutableListOf()
     /** Internal list backing [convertToXmlFiles] */
-    private val mutableConvertToXmlFiles: MutableList<Pair<File, File>> = mutableListOf()
+    private val mutableConvertToXmlFiles: MutableList<ConvertFile> = mutableListOf()
 
     /** Ignored flags we've already warned about - store here such that we don't keep reporting them */
     private val alreadyWarned: MutableSet<String> = mutableSetOf()
@@ -202,6 +220,12 @@ class Options(
     var validateNullabilityFromMergedStubs = false
 
     /**
+     * A file containing a list of classes whose nullability annotations should be validated. If
+     * set, [nullabilityAnnotationsValidator] must also be set.
+     */
+    var validateNullabilityFromList: File? = null
+
+    /**
      * Whether to include element documentation (javadoc and KDoc) is in the generated stubs.
      * (Copyright notices are not affected by this, they are always included. Documentation stubs
      * (--doc-stubs) are not affected.)
@@ -229,19 +253,22 @@ class Options(
     var compatOutput = useCompatMode(args)
 
     /** Whether nullness annotations should be displayed as ?/!/empty instead of with @NonNull/@Nullable. */
-    var outputKotlinStyleNulls = !compatOutput
+    var outputKotlinStyleNulls = false // requires v3
 
     /** Whether default values should be included in signature files */
     var outputDefaultValues = !compatOutput
 
-    /** Whether we should omit common packages such as java.lang.* and kotlin.* from signature output */
-    var omitCommonPackages = !compatOutput
+    /** The output format version being used */
+    var outputFormat: FileFormat = if (compatOutput) FileFormat.V1 else FileFormat.V2
 
     /**
      * Whether reading signature files should assume the input is formatted as Kotlin-style nulls
-     * (e.g. ? means nullable, ! means unknown, empty means not null)
+     * (e.g. ? means nullable, ! means unknown, empty means not null).
+     *
+     * If not specified, it depends on the format of the signature file (v1 and v2 does not use
+     * Kotlin style nulls; v3 does.)
      */
-    var inputKotlinStyleNulls = false
+    var inputKotlinStyleNulls: Boolean? = null
 
     /** If true, treat all warnings as errors */
     var warningsAreErrors: Boolean = false
@@ -273,6 +300,12 @@ class Options(
      * Note: This only applies to signature files, not stub files.
      */
     var showUnannotated = false
+
+    /** Whether to validate the API for best practices */
+    var checkApi = false
+
+    /** If non null, an API file to use to hide for controlling what parts of the API are new */
+    var checkApiBaselineApiFile: File? = null
 
     /** Whether to validate the API for Kotlin interop */
     var checkKotlinInterop = false
@@ -392,6 +425,19 @@ class Options(
     /** The list of compatibility checks to run */
     val compatibilityChecks: List<CheckRequest> = mutableCompatibilityChecks
 
+    /**
+     * When checking signature files, whether compatible differences in signature
+     * files are allowed. This is normally not allowed (since it means the next
+     * engineer adding an incompatible change will suddenly see the cumulative
+     * differences show up in their diffs when checking in signature files),
+     * but is useful from the test suite etc. Controlled by
+     * [ARG_ALLOW_COMPATIBLE_DIFFERENCES].
+     */
+    var allowCompatibleDifferences = false
+
+    /** If false, attempt to use the native diff utility on the system */
+    var noNativeDiff = false
+
     /** Existing external annotation files to merge in */
     var mergeQualifierAnnotations: List<File> = mutableMergeQualifierAnnotations
     var mergeInclusionAnnotations: List<File> = mutableMergeInclusionAnnotations
@@ -450,8 +496,23 @@ class Options(
     /** Level to include for javadoc */
     var docLevel = DocLevel.PROTECTED
 
-    /** Whether to include the signature file format version number ([SIGNATURE_FORMAT]) in signature files */
+    /** Whether to include the signature file format version header in signature files */
     var includeSignatureFormatVersion: Boolean = !compatOutput
+
+    /** A baseline to check against */
+    var baseline: Baseline? = null
+
+    /** Whether all baseline files need to be updated */
+    var updateBaseline = false
+
+    /** If updating baselines, don't fail the build */
+    var passBaselineUpdates = false
+
+    /** If updating baselines and the baseline is empty, delete the file */
+    var deleteEmptyBaselines = false
+
+    /** Whether the baseline should only contain errors */
+    var baselineErrorsOnly = false
 
     /**
      * Whether to omit locations for warnings and errors. This is not a flag exposed to users
@@ -472,7 +533,16 @@ class Options(
     val artifactRegistrations = ArtifactTagger()
 
     /** List of signature files to export as JDiff files */
-    val convertToXmlFiles: List<Pair<File, File>> = mutableConvertToXmlFiles
+    val convertToXmlFiles: List<ConvertFile> = mutableConvertToXmlFiles
+
+    /** File conversion tasks */
+    data class ConvertFile(
+        val fromApiFile: File,
+        val outputFile: File,
+        val baseApiFile: File? = null,
+        val strip: Boolean = false,
+        val outputFormat: FileFormat = FileFormat.JDIFF
+    )
 
     /** Temporary folder to use instead of the JDK default, if any */
     var tempFolder: File? = null
@@ -503,6 +573,11 @@ class Options(
         var androidJarPatterns: MutableList<String>? = null
         var currentCodeName: String? = null
         var currentJar: File? = null
+        var updateBaselineFile: File? = null
+        var baselineFile: File? = null
+        var mergeBaseline = false
+        var delayedCheckApiFiles = false
+        var skipGenerateAnnotations = false
 
         var index = 0
         while (index < args.size) {
@@ -528,17 +603,25 @@ class Options(
                 ARG_COMPAT_OUTPUT -> compatOutput = true
 
                 // For now we don't distinguish between bootclasspath and classpath
-                ARG_CLASS_PATH, "-classpath", "-bootclasspath" ->
-                    mutableClassPath.addAll(stringToExistingDirsOrJars(getValue(args, ++index)))
+                ARG_CLASS_PATH, "-classpath", "-bootclasspath" -> {
+                    val path = getValue(args, ++index)
+                    mutableClassPath.addAll(stringToExistingDirsOrJars(path))
+                }
 
                 ARG_SOURCE_PATH, "--sources", "--sourcepath", "-sourcepath" -> {
                     val path = getValue(args, ++index)
-                    if (path.endsWith(SdkConstants.DOT_JAVA)) {
-                        throw DriverException(
-                            "$arg should point to a source root directory, not a source file ($path)"
-                        )
+                    if (path.isBlank()) {
+                        // Don't compute absolute path; we want to skip this file later on.
+                        // For current directory one should use ".", not "".
+                        mutableSourcePath.add(File(""))
+                    } else {
+                        if (path.endsWith(SdkConstants.DOT_JAVA)) {
+                            throw DriverException(
+                                "$arg should point to a source root directory, not a source file ($path)"
+                            )
+                        }
+                        mutableSourcePath.addAll(stringToExistingDirsOrJars(path))
                     }
-                    mutableSourcePath.addAll(stringToExistingDirsOrJars(path))
                 }
 
                 ARG_SOURCE_FILES -> {
@@ -563,6 +646,11 @@ class Options(
 
                 ARG_VALIDATE_NULLABILITY_FROM_MERGED_STUBS -> {
                     validateNullabilityFromMergedStubs = true
+                    nullabilityAnnotationsValidator =
+                        nullabilityAnnotationsValidator ?: NullabilityAnnotationsValidator()
+                }
+                ARG_VALIDATE_NULLABILITY_FROM_LIST -> {
+                    validateNullabilityFromList = stringToExistingFile(getValue(args, ++index))
                     nullabilityAnnotationsValidator =
                         nullabilityAnnotationsValidator ?: NullabilityAnnotationsValidator()
                 }
@@ -631,17 +719,17 @@ class Options(
 
                 ARG_HIDE_PACKAGE, "-hidePackage" -> mutableHidePackages.add(getValue(args, ++index))
 
-                "--stub-packages", "-stubpackages" -> {
+                ARG_STUB_PACKAGES, "-stubpackages" -> {
                     val packages = getValue(args, ++index)
                     val filter = stubPackages ?: run {
                         val newFilter = PackageFilter()
                         stubPackages = newFilter
                         newFilter
                     }
-                    filter.packagePrefixes += packages.split(File.pathSeparatorChar)
+                    filter.addPackages(packages)
                 }
 
-                "--stub-import-packages", "-stubimportpackages" -> {
+                ARG_STUB_IMPORT_PACKAGES, "-stubimportpackages" -> {
                     val packages = getValue(args, ++index)
                     for (pkg in packages.split(File.pathSeparatorChar)) {
                         mutableStubImportPackages.add(pkg)
@@ -653,6 +741,27 @@ class Options(
                     val packages = getValue(args, ++index)
                     mutableSkipEmitPackages += packages.split(File.pathSeparatorChar)
                 }
+
+                ARG_BASELINE -> {
+                    val relative = getValue(args, ++index)
+                    assert(baselineFile == null) { "Only one baseline is allowed; found both $baselineFile and $relative" }
+                    baselineFile = stringToExistingFile(relative)
+                }
+
+                ARG_UPDATE_BASELINE, ARG_MERGE_BASELINE -> {
+                    updateBaseline = true
+                    mergeBaseline = arg == ARG_MERGE_BASELINE
+                    if (index < args.size - 1) {
+                        val nextArg = args[index + 1]
+                        if (!nextArg.startsWith("-")) {
+                            val file = stringToNewOrExistingFile(nextArg)
+                            index++
+                            updateBaselineFile = file
+                        }
+                    }
+                }
+                ARG_PASS_BASELINE_UPDATES -> passBaselineUpdates = true
+                ARG_DELETE_EMPTY_BASELINES -> deleteEmptyBaselines = true
 
                 ARG_PUBLIC, "-public" -> docLevel = DocLevel.PUBLIC
                 ARG_PROTECTED, "-protected" -> docLevel = DocLevel.PROTECTED
@@ -745,6 +854,40 @@ class Options(
                     mutableCompatibilityChecks.add(CheckRequest(file, ApiType.REMOVED, ReleaseType.RELEASED))
                 }
 
+                ARG_ALLOW_COMPATIBLE_DIFFERENCES -> allowCompatibleDifferences = true
+                ARG_NO_NATIVE_DIFF -> noNativeDiff = true
+
+                // Compat flag for the old API check command, invoked from build/make/core/definitions.mk:
+                "--check-api-files" -> {
+                    if (index < args.size - 1 && args[index + 1].startsWith("-")) {
+                        // Work around bug where --check-api-files is invoked with all
+                        // the other metalava args before the 4 files; this will be
+                        // fixed by https://android-review.googlesource.com/c/platform/build/+/874473
+                        delayedCheckApiFiles = true
+                    } else {
+                        val stableApiFile = stringToExistingFile(getValue(args, ++index))
+                        val apiFileToBeTested = stringToExistingFile(getValue(args, ++index))
+                        val stableRemovedApiFile = stringToExistingFile(getValue(args, ++index))
+                        val removedApiFileToBeTested = stringToExistingFile(getValue(args, ++index))
+                        mutableCompatibilityChecks.add(
+                            CheckRequest(
+                                stableApiFile,
+                                ApiType.PUBLIC_API,
+                                ReleaseType.RELEASED,
+                                apiFileToBeTested
+                            )
+                        )
+                        mutableCompatibilityChecks.add(
+                            CheckRequest(
+                                stableRemovedApiFile,
+                                ApiType.REMOVED,
+                                ReleaseType.RELEASED,
+                                removedApiFileToBeTested
+                            )
+                        )
+                    }
+                }
+
                 ARG_ANNOTATION_COVERAGE_STATS -> dumpAnnotationStatistics = true
                 ARG_ANNOTATION_COVERAGE_OF -> mutableAnnotationCoverageOf.addAll(
                     stringToExistingDirsOrJars(
@@ -776,6 +919,20 @@ class Options(
                     // lintsAreErrors = true
                 }
 
+                ARG_API_LINT -> {
+                    checkApi = true
+                    if (index < args.size - 1) {
+                        val nextArg = args[index + 1]
+                        if (!nextArg.startsWith("-")) {
+                            val file = stringToExistingFile(nextArg)
+                            if (file.isFile) {
+                                index++
+                                checkApiBaselineApiFile = file
+                            }
+                        }
+                    }
+                }
+
                 ARG_CHECK_KOTLIN_INTEROP -> checkKotlinInterop = true
 
                 ARG_COLOR -> color = true
@@ -784,8 +941,8 @@ class Options(
                     // Already processed above but don't flag it here as invalid
                 }
 
-                ARG_OMIT_COMMON_PACKAGES, "$ARG_OMIT_COMMON_PACKAGES=yes" -> omitCommonPackages = true
-                "$ARG_OMIT_COMMON_PACKAGES=no" -> omitCommonPackages = false
+                ARG_OMIT_COMMON_PACKAGES, "$ARG_OMIT_COMMON_PACKAGES=yes" -> compatibility.omitCommonPackages = true
+                "$ARG_OMIT_COMMON_PACKAGES=no" -> compatibility.omitCommonPackages = false
 
                 ARG_SKIP_JAVA_IN_COVERAGE_REPORT -> omitRuntimePackageStats = true
 
@@ -874,10 +1031,45 @@ class Options(
                     artifactRegistrations.register(artifactId, descriptor)
                 }
 
-                ARG_CONVERT_TO_JDIFF -> {
+                ARG_CONVERT_TO_JDIFF,
+                ARG_CONVERT_TO_V1,
+                ARG_CONVERT_TO_V2,
+                // doclava compatibility:
+                "-convert2xml",
+                "-convert2xmlnostrip" -> {
+                    val strip = arg == "-convert2xml"
+                    val format = when (arg) {
+                        ARG_CONVERT_TO_V1 -> FileFormat.V1
+                        ARG_CONVERT_TO_V2 -> FileFormat.V2
+                        else -> FileFormat.JDIFF
+                    }
+
+                    val signatureFile = stringToExistingFile(getValue(args, ++index))
+                    val outputFile = stringToNewFile(getValue(args, ++index))
+                    mutableConvertToXmlFiles.add(ConvertFile(signatureFile, outputFile, null, strip, format))
+                }
+
+                ARG_CONVERT_NEW_TO_JDIFF,
+                ARG_CONVERT_NEW_TO_V1,
+                ARG_CONVERT_NEW_TO_V2,
+                // doclava compatibility:
+                "-new_api",
+                "-new_api_no_strip" -> {
+                    val format = when (arg) {
+                        ARG_CONVERT_NEW_TO_V1 -> FileFormat.V1
+                        ARG_CONVERT_NEW_TO_V2 -> FileFormat.V2
+                        else -> FileFormat.JDIFF
+                    }
+                    val strip = arg == "-new_api"
+                    if (arg != ARG_CONVERT_NEW_TO_JDIFF) {
+                        // Using old doclava flags: Compatibility behavior: don't include fields in the output
+                        compatibility.includeFieldsInApiDiff = false
+                    }
+
+                    val baseFile = stringToExistingFile(getValue(args, ++index))
                     val signatureFile = stringToExistingFile(getValue(args, ++index))
                     val jDiffFile = stringToNewFile(getValue(args, ++index))
-                    mutableConvertToXmlFiles.add(Pair(signatureFile, jDiffFile))
+                    mutableConvertToXmlFiles.add(ConvertFile(signatureFile, jDiffFile, baseFile, strip, format))
                 }
 
                 "--write-android-jar-signatures" -> {
@@ -1043,7 +1235,7 @@ class Options(
                             yesNo(arg.substring(ARG_OUTPUT_DEFAULT_VALUES.length + 1))
                         }
                     } else if (arg.startsWith(ARG_OMIT_COMMON_PACKAGES)) {
-                        omitCommonPackages = if (arg == ARG_OMIT_COMMON_PACKAGES) {
+                        compatibility.omitCommonPackages = if (arg == ARG_OMIT_COMMON_PACKAGES) {
                             true
                         } else {
                             yesNo(arg.substring(ARG_OMIT_COMMON_PACKAGES.length + 1))
@@ -1057,12 +1249,19 @@ class Options(
                             true
                         else yesNo(arg.substring(ARG_INCLUDE_SIG_VERSION.length + 1))
                     } else if (arg.startsWith(ARG_FORMAT)) {
-                        when (arg) {
-                            "$ARG_FORMAT=v1" -> setFormat(1)
-                            "$ARG_FORMAT=v2" -> setFormat(2)
-                            "$ARG_FORMAT=v3" -> setFormat(3)
+                        outputFormat = when (arg) {
+                            "$ARG_FORMAT=v1" -> {
+                                FileFormat.V1
+                            }
+                            "$ARG_FORMAT=v2" -> {
+                                FileFormat.V2
+                            }
+                            "$ARG_FORMAT=v3" -> {
+                                FileFormat.V3
+                            }
                             else -> throw DriverException(stderr = "Unexpected signature format; expected v1, v2 or v3")
                         }
+                        outputFormat.configureOptions(this, compatibility)
                     } else if (arg.startsWith("-")) {
                         // Compatibility flag; map to mutable properties in the Compatibility
                         // class and assign it
@@ -1082,8 +1281,38 @@ class Options(
                             throw DriverException(stderr = "Invalid argument $arg\n\n$usage")
                         }
                     } else {
-                        // All args that don't start with "-" are taken to be filenames
-                        mutableSources.addAll(stringToExistingFiles(arg))
+                        if (delayedCheckApiFiles) {
+                            delayedCheckApiFiles = false
+                            val stableApiFile = stringToExistingFile(arg)
+                            val apiFileToBeTested = stringToExistingFile(getValue(args, ++index))
+                            val stableRemovedApiFile = stringToExistingFile(getValue(args, ++index))
+                            val removedApiFileToBeTested = stringToExistingFile(getValue(args, ++index))
+                            mutableCompatibilityChecks.add(
+                                CheckRequest(
+                                    stableApiFile,
+                                    ApiType.PUBLIC_API,
+                                    ReleaseType.RELEASED,
+                                    apiFileToBeTested
+                                )
+                            )
+                            mutableCompatibilityChecks.add(
+                                CheckRequest(
+                                    stableRemovedApiFile,
+                                    ApiType.REMOVED,
+                                    ReleaseType.RELEASED,
+                                    removedApiFileToBeTested
+                                )
+                            )
+                        } else {
+                            // All args that don't start with "-" are taken to be filenames
+                            mutableSources.addAll(stringToExistingFiles(arg))
+
+                            // Temporary workaround for
+                            // aosp/I73ff403bfc3d9dfec71789a3e90f9f4ea95eabe3
+                            if (arg.endsWith("hwbinder-stubs-docs-stubs.srcjar.rsp")) {
+                                skipGenerateAnnotations = true
+                            }
+                        }
                     }
                 }
             }
@@ -1092,13 +1321,19 @@ class Options(
         }
 
         if (generateApiLevelXml != null) {
-            if (androidJarPatterns == null) {
-                androidJarPatterns = mutableListOf(
-                    "prebuilts/tools/common/api-versions/android-%/android.jar",
-                    "prebuilts/sdk/%/public/android.jar"
-                )
+            val patterns = androidJarPatterns ?: run {
+                mutableListOf<String>()
             }
-            apiLevelJars = findAndroidJars(androidJarPatterns!!, currentApiLevel, currentCodeName, currentJar)
+            // Fallbacks
+            patterns.add("prebuilts/tools/common/api-versions/android-%/android.jar")
+            patterns.add("prebuilts/sdk/%/public/android.jar")
+            apiLevelJars = findAndroidJars(patterns, currentApiLevel, currentCodeName, currentJar)
+        }
+
+        // outputKotlinStyleNulls implies format=v3
+        if (outputKotlinStyleNulls) {
+            outputFormat = FileFormat.V3
+            outputFormat.configureOptions(this, compatibility)
         }
 
         // If the caller has not explicitly requested that unannotated classes and
@@ -1109,6 +1344,10 @@ class Options(
 
         if (noUnknownClasses) {
             allowReferencingUnknownClasses = false
+        }
+
+        if (skipGenerateAnnotations) {
+            generateAnnotations = false
         }
 
         if (updateApi) {
@@ -1136,15 +1375,29 @@ class Options(
             artifactRegistrations.clear()
         }
 
-        checkFlagConsistency()
-    }
+        if (baselineFile == null) {
+            val defaultBaselineFile = getDefaultBaselineFile()
+            if (defaultBaselineFile != null && defaultBaselineFile.isFile) {
+                if (updateBaseline && updateBaselineFile == null) {
+                    updateBaselineFile = defaultBaselineFile
+                }
+                baseline = Baseline(defaultBaselineFile, updateBaselineFile, mergeBaseline)
+            } else if (updateBaselineFile != null) {
+                baseline = Baseline(null, updateBaselineFile, mergeBaseline)
+            }
+        } else {
+            // Add helpful doc in AOSP baseline files?
+            val headerComment = if (isBuildingAndroid())
+                "// See tools/metalava/API-LINT.md for how to update this file.\n\n"
+            else
+                ""
+            if (updateBaseline && updateBaselineFile == null) {
+                updateBaselineFile = baselineFile
+            }
+            baseline = Baseline(baselineFile, updateBaselineFile, mergeBaseline, headerComment)
+        }
 
-    private fun setFormat(format: Int) {
-        compatOutput = format == 1
-        outputKotlinStyleNulls = format >= 3
-        outputDefaultValues = format >= 2
-        omitCommonPackages = format >= 2
-        includeSignatureFormatVersion = format >= 2
+        checkFlagConsistency()
     }
 
     private fun findCompatibilityFlag(arg: String): KMutableProperty1<Compatibility, Boolean>? {
@@ -1159,6 +1412,33 @@ class Options(
             .find {
                 it.name == propertyName
             }
+    }
+
+    /**
+     * Produce a default file name for the baseline. It's normally "baseline.txt", but can
+     * be prefixed by show annotations; e.g. @TestApi -> test-baseline.txt, @SystemApi -> system-baseline.txt,
+     * etc.
+     */
+    private fun getDefaultBaselineFile(): File? {
+        if (sourcePath.isNotEmpty() && sourcePath[0].path.isNotBlank()) {
+            fun annotationToPrefix(qualifiedName: String): String {
+                val name = qualifiedName.substring(qualifiedName.lastIndexOf('.') + 1)
+                return name.toLowerCase(Locale.US).removeSuffix("api") + "-"
+            }
+            val sb = StringBuilder()
+            showAnnotations.forEach { sb.append(annotationToPrefix(it)) }
+            sb.append(DEFAULT_BASELINE_NAME)
+            var base = sourcePath[0]
+            // Convention: in AOSP, signature files are often in sourcepath/api: let's place baseline
+            // files there too
+            val api = File(base, "api")
+            if (api.isDirectory) {
+                base = api
+            }
+            return File(base, sb.toString())
+        } else {
+            return null
+        }
     }
 
     private fun findAndroidJars(
@@ -1195,6 +1475,19 @@ class Options(
                     if (verbose) {
                         stdout.println("Last API level found: ${apiLevel - 1}")
                     }
+
+                    if (apiLevel < 28) {
+                        // Clearly something is wrong with the patterns; this should result in a build error
+                        val argList = mutableListOf<String>()
+                        args.forEachIndexed { index, arg ->
+                            if (arg == ARG_ANDROID_JAR_PATTERN) {
+                                argList.add(args[index + 1])
+                            }
+                        }
+                        throw DriverException(stderr = "Could not find android.jar for API level $apiLevel; the " +
+                            "$ARG_ANDROID_JAR_PATTERN set might be invalid: ${argList.joinToString()}")
+                    }
+
                     break
                 }
                 if (verbose) {
@@ -1364,7 +1657,7 @@ class Options(
                     if (!listFile.isFile) {
                         throw DriverException("$listFile is not a file")
                     }
-                    val contents = Files.asCharSource(listFile, Charsets.UTF_8).read()
+                    val contents = Files.asCharSource(listFile, UTF_8).read()
                     val pathList = Splitter.on(CharMatcher.whitespace()).trimResults().omitEmptyStrings().split(
                         contents
                     )
@@ -1414,6 +1707,20 @@ class Options(
             }
         }
         return dir
+    }
+
+    private fun stringToNewOrExistingFile(value: String): File {
+        val file = fileForPath(value)
+        if (!file.exists()) {
+            val parentFile = file.parentFile
+            if (parentFile != null && !parentFile.isDirectory) {
+                val ok = parentFile.mkdirs()
+                if (!ok) {
+                    throw DriverException("Could not create $parentFile")
+                }
+            }
+        }
+        return file
     }
 
     private fun stringToNewDir(value: String): File {
@@ -1509,6 +1816,9 @@ class Options(
             ARG_VALIDATE_NULLABILITY_FROM_MERGED_STUBS, "Triggers validation of nullability annotations " +
                 "for any class where $ARG_MERGE_QUALIFIER_ANNOTATIONS includes a Java stub file.",
 
+            ARG_VALIDATE_NULLABILITY_FROM_LIST, "Triggers validation of nullability annotations " +
+                "for any class listed in the named file (one top-level class per line, # prefix for comment line).",
+
             "$ARG_NULLABILITY_WARNINGS_TXT <file>", "Specifies where to write warnings encountered during " +
                 "validation of nullability annotations. (Does not trigger validation by itself.)",
 
@@ -1531,6 +1841,11 @@ class Options(
                 "as hidden",
             ARG_SHOW_UNANNOTATED, "Include un-annotated public APIs in the signature file as well",
             "$ARG_JAVA_SOURCE <level>", "Sets the source level for Java source files; default is 1.8.",
+            "$ARG_STUB_PACKAGES <path>", "List of packages (separated by ${File.pathSeparator} which will be " +
+                "used to filter out irrelevant code. If specified, only code in these packages will be " +
+                "included in signature files, stubs, etc. (This is not limited to just the stubs; the name " +
+                "is historical.) You can also use \".*\" at the end to match subpackages, so `foo.*` will " +
+                "match both `foo` and `foo.bar`.",
 
             "", "\nDocumentation:",
             ARG_PUBLIC, "Only include elements that are public",
@@ -1597,6 +1912,8 @@ class Options(
                 "released API, respectively. Different compatibility checks apply in the two scenarios. " +
                 "For example, to check the code base against the current public API, use " +
                 "$ARG_CHECK_COMPATIBILITY:api:current.",
+            "$ARG_API_LINT [api file]", "Check API for Android API best practices. If a signature file is " +
+                "provided, only the APIs that are new since the API will be checked.",
             ARG_CHECK_KOTLIN_INTEROP, "Check API intended to be used from both Kotlin and Java for interoperability " +
                 "issues",
             "$ARG_MIGRATE_NULLNESS <api file>", "Compare nullness information with the previous stable API " +
@@ -1607,11 +1924,34 @@ class Options(
             "$ARG_WARNING <id>", "Report issues of the given id as warnings",
             "$ARG_LINT <id>", "Report issues of the given id as having lint-severity",
             "$ARG_HIDE <id>", "Hide/skip issues of the given id",
+            "$ARG_BASELINE <file>", "Filter out any errors already reported in the given baseline file, or " +
+                "create if it does not already exist",
+            "$ARG_UPDATE_BASELINE [file]", "Rewrite the existing baseline file with the current set of warnings. " +
+                "If some warnings have been fixed, this will delete them from the baseline files. If a file " +
+                "is provided, the updated baseline is written to the given file; otherwise the original source " +
+                "baseline file is updated.",
+            "$ARG_MERGE_BASELINE [file]", "Like $ARG_UPDATE_BASELINE, but instead of always replacing entries " +
+                "in the baseline, it will merge the existing baseline with the new baseline. This is useful " +
+                "if $PROGRAM_NAME runs multiple times on the same source tree with different flags at different " +
+                "times, such as occasionally with $ARG_API_LINT.",
+            ARG_PASS_BASELINE_UPDATES, "Normally, encountering error will fail the build, even when updating " +
+                "baselines. This flag allows you to tell $PROGRAM_NAME to continue without errors, such that " +
+                "all the baselines in the source tree can be updated in one go.",
+            ARG_DELETE_EMPTY_BASELINES, "Whether to delete baseline files if they are updated and there is nothing " +
+                "to include.",
 
             "", "\nJDiff:",
             "$ARG_XML_API <file>", "Like $ARG_API, but emits the API in the JDiff XML format instead",
             "$ARG_CONVERT_TO_JDIFF <sig> <xml>", "Reads in the given signature file, and writes it out " +
                 "in the JDiff XML format. Can be specified multiple times.",
+            "$ARG_CONVERT_NEW_TO_JDIFF <old> <new> <xml>", "Reads in the given old and new api files, " +
+                "computes the difference, and writes out only the new parts of the API in the JDiff XML format.",
+            "$ARG_CONVERT_TO_V1 <sig> <sig>", "Reads in the given signature file and writes it out as a " +
+                "signature file in the original v1/doclava format.",
+            "$ARG_CONVERT_TO_V2 <sig> <sig>", "Reads in the given signature file and writes it out as a " +
+                "signature file in the new signature format, v2.",
+            "$ARG_CONVERT_NEW_TO_V2 <old> <new> <sig>", "Reads in the given old and new api files, " +
+                "computes the difference, and writes out only the new parts of the API in the v2 format.",
 
             "", "\nStatistics:",
             ARG_ANNOTATION_COVERAGE_STATS, "Whether $PROGRAM_NAME should emit coverage statistics for " +

@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava
 
-import org.junit.Ignore
 import org.junit.Test
 
 @SuppressWarnings("ALL") // Sample code
@@ -75,7 +74,7 @@ class ExtractAnnotationsTest : DriverTest() {
                 intDefAnnotationSource,
                 intRangeAnnotationSource
             ),
-            warnings = "src/test/pkg/IntDefTest.java:11: error: This typedef annotation class should have @Retention(RetentionPolicy.SOURCE) [AnnotationExtraction:146]",
+            warnings = "src/test/pkg/IntDefTest.java:11: error: This typedef annotation class should have @Retention(RetentionPolicy.SOURCE) [AnnotationExtraction]",
             extractAnnotations = mapOf(
                 "test.pkg" to """
                 <?xml version="1.0" encoding="UTF-8"?>
@@ -153,14 +152,11 @@ class ExtractAnnotationsTest : DriverTest() {
                 ).indented(),
                 longDefAnnotationSource
             ),
-            warnings = "src/test/pkg/LongDefTest.kt:12: error: Typedef class references hidden field field LongDefTestKt.HIDDEN: removed from typedef metadata [HiddenTypedefConstant:148]",
+            warnings = "src/test/pkg/LongDefTest.kt:12: error: Typedef class references hidden field field LongDefTestKt.HIDDEN: removed from typedef metadata [HiddenTypedefConstant]",
             extractAnnotations = mapOf(
                 "test.pkg" to """
                     <?xml version="1.0" encoding="UTF-8"?>
                     <root>
-                      <item name="test.pkg.LongDefTest void setFlags(java.lang.Object, int) 0">
-                        <annotation name="androidx.annotation.NonNull"/>
-                      </item>
                       <item name="test.pkg.LongDefTest void setFlags(java.lang.Object, int) 1">
                         <annotation name="androidx.annotation.LongDef">
                           <val name="flag" val="true" />
@@ -172,23 +168,11 @@ class ExtractAnnotationsTest : DriverTest() {
                           <val name="value" val="{test.pkg.LongDefTestKt.STYLE_NORMAL, test.pkg.LongDefTestKt.STYLE_NO_TITLE, test.pkg.LongDefTestKt.STYLE_NO_FRAME, test.pkg.LongDefTestKt.STYLE_NO_INPUT}" />
                         </annotation>
                       </item>
-                      <item name="test.pkg.LongDefTest.Inner boolean isNull(java.lang.String) 0">
-                        <annotation name="androidx.annotation.Nullable"/>
-                      </item>
                       <item name="test.pkg.LongDefTest.Inner void setInner(int) 0">
                         <annotation name="androidx.annotation.LongDef">
                           <val name="flag" val="true" />
                           <val name="value" val="{test.pkg.LongDefTestKt.STYLE_NORMAL, test.pkg.LongDefTestKt.STYLE_NO_TITLE, test.pkg.LongDefTestKt.STYLE_NO_FRAME, test.pkg.LongDefTestKt.STYLE_NO_INPUT, 3, 4L}" />
                         </annotation>
-                      </item>
-                      <item name="test.pkg.LongDefTestKt TYPE_1">
-                        <annotation name="androidx.annotation.NonNull"/>
-                      </item>
-                      <item name="test.pkg.LongDefTestKt TYPE_2">
-                        <annotation name="androidx.annotation.NonNull"/>
-                      </item>
-                      <item name="test.pkg.LongDefTestKt UNRELATED_TYPE">
-                        <annotation name="androidx.annotation.NonNull"/>
                       </item>
                     </root>
                 """
@@ -246,7 +230,7 @@ class ExtractAnnotationsTest : DriverTest() {
                 ).indented(),
                 longDefAnnotationSource
             ),
-            warnings = "src/test/pkg/LongDefTest.kt:12: error: Typedef class references hidden field field LongDefTestKt.HIDDEN: removed from typedef metadata [HiddenTypedefConstant:148]",
+            warnings = "src/test/pkg/LongDefTest.kt:12: error: Typedef class references hidden field field LongDefTestKt.HIDDEN: removed from typedef metadata [HiddenTypedefConstant]",
             extractAnnotations = mapOf(
                 "test.pkg" to """
                     <?xml version="1.0" encoding="UTF-8"?>
@@ -343,7 +327,6 @@ class ExtractAnnotationsTest : DriverTest() {
         )
     }
 
-    @Ignore("Not working reliably -- fails when run and passes when debugged...")
     @Test
     fun `Include merged annotations in exported source annotations`() {
         check(
@@ -352,7 +335,7 @@ class ExtractAnnotationsTest : DriverTest() {
             outputKotlinStyleNulls = false,
             includeSystemApiAnnotations = false,
             omitCommonPackages = false,
-            warnings = "error: Unexpected reference to Nonexistent.Field [AnnotationExtraction:146]",
+            warnings = "error: Unexpected reference to Nonexistent.Field [InternalError]",
             sourceFiles = *arrayOf(
                 java(
                     """
@@ -361,6 +344,17 @@ class ExtractAnnotationsTest : DriverTest() {
                     public class MyTest {
                         public void test(int arg) { }
                     }"""
+                ),
+                java(
+                    """
+                        package java.util;
+                        public class Calendar {
+                            public static final int ERA = 1;
+                            public static final int YEAR = 2;
+                            public static final int MONTH = 3;
+                            public static final int WEEK_OF_YEAR = 4;
+                        }
+                    """
                 )
             ),
             mergeXmlAnnotations = """<?xml version="1.0" encoding="UTF-8"?>
@@ -411,6 +405,20 @@ class ExtractAnnotationsTest : DriverTest() {
                 intRangeAnnotationSource,
                 recentlyNullableSource
             ),
+            stubs = arrayOf(
+                """
+                package test.pkg;
+                @SuppressWarnings({"unchecked", "deprecation", "all"})
+                public class Test {
+                public Test() { throw new RuntimeException("Stub!"); }
+                /**
+                 * @param value Value is 10 or greater
+                 */
+                @androidx.annotation.RecentlyNullable
+                public static java.lang.String sayHello(int value) { throw new RuntimeException("Stub!"); }
+                }
+                """
+            ),
             extractAnnotations = mapOf(
                 "test.pkg" to """
                     <?xml version="1.0" encoding="UTF-8"?>
@@ -430,7 +438,7 @@ class ExtractAnnotationsTest : DriverTest() {
     fun `Check warning about unexpected returns from typedef method`() {
         check(
             includeSourceRetentionAnnotations = false,
-            warnings = "src/test/pkg/IntDefTest.java:36: warning: Returning unexpected constant UNRELATED; is @DialogStyle missing this constant? Expected one of STYLE_NORMAL, STYLE_NO_TITLE, STYLE_NO_FRAME, STYLE_NO_INPUT [ReturningUnexpectedConstant:151]",
+            warnings = "src/test/pkg/IntDefTest.java:36: warning: Returning unexpected constant UNRELATED; is @DialogStyle missing this constant? Expected one of STYLE_NORMAL, STYLE_NO_TITLE, STYLE_NO_FRAME, STYLE_NO_INPUT [ReturningUnexpectedConstant]",
             sourceFiles = *arrayOf(
                 java(
                     """

@@ -76,6 +76,10 @@ API sources:
                                           for any class where
                                           --merge-qualifier-annotations includes a Java
                                           stub file.
+--validate-nullability-from-list          Triggers validation of nullability annotations
+                                          for any class listed in the named file (one
+                                          top-level class per line, # prefix for comment
+                                          line).
 --nullability-warnings-txt <file>         Specifies where to write warnings encountered
                                           during validation of nullability annotations.
                                           (Does not trigger validation by itself.)
@@ -100,6 +104,14 @@ API sources:
                                           signature file as well
 --java-source <level>                     Sets the source level for Java source files;
                                           default is 1.8.
+--stub-packages <path>                    List of packages (separated by : which will be
+                                          used to filter out irrelevant code. If
+                                          specified, only code in these packages will be
+                                          included in signature files, stubs, etc. (This
+                                          is not limited to just the stubs; the name is
+                                          historical.) You can also use ".*" at the end to
+                                          match subpackages, so `foo.*` will match both
+                                          `foo` and `foo.bar`.
 
 Documentation:
 --public                                  Only include elements that are public
@@ -197,6 +209,9 @@ Diffs and Checks:
                                           to check the code base against the current
                                           public API, use
                                           --check-compatibility:api:current.
+--api-lint [api file]                     Check API for Android API best practices. If a
+                                          signature file is provided, only the APIs that
+                                          are new since the API will be checked.
 --check-kotlin-interop                    Check API intended to be used from both Kotlin
                                           and Java for interoperability issues
 --migrate-nullness <api file>             Compare nullness information with the previous
@@ -209,6 +224,30 @@ Diffs and Checks:
 --lint <id>                               Report issues of the given id as having
                                           lint-severity
 --hide <id>                               Hide/skip issues of the given id
+--baseline <file>                         Filter out any errors already reported in the
+                                          given baseline file, or create if it does not
+                                          already exist
+--update-baseline [file]                  Rewrite the existing baseline file with the
+                                          current set of warnings. If some warnings have
+                                          been fixed, this will delete them from the
+                                          baseline files. If a file is provided, the
+                                          updated baseline is written to the given file;
+                                          otherwise the original source baseline file is
+                                          updated.
+--merge-baseline [file]                   Like --update-baseline, but instead of always
+                                          replacing entries in the baseline, it will merge
+                                          the existing baseline with the new baseline.
+                                          This is useful if metalava runs multiple times
+                                          on the same source tree with different flags at
+                                          different times, such as occasionally with
+                                          --api-lint.
+--pass-baseline-updates                   Normally, encountering error will fail the
+                                          build, even when updating baselines. This flag
+                                          allows you to tell metalava to continue without
+                                          errors, such that all the baselines in the
+                                          source tree can be updated in one go.
+--delete-empty-baselines                  Whether to delete baseline files if they are
+                                          updated and there is nothing to include.
 
 JDiff:
 --api-xml <file>                          Like --api, but emits the API in the JDiff XML
@@ -216,6 +255,18 @@ JDiff:
 --convert-to-jdiff <sig> <xml>            Reads in the given signature file, and writes it
                                           out in the JDiff XML format. Can be specified
                                           multiple times.
+--convert-new-to-jdiff <old> <new> <xml>  Reads in the given old and new api files,
+                                          computes the difference, and writes out only the
+                                          new parts of the API in the JDiff XML format.
+--convert-to-v1 <sig> <sig>               Reads in the given signature file and writes it
+                                          out as a signature file in the original
+                                          v1/doclava format.
+--convert-to-v2 <sig> <sig>               Reads in the given signature file and writes it
+                                          out as a signature file in the new signature
+                                          format, v2.
+--convert-new-to-v2 <old> <new> <sig>     Reads in the given old and new api files,
+                                          computes the difference, and writes out only the
+                                          new parts of the API in the v2 format.
 
 Statistics:
 --annotation-coverage-stats               Whether metalava should emit coverage statistics

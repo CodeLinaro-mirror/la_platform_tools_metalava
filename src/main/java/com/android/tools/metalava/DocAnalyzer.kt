@@ -131,10 +131,11 @@ class DocAnalyzer(
                 }
                 */
                 if (findThreadAnnotations(annotations).size > 1) {
-                    reporter.warning(
-                        item, "Found more than one threading annotation on $item; " +
-                            "the auto-doc feature does not handle this correctly",
-                        Errors.MULTIPLE_THREAD_ANNOTATIONS
+                    reporter.report(
+                        Errors.MULTIPLE_THREAD_ANNOTATIONS,
+                        item,
+                        "Found more than one threading annotation on $item; " +
+                            "the auto-doc feature does not handle this correctly"
                     )
                 }
             }
@@ -223,7 +224,8 @@ class DocAnalyzer(
             }
 
             private fun handleKotlinDeprecation(annotation: AnnotationItem, item: Item) {
-                val text = annotation.findAttribute(ATTR_VALUE)?.value?.value()?.toString() ?: return
+                val text = (annotation.findAttribute("message") ?: annotation.findAttribute(ATTR_VALUE))
+                    ?.value?.value()?.toString() ?: return
                 if (text.isBlank() || item.documentation.contains(text)) {
                     return
                 }
@@ -623,7 +625,7 @@ class DocAnalyzer(
             }
 
             override fun getCacheDir(name: String?, create: Boolean): File? {
-                if (create && java.lang.Boolean.getBoolean(ENV_VAR_METALAVA_TESTS_RUNNING)) {
+                if (create && isUnderTest()) {
                     // Pick unique directory during unit tests
                     return Files.createTempDir()
                 }

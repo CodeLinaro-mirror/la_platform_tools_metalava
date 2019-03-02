@@ -22,6 +22,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
+import kotlin.text.Charsets.UTF_8
 
 class AnnotationsDifferTest {
     @get:Rule
@@ -41,7 +42,7 @@ class AnnotationsDifferTest {
                     method public test.pkg.Appendable append(java.lang.CharSequence);
                   }
                 }
-        """.trimIndent(), true, true
+        """.trimIndent(), true
         )
 
         val codebase2 = ApiFile.parseApi(
@@ -52,7 +53,7 @@ class AnnotationsDifferTest {
             method public test.pkg.Appendable append2(java.lang.CharSequence);
           }
         }
-        """.trimIndent(), false, false
+        """.trimIndent(), false
         )
 
         val apiFile = temporaryFolder.newFile("diff.txt")
@@ -60,7 +61,7 @@ class AnnotationsDifferTest {
         options = Options(emptyArray())
         AnnotationsDiffer(codebase, codebase2).writeDiffSignature(apiFile)
         assertTrue(apiFile.exists())
-        val actual = apiFile.readText(Charsets.UTF_8)
+        val actual = apiFile.readText(UTF_8)
         assertEquals(
             """
             package test.pkg {
