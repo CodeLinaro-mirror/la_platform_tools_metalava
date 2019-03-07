@@ -42,10 +42,14 @@ General:
 --no-docs                                 Cancel any other documentation flags supplied to
                                           metalava. This is here to make it easier
                                           customize build system tasks.
---update-api                              Cancel any other "action" flags other than
+--only-update-api                         Cancel any other "action" flags other than
                                           generating signature files. This is here to make
                                           it easier customize build system tasks,
                                           particularly for the "make update-api" task.
+--only-check-api                          Cancel any other "action" flags other than
+                                          checking signature files. This is here to make
+                                          it easier customize build system tasks,
+                                          particularly for the "make checkapi" task.
 
 API sources:
 --source-files <files>                    A comma separated list of source files to be
@@ -104,7 +108,7 @@ API sources:
                                           signature file as well
 --java-source <level>                     Sets the source level for Java source files;
                                           default is 1.8.
---stub-packages <path>                    List of packages (separated by : which will be
+--stub-packages <package-list>            List of packages (separated by :) which will be
                                           used to filter out irrelevant code. If
                                           specified, only code in these packages will be
                                           included in signature files, stubs, etc. (This
@@ -112,6 +116,11 @@ API sources:
                                           historical.) You can also use ".*" at the end to
                                           match subpackages, so `foo.*` will match both
                                           `foo` and `foo.bar`.
+--subtract-api <api file>                 Subtracts the API in the given signature or jar
+                                          file from the current API being emitted via
+                                          --api, --stubs, --doc-stubs, etc. Note that the
+                                          subtraction only applies to classes; it does not
+                                          subtract members.
 
 Documentation:
 --public                                  Only include elements that are public
