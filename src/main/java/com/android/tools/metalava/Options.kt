@@ -136,7 +136,8 @@ const val ARG_INCLUDE_ANNOTATION_CLASSES = "--include-annotation-classes"
 const val ARG_REWRITE_ANNOTATIONS = "--rewrite-annotations"
 const val ARG_INCLUDE_SOURCE_RETENTION = "--include-source-retention"
 const val ARG_INCLUDE_SIG_VERSION = "--include-signature-version"
-const val ARG_UPDATE_API = "--update-api"
+const val ARG_UPDATE_API = "--only-update-api"
+const val ARG_CHECK_API = "--only-check-api"
 const val ARG_PASS_BASELINE_UPDATES = "--pass-baseline-updates"
 const val ARG_DEX_API_MAPPING = "--dex-api-mapping"
 const val ARG_GENERATE_DOCUMENTATION = "--generate-documentation"
@@ -146,6 +147,7 @@ const val ARG_MERGE_BASELINE = "--merge-baseline"
 const val ARG_STUB_PACKAGES = "--stub-packages"
 const val ARG_STUB_IMPORT_PACKAGES = "--stub-import-packages"
 const val ARG_DELETE_EMPTY_BASELINES = "--delete-empty-baselines"
+const val ARG_SUBTRACT_API = "--subtract-api"
 
 class Options(
     private val args: Array<String>,
@@ -197,6 +199,9 @@ class Options(
      */
     var noDocs = false
 
+    /** API to subtract from signature and stub generation. Corresponds to [ARG_SUBTRACT_API]. */
+    var subtractApi: File? = null
+
     /**
      * Validator for nullability annotations, if validation is enabled.
      */
@@ -241,7 +246,20 @@ class Options(
      * signature files. This avoids having duplicate metalava invocation logic where potentially newly
      * added flags are missing in one of the invocations etc.
      */
-    var updateApi = false
+    var onlyUpdateApi = false
+
+    /**
+     * Whether metalava is invoked as part of running the checkapi target. When this is true, metalava
+     * should *cancel* various other flags that are also being passed in, such as updating signature
+     * files.
+     *
+     * This is there to ease integration in the build system: for a given target, the build system will
+     * pass all the applicable flags (--stubs, --api, --check-compatibility, --generate-documentation, etc),
+     * and this integration is re-used for the checkapi facility where we *only* want to run compatibility
+     * checks. This avoids having duplicate metalava invocation logic where potentially newly
+     * added flags are missing in one of the invocations etc.
+     */
+    var onlyCheckApi = false
 
     /**
      * Whether signature files should emit in "compat" mode, preserving the various
@@ -406,7 +424,7 @@ class Options(
     var removedDexApiFile: File? = null
 
     /** Whether output should be colorized */
-    var color = System.getenv("TERM")?.startsWith("xterm") ?: false
+    var color = System.getenv("TERM")?.startsWith("xterm") ?: System.getenv("COLORTERM") != null ?: false
 
     /** Whether to omit Java and Kotlin runtime library packages from annotation coverage stats */
     var omitRuntimePackageStats = false
@@ -420,7 +438,7 @@ class Options(
     var migrateNullsFrom: File? = null
 
     /** Private backing list for [compatibilityChecks]] */
-    private var mutableCompatibilityChecks: MutableList<CheckRequest> = mutableListOf()
+    private val mutableCompatibilityChecks: MutableList<CheckRequest> = mutableListOf()
 
     /** The list of compatibility checks to run */
     val compatibilityChecks: List<CheckRequest> = mutableCompatibilityChecks
@@ -629,6 +647,13 @@ class Options(
                     listString.split(",").forEach { path ->
                         mutableSources.addAll(stringToExistingFiles(path))
                     }
+                }
+
+                ARG_SUBTRACT_API -> {
+                    if (subtractApi != null) {
+                        throw DriverException(stderr = "Only one $ARG_SUBTRACT_API can be supplied")
+                    }
+                    subtractApi = stringToExistingFile(getValue(args, ++index))
                 }
 
                 // TODO: Remove the legacy --merge-annotations flag once it's no longer used to update P docs
@@ -986,7 +1011,8 @@ class Options(
 
                 ARG_NO_DOCS, "-nodocs" -> noDocs = true
 
-                ARG_UPDATE_API -> updateApi = true
+                ARG_UPDATE_API, "--update-api" -> onlyUpdateApi = true
+                ARG_CHECK_API -> onlyCheckApi = true
 
                 ARG_GENERATE_DOCUMENTATION -> {
                     // Digest all the remaining arguments.
@@ -1253,10 +1279,10 @@ class Options(
                             "$ARG_FORMAT=v1" -> {
                                 FileFormat.V1
                             }
-                            "$ARG_FORMAT=v2" -> {
+                            "$ARG_FORMAT=v2", "$ARG_FORMAT=recommended" -> {
                                 FileFormat.V2
                             }
-                            "$ARG_FORMAT=v3" -> {
+                            "$ARG_FORMAT=v3", "$ARG_FORMAT=latest" -> {
                                 FileFormat.V3
                             }
                             else -> throw DriverException(stderr = "Unexpected signature format; expected v1, v2 or v3")
@@ -1350,7 +1376,10 @@ class Options(
             generateAnnotations = false
         }
 
-        if (updateApi) {
+        if (onlyUpdateApi) {
+            if (onlyCheckApi) {
+                throw DriverException(stderr = "Cannot supply both $ARG_UPDATE_API and $ARG_CHECK_API at the same time")
+            }
             // We're running in update API mode: cancel other "action" flags; only signature file generation
             // flags count
             annotationCoverageClassReport = null
@@ -1373,6 +1402,46 @@ class Options(
             mutableCompatibilityChecks.clear()
             mutableAnnotationCoverageOf.clear()
             artifactRegistrations.clear()
+            mutableConvertToXmlFiles.clear()
+            nullabilityAnnotationsValidator = null
+            nullabilityWarningsTxt = null
+            validateNullabilityFromMergedStubs = false
+            validateNullabilityFromMergedStubs = false
+            validateNullabilityFromList = null
+        } else if (onlyCheckApi) {
+            annotationCoverageClassReport = null
+            annotationCoverageMemberReport = null
+            dumpAnnotationStatistics = false
+            apiLevelJars = null
+            generateApiLevelXml = null
+            applyApiLevelsXml = null
+            androidJarSignatureFiles = null
+            stubsDir = null
+            docStubsDir = null
+            stubsSourceList = null
+            docStubsSourceList = null
+            sdkValueDir = null
+            externalAnnotations = null
+            proguard = null
+            noDocs = true
+            invokeDocumentationToolArguments = emptyArray()
+            checkKotlinInterop = false
+            mutableAnnotationCoverageOf.clear()
+            artifactRegistrations.clear()
+            mutableConvertToXmlFiles.clear()
+            nullabilityAnnotationsValidator = null
+            nullabilityWarningsTxt = null
+            validateNullabilityFromMergedStubs = false
+            validateNullabilityFromMergedStubs = false
+            validateNullabilityFromList = null
+            apiFile = null
+            apiXmlFile = null
+            privateApiFile = null
+            dexApiFile = null
+            dexApiMappingFile = null
+            privateDexApiFile = null
+            removedApiFile = null
+            removedDexApiFile = null
         }
 
         if (baselineFile == null) {
@@ -1790,6 +1859,8 @@ class Options(
                 "to make it easier customize build system tasks.",
             ARG_UPDATE_API, "Cancel any other \"action\" flags other than generating signature files. This is here " +
                 "to make it easier customize build system tasks, particularly for the \"make update-api\" task.",
+            ARG_CHECK_API, "Cancel any other \"action\" flags other than checking signature files. This is here " +
+                "to make it easier customize build system tasks, particularly for the \"make checkapi\" task.",
 
             "", "\nAPI sources:",
             "$ARG_SOURCE_FILES <files>", "A comma separated list of source files to be parsed. Can also be " +
@@ -1841,11 +1912,14 @@ class Options(
                 "as hidden",
             ARG_SHOW_UNANNOTATED, "Include un-annotated public APIs in the signature file as well",
             "$ARG_JAVA_SOURCE <level>", "Sets the source level for Java source files; default is 1.8.",
-            "$ARG_STUB_PACKAGES <path>", "List of packages (separated by ${File.pathSeparator} which will be " +
-                "used to filter out irrelevant code. If specified, only code in these packages will be " +
+            "$ARG_STUB_PACKAGES <package-list>", "List of packages (separated by ${File.pathSeparator}) which will " +
+                "be used to filter out irrelevant code. If specified, only code in these packages will be " +
                 "included in signature files, stubs, etc. (This is not limited to just the stubs; the name " +
                 "is historical.) You can also use \".*\" at the end to match subpackages, so `foo.*` will " +
                 "match both `foo` and `foo.bar`.",
+            "$ARG_SUBTRACT_API <api file>", "Subtracts the API in the given signature or jar file from the " +
+                "current API being emitted via $ARG_API, $ARG_STUBS, $ARG_DOC_STUBS, etc. " +
+                "Note that the subtraction only applies to classes; it does not subtract members.",
 
             "", "\nDocumentation:",
             ARG_PUBLIC, "Only include elements that are public",
