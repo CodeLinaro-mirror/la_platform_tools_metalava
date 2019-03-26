@@ -22,7 +22,9 @@ import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.metalava.model.SUPPORT_TYPE_USE_ANNOTATIONS
 import org.intellij.lang.annotations.Language
 import org.junit.Test
+import java.io.File
 import java.io.FileNotFoundException
+import kotlin.test.assertEquals
 
 @SuppressWarnings("ALL")
 class StubsTest : DriverTest() {
@@ -40,6 +42,7 @@ class StubsTest : DriverTest() {
         showAnnotations: Array<String> = emptyArray(),
         includeSourceRetentionAnnotations: Boolean = true,
         skipEmitPackages: List<String> = listOf("java.lang", "java.util", "java.io"),
+        format: FileFormat? = null,
         vararg sourceFiles: TestFile
     ) {
         check(
@@ -54,7 +57,8 @@ class StubsTest : DriverTest() {
             extraArguments = extraArguments,
             docStubs = docStubs,
             includeSourceRetentionAnnotations = includeSourceRetentionAnnotations,
-            skipEmitPackages = skipEmitPackages
+            skipEmitPackages = skipEmitPackages,
+            format = format
         )
     }
 
@@ -1441,7 +1445,7 @@ class StubsTest : DriverTest() {
                 package test.pkg {
                   public class Foo {
                     ctor public Foo();
-                    method public void foo(int, java.util.Map<java.lang.String, java.lang.String>);
+                    method public void foo(int, java.util.Map<java.lang.String!,java.lang.String!>!);
                   }
                 }
                 """
@@ -1993,7 +1997,13 @@ class StubsTest : DriverTest() {
                 public MySubClass2() { super(0); throw new RuntimeException("Stub!"); }
                 }
                 """
-            )
+            ),
+            stubsSourceList = """
+                TESTROOT/stubs/test/pkg/MyClass1.java
+                TESTROOT/stubs/test/pkg/MyClass2.java
+                TESTROOT/stubs/test/pkg/MySubClass1.java
+                TESTROOT/stubs/test/pkg/MySubClass2.java
+            """
         )
     }
 
@@ -2078,122 +2088,7 @@ class StubsTest : DriverTest() {
         checkStubs(
             extraArguments = arrayOf("--skip-inherited-methods=false"),
             checkDoclava1 = false,
-            sourceFiles =
-            *arrayOf(
-                java(
-                    """
-                    package test.pkg;
-
-                    import java.io.IOException;
-                    import java.util.List;
-                    import java.util.Map;
-
-                    @SuppressWarnings({"RedundantThrows", "WeakerAccess"})
-                    public class Generics {
-                        public class MyClass<X, Y extends Number> extends HiddenParent<X, Y> implements PublicInterface<X, Y> {
-                        }
-
-                        class HiddenParent<M, N extends Number> extends PublicParent<M, N> {
-                            public Map<M, Map<N, String>> createMap(List<M> list) throws MyThrowable {
-                                return null;
-                            }
-
-                            protected List<M> foo() {
-                                return null;
-                            }
-
-                        }
-
-                        class MyThrowable extends IOException {
-                        }
-
-                        public abstract class PublicParent<A, B extends Number> {
-                            protected abstract List<A> foo();
-                        }
-
-                        public interface PublicInterface<A, B> {
-                            Map<A, Map<B, String>> createMap(List<A> list) throws IOException;
-                        }
-                    }
-                    """
-                )
-            ),
-            warnings = "",
-            api = """
-                    package test.pkg {
-                      public class Generics {
-                        ctor public Generics();
-                      }
-                      public class Generics.MyClass<X, Y extends java.lang.Number> extends test.pkg.Generics.PublicParent implements test.pkg.Generics.PublicInterface {
-                        ctor public Generics.MyClass();
-                        method public java.util.Map<X, java.util.Map<Y, java.lang.String>> createMap(java.util.List<X>) throws test.pkg.Generics.MyThrowable;
-                        method public java.util.List<X> foo();
-                      }
-                      public static abstract interface Generics.PublicInterface<A, B> {
-                        method public abstract java.util.Map<A, java.util.Map<B, java.lang.String>> createMap(java.util.List<A>) throws java.io.IOException;
-                      }
-                      public abstract class Generics.PublicParent<A, B extends java.lang.Number> {
-                        ctor public Generics.PublicParent();
-                        method protected abstract java.util.List<A> foo();
-                      }
-                    }
-                    """,
-            source = if (SUPPORT_TYPE_USE_ANNOTATIONS) {
-                """
-            package test.pkg;
-            @SuppressWarnings({"unchecked", "deprecation", "all"})
-            public class Generics {
-            public Generics() { throw new RuntimeException("Stub!"); }
-            @SuppressWarnings({"unchecked", "deprecation", "all"})
-            public class MyClass<X, Y extends java.lang.Number> extends test.pkg.Generics.PublicParent<X,Y> implements test.pkg.Generics.PublicInterface<X,Y> {
-            public MyClass() { throw new RuntimeException("Stub!"); }
-            public java.util.List<X> foo() { throw new RuntimeException("Stub!"); }
-            public java.util.Map<X,java.util.Map<Y,java.lang.String>> createMap(java.util.List<X> list) throws java.io.IOException { throw new RuntimeException("Stub!"); }
-            }
-            @SuppressWarnings({"unchecked", "deprecation", "all"})
-            public static interface PublicInterface<A, B> {
-            public java.util.Map<A,java.util.Map<B,java.lang.String>> createMap(java.util.List<A> list) throws java.io.IOException;
-            }
-            @SuppressWarnings({"unchecked", "deprecation", "all"})
-            public abstract class PublicParent<A, B extends java.lang.Number> {
-            public PublicParent() { throw new RuntimeException("Stub!"); }
-            protected abstract java.util.List<A> foo();
-            }
-            }
-            """
-            } else {
-                """
-            package test.pkg;
-            @SuppressWarnings({"unchecked", "deprecation", "all"})
-            public class Generics {
-            public Generics() { throw new RuntimeException("Stub!"); }
-            @SuppressWarnings({"unchecked", "deprecation", "all"})
-            public class MyClass<X, Y extends java.lang.Number> extends test.pkg.Generics.PublicParent<X,Y> implements test.pkg.Generics.PublicInterface<X,Y> {
-            public MyClass() { throw new RuntimeException("Stub!"); }
-            public java.util.List<X> foo() { throw new RuntimeException("Stub!"); }
-            public java.util.Map<X, java.util.Map<Y, java.lang.String>> createMap(java.util.List<X> list) throws java.io.IOException { throw new RuntimeException("Stub!"); }
-            }
-            @SuppressWarnings({"unchecked", "deprecation", "all"})
-            public static interface PublicInterface<A, B> {
-            public java.util.Map<A, java.util.Map<B, java.lang.String>> createMap(java.util.List<A> list) throws java.io.IOException;
-            }
-            @SuppressWarnings({"unchecked", "deprecation", "all"})
-            public abstract class PublicParent<A, B extends java.lang.Number> {
-            public PublicParent() { throw new RuntimeException("Stub!"); }
-            protected abstract java.util.List<A> foo();
-            }
-            }
-            """
-            }
-        )
-    }
-
-    @Test
-    fun `Picking super class throwables`() {
-        // Like previous test, but without compatibility mode: ensures that we
-        // use super classes of filtered throwables
-        checkStubs(
-            compatibilityMode = false,
+            format = FileFormat.V1,
             sourceFiles =
             *arrayOf(
                 java(
@@ -2240,13 +2135,13 @@ class StubsTest : DriverTest() {
                   public class Generics {
                     ctor public Generics();
                   }
-                  public class Generics.MyClass<X, Y extends java.lang.Number> extends test.pkg.Generics.PublicParent<X,Y> implements test.pkg.Generics.PublicInterface<X,Y> {
+                  public class Generics.MyClass<X, Y extends java.lang.Number> extends test.pkg.Generics.PublicParent implements test.pkg.Generics.PublicInterface {
                     ctor public Generics.MyClass();
-                    method public java.util.Map<X,java.util.Map<Y,java.lang.String>> createMap(java.util.List<X>) throws java.io.IOException;
+                    method public java.util.Map<X, java.util.Map<Y, java.lang.String>> createMap(java.util.List<X>) throws test.pkg.Generics.MyThrowable;
                     method public java.util.List<X> foo();
                   }
-                  public static interface Generics.PublicInterface<A, B> {
-                    method public java.util.Map<A,java.util.Map<B,java.lang.String>> createMap(java.util.List<A>) throws java.io.IOException;
+                  public static abstract interface Generics.PublicInterface<A, B> {
+                    method public abstract java.util.Map<A, java.util.Map<B, java.lang.String>> createMap(java.util.List<A>) throws java.io.IOException;
                   }
                   public abstract class Generics.PublicParent<A, B extends java.lang.Number> {
                     ctor public Generics.PublicParent();
@@ -2254,6 +2149,123 @@ class StubsTest : DriverTest() {
                   }
                 }
                 """,
+            source = if (SUPPORT_TYPE_USE_ANNOTATIONS) {
+                """
+                package test.pkg;
+                @SuppressWarnings({"unchecked", "deprecation", "all"})
+                public class Generics {
+                public Generics() { throw new RuntimeException("Stub!"); }
+                @SuppressWarnings({"unchecked", "deprecation", "all"})
+                public class MyClass<X, Y extends java.lang.Number> extends test.pkg.Generics.PublicParent<X,Y> implements test.pkg.Generics.PublicInterface<X,Y> {
+                public MyClass() { throw new RuntimeException("Stub!"); }
+                public java.util.List<X> foo() { throw new RuntimeException("Stub!"); }
+                public java.util.Map<X,java.util.Map<Y,java.lang.String>> createMap(java.util.List<X> list) throws java.io.IOException { throw new RuntimeException("Stub!"); }
+                }
+                @SuppressWarnings({"unchecked", "deprecation", "all"})
+                public static interface PublicInterface<A, B> {
+                public java.util.Map<A,java.util.Map<B,java.lang.String>> createMap(java.util.List<A> list) throws java.io.IOException;
+                }
+                @SuppressWarnings({"unchecked", "deprecation", "all"})
+                public abstract class PublicParent<A, B extends java.lang.Number> {
+                public PublicParent() { throw new RuntimeException("Stub!"); }
+                protected abstract java.util.List<A> foo();
+                }
+                }
+                """
+            } else {
+                """
+                package test.pkg;
+                @SuppressWarnings({"unchecked", "deprecation", "all"})
+                public class Generics {
+                public Generics() { throw new RuntimeException("Stub!"); }
+                @SuppressWarnings({"unchecked", "deprecation", "all"})
+                public class MyClass<X, Y extends java.lang.Number> extends test.pkg.Generics.PublicParent<X,Y> implements test.pkg.Generics.PublicInterface<X,Y> {
+                public MyClass() { throw new RuntimeException("Stub!"); }
+                public java.util.List<X> foo() { throw new RuntimeException("Stub!"); }
+                public java.util.Map<X,java.util.Map<Y,java.lang.String>> createMap(java.util.List<X> list) throws java.io.IOException { throw new RuntimeException("Stub!"); }
+                }
+                @SuppressWarnings({"unchecked", "deprecation", "all"})
+                public static interface PublicInterface<A, B> {
+                public java.util.Map<A,java.util.Map<B,java.lang.String>> createMap(java.util.List<A> list) throws java.io.IOException;
+                }
+                @SuppressWarnings({"unchecked", "deprecation", "all"})
+                public abstract class PublicParent<A, B extends java.lang.Number> {
+                public PublicParent() { throw new RuntimeException("Stub!"); }
+                protected abstract java.util.List<A> foo();
+                }
+                }
+                """
+            }
+        )
+    }
+
+    @Test
+    fun `Picking super class throwables`() {
+        // Like previous test, but without compatibility mode: ensures that we
+        // use super classes of filtered throwables
+        checkStubs(
+            format = FileFormat.V3,
+            sourceFiles =
+            *arrayOf(
+                java(
+                    """
+                    package test.pkg;
+
+                    import java.io.IOException;
+                    import java.util.List;
+                    import java.util.Map;
+
+                    @SuppressWarnings({"RedundantThrows", "WeakerAccess"})
+                    public class Generics {
+                        public class MyClass<X, Y extends Number> extends HiddenParent<X, Y> implements PublicInterface<X, Y> {
+                        }
+
+                        class HiddenParent<M, N extends Number> extends PublicParent<M, N> {
+                            public Map<M, Map<N, String>> createMap(List<M> list) throws MyThrowable {
+                                return null;
+                            }
+
+                            protected List<M> foo() {
+                                return null;
+                            }
+
+                        }
+
+                        class MyThrowable extends IOException {
+                        }
+
+                        public abstract class PublicParent<A, B extends Number> {
+                            protected abstract List<A> foo();
+                        }
+
+                        public interface PublicInterface<A, B> {
+                            Map<A, Map<B, String>> createMap(List<A> list) throws IOException;
+                        }
+                    }
+                    """
+                )
+            ),
+            warnings = "",
+            api = """
+                // Signature format: 3.0
+                package test.pkg {
+                  public class Generics {
+                    ctor public Generics();
+                  }
+                  public class Generics.MyClass<X, Y extends java.lang.Number> extends test.pkg.Generics.PublicParent<X,Y> implements test.pkg.Generics.PublicInterface<X,Y> {
+                    ctor public Generics.MyClass();
+                    method public java.util.Map<X!,java.util.Map<Y!,java.lang.String!>!>! createMap(java.util.List<X!>!) throws java.io.IOException;
+                    method public java.util.List<X!>! foo();
+                  }
+                  public static interface Generics.PublicInterface<A, B> {
+                    method public java.util.Map<A!,java.util.Map<B!,java.lang.String!>!>! createMap(java.util.List<A!>!) throws java.io.IOException;
+                  }
+                  public abstract class Generics.PublicParent<A, B extends java.lang.Number> {
+                    ctor public Generics.PublicParent();
+                    method protected abstract java.util.List<A!>! foo();
+                  }
+                }
+            """,
             source = """
                     package test.pkg;
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
@@ -3711,6 +3723,41 @@ class StubsTest : DriverTest() {
         )
     }
 
+    @Test(expected = AssertionError::class)
+    fun `Test check-api should not generate stubs or API files`() {
+        check(
+            extraArguments = arrayOf(
+                ARG_CHECK_API,
+                ARG_EXCLUDE_ANNOTATIONS
+            ),
+            compatibilityMode = false,
+            sourceFiles = *arrayOf(
+                java(
+                    """
+                    package test.pkg;
+                    public class Foo {
+                        /**
+                         * @deprecated Use checkPermission instead.
+                         */
+                        @Deprecated
+                        protected boolean inClass(String name) {
+                            return false;
+                        }
+                    }
+                    """
+                )
+            ),
+            api = """
+            package test.pkg {
+              public class Foo {
+                ctor public Foo();
+                method @Deprecated protected boolean inClass(String);
+              }
+            }
+            """
+        )
+    }
+
     @Test
     fun `Include package private classes referenced from public API`() {
         // Real world example: android.net.http.Connection in apache-http referenced from RequestHandle
@@ -4024,6 +4071,62 @@ class StubsTest : DriverTest() {
                 }
                 """
             )
+        )
+    }
+
+    @Test
+    fun `Regression test for 124333557`() {
+        // Regression test for 124333557: Handle empty java files
+        check(
+            compatibilityMode = false,
+            warnings = """
+            TESTROOT/src/test/Something2.java: error: metalava was unable to determine the package name. This usually means that a source file was where the directory does not seem to match the package declaration; we expected the path TESTROOT/src/test/Something2.java to end with /test/wrong/Something2.java [IoError]
+            TESTROOT/src/test/Something2.java: error: metalava was unable to determine the package name. This usually means that a source file was where the directory does not seem to match the package declaration; we expected the path TESTROOT/src/test/Something2.java to end with /test/wrong/Something2.java [IoError]
+            """,
+            sourceFiles = *arrayOf(
+                java(
+                    "src/test/pkg/Something.java",
+                    """
+                    /** Nothing much here */
+                    """
+                ),
+                java(
+                    "src/test/pkg/Something2.java",
+                    """
+                    /** Nothing much here */
+                    package test.pkg;
+                    """
+                ),
+                java(
+                    "src/test/Something2.java",
+                    """
+                    /** Wrong package */
+                    package test.wrong;
+                    """
+                ),
+                java(
+                    """
+                    package test.pkg;
+                    public class Test {
+                        private Test() { }
+                    }
+                    """
+                )
+            ),
+            api = """
+                package test.pkg {
+                  public class Test {
+                  }
+                }
+                """,
+            projectSetup = { dir ->
+                // Make sure we handle blank/doc-only java doc files in root extraction
+                val src = listOf(File(dir, "src"))
+                val files = gatherSources(src)
+                val roots = extractRoots(files)
+                assertEquals(1, roots.size)
+                assertEquals(src[0].path, roots[0].path)
+            }
         )
     }
 
