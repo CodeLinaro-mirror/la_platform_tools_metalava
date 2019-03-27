@@ -24,6 +24,7 @@ import com.android.ide.common.process.LoggedProcessOutputHandler
 import com.android.ide.common.process.ProcessException
 import com.android.ide.common.process.ProcessInfoBuilder
 import com.android.tools.lint.checks.ApiLookup
+import com.android.tools.lint.checks.infrastructure.ClassName
 import com.android.tools.lint.checks.infrastructure.LintDetectorTest
 import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.lint.checks.infrastructure.TestFiles
@@ -31,6 +32,7 @@ import com.android.tools.lint.checks.infrastructure.TestFiles.java
 import com.android.tools.lint.checks.infrastructure.stripComments
 import com.android.tools.metalava.doclava1.ApiFile
 import com.android.tools.metalava.doclava1.Errors
+import com.android.tools.metalava.model.SUPPORT_TYPE_USE_ANNOTATIONS
 import com.android.tools.metalava.model.parseDocument
 import com.android.utils.FileUtils
 import com.android.utils.SdkUtils
@@ -69,7 +71,7 @@ abstract class DriverTest {
         System.setProperty(ENV_VAR_METALAVA_TESTS_RUNNING, SdkConstants.VALUE_TRUE)
     }
 
-    private fun createProject(vararg files: TestFile): File {
+    protected fun createProject(vararg files: TestFile): File {
         val dir = temporaryFolder.newFolder("project")
 
         files
@@ -224,6 +226,9 @@ abstract class DriverTest {
         dexApi: String? = null,
         /** The DEX mapping API (corresponds to --dex-api-mapping) */
         dexApiMapping: String? = null,
+        /** The subtract api signature content (corresponds to --subtract-api) */
+        @Language("TEXT")
+        subtractApi: String? = null,
         /** Expected stubs (corresponds to --stubs) */
         @Language("JAVA") stubs: Array<String> = emptyArray(),
         /** Stub source file list generated */
@@ -415,7 +420,14 @@ abstract class DriverTest {
         if (!sourcePathDir.isDirectory) {
             sourcePathDir.mkdirs()
         }
-        val sourcePath = sourcePathDir.path
+
+        var sourcePath = sourcePathDir.path
+
+        // Make it easy to configure a source path with more than one source root: src and src2
+        if (sourceFiles.any { it.targetPath.startsWith("src2") }) {
+            sourcePath = sourcePath + File.pathSeparator + sourcePath + "2"
+        }
+
         val sourceList =
             if (signatureSource != null) {
                 sourcePathDir.mkdirs()
@@ -474,7 +486,13 @@ abstract class DriverTest {
         }
 
         val javaStubAnnotationsArgs = if (mergeJavaStubAnnotations != null) {
-            val merged = File(project, "merged-qualifier-annotations.java")
+            // We need to place the qualifier class into its proper package location
+            // to make the parsing machinery happy
+            val cls = ClassName(mergeJavaStubAnnotations)
+            val pkg = cls.packageName
+            val relative = pkg?.replace('.', File.separatorChar) ?: "."
+            val merged = File(project, "qualifier/$relative/${cls.className}.java")
+            merged.parentFile.mkdirs()
             merged.writeText(mergeJavaStubAnnotations.trimIndent())
             arrayOf(ARG_MERGE_QUALIFIER_ANNOTATIONS, merged.path)
         } else {
@@ -482,7 +500,11 @@ abstract class DriverTest {
         }
 
         val inclusionAnnotationsArgs = if (mergeInclusionAnnotations != null) {
-            val merged = File(project, "merged-inclusion-annotations.java")
+            val cls = ClassName(mergeInclusionAnnotations)
+            val pkg = cls.packageName
+            val relative = pkg?.replace('.', File.separatorChar) ?: "."
+            val merged = File(project, "inclusion/$relative/${cls.className}.java")
+            merged.parentFile?.mkdirs()
             merged.writeText(mergeInclusionAnnotations.trimIndent())
             arrayOf(ARG_MERGE_INCLUSION_ANNOTATIONS, merged.path)
         } else {
@@ -761,6 +783,15 @@ abstract class DriverTest {
             emptyArray()
         }
 
+        var subtractApiFile: File? = null
+        val subtractApiArgs = if (subtractApi != null) {
+            subtractApiFile = temporaryFolder.newFile("subtract-api.txt")
+            subtractApiFile.writeText(subtractApi.trimIndent())
+            arrayOf(ARG_SUBTRACT_API, subtractApiFile.path)
+        } else {
+            emptyArray()
+        }
+
         val convertFiles = mutableListOf<Options.ConvertFile>()
         val convertArgs = if (convertToJDiff.isNotEmpty()) {
             val args = mutableListOf<String>()
@@ -986,6 +1017,7 @@ abstract class DriverTest {
             *dexApiArgs,
             *privateDexApiArgs,
             *dexApiMappingArgs,
+            *subtractApiArgs,
             *stubsArgs,
             *stubsSourceListArgs,
             "$ARG_COMPAT_OUTPUT=${if (compatibilityMode) "yes" else "no"}",
@@ -1220,14 +1252,26 @@ abstract class DriverTest {
         if (stubs.isNotEmpty() && stubsDir != null) {
             for (i in 0 until stubs.size) {
                 var stub = stubs[i].trimIndent()
-                val sourceFile = sourceFiles[i]
-                val targetPath = if (sourceFile.targetPath.endsWith(DOT_KT)) {
-                    // Kotlin source stubs are rewritten as .java files for now
-                    sourceFile.targetPath.substring(0, sourceFile.targetPath.length - 3) + DOT_JAVA
+
+                var targetPath: String
+                var stubFile: File
+                if (stub.startsWith("[") && stub.contains("]")) {
+                    val pathEnd = stub.indexOf("]\n")
+                    targetPath = stub.substring(1, pathEnd)
+                    stubFile = File(stubsDir, targetPath)
+                    if (stubFile.isFile) {
+                        stub = stub.substring(pathEnd + 2)
+                    }
                 } else {
-                    sourceFile.targetPath
+                    val sourceFile = sourceFiles[i]
+                    targetPath = if (sourceFile.targetPath.endsWith(DOT_KT)) {
+                        // Kotlin source stubs are rewritten as .java files for now
+                        sourceFile.targetPath.substring(0, sourceFile.targetPath.length - 3) + DOT_JAVA
+                    } else {
+                        sourceFile.targetPath
+                    }
+                    stubFile = File(stubsDir, targetPath.substring("src/".length))
                 }
-                var stubFile = File(stubsDir, targetPath.substring("src/".length))
                 if (!stubFile.isFile) {
                     if (stub.startsWith("[") && stub.contains("]")) {
                         val pathEnd = stub.indexOf("]\n")
@@ -1264,7 +1308,10 @@ abstract class DriverTest {
                 "${stubsSourceListFile.path} does not exist even though --write-stubs-source-list was used",
                 stubsSourceListFile.exists()
             )
-            val actualText = readFile(stubsSourceListFile, stripBlankLines, trim)
+            val actualText = cleanupString(readFile(stubsSourceListFile, stripBlankLines, trim), project)
+                // To make golden files look better put one entry per line instead of a single
+                // space separated line
+                .replace(' ', '\n')
             assertEquals(stripComments(stubsSourceList, stripLineComments = false).trimIndent(), actualText)
         }
 
@@ -1804,7 +1851,7 @@ abstract class DriverTest {
         assertEquals(stripComments(api, stripLineComments = false).trimIndent(), actualText)
     }
 
-    private fun findJdk(): String? {
+    protected fun findJdk(): String? {
         val jdkPath = getJdkPath()
         if (jdkPath == null) {
             fail("JDK not found in the environment; make sure \$JAVA_HOME is set.")
@@ -1981,6 +2028,7 @@ val longDefAnnotationSource: TestFile = java(
     """
 ).indented()
 
+@Suppress("ConstantConditionIf")
 val nonNullSource: TestFile = java(
     """
     package android.annotation;
@@ -1999,7 +2047,7 @@ val nonNullSource: TestFile = java(
      */
     @SuppressWarnings({"WeakerAccess", "JavaDoc"})
     @Retention(SOURCE)
-    @Target({METHOD, PARAMETER, FIELD, TYPE_USE})
+    @Target({METHOD, PARAMETER, FIELD${if (SUPPORT_TYPE_USE_ANNOTATIONS) ", TYPE_USE" else ""}})
     public @interface NonNull {
     }
     """
@@ -2122,6 +2170,7 @@ val broadcastBehaviorSource: TestFile = java(
     """
 ).indented()
 
+@Suppress("ConstantConditionIf")
 val nullableSource: TestFile = java(
     """
     package android.annotation;
@@ -2136,7 +2185,7 @@ val nullableSource: TestFile = java(
      */
     @SuppressWarnings({"WeakerAccess", "JavaDoc"})
     @Retention(SOURCE)
-    @Target({METHOD, PARAMETER, FIELD, TYPE_USE})
+    @Target({METHOD, PARAMETER, FIELD${if (SUPPORT_TYPE_USE_ANNOTATIONS) ", TYPE_USE" else ""}})
     public @interface Nullable {
     }
     """
@@ -2150,7 +2199,7 @@ val supportNonNullSource: TestFile = java(
     import static java.lang.annotation.RetentionPolicy.SOURCE;
     @SuppressWarnings("WeakerAccess")
     @Retention(SOURCE)
-    @Target({METHOD, PARAMETER, FIELD, TYPE_USE})
+    @Target({METHOD, PARAMETER, FIELD, TYPE_USE, TYPE_PARAMETER})
     public @interface NonNull {
     }
     """
@@ -2164,7 +2213,7 @@ val supportNullableSource: TestFile = java(
     import static java.lang.annotation.RetentionPolicy.SOURCE;
     @SuppressWarnings("WeakerAccess")
     @Retention(SOURCE)
-    @Target({METHOD, PARAMETER, FIELD, TYPE_USE})
+    @Target({METHOD, PARAMETER, FIELD, TYPE_USE, TYPE_PARAMETER})
     public @interface Nullable {
     }
     """

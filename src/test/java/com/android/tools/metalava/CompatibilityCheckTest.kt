@@ -2306,6 +2306,71 @@ CompatibilityCheckTest : DriverTest() {
     }
 
     @Test
+    fun `Compare signatures with Kotlin nullability from signature`() {
+        check(
+            warnings = """
+            TESTROOT/load-api.txt:5: error: Attempted to remove @NonNull annotation from parameter str in test.pkg.Foo.method1(int p, Integer int2, int p1, String str, java.lang.String... args) [InvalidNullConversion]
+            TESTROOT/load-api.txt:7: error: Attempted to change parameter from @Nullable to @NonNull: incompatible change for parameter str in test.pkg.Foo.method3(String str, int p, int int2) [InvalidNullConversion]
+            """.trimIndent(),
+            format = FileFormat.V3,
+            checkCompatibilityApi = """
+                // Signature format: 3.0
+                package test.pkg {
+                  public final class Foo {
+                    ctor public Foo();
+                    method public void method1(int p = 42, Integer? int2 = null, int p1 = 42, String str = "hello world", java.lang.String... args);
+                    method public void method2(int p, int int2 = (2 * int) * some.other.pkg.Constants.Misc.SIZE);
+                    method public void method3(String? str, int p, int int2 = double(int) + str.length);
+                    field public static final test.pkg.Foo.Companion! Companion;
+                  }
+                }
+                """,
+            signatureSource = """
+                // Signature format: 3.0
+                package test.pkg {
+                  public final class Foo {
+                    ctor public Foo();
+                    method public void method1(int p = 42, Integer? int2 = null, int p1 = 42, String! str = "hello world", java.lang.String... args);
+                    method public void method2(int p, int int2 = (2 * int) * some.other.pkg.Constants.Misc.SIZE);
+                    method public void method3(String str, int p, int int2 = double(int) + str.length);
+                    field public static final test.pkg.Foo.Companion! Companion;
+                  }
+                }
+                """
+        )
+    }
+
+    @Test
+    fun `Compare signatures with Kotlin nullability from source`() {
+        check(
+            warnings = """
+            src/test/pkg/test.kt:4: error: Attempted to change parameter from @Nullable to @NonNull: incompatible change for parameter str1 in test.pkg.TestKt.fun1(String str1, String str2, java.util.List<java.lang.String> list) [InvalidNullConversion]
+            """.trimIndent(),
+            format = FileFormat.V3,
+            checkCompatibilityApi = """
+                // Signature format: 3.0
+                package test.pkg {
+                  public final class TestKt {
+                    ctor public TestKt();
+                    method public static void fun1(String? str1, String str2, java.util.List<java.lang.String!> list);
+                  }
+                }
+                """,
+            sourceFiles = *arrayOf(
+                kotlin(
+                    """
+                        package test.pkg
+                        import java.util.List
+
+                        fun fun1(str1: String, str2: String?, list: List<String?>) { }
+
+                    """.trimIndent()
+                )
+            )
+        )
+    }
+
+    @Test
     fun `Adding and removing reified`() {
         check(
             compatibilityMode = false,
@@ -2584,6 +2649,69 @@ CompatibilityCheckTest : DriverTest() {
                         public void method2() { }
                         public void method3() { }
                         public native void method4();
+                    }
+                    """
+                )
+            )
+        )
+    }
+
+    @Test
+    fun `Empty bundle files`() {
+        // Regression test for 124333557
+        // Makes sure we properly handle conflicting definitions of a java file in separate source roots
+        check(
+            warnings = "",
+            compatibilityMode = false,
+            checkCompatibilityApi = """
+                // Signature format: 3.0
+                package com.android.location.provider {
+                  public class LocationProviderBase1 {
+                    ctor public LocationProviderBase1();
+                    method public void onGetStatus(android.os.Bundle!);
+                  }
+                  public class LocationProviderBase2 {
+                    ctor public LocationProviderBase2();
+                    method public void onGetStatus(android.os.Bundle!);
+                  }
+                }
+                """,
+            sourceFiles = *arrayOf(
+                java(
+                    "src2/com/android/location/provider/LocationProviderBase1.java",
+                    """
+                    /** Something */
+                    package com.android.location.provider;
+                    """
+                ),
+                java(
+                    "src/com/android/location/provider/LocationProviderBase1.java",
+                    """
+                    package com.android.location.provider;
+                    import android.os.Bundle;
+
+                    public class LocationProviderBase1 {
+                        public void onGetStatus(Bundle bundle) { }
+                    }
+                    """
+                ),
+                // Try both combinations (empty java file both first on the source path
+                // and second on the source path)
+                java(
+                    "src/com/android/location/provider/LocationProviderBase2.java",
+                    """
+                    /** Something */
+                    package com.android.location.provider;
+                    """
+                ),
+                java(
+                    "src/com/android/location/provider/LocationProviderBase2.java",
+                    """
+                    package com.android.location.provider;
+                    import android.os.Bundle;
+
+                    public class LocationProviderBase2 {
+                        public void onGetStatus(Bundle bundle) { }
                     }
                     """
                 )

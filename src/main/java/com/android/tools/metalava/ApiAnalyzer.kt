@@ -301,7 +301,12 @@ class ApiAnalyzer(
     }
 
     fun generateInheritedStubs(filterEmit: Predicate<Item>, filterReference: Predicate<Item>) {
-        packages.allClasses().forEach {
+        // When analyzing libraries we may discover some new classes during traversal; these aren't
+        // part of the API but may be super classes or interfaces; these will then be added into the
+        // package class lists, which could trigger a concurrent modification, so create a snapshot
+        // of the class list and iterate over it:
+        val allClasses = packages.allClasses().toList()
+        allClasses.forEach {
             if (filterEmit.test(it)) {
                 generateInheritedStubs(it, filterEmit, filterReference)
             }
@@ -868,6 +873,9 @@ class ApiAnalyzer(
                     val annotation = method.modifiers.annotations().find { it.isNullable() }
                     annotation?.let {
                         method.mutableModifiers().removeAnnotation(it)
+                        // Have to also clear the annotation out of the return type itself, if it's a type
+                        // use annotation
+                        method.returnType()?.scrubAnnotations()
                     }
                 }
             }
