@@ -31,8 +31,8 @@ import com.android.tools.lint.checks.infrastructure.TestFiles
 import com.android.tools.lint.checks.infrastructure.TestFiles.java
 import com.android.tools.lint.checks.infrastructure.stripComments
 import com.android.tools.metalava.doclava1.ApiFile
-import com.android.tools.metalava.doclava1.Issues
 import com.android.tools.metalava.model.SUPPORT_TYPE_USE_ANNOTATIONS
+import com.android.tools.metalava.model.defaultConfiguration
 import com.android.tools.metalava.model.parseDocument
 import com.android.utils.FileUtils
 import com.android.utils.SdkUtils
@@ -115,7 +115,9 @@ abstract class DriverTest {
 
             Disposer.setDebugMode(true)
 
-            if (!run(arrayOf(*args), writer, writer)) {
+            if (run(arrayOf(*args), writer, writer)) {
+                assertTrue("Test expected to fail but didn't. Expected failure: $expectedFail", expectedFail.isEmpty())
+            } else {
                 val actualFail = cleanupString(sw.toString(), null)
                 if (cleanupString(expectedFail, null).replace(".", "").trim() !=
                     actualFail.replace(".", "").trim()
@@ -276,7 +278,12 @@ abstract class DriverTest {
         @Language("JAVA") mergeJavaStubAnnotations: String? = null,
         /** Inclusion annotations to merge in (in Java stub format) */
         @Language("JAVA") mergeInclusionAnnotations: String? = null,
-        /** An optional API signature file content to load **instead** of Java/Kotlin source files */
+        /** Otional API signature files content to load **instead** of Java/Kotlin source files */
+        @Language("TEXT") signatureSources: Array<String> = emptyArray(),
+        /**
+         * An otional API signature file content to load **instead** of Java/Kotlin source files.
+         * This is added to [signatureSources]. This argument exists for backward compatibility.
+         */
         @Language("TEXT") signatureSource: String? = null,
         /** An optional API jar file content to load **instead** of Java/Kotlin source files */
         apiJar: File? = null,
@@ -417,13 +424,14 @@ abstract class DriverTest {
                 "Can't specify both compatibilityMode and mergeInclusionAnnotations"
             )
         }
-        Issues.resetLevels()
+        defaultConfiguration.reset()
 
         @Suppress("NAME_SHADOWING")
-        val expectedFail = expectedFail ?: if (checkCompatibilityApi != null ||
+        val expectedFail = expectedFail ?: if ((checkCompatibilityApi != null ||
             checkCompatibilityApiReleased != null ||
             checkCompatibilityRemovedApiCurrent != null ||
-            checkCompatibilityRemovedApiReleased != null
+            checkCompatibilityRemovedApiReleased != null) &&
+            (warnings != null && !warnings.trim().isEmpty())
         ) {
             "Aborting: Found compatibility problems with --check-compatibility"
         } else {
@@ -448,20 +456,25 @@ abstract class DriverTest {
         }
 
         val sourceList =
-            if (signatureSource != null) {
+            if (!signatureSources.isEmpty() || signatureSource != null) {
                 sourcePathDir.mkdirs()
-                assert(sourceFiles.isEmpty()) { "Shouldn't combine sources with signature file loads" }
-                val signatureFile = File(project, "load-api.txt")
-                signatureFile.writeText(signatureSource.trimIndent())
-                if (includeStrippedSuperclassWarnings) {
-                    arrayOf(signatureFile.path)
-                } else {
-                    arrayOf(
-                        signatureFile.path,
-                        ARG_HIDE,
-                        "HiddenSuperclass"
-                    ) // Suppress warning #111
+
+                // if signatureSource is set, add it to signatureSources.
+                val sources = signatureSources.toMutableList()
+                signatureSource?. let { sources.add(it) }
+
+                var num = 0
+                var args = mutableListOf<String>()
+                sources.forEach { file ->
+                    val signatureFile = File(project, "load-api${ if (++num == 1) "" else num }.txt")
+                    signatureFile.writeText(file.trimIndent())
+                    args.add(signatureFile.path)
                 }
+                if (!includeStrippedSuperclassWarnings) {
+                    args.add(ARG_HIDE)
+                    args.add("HiddenSuperclass") // Suppress warning #111
+                }
+                args.toTypedArray()
             } else if (apiJar != null) {
                 sourcePathDir.mkdirs()
                 assert(sourceFiles.isEmpty()) { "Shouldn't combine sources with API jar file loads" }
