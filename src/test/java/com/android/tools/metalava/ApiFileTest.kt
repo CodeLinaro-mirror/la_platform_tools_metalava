@@ -492,7 +492,7 @@ class ApiFileTest : DriverTest() {
                     class MyClass {
                         // This property should have no public setter
                         var readOnlyVar = false
-                            internal set 
+                            internal set
                     }
                     """
                 )
@@ -1608,7 +1608,7 @@ class ApiFileTest : DriverTest() {
                 )
             ),
 
-            warnings = """
+            expectedIssues = """
                 src/test/pkg/Foo.java:7: error: Method test.pkg.Foo.method1(): @Deprecated annotation (present) and @deprecated doc tag (not present) do not match [DeprecationMismatch]
                 src/test/pkg/Foo.java:8: error: Method test.pkg.Foo.method2(): @Deprecated annotation (present) and @deprecated doc tag (not present) do not match [DeprecationMismatch]
                 src/test/pkg/Foo.java:9: error: Class test.pkg.Foo.Inner1: @Deprecated annotation (present) and @deprecated doc tag (not present) do not match [DeprecationMismatch]
@@ -1663,7 +1663,7 @@ class ApiFileTest : DriverTest() {
                 nullableSource
             ),
 
-            warnings = """
+            expectedIssues = """
                 src/test/pkg/Foo.java:6: warning: method test.pkg.Foo.findViewById(int) should not be annotated @Nullable; it should be left unspecified to make it a platform type [ExpectedPlatformType]
                 """,
             extraArguments = arrayOf(ARG_WARNING, "ExpectedPlatformType"),
@@ -2098,7 +2098,7 @@ class ApiFileTest : DriverTest() {
             ),
             // Notice how the intermediate methods (method2, method3) have been removed
             includeStrippedSuperclassWarnings = true,
-            warnings = "src/test/pkg/MyClass.java:2: warning: Public class test.pkg.MyClass stripped of unavailable superclass test.pkg.HiddenParent [HiddenSuperclass]",
+            expectedIssues = "src/test/pkg/MyClass.java:2: warning: Public class test.pkg.MyClass stripped of unavailable superclass test.pkg.HiddenParent [HiddenSuperclass]",
             api = """
                 package test.pkg {
                   public class MyClass extends test.pkg.PublicParent {
@@ -2140,7 +2140,7 @@ class ApiFileTest : DriverTest() {
                     """
                 )
             ),
-            warnings = "",
+            expectedIssues = "",
             api = """
                     package test.pkg {
                       public class MyClass {
@@ -2179,7 +2179,7 @@ class ApiFileTest : DriverTest() {
                     """
                 )
             ),
-            warnings = "",
+            expectedIssues = "",
             api = """
                     package test.pkg {
                       public class MyClass {
@@ -2218,7 +2218,7 @@ class ApiFileTest : DriverTest() {
                     """
                 )
             ),
-            warnings = "",
+            expectedIssues = "",
             api = """
                     package test.pkg {
                       public class MyClass {
@@ -2261,7 +2261,7 @@ class ApiFileTest : DriverTest() {
                     """
                 )
             ),
-            warnings = "",
+            expectedIssues = "",
             api = """
                     package test.pkg {
                       public class MyClass {
@@ -3363,7 +3363,7 @@ class ApiFileTest : DriverTest() {
             // Simulate test-mock scenario for getIContentProvider
             extraArguments = arrayOf("--stub-packages", "android.test.mock"),
             compatibilityMode = false,
-            warnings = "src/android/test/mock/MockContentProvider.java:6: warning: Public class android.test.mock.MockContentProvider stripped of unavailable superclass android.content.ContentProvider [HiddenSuperclass]",
+            expectedIssues = "src/android/test/mock/MockContentProvider.java:6: warning: Public class android.test.mock.MockContentProvider stripped of unavailable superclass android.content.ContentProvider [HiddenSuperclass]",
             sourceFiles = arrayOf(
                 java(
                     """
@@ -3529,7 +3529,7 @@ class ApiFileTest : DriverTest() {
                 ARG_ERROR, "ReferencesDeprecated",
                 ARG_ERROR, "ExtendsDeprecated"
             ),
-            warnings = """
+            expectedIssues = """
             src/test/pkg/MyClass.java:3: error: Parameter of deprecated type test.pkg.DeprecatedClass in test.pkg.MyClass.method1(): this method should also be deprecated [ReferencesDeprecated]
             src/test/pkg/MyClass.java:4: error: Return type of deprecated type test.pkg.DeprecatedInterface in test.pkg.MyClass.method2(): this method should also be deprecated [ReferencesDeprecated]
             src/test/pkg/MyClass.java:4: error: Returning deprecated type test.pkg.DeprecatedInterface from test.pkg.MyClass.method2(): this method should also be deprecated [ReferencesDeprecated]
@@ -3676,7 +3676,7 @@ class ApiFileTest : DriverTest() {
                     """
                 )
             ),
-            warnings = "",
+            expectedIssues = "",
             api =
             """
                 package test.pkg {
@@ -3737,7 +3737,7 @@ class ApiFileTest : DriverTest() {
                     """
                 )
             ),
-            warnings = "src/test/pkg/Class3.java:2: warning: Public class test.pkg.Class3 stripped of unavailable superclass test.pkg.Class2 [HiddenSuperclass]",
+            expectedIssues = "src/test/pkg/Class3.java:2: warning: Public class test.pkg.Class3 stripped of unavailable superclass test.pkg.Class2 [HiddenSuperclass]",
             api =
             """
                 package test.pkg {
@@ -3757,6 +3757,225 @@ class ApiFileTest : DriverTest() {
                 }
                 """
 
+        )
+    }
+
+    @Test
+    fun `Test merging API signature files`() {
+        val source1 = """
+            package Test.pkg {
+              public final class Class1 {
+                method public void method1();
+              }
+            }
+            package Test.pkg1 {
+              public final class Class1 {
+                method public void method1();
+              }
+            }
+                    """
+        val source2 = """
+            package Test.pkg {
+              public final class Class2 {
+                method public void method1(String);
+              }
+            }
+            package Test.pkg2 {
+              public final class Class1 {
+                method public void method1(String, String);
+              }
+            }
+                    """
+        val expected = """
+            package Test.pkg {
+              public final class Class1 {
+                method public void method1();
+              }
+              public final class Class2 {
+                method public void method1(java.lang.String);
+              }
+            }
+            package Test.pkg1 {
+              public final class Class1 {
+                method public void method1();
+              }
+            }
+            package Test.pkg2 {
+              public final class Class1 {
+                method public void method1(java.lang.String, java.lang.String);
+              }
+            }
+                    """
+        check(
+            signatureSources = arrayOf(source1, source2),
+            api = expected
+        )
+    }
+
+    val MERGE_TEST_SOURCE_1 = """
+            package test.pkg {
+              public final class BaseClass {
+                method public void method1();
+              }
+            }
+                    """
+    val MERGE_TEST_SOURCE_2 = """
+            package test.pkg {
+              public final class SubClass extends test.pkg.BaseClass {
+              }
+            }
+                    """
+    val MERGE_TEST_EXPECTED = """
+            package test.pkg {
+              public final class BaseClass {
+                method public void method1();
+              }
+              public final class SubClass extends test.pkg.BaseClass {
+              }
+            }
+            """
+
+    @Test
+    fun `Test merging API signature files, one refer to another`() {
+        check(
+            signatureSources = arrayOf(MERGE_TEST_SOURCE_1, MERGE_TEST_SOURCE_2),
+            api = MERGE_TEST_EXPECTED
+        )
+    }
+
+    @Test
+    fun `Test merging API signature files, one refer to another, in reverse order`() {
+        // Exactly the same as the previous test, but read them in the reverse order
+        check(
+            signatureSources = arrayOf(MERGE_TEST_SOURCE_2, MERGE_TEST_SOURCE_1),
+            api = MERGE_TEST_EXPECTED
+        )
+    }
+
+    @Test
+    fun `Test merging API signature files with reverse dependency`() {
+        val source1 = """
+            package test.pkg {
+              public final class Class1 {
+                method public void method1(test.pkg.Class2 arg);
+              }
+            }
+                    """
+        val source2 = """
+            package test.pkg {
+              public final class Class2 {
+              }
+            }
+                    """
+        val expected = """
+            package test.pkg {
+              public final class Class1 {
+                method public void method1(test.pkg.Class2);
+              }
+              public final class Class2 {
+              }
+            }
+                    """
+        check(
+            signatureSources = arrayOf(source1, source2),
+            api = expected
+        )
+    }
+
+    @Test
+    fun `Test merging 3 API signature files`() {
+        val source1 = """
+            package test.pkg1 {
+              public final class BaseClass1 {
+                method public void method1();
+              }
+
+              public final class AnotherSubClass extends test.pkg2.AnotherBase {
+                method public void method1();
+              }
+            }
+                    """
+        val source2 = """
+            package test.pkg2 {
+              public final class SubClass1 extends test.pkg1.BaseClass1 {
+              }
+            }
+                    """
+        val source3 = """
+            package test.pkg2 {
+              public final class SubClass2 extends test.pkg2.SubClass1 {
+                method public void bar();
+              }
+
+              public final class AnotherBase {
+                method public void baz();
+              }
+            }
+                    """
+        val expected = """
+            package test.pkg1 {
+              public final class AnotherSubClass extends test.pkg2.AnotherBase {
+                method public void method1();
+              }
+              public final class BaseClass1 {
+                method public void method1();
+              }
+            }
+            package test.pkg2 {
+              public final class AnotherBase {
+                method public void baz();
+              }
+              public final class SubClass1 extends test.pkg1.BaseClass1 {
+              }
+              public final class SubClass2 extends test.pkg2.SubClass1 {
+                method public void bar();
+              }
+            }
+                    """
+        check(
+            signatureSources = arrayOf(source1, source2, source3),
+            api = expected
+        )
+    }
+
+    @Test
+    fun `Test cannot merging API signature files with duplicate class`() {
+        val source1 = """
+            package Test.pkg {
+              public final class Class1 {
+                method public void method1();
+              }
+            }
+                    """
+        val source2 = """
+            package Test.pkg {
+              public final class Class1 {
+                method public void method1();
+              }
+            }
+                    """
+        check(
+            signatureSources = arrayOf(source1, source2),
+            expectedFail = "Unable to parse signature file: TESTROOT/project/load-api2.txt:2: Duplicate class found: Test.pkg.Class1"
+        )
+    }
+
+    @Test
+    fun `Test cannot merging API signature files with different file formats`() {
+        val source1 = """
+            // Signature format: 2.0
+            package Test.pkg {
+            }
+                    """
+        val source2 = """
+            // Signature format: 3.0
+            package Test.pkg {
+            }
+                    """
+        check(
+            signatureSources = arrayOf(source1, source2),
+            expectedFail = "Unable to parse signature file: Cannot merge different formats of signature files. " +
+                "First file format=V2, current file format=V3: file=TESTROOT/project/load-api2.txt"
         )
     }
 }

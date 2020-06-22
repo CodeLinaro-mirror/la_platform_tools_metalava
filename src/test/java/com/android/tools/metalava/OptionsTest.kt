@@ -16,6 +16,8 @@
 
 package com.android.tools.metalava
 
+import com.android.tools.metalava.doclava1.Issues
+import com.android.tools.metalava.model.defaultConfiguration
 import org.junit.Assert.assertEquals
 import org.junit.Test
 import java.io.PrintWriter
@@ -278,6 +280,14 @@ Diffs and Checks:
                                              some warnings have been fixed, this will delete them from the baseline
                                              files. If a file is provided, the updated baseline is written to the given
                                              file; otherwise the original source baseline file is updated.
+--baseline:api-lint <file> --update-baseline:api-lint [file]
+                                             Same as --baseline and --update-baseline respectively, but used
+                                             specifically for API lint issues performed by --api-lint.
+--baseline:compatibility:released <file> --update-baseline:compatibility:released [file]
+                                             Same as --baseline and --update-baseline respectively, but used
+                                             specifically for API compatibility issues performed by
+                                             --check-compatibility:api:released and
+                                             --check-compatibility:removed:released.
 --merge-baseline [file]                      
                                              Like --update-baseline, but instead of always replacing entries in the
                                              baseline, it will merge the existing baseline with the new baseline. This
@@ -291,6 +301,16 @@ Diffs and Checks:
 --delete-empty-baselines                     
                                              Whether to delete baseline files if they are updated and there is nothing
                                              to include.
+--error-message:api-lint <message>           
+                                             If set, metalava shows it when errors are detected in --api-lint.
+--error-message:compatibility:released <message>
+                                             If set, metalava shows it  when errors are detected in
+                                             --check-compatibility:api:released and
+                                             --check-compatibility:removed:released.
+--error-message:compatibility:current <message>
+                                             If set, metalava shows it  when errors are detected in
+                                             --check-compatibility:api:current and
+                                             --check-compatibility:removed:current.
 
 
 JDiff:
@@ -436,6 +456,71 @@ $DESCRIPTION
 $FLAGS
 
 """.trimIndent(), stdout.toString()
+        )
+    }
+
+    @Test
+    fun `Test issue severity options`() {
+        check(
+            extraArguments = arrayOf(
+                "--hide",
+                "StartWithLower",
+                "--lint",
+                "EndsWithImpl",
+                "--warning",
+                "StartWithUpper",
+                "--error",
+                "ArrayReturn"
+            )
+        )
+        assertEquals(Severity.HIDDEN, defaultConfiguration.getSeverity(Issues.START_WITH_LOWER))
+        assertEquals(Severity.LINT, defaultConfiguration.getSeverity(Issues.ENDS_WITH_IMPL))
+        assertEquals(Severity.WARNING, defaultConfiguration.getSeverity(Issues.START_WITH_UPPER))
+        assertEquals(Severity.ERROR, defaultConfiguration.getSeverity(Issues.ARRAY_RETURN))
+    }
+
+    @Test
+    fun `Test multiple issue severity options`() {
+        check(
+            extraArguments = arrayOf("--hide", "StartWithLower,StartWithUpper,ArrayReturn")
+        )
+        assertEquals(Severity.HIDDEN, defaultConfiguration.getSeverity(Issues.START_WITH_LOWER))
+        assertEquals(Severity.HIDDEN, defaultConfiguration.getSeverity(Issues.START_WITH_UPPER))
+        assertEquals(Severity.HIDDEN, defaultConfiguration.getSeverity(Issues.ARRAY_RETURN))
+    }
+
+    @Test
+    fun `Test issue severity options with inheriting issues`() {
+        check(
+            extraArguments = arrayOf("--error", "RemovedClass")
+        )
+        assertEquals(Severity.ERROR, defaultConfiguration.getSeverity(Issues.REMOVED_CLASS))
+        assertEquals(Severity.ERROR, defaultConfiguration.getSeverity(Issues.REMOVED_DEPRECATED_CLASS))
+    }
+
+    @Test
+    fun `Test issue severity options by numeric id`() {
+        check(
+            extraArguments = arrayOf("--hide", "366"),
+            expectedIssues = "warning: Issue lookup by numeric id is deprecated, use --hide ArrayReturn instead of --hide 366 [DeprecatedOption]"
+        )
+        assertEquals(Severity.HIDDEN, defaultConfiguration.getSeverity(Issues.ARRAY_RETURN))
+    }
+
+    @Test
+    fun `Test issue severity options with case insensitive names`() {
+        check(
+            extraArguments = arrayOf("--hide", "arrayreturn"),
+            expectedIssues = "warning: Case-insensitive issue matching is deprecated, use --hide ArrayReturn instead of --hide arrayreturn [DeprecatedOption]"
+        )
+        assertEquals(Severity.HIDDEN, defaultConfiguration.getSeverity(Issues.ARRAY_RETURN))
+    }
+
+    @Test
+    fun `Test issue severity options with non-existing issue`() {
+        check(
+            extraArguments = arrayOf("--hide", "ThisIssueDoesNotExist"),
+            expectedFail = "Unknown issue id: --hide ThisIssueDoesNotExist"
         )
     }
 }

@@ -97,11 +97,10 @@ fun run(
     stderr: PrintWriter = PrintWriter(OutputStreamWriter(System.err)),
     setExitCode: Boolean = false
 ): Boolean {
-    var exitValue: Boolean
     var exitCode = 0
 
     try {
-        var modifiedArgs = preprocessArgv(originalArgs)
+        val modifiedArgs = preprocessArgv(originalArgs)
 
         progress("$PROGRAM_NAME started\n")
 
@@ -114,10 +113,9 @@ fun run(
 
         processFlags()
 
-        if (reporter.hasErrors() && !options.passBaselineUpdates) {
+        if (options.allReporters.any { it.hasErrors() } && !options.passBaselineUpdates) {
             exitCode = -1
         }
-        exitValue = true
     } catch (e: DriverException) {
         stdout.flush()
         stderr.flush()
@@ -128,21 +126,28 @@ fun run(
             stdout.println("\n${e.stdout}")
         }
         exitCode = e.exitCode
-        exitValue = false
     } finally {
         Disposer.dispose(LintCoreApplicationEnvironment.get().parentDisposable)
     }
 
-    if (options.updateBaseline) {
+    // Update and close all baseline files.
+    options.allBaselines.forEach { baseline ->
         if (options.verbose) {
-            options.baseline?.dumpStats(options.stdout)
+            baseline.dumpStats(options.stdout)
         }
-        if (!options.quiet) {
-            stdout.println("$PROGRAM_NAME wrote updated baseline to ${options.baseline?.updateFile}")
+        if (baseline.close()) {
+            if (!options.quiet) {
+                stdout.println("$PROGRAM_NAME wrote updated baseline to ${baseline.updateFile}")
+            }
         }
     }
-    options.baseline?.close()
+
     options.reportEvenIfSuppressedWriter?.close()
+
+    // Show failure messages, if any.
+    options.allReporters.forEach {
+        it.writeErrorMessage(stderr)
+    }
 
     stdout.flush()
     stderr.flush()
@@ -151,7 +156,7 @@ fun run(
         exit(exitCode)
     }
 
-    return exitValue
+    return exitCode == 0
 }
 
 private fun exit(exitCode: Int = 0) {
@@ -168,17 +173,19 @@ private fun processFlags() {
 
     processNonCodebaseFlags()
 
+    val sources = options.sources
     val codebase =
-        if (options.sources.size == 1 && options.sources[0].path.endsWith(DOT_TXT)) {
-            SignatureFileLoader.load(
-                file = options.sources[0],
-                kotlinStyleNulls = options.inputKotlinStyleNulls
-            )
+        if (sources.size >= 1 && sources[0].path.endsWith(DOT_TXT)) {
+            // Make sure all the source files have .txt extensions.
+            sources.firstOrNull { !it.path.endsWith(DOT_TXT) }?. let {
+                throw DriverException("Inconsistent input file types: The first file is of $DOT_TXT, but detected different extension in ${it.path}")
+            }
+            SignatureFileLoader.loadFiles(sources, options.inputKotlinStyleNulls)
         } else if (options.apiJar != null) {
             loadFromJarFile(options.apiJar!!)
-        } else if (options.sources.size == 1 && options.sources[0].path.endsWith(DOT_JAR)) {
-            loadFromJarFile(options.sources[0])
-        } else if (options.sources.isNotEmpty() || options.sourcePath.isNotEmpty()) {
+        } else if (sources.size == 1 && sources[0].path.endsWith(DOT_JAR)) {
+            loadFromJarFile(sources[0])
+        } else if (sources.isNotEmpty() || options.sourcePath.isNotEmpty()) {
             loadFromSources()
         } else {
             return
@@ -382,7 +389,6 @@ private fun processFlags() {
     if (options.docStubsDir == null && options.stubsDir == null) {
         val writeStubsFile: (File) -> Unit = { file ->
             val root = File("").absoluteFile
-            val sources = options.sources
             val rootPath = root.path
             val contents = sources.joinToString(" ") {
                 val path = it.path
@@ -793,8 +799,10 @@ private fun loadFromSources(): Codebase {
     options.nullabilityAnnotationsValidator?.report()
     analyzer.handleStripping()
 
+    val apiLintReporter = options.reporterApiLint
+
     if (options.checkKotlinInterop) {
-        KotlinInteropChecks().check(codebase)
+        KotlinInteropChecks(apiLintReporter).check(codebase)
     }
 
     // General API checks for Android APIs
@@ -814,8 +822,8 @@ private fun loadFromSources(): Codebase {
                     kotlinStyleNulls = options.inputKotlinStyleNulls
                 )
             }
-        ApiLint.check(codebase, previous)
-        progress("$PROGRAM_NAME ran api-lint in ${localTimer.elapsed(SECONDS)} seconds")
+        ApiLint.check(codebase, previous, apiLintReporter)
+        progress("$PROGRAM_NAME ran api-lint in ${localTimer.elapsed(SECONDS)} seconds with ${apiLintReporter.getBaselineDescription()}")
     }
 
     // Compute default constructors (and add missing package private constructors
@@ -907,6 +915,16 @@ fun loadFromJarFile(apiJar: File, manifest: File? = null, preFiltered: Boolean =
     analyzer.generateInheritedStubs(apiEmit, apiReference)
     codebase.bindingContext = trace.bindingContext
     return codebase
+}
+
+private fun loadFromApiSignatureFiles(files: List<File>, kotlinStyleNulls: Boolean? = null): Codebase {
+    // Make sure all the source files have .txt extensions.
+    files.forEach { file ->
+        if (!file.path.endsWith(DOT_TXT)) {
+                throw DriverException("Inconsistent input file types: The first file is of .$DOT_TXT, but detected different extension in ${file.path}")
+        }
+    }
+    return SignatureFileLoader.loadFiles(files, kotlinStyleNulls)
 }
 
 private fun createProjectEnvironment(): LintCoreProjectEnvironment {

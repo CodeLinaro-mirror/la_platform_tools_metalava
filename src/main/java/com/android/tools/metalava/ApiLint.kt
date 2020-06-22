@@ -53,6 +53,7 @@ import com.android.tools.metalava.doclava1.Issues.ALL_UPPER
 import com.android.tools.metalava.doclava1.Issues.ANDROID_URI
 import com.android.tools.metalava.doclava1.Issues.ARRAY_RETURN
 import com.android.tools.metalava.doclava1.Issues.AUTO_BOXING
+import com.android.tools.metalava.doclava1.Issues.BAD_FUTURE
 import com.android.tools.metalava.doclava1.Issues.BANNED_THROW
 import com.android.tools.metalava.doclava1.Issues.BUILDER_SET_STYLE
 import com.android.tools.metalava.doclava1.Issues.CALLBACK_INTERFACE
@@ -164,7 +165,7 @@ import java.util.function.Predicate
  * The [ApiLint] analyzer checks the API against a known set of preferred API practices
  * by the Android API council.
  */
-class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?) : ApiVisitor(
+class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?, private val reporter: Reporter) : ApiVisitor(
     // Sort by source order such that warnings follow source line number order
     methodComparator = MethodItem.sourceOrderComparator,
     fieldComparator = FieldItem.comparator,
@@ -211,7 +212,10 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
                 options.stdout.println("""
                 ************************************************************
                 Your API changes are triggering API Lint warnings or errors.
-                To make these errors go away, you have two choices:
+                To make these errors go away, fix the code according to the
+                error and/or warning messages above.
+
+                If it's not possible to do so, there are two workarounds:
 
                 1. You can suppress the errors with @SuppressLint("<id>")
                 2. You can update the baseline by executing the following
@@ -235,7 +239,7 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
 
     // The previous Kotlin interop tests are also part of API lint now (though they can be
     // run independently as well; therefore, only run them here if not running separately)
-    private val kotlinInterop = if (!options.checkKotlinInterop) KotlinInteropChecks() else null
+    private val kotlinInterop = if (!options.checkKotlinInterop) KotlinInteropChecks(reporter) else null
 
     override fun visitClass(cls: ClassItem) {
         val methods = cls.filteredMethods(filterReference).asSequence()
@@ -279,6 +283,7 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
         checkBitSet(type, typeString, item)
         checkHasNullability(item)
         checkUri(typeString, item)
+        checkFutures(typeString, item)
     }
 
     private fun checkClass(
@@ -3413,6 +3418,13 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
                 "${cls.simpleName()} should not extend `Activity`. Activity subclasses are impossible to compose. Expose a composable API instead."
             )
         }
+        badFutureTypes.firstOrNull { cls.extendsOrImplements(it) }?.let {
+            val extendOrImplement = if (cls.extends(it)) "extend" else "implement"
+            report(
+                BAD_FUTURE, cls, "${cls.simpleName()} should not $extendOrImplement `$it`." +
+                    " In AndroidX, use (but do not extend) ListenableFuture. In platform, use a combination of Consumer<T>, Executor, and CancellationSignal`."
+            )
+        }
     }
 
     private fun checkTypedef(cls: ClassItem) {
@@ -3455,6 +3467,15 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
         }
     }
 
+    private fun checkFutures(typeString: String, item: Item) {
+        badFutureTypes.firstOrNull { typeString.contains(it) }?.let {
+            report(
+                BAD_FUTURE, item, "Use ListenableFuture (library), " +
+                    "or a combination of Consumer<T>, Executor, and CancellationSignal (platform) instead of $it (${item.describe()})"
+            )
+        }
+    }
+
     private fun isInteresting(cls: ClassItem): Boolean {
         val name = cls.qualifiedName()
         for (prefix in options.checkApiIgnorePrefix) {
@@ -3472,6 +3493,11 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
         )
 
         private val badUriTypes = listOf("java.net.URL", "java.net.URI", "android.net.URL")
+
+        private val badFutureTypes = listOf(
+            "java.util.concurrent.CompletableFuture",
+            "java.util.concurrent.Future"
+        )
 
         /**
          * Classes for manipulating file descriptors directly, where using ParcelFileDescriptor
@@ -3608,8 +3634,8 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
             }
         }
 
-        fun check(codebase: Codebase, oldCodebase: Codebase?) {
-            ApiLint(codebase, oldCodebase).check()
+        fun check(codebase: Codebase, oldCodebase: Codebase?, reporter: Reporter) {
+            ApiLint(codebase, oldCodebase, reporter).check()
         }
     }
 }

@@ -57,9 +57,8 @@ class BaselineTest : DriverTest() {
                 ReferencesHidden: test.pkg.Foo#method(test.pkg.Hidden1, test.pkg.Hidden2) parameter #1:
                     Class test.pkg.Hidden2 is hidden but was referenced (as parameter type) from public parameter hidden2 in test.pkg.Foo.method(test.pkg.Hidden1 hidden1, test.pkg.Hidden2 hidden2)
             """,
-            updateBaseline = false,
             // Commented out above:
-            warnings = """
+            expectedIssues = """
                 src/test/pkg/Foo.java:9: error: Class test.pkg.Hidden2 is hidden but was referenced (as return type) from public method test.pkg.Foo.getHidden2() [ReferencesHidden]
             """,
             sourceFiles = arrayOf(
@@ -167,12 +166,13 @@ class BaselineTest : DriverTest() {
                 ARG_API_LINT
             ),
             baseline = """
+            """,
+            updateBaseline = """
                 // Baseline format: 1.0
                 PairedRegistration: android.pkg.RegistrationMethods#registerUnpaired2Callback(Runnable):
                     Found registerUnpaired2Callback but not unregisterUnpaired2Callback in android.pkg.RegistrationMethods
             """,
-            updateBaseline = true,
-            warnings = "",
+            expectedIssues = "",
             sourceFiles = arrayOf(
                 java(
                     """
@@ -258,7 +258,6 @@ class BaselineTest : DriverTest() {
                 ReferencesHidden: test.pkg.Foo#hidden2:
                     Class test.pkg.Hidden2 is hidden but was referenced (as field type) from public field test.pkg.Foo.hidden2
             """,
-            updateBaseline = false,
             mergeBaseline = """
                 // Baseline format: 1.0
                 BothPackageInfoAndHtml: test/visible/package-info.java:

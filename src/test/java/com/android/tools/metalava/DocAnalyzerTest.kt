@@ -134,7 +134,7 @@ class DocAnalyzerTest : DriverTest() {
             ),
             checkCompilation = true,
             docStubs = true,
-            warnings = "src/test/pkg/Foo.java:2: warning: Replaced Andriod with Android in the documentation for class test.pkg.Foo [Typo]",
+            expectedIssues = "src/test/pkg/Foo.java:2: warning: Replaced Andriod with Android in the documentation for class test.pkg.Foo [Typo]",
             stubs = arrayOf(
                 """
                 package test.pkg;
@@ -210,7 +210,7 @@ class DocAnalyzerTest : DriverTest() {
                 requiresPermissionSource
             ),
             checkCompilation = false, // needs androidx.annotations in classpath
-            warnings = "src/test/pkg/PermissionTest.java:31: lint: Unrecognized permission `carier priviliges`; did you mean `carrier privileges`? [MissingPermission]",
+            expectedIssues = "src/test/pkg/PermissionTest.java:31: lint: Unrecognized permission `carier priviliges`; did you mean `carrier privileges`? [MissingPermission]",
             stubs = arrayOf(
                 """
                 package test.pkg;
@@ -421,7 +421,7 @@ class DocAnalyzerTest : DriverTest() {
                 workerThreadSource
             ),
             checkCompilation = true,
-            warnings = "src/test/pkg/RangeTest.java:5: lint: Found more than one threading annotation on method test.pkg.RangeTest.test1(); the auto-doc feature does not handle this correctly [MultipleThreadAnnotations]",
+            expectedIssues = "src/test/pkg/RangeTest.java:5: lint: Found more than one threading annotation on method test.pkg.RangeTest.test1(); the auto-doc feature does not handle this correctly [MultipleThreadAnnotations]",
             docStubs = true,
             stubs = arrayOf(
                 """
@@ -448,7 +448,7 @@ class DocAnalyzerTest : DriverTest() {
     @Test
     fun `Merge Multiple sections`() {
         check(
-            warnings = "src/android/widget/Toolbar2.java:14: error: Documentation should not specify @apiSince manually; it's computed and injected at build time by metalava [ForbiddenTag]",
+            expectedIssues = "src/android/widget/Toolbar2.java:14: error: Documentation should not specify @apiSince manually; it's computed and injected at build time by metalava [ForbiddenTag]",
             sourceFiles = arrayOf(
                 java(
                     """
@@ -706,7 +706,7 @@ class DocAnalyzerTest : DriverTest() {
             ),
             checkCompilation = true,
             docStubs = true,
-            warnings = "src/test/pkg/RangeTest.java:4: lint: Cannot find permission field for \"MyPermission\" required by method test.pkg.RangeTest.test1() (may be hidden or removed) [MissingPermission]",
+            expectedIssues = "src/test/pkg/RangeTest.java:4: lint: Cannot find permission field for \"MyPermission\" required by method test.pkg.RangeTest.test1() (may be hidden or removed) [MissingPermission]",
             stubs = arrayOf(
                 """
                 package test.pkg;
@@ -1805,7 +1805,7 @@ class DocAnalyzerTest : DriverTest() {
                 )
             ),
             checkCompilation = true,
-            warnings = null, // be unopinionated about whether there should be warnings
+            expectedIssues = null, // be unopinionated about whether there should be warnings
             docStubs = true,
             stubs = arrayOf(
                     """
@@ -2055,7 +2055,7 @@ class DocAnalyzerTest : DriverTest() {
                 columnSource
             ),
             checkCompilation = true,
-            warnings = """
+            expectedIssues = """
                 src/test/pkg/ColumnTest.java:12: warning: Cannot find feature field for Cursor.NONEXISTENT required by field ColumnTest.BOGUS (may be hidden or removed) [MissingColumn]
                 """,
             docStubs = true,
@@ -2082,6 +2082,53 @@ class DocAnalyzerTest : DriverTest() {
                  * This constant represents a column name that can be used with a {@link android.content.ContentProvider} through a {@link android.content.ContentValues} or {@link android.database.Cursor} object. The values stored in this column are {@link android.database.Cursor#FIELD_TYPE_STRING Cursor#FIELD_TYPE_STRING} , and are read-only and cannot be mutated.
                  */
                 public static final java.lang.String TITLE = "title";
+                }
+                """
+            )
+        )
+    }
+
+    @Test
+    fun `Trailing comment close`() {
+        check(
+            sourceFiles = arrayOf(
+                java(
+                    """
+                    package android.widget;
+
+                    public class Toolbar {
+                        /**
+                        * Existing documentation for {@linkplain #getCurrentContentInsetEnd()} here. */
+                        public int getCurrentContentInsetEnd() {
+                            return 0;
+                        }
+                    }
+                    """
+                ),
+                intRangeAnnotationSource
+            ),
+            checkCompilation = true,
+            docStubs = true,
+            applyApiLevelsXml = """
+                    <?xml version="1.0" encoding="utf-8"?>
+                    <api version="2">
+                        <class name="android/widget/Toolbar" since="21">
+                            <method name="getCurrentContentInsetEnd()I" since="24"/>
+                        </class>
+                    </api>
+                    """,
+            stubs = arrayOf(
+                """
+                package android.widget;
+                /** @apiSince 21 */
+                @SuppressWarnings({"unchecked", "deprecation", "all"})
+                public class Toolbar {
+                public Toolbar() { throw new RuntimeException("Stub!"); }
+                /**
+                 * Existing documentation for {@linkplain #getCurrentContentInsetEnd()} here.
+                 * @apiSince 24
+                 */
+                public int getCurrentContentInsetEnd() { throw new RuntimeException("Stub!"); }
                 }
                 """
             )
