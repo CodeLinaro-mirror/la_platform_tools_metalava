@@ -44,6 +44,7 @@ import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiErrorElement
 import com.intellij.psi.PsiField
 import com.intellij.psi.PsiFile
+import com.intellij.psi.PsiImportStatement
 import com.intellij.psi.PsiJavaCodeReferenceElement
 import com.intellij.psi.PsiJavaFile
 import com.intellij.psi.PsiMethod
@@ -57,7 +58,7 @@ import com.intellij.psi.search.GlobalSearchScope
 import com.intellij.psi.util.PsiTreeUtil
 import org.jetbrains.kotlin.resolve.BindingContext
 import org.jetbrains.uast.UFile
-import org.jetbrains.uast.UastContext
+import org.jetbrains.uast.UastFacade
 import java.io.File
 import java.io.IOException
 import java.util.ArrayList
@@ -134,10 +135,22 @@ open class PsiBasedCodebase(location: File, override var description: String = "
         for (unit in units.asSequence().distinct()) {
             tick() // show progress
 
+            unit.accept(object : JavaRecursiveElementVisitor() {
+                override fun visitImportStatement(element: PsiImportStatement) {
+                    super.visitImportStatement(element)
+                    if (element.resolve() == null) {
+                        reporter.report(
+                            Issues.UNRESOLVED_IMPORT,
+                            element,
+                            "Unresolved import: `${element.qualifiedName}`"
+                        )
+                    }
+                }
+            })
+
             var classes = (unit as? PsiClassOwner)?.classes?.toList() ?: emptyList()
             if (classes.isEmpty()) {
-                val uastContext = project.getComponent(UastContext::class.java)
-                val uFile = uastContext.convertElementWithParent(unit, UFile::class.java) as? UFile?
+                val uFile = UastFacade.convertElementWithParent(unit, UFile::class.java) as? UFile?
                 classes = uFile?.classes?.map { it }?.toList() ?: emptyList()
             }
             var packageName: String? = null
@@ -168,12 +181,12 @@ open class PsiBasedCodebase(location: File, override var description: String = "
             } else {
                 for (psiClass in classes) {
                     psiClass.accept(object : JavaRecursiveElementVisitor() {
-                        override fun visitErrorElement(element: PsiErrorElement?) {
+                        override fun visitErrorElement(element: PsiErrorElement) {
                             super.visitErrorElement(element)
                             reporter.report(
                                 Issues.INVALID_SYNTAX,
                                 element,
-                                "Syntax error: `${element?.errorDescription}`"
+                                "Syntax error: `${element.errorDescription}`"
                             )
                         }
                     })
@@ -441,7 +454,7 @@ open class PsiBasedCodebase(location: File, override var description: String = "
     private fun createClass(clz: PsiClass): PsiClassItem {
         val classItem = PsiClassItem.create(this, clz)
 
-        if (!initializing && options.hideClasspathClasses) {
+        if (!initializing) {
             // This class is found while we're no longer initializing all the source units:
             // that means it must be found on the classpath instead. These should be treated
             // as hidden; we don't want to generate code for them.
@@ -486,9 +499,7 @@ open class PsiBasedCodebase(location: File, override var description: String = "
                 if (psiPackage != null) {
                     val packageItem = registerPackage(psiPackage, null, packageHtml, pkgName)
                     // Don't include packages from API that isn't directly included in the API
-                    if (options.hideClasspathClasses) {
-                        packageItem.emit = false
-                    }
+                    packageItem.emit = false
                     packageItem.addClass(classItem)
                 }
             } else {

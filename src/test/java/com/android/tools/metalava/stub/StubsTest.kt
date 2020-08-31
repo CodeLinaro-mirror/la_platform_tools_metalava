@@ -23,6 +23,7 @@ import com.android.tools.metalava.ARG_CHECK_API
 import com.android.tools.metalava.ARG_EXCLUDE_ANNOTATIONS
 import com.android.tools.metalava.ARG_EXCLUDE_DOCUMENTATION_FROM_STUBS
 import com.android.tools.metalava.ARG_HIDE_PACKAGE
+import com.android.tools.metalava.ARG_KOTLIN_STUBS
 import com.android.tools.metalava.ARG_PASS_THROUGH_ANNOTATION
 import com.android.tools.metalava.ARG_UPDATE_API
 import com.android.tools.metalava.DriverTest
@@ -32,7 +33,9 @@ import com.android.tools.metalava.extractRoots
 import com.android.tools.metalava.gatherSources
 import com.android.tools.metalava.intDefAnnotationSource
 import com.android.tools.metalava.intRangeAnnotationSource
+import com.android.tools.metalava.libcoreNonNullSource
 import com.android.tools.metalava.model.SUPPORT_TYPE_USE_ANNOTATIONS
+import com.android.tools.metalava.requiresApiSource
 import com.android.tools.metalava.requiresPermissionSource
 import com.android.tools.metalava.restrictToSource
 import com.android.tools.metalava.supportParameterName
@@ -567,7 +570,7 @@ class StubsTest : DriverTest() {
             api = """
                 package test.pkg {
                   public final class Alignment extends java.lang.Enum {
-                    method public static test.pkg.Alignment valueOf(java.lang.String);
+                    method public static test.pkg.Alignment valueOf(java.lang.String) throws java.lang.IllegalArgumentException;
                     method public static final test.pkg.Alignment[] values();
                     enum_constant public static final test.pkg.Alignment ALIGN_CENTER;
                     enum_constant public static final test.pkg.Alignment ALIGN_NORMAL;
@@ -736,6 +739,7 @@ class StubsTest : DriverTest() {
                 B,
                 A;
                 public java.lang.String valueOf(int x) { throw new RuntimeException("Stub!"); }
+                public java.lang.String values(java.lang.String separator) { throw new RuntimeException("Stub!"); }
                 public java.lang.String toString() { throw new RuntimeException("Stub!"); }
                 }
             """
@@ -1954,7 +1958,9 @@ class StubsTest : DriverTest() {
     fun `Pass through libcore annotations`() {
         check(
             checkCompilation = true,
-            extraArguments = arrayOf(ARG_PASS_THROUGH_ANNOTATION, "libcore.util.NonNull"),
+            extraArguments = arrayOf(
+                ARG_PASS_THROUGH_ANNOTATION, "libcore.util.NonNull"
+            ),
             sourceFiles = arrayOf(
                 java(
                     """
@@ -1963,10 +1969,15 @@ class StubsTest : DriverTest() {
                     public String(@libcore.util.NonNull char[] value) { throw new RuntimeException("Stub!"); }
                     }
                     """
-                )
+                ),
+                libcoreNonNullSource
             ),
             expectedIssues = "",
             api = """
+                    package libcore.util {
+                      public abstract class NonNull implements java.lang.annotation.Annotation {
+                      }
+                    }
                     package my.pkg {
                       public class String {
                         ctor public String(char[]);
@@ -1988,29 +1999,33 @@ class StubsTest : DriverTest() {
     fun `Pass through multiple annotations`() {
         checkStubs(
             extraArguments = arrayOf(
-                ARG_PASS_THROUGH_ANNOTATION, "android.support.annotation.RequiresApi,android.support.annotation.Nullable"),
+                ARG_PASS_THROUGH_ANNOTATION, "androidx.annotation.RequiresApi,androidx.annotation.Nullable",
+                ARG_HIDE_PACKAGE, "androidx.annotation"
+            ),
             sourceFiles = arrayOf(
                 java(
                     """
                     package my.pkg;
                     public class MyClass {
-                        @android.support.annotation.RequiresApi(21)
+                        @androidx.annotation.RequiresApi(21)
                         public void testMethod() {}
-                        @android.support.annotation.Nullable
+                        @androidx.annotation.Nullable
                         public String anotherTestMethod() { return null; }
                     }
                     """
                 ),
-                supportParameterName
+                supportParameterName,
+                requiresApiSource,
+                androidxNullableSource
             ),
             source = """
                 package my.pkg;
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                 public class MyClass {
                 public MyClass() { throw new RuntimeException("Stub!"); }
-                @android.support.annotation.RequiresApi(21)
+                @androidx.annotation.RequiresApi(21)
                 public void testMethod() { throw new RuntimeException("Stub!"); }
-                @android.support.annotation.Nullable
+                @androidx.annotation.Nullable
                 public java.lang.String anotherTestMethod() { throw new RuntimeException("Stub!"); }
                 }
                  """
@@ -3260,7 +3275,7 @@ class StubsTest : DriverTest() {
             sourceFiles = arrayOf(
                 java(
                     """
-                    package java.lang;
+                    package com.android.metalava.test;
 
                     import java.lang.annotation.*;
 
@@ -3273,7 +3288,7 @@ class StubsTest : DriverTest() {
             ),
             warnings = "",
             source = """
-                package java.lang;
+                package com.android.metalava.test;
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                 @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.SOURCE)
                 @java.lang.annotation.Target(java.lang.annotation.ElementType.METHOD)
@@ -3291,7 +3306,7 @@ class StubsTest : DriverTest() {
             sourceFiles = arrayOf(
                 java(
                     """
-                    package java.lang;
+                    package com.android.metalava.test;
 
                     @SuppressWarnings("something") @FunctionalInterface
                     public interface MyInterface {
@@ -3302,7 +3317,7 @@ class StubsTest : DriverTest() {
             ),
             warnings = "",
             source = """
-                package java.lang;
+                package com.android.metalava.test;
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                 @java.lang.FunctionalInterface
                 public interface MyInterface {
@@ -3331,7 +3346,6 @@ class StubsTest : DriverTest() {
                     }
                     """
                 ),
-
                 androidxNullableSource
             ),
             warnings = "",
@@ -3343,10 +3357,15 @@ class StubsTest : DriverTest() {
                 }
             """, // WRONG: I should include package annotations in the signature file!
             source = """
-                @android.annotation.Nullable
+                @androidx.annotation.Nullable
                 package test.pkg;
                 """,
-            extraArguments = arrayOf(ARG_HIDE_PACKAGE, "androidx.annotation")
+            extraArguments = arrayOf(
+                ARG_HIDE_PACKAGE, "androidx.annotation",
+                // By default metalava rewrites androidx.annotation.Nullable to
+                // android.annotation.Nullable, but the latter does not have target PACKAGE thus
+                // fails to compile. This forces stubs keep the androidx annotation.
+                ARG_PASS_THROUGH_ANNOTATION, "androidx.annotation.Nullable")
         )
     }
 
@@ -3394,7 +3413,7 @@ class StubsTest : DriverTest() {
                 java(
                     """
                       @RestrictTo(RestrictTo.Scope.SUBCLASSES)
-                      package test.pkg;1
+                      package test.pkg;
 
                       import androidx.annotation.RestrictTo;
                       """
@@ -3404,7 +3423,7 @@ class StubsTest : DriverTest() {
             ),
 
             api = """
-                package @RestrictTo(androidx.annotation.RestrictTo.Scope.SUBCLASSES) @RestrictTo(androidx.annotation.RestrictTo.Scope.SUBCLASSES) test.pkg {
+                package @RestrictTo(androidx.annotation.RestrictTo.Scope.SUBCLASSES) test.pkg {
                   public abstract class Class1 {
                     ctor public Class1();
                   }
@@ -3724,6 +3743,17 @@ class StubsTest : DriverTest() {
                 ),
                 java(
                     """
+                    package android.view;
+
+                    public class Gravity {
+                        public static final int NO_GRAVITY = 0;
+                        public static final int TOP = 1;
+                        public static final int BOTTOM = 2;
+                    }
+                    """
+                ),
+                java(
+                    """
                     package test.pkg;
 
                     import java.lang.annotation.ElementType;
@@ -3942,19 +3972,6 @@ class StubsTest : DriverTest() {
                 public class PublicInterface {
                 public PublicInterface() { throw new RuntimeException("Stub!"); }
                 }
-                """,
-                """
-                package test.pkg;
-                @SuppressWarnings({"unchecked", "deprecation", "all"})
-                final class HiddenType {
-                }
-                """,
-                """
-                package test.pkg;
-                /** @hide */
-                @SuppressWarnings({"unchecked", "deprecation", "all"})
-                public class HiddenType4 {
-                }
                 """
             )
         )
@@ -3998,10 +4015,6 @@ class StubsTest : DriverTest() {
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                 public class PublicApi {
                 public PublicApi(test.pkg.PublicApi.HiddenInner inner) { throw new RuntimeException("Stub!"); }
-                /** @hide */
-                @SuppressWarnings({"unchecked", "deprecation", "all"})
-                public static class HiddenInner {
-                }
                 }
                 """
             )
@@ -4209,6 +4222,155 @@ class StubsTest : DriverTest() {
                 assertEquals(1, roots.size)
                 assertEquals(src[0].path, roots[0].path)
             }
+        )
+    }
+
+    @Test
+    fun `Basic Kotlin stubs`() {
+        check(
+            extraArguments = arrayOf(
+                ARG_KOTLIN_STUBS
+            ),
+            sourceFiles = arrayOf(
+                kotlin(
+                    """
+                    /* My file header */
+                    // Another comment
+                    @file:JvmName("Driver")
+                    package test.pkg
+                    /** My class doc */
+                    class Kotlin(
+                        val property1: String = "Default Value",
+                        arg2: Int
+                    ) : Parent() {
+                        override fun method() = "Hello World"
+                        /** My method doc */
+                        fun otherMethod(ok: Boolean, times: Int) {
+                        }
+
+                        /** property doc */
+                        var property2: String? = null
+
+                        /** @hide */
+                        var hiddenProperty: String? = "hidden"
+
+                        private var someField = 42
+                        @JvmField
+                        var someField2 = 42
+                    }
+
+                    /** Parent class doc */
+                    open class Parent {
+                        open fun method(): String? = null
+                        open fun method2(value1: Boolean, value2: Boolean?): String? = null
+                        open fun method3(value1: Int?, value2: Int): Int = null
+                    }
+                    """
+                ),
+                kotlin("""
+                    package test.pkg
+                    open class ExtendableClass<T>
+                """
+                )
+            ),
+            stubs = arrayOf(
+                """
+                    /* My file header */
+                    // Another comment
+                    package test.pkg
+                    /** My class doc */
+                    @file:Suppress("ALL")
+                    class Kotlin : test.pkg.Parent() {
+                    open fun Kotlin(open property1: java.lang.String!, open arg2: int): test.pkg.Kotlin! = error("Stub!")
+                    open fun method(): java.lang.String = error("Stub!")
+                    /** My method doc */
+                    open fun otherMethod(open ok: boolean, open times: int): void = error("Stub!")
+                    open fun getProperty1(): java.lang.String = error("Stub!")
+                    }
+                """,
+                """
+                    package test.pkg
+                    @file:Suppress("ALL")
+                    open class ExtendableClass<T> {
+                    open fun ExtendableClass(): test.pkg.ExtendableClass<T!>! = error("Stub!")
+                    }
+                """
+            )
+        )
+    }
+
+    @Test
+    fun `Extends and implements multiple interfaces in Kotlin Stubs`() {
+        check(
+            extraArguments = arrayOf(
+                ARG_KOTLIN_STUBS
+            ),
+            sourceFiles = arrayOf(
+                kotlin("""
+                    package test.pkg
+                    class MainClass: MyParentClass(), MyInterface1, MyInterface2
+                    
+                    open class MyParentClass
+                    interface MyInterface1
+                    interface MyInterface2
+                """)
+            ),
+            stubs = arrayOf(
+                """
+                    package test.pkg
+                    @file:Suppress("ALL")
+                    class MainClass : test.pkg.MyParentClass(), test.pkg.MyInterface1, test.pkg.MyInterface2 {
+                    open fun MainClass(): test.pkg.MainClass! = error("Stub!")
+                    }
+                """
+            )
+        )
+    }
+
+    @Test
+    fun `Extends and implements multiple interfaces`() {
+        check(
+            checkCompilation = true,
+            sourceFiles = arrayOf(
+                java(
+                    """
+                    package test.pkg;
+
+                    public class MainClass extends MyParentClass implements MyInterface1, MyInterface2 {
+                    }
+                    """
+                ),
+                java(
+                    """
+                    package test.pkg;
+
+                    public interface MyInterface1 { }
+                    """
+                ),
+                java(
+                    """
+                    package test.pkg;
+
+                    public interface MyInterface2 { }
+                    """
+                ),
+                java(
+                    """
+                    package test.pkg;
+
+                    public class MyParentClass { }
+                    """
+                )
+            ),
+            stubs = arrayOf(
+                """
+                    package test.pkg;
+                    @SuppressWarnings({"unchecked", "deprecation", "all"})
+                    public class MainClass extends test.pkg.MyParentClass implements test.pkg.MyInterface1, test.pkg.MyInterface2 {
+                    public MainClass() { throw new RuntimeException("Stub!"); }
+                    }
+                """
+            )
         )
     }
 

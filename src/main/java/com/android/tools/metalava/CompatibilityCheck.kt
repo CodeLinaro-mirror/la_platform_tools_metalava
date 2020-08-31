@@ -21,7 +21,7 @@ import com.android.tools.metalava.NullnessMigration.Companion.isNullable
 import com.android.tools.metalava.doclava1.ApiPredicate
 import com.android.tools.metalava.doclava1.Issues
 import com.android.tools.metalava.doclava1.Issues.Issue
-import com.android.tools.metalava.doclava1.TextCodebase
+import com.android.tools.metalava.model.text.TextCodebase
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
@@ -517,9 +517,12 @@ class CompatibilityCheck(
         }
 
         for (exec in new.filteredThrowsTypes(filterReference)) {
-            // exclude 'throws' changes to finalize() overrides with no arguments
             if (!old.throws(exec.qualifiedName())) {
-                if (old.name() != "finalize" || old.parameters().isNotEmpty()) {
+                // exclude 'throws' changes to finalize() overrides with no arguments
+                if (!(old.name() == "finalize" && old.parameters().isEmpty()) &&
+                    // exclude cases where throws clause was missing in signatures from
+                    // old enum methods
+                    !old.isEnumSyntheticMethod()) {
                     val message = "${describe(new, capitalize = true)} added thrown exception ${exec.qualifiedName()}"
                     report(Issues.CHANGED_THROWS, new, message)
                 }
@@ -529,7 +532,7 @@ class CompatibilityCheck(
         if (new.modifiers.isInline()) {
             val oldTypes = old.typeParameterList().typeParameters()
             val newTypes = new.typeParameterList().typeParameters()
-            for (i in 0 until oldTypes.size) {
+            for (i in oldTypes.indices) {
                 if (i == newTypes.size) {
                     break
                 }
@@ -717,8 +720,8 @@ class CompatibilityCheck(
             is ClassItem -> base.findClass(item.qualifiedName())
             is MethodItem -> base.findClass(item.containingClass().qualifiedName())?.findMethod(
                 item,
-                true,
-                true
+                includeSuperClasses = true,
+                includeInterfaces = true
             )
             is FieldItem -> base.findClass(item.containingClass().qualifiedName())?.findField(item.name())
             else -> null
@@ -772,9 +775,7 @@ class CompatibilityCheck(
         }
 
         // Builtin annotation methods: just a difference in signature file
-        if ((new.name() == "values" && new.parameters().isEmpty() || new.name() == "valueOf" &&
-                new.parameters().size == 1) && new.containingClass().isEnum()
-        ) {
+        if (new.isEnumSyntheticMethod()) {
             return
         }
 
@@ -879,8 +880,8 @@ class CompatibilityCheck(
                 configuration = previousConfiguration
             }
 
-            val message = "Aborting: Found compatibility problems checking " +
-                "the ${apiType.displayName} API against the API in ${previous.location}"
+            val message = "Found compatibility problems checking " +
+                "the ${apiType.displayName} API (${codebase.location}) against the API in ${previous.location}"
 
             if (checker.foundProblems) {
                 throw DriverException(exitCode = -1, stderr = message)

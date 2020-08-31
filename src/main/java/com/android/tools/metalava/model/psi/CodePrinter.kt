@@ -179,8 +179,7 @@ open class CodePrinter(
             sb.append('}')
             return sb.length != 2
         } else if (expression is UReferenceExpression) {
-            val resolved = expression.resolve()
-            when (resolved) {
+            when (val resolved = expression.resolve()) {
                 is PsiField -> {
                     @Suppress("UnnecessaryVariable")
                     val field = resolved
@@ -438,7 +437,7 @@ open class CodePrinter(
                     return String.format("'%s'", javaEscapeString(value.toString()))
                 }
 
-                is kotlin.Pair<*, *> -> {
+                is Pair<*, *> -> {
                     val first = value.first
                     if (first is ClassId) {
                         return first.packageFqName.asString() + "." + first.relativeClassName.asString()

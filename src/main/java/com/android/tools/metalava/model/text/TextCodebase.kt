@@ -1,11 +1,11 @@
 /*
- * Copyright (C) 2010 Google Inc.
+ * Copyright (C) 2020 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *      http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava.doclava1
+package com.android.tools.metalava.model.text
 
 import com.android.tools.metalava.ApiType
 import com.android.tools.metalava.CodebaseComparator
@@ -38,21 +38,13 @@ import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PackageList
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.TypeParameterList
-import com.android.tools.metalava.model.text.TextBackedAnnotationItem
-import com.android.tools.metalava.model.text.TextClassItem
-import com.android.tools.metalava.model.text.TextConstructorItem
-import com.android.tools.metalava.model.text.TextFieldItem
-import com.android.tools.metalava.model.text.TextMethodItem
-import com.android.tools.metalava.model.text.TextModifiers
-import com.android.tools.metalava.model.text.TextPackageItem
-import com.android.tools.metalava.model.text.TextPropertyItem
-import com.android.tools.metalava.model.text.TextTypeItem
 import com.android.tools.metalava.model.visitors.ItemVisitor
 import com.android.tools.metalava.model.visitors.TypeVisitor
 import java.io.File
 import java.util.ArrayList
 import java.util.HashMap
 import java.util.function.Predicate
+import kotlin.math.min
 
 // Copy of ApiInfo in doclava1 (converted to Kotlin + some cleanup to make it work with metalava's data structures.
 // (Converted to Kotlin such that I can inherit behavior via interfaces, in particular Codebase.)
@@ -168,7 +160,7 @@ class TextCodebase(location: File) : DefaultCodebase(location) {
     private fun resolveThrowsClasses(methodItem: MethodItem) {
         val methodInfo = methodItem as TextMethodItem
         val names = methodInfo.throwsTypeNames()
-        if (!names.isEmpty()) {
+        if (names.isNotEmpty()) {
             val result = ArrayList<TextClassItem>()
             for (exception in names) {
                 var exceptionClass: TextClassItem? = mAllClasses[exception]
@@ -344,7 +336,8 @@ class TextCodebase(location: File) : DefaultCodebase(location) {
             includeFieldsInApiDiff: Boolean = compatibility.includeFieldsInApiDiff
         ): TextCodebase {
             // Compute just the delta
-            val delta = TextCodebase(baseFile)
+            val delta =
+                TextCodebase(baseFile)
             delta.description = "Delta between $baseApi and $signatureApi"
 
             CodebaseComparator().compare(object : ComparisonVisitor() {
@@ -461,7 +454,7 @@ class TextCodebase(location: File) : DefaultCodebase(location) {
             val typeEnd =
                 if (array != -1) {
                     if (generics != -1) {
-                        Math.min(array, generics)
+                        min(array, generics)
                     } else {
                         array
                     }

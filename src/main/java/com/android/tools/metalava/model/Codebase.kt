@@ -32,7 +32,6 @@ import com.android.tools.metalava.reporter
 import com.android.utils.XmlUtils.getFirstSubTagByName
 import com.android.utils.XmlUtils.getNextTagByName
 import com.intellij.psi.PsiFile
-import org.intellij.lang.annotations.Language
 import org.objectweb.asm.Type
 import org.objectweb.asm.tree.ClassNode
 import org.objectweb.asm.tree.FieldInsnNode
@@ -109,7 +108,7 @@ interface Codebase {
      * Creates an annotation item for the given (fully qualified) Java source
      */
     fun createAnnotation(
-        @Language("JAVA") source: String,
+        source: String,
         context: Item? = null,
         mapName: Boolean = true
     ): AnnotationItem = TextBackedAnnotationItem(
@@ -193,7 +192,7 @@ interface Codebase {
         val parameters = if (types.isNotEmpty()) {
             val sb = StringBuilder()
             for (type in types) {
-                if (!sb.isEmpty()) {
+                if (sb.isNotEmpty()) {
                     sb.append(", ")
                 }
                 sb.append(type.className.replace('/', '.').replace('$', '.'))
@@ -217,7 +216,7 @@ interface Codebase {
         val parameters = if (types.isNotEmpty()) {
             val sb = StringBuilder()
             for (type in types) {
-                if (!sb.isEmpty()) {
+                if (sb.isNotEmpty()) {
                     sb.append(", ")
                 }
                 sb.append(type.className.replace('/', '.').replace('$', '.'))
@@ -307,10 +306,10 @@ abstract class DefaultCodebase(override var location: File) : Codebase {
                 minSdkVersion = UnsetMinSdkVersion
                 return minSdkVersion!!
             }
-            try {
+            minSdkVersion = try {
                 val doc = parseDocument(manifest?.readText(UTF_8) ?: "", true)
                 val usesSdk = getFirstSubTagByName(doc.documentElement, TAG_USES_SDK)
-                minSdkVersion = if (usesSdk == null) {
+                if (usesSdk == null) {
                     UnsetMinSdkVersion
                 } else {
                     val value = usesSdk.getAttributeNS(ANDROID_URI, ATTR_MIN_SDK_VERSION)
@@ -318,7 +317,7 @@ abstract class DefaultCodebase(override var location: File) : Codebase {
                 }
             } catch (error: Throwable) {
                 reporter.report(Issues.PARSE_ERROR, manifest, "Failed to parse $manifest: ${error.message}")
-                minSdkVersion = UnsetMinSdkVersion
+                UnsetMinSdkVersion
             }
         }
         return minSdkVersion!!

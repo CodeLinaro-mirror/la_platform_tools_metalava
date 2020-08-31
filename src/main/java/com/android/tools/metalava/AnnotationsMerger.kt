@@ -45,8 +45,8 @@ import com.android.tools.lint.annotations.Extractor.SUPPORT_NOTNULL
 import com.android.tools.lint.annotations.Extractor.SUPPORT_NULLABLE
 import com.android.tools.lint.checks.AnnotationDetector
 import com.android.tools.lint.detector.api.getChildren
-import com.android.tools.metalava.doclava1.ApiFile
-import com.android.tools.metalava.doclava1.ApiParseException
+import com.android.tools.metalava.model.text.ApiFile
+import com.android.tools.metalava.model.text.ApiParseException
 import com.android.tools.metalava.model.AnnotationAttribute
 import com.android.tools.metalava.model.AnnotationAttributeValue
 import com.android.tools.metalava.model.AnnotationItem
@@ -164,7 +164,7 @@ class AnnotationsMerger(
                 val xml = Files.asCharSource(file, UTF_8).read()
                 mergeAnnotationsXml(file.path, xml)
             } catch (e: IOException) {
-                error("Aborting: I/O problem during transform: $e")
+                error("I/O problem during transform: $e")
             }
         } else if (file.path.endsWith(".txt") ||
             file.path.endsWith(".signatures") ||
@@ -175,7 +175,7 @@ class AnnotationsMerger(
                 // Others: new signature files (e.g. kotlin-style nullness info)
                 mergeAnnotationsSignatureFile(file.path)
             } catch (e: IOException) {
-                error("Aborting: I/O problem during transform: $e")
+                error("I/O problem during transform: $e")
             }
         }
     }
@@ -197,7 +197,7 @@ class AnnotationsMerger(
                 entry = zis.nextEntry
             }
         } catch (e: IOException) {
-            error("Aborting: I/O problem during transform: $e")
+            error("I/O problem during transform: $e")
         } finally {
             try {
                 Closeables.close(zis, true /* swallowIOException */)
@@ -512,7 +512,7 @@ class AnnotationsMerger(
         assert(tagName == "annotation") { tagName }
 
         val qualifiedName = element.getAttribute(ATTR_NAME)
-        assert(qualifiedName != null && !qualifiedName.isEmpty())
+        assert(qualifiedName != null && qualifiedName.isNotEmpty())
         return qualifiedName
     }
 
@@ -563,7 +563,7 @@ class AnnotationsMerger(
         val tagName = annotationElement.tagName
         assert(tagName == "annotation") { tagName }
         val name = annotationElement.getAttribute(ATTR_NAME)
-        assert(name != null && !name.isEmpty())
+        assert(name != null && name.isNotEmpty())
         when {
             name == "org.jetbrains.annotations.Range" -> {
                 val children = getChildren(annotationElement)
@@ -705,7 +705,7 @@ class AnnotationsMerger(
                 val valueElement = children[0]
                 val value = valueElement.getAttribute(ATTR_VAL)
                 val pure = valueElement.getAttribute(ATTR_PURE)
-                return if (pure != null && !pure.isEmpty()) {
+                return if (pure != null && pure.isNotEmpty()) {
                     PsiAnnotationItem.create(
                         codebase, XmlBackedAnnotationItem(
                             codebase, name,

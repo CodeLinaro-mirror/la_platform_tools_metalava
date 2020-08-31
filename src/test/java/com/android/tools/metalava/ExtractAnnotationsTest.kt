@@ -487,7 +487,8 @@ class ExtractAnnotationsTest : DriverTest() {
                     }
                     """
                 ).indented(),
-                intDefAnnotationSource
+                intDefAnnotationSource,
+                intRangeAnnotationSource
             ),
             extractAnnotations = mapOf(
                 "test.pkg" to """

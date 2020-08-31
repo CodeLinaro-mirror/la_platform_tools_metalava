@@ -50,12 +50,6 @@ import org.intellij.lang.annotations.Language
  */
 
 /**
- * If true, we'll rewrite all the javadoc documentation in doc stubs
- * to include fully qualified names
- */
-const val EXPAND_DOCUMENTATION = true
-
-/**
  * If the reference is to a class in the same package, include the package prefix?
  * This should not be necessary, but doclava has problems finding classes without
  * it. Consider turning this off when we switch to Dokka.
@@ -868,8 +862,7 @@ fun handleTag(
                 // android.os.Bundle#getInt, but the resolved method actually points to
                 // an inherited method into android.os.Bundle from android.os.BaseBundle.
                 // In that case we don't want to rewrite the link.
-                for (index in 0 until referenceText.length) {
-                    val c = referenceText[index]
+                for (c in referenceText) {
                     if (c == '.') {
                         // Already qualified
                         sb.append(text)

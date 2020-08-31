@@ -91,3 +91,6 @@ else
 
 /** Write it only into the he signature file */
 val ANNOTATION_SIGNATURE_ONLY = setOf(AnnotationTarget.SIGNATURE_FILE)
+
+/** Write it only into the stubs, but don't track it in the signature files. */
+val ANNOTATION_STUBS_ONLY = setOf(AnnotationTarget.SDK_STUBS_FILE, AnnotationTarget.DOC_STUBS_FILE)

@@ -246,7 +246,7 @@ class AnnotationStatistics(val api: Codebase) {
         )
         separator(printer, CLASS_COLUMN_WIDTH + 2, COUNT_COLUMN_WIDTH + 2, rightJustify = true)
 
-        for (i in 0 until items.size) {
+        for (i in items.indices) {
             val item = items[i]
             val label = getLabel(item)
             val count = getCount(item)

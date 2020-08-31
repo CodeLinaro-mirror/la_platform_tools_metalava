@@ -29,10 +29,12 @@ class ApiLintTest : DriverTest() {
                 ARG_API_LINT_IGNORE_PREFIX,
                 "android.icu.",
                 ARG_API_LINT_IGNORE_PREFIX,
-                "java."
+                "java.",
+                ARG_HIDE, "MissingNullability"
             ),
             compatibilityMode = false,
             expectedIssues = """
+                src/Dp.kt:3: warning: Acronyms should not be capitalized in method names: was `badCALL`, should this be `badCall`? [AcronymName] [Rule S1 in go/android-api-guidelines]
                 src/android/pkg/ALL_CAPS.java:3: warning: Acronyms should not be capitalized in class names: was `ALL_CAPS`, should this be `AllCaps`? [AcronymName] [Rule S1 in go/android-api-guidelines]
                 src/android/pkg/HTMLWriter.java:3: warning: Acronyms should not be capitalized in class names: was `HTMLWriter`, should this be `HtmlWriter`? [AcronymName] [Rule S1 in go/android-api-guidelines]
                 src/android/pkg/MyStringImpl.java:3: error: Don't expose your implementation details: `MyStringImpl` ends with `Impl` [EndsWithImpl]
@@ -44,7 +46,7 @@ class ApiLintTest : DriverTest() {
                 src/android/pkg/badlyNamedClass.java:6: error: Constant field names must be named with only upper case characters: `android.pkg.badlyNamedClass#BadlyNamedField`, should be `BADLY_NAMED_FIELD`? [AllUpper] [Rule C2 in go/android-api-guidelines]
                 """,
             expectedFail = """
-                9 new API lint issues were found.
+                10 new API lint issues were found.
                 See tools/metalava/API-LINT.md for how to handle these.
             """,
             sourceFiles = arrayOf(
@@ -146,7 +148,13 @@ class ApiLintTest : DriverTest() {
                         public void setZOrderOnTop() { }
                     }
                     """
-                )
+                ),
+                kotlin("""
+                    inline class Dp(val value: Float)
+                    fun greatCall(width: Dp)
+                    fun badCALL(width: Dp)
+                """),
+                androidxNullableSource
             )
             /*
             expectedOutput = """
@@ -241,7 +249,9 @@ class ApiLintTest : DriverTest() {
                         public static final String FOO = System.getProperty("foo");
                     }
                     """
-                )
+                ),
+                androidxNonNullSource,
+                androidxNullableSource
             )
         )
     }
@@ -278,7 +288,7 @@ class ApiLintTest : DriverTest() {
             apiLint = "", // enabled
             compatibilityMode = false,
             expectedIssues = """
-                src/android/pkg/MyCallback.java:3: error: Callback method names must follow the on<Something> style: bar [CallbackMethodName] [Rule L1 in go/android-api-guidelines]
+                src/android/pkg/MyCallback.java:8: error: Callback method names must follow the on<Something> style: bar [CallbackMethodName] [Rule L1 in go/android-api-guidelines]
                 src/android/pkg/MyCallbacks.java:3: error: Callback class names should be singular: MyCallbacks [SingularCallback] [Rule L1 in go/android-api-guidelines]
                 src/android/pkg/MyInterfaceCallback.java:3: error: Callbacks must be abstract class instead of interface to enable extension in future API levels: MyInterfaceCallback [CallbackInterface] [Rule CL3 in go/android-api-guidelines]
                 src/android/pkg/MyObserver.java:3: warning: Class should be named MyCallback [CallbackName] [Rule L1 in go/android-api-guidelines]
@@ -293,6 +303,15 @@ class ApiLintTest : DriverTest() {
                     package android.pkg;
 
                     public class MyCallbacks {
+                    }
+                    """
+                ),
+                java(
+                    """
+                    package android.pkg;
+
+                    public final class RemoteCallback {
+                        public void sendResult();
                     }
                     """
                 ),
@@ -323,6 +342,10 @@ class ApiLintTest : DriverTest() {
                         }
                         public void bar() {
                         }
+                        public static void staticMethod() {
+                        }
+                        public final void finalMethod() {
+                        }
                     }
                     """
                 )
@@ -336,8 +359,8 @@ class ApiLintTest : DriverTest() {
             apiLint = "", // enabled
             compatibilityMode = false,
             expectedIssues = """
-                src/android/pkg/MyCallback.java:3: error: Callback method names must follow the on<Something> style: bar [CallbackMethodName] [Rule L1 in go/android-api-guidelines]
                 src/android/pkg/MyClassListener.java:3: error: Listeners should be an interface, or otherwise renamed Callback: MyClassListener [ListenerInterface] [Rule L1 in go/android-api-guidelines]
+                src/android/pkg/MyListener.java:6: error: Listener method names must follow the on<Something> style: bar [CallbackMethodName] [Rule L1 in go/android-api-guidelines]
                 """,
             expectedFail = """
                 2 new API lint issues were found.
@@ -382,10 +405,14 @@ class ApiLintTest : DriverTest() {
                     """
                     package android.pkg;
 
-                    public class MyCallback {
+                    public interface MyListener {
                         public void onFoo() {
                         }
                         public void bar() {
+                        }
+                        public static void staticMethod() {
+                        }
+                        public static void finalMethod() {
                         }
                     }
                     """
@@ -518,7 +545,8 @@ class ApiLintTest : DriverTest() {
                         public boolean equals(@Nullable Object other, int bar) { return false; } // wrong signature
                     }
                     """
-                )
+                ),
+                androidxNullableSource
             )
         )
     }
@@ -610,7 +638,8 @@ class ApiLintTest : DriverTest() {
                         public static final android.os.Parcelable.Creator<android.app.WallpaperColors> CREATOR = null;
                     }
                     """
-                )
+                ),
+                androidxNullableSource
             )
         )
     }
@@ -723,7 +752,8 @@ class ApiLintTest : DriverTest() {
                         public void bad3(@Nullable android.net.URL param) { }
                     }
                     """
-                )
+                ),
+                androidxNullableSource
             )
         )
     }
@@ -773,7 +803,15 @@ class ApiLintTest : DriverTest() {
                         }
                     }
                     """
-                )
+                ),
+                java(
+                    """
+                    package com.google.common.util.concurrent;
+                    public class ListenableFuture<T> {
+                    }
+                    """
+                ),
+                androidxNullableSource
             )
         )
     }
@@ -832,15 +870,16 @@ class ApiLintTest : DriverTest() {
             apiLint = "", // enabled
             compatibilityMode = false,
             expectedIssues = """
+                src/android/pkg/RegistrationInterface.java:6: error: Found registerOverriddenUnpairedCallback but not unregisterOverriddenUnpairedCallback in android.pkg.RegistrationInterface [PairedRegistration] [Rule L2 in go/android-api-guidelines]
                 src/android/pkg/RegistrationMethods.java:8: error: Found registerUnpairedCallback but not unregisterUnpairedCallback in android.pkg.RegistrationMethods [PairedRegistration] [Rule L2 in go/android-api-guidelines]
-                src/android/pkg/RegistrationMethods.java:9: error: Found unregisterMismatchedCallback but not registerMismatchedCallback in android.pkg.RegistrationMethods [PairedRegistration] [Rule L2 in go/android-api-guidelines]
-                src/android/pkg/RegistrationMethods.java:10: error: Callback methods should be named register/unregister; was addCallback [RegistrationName] [Rule L3 in go/android-api-guidelines]
-                src/android/pkg/RegistrationMethods.java:15: error: Found addUnpairedListener but not removeUnpairedListener in android.pkg.RegistrationMethods [PairedRegistration] [Rule L2 in go/android-api-guidelines]
-                src/android/pkg/RegistrationMethods.java:16: error: Found removeMismatchedListener but not addMismatchedListener in android.pkg.RegistrationMethods [PairedRegistration] [Rule L2 in go/android-api-guidelines]
-                src/android/pkg/RegistrationMethods.java:17: error: Listener methods should be named add/remove; was registerWrongListener [RegistrationName] [Rule L3 in go/android-api-guidelines]
+                src/android/pkg/RegistrationMethods.java:12: error: Found unregisterMismatchedCallback but not registerMismatchedCallback in android.pkg.RegistrationMethods [PairedRegistration] [Rule L2 in go/android-api-guidelines]
+                src/android/pkg/RegistrationMethods.java:13: error: Callback methods should be named register/unregister; was addCallback [RegistrationName] [Rule L3 in go/android-api-guidelines]
+                src/android/pkg/RegistrationMethods.java:18: error: Found addUnpairedListener but not removeUnpairedListener in android.pkg.RegistrationMethods [PairedRegistration] [Rule L2 in go/android-api-guidelines]
+                src/android/pkg/RegistrationMethods.java:19: error: Found removeMismatchedListener but not addMismatchedListener in android.pkg.RegistrationMethods [PairedRegistration] [Rule L2 in go/android-api-guidelines]
+                src/android/pkg/RegistrationMethods.java:20: error: Listener methods should be named add/remove; was registerWrongListener [RegistrationName] [Rule L3 in go/android-api-guidelines]
                 """,
             expectedFail = """
-                6 new API lint issues were found.
+                7 new API lint issues were found.
                 See tools/metalava/API-LINT.md for how to handle these.
             """,
             sourceFiles = arrayOf(
@@ -850,10 +889,13 @@ class ApiLintTest : DriverTest() {
 
                     import androidx.annotation.Nullable;
 
-                    public class RegistrationMethods {
+                    public class RegistrationMethods implements RegistrationInterface {
                         public void registerOkCallback(@Nullable Runnable r) { } // OK
                         public void unregisterOkCallback(@Nullable Runnable r) { } // OK
                         public void registerUnpairedCallback(@Nullable Runnable r) { }
+                        // OK here because it is override
+                        @Override
+                        public void registerOverriddenUnpairedCallback(@Nullable Runnable r) { } 
                         public void unregisterMismatchedCallback(@Nullable Runnable r) { }
                         public void addCallback(@Nullable Runnable r) { }
 
@@ -865,7 +907,19 @@ class ApiLintTest : DriverTest() {
                         public void registerWrongListener(@Nullable Runnable r) { }
                     }
                     """
-                )
+                ),
+                java(
+                    """
+                    package android.pkg;
+
+                    import androidx.annotation.Nullable;
+
+                    public interface RegistrationInterface {
+                        void registerOverriddenUnpairedCallback(@Nullable Runnable r) { }
+                    }
+                    """
+                ),
+                androidxNullableSource
             )
         )
     }
@@ -882,11 +936,12 @@ class ApiLintTest : DriverTest() {
                 src/android/pkg/CheckSynchronization.java:23: error: Internal locks must not be exposed (synchronizing on this or class is still externally observable): method android.pkg.CheckSynchronization.errorMethod3() [VisiblySynchronized] [Rule M5 in go/android-api-guidelines]
                 src/android/pkg/CheckSynchronization2.kt:5: error: Internal locks must not be exposed (synchronizing on this or class is still externally observable): method android.pkg.CheckSynchronization2.errorMethod1() [VisiblySynchronized] [Rule M5 in go/android-api-guidelines]
                 src/android/pkg/CheckSynchronization2.kt:8: error: Internal locks must not be exposed (synchronizing on this or class is still externally observable): method android.pkg.CheckSynchronization2.errorMethod2() [VisiblySynchronized] [Rule M5 in go/android-api-guidelines]
+                src/android/pkg/CheckSynchronization2.kt:13: error: Internal locks must not be exposed (synchronizing on this or class is still externally observable): method android.pkg.CheckSynchronization2.errorMethod3() [VisiblySynchronized] [Rule M5 in go/android-api-guidelines]
                 src/android/pkg/CheckSynchronization2.kt:16: error: Internal locks must not be exposed (synchronizing on this or class is still externally observable): method android.pkg.CheckSynchronization2.errorMethod4() [VisiblySynchronized] [Rule M5 in go/android-api-guidelines]
                 src/android/pkg/CheckSynchronization2.kt:18: error: Internal locks must not be exposed (synchronizing on this or class is still externally observable): method android.pkg.CheckSynchronization2.errorMethod5() [VisiblySynchronized] [Rule M5 in go/android-api-guidelines]
                 """,
             expectedFail = """
-                8 new API lint issues were found.
+                9 new API lint issues were found.
                 See tools/metalava/API-LINT.md for how to handle these.
             """,
             sourceFiles = arrayOf(
@@ -948,7 +1003,9 @@ class ApiLintTest : DriverTest() {
                         }
                     }
                     """
-                )
+                ),
+                androidxNullableSource,
+                nullableSource
             )
         )
     }
@@ -978,7 +1035,8 @@ class ApiLintTest : DriverTest() {
                         public Intent createIntentNow() { return null; } // WARN
                     }
                     """
-                )
+                ),
+                androidxNullableSource
             )
         )
     }
@@ -1062,9 +1120,18 @@ class ApiLintTest : DriverTest() {
             apiLint = "", // enabled
             compatibilityMode = false,
             expectedIssues = """
-                src/android/pkg/MyClass.java:9: warning: Methods must return the builder object (return type android.pkg.MyClass.Builder<T> instead of void): method android.pkg.MyClass.Builder.setSomething(int) [SetterReturnsThis] [Rule M4 in go/android-api-guidelines]
-                src/android/pkg/MyClass.java:10: warning: Builder methods names should use setFoo() style: method android.pkg.MyClass.Builder.withFoo(int) [BuilderSetStyle]
-                src/android/pkg/MyClass.java:6: warning: android.pkg.MyClass.Builder does not declare a `build()` method, but builder classes are expected to [MissingBuildMethod]
+                src/android/pkg/Bad.java:12: warning: Builder must be final: android.pkg.Bad.BadBuilder [StaticFinalBuilder]
+                src/android/pkg/Bad.java:12: warning: Builder must be static: android.pkg.Bad.BadBuilder [StaticFinalBuilder]
+                src/android/pkg/Bad.java:13: warning: Builder constructor arguments must be mandatory (i.e. not @Nullable): parameter badParameter in android.pkg.Bad.BadBuilder(String badParameter) [OptionalBuilderConstructorArgument]
+                src/android/pkg/Bad.java:24: warning: Builder methods names should use setFoo() / addFoo() / clearFoo() style: method android.pkg.Bad.BadBuilder.withBadSetterStyle(boolean) [BuilderSetStyle]
+                src/android/pkg/Bad.java:27: warning: Builder setter must be @NonNull: method android.pkg.Bad.BadBuilder.setReturnsNullable(boolean) [SetterReturnsThis] [Rule M4 in go/android-api-guidelines]
+                src/android/pkg/Bad.java:30: warning: Getter should be on the built object, not the builder: method android.pkg.Bad.BadBuilder.getOnBuilder() [GetterOnBuilder]
+                src/android/pkg/Bad.java:32: warning: Methods must return the builder object (return type android.pkg.Bad.BadBuilder instead of void): method android.pkg.Bad.BadBuilder.setNotReturningBuilder(boolean) [SetterReturnsThis] [Rule M4 in go/android-api-guidelines]
+                src/android/pkg/Bad.java:18: warning: android.pkg.Bad does not declare a `getWithoutMatchingGetters()` method matching method android.pkg.Bad.BadBuilder.addWithoutMatchingGetter(String) [MissingGetterMatchingBuilder]
+                src/android/pkg/Bad.java:21: warning: android.pkg.Bad does not declare a `isWithoutMatchingGetter()` method matching method android.pkg.Bad.BadBuilder.setWithoutMatchingGetter(boolean) [MissingGetterMatchingBuilder]
+                src/android/pkg/Bad.java:32: warning: android.pkg.Bad does not declare a `isNotReturningBuilder()` method matching method android.pkg.Bad.BadBuilder.setNotReturningBuilder(boolean) [MissingGetterMatchingBuilder]
+                src/android/pkg/Bad.java:43: warning: Methods must return the builder object (return type android.pkg.Bad.BadGenericBuilder<T> instead of T): method android.pkg.Bad.BadGenericBuilder.setBoolean(boolean) [SetterReturnsThis] [Rule M4 in go/android-api-guidelines]
+                src/android/pkg/Bad.java:38: warning: android.pkg.Bad.NoBuildMethodBuilder does not declare a `build()` method, but builder classes are expected to [MissingBuildMethod]
                 src/android/pkg/TopLevelBuilder.java:3: warning: Builder should be defined as inner class: android.pkg.TopLevelBuilder [TopLevelBuilder]
                 src/android/pkg/TopLevelBuilder.java:3: warning: android.pkg.TopLevelBuilder does not declare a `build()` method, but builder classes are expected to [MissingBuildMethod]
                 """,
@@ -1073,7 +1140,7 @@ class ApiLintTest : DriverTest() {
                     """
                     package android.pkg;
 
-                    public class TopLevelBuilder {
+                    public final class TopLevelBuilder {
                     }
                     """
                 ),
@@ -1082,34 +1149,113 @@ class ApiLintTest : DriverTest() {
                     package android.pkg;
 
                     import androidx.annotation.NonNull;
-
-                    public class MyClass {
-                        public class Builder<T> {
-                            public void clearAll() { }
-                            public int getSomething() { return 0; }
-                            public void setSomething(int s) { }
-                            @NonNull
-                            public Builder<T> withFoo(int s) { return this; }
-                            @NonNull
-                            public Builder<T> setOk(int s) { return this; }
-                        }
-                    }
-                    """
-                ),
-                java(
-                    """
-                    package android.pkg;
-
-                    import androidx.annotation.NonNull;
+                    import androidx.annotation.Nullable;
 
                     public class Ok {
-                        public class OkBuilder {
+
+                        public int getInt();
+                        @NonNull
+                        public List<String> getStrings();
+                        public boolean isBoolean();
+                        public boolean hasBoolean2();
+                        public boolean shouldBoolean3();
+
+                        public static final class OkBuilder {
+                            public OkBuilder(@NonNull String goodParameter, int goodParameter2) {}
+
+                            @NonNull
+                            public Ok build() { return null; }
+
+                            @NonNull
+                            public OkBuilder setInt(int value) { return this; }
+
+                            @NonNull
+                            public OkBuilder addString(@NonNull String value) { return this; }
+
+                            @NonNull
+                            public OkBuilder clearStrings() { return this; }
+
+                            @NonNull
+                            public OkBuilder setBoolean(boolean v) { return this; }
+
+                            @NonNull
+                            public OkBuilder setHasBoolean2(boolean v) { return this; }
+
+                            @NonNull
+                            public OkBuilder setShouldBoolean3(boolean v) { return this; }
+
+                            @NonNull
+                            public OkBuilder clear() { return this; }
+
+                            @NonNull
+                            public OkBuilder clearAll() { return this; }
+                        }
+
+                        public static final class GenericBuilder<B extends GenericBuilder> {
+                            @NonNull
+                            public B setBoolean(boolean value) { return this; }
+
                             @NonNull
                             public Ok build() { return null; }
                         }
                     }
                     """
-                )
+                ),
+                java(
+                    """
+                    package android.pkg;
+
+                    import androidx.annotation.NonNull;
+                    import androidx.annotation.Nullable;
+
+                    public class Bad {
+
+                        public boolean isBoolean();
+                        public boolean getWithoutMatchingGetter();
+                        public boolean isReturnsNullable();
+
+                        public class BadBuilder {
+                            public BadBuilder(@Nullable String badParameter) {}
+
+                            @NonNull
+                            public Bad build() { return null; }
+
+                            @NonNull
+                            public BadBuilder addWithoutMatchingGetter(@NonNull String value) { return this; }
+
+                            @NonNull
+                            public BadBuilder setWithoutMatchingGetter(boolean v) { return this; }
+
+                            @NonNull
+                            public BadBuilder withBadSetterStyle(boolean v) { return this; }
+
+                            @Nullable
+                            public BadBuilder setReturnsNullable(boolean v) { return this; }
+
+                            public boolean getOnBuilder() { return true; }
+
+                            public void setNotReturningBuilder(boolean v) { return this; }
+
+                            @NonNull
+                            public BadBuilder () { return this; }
+                        }
+
+                        public static final class NoBuildMethodBuilder {
+                            public NoBuildMethodBuilder() {}
+                        }
+
+                        public static final class BadGenericBuilder<T extends Bad> {
+                            @NonNull
+                            public T setBoolean(boolean value) { return this; }
+
+                            @NonNull
+                            public Bad build() { return null; }
+                        }
+                    }
+                    """
+                ),
+                androidxNonNullSource,
+                androidxNullableSource
             )
         )
     }
@@ -1215,7 +1361,8 @@ class ApiLintTest : DriverTest() {
                         public Bitmap wrong(@Nullable View view, @Nullable Bitmap bitmap) { return null; }
                     }
                     """
-                )
+                ),
+                androidxNullableSource
             )
         )
     }
@@ -1319,7 +1466,8 @@ class ApiLintTest : DriverTest() {
                         }
                     }
                     """
-                )
+                ),
+                androidxNullableSource
             )
         )
     }
@@ -1462,7 +1610,8 @@ class ApiLintTest : DriverTest() {
                         public BitSet reverse(@Nullable BitSet bitset) { return null; }
                     }
                     """
-                )
+                ),
+                androidxNullableSource
             )
         )
     }
@@ -1506,7 +1655,8 @@ class ApiLintTest : DriverTest() {
                         }
                     }
                     """
-                )
+                ),
+                androidxNullableSource
             )
         )
     }
@@ -1543,7 +1693,8 @@ class ApiLintTest : DriverTest() {
                         public Short getDouble(@Nullable Double l) { return null; }
                     }
                     """
-                )
+                ),
+                androidxNullableSource
             )
         )
     }
@@ -1647,7 +1798,8 @@ class ApiLintTest : DriverTest() {
                         public void wrong(int i, @Nullable ContentResolver resolver) { }
                     }
                     """
-                )
+                ),
+                androidxNullableSource
             )
         )
     }
@@ -1685,7 +1837,8 @@ class ApiLintTest : DriverTest() {
                     public abstract class MyCallback {
                     }
                     """
-                )
+                ),
+                androidxNullableSource
             )
         )
     }
@@ -1786,7 +1939,8 @@ class ApiLintTest : DriverTest() {
                     public abstract class MyCallback {
                     }
                     """
-                )
+                ),
+                androidxNullableSource
             )
         )
     }
@@ -1875,7 +2029,8 @@ class ApiLintTest : DriverTest() {
                         public void error(int i, @Nullable File file) { }
                     }
                     """
-                )
+                ),
+                androidxNullableSource
             )
         )
     }
@@ -1907,7 +2062,8 @@ class ApiLintTest : DriverTest() {
                         public void error(int i, @Nullable File file) { }
                     }
                     """
-                )
+                ),
+                androidxNullableSource
             )
         )
     }
@@ -2217,7 +2373,7 @@ class ApiLintTest : DriverTest() {
                     """
                     package android.pkg;
 
-                    import com.android.annotations.NonNull;
+                    import android.annotation.NonNull;
                     import java.util.TimeZone;
 
                     public abstract class MyErrorClass1 {
@@ -2227,7 +2383,8 @@ class ApiLintTest : DriverTest() {
                         }
                     }
                     """
-                )
+                ),
+                nonNullSource
             )
         )
     }
@@ -2248,7 +2405,7 @@ class ApiLintTest : DriverTest() {
                     """
                     package android.pkg;
 
-                    import com.android.annotations.NonNull;
+                    import android.annotation.NonNull;
                     import java.util.TimeZone;
 
                     public abstract class MyErrorClass1 {
@@ -2258,7 +2415,8 @@ class ApiLintTest : DriverTest() {
                         }
                     }
                     """
-                )
+                ),
+                nonNullSource
             )
         )
     }
@@ -2289,7 +2447,9 @@ class ApiLintTest : DriverTest() {
                         public final int as = 0; // error
                     }
                     """
-                )
+                ),
+                androidxNonNullSource,
+                androidxNullableSource
             )
         )
     }
@@ -2326,7 +2486,8 @@ class ApiLintTest : DriverTest() {
                         public void plusAssign(@Nullable JavaClass other) { }
                     }
                     """
-                )
+                ),
+                androidxNullableSource
             )
         )
     }
@@ -2359,7 +2520,8 @@ class ApiLintTest : DriverTest() {
                         public void ok(@Nullable Number... args) { }
                     }
                     """
-                )
+                ),
+                androidxNullableSource
             )
         )
     }
@@ -2398,7 +2560,8 @@ class ApiLintTest : DriverTest() {
                         public void error(int i, @Nullable UserHandle handle) {}
                     }
                     """
-                )
+                ),
+                androidxNullableSource
             )
         )
     }
@@ -2534,7 +2697,8 @@ class ApiLintTest : DriverTest() {
                         public CloneTest clone() { return super.clone(); } // error
                     }
                     """
-                )
+                ),
+                androidxNullableSource
             )
         )
     }
@@ -2562,7 +2726,8 @@ class ApiLintTest : DriverTest() {
                         public abstract java.text.BreakIterator foo(@Nullable java.text.Collator collator);
                     }
                     """
-                )
+                ),
+                androidxNullableSource
             )
         )
     }
@@ -2608,7 +2773,7 @@ class ApiLintTest : DriverTest() {
                     """
                     package android.yada;
 
-                    import com.android.annotations.NonNull;
+                    import android.annotation.NonNull;
 
                     public class YadaService extends android.app.Service {
                         @Override
@@ -2616,7 +2781,9 @@ class ApiLintTest : DriverTest() {
                         }
                     }
                     """
-                )
+                ),
+                androidxNullableSource,
+                nonNullSource
             )
         )
     }
@@ -2685,7 +2852,8 @@ class ApiLintTest : DriverTest() {
                         public void foo() { }
                     }
                     """
-                )
+                ),
+                androidxNullableSource
             )
         )
     }
@@ -2794,7 +2962,8 @@ class ApiLintTest : DriverTest() {
                             }
                         }
                     """
-                )
+                ),
+                androidxNullableSource
             )
         )
     }
@@ -2803,7 +2972,7 @@ class ApiLintTest : DriverTest() {
     fun `Test fields, parameters and returns require nullability`() {
         check(
             apiLint = "", // enabled
-            extraArguments = arrayOf(ARG_API_LINT, ARG_HIDE, "AllUpper,StaticUtils"),
+            extraArguments = arrayOf(ARG_API_LINT, ARG_HIDE, "AllUpper,StaticUtils,Enum"),
             compatibilityMode = false,
             expectedIssues = """
                 src/android/pkg/Foo.java:11: error: Missing nullability on parameter `name` in method `Foo` [MissingNullability]
@@ -2842,6 +3011,24 @@ class ApiLintTest : DriverTest() {
                                 throw UnsupportedOperationException();
                             }
                         }
+                    """
+                ),
+                java(
+                    """
+                    package test.pkg;
+                    @SuppressWarnings("ALL")
+                    public enum Foo {
+                        A, B;
+                    }
+                    """
+                ),
+                kotlin(
+                    """
+                    package test.pkg
+                    enum class Language {
+                        KOTLIN,
+                        JAVA
+                    }
                     """
                 ),
                 kotlin(
@@ -2906,6 +3093,112 @@ class ApiLintTest : DriverTest() {
                 ),
                 androidxNullableSource,
                 androidxNonNullSource
+            )
+        )
+    }
+
+    @Test
+    fun `Nullability check for generic methods referencing parent type parameter`() {
+        check(
+            apiLint = "", // enabled
+            compatibilityMode = false,
+            expectedIssues = """
+                src/test/pkg/MyClass.java:13: error: Missing nullability on method `method4` return [MissingNullability]
+                src/test/pkg/MyClass.java:14: error: Missing nullability on parameter `input` in method `method4` [MissingNullability]
+            """,
+            expectedFail = """
+                2 new API lint issues were found.
+                See tools/metalava/API-LINT.md for how to handle these.
+            """,
+            sourceFiles = arrayOf(
+                java(
+                    """
+                    package test.pkg;
+
+                    import androidx.annotation.NonNull;
+                    import androidx.annotation.Nullable;
+
+                    public class MyClass extends HiddenParent<String> {
+                        public void method1() { }
+
+                        @Nullable
+                        @Override
+                        public String method3(@NonNull String input) { return null; }
+
+                        @Override
+                        public String method4(String input) { return null; }
+                    }
+                    """
+                ),
+                java(
+                    """
+                    package test.pkg;
+
+                    class HiddenParent<T> {
+                        public T method2(T t) { }
+                        public T method3(T t) { }
+                        public T method4(T t) { }
+                    }
+                    """
+                ),
+                androidxNullableSource,
+                androidxNonNullSource
+            )
+        )
+    }
+
+    @Test
+    fun `No new setting keys`() {
+        check(
+            apiLint = "", // enabled
+            compatibilityMode = false,
+            extraArguments = arrayOf(
+                ARG_ERROR,
+                "NoSettingsProvider"
+            ),
+            expectedIssues = """
+                src/android/provider/Settings.java:9: error: New setting keys are not allowed (Field: BAD1); use getters/setters in relevant manager class [NoSettingsProvider]
+                src/android/provider/Settings.java:11: error: Bare field okay2 must be marked final, or moved behind accessors if mutable [MutableBareField] [Rule F2 in go/android-api-guidelines]
+                src/android/provider/Settings.java:17: error: New setting keys are not allowed (Field: BAD1); use getters/setters in relevant manager class [NoSettingsProvider]
+                src/android/provider/Settings.java:21: error: New setting keys are not allowed (Field: BAD1); use getters/setters in relevant manager class [NoSettingsProvider]
+            """,
+            expectedFail = """
+                4 new API lint issues were found.
+                See tools/metalava/API-LINT.md for how to handle these.
+            """,
+            sourceFiles = arrayOf(
+                java(
+                    """
+                    package android.provider;
+
+                    import androidx.annotation.Nullable;
+
+                    public class Settings {
+                        private Settings() { }
+                        public static class Global {
+                            private Global() { }
+                            public static final String BAD1 = "";
+                            public final String okay1 = "";
+                            @Nullable
+                            public static String okay2 = "";
+                            public static final int OKAY3 = 0;
+                        }
+                        public static class Secure {
+                            private Secure() { }
+                            public static final String BAD1 = "";
+                        }
+                        public static class System {
+                            private System() { }
+                            public static final String BAD1 = "";
+                        }
+                        public static class Other {
+                            private Other() { }
+                            public static final String OKAY1 = "";
+                        }
+                    }
+                    """
+                ),
+                androidxNullableSource
             )
         )
     }

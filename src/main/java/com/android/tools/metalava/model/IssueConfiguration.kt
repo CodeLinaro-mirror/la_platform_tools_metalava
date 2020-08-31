@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model
 
+import com.android.tools.metalava.Options
 import com.android.tools.metalava.Severity
 import com.android.tools.metalava.doclava1.Issues
 

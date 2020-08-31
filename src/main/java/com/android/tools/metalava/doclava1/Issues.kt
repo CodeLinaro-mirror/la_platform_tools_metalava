@@ -128,6 +128,7 @@ object Issues {
     val FORBIDDEN_TAG = Issue(162, Severity.ERROR)
     val MISSING_COLUMN = Issue(163, Severity.WARNING, Category.DOCUMENTATION)
     val INVALID_SYNTAX = Issue(164, Severity.ERROR)
+    val UNRESOLVED_IMPORT = Issue(165, Severity.INFO)
 
     // API lint
     val START_WITH_LOWER = Issue(300, Severity.ERROR, Category.API_LINT, "S1")
@@ -220,6 +221,11 @@ object Issues {
     val PUBLIC_TYPEDEF = Issue(388, Severity.ERROR, Category.API_LINT, "FW15")
     val ANDROID_URI = Issue(389, Severity.ERROR, Category.API_LINT, "FW14")
     val BAD_FUTURE = Issue(390, Severity.ERROR, Category.API_LINT)
+    val STATIC_FINAL_BUILDER = Issue(391, Severity.WARNING, Category.API_LINT)
+    val GETTER_ON_BUILDER = Issue(392, Severity.WARNING, Category.API_LINT)
+    val MISSING_GETTER_MATCHING_BUILDER = Issue(393, Severity.WARNING, Category.API_LINT)
+    val OPTIONAL_BUILDER_CONSTRUCTOR_ARGUMENT = Issue(394, Severity.WARNING, Category.API_LINT)
+    val NO_SETTINGS_PROVIDER = Issue(395, Severity.HIDDEN, Category.API_LINT)
 
     fun findIssueById(id: Int): Issue? {
         return idToIssue[id]

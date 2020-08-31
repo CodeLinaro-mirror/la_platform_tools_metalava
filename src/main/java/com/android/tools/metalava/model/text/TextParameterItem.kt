@@ -16,8 +16,6 @@
 
 package com.android.tools.metalava.model.text
 
-import com.android.tools.metalava.doclava1.SourcePositionInfo
-import com.android.tools.metalava.doclava1.TextCodebase
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ParameterItem
 
@@ -45,7 +43,7 @@ class TextParameterItem(
         return type.toString().contains("...")
     }
 
-    override var included: Boolean = true
+    override val synthetic: Boolean get() = containingMethod.isEnumSyntheticMethod()
     override fun type(): TextTypeItem = type
     override fun name(): String = name
     override fun publicName(): String? = publicName
