@@ -1,4 +1,4 @@
-import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+import org.gradle.api.tasks.testing.logging.TestLogEvent
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 import java.io.FileInputStream
 import java.io.FileNotFoundException
@@ -13,20 +13,30 @@ buildscript {
     }
 }
 
+if (JavaVersion.current() != JavaVersion.VERSION_1_8) {
+    throw GradleException("You are using Java ${JavaVersion.current()}, but this build only supports Java 8. Please set your JAVA_HOME to JDK 8")
+}
+
 buildDir = getBuildDirectory()
 
-defaultTasks = listOf("installDist", "test", "shadowJar", "createArchive", "ktlint")
+defaultTasks = mutableListOf("installDist", "test", "createArchive", "ktlint")
 
 repositories {
     google()
     jcenter()
+    val lintRepo = project.findProperty("lintRepo") as String?
+    if (lintRepo != null) {
+        logger.warn("Building using custom $lintRepo maven repository")
+        maven {
+            url = uri(lintRepo)
+        }
+    }
 }
 
 plugins {
-    kotlin("jvm") version "1.3.20"
+    kotlin("jvm") version "1.3.72"
     id("application")
     id("java")
-    id("com.github.johnrengelman.shadow") version "4.0.4"
     id("maven-publish")
 }
 
@@ -51,11 +61,18 @@ tasks.withType(KotlinCompile::class.java) {
         jvmTarget = "1.8"
         apiVersion = "1.3"
         languageVersion = "1.3"
+        allWarningsAsErrors = true
     }
 }
 
-val studioVersion: String = "26.5.0"
-val kotlinVersion: String = "1.3.20"
+val customLintVersion = findProperty("lintVersion") as String?
+val studioVersion: String = if (customLintVersion != null) {
+    logger.warn("Building using custom $customLintVersion version of Android Lint")
+    customLintVersion
+} else {
+    "27.2.0-alpha01"
+}
+val kotlinVersion: String = "1.3.72"
 
 dependencies {
     implementation("com.android.tools.external.org-jetbrains:uast:$studioVersion")
@@ -70,15 +87,14 @@ dependencies {
     testImplementation("junit:junit:4.11")
 }
 
-tasks.withType(ShadowJar::class.java) {
-    archiveBaseName.set("metalava-full-${project.version}")
-    archiveClassifier.set(null as String?)
-    archiveVersion.set(null as String?)
-    setZip64(true)
-    destinationDirectory.set(getDistributionDirectory())
-}
-
 tasks.withType(Test::class.java) {
+    testLogging.events = hashSetOf(
+        TestLogEvent.FAILED,
+        TestLogEvent.PASSED,
+        TestLogEvent.SKIPPED,
+        TestLogEvent.STANDARD_OUT,
+        TestLogEvent.STANDARD_ERROR
+    )
     val zipTask = project.tasks.register("zipResultsOf${name.capitalize()}", Zip::class.java) {
         destinationDirectory.set(File(getDistributionDirectory(), "host-test-reports"))
         archiveFileName.set("metalava-tests.zip")
@@ -212,4 +228,17 @@ tasks.register("createArchive", Zip::class.java) {
     archiveFileName.set("top-of-tree-m2repository-all-${getBuildId()}.zip")
     destinationDirectory.set(getDistributionDirectory())
     dependsOn("publish${libraryName}PublicationTo${repositoryName}Repository")
+}
+
+// Workaround for https://github.com/gradle/gradle/issues/11717
+tasks.withType(GenerateModuleMetadata::class.java).configureEach {
+    doLast {
+        val metadata = outputFile.asFile.get()
+        var text = metadata.readText()
+        metadata.writeText(
+            text.replace(
+                "\"buildId\": .*".toRegex(),
+                "\"buildId:\": \"${getBuildId()}\"")
+        )
+    }
 }

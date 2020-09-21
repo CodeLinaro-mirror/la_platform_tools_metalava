@@ -788,7 +788,8 @@ class NullnessMigrationTest : DriverTest() {
                     }
                     """
                 ),
-                androidxNonNullSource
+                androidxNonNullSource,
+                androidxNullableSource
             ),
             stubs = arrayOf(
                 """

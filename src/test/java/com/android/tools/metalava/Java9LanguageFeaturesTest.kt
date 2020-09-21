@@ -52,6 +52,46 @@ class Java9LanguageFeaturesTest : DriverTest() {
     }
 
     @Test
+    fun `Kotlin language level`() {
+        // See https://kotlinlang.org/docs/reference/whatsnew13.html
+        check(
+            sourceFiles = arrayOf(
+                kotlin(
+                    """
+                    package test.pkg
+                    interface Foo {
+                        companion object {
+                            @JvmField
+                            val answer: Int = 42
+                            @JvmStatic
+                            fun sayHello() {
+                                println("Hello, world!")
+                            }
+                        }
+                    }
+                    """
+                )
+            ),
+            api =
+                """
+                package test.pkg {
+                  public abstract interface Foo {
+                    method public default static void sayHello();
+                    field public static final test.pkg.Foo.Companion Companion;
+                    field public static final int answer = 42; // 0x2a
+                  }
+                  public static final class Foo.Companion {
+                    method public void sayHello();
+                  }
+                }
+                """,
+            // The above source uses 1.3 features, though UAST currently
+            // seems to still treat it as 1.3 despite being passed 1.2
+            extraArguments = arrayOf(ARG_KOTLIN_SOURCE, "1.2")
+        )
+    }
+
+    @Test
     fun `Basic class signature extraction`() {
         // Basic class; also checks that default constructor is made explicit
         check(
@@ -142,6 +182,35 @@ class Java9LanguageFeaturesTest : DriverTest() {
                 }
                 """,
             extraArguments = arrayOf(ARG_JAVA_SOURCE, "1.9")
+        )
+    }
+
+    @Test
+    fun `Using JDK APIs`() {
+        // Non-Android example
+        val jdk = System.getProperty("java.home") ?: error("Expected java.home to be set")
+        check(
+            sourceFiles = arrayOf(
+                java(
+                    """
+                    package test.pkg;
+                    import javax.swing.JButton;
+                    public class SwingTest extends JButton {
+                        public JButton button;
+                    }
+                    """
+                )
+            ),
+            api =
+                """
+                package test.pkg {
+                  public class SwingTest extends javax.swing.JButton {
+                    ctor public SwingTest();
+                    field public javax.swing.JButton button;
+                  }
+                }
+                """,
+            extraArguments = arrayOf(ARG_JDK_HOME, jdk)
         )
     }
 }

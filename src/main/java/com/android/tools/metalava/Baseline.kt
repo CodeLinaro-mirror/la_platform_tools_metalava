@@ -32,6 +32,9 @@ import com.intellij.psi.PsiFile
 import com.intellij.psi.PsiMethod
 import com.intellij.psi.PsiPackage
 import com.intellij.psi.PsiParameter
+import org.jetbrains.kotlin.psi.KtClass
+import org.jetbrains.kotlin.psi.KtProperty
+import org.jetbrains.kotlin.psi.psiUtil.containingClass
 import org.jetbrains.kotlin.psi.psiUtil.parameterIndex
 import java.io.File
 import java.io.PrintWriter
@@ -130,6 +133,7 @@ class Baseline(
     private fun getBaselineKey(element: PsiElement): String {
         return when (element) {
             is PsiClass -> element.qualifiedName ?: element.name ?: "?"
+            is KtClass -> element.fqName?.asString() ?: element.name ?: "?"
             is PsiMethod -> {
                 val containingClass = element.containingClass
                 val name = element.name
@@ -143,6 +147,15 @@ class Baseline(
             is PsiField -> {
                 val containingClass = element.containingClass
                 val name = element.name
+                if (containingClass != null) {
+                    getBaselineKey(containingClass) + "#" + name
+                } else {
+                    name
+                }
+            }
+            is KtProperty -> {
+                val containingClass = element.containingClass()
+                val name = element.nameAsSafeName.asString()
                 if (containingClass != null) {
                     getBaselineKey(containingClass) + "#" + name
                 } else {
@@ -222,7 +235,7 @@ class Baseline(
 
     private fun write(): Boolean {
         val updateFile = this.updateFile ?: return false
-        if (!map.isEmpty() || !options.deleteEmptyBaselines) {
+        if (map.isNotEmpty() || !options.deleteEmptyBaselines) {
             val sb = StringBuilder()
             sb.append(format.header())
             sb.append(headerComment)

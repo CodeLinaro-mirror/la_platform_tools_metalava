@@ -20,7 +20,6 @@ import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.psi.containsLinkTags
 import com.android.tools.metalava.model.visitors.ApiVisitor
-import com.android.tools.metalava.model.visitors.VisibleItemVisitor
 import com.google.common.io.Files
 import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiField
@@ -28,6 +27,7 @@ import com.intellij.psi.PsiMethod
 import java.io.File
 import java.util.HashMap
 import java.util.regex.Pattern
+import kotlin.math.min
 
 /**
  * Whether to include textual descriptions of the API requirements instead
@@ -80,7 +80,7 @@ class DocAnalyzer(
 
         artifacts.tag(codebase)
 
-        codebase.accept(object : VisibleItemVisitor() {
+        codebase.accept(object : ApiVisitor() {
             override fun visitClass(cls: ClassItem) {
                 cls.artifact?.let {
                     cls.appendDocumentation(it, "@artifactId")
@@ -423,7 +423,7 @@ class DocAnalyzer(
                         if (filterReference.test(field)) {
                             sb.append("{@link ${field.containingClass().qualifiedName()}#${field.name()}}")
                         } else {
-                            // Typdef annotation references field which isn't part of the API: don't
+                            // Typedef annotation references field which isn't part of the API: don't
                             // try to link to it.
                             reporter.report(
                                 Issues.HIDDEN_TYPEDEF_CONSTANT, item,
@@ -625,6 +625,7 @@ class DocAnalyzer(
     }
 
     /** Replacements to perform in documentation */
+    @Suppress("SpellCheckingInspection")
     val typos = mapOf(
         "JetPack" to "Jetpack",
         "Andriod" to "Android",
@@ -637,7 +638,7 @@ class DocAnalyzer(
     )
 
     private fun tweakGrammar() {
-        codebase.accept(object : VisibleItemVisitor() {
+        codebase.accept(object : ApiVisitor() {
             override fun visitItem(item: Item) {
                 var doc = item.documentation
                 if (doc.isBlank()) {
@@ -738,7 +739,7 @@ class DocAnalyzer(
 
                     // Compute since version for the package: it's the min of all the classes in the package
                     val pkg = cls.containingPackage()
-                    pkgApi[pkg] = Math.min(pkgApi[pkg] ?: Integer.MAX_VALUE, since)
+                    pkgApi[pkg] = min(pkgApi[pkg] ?: Integer.MAX_VALUE, since)
                 }
                 addDeprecatedDocumentation(apiLookup.getClassDeprecatedIn(psiClass), cls)
             }
@@ -839,7 +840,11 @@ val defaultEvaluator = DefaultJavaEvaluator(null, null)
 fun ApiLookup.getMethodVersion(method: PsiMethod): Int {
     val containingClass = method.containingClass ?: return -1
     val owner = containingClass.qualifiedName ?: return -1
-    val desc = defaultEvaluator.getMethodDescription(method, false, false)
+    val desc = defaultEvaluator.getMethodDescription(
+        method,
+        includeName = false,
+        includeReturn = false
+    )
     return getMethodVersion(owner, if (method.isConstructor) "<init>" else method.name, desc)
 }
 
@@ -857,7 +862,11 @@ fun ApiLookup.getClassDeprecatedIn(cls: PsiClass): Int {
 fun ApiLookup.getMethodDeprecatedIn(method: PsiMethod): Int {
     val containingClass = method.containingClass ?: return -1
     val owner = containingClass.qualifiedName ?: return -1
-    val desc = defaultEvaluator.getMethodDescription(method, false, false)
+    val desc = defaultEvaluator.getMethodDescription(
+        method,
+        includeName = false,
+        includeReturn = false
+    )
     return getMethodDeprecatedIn(owner, method.name, desc)
 }
 

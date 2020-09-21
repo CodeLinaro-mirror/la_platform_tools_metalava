@@ -98,7 +98,7 @@ interface TypeItem {
 
     fun convertType(from: ClassItem, to: ClassItem): TypeItem {
         val map = from.mapTypeVariables(to)
-        if (!map.isEmpty()) {
+        if (map.isNotEmpty()) {
             return convertType(map)
         }
 
@@ -256,8 +256,8 @@ interface TypeItem {
                 // method provided in a hidden superclass), with generics signatures.
                 // We need to rewrite the generics variables in case they differ
                 // between the classes.
-                if (!replacementMap.isEmpty()) {
-                    replacementMap.forEach { from, to ->
+                if (replacementMap.isNotEmpty()) {
+                    replacementMap.forEach { (from, to) ->
                         // We can't just replace one string at a time:
                         // what if I have a map of {"A"->"B", "B"->"C"} and I tried to convert A,B,C?
                         // If I do the replacements one letter at a time I end up with C,C,C; if I do the substitutions

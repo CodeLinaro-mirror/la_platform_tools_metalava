@@ -288,7 +288,6 @@ class JavadocTest : DriverTest() {
                     """
                     package test.pkg1;
                     import java.io.IOException;
-                    import test.pkg2.OtherClass;
 
                     @SuppressWarnings("all")
                     public class R {
@@ -402,6 +401,12 @@ class JavadocTest : DriverTest() {
                         }
                     }
                     """
+                ),
+                java(
+                    """
+                    package android.view.accessibility;
+                    public class AccessibilityNodeInfo {}
+                    """
                 )
             ),
             warnings = "",
@@ -435,7 +440,7 @@ class JavadocTest : DriverTest() {
                     import android.os.OperationCanceledException;
 
                     @SuppressWarnings("all")
-                    public abstract class AsyncTaskLoader {
+                    public abstract class AsyncTaskLoader<D> {
                         /**
                          * Called if the task was canceled before it was completed.  Gives the class a chance
                          * to clean up post-cancellation and to properly dispose of the result.
@@ -506,7 +511,7 @@ class JavadocTest : DriverTest() {
                 package android.content;
                 import android.os.OperationCanceledException;
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
-                public abstract class AsyncTaskLoader {
+                public abstract class AsyncTaskLoader<D> {
                 public AsyncTaskLoader() { throw new RuntimeException("Stub!"); }
                 /**
                  * Called if the task was canceled before it was completed.  Gives the class a chance
@@ -656,6 +661,8 @@ class JavadocTest : DriverTest() {
                     import test.pkg1.MyParent;
                     @SuppressWarnings("all")
                     public class MyChild extends MyParent implements MyConstants {
+                        @Override
+                        public void close() {}
                     }
                     """
                 )
@@ -812,7 +819,7 @@ class JavadocTest : DriverTest() {
                     import java.nio.ByteBuffer;
 
                     @SuppressWarnings("all")
-                    public class Test {
+                    public abstract class Test {
                         /**
                          * Blah blah
                          * <blockquote><pre>
@@ -832,7 +839,7 @@ class JavadocTest : DriverTest() {
                 package test.pkg1;
                 import java.nio.ByteBuffer;
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
-                public class Test {
+                public abstract class Test {
                 public Test() { throw new RuntimeException("Stub!"); }
                 /**
                  * Blah blah
@@ -908,7 +915,6 @@ class JavadocTest : DriverTest() {
                     package android.view;
                     import android.graphics.Insets;
 
-
                     public final class WindowInsets {
                         /**
                          * Returns a copy of this WindowInsets with selected system window insets replaced
@@ -940,12 +946,20 @@ class JavadocTest : DriverTest() {
                         }
                     }
                     """
+                ),
+                java(
+                    """
+                    package android.graphics;
+                    public class Insets {
+                    }
+                    """
                 )
             ),
             docStubs = true,
             stubs = arrayOf(
                 """
                 package android.view;
+                import android.graphics.Insets;
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                 public final class WindowInsets {
                 public WindowInsets() { throw new RuntimeException("Stub!"); }
@@ -959,7 +973,7 @@ class JavadocTest : DriverTest() {
                  * @param bottom New bottom inset in pixels
                  * @return A modified copy of this WindowInsets
                  * @deprecated use {@link android.view.WindowInsets.Builder#Builder(android.view.WindowInsets) Builder#Builder(WindowInsets)} with
-                 *             {@link android.view.WindowInsets.Builder#setSystemWindowInsets(Insets) Builder#setSystemWindowInsets(Insets)} instead.
+                 *             {@link android.view.WindowInsets.Builder#setSystemWindowInsets(android.graphics.Insets) Builder#setSystemWindowInsets(Insets)} instead.
                  */
                 @Deprecated
                 public android.view.WindowInsets replaceSystemWindowInsets(int left, int top, int right, int bottom) { throw new RuntimeException("Stub!"); }
@@ -967,7 +981,7 @@ class JavadocTest : DriverTest() {
                 public static class Builder {
                 public Builder() { throw new RuntimeException("Stub!"); }
                 public Builder(android.view.WindowInsets insets) { throw new RuntimeException("Stub!"); }
-                public android.view.WindowInsets.Builder setSystemWindowInsets(Insets systemWindowInsets) { throw new RuntimeException("Stub!"); }
+                public android.view.WindowInsets.Builder setSystemWindowInsets(android.graphics.Insets systemWindowInsets) { throw new RuntimeException("Stub!"); }
                 }
                 }
                 """

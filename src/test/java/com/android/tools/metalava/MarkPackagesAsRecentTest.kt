@@ -21,7 +21,8 @@ class MarkPackagesAsRecentTest : DriverTest() {
                         public void method() { }
                     }
                     """
-                )
+                ),
+                androidxNullableSource
             ),
 
             extraArguments = arrayOf(
@@ -55,7 +56,8 @@ class MarkPackagesAsRecentTest : DriverTest() {
                         public void method() { }
                     }
                     """
-                )
+                ),
+                androidxNullableSource
             ),
 
             extraArguments = arrayOf(

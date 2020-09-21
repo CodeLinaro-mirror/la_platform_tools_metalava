@@ -28,7 +28,6 @@ import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.VisitCandidate
 import com.android.tools.metalava.model.visitors.ApiVisitor
-import com.android.tools.metalava.model.visitors.VisibleItemVisitor
 import com.intellij.util.containers.Stack
 import java.util.Comparator
 import java.util.function.Predicate
@@ -212,7 +211,7 @@ class CodebaseComparator {
 
     private fun visitAdded(visitor: ComparisonVisitor, new: Item) {
         if (visitor.visitAddedItemsRecursively) {
-            new.accept(object : VisibleItemVisitor() {
+            new.accept(object : ApiVisitor() {
                 override fun visitItem(item: Item) {
                     doVisitAdded(visitor, item)
                 }

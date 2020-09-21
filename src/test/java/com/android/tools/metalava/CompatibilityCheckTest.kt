@@ -688,7 +688,7 @@ CompatibilityCheckTest : DriverTest() {
     fun `Add seal`() {
         check(
             expectedIssues = """
-                src/test/pkg/Foo.kt: error: Cannot add 'sealed' modifier to class test.pkg.Foo: Incompatible change [AddSealed]
+                src/test/pkg/Foo.kt:2: error: Cannot add 'sealed' modifier to class test.pkg.Foo: Incompatible change [AddSealed]
                 """,
             compatibilityMode = false,
             checkCompatibilityApi = """
@@ -2480,9 +2480,9 @@ CompatibilityCheckTest : DriverTest() {
             compatibilityMode = false,
             inputKotlinStyleNulls = true,
             expectedIssues = """
-            src/test/pkg/test.kt:5: error: Method test.pkg.TestKt.add made type variable T reified: incompatible change [ChangedThrows]
-            src/test/pkg/test.kt:8: error: Method test.pkg.TestKt.two made type variable S reified: incompatible change [ChangedThrows]
-            """,
+                src/test/pkg/test.kt:5: error: Method test.pkg.TestKt.add made type variable T reified: incompatible change [ChangedThrows]
+                src/test/pkg/test.kt:8: error: Method test.pkg.TestKt.two made type variable S reified: incompatible change [ChangedThrows]
+                """,
             checkCompatibilityApi = """
                 package test.pkg {
                   public final class TestKt {

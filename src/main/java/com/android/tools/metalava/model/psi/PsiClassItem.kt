@@ -36,11 +36,14 @@ import com.intellij.psi.PsiModifier
 import com.intellij.psi.PsiModifierListOwner
 import com.intellij.psi.PsiType
 import com.intellij.psi.PsiTypeParameter
+import com.intellij.psi.SyntheticElement
 import com.intellij.psi.impl.source.PsiClassReferenceType
 import com.intellij.psi.util.PsiUtil
 import org.jetbrains.kotlin.psi.KtProperty
 import org.jetbrains.uast.UClass
+import org.jetbrains.uast.UFile
 import org.jetbrains.uast.UMethod
+import org.jetbrains.uast.getParentOfType
 import org.jetbrains.uast.kotlin.KotlinUClass
 
 open class PsiClassItem(
@@ -84,14 +87,10 @@ open class PsiClassItem(
     }
 
     override var stubConstructor: ConstructorItem? = null
-    override var notStrippable = false
     override var artifact: String? = null
 
     private var containingClass: PsiClassItem? = null
     override fun containingClass(): PsiClassItem? = containingClass
-
-    // TODO: Come up with a better scheme for how to compute this
-    override var included: Boolean = true
 
     override var hasPrivateConstructor: Boolean = false
 
@@ -202,7 +201,13 @@ open class PsiClassItem(
             return null
         }
 
-        return PsiCompilationUnit(codebase, containingFile)
+        val uFile =
+            if (psiClass is UClass) {
+                psiClass.getParentOfType<UFile>(UFile::class.java)
+            } else {
+                null
+            }
+        return PsiCompilationUnit(codebase, uFile, containingFile)
     }
 
     override fun finishInitialization() {
@@ -233,7 +238,7 @@ open class PsiClassItem(
 
     private fun initializeSuperClasses() {
         val extendsListTypes = psiClass.extendsListTypes
-        if (!extendsListTypes.isEmpty()) {
+        if (extendsListTypes.isNotEmpty()) {
             val type = PsiTypeItem.create(codebase, extendsListTypes[0])
             this.superClassType = type
             this.superClass = type.asClass()
@@ -436,7 +441,15 @@ open class PsiClassItem(
             val isKotlin = isKotlin(psiClass)
 
             if (classType == ClassType.ENUM) {
-                addEnumMethods(codebase, item, psiClass, methods)
+                // In compatibility mode we want explicit valueOf and values methods.
+                // UAST recently started including these in the AST (as synthetic elements),
+                // so we no longer need to create those here, but we still need to create
+                // the synthetic constructor
+                if (compatibility.defaultEnumMethods) {
+                    // Also add a private constructor; used when emitting the private API
+                    val psiMethod = codebase.createConstructor("private ${psiClass.name}", psiClass)
+                    methods.add(PsiConstructorItem.create(codebase, item, psiMethod))
+                }
             } else if (classType == ClassType.ANNOTATION_TYPE && compatibility.explicitlyListClassRetention &&
                 !hasExplicitRetention(modifiers, psiClass, isKotlin)
             ) {
@@ -454,6 +467,11 @@ open class PsiClassItem(
                 if (psiMethod.isConstructor) {
                     val constructor = PsiConstructorItem.create(codebase, item, psiMethod)
                     constructors.add(constructor)
+                } else if (classType == ClassType.ENUM &&
+                    !compatibility.defaultEnumMethods &&
+                    psiMethod is SyntheticElement
+                ) {
+                    // skip
                 } else {
                     val method = PsiMethodItem.create(codebase, item, psiMethod)
                     methods.add(method)
@@ -467,7 +485,7 @@ open class PsiClassItem(
 
             val fields: MutableList<FieldItem> = mutableListOf()
             val psiFields = psiClass.fields
-            if (!psiFields.isEmpty()) {
+            if (psiFields.isNotEmpty()) {
                 psiFields.asSequence()
                     .mapTo(fields) {
                         PsiFieldItem.create(codebase, item, it)
@@ -532,47 +550,6 @@ open class PsiClassItem(
             }
 
             return item
-        }
-
-        private fun addEnumMethods(
-            codebase: PsiBasedCodebase,
-            classItem: PsiClassItem,
-            psiClass: PsiClass,
-            result: MutableList<PsiMethodItem>
-        ) {
-            // Add these two methods as overrides into the API; this isn't necessary but is done in the old
-            // API generator
-            //    method public static android.graphics.ColorSpace.Adaptation valueOf(java.lang.String);
-            //    method public static final android.graphics.ColorSpace.Adaptation[] values();
-
-            if (compatibility.defaultEnumMethods) {
-                // TODO: Skip if we already have these methods here (but that shouldn't happen; nobody would
-                // type this by hand)
-                addEnumMethod(
-                    codebase, classItem,
-                    psiClass, result,
-                    "public static ${psiClass.qualifiedName} valueOf(java.lang.String s) { return null; }"
-                )
-                addEnumMethod(
-                    codebase, classItem,
-                    psiClass, result,
-                    "public static final ${psiClass.qualifiedName}[] values() { return null; }"
-                )
-                // Also add a private constructor; used when emitting the private API
-                val psiMethod = codebase.createConstructor("private ${psiClass.name}", psiClass)
-                result.add(PsiConstructorItem.create(codebase, classItem, psiMethod))
-            }
-        }
-
-        private fun addEnumMethod(
-            codebase: PsiBasedCodebase,
-            classItem: PsiClassItem,
-            psiClass: PsiClass,
-            result: MutableList<PsiMethodItem>,
-            source: String
-        ) {
-            val psiMethod = codebase.createPsiMethod(source, psiClass)
-            result.add(PsiMethodItem.create(codebase, classItem, psiMethod))
         }
 
         /**
