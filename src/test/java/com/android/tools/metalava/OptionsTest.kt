@@ -204,6 +204,8 @@ Extracting Signature Files:
 --include-signature-version[=yes|no]
                                              Whether the signature files should include a comment listing the format
                                              version of the signature file.
+--proguard <file>
+                                             Write a ProGuard keep file for the API
 --sdk-values <dir>
                                              Write SDK values files to the given directory
 

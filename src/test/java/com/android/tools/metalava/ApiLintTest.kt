@@ -288,7 +288,7 @@ class ApiLintTest : DriverTest() {
             apiLint = "", // enabled
             compatibilityMode = false,
             expectedIssues = """
-                src/android/pkg/MyCallback.java:8: error: Callback method names must follow the on<Something> style: bar [CallbackMethodName] [Rule L1 in go/android-api-guidelines]
+                src/android/pkg/MyCallback.java:9: error: Callback method names must follow the on<Something> style: bar [CallbackMethodName] [Rule L1 in go/android-api-guidelines]
                 src/android/pkg/MyCallbacks.java:3: error: Callback class names should be singular: MyCallbacks [SingularCallback] [Rule L1 in go/android-api-guidelines]
                 src/android/pkg/MyInterfaceCallback.java:3: error: Callbacks must be abstract class instead of interface to enable extension in future API levels: MyInterfaceCallback [CallbackInterface] [Rule CL3 in go/android-api-guidelines]
                 src/android/pkg/MyObserver.java:3: warning: Class should be named MyCallback [CallbackName] [Rule L1 in go/android-api-guidelines]
@@ -340,6 +340,7 @@ class ApiLintTest : DriverTest() {
                         }
                         public void onAnimationStart() {
                         }
+                        public void onN1GoodMethod() { }
                         public void bar() {
                         }
                         public static void staticMethod() {
@@ -3199,6 +3200,60 @@ class ApiLintTest : DriverTest() {
                     """
                 ),
                 androidxNullableSource
+            )
+        )
+    }
+
+    @Test
+    fun `No issues for ignored packages`() {
+        check(
+            apiLint = """
+                package java.math {
+                  public class BigInteger {
+                    ctor public BigInteger();
+                  }
+                }
+            """.trimIndent(),
+            compatibilityMode = false,
+            extraArguments = arrayOf(
+                ARG_API_LINT_IGNORE_PREFIX,
+                "java."
+            ),
+            expectedIssues = "",
+            sourceFiles = arrayOf(
+                java(
+                    """
+                    package java.math;
+
+                    public class BigInteger {
+                        public byte newMethod() {
+                            return 0;
+                        }
+                    }
+                    """
+                )
+            )
+        )
+    }
+
+    @Test
+    fun `vararg use in annotations`() {
+        check(
+            apiLint = "", // enabled
+            compatibilityMode = false,
+            expectedIssues = "",
+            sourceFiles = arrayOf(
+                kotlin(
+                    """
+                        package test.pkg
+
+                        import kotlin.reflect.KClass
+
+                        annotation class MyAnnotation(
+                            vararg val markerClass: KClass<out Annotation>
+                        )
+                    """
+                )
             )
         )
     }

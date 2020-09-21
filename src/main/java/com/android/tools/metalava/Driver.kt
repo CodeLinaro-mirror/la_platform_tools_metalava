@@ -26,7 +26,6 @@ import com.android.ide.common.process.DefaultProcessExecutor
 import com.android.ide.common.process.ProcessInfoBuilder
 import com.android.ide.common.process.ProcessOutput
 import com.android.ide.common.process.ProcessOutputHandler
-import com.android.tools.lint.KotlinLintAnalyzerFacade
 import com.android.tools.lint.UastEnvironment
 import com.android.tools.lint.annotations.Extractor
 import com.android.tools.lint.checks.infrastructure.ClassName
@@ -51,14 +50,12 @@ import com.google.common.base.Stopwatch
 import com.google.common.collect.Lists
 import com.google.common.io.Files
 import com.intellij.core.CoreApplicationEnvironment
-import com.intellij.openapi.Disposable
 import com.intellij.openapi.diagnostic.DefaultLogger
-import com.intellij.openapi.extensions.Extensions
-import com.intellij.openapi.roots.LanguageLevelProjectExtension
 import com.intellij.openapi.util.Disposer
 import com.intellij.pom.java.LanguageLevel
 import com.intellij.psi.javadoc.CustomJavadocTagProvider
 import com.intellij.psi.javadoc.JavadocTagInfo
+import org.jetbrains.kotlin.config.CommonConfigurationKeys.MODULE_NAME
 import org.jetbrains.kotlin.config.LanguageVersionSettings
 import java.io.File
 import java.io.IOException
@@ -345,6 +342,14 @@ private fun processFlags() {
         createReportFile(
             unfiltered, apiFile, "removed DEX API"
         ) { printWriter -> DexApiWriter(printWriter, removedDexEmit, removedReference) }
+    }
+
+    options.proguard?.let { proguard ->
+        val apiEmit = FilterPredicate(ApiPredicate())
+        val apiReference = ApiPredicate(ignoreShown = true)
+        createReportFile(
+            codebase, proguard, "Proguard file"
+        ) { printWriter -> ProguardWriter(printWriter, apiEmit, apiReference) }
     }
 
     options.sdkValueDir?.let { dir ->
@@ -862,65 +867,47 @@ internal fun parseSources(
     manifest: File? = options.manifest,
     currentApiLevel: Int = options.currentApiLevel + if (options.currentCodeName != null) 1 else 0
 ): PsiBasedCodebase {
-    val environment = createProjectEnvironment()
-    val projectEnvironment = environment.projectEnvironment
-    val project = projectEnvironment.project
-
-    // Push language level to PSI handler
-    project.getComponent(LanguageLevelProjectExtension::class.java)?.languageLevel = javaLanguageLevel
-
-    val joined = mutableListOf<File>()
-    joined.addAll(sourcePath.mapNotNull { if (it.path.isNotBlank()) it.absoluteFile else null })
-    joined.addAll(classpath.map { it.absoluteFile })
-
-    // Add in source roots implied by the source files
     val sourceRoots = mutableListOf<File>()
+    sourcePath.filterTo(sourceRoots) { it.path.isNotBlank() }
+    // Add in source roots implied by the source files
     if (options.allowImplicitRoot) {
         extractRoots(sources, sourceRoots)
-        joined.addAll(sourceRoots)
     }
 
-    // Create project environment with those paths
-    projectEnvironment.registerPaths(joined)
+    val config = UastEnvironment.Configuration.create()
+    config.javaLanguageLevel = javaLanguageLevel
+    config.kotlinLanguageLevel = kotlinLanguageLevel
+    config.addSourceRoots(sourceRoots.map { it.absoluteFile })
+    config.addClasspathRoots(classpath.map { it.absoluteFile })
+
+    val environment = createProjectEnvironment(config)
 
     val kotlinFiles = sources.filter { it.path.endsWith(DOT_KT) }
-    val trace = KotlinLintAnalyzerFacade().analyze(
-        files = kotlinFiles,
-        contentRoots = joined,
-        project = project,
-        environment = environment,
-        javaLanguageLevel = javaLanguageLevel,
-        kotlinLanguageLevel = kotlinLanguageLevel
-    )
+    environment.analyzeFiles(kotlinFiles)
 
     val rootDir = sourceRoots.firstOrNull() ?: sourcePath.firstOrNull() ?: File("").canonicalFile
 
-    val units = Extractor.createUnitsForFiles(project, sources)
+    val units = Extractor.createUnitsForFiles(environment.ideaProject, sources)
     val packageDocs = gatherHiddenPackagesFromJavaDocs(sourcePath)
 
     val codebase = PsiBasedCodebase(rootDir, description)
-    codebase.initialize(project, units, packageDocs)
+    codebase.initialize(environment, units, packageDocs)
     codebase.manifest = manifest
     codebase.apiLevel = currentApiLevel
-    codebase.bindingContext = trace.bindingContext
     return codebase
 }
 
 fun loadFromJarFile(apiJar: File, manifest: File? = null, preFiltered: Boolean = false): Codebase {
-    val environment = createProjectEnvironment()
-    val projectEnvironment = environment.projectEnvironment
-
     progress("Processing jar file: ")
 
-    // Create project environment with those paths
-    val project = projectEnvironment.project
-    projectEnvironment.registerPaths(listOf(apiJar))
+    val config = UastEnvironment.Configuration.create()
+    config.addClasspathRoots(listOf(apiJar))
 
-    val kotlinFiles = emptyList<File>()
-    val trace = KotlinLintAnalyzerFacade().analyze(kotlinFiles, listOf(apiJar), project, environment)
+    val environment = createProjectEnvironment(config)
+    environment.analyzeFiles(emptyList()) // Initializes PSI machinery.
 
     val codebase = PsiBasedCodebase(apiJar, "Codebase loaded from $apiJar")
-    codebase.initialize(project, apiJar, preFiltered)
+    codebase.initialize(environment, apiJar, preFiltered)
     if (manifest != null) {
         codebase.manifest = options.manifest
     }
@@ -933,45 +920,52 @@ fun loadFromJarFile(apiJar: File, manifest: File? = null, preFiltered: Boolean =
     options.nullabilityAnnotationsValidator?.validateAllFrom(codebase, options.validateNullabilityFromList)
     options.nullabilityAnnotationsValidator?.report()
     analyzer.generateInheritedStubs(apiEmit, apiReference)
-    codebase.bindingContext = trace.bindingContext
     return codebase
 }
 
-private fun createProjectEnvironment(): UastEnvironment {
+internal const val METALAVA_SYNTHETIC_SUFFIX = "metalava_module"
+
+private fun createProjectEnvironment(config: UastEnvironment.Configuration): UastEnvironment {
     ensurePsiFileCapacity()
-    val disposable = Disposer.newDisposable()
-    disposables.add(disposable)
-    val environment = UastEnvironment.create(disposable)
+
+    // Note: the Kotlin module name affects the naming of certain synthetic methods.
+    config.kotlinCompilerConfig.put(MODULE_NAME, METALAVA_SYNTHETIC_SUFFIX)
+
+    val environment = UastEnvironment.create(config)
+    uastEnvironments.add(environment)
 
     if (!assertionsEnabled() &&
         System.getenv(ENV_VAR_METALAVA_DUMP_ARGV) == null &&
         !isUnderTest()
     ) {
-        DefaultLogger.disableStderrDumping(disposable)
+        DefaultLogger.disableStderrDumping(environment.ideaProject)
     }
 
-    val projectEnvironment = environment.projectEnvironment
-
     // Missing service needed in metalava but not in lint: javadoc handling
-    projectEnvironment.project.registerService(
+    environment.ideaProject.registerService(
         com.intellij.psi.javadoc.JavadocManager::class.java,
         com.intellij.psi.impl.source.javadoc.JavadocManagerImpl::class.java
     )
-    projectEnvironment.registerProjectExtensionPoint(JavadocTagInfo.EP_NAME,
-        com.intellij.psi.javadoc.JavadocTagInfo::class.java)
     CoreApplicationEnvironment.registerExtensionPoint(
-        Extensions.getRootArea(), CustomJavadocTagProvider.EP_NAME, CustomJavadocTagProvider::class.java
+        environment.ideaProject.extensionArea, JavadocTagInfo.EP_NAME, JavadocTagInfo::class.java
+    )
+    CoreApplicationEnvironment.registerApplicationExtensionPoint(
+        CustomJavadocTagProvider.EP_NAME, CustomJavadocTagProvider::class.java
     )
 
     return environment
 }
 
-private val disposables = mutableListOf<Disposable>()
+private val uastEnvironments = mutableListOf<UastEnvironment>()
 
 private fun disposeUastEnvironment() {
-    for (project in disposables) {
-        Disposer.dispose(project)
+    // Codebase.dispose() is not consistently called, so we dispose the environments here too.
+    for (env in uastEnvironments) {
+        if (!Disposer.isDisposed(env.ideaProject)) {
+            env.dispose()
+        }
     }
+    uastEnvironments.clear()
     UastEnvironment.disposeApplicationEnvironment()
 }
 

@@ -122,9 +122,10 @@ class AnnotationsMerger(
             extractRoots(options.sources, roots)
             roots.addAll(options.classpath)
             roots.addAll(options.sourcePath)
-            val classpath = roots.distinct().toList()
-            val javaStubsCodebase = parseSources(javaStubFiles, "Codebase loaded from stubs",
-                classpath = classpath)
+            val javaStubsCodebase = parseSources(
+                javaStubFiles,
+                "Codebase loaded from stubs",
+                sourcePath = roots)
             mergeJavaStubsCodebase(javaStubsCodebase)
         }
     }

@@ -2141,7 +2141,7 @@ class StubsTest : DriverTest() {
         checkStubs(
             sourceFiles = arrayOf(
                 // TODO: Try using prefixes like "A", and "AA" to make sure my generics
-                // variable renaming doesn't do something really dumb
+                // variable renaming doesn't do something really unexpected
                 java(
                     """
                     package test.pkg;
@@ -4368,6 +4368,36 @@ class StubsTest : DriverTest() {
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class MainClass extends test.pkg.MyParentClass implements test.pkg.MyInterface1, test.pkg.MyInterface2 {
                     public MainClass() { throw new RuntimeException("Stub!"); }
+                    }
+                """
+            )
+        )
+    }
+
+    @Test
+    fun `NaN constants`() {
+        check(
+            checkCompilation = true,
+            sourceFiles = arrayOf(
+                java(
+                    """
+                    package test.pkg;
+
+                    public class MyClass {
+                        public static final float floatNaN = 0.0f / 0.0f;
+                        public static final double doubleNaN = 0.0d / 0.0;
+                    }
+                    """
+                )
+            ),
+            stubs = arrayOf(
+                """
+                    package test.pkg;
+                    @SuppressWarnings({"unchecked", "deprecation", "all"})
+                    public class MyClass {
+                    public MyClass() { throw new RuntimeException("Stub!"); }
+                    public static final double doubleNaN = (0.0/0.0);
+                    public static final float floatNaN = (0.0f/0.0f);
                     }
                 """
             )

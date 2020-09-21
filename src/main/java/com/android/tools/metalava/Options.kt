@@ -81,6 +81,7 @@ const val ARG_DOC_STUBS = "--doc-stubs"
 const val ARG_KOTLIN_STUBS = "--kotlin-stubs"
 const val ARG_STUBS_SOURCE_LIST = "--write-stubs-source-list"
 const val ARG_DOC_STUBS_SOURCE_LIST = "--write-doc-stubs-source-list"
+const val ARG_PROGUARD = "--proguard"
 const val ARG_EXTRACT_ANNOTATIONS = "--extract-annotations"
 const val ARG_EXCLUDE_ANNOTATIONS = "--exclude-annotations"
 const val ARG_EXCLUDE_DOCUMENTATION_FROM_STUBS = "--exclude-documentation-from-stubs"
@@ -420,6 +421,9 @@ class Options(
 
     /** Whether code compiled from Kotlin should be emitted as .kt stubs instead of .java stubs */
     var kotlinStubs = false
+
+    /** Proguard Keep list file to write */
+    var proguard: File? = null
 
     /** If set, a file to write an API file to. Corresponds to the --api/-api flag. */
     var apiFile: File? = null
@@ -917,6 +921,8 @@ class Options(
                 // Flag used by test suite to avoid including locations in
                 // the output when diffing against golden files
                 "--omit-locations" -> omitLocations = true
+
+                ARG_PROGUARD, "-proguard" -> proguard = stringToNewFile(getValue(args, ++index))
 
                 ARG_HIDE_PACKAGE, "-hidePackage" -> mutableHidePackages.add(getValue(args, ++index))
 
@@ -1661,6 +1667,7 @@ class Options(
             docStubsSourceList = null
             sdkValueDir = null
             externalAnnotations = null
+            proguard = null
             noDocs = true
             invokeDocumentationToolArguments = emptyArray()
             mutableCompatibilityChecks.clear()
@@ -1686,6 +1693,7 @@ class Options(
             docStubsSourceList = null
             sdkValueDir = null
             externalAnnotations = null
+            proguard = null
             noDocs = true
             invokeDocumentationToolArguments = emptyArray()
             mutableAnnotationCoverageOf.clear()
@@ -1848,7 +1856,8 @@ class Options(
         }
 
         val apiLevelFiles = mutableListOf<File>()
-        apiLevelFiles.add(File("there is no api 0")) // api level 0: dummy, should not be processed
+        // api level 0: placeholder, should not be processed
+        apiLevelFiles.add(File("there is no api 0"))
         val minApi = 1
 
         // Get all the android.jar. They are in platforms-#
@@ -2318,6 +2327,7 @@ class Options(
             "$ARG_INCLUDE_SIG_VERSION[=yes|no]", "Whether the signature files should include a comment listing " +
                 "the format version of the signature file.",
 
+            "$ARG_PROGUARD <file>", "Write a ProGuard keep file for the API",
             "$ARG_SDK_VALUES <dir>", "Write SDK values files to the given directory",
 
             "", "\nGenerating Stubs:",

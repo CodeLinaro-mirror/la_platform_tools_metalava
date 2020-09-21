@@ -19,6 +19,7 @@ package com.android.tools.metalava.model.psi
 import com.android.tools.metalava.ANDROIDX_VISIBLE_FOR_TESTING
 import com.android.tools.metalava.ANDROID_SUPPORT_VISIBLE_FOR_TESTING
 import com.android.tools.metalava.ATTR_OTHERWISE
+import com.android.tools.metalava.METALAVA_SYNTHETIC_SUFFIX
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.DefaultModifierList
@@ -36,7 +37,7 @@ import org.jetbrains.kotlin.asJava.elements.KtLightNullabilityAnnotation
 import org.jetbrains.kotlin.lexer.KtTokens
 import org.jetbrains.kotlin.psi.KtModifierList
 import org.jetbrains.kotlin.psi.KtNamedFunction
-import org.jetbrains.kotlin.psi.KtProperty
+import org.jetbrains.kotlin.psi.KtPropertyAccessor
 import org.jetbrains.uast.UAnnotated
 import org.jetbrains.uast.UMethod
 import org.jetbrains.uast.UVariable
@@ -154,9 +155,13 @@ class PsiModifierItem(
             } else {
                 // UAST returns a null modifierList.kotlinOrigin for get/set methods for
                 // properties
-                if (element is UMethod && element.sourceElement is KtProperty) {
+                if (element is UMethod &&
+                    (
+                        element.sourceElement is KtPropertyAccessor
+                    )
+                ) {
                     // If the name contains the marker of an internal method, mark it internal
-                    if (element.name.endsWith("\$lintWithKotlin")) {
+                    if (element.name.endsWith("\$$METALAVA_SYNTHETIC_SUFFIX")) {
                         visibilityFlags = INTERNAL
                     }
                 }

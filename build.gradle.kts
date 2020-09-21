@@ -1,17 +1,12 @@
+import com.android.tools.metalava.CREATE_ARCHIVE_TASK
+import com.android.tools.metalava.CREATE_BUILD_INFO_TASK
+import com.android.tools.metalava.configureBuildInfoTask
+import com.android.tools.metalava.configurePublishingArchive
 import org.gradle.api.tasks.testing.logging.TestLogEvent
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 import java.io.FileInputStream
 import java.io.FileNotFoundException
 import java.util.Properties
-
-buildscript {
-    repositories {
-        jcenter()
-    }
-    dependencies {
-        classpath("com.github.jengelman.gradle.plugins:shadow:4.0.4")
-    }
-}
 
 if (JavaVersion.current() != JavaVersion.VERSION_1_8) {
     throw GradleException("You are using Java ${JavaVersion.current()}, but this build only supports Java 8. Please set your JAVA_HOME to JDK 8")
@@ -19,7 +14,13 @@ if (JavaVersion.current() != JavaVersion.VERSION_1_8) {
 
 buildDir = getBuildDirectory()
 
-defaultTasks = mutableListOf("installDist", "test", "createArchive", "ktlint")
+defaultTasks = mutableListOf(
+    "installDist",
+    "test",
+    CREATE_ARCHIVE_TASK,
+    CREATE_BUILD_INFO_TASK,
+    "ktlint"
+)
 
 repositories {
     google()
@@ -34,13 +35,13 @@ repositories {
 }
 
 plugins {
-    kotlin("jvm") version "1.3.72"
+    kotlin("jvm") version "1.4.0"
     id("application")
     id("java")
     id("maven-publish")
 }
 
-group = "com.android"
+group = "com.android.tools.metalava"
 version = getMetalavaVersion()
 
 application {
@@ -59,8 +60,8 @@ tasks.withType(KotlinCompile::class.java) {
 
     kotlinOptions {
         jvmTarget = "1.8"
-        apiVersion = "1.3"
-        languageVersion = "1.3"
+        apiVersion = "1.4"
+        languageVersion = "1.4"
         allWarningsAsErrors = true
     }
 }
@@ -70,9 +71,9 @@ val studioVersion: String = if (customLintVersion != null) {
     logger.warn("Building using custom $customLintVersion version of Android Lint")
     customLintVersion
 } else {
-    "27.2.0-alpha01"
+    "27.2.0-alpha07"
 }
-val kotlinVersion: String = "1.3.72"
+val kotlinVersion: String = "1.4.0"
 
 dependencies {
     implementation("com.android.tools.external.org-jetbrains:uast:$studioVersion")
@@ -185,12 +186,12 @@ tasks.register("ktlintFormat", JavaExec::class.java) {
     args = listOf("-F", "src/**/*.kt", "build.gradle.kts")
 }
 
-val libraryName = "Metalava"
+val publicationName = "Metalava"
 val repositoryName = "Dist"
 
 publishing {
     publications {
-        create<MavenPublication>(libraryName) {
+        create<MavenPublication>(publicationName) {
             from(components["java"])
             pom {
                 licenses {
@@ -220,16 +221,6 @@ publishing {
     }
 }
 
-tasks.register("createArchive", Zip::class.java) {
-    description = "Create a zip of the library in a maven format"
-    group = "publishing"
-
-    from("${getDistributionDirectory().canonicalPath}/repo")
-    archiveFileName.set("top-of-tree-m2repository-all-${getBuildId()}.zip")
-    destinationDirectory.set(getDistributionDirectory())
-    dependsOn("publish${libraryName}PublicationTo${repositoryName}Repository")
-}
-
 // Workaround for https://github.com/gradle/gradle/issues/11717
 tasks.withType(GenerateModuleMetadata::class.java).configureEach {
     doLast {
@@ -242,3 +233,12 @@ tasks.withType(GenerateModuleMetadata::class.java).configureEach {
         )
     }
 }
+
+configureBuildInfoTask(project, isBuildingOnServer(), getDistributionDirectory())
+configurePublishingArchive(
+    project,
+    publicationName,
+    repositoryName,
+    getBuildId(),
+    getDistributionDirectory()
+)
