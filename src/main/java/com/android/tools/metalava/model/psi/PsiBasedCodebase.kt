@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model.psi
 
 import com.android.SdkConstants
+import com.android.tools.lint.UastEnvironment
 import com.android.tools.metalava.ANDROIDX_NONNULL
 import com.android.tools.metalava.ANDROIDX_NULLABLE
 import com.android.tools.metalava.doclava1.Issues
@@ -32,7 +33,6 @@ import com.android.tools.metalava.options
 import com.android.tools.metalava.reporter
 import com.android.tools.metalava.tick
 import com.intellij.openapi.project.Project
-import com.intellij.openapi.util.Disposer
 import com.intellij.psi.JavaPsiFacade
 import com.intellij.psi.JavaRecursiveElementVisitor
 import com.intellij.psi.PsiAnnotation
@@ -56,7 +56,6 @@ import com.intellij.psi.javadoc.PsiDocComment
 import com.intellij.psi.javadoc.PsiDocTag
 import com.intellij.psi.search.GlobalSearchScope
 import com.intellij.psi.util.PsiTreeUtil
-import org.jetbrains.kotlin.resolve.BindingContext
 import org.jetbrains.uast.UFile
 import org.jetbrains.uast.UastFacade
 import java.io.File
@@ -70,9 +69,9 @@ const val CLASS_ESTIMATE = 15000
 const val METHOD_ESTIMATE = 1000
 
 open class PsiBasedCodebase(location: File, override var description: String = "Unknown") : DefaultCodebase(location) {
-    lateinit var project: Project
-
-    var bindingContext: BindingContext? = null
+    lateinit var uastEnvironment: UastEnvironment
+    val project: Project
+        get() = uastEnvironment.ideaProject
 
     /** Map from class name to class item */
     private val classMap: MutableMap<String, PsiClassItem> = HashMap(CLASS_ESTIMATE)
@@ -111,12 +110,12 @@ open class PsiBasedCodebase(location: File, override var description: String = "
 
     private lateinit var emptyPackage: PsiPackageItem
 
-    fun initialize(project: Project, units: List<PsiFile>, packages: PackageDocs) {
+    fun initialize(uastEnvironment: UastEnvironment, units: List<PsiFile>, packages: PackageDocs) {
         initializing = true
         this.units = units
         packageDocs = packages
 
-        this.project = project
+        this.uastEnvironment = uastEnvironment
         // there are currently ~230 packages in the public SDK, but here we need to account for internal ones too
         val hiddenPackages: MutableSet<String> = packages.hiddenPackages
         val packageDocs: MutableMap<String, String> = packages.packageDocs
@@ -241,7 +240,7 @@ open class PsiBasedCodebase(location: File, override var description: String = "
     }
 
     override fun dispose() {
-        Disposer.dispose(project)
+        uastEnvironment.dispose()
         super.dispose()
     }
 
@@ -307,12 +306,12 @@ open class PsiBasedCodebase(location: File, override var description: String = "
         return packageItem
     }
 
-    fun initialize(project: Project, jarFile: File, preFiltered: Boolean = false) {
+    fun initialize(uastEnvironment: UastEnvironment, jarFile: File, preFiltered: Boolean = false) {
         this.preFiltered = preFiltered
         initializing = true
         hideClassesFromJars = false
 
-        this.project = project
+        this.uastEnvironment = uastEnvironment
 
         // Find all classes referenced from the class
         val facade = JavaPsiFacade.getInstance(project)

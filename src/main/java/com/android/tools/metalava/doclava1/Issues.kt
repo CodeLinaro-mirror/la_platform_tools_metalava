@@ -226,6 +226,7 @@ object Issues {
     val MISSING_GETTER_MATCHING_BUILDER = Issue(393, Severity.WARNING, Category.API_LINT)
     val OPTIONAL_BUILDER_CONSTRUCTOR_ARGUMENT = Issue(394, Severity.WARNING, Category.API_LINT)
     val NO_SETTINGS_PROVIDER = Issue(395, Severity.HIDDEN, Category.API_LINT)
+    val PRIVATE_COMPANION = Issue(396, Severity.ERROR, Category.API_LINT)
 
     fun findIssueById(id: Int): Issue? {
         return idToIssue[id]

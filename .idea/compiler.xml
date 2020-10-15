@@ -4,8 +4,6 @@
     <bytecodeTargetLevel target="1.8">
       <module name="com.android.metalava.main" target="1.8" />
       <module name="com.android.metalava.test" target="1.8" />
-      <module name="metalava.stub-annotations.main" target="1.8" />
-      <module name="metalava.stub-annotations.test" target="1.8" />
     </bytecodeTargetLevel>
   </component>
 </project>

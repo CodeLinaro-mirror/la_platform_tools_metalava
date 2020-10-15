@@ -241,7 +241,10 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
     }
 
     override fun skip(item: Item): Boolean {
-        return super.skip(item) || item is ClassItem && !isInteresting(item)
+        return super.skip(item) ||
+            item is ClassItem && !isInteresting(item) ||
+            item is MethodItem && !isInteresting(item.containingClass()) ||
+            item is FieldItem && !isInteresting(item.containingClass())
     }
 
     private val kotlinInterop = KotlinInteropChecks(reporter)
@@ -3118,6 +3121,10 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
                         if (item.name() == "values" && item.containingClass().isEnum()) {
                             return
                         }
+                        if (item.containingClass().extends("java.lang.annotation.Annotation")) {
+                            // Annotation are allowed to use arrays
+                            return
+                        }
                         "Method should return"
                     }
                     is FieldItem -> "Field should be"
@@ -3680,13 +3687,13 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
         private val constantNamePattern = Regex("[A-Z0-9_]+")
         private val internalNamePattern = Regex("[ms][A-Z0-9].*")
         private val fieldNamePattern = Regex("[a-z].*")
-        private val onCallbackNamePattern = Regex("on[A-Z][a-z][a-zA-Z1-9]*")
-        private val configFieldPattern = Regex("config_[a-z][a-zA-Z1-9]*")
-        private val layoutFieldPattern = Regex("layout_[a-z][a-zA-Z1-9]*")
+        private val onCallbackNamePattern = Regex("on[A-Z][a-z0-9][a-zA-Z0-9]*")
+        private val configFieldPattern = Regex("config_[a-z][a-zA-Z0-9]*")
+        private val layoutFieldPattern = Regex("layout_[a-z][a-zA-Z0-9]*")
         private val stateFieldPattern = Regex("state_[a-z_]+")
-        private val resourceFileFieldPattern = Regex("[a-z1-9_]+")
-        private val resourceValueFieldPattern = Regex("[a-z][a-zA-Z1-9]*")
-        private val styleFieldPattern = Regex("[A-Z][A-Za-z1-9]+(_[A-Z][A-Za-z1-9]+?)*")
+        private val resourceFileFieldPattern = Regex("[a-z0-9_]+")
+        private val resourceValueFieldPattern = Regex("[a-z][a-zA-Z0-9]*")
+        private val styleFieldPattern = Regex("[A-Z][A-Za-z0-9]+(_[A-Z][A-Za-z0-9]+?)*")
 
         private val acronymPattern2 = Regex("([A-Z]){2,}")
         private val acronymPattern3 = Regex("([A-Z]){3,}")

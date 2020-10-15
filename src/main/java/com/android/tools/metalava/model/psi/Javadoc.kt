@@ -191,11 +191,11 @@ fun findParamTag(docComment: PsiDocComment, paramName: String): PsiDocTag? {
 }
 
 fun findFirstTag(docComment: PsiDocComment): PsiDocTag? {
-    return docComment.tags.asSequence().minBy { it.textRange.startOffset }
+    return docComment.tags.asSequence().minByOrNull { it.textRange.startOffset }
 }
 
 fun findLastTag(docComment: PsiDocComment): PsiDocTag? {
-    return docComment.tags.asSequence().maxBy { it.textRange.startOffset }
+    return docComment.tags.asSequence().maxByOrNull { it.textRange.startOffset }
 }
 
 fun findTagEnd(tag: PsiDocTag): Int {

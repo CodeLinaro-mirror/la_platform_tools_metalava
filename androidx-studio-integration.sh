@@ -19,5 +19,4 @@ JAVA_HOME="$(pwd)/prebuilts/studio/jdk/linux" tools/gradlew -p tools/ publishLoc
 export LINT_VERSION=`grep -oP "(?<=baseVersion = ).*" tools/buildSrc/base/version.properties`
 export LINT_REPO="$(pwd)/out/repo"
 
-# Disabled temporarily due to lint binary compatibility breakage
-# tools/gradlew -p tools/metalava --no-daemon --stacktrace -PlintRepo=$LINT_REPO -PlintVersion=$LINT_VERSION
+tools/gradlew -p tools/metalava --no-daemon --stacktrace -PlintRepo=$LINT_REPO -PlintVersion=$LINT_VERSION
