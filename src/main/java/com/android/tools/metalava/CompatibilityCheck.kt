@@ -230,6 +230,14 @@ class CompatibilityCheck(
             )
         }
 
+        if (oldModifiers.isFunctional() && !newModifiers.isFunctional()) {
+            report(
+                Issues.FUN_REMOVAL,
+                new,
+                "Cannot remove 'fun' modifier from ${describe(new)}: source incompatible change"
+            )
+        }
+
         // Check for changes in final & static, but not in enums (since PSI and signature files differ
         // a bit in whether they include these for enums
         if (!new.isEnum()) {

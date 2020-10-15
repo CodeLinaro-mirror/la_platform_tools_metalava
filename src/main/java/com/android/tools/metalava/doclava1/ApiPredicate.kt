@@ -125,8 +125,8 @@ class ApiPredicate(
             return false
         }
 
-        // If the item has a "show" annotation, then return whether it has a "for stubs" annotation
-        // or not.
+        // If the item has a "show" annotation, then return whether it *only* has a "for stubs"
+        // show annotation or not.
         //
         // Note, If the item does not have a show annotation, then it can't have a "for stubs" one,
         // because the later must be a subset of the former, which we don't detect in *this*
@@ -134,7 +134,7 @@ class ApiPredicate(
         // is executed for the parent API, we'd detect it as
         // [Issues.SHOWING_MEMBER_IN_HIDDEN_CLASS].
         if (item.hasShowAnnotationInherited()) {
-            return item.hasShowForStubPurposesAnnotationInherited()
+            return item.onlyShowForStubPurposesInherited()
         }
         // If this item has neither --show-annotation nor --parent-api-annotation,
         // Then defer to the "parent" item (i.e. the enclosing class or package).

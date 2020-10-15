@@ -331,6 +331,17 @@ private fun processFlags() {
         }
     }
 
+    options.dexApiFile?.let { apiFile ->
+        val apiFilter = FilterPredicate(ApiPredicate())
+        val memberIsNotCloned: Predicate<Item> = Predicate { !it.isCloned() }
+        val apiReference = ApiPredicate(ignoreShown = true)
+        val dexApiEmit = memberIsNotCloned.and(apiFilter)
+
+        createReportFile(
+            codebase, apiFile, "DEX API"
+        ) { printWriter -> DexApiWriter(printWriter, dexApiEmit, apiReference) }
+    }
+
     options.removedDexApiFile?.let { apiFile ->
         val unfiltered = codebase.original ?: codebase
 

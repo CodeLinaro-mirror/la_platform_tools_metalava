@@ -117,7 +117,11 @@ class KotlinInteropChecksTest : DriverTest() {
     fun `Companion object methods should be marked with JvmStatic`() {
         check(
             apiLint = "",
-            extraArguments = arrayOf(ARG_HIDE, "AllUpper", ARG_HIDE, "AcronymName"),
+            extraArguments = arrayOf(
+                ARG_HIDE, "AllUpper",
+                ARG_HIDE, "AcronymName",
+                ARG_HIDE, "CompileTimeConstant"
+            ),
             expectedIssues = """
                 src/test/pkg/Foo.kt:8: warning: Companion object constants like BIG_INTEGER_ONE should be marked @JvmField for Java interoperability; see https://developer.android.com/kotlin/interop#companion_constants [MissingJvmstatic]
                 src/test/pkg/Foo.kt:11: warning: Companion object constants like WRONG should be using @JvmField, not @JvmStatic; see https://developer.android.com/kotlin/interop#companion_constants [MissingJvmstatic]

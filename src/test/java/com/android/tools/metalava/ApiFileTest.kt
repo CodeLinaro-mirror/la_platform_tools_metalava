@@ -282,7 +282,7 @@ class ApiFileTest : DriverTest() {
                 // Signature format: 3.0
                 package androidx.core.util {
                   public final class TestKt {
-                    method public static inline <K, V> android.util.LruCache<K,V> lruCache(int maxSize, kotlin.jvm.functions.Function2<? super K,? super V,java.lang.Integer> sizeOf = { _, _ -> return 1 }, kotlin.jvm.functions.Function1<? super K,? extends V> create = { return null as V }, kotlin.jvm.functions.Function4<? super java.lang.Boolean,? super K,? super V,? super V,kotlin.Unit> onEntryRemoved = { _, _, _, _ ->  });
+                    method public static inline <K, V> android.util.LruCache<K,V> lruCache(int maxSize, kotlin.jvm.functions.Function2<? super K,? super V,java.lang.Integer> sizeOf = { _, _ -> return 1 }, kotlin.jvm.functions.Function1<? super K,? extends V> create = { it -> return null as V }, kotlin.jvm.functions.Function4<? super java.lang.Boolean,? super K,? super V,? super V,kotlin.Unit> onEntryRemoved = { _, _, _, _ ->  });
                   }
                 }
                 """,
@@ -473,7 +473,10 @@ class ApiFileTest : DriverTest() {
                     class MyClass {
                         // This property should have no public setter
                         var readOnlyVar = false
-                            internal set 
+                            internal set
+                        // This property should have no public setter
+                        public var readOnlyVarWithPublicModifer = false
+                            internal set
                     }
                     """
                 )
@@ -484,7 +487,9 @@ class ApiFileTest : DriverTest() {
                   public final class MyClass {
                     ctor public MyClass();
                     method public boolean getReadOnlyVar();
+                    method public boolean getReadOnlyVarWithPublicModifer();
                     property public final boolean readOnlyVar;
+                    property public final boolean readOnlyVarWithPublicModifer;
                   }
                 }
                 """
@@ -949,8 +954,6 @@ class ApiFileTest : DriverTest() {
                     method public test.pkg.Issue create(String id, String briefDescription, String explanation);
                   }
                   public enum Language {
-                    method public static test.pkg.Language valueOf(String name) throws java.lang.IllegalArgumentException;
-                    method public static test.pkg.Language[] values();
                     enum_constant public static final test.pkg.Language JAVA;
                     enum_constant public static final test.pkg.Language KOTLIN;
                   }
@@ -1102,7 +1105,7 @@ class ApiFileTest : DriverTest() {
                     class SimpleClass {
                         @get:JvmName("myPropertyJvmGetter")
                         var myProperty = -1
-                        
+
                         var anotherProperty = -1
                     }
                 """
@@ -1133,7 +1136,7 @@ class ApiFileTest : DriverTest() {
                 kotlin(
                     """
                     package test.pkg
-                    
+
                     @RequiresOptIn
                     @Retention(AnnotationRetention.BINARY)
                     @Target(AnnotationTarget.CLASS, AnnotationTarget.FUNCTION)
@@ -1155,7 +1158,7 @@ class ApiFileTest : DriverTest() {
             api = """
                 // Signature format: 3.0
                 package test.pkg {
-                  @kotlin.RequiresOptIn @kotlin.annotation.Retention(AnnotationRetention.BINARY) @kotlin.annotation.Target(allowedTargets={AnnotationTarget.CLASS, AnnotationTarget.FUNCTION}) public @interface ExperimentalBar {
+                  @kotlin.RequiresOptIn @kotlin.annotation.Retention(kotlin.annotation.AnnotationRetention) @kotlin.annotation.Target(allowedTargets={kotlin.annotation.AnnotationTarget, kotlin.annotation.AnnotationTarget}) public @interface ExperimentalBar {
                   }
                   @test.pkg.ExperimentalBar public final class FancyBar {
                     ctor public FancyBar();
@@ -1232,7 +1235,7 @@ class ApiFileTest : DriverTest() {
             api = """
                 // Signature format: 3.0
                 package androidx.annotation.experimental {
-                  @kotlin.annotation.Retention(AnnotationRetention.BINARY) @kotlin.annotation.Target(allowedTargets={AnnotationTarget.CLASS, AnnotationTarget.PROPERTY, AnnotationTarget.LOCAL_VARIABLE, AnnotationTarget.VALUE_PARAMETER, AnnotationTarget.CONSTRUCTOR, AnnotationTarget.FUNCTION, AnnotationTarget.PROPERTY_GETTER, AnnotationTarget.PROPERTY_SETTER, AnnotationTarget.FILE, AnnotationTarget.TYPEALIAS}) public @interface UseExperimental {
+                  @kotlin.annotation.Retention(kotlin.annotation.AnnotationRetention) @kotlin.annotation.Target(allowedTargets={kotlin.annotation.AnnotationTarget, kotlin.annotation.AnnotationTarget, kotlin.annotation.AnnotationTarget, kotlin.annotation.AnnotationTarget, kotlin.annotation.AnnotationTarget, kotlin.annotation.AnnotationTarget, kotlin.annotation.AnnotationTarget, kotlin.annotation.AnnotationTarget, kotlin.annotation.AnnotationTarget, kotlin.annotation.AnnotationTarget}) public @interface UseExperimental {
                     method public abstract Class<? extends java.lang.annotation.Annotation>[] markerClass();
                     property public abstract Class<? extends java.lang.annotation.Annotation>![] markerClass;
                   }
@@ -1242,7 +1245,7 @@ class ApiFileTest : DriverTest() {
                     ctor public AnotherSimpleClass();
                     method public void methodUsingFancyBar();
                   }
-                  @kotlin.Experimental @kotlin.annotation.Retention(AnnotationRetention.BINARY) @kotlin.annotation.Target(allowedTargets={AnnotationTarget.CLASS, AnnotationTarget.FUNCTION}) public @interface ExperimentalBar {
+                  @kotlin.Experimental @kotlin.annotation.Retention(kotlin.annotation.AnnotationRetention) @kotlin.annotation.Target(allowedTargets={kotlin.annotation.AnnotationTarget, kotlin.annotation.AnnotationTarget}) public @interface ExperimentalBar {
                   }
                   @test.pkg.ExperimentalBar public final class FancyBar {
                     ctor public FancyBar();
@@ -1745,7 +1748,7 @@ class ApiFileTest : DriverTest() {
               }
             }
             package test.pkg {
-              @kotlin.annotation.Retention(AnnotationRetention.RUNTIME) public @interface ExplicitRuntimeRetention {
+              @kotlin.annotation.Retention(kotlin.annotation.AnnotationRetention) public @interface ExplicitRuntimeRetention {
               }
               @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS) public @interface Foo {
                 method public abstract String value();
@@ -3054,7 +3057,15 @@ class ApiFileTest : DriverTest() {
                         ctor public Parent();
                       }
                     }
-                    """
+                    """,
+            dexApi = """
+                Ltest/pkg/Child;
+                Ltest/pkg/Child;-><init>()V
+                Ltest/pkg/Child;->toString()Ljava/lang/String;
+                Ltest/pkg/Parent;
+                Ltest/pkg/Parent;-><init>()V
+                Ltest/pkg/Parent;->toString()Ljava/lang/String;
+            """
         )
     }
 
@@ -4253,7 +4264,11 @@ class ApiFileTest : DriverTest() {
                         val nonConstructorProperty: String = "PROP"
                     }
                     """
-                )
+                ),
+                kotlin("""
+                    package test.pkg
+                    data class MyDataClass(val constructorProperty: String)
+                """)
             ),
             api = """
                 // Signature format: 3.0
@@ -4265,6 +4280,243 @@ class ApiFileTest : DriverTest() {
                     property public final int firstConstructorProperty;
                     property public final String nonConstructorProperty;
                     property public final boolean secondConstructorProperty;
+                  }
+                  public final class MyDataClass {
+                    ctor public MyDataClass(String constructorProperty);
+                    method public String component1();
+                    method public test.pkg.MyDataClass copy(String constructorProperty);
+                    method public String getConstructorProperty();
+                    property public final String constructorProperty;
+                  }
+                }
+            """
+        )
+    }
+
+    @Test
+    fun `Concise default Values Names in Java`() {
+        // Java code which explicitly specifies parameter names
+        check(
+            format = FileFormat.V4,
+            sourceFiles = arrayOf(
+                java(
+                    """
+                    package test.pkg;
+                    import androidx.annotation.DefaultValue;
+
+                    public class Foo {
+                        public void foo(
+                            @DefaultValue("null") String prefix,
+                            @DefaultValue("\"Hello World\"") String greeting,
+                            @DefaultValue("42") int meaning) {
+                        }
+                    }
+                    """
+                ),
+                supportDefaultValue
+            ),
+            api = """
+                // Signature format: 4.0
+                package test.pkg {
+                  public class Foo {
+                    ctor public Foo();
+                    method public void foo(optional String!, optional String!, optional int);
+                  }
+                }
+                 """,
+            extraArguments = arrayOf(ARG_HIDE_PACKAGE, "androidx.annotation")
+        )
+    }
+
+    @Test
+    fun `Concise default Values and Names in Kotlin`() {
+        // Kotlin code which explicitly specifies parameter names
+        check(
+            format = FileFormat.V4,
+            compatibilityMode = false,
+            sourceFiles = arrayOf(
+                kotlin(
+                    """
+                    package test.pkg
+                    import some.other.pkg.Constants.Misc.SIZE
+                    import android.graphics.Bitmap
+                    import android.view.View
+
+                    class Foo {
+                        fun method1(int: Int = 42,
+                            int2: Int? = null,
+                            byte: Int = 2 * 21,
+                            str: String = "hello " + "world",
+                            vararg args: String) { }
+
+                        fun method2(int: Int, int2: Int = (2*int) * SIZE) { }
+
+                        fun method3(str: String, int: Int, int2: Int = double(int) + str.length) { }
+
+                        fun emptyLambda(sizeOf: () -> Unit = {  }) {}
+
+                        fun View.drawToBitmap(config: Bitmap.Config = Bitmap.Config.ARGB_8888): Bitmap? = null
+
+                        companion object {
+                            fun double(int: Int) = 2 * int
+                            fun print(foo: Foo = Foo()) { println(foo) }
+                        }
+                    }
+                    """
+                ),
+                java(
+                    """
+                    package some.other.pkg;
+                    public class Constants {
+                        public static class Misc {
+                            public static final int SIZE = 5;
+                        }
+                    }
+                    """
+                )
+            ),
+            api = """
+                // Signature format: 4.0
+                package test.pkg {
+                  public final class Foo {
+                    ctor public Foo();
+                    method public android.graphics.Bitmap? drawToBitmap(android.view.View, optional android.graphics.Bitmap.Config config);
+                    method public void emptyLambda(optional kotlin.jvm.functions.Function0<kotlin.Unit> sizeOf);
+                    method public void method1(optional int p, optional Integer? int2, optional int p1, optional String str, java.lang.String... args);
+                    method public void method2(int p, optional int int2);
+                    method public void method3(String str, int p, optional int int2);
+                    field public static final test.pkg.Foo.Companion Companion;
+                  }
+                  public static final class Foo.Companion {
+                    method public int double(int p);
+                    method public void print(optional test.pkg.Foo foo);
+                  }
+                }
+                """,
+            extraArguments = arrayOf(ARG_HIDE_PACKAGE, "androidx.annotation", ARG_HIDE_PACKAGE, "some.other.pkg"),
+            includeSignatureVersion = true
+        )
+    }
+
+    @Test
+    fun `Concise default Values in Kotlin for expressions`() {
+        // Testing trickier default values; regression test for problem
+        // observed in androidx.core.util with LruCache
+        check(
+            format = FileFormat.V4,
+            sourceFiles = arrayOf(
+                kotlin(
+                    """
+                    package androidx.core.util
+
+                    import android.util.LruCache
+
+                    inline fun <K : Any, V : Any> lruCache(
+                        maxSize: Int,
+                        crossinline sizeOf: (key: K, value: V) -> Int = { _, _ -> 1 },
+                        @Suppress("USELESS_CAST") // https://youtrack.jetbrains.com/issue/KT-21946
+                        crossinline create: (key: K) -> V? = { null as V? },
+                        crossinline onEntryRemoved: (evicted: Boolean, key: K, oldValue: V, newValue: V?) -> Unit =
+                            { _, _, _, _ -> }
+                    ): LruCache<K, V> {
+                        return object : LruCache<K, V>(maxSize) {
+                            override fun sizeOf(key: K, value: V) = sizeOf(key, value)
+                            override fun create(key: K) = create(key)
+                            override fun entryRemoved(evicted: Boolean, key: K, oldValue: V, newValue: V?) {
+                                onEntryRemoved(evicted, key, oldValue, newValue)
+                            }
+                        }
+                    }
+                    """
+                ),
+                java(
+                    """
+                    package androidx.collection;
+
+                    import androidx.annotation.NonNull;
+                    import androidx.annotation.Nullable;
+
+                    import java.util.LinkedHashMap;
+                    import java.util.Locale;
+                    import java.util.Map;
+
+                    public class LruCache<K, V> {
+                        @Nullable
+                        protected V create(@NonNull K key) {
+                            return null;
+                        }
+
+                        protected int sizeOf(@NonNull K key, @NonNull V value) {
+                            return 1;
+                        }
+
+                        protected void entryRemoved(boolean evicted, @NonNull K key, @NonNull V oldValue,
+                                @Nullable V newValue) {
+                        }
+                    }
+                    """
+                ),
+                androidxNullableSource,
+                androidxNonNullSource
+            ),
+            api = """
+                // Signature format: 4.0
+                package androidx.core.util {
+                  public final class TestKt {
+                    method public static inline <K, V> android.util.LruCache<K,V> lruCache(int maxSize, optional kotlin.jvm.functions.Function2<? super K,? super V,java.lang.Integer> sizeOf, optional kotlin.jvm.functions.Function1<? super K,? extends V> create, optional kotlin.jvm.functions.Function4<? super java.lang.Boolean,? super K,? super V,? super V,kotlin.Unit> onEntryRemoved);
+                  }
+                }
+                """,
+            extraArguments = arrayOf(ARG_HIDE_PACKAGE, "androidx.annotation", ARG_HIDE_PACKAGE, "androidx.collection"),
+            includeSignatureVersion = true
+        )
+    }
+
+    @Test
+    fun `Test type erasure and dexApi from signature`() {
+        check(
+            signatureSources = arrayOf("""
+                package android.widget {
+
+                  @android.widget.RemoteViews.RemoteView public class ListView extends android.widget.AbsListView {
+                    method protected <T extends android.view.View> T findViewTraversal(@IdRes int);
+                    method protected long tryAcquireShared(long);
+                  }
+
+                }
+"""),
+            dexApi = """
+            Landroid/widget/ListView;
+            Landroid/widget/ListView;->findViewTraversal(I)Landroid/view/View;
+            Landroid/widget/ListView;->tryAcquireShared(J)J
+            """
+        )
+    }
+
+    @Test
+    fun `Functional interface in signature`() {
+        check(
+            format = FileFormat.V4,
+            sourceFiles = arrayOf(
+                kotlin("""
+                    package test.pkg
+
+                    fun interface FunctionalInterface {
+                        fun methodOne(number: Int): Boolean
+                    }
+
+                    fun userOfFunctionalInterface(parameter: FunctionalInterface) { }
+                """
+                )
+            ),
+            api = """
+                // Signature format: 4.0
+                package test.pkg {
+                  public fun interface FunctionalInterface {
+                    method public boolean methodOne(int number);
+                  }
+                  public final class FunctionalInterfaceKt {
+                    method public static void userOfFunctionalInterface(test.pkg.FunctionalInterface parameter);
                   }
                 }
             """

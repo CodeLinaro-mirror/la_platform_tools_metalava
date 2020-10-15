@@ -52,14 +52,14 @@ class DexApiWriter(
         writer.print(method.internalName())
         writer.print("(")
         for (pi in method.parameters()) {
-            writer.print(pi.type().internalName())
+            writer.print(pi.type().internalName(method))
         }
         writer.print(")")
         if (method.isConstructor()) {
             writer.print("V")
         } else {
             val returnType = method.returnType()
-            writer.print(returnType?.internalName() ?: "V")
+            writer.print(returnType?.internalName(method) ?: "V")
         }
         writer.print("\n")
     }
@@ -71,7 +71,7 @@ class DexApiWriter(
         writer.print("->")
         writer.print(field.name())
         writer.print(":")
-        writer.print(field.type().internalName())
+        writer.print(field.type().internalName(field))
         writer.print("\n")
     }
 }

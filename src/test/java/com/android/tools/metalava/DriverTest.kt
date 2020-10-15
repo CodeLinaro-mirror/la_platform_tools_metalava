@@ -244,6 +244,8 @@ abstract class DriverTest {
         /** The API signature content (corresponds to --api-xml) */
         // @Language("XML") https://youtrack.jetbrains.com/issue/KT-35859
         apiXml: String? = null,
+        /** The DEX API (corresponds to --dex-api) */
+        dexApi: String? = null,
         /** The removed API (corresponds to --removed-api) */
         removedApi: String? = null,
         /** The removed dex API (corresponds to --removed-dex-api) */
@@ -847,6 +849,14 @@ abstract class DriverTest {
             emptyArray()
         }
 
+        var dexApiFile: File? = null
+        val dexApiArgs = if (dexApi != null) {
+            dexApiFile = temporaryFolder.newFile("public-dex.txt")
+            arrayOf(ARG_DEX_API, dexApiFile.path)
+        } else {
+            emptyArray()
+        }
+
         val subtractApiFile: File?
         val subtractApiArgs = if (subtractApi != null) {
             subtractApiFile = temporaryFolder.newFile("subtract-api.txt")
@@ -1118,6 +1128,7 @@ abstract class DriverTest {
             *removedDexArgs,
             *apiArgs,
             *apiXmlArgs,
+            *dexApiArgs,
             *subtractApiArgs,
             *stubsArgs,
             *stubsSourceListArgs,
@@ -1248,6 +1259,15 @@ abstract class DriverTest {
                 assertEquals(stripComments(expected, stripLineComments = false).trimIndent(), actualText)
                 // Make sure we can read back the files we write
             }
+        }
+
+        if (dexApi != null && dexApiFile != null) {
+            assertTrue(
+                "${dexApiFile.path} does not exist even though --dex-api was used",
+                dexApiFile.exists()
+            )
+            val actualText = readFile(dexApiFile, stripBlankLines, trim)
+            assertEquals(stripComments(dexApi, stripLineComments = false).trimIndent(), actualText)
         }
 
         if (removedApi != null && removedApiFile != null) {

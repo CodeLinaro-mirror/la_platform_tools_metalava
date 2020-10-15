@@ -523,12 +523,12 @@ interface MethodItem : MemberItem {
         }
     }
 
-    override fun hasShowForStubPurposesAnnotationInherited(): Boolean {
-        if (super.hasShowForStubPurposesAnnotationInherited()) {
+    override fun onlyShowForStubPurposesInherited(): Boolean {
+        if (super.onlyShowForStubPurposesInherited()) {
             return true
         }
         return superMethods().any {
-            it.hasShowForStubPurposesAnnotationInherited()
+            it.onlyShowForStubPurposesInherited()
         }
     }
 

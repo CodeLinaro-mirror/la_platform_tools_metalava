@@ -57,6 +57,12 @@ class ShowForStubPurposesAnnotationTest : DriverTest() {
                 public void module() {
                 }
 
+                @test.annotation.Hide
+                @test.annotation.ModuleApi
+                @test.annotation.SystemApi
+                public void moduleAndSystem() {
+                }
+
                 public static class NestedDefault {
                     public void noAnnotation() {
                     }
@@ -248,6 +254,7 @@ class ShowForStubPurposesAnnotationTest : DriverTest() {
                   public class SystemClass {
                     ctor public SystemClass();
                     method public void module();
+                    method public void moduleAndSystem();
                     method public void noAnnotation();
                     method public void referFromModuleToSystem(test.pkg.SystemClass2);
                     method public void system();
@@ -290,6 +297,7 @@ class ShowForStubPurposesAnnotationTest : DriverTest() {
                   }
                   public class SystemClass {
                     ctor public SystemClass();
+                    method public void moduleAndSystem();
                     method public void noAnnotation();
                     method public void system();
                   }
@@ -336,6 +344,7 @@ class ShowForStubPurposesAnnotationTest : DriverTest() {
                   }
                   public class SystemClass {
                     method public void module();
+                    method public void moduleAndSystem();
                     method public void referFromModuleToSystem(test.pkg.SystemClass2);
                   }
                   public static class SystemClass.NestedDefault {
@@ -356,6 +365,7 @@ class ShowForStubPurposesAnnotationTest : DriverTest() {
                 public void noAnnotation() { throw new RuntimeException("Stub!"); }
                 public void system() { throw new RuntimeException("Stub!"); }
                 public void module() { throw new RuntimeException("Stub!"); }
+                public void moduleAndSystem() { throw new RuntimeException("Stub!"); }
                 public void referFromModuleToSystem(test.pkg.SystemClass2 arg) { throw new RuntimeException("Stub!"); }
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                 public static class NestedDefault {

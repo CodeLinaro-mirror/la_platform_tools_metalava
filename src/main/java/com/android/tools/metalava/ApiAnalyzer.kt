@@ -892,20 +892,10 @@ class ApiAnalyzer(
                 // but iterating through the type argument classes below will find and
                 // check the component class
                 if (cls != null && !filterReference.test(cls) && !cls.isFromClassPath()) {
-                    if (cls.modifiers.isCompanion() &&
-                        cls.isPrivate &&
-                        cls.containingClass()?.isInterface() == true
-                    ) {
-                        reporter.report(
-                            Issues.PRIVATE_COMPANION, cls, "Do not use private companion " +
-                                "objects inside interfaces as these become public if targeting " +
-                                "Java 8 or older.")
-                    } else {
-                        reporter.report(
-                            Issues.HIDDEN_TYPE_PARAMETER, item,
-                            "${item.toString().capitalize()} references hidden type $type."
-                        )
-                    }
+                    reporter.report(
+                        Issues.HIDDEN_TYPE_PARAMETER, item,
+                        "${item.toString().capitalize()} references hidden type $type."
+                    )
                 }
 
                 type.typeArgumentClasses()
