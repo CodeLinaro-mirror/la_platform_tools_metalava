@@ -529,7 +529,9 @@ open class PsiClassItem(
                             sourcePsi is KtPropertyAccessor ||
                             sourcePsi is KtParameter
                         ) {
-                            if (method.name.startsWith("set")) {
+                            if (method.name.startsWith("set") ||
+                                method.name.startsWith("component")
+                            ) {
                                 continue
                             }
                             val name =

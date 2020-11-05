@@ -51,6 +51,7 @@ interface ModifierList {
 
     // Kotlin
     fun isSealed(): Boolean = false
+    fun isFunctional(): Boolean = false
     fun isCompanion(): Boolean = false
     fun isInfix(): Boolean = false
     fun isConst(): Boolean = false
@@ -120,14 +121,16 @@ interface ModifierList {
 
     /**
      * Returns true if this modifier list contains any annotations explicitly passed in
-     * via [Options.showForStubPurposesAnnotations]
+     * via [Options.showForStubPurposesAnnotations], and this is the only showAnnotation.
      */
-    fun hasShowForStubPurposesAnnotation(): Boolean {
+    fun onlyShowForStubPurposes(): Boolean {
         if (options.showForStubPurposesAnnotations.isEmpty()) {
             return false
         }
         return annotations().any {
             options.showForStubPurposesAnnotations.matches(it)
+        } && !annotations().any {
+            options.showAnnotations.matches(it) && !options.showForStubPurposesAnnotations.matches(it)
         }
     }
 
@@ -460,6 +463,10 @@ interface ModifierList {
 
                 if (list.isNative() && target.isStubsFile()) {
                     writer.write("native ")
+                }
+
+                if (list.isFunctional()) {
+                    writer.write("fun ")
                 }
             }
         }

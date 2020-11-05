@@ -64,7 +64,9 @@ class PsiParameterItem(
         return null
     }
 
-    override fun hasDefaultValue(): Boolean {
+    override fun hasDefaultValue(): Boolean = isDefaultValueKnown()
+
+    override fun isDefaultValueKnown(): Boolean {
         return if (isKotlin(psiParameter)) {
             getKtParameter()?.hasDefaultValue() ?: false && defaultValue() != INVALID_VALUE
         } else {

@@ -278,6 +278,13 @@ class SignatureWriter(
             if (i > 0) {
                 writer.print(", ")
             }
+            if (parameter.hasDefaultValue() &&
+                options.outputDefaultValues &&
+                options.outputConciseDefaultValues
+            ) {
+                // Concise representation of a parameter with a default
+                writer.print("optional ")
+            }
             writeModifiers(parameter)
             writeType(parameter, parameter.type())
             if (emitParameterNames) {
@@ -287,7 +294,10 @@ class SignatureWriter(
                     writer.print(name)
                 }
             }
-            if (options.outputDefaultValues && parameter.hasDefaultValue()) {
+            if (parameter.isDefaultValueKnown() &&
+                options.outputDefaultValues &&
+                !options.outputConciseDefaultValues
+            ) {
                 writer.print(" = ")
                 val defaultValue = parameter.defaultValue()
                 if (defaultValue != null) {

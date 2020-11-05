@@ -35,7 +35,7 @@ repositories {
 }
 
 plugins {
-    kotlin("jvm") version "1.4.0"
+    kotlin("jvm") version "1.4.10"
     id("application")
     id("java")
     id("maven-publish")
@@ -71,9 +71,9 @@ val studioVersion: String = if (customLintVersion != null) {
     logger.warn("Building using custom $customLintVersion version of Android Lint")
     customLintVersion
 } else {
-    "27.2.0-alpha07"
+    "27.2.0-alpha11"
 }
-val kotlinVersion: String = "1.4.0"
+val kotlinVersion: String = "1.4.10"
 
 dependencies {
     implementation("com.android.tools.external.org-jetbrains:uast:$studioVersion")

@@ -66,6 +66,7 @@ const val ARG_CONVERT_TO_V1 = "--convert-to-v1"
 const val ARG_CONVERT_TO_V2 = "--convert-to-v2"
 const val ARG_CONVERT_NEW_TO_V1 = "--convert-new-to-v1"
 const val ARG_CONVERT_NEW_TO_V2 = "--convert-new-to-v2"
+const val ARG_DEX_API = "--dex-api"
 const val ARG_SDK_VALUES = "--sdk-values"
 const val ARG_REMOVED_API = "--removed-api"
 const val ARG_REMOVED_DEX_API = "--removed-dex-api"
@@ -310,6 +311,12 @@ class Options(
     /** Whether default values should be included in signature files */
     var outputDefaultValues = !compatOutput
 
+    /**
+     *  Whether only the presence of default values should be included in signature files, and not
+     *  the full body of the default value.
+     */
+    var outputConciseDefaultValues = false // requires V4
+
     /** The output format version being used */
     var outputFormat: FileFormat = if (compatOutput) FileFormat.V1 else FileFormat.V2
 
@@ -430,6 +437,9 @@ class Options(
 
     /** Like [apiFile], but with JDiff xml format. */
     var apiXmlFile: File? = null
+
+    /** If set, a file to write the DEX signatures to. Corresponds to [ARG_DEX_API]. */
+    var dexApiFile: File? = null
 
     /** Path to directory to write SDK values to */
     var sdkValueDir: File? = null
@@ -862,6 +872,7 @@ class Options(
                 "-sdkvalues", ARG_SDK_VALUES -> sdkValueDir = stringToNewDir(getValue(args, ++index))
                 ARG_API, "-api" -> apiFile = stringToNewFile(getValue(args, ++index))
                 ARG_XML_API -> apiXmlFile = stringToNewFile(getValue(args, ++index))
+                ARG_DEX_API, "-dexApi" -> dexApiFile = stringToNewFile(getValue(args, ++index))
 
                 ARG_REMOVED_API, "-removedApi" -> removedApiFile = stringToNewFile(getValue(args, ++index))
                 ARG_REMOVED_DEX_API, "-removedDexApi" -> removedDexApiFile = stringToNewFile(getValue(args, ++index))
@@ -1555,10 +1566,13 @@ class Options(
                             "$ARG_FORMAT=v2", "$ARG_FORMAT=recommended" -> {
                                 FileFormat.V2
                             }
-                            "$ARG_FORMAT=v3", "$ARG_FORMAT=latest" -> {
+                            "$ARG_FORMAT=v3" -> {
                                 FileFormat.V3
                             }
-                            else -> throw DriverException(stderr = "Unexpected signature format; expected v1, v2 or v3")
+                            "$ARG_FORMAT=v4", "$ARG_FORMAT=latest" -> {
+                                FileFormat.V4
+                            }
+                            else -> throw DriverException(stderr = "Unexpected signature format; expected v1, v2, v3 or v4")
                         }
                         outputFormat.configureOptions(this, compatibility)
                     } else if (arg.startsWith("-")) {
@@ -1632,9 +1646,11 @@ class Options(
             apiLevelJars = findAndroidJars(patterns, currentApiLevel, currentCodeName, currentJar)
         }
 
-        // outputKotlinStyleNulls implies format=v3
+        // outputKotlinStyleNulls implies at least format=v3
         if (outputKotlinStyleNulls) {
-            outputFormat = FileFormat.V3
+            if (outputFormat < FileFormat.V3) {
+                outputFormat = FileFormat.V3
+            }
             outputFormat.configureOptions(this, compatibility)
         }
 
@@ -1706,6 +1722,7 @@ class Options(
             validateNullabilityFromList = null
             apiFile = null
             apiXmlFile = null
+            dexApiFile = null
             removedApiFile = null
             removedDexApiFile = null
         }
@@ -2311,6 +2328,7 @@ class Options(
             "", "\nExtracting Signature Files:",
             // TODO: Document --show-annotation!
             "$ARG_API <file>", "Generate a signature descriptor file",
+            "$ARG_DEX_API <file>", "Generate a DEX signature descriptor file listing the APIs",
             "$ARG_REMOVED_API <file>", "Generate a signature descriptor file for APIs that have been removed",
             "$ARG_FORMAT=<v1,v2,v3,...>", "Sets the output signature file format to be the given version.",
             "$ARG_OUTPUT_KOTLIN_NULLS[=yes|no]", "Controls whether nullness annotations should be formatted as " +
