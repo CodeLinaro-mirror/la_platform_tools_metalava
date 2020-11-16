@@ -410,7 +410,14 @@ class CompatibilityCheck(
                     new,
                     capitalize = true
                 )} has changed value from $prevString to $newString"
-                report(Issues.CHANGED_VALUE, new, message)
+
+                // Adding a default value to an annotation method is safe
+                val annotationMethodAddingDefaultValue =
+                    new.containingClass().isAnnotationType() && old.defaultValue().isEmpty()
+
+                if (!annotationMethodAddingDefaultValue) {
+                    report(Issues.CHANGED_VALUE, new, message)
+                }
             }
         }
 

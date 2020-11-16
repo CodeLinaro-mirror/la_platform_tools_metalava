@@ -8,10 +8,6 @@ import java.io.FileInputStream
 import java.io.FileNotFoundException
 import java.util.Properties
 
-if (JavaVersion.current() != JavaVersion.VERSION_1_8) {
-    throw GradleException("You are using Java ${JavaVersion.current()}, but this build only supports Java 8. Please set your JAVA_HOME to JDK 8")
-}
-
 buildDir = getBuildDirectory()
 
 defaultTasks = mutableListOf(

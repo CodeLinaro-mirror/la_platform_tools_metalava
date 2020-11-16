@@ -195,8 +195,6 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
     }
 
     private fun check() {
-        val prevCount = reporter.totalCount
-
         if (oldCodebase != null) {
             // Only check the new APIs
             CodebaseComparator().compare(object : ComparisonVisitor() {
@@ -207,36 +205,6 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
         } else {
             // No previous codebase to compare with: visit the whole thing
             codebase.accept(this)
-        }
-
-        val apiLintIssues = reporter.totalCount - prevCount
-        if (apiLintIssues > 0) {
-            // We've reported API lint violations; emit some verbiage to explain
-            // how to suppress the error rules.
-            options.stdout.println("\n$apiLintIssues new API lint issues were found.")
-            val baseline = options.baseline
-            if (baseline?.updateFile != null && baseline.file != null && !baseline.silentUpdate) {
-                options.stdout.println("""
-                ************************************************************
-                Your API changes are triggering API Lint warnings or errors.
-                To make these errors go away, fix the code according to the
-                error and/or warning messages above.
-
-                If it's not possible to do so, there are two workarounds:
-
-                1. You can suppress the errors with @SuppressLint("<id>")
-                2. You can update the baseline by executing the following
-                   command:
-                       cp \
-                       ${baseline.updateFile} \
-                       ${baseline.file}
-                   To submit the revised baseline.txt to the main Android
-                   repository, you will need approval.
-                ************************************************************
-                """.trimIndent())
-            } else {
-                options.stdout.println("See tools/metalava/API-LINT.md for how to handle these.")
-            }
         }
     }
 
@@ -3782,3 +3750,16 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
         }
     }
 }
+
+internal const val DefaultLintErrorMessage = """
+************************************************************
+Your API changes are triggering API Lint warnings or errors.
+To make these errors go away, fix the code according to the
+error and/or warning messages above.
+
+If it's not possible to do so, there are two workarounds:
+
+1. Suppress the issues with @Suppress("<id>") / @SuppressWarnings("<id>")
+2. Update the baseline passed into metalava
+************************************************************
+"""

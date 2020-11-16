@@ -1603,6 +1603,9 @@ class ApiFileTest : DriverTest() {
         // Real life example: StringBuilder.setLength
         // This is just like the above test, but with compat mode disabled.
         check(
+            expectedIssues = """
+                src/test/pkg/PublicSuper.java:3: error: isContiguous cannot be hidden and abstract when PublicSuper has a visible constructor, in case a third-party attempts to subclass it. [HiddenAbstractMethod]
+            """,
             compatibilityMode = false,
             sourceFiles = arrayOf(
                 java(

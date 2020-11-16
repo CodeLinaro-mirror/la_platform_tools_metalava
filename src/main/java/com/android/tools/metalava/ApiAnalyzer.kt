@@ -945,8 +945,21 @@ class ApiAnalyzer(
         // be written, e.g. hidden things
         for (cl in notStrippable) {
             if (!cl.isHiddenOrRemoved()) {
+                val publiclyConstructable =
+                    cl.constructors().any { it.checkLevel() }
                 for (m in cl.methods()) {
                     if (!m.checkLevel()) {
+                        // TODO: enable this check for options.showSingleAnnotations
+                        if (options.showSingleAnnotations.isEmpty() &&
+                            publiclyConstructable && m.modifiers.isAbstract()
+                        ) {
+                            reporter.report(
+                                Issues.HIDDEN_ABSTRACT_METHOD, m,
+                                "${m.name()} cannot be hidden and abstract when " +
+                                    "${cl.simpleName()} has a visible constructor, in case a " +
+                                    "third-party attempts to subclass it."
+                            )
+                        }
                         continue
                     }
                     if (m.isHiddenOrRemoved()) {

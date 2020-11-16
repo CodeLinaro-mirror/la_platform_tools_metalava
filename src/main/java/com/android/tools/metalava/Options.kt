@@ -581,7 +581,7 @@ class Options(
     var allBaselines: List<Baseline>
 
     /** If set, metalava will show this error message when "API lint" (i.e. [ARG_API_LINT]) fails. */
-    var errorMessageApiLint: String? = null
+    var errorMessageApiLint: String = DefaultLintErrorMessage
 
     /**
      * If set, metalava will show this error message when "check-compatibility:*:released" fails.
