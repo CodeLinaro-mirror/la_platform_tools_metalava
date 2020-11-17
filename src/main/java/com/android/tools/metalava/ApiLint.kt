@@ -1412,7 +1412,21 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
                 }
                 when {
                     name.startsWith("set") -> name.removePrefix("set")
-                    name.startsWith("add") -> "${name.removePrefix("add")}s"
+                    name.startsWith("add") -> {
+                        val nameWithoutPrefix = name.removePrefix("add")
+                        when {
+                            name.endsWith("s") -> "${nameWithoutPrefix}es"
+                            name.endsWith("sh") -> "${nameWithoutPrefix}es"
+                            name.endsWith("ch") -> "${nameWithoutPrefix}es"
+                            name.endsWith("x") -> "${nameWithoutPrefix}es"
+                            name.endsWith("z") -> "${nameWithoutPrefix}es"
+                            name.endsWith("y") &&
+                                name[name.length - 2] !in listOf('a', 'e', 'i', 'o', 'u') -> {
+                                "${nameWithoutPrefix.removeSuffix("y")}ies"
+                            }
+                            else -> "${nameWithoutPrefix}s"
+                        }
+                    }
                     else -> null
                 }?.let { getterSuffix ->
                     val isBool = when (method.parameters().firstOrNull()?.type()?.toTypeString()) {

@@ -1157,6 +1157,14 @@ class ApiLintTest : DriverTest() {
                         public int getInt();
                         @NonNull
                         public List<String> getStrings();
+                        @NonNull
+                        public List<String> getProperties();
+                        @NonNull
+                        public List<String> getRays();
+                        @NonNull
+                        public List<String> getBuses();
+                        @NonNull
+                        public List<String> getTaxes();
                         public boolean isBoolean();
                         public boolean hasBoolean2();
                         public boolean shouldBoolean3();
@@ -1172,6 +1180,18 @@ class ApiLintTest : DriverTest() {
 
                             @NonNull
                             public OkBuilder addString(@NonNull String value) { return this; }
+
+                            @NonNull
+                            public OkBuilder addProperty(@NonNull String value) { return this; }
+
+                            @NonNull
+                            public OkBuilder addRay(@NonNull String value) { return this; }
+
+                            @NonNull
+                            public OkBuilder addBus(@NonNull String value) { return this; }
+
+                            @NonNull
+                            public OkBuilder addTax(@NonNull String value) { return this; }
 
                             @NonNull
                             public OkBuilder clearStrings() { return this; }
