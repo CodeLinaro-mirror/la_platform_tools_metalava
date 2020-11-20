@@ -674,10 +674,7 @@ class ShowForStubPurposesAnnotationTest : DriverTest() {
                 }
                 """,
             apiLint = "",
-            expectedFail = """
-                1 new API lint issues were found.
-                See tools/metalava/API-LINT.md for how to handle these.
-                """,
+            expectedFail = DefaultLintErrorMessage,
             expectedIssues = """
                 src/test/pkg/ModuleClassExtendingPublic.java:9: error: Missing nullability on method `method2` return [MissingNullability]
                 """

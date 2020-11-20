@@ -903,7 +903,6 @@ CompatibilityCheckTest : DriverTest() {
             expectedIssues = """
                 src/test/pkg/ExportedProperty.java:15: error: Method test.pkg.ExportedProperty.category has changed value from "" to nothing [ChangedValue]
                 src/test/pkg/ExportedProperty.java:14: error: Method test.pkg.ExportedProperty.floating has changed value from 1.0f to 1.1f [ChangedValue]
-                src/test/pkg/ExportedProperty.java:16: error: Method test.pkg.ExportedProperty.formatToHexString has changed value from nothing to false [ChangedValue]
                 src/test/pkg/ExportedProperty.java:13: error: Method test.pkg.ExportedProperty.prefix has changed value from "" to "hello" [ChangedValue]
                 """,
             checkCompatibilityApi = """
@@ -3158,6 +3157,30 @@ CompatibilityCheckTest : DriverTest() {
                   }
                 }
             """.trimIndent()
+        )
+    }
+
+    @Test
+    fun `Adding default value to annotation parameter`() {
+        check(
+            expectedIssues = "",
+            format = FileFormat.V4,
+            checkCompatibilityApi = """
+                // Signature format: 4.0
+                package androidx.annotation.experimental {
+                  public @interface UseExperimental {
+                    method public abstract Class<?> markerClass();
+                  }
+                }
+                """,
+            sourceFiles = arrayOf(
+                java("""
+                    package androidx.annotation.experimental;
+                    public @interface UseExperimental {
+                        Class<?> markerClass() default void.class;
+                    }
+                """)
+            )
         )
     }
 

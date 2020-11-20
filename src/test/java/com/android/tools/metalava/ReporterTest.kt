@@ -30,10 +30,7 @@ class ReporterTest : DriverTest() {
             errorSeverityExpectedIssues = """
                 src/test/pkg/foo.java:2: error: Class must start with uppercase char: foo [StartWithUpper] [Rule S1 in go/android-api-guidelines]
             """,
-            expectedFail = """
-                2 new API lint issues were found.
-                See tools/metalava/API-LINT.md for how to handle these.
-            """,
+            expectedFail = DefaultLintErrorMessage,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -56,10 +53,7 @@ class ReporterTest : DriverTest() {
                 src/test/pkg/Bar.kt:10: error: Method name must start with lowercase char: Unsuppressed [StartWithLower] [Rule S1 in go/android-api-guidelines]
                 src/test/pkg/Foo.java:10: error: Method name must start with lowercase char: Unsuppressed [StartWithLower] [Rule S1 in go/android-api-guidelines]
             """,
-            expectedFail = """
-                2 new API lint issues were found.
-                See tools/metalava/API-LINT.md for how to handle these.
-            """,
+            expectedFail = DefaultLintErrorMessage,
             sourceFiles = arrayOf(
                 java("""
                     package test.pkg;
@@ -100,11 +94,10 @@ class ReporterTest : DriverTest() {
                 src/test/pkg/Foo.java:4: error: Missing nullability on parameter `a` in method `foo1` [MissingNullability]
             """,
             expectedFail = """
-                1 new API lint issues were found.
-                See tools/metalava/API-LINT.md for how to handle these.
                 Error: metalava detected the following problems:
                 src/test/pkg/Foo.java:4: error: Missing nullability on parameter `a` in method `foo1` [MissingNullability]
-            """,
+
+            """.trimIndent() + DefaultLintErrorMessage,
             repeatErrorsMax = 5,
             sourceFiles = arrayOf(
                 java("""
@@ -131,15 +124,14 @@ class ReporterTest : DriverTest() {
                 src/test/pkg/Foo.java:8: error: Missing nullability on parameter `a` in method `foo5` [MissingNullability]
             """,
             expectedFail = """
-                5 new API lint issues were found.
-                See tools/metalava/API-LINT.md for how to handle these.
                 Error: metalava detected the following problems:
                 src/test/pkg/Foo.java:4: error: Missing nullability on parameter `a` in method `foo1` [MissingNullability]
                 src/test/pkg/Foo.java:5: error: Missing nullability on parameter `a` in method `foo2` [MissingNullability]
                 src/test/pkg/Foo.java:6: error: Missing nullability on parameter `a` in method `foo3` [MissingNullability]
                 src/test/pkg/Foo.java:7: error: Missing nullability on parameter `a` in method `foo4` [MissingNullability]
                 src/test/pkg/Foo.java:8: error: Missing nullability on parameter `a` in method `foo5` [MissingNullability]
-            """,
+
+            """.trimIndent() + DefaultLintErrorMessage,
             repeatErrorsMax = 5,
             sourceFiles = arrayOf(
                 java("""
@@ -171,8 +163,6 @@ class ReporterTest : DriverTest() {
                 src/test/pkg/Foo.java:9: error: Missing nullability on parameter `a` in method `foo6` [MissingNullability]
             """,
             expectedFail = """
-                6 new API lint issues were found.
-                See tools/metalava/API-LINT.md for how to handle these.
                 Error: metalava detected the following problems:
                 src/test/pkg/Foo.java:4: error: Missing nullability on parameter `a` in method `foo1` [MissingNullability]
                 src/test/pkg/Foo.java:5: error: Missing nullability on parameter `a` in method `foo2` [MissingNullability]
@@ -180,7 +170,8 @@ class ReporterTest : DriverTest() {
                 src/test/pkg/Foo.java:7: error: Missing nullability on parameter `a` in method `foo4` [MissingNullability]
                 src/test/pkg/Foo.java:8: error: Missing nullability on parameter `a` in method `foo5` [MissingNullability]
                 1 more error(s) omitted. Search the log for 'error:' to find all of them.
-            """,
+
+            """.trimIndent() + DefaultLintErrorMessage,
             repeatErrorsMax = 5,
             sourceFiles = arrayOf(
                 java("""

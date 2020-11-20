@@ -109,10 +109,7 @@ class ApiLintBaselineTest : DriverTest() {
             expectedIssues = """
                 src/android/pkg/MyEnum.java:3: error: Enums are discouraged in Android APIs [Enum] [Rule F5 in go/android-api-guidelines]
                 """,
-            expectedFail = """
-                1 new API lint issues were found.
-                See tools/metalava/API-LINT.md for how to handle these.
-            """,
+            expectedFail = DefaultLintErrorMessage,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -148,13 +145,9 @@ class ApiLintBaselineTest : DriverTest() {
                 )
             ),
             expectedFail = """
-                1 new API lint issues were found.
-                See tools/metalava/API-LINT.md for how to handle these.
                 *** api-lint failed ***
             """,
             expectedOutput = """
-                1 new API lint issues were found.
-                See tools/metalava/API-LINT.md for how to handle these.
                 *** api-lint failed ***
                 """
         )
@@ -179,14 +172,8 @@ class ApiLintBaselineTest : DriverTest() {
                     """
                 )
             ),
-            expectedFail = """
-                1 new API lint issues were found.
-                See tools/metalava/API-LINT.md for how to handle these.
-            """,
-            expectedOutput = """
-                1 new API lint issues were found.
-                See tools/metalava/API-LINT.md for how to handle these.
-                """
+            expectedFail = DefaultLintErrorMessage,
+            expectedOutput = DefaultLintErrorMessage
         )
     }
 }
