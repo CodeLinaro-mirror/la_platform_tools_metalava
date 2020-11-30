@@ -19,6 +19,7 @@ package com.android.tools.metalava.model.psi
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.psi.CodePrinter.Companion.constantToSource
 import com.intellij.psi.PsiParameter
 import org.jetbrains.kotlin.psi.KtConstantExpression
@@ -190,7 +191,7 @@ class PsiParameterItem(
         ): PsiParameterItem {
             val name = psiParameter.name
             val commentText = "" // no javadocs on individual parameters
-            val modifiers = modifiers(codebase, psiParameter, commentText)
+            val modifiers = createParameterModifiers(codebase, psiParameter, commentText)
             val type = codebase.getType(psiParameter.type)
             val parameter = PsiParameterItem(
                 codebase = codebase,
@@ -227,6 +228,24 @@ class PsiParameterItem(
             original: List<ParameterItem>
         ): List<PsiParameterItem> {
             return original.map { create(codebase, it as PsiParameterItem) }
+        }
+
+        fun createParameterModifiers(
+            codebase: PsiBasedCodebase,
+            psiParameter: PsiParameter,
+            commentText: String
+        ): PsiModifierItem {
+            val modifiers = modifiers(codebase, psiParameter, commentText)
+            // Method parameters don't have a visibility level; they are visible to anyone that can
+            // call their method. However, Kotlin constructors sometimes appear to specify the
+            // visibility of a constructor parameter by putting visibility inside the constructor
+            // signature. This is really to indicate that the matching property should have the
+            // mentioned visibility.
+            // If the method parameter seems to specify a visibility level, we correct it back to
+            // the default, here, to ensure we don't attempt to incorrectly emit this information
+            // into a signature file.
+            modifiers.setVisibilityLevel(VisibilityLevel.PACKAGE_PRIVATE)
+            return modifiers
         }
 
         /**

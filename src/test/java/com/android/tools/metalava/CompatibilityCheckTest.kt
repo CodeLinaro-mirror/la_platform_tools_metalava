@@ -712,7 +712,7 @@ CompatibilityCheckTest : DriverTest() {
     fun `Remove default parameter`() {
         check(
             expectedIssues = """
-                src/test/pkg/Foo.kt:7: error: Attempted to remove default value from parameter s1 in test.pkg.Foo.method4 in method test.pkg.Foo.method4 [DefaultValueChange]
+                src/test/pkg/Foo.kt:7: error: Attempted to remove default value from parameter s1 in test.pkg.Foo.method4 in method test.pkg.Foo.method4 [DefaultValueChange] [See https://s.android.com/api-guidelines#default-value-removal]
                 """,
             compatibilityMode = false,
             inputKotlinStyleNulls = true,
@@ -748,7 +748,7 @@ CompatibilityCheckTest : DriverTest() {
     fun `Remove optional parameter`() {
         check(
             expectedIssues = """
-                src/test/pkg/Foo.kt:7: error: Attempted to remove default value from parameter s1 in test.pkg.Foo.method4 in method test.pkg.Foo.method4 [DefaultValueChange]
+                src/test/pkg/Foo.kt:7: error: Attempted to remove default value from parameter s1 in test.pkg.Foo.method4 in method test.pkg.Foo.method4 [DefaultValueChange] [See https://s.android.com/api-guidelines#default-value-removal]
                 """,
             compatibilityMode = false,
             inputKotlinStyleNulls = true,

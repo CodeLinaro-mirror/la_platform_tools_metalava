@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava
 
-import com.android.tools.metalava.doclava1.Issues
 import com.android.tools.metalava.model.defaultConfiguration
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -532,15 +531,6 @@ $FLAGS
         )
         assertEquals(Severity.ERROR, defaultConfiguration.getSeverity(Issues.REMOVED_CLASS))
         assertEquals(Severity.ERROR, defaultConfiguration.getSeverity(Issues.REMOVED_DEPRECATED_CLASS))
-    }
-
-    @Test
-    fun `Test issue severity options by numeric id`() {
-        check(
-            extraArguments = arrayOf("--hide", "366"),
-            expectedIssues = "warning: Issue lookup by numeric id is deprecated, use --hide ArrayReturn instead of --hide 366 [DeprecatedOption]"
-        )
-        assertEquals(Severity.HIDDEN, defaultConfiguration.getSeverity(Issues.ARRAY_RETURN))
     }
 
     @Test

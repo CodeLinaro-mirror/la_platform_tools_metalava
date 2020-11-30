@@ -4270,7 +4270,10 @@ class ApiFileTest : DriverTest() {
                 ),
                 kotlin("""
                     package test.pkg
-                    data class MyDataClass(val constructorProperty: String)
+                    data class MyDataClass(
+                        val constructorProperty: String
+                        internal val internalConstructorProperty: String
+                    )
                 """)
             ),
             api = """
@@ -4285,9 +4288,9 @@ class ApiFileTest : DriverTest() {
                     property public final boolean secondConstructorProperty;
                   }
                   public final class MyDataClass {
-                    ctor public MyDataClass(String constructorProperty);
+                    ctor public MyDataClass(String constructorProperty, String internalConstructorProperty);
                     method public String component1();
-                    method public test.pkg.MyDataClass copy(String constructorProperty);
+                    method public test.pkg.MyDataClass copy(String constructorProperty, String internalConstructorProperty);
                     method public String getConstructorProperty();
                     property public final String constructorProperty;
                   }
