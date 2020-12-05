@@ -23,7 +23,7 @@ import com.android.SdkConstants.TAG_PERMISSION
 import com.android.SdkConstants.TAG_USES_SDK
 import com.android.tools.metalava.CodebaseComparator
 import com.android.tools.metalava.ComparisonVisitor
-import com.android.tools.metalava.doclava1.Issues
+import com.android.tools.metalava.Issues
 import com.android.tools.metalava.model.psi.CodePrinter
 import com.android.tools.metalava.model.text.TextBackedAnnotationItem
 import com.android.tools.metalava.model.visitors.ItemVisitor

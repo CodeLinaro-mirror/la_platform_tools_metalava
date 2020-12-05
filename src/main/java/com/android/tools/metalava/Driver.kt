@@ -32,9 +32,6 @@ import com.android.tools.lint.checks.infrastructure.ClassName
 import com.android.tools.lint.detector.api.assertionsEnabled
 import com.android.tools.metalava.CompatibilityCheck.CheckRequest
 import com.android.tools.metalava.apilevels.ApiGenerator
-import com.android.tools.metalava.doclava1.ApiPredicate
-import com.android.tools.metalava.doclava1.FilterPredicate
-import com.android.tools.metalava.doclava1.Issues
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.Item

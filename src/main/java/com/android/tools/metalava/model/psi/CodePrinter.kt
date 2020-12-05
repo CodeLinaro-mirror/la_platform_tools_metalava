@@ -18,7 +18,7 @@ package com.android.tools.metalava.model.psi
 
 import com.android.SdkConstants.DOT_CLASS
 import com.android.tools.lint.detector.api.ConstantEvaluator
-import com.android.tools.metalava.doclava1.Issues
+import com.android.tools.metalava.Issues
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.canonicalizeFloatingPointString

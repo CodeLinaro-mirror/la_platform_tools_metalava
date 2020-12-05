@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava
 
-import com.android.tools.metalava.doclava1.Issues
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.Item

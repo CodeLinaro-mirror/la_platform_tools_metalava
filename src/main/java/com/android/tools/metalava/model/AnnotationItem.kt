@@ -35,7 +35,7 @@ import com.android.tools.metalava.JAVA_LANG_PREFIX
 import com.android.tools.metalava.Options
 import com.android.tools.metalava.RECENTLY_NONNULL
 import com.android.tools.metalava.RECENTLY_NULLABLE
-import com.android.tools.metalava.doclava1.ApiPredicate
+import com.android.tools.metalava.ApiPredicate
 import com.android.tools.metalava.model.psi.PsiBasedCodebase
 import com.android.tools.metalava.options
 import com.intellij.psi.PsiCallExpression
@@ -429,6 +429,7 @@ interface AnnotationItem {
                 "java.lang.Override",
                 "kotlin.Suppress",
                 "androidx.annotation.experimental.UseExperimental",
+                "androidx.annotation.OptIn",
                 "kotlin.UseExperimental",
                 "kotlin.OptIn" -> return NO_ANNOTATION_TARGETS
 
