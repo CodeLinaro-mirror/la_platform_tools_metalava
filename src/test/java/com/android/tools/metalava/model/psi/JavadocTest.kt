@@ -148,18 +148,18 @@ class JavadocTest : DriverTest() {
                     import test.pkg2.OtherClass;
                     import java.io.IOException;
                     /**
-                     *  Blah blah {@link OtherClass} blah blah.
-                     *  Referencing <b>field</b> {@link OtherClass#foo},
-                     *  and referencing method {@link OtherClass#bar(int,
+                     *  Blah blah {@link test.pkg2.OtherClass OtherClass} blah blah.
+                     *  Referencing <b>field</b> {@link test.pkg2.OtherClass#foo OtherClass#foo},
+                     *  and referencing method {@link test.pkg2.OtherClass#bar(int,boolean) OtherClass#bar(int,
                      *   boolean)}.
                      *  And relative method reference {@link #baz()}.
                      *  And relative field reference {@link #importance}.
                      *  Here's an already fully qualified reference: {@link test.pkg2.OtherClass}.
-                     *  And here's one in the same package: {@link LocalClass}.
+                     *  And here's one in the same package: {@link test.pkg1.LocalClass LocalClass}.
                      *
                      *  @deprecated For some reason
-                     *  @see OtherClass
-                     *  @see OtherClass#bar(int, boolean)
+                     *  @see test.pkg2.OtherClass
+                     *  @see test.pkg2.OtherClass#bar(int, boolean)
                      */
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     @Deprecated
@@ -167,10 +167,10 @@ class JavadocTest : DriverTest() {
                     public SomeClass() { throw new RuntimeException("Stub!"); }
                     /**
                      * My method.
-                     * @param focus The focus to find. One of {@link OtherClass#FOCUS_INPUT} or
-                     *         {@link OtherClass#FOCUS_ACCESSIBILITY}.
-                     * @throws IOException when blah blah blah
-                     * @throws {@link RuntimeException} when blah blah blah
+                     * @param focus The focus to find. One of {@link test.pkg2.OtherClass#FOCUS_INPUT OtherClass#FOCUS_INPUT} or
+                     *         {@link test.pkg2.OtherClass#FOCUS_ACCESSIBILITY OtherClass#FOCUS_ACCESSIBILITY}.
+                     * @throws java.io.IOException when blah blah blah
+                     * @throws {@link java.lang.RuntimeException RuntimeException} when blah blah blah
                      */
                     public void baz(int focus) throws java.io.IOException { throw new RuntimeException("Stub!"); }
                     public boolean importance;
@@ -210,8 +210,8 @@ class JavadocTest : DriverTest() {
                        * My method.
                        * @param focus The focus to find. One of {@link OtherClass#FOCUS_INPUT} or
                        *         {@link OtherClass#FOCUS_ACCESSIBILITY}.
-                       * @throws IOException when blah blah blah
-                       * @throws {@link RuntimeException} when blah blah blah
+                       * @throws java.io.IOException when blah blah blah
+                       * @throws {@link java.lang.RuntimeException} when blah blah blah
                        */
                        public void baz(int focus) throws IOException;
                        public boolean importance;
@@ -269,7 +269,7 @@ class JavadocTest : DriverTest() {
                  * @param focus The focus to find. One of {@link test.pkg2.OtherClass#FOCUS_INPUT OtherClass#FOCUS_INPUT} or
                  *         {@link test.pkg2.OtherClass#FOCUS_ACCESSIBILITY OtherClass#FOCUS_ACCESSIBILITY}.
                  * @throws java.io.IOException when blah blah blah
-                 * @throws {@link java.lang.RuntimeException RuntimeException} when blah blah blah
+                 * @throws {@link java.lang.RuntimeException} when blah blah blah
                  */
                 public void baz(int focus) throws java.io.IOException { throw new RuntimeException("Stub!"); }
                 public boolean importance;
@@ -1044,7 +1044,7 @@ class JavadocTest : DriverTest() {
                 public class Foo {
                 public Foo() { throw new RuntimeException("Stub!"); }
                 /**
-                 * @see Bar
+                 * @see test.pkg.bar.Bar
                  */
                 public void bar() { throw new RuntimeException("Stub!"); }
                 }
@@ -1056,9 +1056,9 @@ class JavadocTest : DriverTest() {
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                 public class Bar {
                 public Bar() { throw new RuntimeException("Stub!"); }
-                /** @see Baz */
+                /** @see test.pkg.baz.Baz */
                 public void baz(test.pkg.baz.Baz baz) { throw new RuntimeException("Stub!"); }
-                /** @see Foo */
+                /** @see test.pkg.Foo */
                 public void foo(test.pkg.Foo foo) { throw new RuntimeException("Stub!"); }
                 }
                 """,

@@ -244,11 +244,7 @@ internal fun appendDocumentation(
     docStubs: Boolean
 ) {
     if (options.includeDocumentationInStubs || docStubs) {
-        val documentation = if (docStubs) {
-            item.fullyQualifiedDocumentation()
-        } else {
-            item.documentation
-        }
+        val documentation = item.fullyQualifiedDocumentation()
         if (documentation.isNotBlank()) {
             val trimmed = trimDocIndent(documentation)
             writer.println(trimmed)
