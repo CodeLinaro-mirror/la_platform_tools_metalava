@@ -745,6 +745,43 @@ CompatibilityCheckTest : DriverTest() {
     }
 
     @Test
+    fun `Remove optional parameter`() {
+        check(
+            expectedIssues = """
+                src/test/pkg/Foo.kt:7: error: Attempted to remove default value from parameter s1 in test.pkg.Foo.method4 in method test.pkg.Foo.method4 [DefaultValueChange]
+                """,
+            compatibilityMode = false,
+            inputKotlinStyleNulls = true,
+            format = FileFormat.V4,
+            checkCompatibilityApi = """
+                package test.pkg {
+                  public final class Foo {
+                    ctor public Foo();
+                    method public final void method1(boolean b, String? s1);
+                    method public final void method2(boolean b, String? s1);
+                    method public final void method3(boolean b, optional String? s1);
+                    method public final void method4(boolean b, optional String? s1);
+                  }
+                }
+                """,
+            sourceFiles = arrayOf(
+                kotlin(
+                    """
+                    package test.pkg
+
+                    class Foo {
+                        fun method1(b: Boolean, s1: String?) { }         // No change
+                        fun method2(b: Boolean, s1: String? = null) { }  // Adding: OK
+                        fun method3(b: Boolean, s1: String? = null) { }  // No change
+                        fun method4(b: Boolean, s1: String?) { }         // Removed
+                    }
+                    """
+                )
+            )
+        )
+    }
+
+    @Test
     fun `Removing method or field when still available via inheritance is OK`() {
         check(
             expectedIssues = """
@@ -866,7 +903,6 @@ CompatibilityCheckTest : DriverTest() {
             expectedIssues = """
                 src/test/pkg/ExportedProperty.java:15: error: Method test.pkg.ExportedProperty.category has changed value from "" to nothing [ChangedValue]
                 src/test/pkg/ExportedProperty.java:14: error: Method test.pkg.ExportedProperty.floating has changed value from 1.0f to 1.1f [ChangedValue]
-                src/test/pkg/ExportedProperty.java:16: error: Method test.pkg.ExportedProperty.formatToHexString has changed value from nothing to false [ChangedValue]
                 src/test/pkg/ExportedProperty.java:13: error: Method test.pkg.ExportedProperty.prefix has changed value from "" to "hello" [ChangedValue]
                 """,
             checkCompatibilityApi = """
@@ -3066,6 +3102,85 @@ CompatibilityCheckTest : DriverTest() {
                   }
                 }
                 """
+        )
+    }
+
+    @Test
+    fun `Remove fun modifier from interface`() {
+        check(
+            expectedIssues = """
+                src/test/pkg/FunctionalInterface.kt:3: error: Cannot remove 'fun' modifier from class test.pkg.FunctionalInterface: source incompatible change [FunRemoval]
+                """,
+            format = FileFormat.V4,
+            checkCompatibilityApi = """
+                // Signature format: 4.0
+                package test.pkg {
+                  public fun interface FunctionalInterface {
+                    method public boolean methodOne(int number);
+                  }
+                }
+                """,
+            sourceFiles = arrayOf(
+                kotlin(
+                    """
+                    package test.pkg
+
+                    interface FunctionalInterface {
+                        fun methodOne(number: Int): Boolean
+                    }
+                    """
+                )
+            )
+        )
+    }
+
+    @Test
+    fun `Remove fun modifier from interface signature files`() {
+        check(
+            expectedIssues = """
+                TESTROOT/load-api.txt:3: error: Cannot remove 'fun' modifier from class test.pkg.FunctionalInterface: source incompatible change [FunRemoval]
+                """,
+            format = FileFormat.V4,
+            checkCompatibilityApi = """
+                // Signature format: 4.0
+                package test.pkg {
+                  public fun interface FunctionalInterface {
+                    method public boolean methodOne(int number);
+                  }
+                }
+                """,
+            signatureSource = """
+                // Signature format: 4.0
+                package test.pkg {
+                  public interface FunctionalInterface {
+                    method public boolean methodOne(int number);
+                  }
+                }
+            """.trimIndent()
+        )
+    }
+
+    @Test
+    fun `Adding default value to annotation parameter`() {
+        check(
+            expectedIssues = "",
+            format = FileFormat.V4,
+            checkCompatibilityApi = """
+                // Signature format: 4.0
+                package androidx.annotation.experimental {
+                  public @interface UseExperimental {
+                    method public abstract Class<?> markerClass();
+                  }
+                }
+                """,
+            sourceFiles = arrayOf(
+                java("""
+                    package androidx.annotation.experimental;
+                    public @interface UseExperimental {
+                        Class<?> markerClass() default void.class;
+                    }
+                """)
+            )
         )
     }
 

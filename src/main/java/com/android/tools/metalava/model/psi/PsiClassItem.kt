@@ -39,7 +39,10 @@ import com.intellij.psi.PsiTypeParameter
 import com.intellij.psi.SyntheticElement
 import com.intellij.psi.impl.source.PsiClassReferenceType
 import com.intellij.psi.util.PsiUtil
+import org.jetbrains.kotlin.psi.KtParameter
 import org.jetbrains.kotlin.psi.KtProperty
+import org.jetbrains.kotlin.psi.KtPropertyAccessor
+import org.jetbrains.kotlin.psi.psiUtil.isPropertyParameter
 import org.jetbrains.uast.UClass
 import org.jetbrains.uast.UFile
 import org.jetbrains.uast.UMethod
@@ -522,11 +525,26 @@ open class PsiClassItem(
                             continue
                         }
                         val sourcePsi = method.sourcePsi
-                        if (sourcePsi is KtProperty) {
-                            if (method.name.startsWith("set")) {
+                        if (sourcePsi is KtProperty ||
+                            sourcePsi is KtPropertyAccessor ||
+                            sourcePsi is KtParameter
+                        ) {
+                            if (method.name.startsWith("set") ||
+                                method.name.startsWith("component")
+                            ) {
                                 continue
                             }
-                            val name = sourcePsi.name ?: continue
+                            val name =
+                                when (sourcePsi) {
+                                    is KtProperty -> sourcePsi.name
+                                    is KtPropertyAccessor -> sourcePsi.property.name
+                                    is KtParameter -> {
+                                        if (sourcePsi.isPropertyParameter()) {
+                                            sourcePsi.name
+                                        } else null
+                                    }
+                                    else -> null
+                                } ?: continue
                             val psiType = method.returnType ?: continue
                             properties.add(PsiPropertyItem.create(codebase, item, name, psiType, method))
                         }

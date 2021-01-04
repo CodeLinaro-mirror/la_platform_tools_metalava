@@ -28,10 +28,7 @@ class KotlinInteropChecksTest : DriverTest() {
                 src/test/pkg/Test.java:8: error: Avoid parameter names that are Kotlin hard keywords ("typealias"); see https://android.github.io/kotlin-guides/interop.html#no-hard-keywords [KotlinKeyword]
                 src/test/pkg/Test.java:9: error: Avoid field names that are Kotlin hard keywords ("object"); see https://android.github.io/kotlin-guides/interop.html#no-hard-keywords [KotlinKeyword]
                 """,
-            expectedFail = """
-                3 new API lint issues were found.
-                See tools/metalava/API-LINT.md for how to handle these.
-            """,
+            expectedFail = DefaultLintErrorMessage,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -117,7 +114,11 @@ class KotlinInteropChecksTest : DriverTest() {
     fun `Companion object methods should be marked with JvmStatic`() {
         check(
             apiLint = "",
-            extraArguments = arrayOf(ARG_HIDE, "AllUpper", ARG_HIDE, "AcronymName"),
+            extraArguments = arrayOf(
+                ARG_HIDE, "AllUpper",
+                ARG_HIDE, "AcronymName",
+                ARG_HIDE, "CompileTimeConstant"
+            ),
             expectedIssues = """
                 src/test/pkg/Foo.kt:8: warning: Companion object constants like BIG_INTEGER_ONE should be marked @JvmField for Java interoperability; see https://developer.android.com/kotlin/interop#companion_constants [MissingJvmstatic]
                 src/test/pkg/Foo.kt:11: warning: Companion object constants like WRONG should be using @JvmField, not @JvmStatic; see https://developer.android.com/kotlin/interop#companion_constants [MissingJvmstatic]
@@ -195,10 +196,7 @@ class KotlinInteropChecksTest : DriverTest() {
                 src/test/pkg/Foo.kt:37: error: Method Foo.error_throwsRuntimeExceptionDocsMissing appears to be throwing java.lang.UnsupportedOperationException; this should be listed in the documentation; see https://android.github.io/kotlin-guides/interop.html#document-exceptions [DocumentExceptions]
                 src/test/pkg/Foo.kt:43: error: Method Foo.error_missingSpecificAnnotation appears to be throwing java.lang.UnsupportedOperationException; this should be listed in the documentation; see https://android.github.io/kotlin-guides/interop.html#document-exceptions [DocumentExceptions]
                 """,
-            expectedFail = """
-                4 new API lint issues were found.
-                See tools/metalava/API-LINT.md for how to handle these.
-            """.trimIndent(),
+            expectedFail = DefaultLintErrorMessage,
             sourceFiles = arrayOf(
                 kotlin(
                     """

@@ -105,6 +105,7 @@ object Issues {
     val INFIX_REMOVAL = Issue(138, Severity.ERROR, Category.COMPATIBILITY)
     val VARARG_REMOVAL = Issue(139, Severity.ERROR, Category.COMPATIBILITY)
     val ADD_SEALED = Issue(140, Severity.ERROR, Category.COMPATIBILITY)
+    val FUN_REMOVAL = Issue(141, Severity.ERROR, Category.COMPATIBILITY)
     val ANNOTATION_EXTRACTION = Issue(146, Severity.ERROR)
     val SUPERFLUOUS_PREFIX = Issue(147, Severity.WARNING)
     val HIDDEN_TYPEDEF_CONSTANT = Issue(148, Severity.ERROR)
@@ -129,6 +130,7 @@ object Issues {
     val MISSING_COLUMN = Issue(163, Severity.WARNING, Category.DOCUMENTATION)
     val INVALID_SYNTAX = Issue(164, Severity.ERROR)
     val UNRESOLVED_IMPORT = Issue(165, Severity.INFO)
+    val HIDDEN_ABSTRACT_METHOD = Issue(166, Severity.ERROR)
 
     // API lint
     val START_WITH_LOWER = Issue(300, Severity.ERROR, Category.API_LINT, "S1")

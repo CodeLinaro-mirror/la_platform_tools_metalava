@@ -153,7 +153,7 @@ abstract class DriverTest {
                 fail("Printed newlines with nothing else")
             }
 
-            UastEnvironment.ensureDisposed()
+            UastEnvironment.checkApplicationEnvironmentDisposed()
             Disposer.assertIsEmpty(true)
 
             return printedOutput
@@ -239,21 +239,24 @@ abstract class DriverTest {
         /** Any jars to add to the class path */
         classpath: Array<TestFile>? = null,
         /** The API signature content (corresponds to --api) */
-        @Language("TEXT")
+        // @Language("TEXT") https://youtrack.jetbrains.com/issue/KT-35859
         api: String? = null,
         /** The API signature content (corresponds to --api-xml) */
-        @Language("XML")
+        // @Language("XML") https://youtrack.jetbrains.com/issue/KT-35859
         apiXml: String? = null,
+        /** The DEX API (corresponds to --dex-api) */
+        dexApi: String? = null,
         /** The removed API (corresponds to --removed-api) */
         removedApi: String? = null,
         /** The removed dex API (corresponds to --removed-dex-api) */
         removedDexApi: String? = null,
         /** The subtract api signature content (corresponds to --subtract-api) */
-        @Language("TEXT")
+        // @Language("TEXT") https://youtrack.jetbrains.com/issue/KT-35859
         subtractApi: String? = null,
         /** Expected stubs (corresponds to --stubs) in order corresponding to [sourceFiles]. Use
          * [NO_STUB] as a marker for source files that are not expected to generate stubs */
-        @Language("JAVA") stubs: Array<String> = emptyArray(),
+        // @Language("JAVA") https://youtrack.jetbrains.com/issue/KT-35859
+        stubs: Array<String> = emptyArray(),
         /** Stub source file list generated */
         stubsSourceList: String? = null,
         /** Doc Stub source file list generated */
@@ -275,33 +278,47 @@ abstract class DriverTest {
         errorSeverityExpectedIssues: String? = null,
         checkCompilation: Boolean = false,
         /** Annotations to merge in (in .xml format) */
-        @Language("XML") mergeXmlAnnotations: String? = null,
+        // @Language("XML") https://youtrack.jetbrains.com/issue/KT-35859
+        mergeXmlAnnotations: String? = null,
         /** Annotations to merge in (in .txt/.signature format) */
-        @Language("TEXT") mergeSignatureAnnotations: String? = null,
+        // @Language("TEXT") https://youtrack.jetbrains.com/issue/KT-35859
+        mergeSignatureAnnotations: String? = null,
         /** Qualifier annotations to merge in (in Java stub format) */
-        @Language("JAVA") mergeJavaStubAnnotations: String? = null,
+        // @Language("JAVA") https://youtrack.jetbrains.com/issue/KT-35859
+        mergeJavaStubAnnotations: String? = null,
         /** Inclusion annotations to merge in (in Java stub format) */
-        @Language("JAVA") mergeInclusionAnnotations: String? = null,
-        /** Otional API signature files content to load **instead** of Java/Kotlin source files */
-        @Language("TEXT") signatureSources: Array<String> = emptyArray(),
+        // @Language("JAVA") https://youtrack.jetbrains.com/issue/KT-35859
+        mergeInclusionAnnotations: String? = null,
+        /** Optional API signature files content to load **instead** of Java/Kotlin source files */
+        // @Language("TEXT") https://youtrack.jetbrains.com/issue/KT-35859
+        signatureSources: Array<String> = emptyArray(),
         /**
-         * An otional API signature file content to load **instead** of Java/Kotlin source files.
+         * An optional API signature file content to load **instead** of Java/Kotlin source files.
          * This is added to [signatureSources]. This argument exists for backward compatibility.
          */
-        @Language("TEXT") signatureSource: String? = null,
+        // @Language("TEXT") https://youtrack.jetbrains.com/issue/KT-35859
+        signatureSource: String? = null,
         /** An optional API jar file content to load **instead** of Java/Kotlin source files */
         apiJar: File? = null,
         /** An optional API signature to check the current API's compatibility with */
-        @Language("TEXT") checkCompatibilityApi: String? = null,
+        // @Language("TEXT") https://youtrack.jetbrains.com/issue/KT-35859
+        checkCompatibilityApi: String? = null,
         /** An optional API signature to check the last released API's compatibility with */
-        @Language("TEXT") checkCompatibilityApiReleased: String? = null,
+        // @Language("TEXT") https://youtrack.jetbrains.com/issue/KT-35859
+        checkCompatibilityApiReleased: String? = null,
         /** An optional API signature to check the current removed API's compatibility with */
-        @Language("TEXT") checkCompatibilityRemovedApiCurrent: String? = null,
+        // @Language("TEXT") https://youtrack.jetbrains.com/issue/KT-35859
+        checkCompatibilityRemovedApiCurrent: String? = null,
         /** An optional API signature to check the last released removed API's compatibility with */
-        @Language("TEXT") checkCompatibilityRemovedApiReleased: String? = null,
+        // @Language("TEXT")
+        checkCompatibilityRemovedApiReleased: String? = null,
         /** An optional API signature to compute nullness migration status from */
         allowCompatibleDifferences: Boolean = true,
-        @Language("TEXT") migrateNullsApi: String? = null,
+        // @Language("TEXT") https://youtrack.jetbrains.com/issue/KT-35859
+        migrateNullsApi: String? = null,
+        /** An optional Proguard keep file to generate */
+        // @Language("Proguard") https://youtrack.jetbrains.com/issue/KT-35859
+        proguard: String? = null,
         /** Show annotations (--show-annotation arguments) */
         showAnnotations: Array<String> = emptyArray(),
         /** "Show for stub purposes" API annotation ([ARG_SHOW_FOR_STUB_PURPOSES_ANNOTATION]) */
@@ -327,7 +344,7 @@ abstract class DriverTest {
         /** List of extra jar files to record annotation coverage from */
         coverageJars: Array<TestFile>? = null,
         /** Optional manifest to load and associate with the codebase */
-        @Language("XML")
+        // @Language("XML") https://youtrack.jetbrains.com/issue/KT-35859
         manifest: String? = null,
         /** Packages to pre-import (these will therefore NOT be included in emitted stubs, signature files etc */
         importedPackages: List<String> = emptyList(),
@@ -410,7 +427,8 @@ abstract class DriverTest {
          * If non null, enable API lint. If non-blank, a codebase where only new APIs not in the codebase
          * are linted.
          */
-        @Language("TEXT") apiLint: String? = null,
+        // @Language("TEXT") https://youtrack.jetbrains.com/issue/KT-35859
+        apiLint: String? = null,
         /** The source files to pass to the analyzer */
         sourceFiles: Array<TestFile> = emptyArray(),
         /** [ARG_REPEAT_ERRORS_MAX] */
@@ -725,6 +743,14 @@ abstract class DriverTest {
             emptyArray()
         }
 
+        var proguardFile: File? = null
+        val proguardKeepArguments = if (proguard != null) {
+            proguardFile = File(project, "proguard.cfg")
+            arrayOf(ARG_PROGUARD, proguardFile.path)
+        } else {
+            emptyArray()
+        }
+
         val showAnnotationArguments = if (showAnnotations.isNotEmpty() || includeSystemApiAnnotations) {
             val args = mutableListOf<String>()
             for (annotation in showAnnotations) {
@@ -819,6 +845,14 @@ abstract class DriverTest {
         val apiXmlArgs = if (apiXml != null) {
             apiXmlFile = temporaryFolder.newFile("public-api-xml.txt")
             arrayOf(ARG_XML_API, apiXmlFile.path)
+        } else {
+            emptyArray()
+        }
+
+        var dexApiFile: File? = null
+        val dexApiArgs = if (dexApi != null) {
+            dexApiFile = temporaryFolder.newFile("public-dex.txt")
+            arrayOf(ARG_DEX_API, dexApiFile.path)
         } else {
             emptyArray()
         }
@@ -1094,6 +1128,7 @@ abstract class DriverTest {
             *removedDexArgs,
             *apiArgs,
             *apiXmlArgs,
+            *dexApiArgs,
             *subtractApiArgs,
             *stubsArgs,
             *stubsSourceListArgs,
@@ -1114,6 +1149,7 @@ abstract class DriverTest {
             *checkCompatibilityApiReleasedArguments,
             *checkCompatibilityRemovedCurrentArguments,
             *checkCompatibilityRemovedReleasedArguments,
+            *proguardKeepArguments,
             *manifestFileArgs,
             *convertArgs,
             *applyApiLevelsXmlArgs,
@@ -1225,6 +1261,15 @@ abstract class DriverTest {
             }
         }
 
+        if (dexApi != null && dexApiFile != null) {
+            assertTrue(
+                "${dexApiFile.path} does not exist even though --dex-api was used",
+                dexApiFile.exists()
+            )
+            val actualText = readFile(dexApiFile, stripBlankLines, trim)
+            assertEquals(stripComments(dexApi, stripLineComments = false).trimIndent(), actualText)
+        }
+
         if (removedApi != null && removedApiFile != null) {
             assertTrue(
                 "${removedApiFile.path} does not exist even though --removed-api was used",
@@ -1243,6 +1288,15 @@ abstract class DriverTest {
             )
             val actualText = readFile(removedDexApiFile, stripBlankLines, trim)
             assertEquals(stripComments(removedDexApi, stripLineComments = false).trimIndent(), actualText)
+        }
+
+        if (proguard != null && proguardFile != null) {
+            val expectedProguard = readFile(proguardFile)
+            assertTrue(
+                "${proguardFile.path} does not exist even though --proguard was used",
+                proguardFile.exists()
+            )
+            assertEquals(stripComments(proguard, stripLineComments = false).trimIndent(), expectedProguard.trim())
         }
 
         if (sdk_broadcast_actions != null) {
@@ -1807,6 +1861,21 @@ val recentlyNullableSource: TestFile = java(
     @Retention(SOURCE)
     @Target({METHOD, PARAMETER, FIELD, TYPE_USE})
     public @interface RecentlyNullable {
+    }
+    """
+).indented()
+
+val androidxIntRangeSource: TestFile = java(
+    """
+    package androidx.annotation;
+    import java.lang.annotation.*;
+    import static java.lang.annotation.ElementType.*;
+    import static java.lang.annotation.RetentionPolicy.SOURCE;
+    @Retention(CLASS)
+    @Target({METHOD, PARAMETER, FIELD, LOCAL_VARIABLE, ANNOTATION_TYPE})
+    public @interface IntRange {
+        long from() default Long.MIN_VALUE;
+        long to() default Long.MAX_VALUE;
     }
     """
 ).indented()

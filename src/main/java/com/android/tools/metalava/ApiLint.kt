@@ -195,8 +195,6 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
     }
 
     private fun check() {
-        val prevCount = reporter.totalCount
-
         if (oldCodebase != null) {
             // Only check the new APIs
             CodebaseComparator().compare(object : ComparisonVisitor() {
@@ -208,40 +206,13 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
             // No previous codebase to compare with: visit the whole thing
             codebase.accept(this)
         }
-
-        val apiLintIssues = reporter.totalCount - prevCount
-        if (apiLintIssues > 0) {
-            // We've reported API lint violations; emit some verbiage to explain
-            // how to suppress the error rules.
-            options.stdout.println("\n$apiLintIssues new API lint issues were found.")
-            val baseline = options.baseline
-            if (baseline?.updateFile != null && baseline.file != null && !baseline.silentUpdate) {
-                options.stdout.println("""
-                ************************************************************
-                Your API changes are triggering API Lint warnings or errors.
-                To make these errors go away, fix the code according to the
-                error and/or warning messages above.
-
-                If it's not possible to do so, there are two workarounds:
-
-                1. You can suppress the errors with @SuppressLint("<id>")
-                2. You can update the baseline by executing the following
-                   command:
-                       cp \
-                       ${baseline.updateFile} \
-                       ${baseline.file}
-                   To submit the revised baseline.txt to the main Android
-                   repository, you will need approval.
-                ************************************************************
-                """.trimIndent())
-            } else {
-                options.stdout.println("See tools/metalava/API-LINT.md for how to handle these.")
-            }
-        }
     }
 
     override fun skip(item: Item): Boolean {
-        return super.skip(item) || item is ClassItem && !isInteresting(item)
+        return super.skip(item) ||
+            item is ClassItem && !isInteresting(item) ||
+            item is MethodItem && !isInteresting(item.containingClass()) ||
+            item is FieldItem && !isInteresting(item.containingClass())
     }
 
     private val kotlinInterop = KotlinInteropChecks(reporter)
@@ -1409,7 +1380,21 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
                 }
                 when {
                     name.startsWith("set") -> name.removePrefix("set")
-                    name.startsWith("add") -> "${name.removePrefix("add")}s"
+                    name.startsWith("add") -> {
+                        val nameWithoutPrefix = name.removePrefix("add")
+                        when {
+                            name.endsWith("s") -> "${nameWithoutPrefix}es"
+                            name.endsWith("sh") -> "${nameWithoutPrefix}es"
+                            name.endsWith("ch") -> "${nameWithoutPrefix}es"
+                            name.endsWith("x") -> "${nameWithoutPrefix}es"
+                            name.endsWith("z") -> "${nameWithoutPrefix}es"
+                            name.endsWith("y") &&
+                                name[name.length - 2] !in listOf('a', 'e', 'i', 'o', 'u') -> {
+                                "${nameWithoutPrefix.removeSuffix("y")}ies"
+                            }
+                            else -> "${nameWithoutPrefix}s"
+                        }
+                    }
                     else -> null
                 }?.let { getterSuffix ->
                     val isBool = when (method.parameters().firstOrNull()?.type()?.toTypeString()) {
@@ -3118,6 +3103,10 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
                         if (item.name() == "values" && item.containingClass().isEnum()) {
                             return
                         }
+                        if (item.containingClass().extends("java.lang.annotation.Annotation")) {
+                            // Annotation are allowed to use arrays
+                            return
+                        }
                         "Method should return"
                     }
                     is FieldItem -> "Field should be"
@@ -3680,13 +3669,13 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
         private val constantNamePattern = Regex("[A-Z0-9_]+")
         private val internalNamePattern = Regex("[ms][A-Z0-9].*")
         private val fieldNamePattern = Regex("[a-z].*")
-        private val onCallbackNamePattern = Regex("on[A-Z][a-z][a-zA-Z1-9]*")
-        private val configFieldPattern = Regex("config_[a-z][a-zA-Z1-9]*")
-        private val layoutFieldPattern = Regex("layout_[a-z][a-zA-Z1-9]*")
+        private val onCallbackNamePattern = Regex("on[A-Z][a-z0-9][a-zA-Z0-9]*")
+        private val configFieldPattern = Regex("config_[a-z][a-zA-Z0-9]*")
+        private val layoutFieldPattern = Regex("layout_[a-z][a-zA-Z0-9]*")
         private val stateFieldPattern = Regex("state_[a-z_]+")
-        private val resourceFileFieldPattern = Regex("[a-z1-9_]+")
-        private val resourceValueFieldPattern = Regex("[a-z][a-zA-Z1-9]*")
-        private val styleFieldPattern = Regex("[A-Z][A-Za-z1-9]+(_[A-Z][A-Za-z1-9]+?)*")
+        private val resourceFileFieldPattern = Regex("[a-z0-9_]+")
+        private val resourceValueFieldPattern = Regex("[a-z][a-zA-Z0-9]*")
+        private val styleFieldPattern = Regex("[A-Z][A-Za-z0-9]+(_[A-Z][A-Za-z0-9]+?)*")
 
         private val acronymPattern2 = Regex("([A-Z]){2,}")
         private val acronymPattern3 = Regex("([A-Z]){3,}")
@@ -3761,3 +3750,16 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
         }
     }
 }
+
+internal const val DefaultLintErrorMessage = """
+************************************************************
+Your API changes are triggering API Lint warnings or errors.
+To make these errors go away, fix the code according to the
+error and/or warning messages above.
+
+If it's not possible to do so, there are two workarounds:
+
+1. Suppress the issues with @Suppress("<id>") / @SuppressWarnings("<id>")
+2. Update the baseline passed into metalava
+************************************************************
+"""

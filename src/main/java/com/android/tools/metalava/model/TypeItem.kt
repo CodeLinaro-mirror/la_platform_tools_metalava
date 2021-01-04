@@ -60,10 +60,14 @@ interface TypeItem {
     /** Alias for [toTypeString] with erased=true */
     fun toErasedTypeString(context: Item? = null): String
 
-    /** Returns the internal name of the type, as seen in bytecode */
-    fun internalName(): String {
+    /**
+     * Returns the internal name of the type, as seen in bytecode. The optional [context]
+     * provides the method or class where this type appears, and can be used for example
+     * to resolve the bounds for a type variable used in a method that was specified on the class.
+     */
+    fun internalName(context: Item? = null): String {
         // Default implementation; PSI subclass is more accurate
-        return toSlashFormat(toErasedTypeString())
+        return toSlashFormat(toErasedTypeString(context))
     }
 
     /** Array dimensions of this type; for example, for String it's 0 and for String[][] it's 2. */
@@ -290,7 +294,7 @@ interface TypeItem {
                 "char" -> "C"
                 "short" -> "S"
                 "int" -> "I"
-                "long" -> "L"
+                "long" -> "J"
                 "float" -> "F"
                 "double" -> "D"
                 else -> "L" + ClassContext.getInternalName(name) + ";"

@@ -189,7 +189,7 @@ class PsiTypeItem private constructor(
         return psiType.arrayDimensions
     }
 
-    override fun internalName(): String {
+    override fun internalName(context: Item?): String {
         if (primitive) {
             val signature = getPrimitiveSignature(toString())
             if (signature != null) {

@@ -35,8 +35,10 @@ import org.jetbrains.kotlin.asJava.elements.KtLightModifierList
 import org.jetbrains.kotlin.asJava.elements.KtLightNullabilityAnnotation
 import org.jetbrains.kotlin.lexer.KtTokens
 import org.jetbrains.kotlin.psi.KtModifierList
+import org.jetbrains.kotlin.psi.KtModifierListOwner
 import org.jetbrains.kotlin.psi.KtNamedFunction
-import org.jetbrains.kotlin.psi.KtProperty
+import org.jetbrains.kotlin.psi.KtPropertyAccessor
+import org.jetbrains.kotlin.psi.psiUtil.hasFunModifier
 import org.jetbrains.uast.UAnnotated
 import org.jetbrains.uast.UMethod
 import org.jetbrains.uast.UVariable
@@ -151,13 +153,19 @@ class PsiModifierItem(
                 if (ktModifierList.hasModifier(KtTokens.COMPANION_KEYWORD)) {
                     flags = flags or COMPANION
                 }
-            } else {
-                // UAST returns a null modifierList.kotlinOrigin for get/set methods for
-                // properties
-                if (element is UMethod && element.sourceElement is KtProperty) {
-                    // If the name contains the marker of an internal method, mark it internal
-                    if (element.name.endsWith("\$lintWithKotlin")) {
-                        visibilityFlags = INTERNAL
+                if (ktModifierList.hasFunModifier()) {
+                    flags = flags or FUN
+                }
+            }
+            // Methods that are property accessors inherit visibility from the source element
+            if (element is UMethod && (element.sourceElement is KtPropertyAccessor)) {
+                val sourceElement = element.sourceElement
+                if (sourceElement is KtModifierListOwner) {
+                    val sourceModifierList = sourceElement.modifierList
+                    if (sourceModifierList != null) {
+                        if (sourceModifierList.hasModifier(KtTokens.INTERNAL_KEYWORD)) {
+                            visibilityFlags = INTERNAL
+                        }
                     }
                 }
             }
