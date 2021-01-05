@@ -1346,7 +1346,8 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
                 }
             }
         }
-        val expectedGetters = mutableListOf<Pair<Item, String>>()
+        // Maps each setter to a list of potential getters that would satisfy it.
+        val expectedGetters = mutableListOf<Pair<Item, Set<String>>>()
         var builtType: TypeItem? = null
         val clsType = cls.toType().toTypeString()
 
@@ -1378,37 +1379,41 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
                         "Builder setter must be @NonNull: ${method.describe()}"
                     )
                 }
-                when {
-                    name.startsWith("set") -> name.removePrefix("set")
-                    name.startsWith("add") -> {
-                        val nameWithoutPrefix = name.removePrefix("add")
-                        when {
-                            name.endsWith("s") -> "${nameWithoutPrefix}es"
-                            name.endsWith("sh") -> "${nameWithoutPrefix}es"
-                            name.endsWith("ch") -> "${nameWithoutPrefix}es"
-                            name.endsWith("x") -> "${nameWithoutPrefix}es"
-                            name.endsWith("z") -> "${nameWithoutPrefix}es"
-                            name.endsWith("y") &&
-                                name[name.length - 2] !in listOf('a', 'e', 'i', 'o', 'u') -> {
-                                "${nameWithoutPrefix.removeSuffix("y")}ies"
-                            }
-                            else -> "${nameWithoutPrefix}s"
-                        }
-                    }
-                    else -> null
-                }?.let { getterSuffix ->
-                    val isBool = when (method.parameters().firstOrNull()?.type()?.toTypeString()) {
-                        "boolean", "java.lang.Boolean" -> true
-                        else -> false
-                    }
-                    val expectedGetter = if (isBool && name.startsWith("set")) {
-                        val pattern = goodBooleanGetterSetterPrefixes.match(name, GetterSetterPattern::setter)!!
-                        "${pattern.getter}${name.removePrefix(pattern.setter)}"
-                    } else {
-                        "get$getterSuffix"
-                    }
-                    expectedGetters.add(method to expectedGetter)
+                val isBool = when (method.parameters().firstOrNull()?.type()?.toTypeString()) {
+                    "boolean", "java.lang.Boolean" -> true
+                    else -> false
                 }
+                val allowedGetters: Set<String>? = if (isBool && name.startsWith("set")) {
+                    val pattern = goodBooleanGetterSetterPrefixes.match(
+                            name, GetterSetterPattern::setter)!!
+                    setOf("${pattern.getter}${name.removePrefix(pattern.setter)}")
+                } else {
+                    when {
+                        name.startsWith("set") -> listOf(name.removePrefix("set"))
+                        name.startsWith("add") -> {
+                            val nameWithoutPrefix = name.removePrefix("add")
+                            when {
+                                name.endsWith("s") -> {
+                                    // If the name ends with s, it may already be a plural. If the
+                                    // add method accepts a single value, it is called addFoo() and
+                                    // getFoos() is right. If an add method accepts a collection, it
+                                    // is called addFoos() and getFoos() is right. So we allow both.
+                                    listOf(nameWithoutPrefix, "${nameWithoutPrefix}es")
+                                }
+                                name.endsWith("sh") || name.endsWith("ch") || name.endsWith("x") ||
+                                        name.endsWith("z") -> listOf("${nameWithoutPrefix}es")
+                                name.endsWith("y") &&
+                                        name[name.length - 2] !in listOf('a', 'e', 'i', 'o', 'u')
+                                -> {
+                                    listOf("${nameWithoutPrefix.removeSuffix("y")}ies")
+                                }
+                                else -> listOf("${nameWithoutPrefix}s")
+                            }
+                        }
+                        else -> null
+                    }?.map { "get$it" }?.toSet()
+                }
+                allowedGetters?.let { expectedGetters.add(method to it) }
             } else {
                 report(
                     BUILDER_SET_STYLE, method,
@@ -1424,12 +1429,20 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
         }
         builtType?.asClass()?.let { builtClass ->
             val builtMethods = builtClass.filteredMethods(filterReference).map { it.name() }.toSet()
-            for ((setter, expectedGetterName) in expectedGetters) {
-                if (!builtMethods.contains(expectedGetterName))
-                report(
-                    MISSING_GETTER_MATCHING_BUILDER, setter,
-                    "${builtClass.qualifiedName()} does not declare a `$expectedGetterName()` method matching ${setter.describe()}"
-                )
+            for ((setter, expectedGetterNames) in expectedGetters) {
+                if (builtMethods.intersect(expectedGetterNames).isEmpty()) {
+                    val expectedGetterCalls = expectedGetterNames.map { "$it()" }
+                    val errorString = if (expectedGetterCalls.size == 1) {
+                        "${builtClass.qualifiedName()} does not declare a " +
+                                "`${expectedGetterCalls.first()}` method matching " +
+                                "${setter.describe()}"
+                    } else {
+                        "${builtClass.qualifiedName()} does not declare a getter method " +
+                                "matching ${setter.describe()} (expected one of: " +
+                                "$expectedGetterCalls)"
+                    }
+                    report(MISSING_GETTER_MATCHING_BUILDER, setter, errorString)
+                }
             }
         }
     }
