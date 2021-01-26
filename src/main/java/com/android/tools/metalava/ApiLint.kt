@@ -484,6 +484,11 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
             return
         }
 
+        // Only enforce constant naming rules for Kotlin on `const val`
+        if (field.isKotlin() && !field.modifiers.isConst()) {
+            return
+        }
+
         val name = field.name()
         if (!constantNamePattern.matches(name)) {
             val suggested = SdkVersionInfo.camelCaseToUnderlines(name).toUpperCase(Locale.US)
@@ -2847,9 +2852,9 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
                         if len(m.args) != 1: continue
                         typ = m.args[0]
 
-                    if m.name.endswith("Fraction") and typ != "float":
+                    if m.name.endswith("Fraction") and typ in ["short, "int", "long"]:
                         error(clazz, m, None, "Fractions must use floats")
-                    if m.name.endswith("Percentage") and typ != "int":
+                    if m.name.endswith("Percentage") and typ in ["float", "double"]:
                         error(clazz, m, None, "Percentage must use ints")
 
         */
@@ -2881,12 +2886,12 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
             }
             type = method.parameters()[0].type().toTypeString()
         }
-        if (name.endsWith("Fraction") && type != "float") {
+        if (name.endsWith("Fraction") && (type == "int" || type == "long" || type == "short")) {
             report(
                 FRACTION_FLOAT, method,
                 "Fractions must use floats, was `$type` in `$name`"
             )
-        } else if (name.endsWith("Percentage") && type != "int") {
+        } else if (name.endsWith("Percentage") && (type == "float" || type == "double")) {
             report(
                 PERCENTAGE_INT, method,
                 "Percentage must use ints, was `$type` in `$name`"

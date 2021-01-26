@@ -2,7 +2,6 @@ package com.android.tools.metalava
 
 import com.android.SdkConstants.ATTR_VALUE
 import com.android.sdklib.SdkVersionInfo
-import com.android.sdklib.repository.AndroidSdkHandler
 import com.android.tools.lint.LintCliClient
 import com.android.tools.lint.checks.ApiLookup
 import com.android.tools.lint.detector.api.editDistance
@@ -680,10 +679,6 @@ class DocAnalyzer(
                     return applyApiLevelsXml
                 }
                 return super.findResource(relativePath)
-            }
-
-            override fun getSdk(): AndroidSdkHandler? {
-                return null
             }
 
             override fun getCacheDir(name: String?, create: Boolean): File? {
