@@ -22,7 +22,6 @@ import com.android.tools.metalava.Severity.INFO
 import com.android.tools.metalava.Severity.INHERIT
 import com.android.tools.metalava.Severity.LINT
 import com.android.tools.metalava.Severity.WARNING
-import com.android.tools.metalava.doclava1.Issues
 import com.android.tools.metalava.model.AnnotationArrayAttributeValue
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.configuration
@@ -189,25 +188,21 @@ class Reporter(
                 val annotationName = annotation.qualifiedName()
                 if (annotationName != null && annotationName in SUPPRESS_ANNOTATIONS) {
                     for (attribute in annotation.attributes()) {
-                        val id1 = "Doclava${id.code}"
-                        val id2 = id.name
                         // Assumption that all annotations in SUPPRESS_ANNOTATIONS only have
                         // one attribute such as value/names that is varargs of String
                         val value = attribute.value
                         if (value is AnnotationArrayAttributeValue) {
-                            // Example: @SuppressLint({"DocLava1", "DocLava2"})
+                            // Example: @SuppressLint({"RequiresFeature", "AllUpper"})
                             for (innerValue in value.values) {
                                 val string = innerValue.value()?.toString() ?: continue
-                                if (suppressMatches(string, id1, message) || suppressMatches(string, id2, message)) {
+                                if (suppressMatches(string, id.name, message)) {
                                     return true
                                 }
                             }
                         } else {
-                            // Example: @SuppressLint("DocLava1")
+                            // Example: @SuppressLint("RequiresFeature")
                             val string = value.value()?.toString()
-                            if (string != null && (
-                                    suppressMatches(string, id1, message) || suppressMatches(string, id2, message))
-                            ) {
+                            if (string != null && (suppressMatches(string, id.name, message))) {
                                 return true
                             }
                         }
@@ -359,44 +354,23 @@ class Reporter(
             if (!omitLocations) {
                 location?.let { sb.append(it).append(": ") }
             }
-            if (compatibility.oldErrorOutputFormat) {
-                // according to doclava1 there are some people or tools parsing old format
-                when (severity) {
-                    LINT -> sb.append("lint ")
-                    INFO -> sb.append("info ")
-                    WARNING -> sb.append("warning ")
-                    ERROR -> sb.append("error ")
-                    INHERIT, HIDDEN -> {
-                    }
+            when (severity) {
+                LINT -> sb.append("lint: ")
+                INFO -> sb.append("info: ")
+                WARNING -> sb.append("warning: ")
+                ERROR -> sb.append("error: ")
+                INHERIT, HIDDEN -> {
                 }
-                id?.let { sb.append(it.name).append(": ") }
-                sb.append(message)
-            } else {
-                when (severity) {
-                    LINT -> sb.append("lint: ")
-                    INFO -> sb.append("info: ")
-                    WARNING -> sb.append("warning: ")
-                    ERROR -> sb.append("error: ")
-                    INHERIT, HIDDEN -> {
-                    }
-                }
-                sb.append(message)
-                id?.let {
-                    sb.append(" [")
-                    sb.append(it.name)
-                    if (compatibility.includeExitCode) {
-                        sb.append(":")
-                        sb.append(it.code)
-                    }
+            }
+            sb.append(message)
+            id?.let {
+                sb.append(" [")
+                sb.append(it.name)
+                sb.append("]")
+                val link = it.category.ruleLink
+                if (it.rule != null && link != null) {
+                    sb.append(" [See ").append(link).append(it.rule)
                     sb.append("]")
-                    if (it.rule != null) {
-                        sb.append(" [Rule ").append(it.rule)
-                        val link = it.category.ruleLink
-                        if (link != null) {
-                            sb.append(" in ").append(link)
-                        }
-                        sb.append("]")
-                    }
                 }
             }
         }

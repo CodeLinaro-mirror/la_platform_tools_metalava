@@ -7,7 +7,6 @@ import com.android.tools.lint.LintCliClient
 import com.android.tools.lint.checks.ApiLookup
 import com.android.tools.lint.detector.api.editDistance
 import com.android.tools.lint.helpers.DefaultJavaEvaluator
-import com.android.tools.metalava.doclava1.Issues
 import com.android.tools.metalava.model.AnnotationAttributeValue
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ClassItem

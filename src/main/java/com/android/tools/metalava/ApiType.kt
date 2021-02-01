@@ -17,9 +17,6 @@
 package com.android.tools.metalava
 
 import com.android.SdkConstants.DOT_TXT
-import com.android.tools.metalava.doclava1.ApiPredicate
-import com.android.tools.metalava.doclava1.ElidingPredicate
-import com.android.tools.metalava.doclava1.FilterPredicate
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.Item
 import java.io.File

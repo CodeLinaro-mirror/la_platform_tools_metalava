@@ -21,7 +21,6 @@ import com.android.SdkConstants.FN_FRAMEWORK_LIBRARY
 import com.android.sdklib.SdkVersionInfo
 import com.android.tools.lint.detector.api.isJdkFolder
 import com.android.tools.metalava.CompatibilityCheck.CheckRequest
-import com.android.tools.metalava.doclava1.Issues
 import com.android.tools.metalava.model.defaultConfiguration
 import com.android.utils.SdkUtils.wrap
 import com.google.common.base.CharMatcher
@@ -2578,21 +2577,8 @@ class Options(
                 }
                 return
             }
-
-            val numericId = try {
-                id.toInt()
-            } catch (e: NumberFormatException) {
-                -1
-            }
-
             val issue = Issues.findIssueById(id)
-                ?: Issues.findIssueById(numericId)?.also {
-                    reporter.report(
-                        Issues.DEPRECATED_OPTION, null as File?,
-                        "Issue lookup by numeric id is deprecated, use " +
-                            "$arg ${it.name} instead of $arg $id"
-                    )
-                } ?: Issues.findIssueByIdIgnoringCase(id)?.also {
+                ?: Issues.findIssueByIdIgnoringCase(id)?.also {
                     reporter.report(
                         Issues.DEPRECATED_OPTION, null as File?,
                         "Case-insensitive issue matching is deprecated, use " +

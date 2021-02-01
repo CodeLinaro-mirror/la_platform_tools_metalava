@@ -31,7 +31,7 @@ repositories {
 }
 
 plugins {
-    kotlin("jvm") version "1.4.10"
+    kotlin("jvm") version "1.4.20"
     id("application")
     id("java")
     id("maven-publish")
@@ -69,19 +69,27 @@ val studioVersion: String = if (customLintVersion != null) {
 } else {
     "27.2.0-alpha11"
 }
-val kotlinVersion: String = "1.4.10"
+val kotlinVersion: String = "1.4.20"
 
 dependencies {
     implementation("com.android.tools.external.org-jetbrains:uast:$studioVersion")
+    implementation("com.android.tools.external.com-intellij:kotlin-compiler:$studioVersion")
     implementation("com.android.tools.external.com-intellij:intellij-core:$studioVersion")
     implementation("com.android.tools.lint:lint-api:$studioVersion")
     implementation("com.android.tools.lint:lint-checks:$studioVersion")
     implementation("com.android.tools.lint:lint-gradle:$studioVersion")
     implementation("com.android.tools.lint:lint:$studioVersion")
+    implementation("com.android.tools:common:$studioVersion")
+    implementation("com.android.tools:sdk-common:$studioVersion")
+    implementation("com.android.tools:sdklib:$studioVersion")
     implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlinVersion")
     implementation("org.jetbrains.kotlin:kotlin-reflect:$kotlinVersion")
+    implementation("org.ow2.asm:asm:8.0")
+    implementation("org.ow2.asm:asm-tree:8.0")
     testImplementation("com.android.tools.lint:lint-tests:$studioVersion")
     testImplementation("junit:junit:4.11")
+    testImplementation("com.google.truth:truth:1.0")
+    testImplementation("org.jetbrains.kotlin:kotlin-test:$kotlinVersion")
 }
 
 tasks.withType(Test::class.java) {

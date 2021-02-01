@@ -18,9 +18,7 @@ package com.android.tools.metalava
 
 import com.android.tools.metalava.NullnessMigration.Companion.findNullnessAnnotation
 import com.android.tools.metalava.NullnessMigration.Companion.isNullable
-import com.android.tools.metalava.doclava1.ApiPredicate
-import com.android.tools.metalava.doclava1.Issues
-import com.android.tools.metalava.doclava1.Issues.Issue
+import com.android.tools.metalava.Issues.Issue
 import com.android.tools.metalava.model.text.TextCodebase
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ClassItem

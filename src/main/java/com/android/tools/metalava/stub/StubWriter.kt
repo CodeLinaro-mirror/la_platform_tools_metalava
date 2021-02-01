@@ -16,9 +16,9 @@
 
 package com.android.tools.metalava.stub
 
-import com.android.tools.metalava.doclava1.ApiPredicate
-import com.android.tools.metalava.doclava1.FilterPredicate
-import com.android.tools.metalava.doclava1.Issues
+import com.android.tools.metalava.ApiPredicate
+import com.android.tools.metalava.FilterPredicate
+import com.android.tools.metalava.Issues
 import com.android.tools.metalava.model.AnnotationTarget
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
@@ -244,11 +244,7 @@ internal fun appendDocumentation(
     docStubs: Boolean
 ) {
     if (options.includeDocumentationInStubs || docStubs) {
-        val documentation = if (docStubs) {
-            item.fullyQualifiedDocumentation()
-        } else {
-            item.documentation
-        }
+        val documentation = item.fullyQualifiedDocumentation()
         if (documentation.isNotBlank()) {
             val trimmed = trimDocIndent(documentation)
             writer.println(trimmed)
