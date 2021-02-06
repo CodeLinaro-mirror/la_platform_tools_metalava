@@ -732,6 +732,8 @@ fun handleTag(
 
     val reference = extractReference(element)
     val referenceText = reference?.element?.text ?: element.text
+    val customLinkText = extractCustomLinkText(element)
+    val displayText = customLinkText?.text ?: referenceText
     if (!PREPEND_LOCAL_CLASS && referenceText.startsWith("#")) {
         val suffix = element.text
         if (suffix.contains("(") && suffix.contains(")")) {
@@ -773,7 +775,7 @@ fun handleTag(
                             sb.append(suffix)
                         }
                         sb.append(' ')
-                        sb.append(referenceText)
+                        sb.append(displayText)
                         sb.append("}")
                         return true
                     }
@@ -831,8 +833,8 @@ fun handleTag(
                         val suffix = text.substring(text.indexOf(referenceText) + referenceText.length)
                         "@see $qualifiedName$suffix"
                     }
-                    text.startsWith("{") -> "{@$name $qualifiedName $referenceText}"
-                    else -> "@$name $qualifiedName $referenceText"
+                    text.startsWith("{") -> "{@$name $qualifiedName $displayText}"
+                    else -> "@$name $qualifiedName $displayText"
                 }
                 sb.append(append)
                 return true
@@ -906,7 +908,7 @@ fun handleTag(
                         close++
                     }
                     val memberPart = text.substring(nameEnd, close)
-                    val append = "${text.substring(0, start)}$qualifiedName$memberPart $referenceText}"
+                    val append = "${text.substring(0, start)}$qualifiedName$memberPart $displayText}"
                     sb.append(append)
                     return true
                 }
@@ -1028,4 +1030,14 @@ private fun extractReference(tag: PsiDocTag): PsiReference? {
         dataElements.firstOrNull { it !is PsiWhiteSpace && it !is PsiDocToken } ?: return null
     val child = salientElement.firstChild
     return if (child !is PsiReference) null else child
+}
+
+private fun extractCustomLinkText(tag: PsiDocTag): PsiDocToken? {
+    val dataElements = tag.dataElements
+    if (dataElements.isEmpty()) {
+        return null
+    }
+    val salientElement: PsiElement =
+        dataElements.lastOrNull { it !is PsiWhiteSpace && it !is PsiDocMethodOrFieldRef } ?: return null
+    return if (salientElement !is PsiDocToken) null else salientElement
 }

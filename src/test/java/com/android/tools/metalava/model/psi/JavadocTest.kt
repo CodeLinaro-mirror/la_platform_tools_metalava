@@ -416,7 +416,78 @@ class JavadocTest : DriverTest() {
                 /**
                  * <p>
                  * Window content may be retrieved with
-                 * {@link android.view.accessibility.AccessibilityEvent#getSource() AccessibilityEvent#getSource()}.
+                 * {@link android.view.accessibility.AccessibilityEvent#getSource() AccessibilityEvent.getSource()}.
+                 * Mention AccessibilityRecords here.
+                 * </p>
+                 */
+                @SuppressWarnings({"unchecked", "deprecation", "all"})
+                public abstract class AccessibilityService {
+                public AccessibilityService() { throw new RuntimeException("Stub!"); }
+                }
+                """
+        )
+    }
+
+        @Test
+    fun `Rewrite relative documentation links in doc-stubs but preserve custom link text`() {
+        checkStubs(
+            docStubs = true,
+            sourceFiles = arrayOf(
+                java(
+                    """
+                    package android.accessibilityservice;
+
+                    import android.view.accessibility.AccessibilityEvent;
+                    import android.view.accessibility.AccessibilityRecord;
+
+                    /**
+                     * <p>
+                     * Window content may be retrieved with
+                     * {@link AccessibilityEvent#getSource() this_method}.
+                     * Mention AccessibilityRecords here.
+                     * </p>
+                     */
+                    @SuppressWarnings("all")
+                    public abstract class AccessibilityService {
+                    }
+                    """
+                ),
+                java(
+                    """
+                    package android.view.accessibility;
+
+                    @SuppressWarnings("all")
+                    public final class AccessibilityEvent extends AccessibilityRecord {
+                    }
+                    """
+                ),
+                java(
+                    """
+                    package android.view.accessibility;
+
+                    @SuppressWarnings("all")
+                    public class AccessibilityRecord {
+                        public AccessibilityNodeInfo getSource() {
+                            return null;
+                        }
+                    }
+                    """
+                ),
+                java(
+                    """
+                    package android.view.accessibility;
+                    public class AccessibilityNodeInfo {}
+                    """
+                )
+            ),
+            warnings = "",
+            source = """
+                package android.accessibilityservice;
+                import android.view.accessibility.AccessibilityEvent;
+                /**
+                 * <p>
+                 * Window content may be retrieved with
+                 * {@link android.view.accessibility.AccessibilityEvent#getSource() this_method}.
                  * Mention AccessibilityRecords here.
                  * </p>
                  */
