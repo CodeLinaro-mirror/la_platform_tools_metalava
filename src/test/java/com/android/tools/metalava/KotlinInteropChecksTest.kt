@@ -78,7 +78,7 @@ class KotlinInteropChecksTest : DriverTest() {
                         public void ok3(@Nullable Runnable run) { }
                         public void ok4(int x, @Nullable Runnable run) { }
                         public void ok5(@Nullable Runnable run1, @Nullable Runnable run2) { }
-                        public void ok6(@Nullable java.util.List list, boolean b) { }
+                        public void ok6(@NonNull java.util.List<String> list, boolean b) { }
                         // Consumer declares exactly one non-default method (accept), other methods are default.
                         public void ok7(@NonNull String packageName, @NonNull Executor executor,
                             @NonNull Consumer<Boolean> callback) {}

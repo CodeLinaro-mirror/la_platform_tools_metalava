@@ -87,6 +87,26 @@ class ReporterTest : DriverTest() {
     }
 
     @Test
+    fun `Test suppressing infos`() {
+        check(
+            apiLint = "",
+            expectedIssues = "",
+            sourceFiles = arrayOf(
+                java("""
+                    package test.pkg;
+                    import android.annotation.SuppressLint;
+
+                    public class Foo {
+                        @SuppressLint("KotlinOperator")
+                        public int get(int i) { return i + 1; }
+                    }
+                """),
+                suppressLintSource
+            )
+        )
+    }
+
+    @Test
     fun `Test repeat errors with 1 error`() {
         check(
             apiLint = "",

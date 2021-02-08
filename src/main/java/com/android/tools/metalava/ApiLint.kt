@@ -102,6 +102,7 @@ import com.android.tools.metalava.Issues.NOT_CLOSEABLE
 import com.android.tools.metalava.Issues.NO_BYTE_OR_SHORT
 import com.android.tools.metalava.Issues.NO_CLONE
 import com.android.tools.metalava.Issues.NO_SETTINGS_PROVIDER
+import com.android.tools.metalava.Issues.NULLABLE_COLLECTION
 import com.android.tools.metalava.Issues.ON_NAME_EXPECTED
 import com.android.tools.metalava.Issues.OPTIONAL_BUILDER_CONSTRUCTOR_ARGUMENT
 import com.android.tools.metalava.Issues.OVERLAPPING_CONSTANTS
@@ -185,6 +186,10 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
             return
         }
 
+        if (item is ParameterItem && item.containingMethod().deprecated) {
+            return
+        }
+
         // With show annotations we might be flagging API that is filtered out: hide these here
         val testItem = if (item is ParameterItem) item.containingMethod() else item
         if (!filterEmit.test(testItem)) {
@@ -254,6 +259,7 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
         checkNumbers(typeString, item)
         checkCollections(type, item)
         checkCollectionsOverArrays(type, typeString, item)
+        checkNullableCollections(type, item)
         checkBoxed(type, item)
         checkIcu(type, typeString, item)
         checkBitSet(type, typeString, item)
@@ -473,6 +479,12 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
                         if f.typ in req and f.value is None:
                             error(clazz, f, None, "All constants must be defined at compile time")
          */
+
+        // Skip this check on Kotlin
+        if (field.isKotlin()) {
+            return
+        }
+
         // Existing violations
         val qualified = field.containingClass().qualifiedName()
         if (qualified.startsWith("android.os.Build") ||
@@ -481,11 +493,6 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
             qualified.startsWith("android.opengl.") ||
             qualified.startsWith("android.R.")
         ) {
-            return
-        }
-
-        // Only enforce constant naming rules for Kotlin on `const val`
-        if (field.isKotlin() && !field.modifiers.isConst()) {
             return
         }
 
@@ -977,7 +984,7 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
             report(INTERNAL_FIELD, field,
                     "Internal field ${field.name()} must not be exposed")
         }
-        if (constantNamePattern.matches(field.name())) {
+        if (constantNamePattern.matches(field.name()) && field.isJava()) {
             if (!modifiers.isStatic() || !modifiers.isFinal()) {
                 report(ALL_UPPER, field,
                         "Constant ${field.name()} must be marked static final")
@@ -1756,6 +1763,42 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
             is ParameterItem -> this.containingMethod().containingClass()
             is ClassItem -> this
             else -> null
+        }
+    }
+
+    private fun checkNullableCollections(type: TypeItem, item: Item) {
+        if (type.primitive) return
+        if (!item.modifiers.isNullable()) return
+        val typeAsClass = type.asClass() ?: return
+
+        val superItem: Item? = when (item) {
+            is MethodItem -> item.findPredicateSuperMethod(filterReference)
+            is ParameterItem -> item.containingMethod().findPredicateSuperMethod(filterReference)
+                    ?.parameters()?.find { it.parameterIndex == item.parameterIndex }
+            else -> null
+        }
+
+        if (superItem?.modifiers?.isNullable() == true) {
+            return
+        }
+
+        if (type.isArray() ||
+                typeAsClass.extendsOrImplements("java.util.Collection") ||
+                typeAsClass.extendsOrImplements("kotlin.collections.Collection") ||
+                typeAsClass.extendsOrImplements("java.util.Map") ||
+                typeAsClass.extendsOrImplements("kotlin.collections.Map") ||
+                typeAsClass.qualifiedName() == "android.os.Bundle" ||
+                typeAsClass.qualifiedName() == "android.os.PersistableBundle") {
+            val where = when (item) {
+                is MethodItem -> "Return type of ${item.describe()}"
+                else -> "Type of ${item.describe()}"
+            }
+
+            val erased = type.toErasedTypeString(item)
+            report(
+                    NULLABLE_COLLECTION, item,
+                    "$where is a nullable collection (`$erased`); must be non-null"
+            )
         }
     }
 
