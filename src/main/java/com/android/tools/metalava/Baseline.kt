@@ -46,6 +46,7 @@ class Baseline(
     val description: String,
     val file: File?,
     var updateFile: File?,
+    // TODO(roosa): unless file == updateFile, existing baselines will be merged into the updateFile regardless of this value
     var merge: Boolean = false,
     private var headerComment: String = "",
     /**
@@ -214,9 +215,7 @@ class Baseline(
             val issueId = line.substring(0, idEnd).trim()
             val elementId = line.substring(idEnd + 2, elementEnd).trim()
 
-            // Unless merging, we don't need the actual messages since we're only matching by
-            // issue id and API location, so don't bother computing.
-            val message = if (merge) lines[i + 1].trim() else ""
+            val message = lines[i + 1].trim()
 
             val issue = Issues.findIssueById(issueId)
             if (issue == null) {
