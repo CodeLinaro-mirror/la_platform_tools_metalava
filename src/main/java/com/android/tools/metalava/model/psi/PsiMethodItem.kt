@@ -218,6 +218,15 @@ open class PsiMethodItem(
         return exceptions
     }
 
+    fun areAllParametersOptional(): Boolean {
+        for (param in parameters) {
+            if (!param.hasDefaultValue()) {
+                return false
+            }
+        }
+        return true
+    }
+
     override fun defaultValue(): String {
         if (psiMethod is PsiAnnotationMethod) {
             val value = psiMethod.defaultValue

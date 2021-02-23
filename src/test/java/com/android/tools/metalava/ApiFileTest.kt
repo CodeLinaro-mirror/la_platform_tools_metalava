@@ -4348,7 +4348,7 @@ class ApiFileTest : DriverTest() {
                     import android.graphics.Bitmap
                     import android.view.View
 
-                    class Foo {
+                    class Foo(a: String = "1", b: String = "2") {
                         fun method1(int: Int = 42,
                             int2: Int? = null,
                             byte: Int = 2 * 21,
@@ -4385,7 +4385,7 @@ class ApiFileTest : DriverTest() {
                 // Signature format: 4.0
                 package test.pkg {
                   public final class Foo {
-                    ctor public Foo();
+                    ctor public Foo(optional String a, optional String b);
                     method public android.graphics.Bitmap? drawToBitmap(android.view.View, optional android.graphics.Bitmap.Config config);
                     method public void emptyLambda(optional kotlin.jvm.functions.Function0<kotlin.Unit> sizeOf);
                     method public void method1(optional int p, optional Integer? int2, optional int p1, optional String str, java.lang.String... args);

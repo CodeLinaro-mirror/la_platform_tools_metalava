@@ -311,6 +311,9 @@ abstract class DriverTest {
         /** An optional API signature to check the last released removed API's compatibility with */
         @Language("TEXT")
         checkCompatibilityRemovedApiReleased: String? = null,
+        /** An optional API signature to use as the base API codebase during compat checks */
+        @Language("TEXT")
+        checkCompatibilityBaseApi: String? = null,
         /** An optional API signature to compute nullness migration status from */
         allowCompatibleDifferences: Boolean = true,
         @Language("TEXT")
@@ -658,6 +661,19 @@ abstract class DriverTest {
             null
         }
 
+        val checkCompatibilityBaseApiFile = if (checkCompatibilityBaseApi != null) {
+            val maybeFile = File(checkCompatibilityBaseApi)
+            if (maybeFile.isFile) {
+                maybeFile
+            } else {
+                val file = File(project, "compatibility-base-api.txt")
+                file.writeText(checkCompatibilityBaseApi.trimIndent())
+                file
+            }
+        } else {
+            null
+        }
+
         val migrateNullsApiFile = if (migrateNullsApi != null) {
             val jar = File(migrateNullsApi)
             if (jar.isFile) {
@@ -698,6 +714,12 @@ abstract class DriverTest {
 
         val checkCompatibilityApiReleasedArguments = if (checkCompatibilityApiReleasedFile != null) {
             arrayOf(ARG_CHECK_COMPATIBILITY_API_RELEASED, checkCompatibilityApiReleasedFile.path)
+        } else {
+            emptyArray()
+        }
+
+        val checkCompatibilityBaseApiArguments = if (checkCompatibilityBaseApiFile != null) {
+            arrayOf(ARG_CHECK_COMPATIBILITY_BASE_API, checkCompatibilityBaseApiFile.path)
         } else {
             emptyArray()
         }
@@ -1146,6 +1168,7 @@ abstract class DriverTest {
             *migrateNullsArguments,
             *checkCompatibilityArguments,
             *checkCompatibilityApiReleasedArguments,
+            *checkCompatibilityBaseApiArguments,
             *checkCompatibilityRemovedCurrentArguments,
             *checkCompatibilityRemovedReleasedArguments,
             *proguardKeepArguments,
