@@ -4186,6 +4186,79 @@ class ApiFileTest : DriverTest() {
     }
 
     @Test
+    fun `Test for experimental annotations from classpath`() {
+        check(
+            format = FileFormat.V3,
+            classpath = arrayOf(
+                /* The following source file, compiled, and root folder jar'ed and stored as base64 gzip
+                   Encoded using openssl base64 < test.jar | tr -d '\n'
+
+                    package test.pkg
+                    @RequiresOptIn
+                    annotation class ExternalExperimentalAnnotation
+                 */
+                base64gzip(
+                    "test.jar", "" +
+                        "UEsDBAoAAAgIADt2U1IAAAAAAgAAAAAAAAAJAAAATUVUQS1JTkYvAwBQSwMECgAACAgAFXZ" +
+                        "TUrJ/Au4bAAAAGQAAABQAAABNRVRBLUlORi9NQU5JRkVTVC5NRvNNzMtMSy0u0Q1LLSrOzM" +
+                        "+zUjDUM+Dl4uUCAFBLAwQKAAAICAA7dlNSDWpm1BUAAAAYAAAAGwAAAE1FVEEtSU5GL3Rlc" +
+                        "3Qua290bGluX21vZHVsZWNgYGBmYGBgBGIWIGYCYgYlBi0GAFBLAwQKAAAICAA7dlNSAAAA" +
+                        "AAIAAAAAAAAABQAAAHRlc3QvAwBQSwMECgAACAgAO3ZTUgAAAAACAAAAAAAAAAkAAAB0ZXN" +
+                        "0L3BrZy8DAFBLAwQKAAAICAA7dlNSPYCyXGwBAABkAgAALQAAAHRlc3QvcGtnL0V4dGVybm" +
+                        "FsRXhwZXJpbWVudGFsQW5ub3RhdGlvbi5jbGFzc41Qy04CQRCsWZ6uL/CBICp6wXhxlasnT" +
+                        "TBuAmLwceE0wIQsLLPIzhK87c1f8Rs8GMLRjzL2qoiJRr309HRVdXf188vjE4ACcgy7SrjK" +
+                        "6HVaRnGoRF9yuzjsib7VFVJx+1hKR3FlOTIGxpBo8wE3bC5bRqXeFg0VQ4ghN63yT77xVRp" +
+                        "hSJU6jrItaVTFrWf1hVvpKVMeMWyXfpRXhaINKCNKZMBtTzDk/6BeOLbVuCNBrHp9fmWWiw" +
+                        "zJydiyULzJFSdU6w5CZJ8FIRwEjWr1txqCQJZYh0rNQ9pu5Ou6ltZ0LZHVR358fK+lR35BO" +
+                        "2AnI3/8EA2kzQLDXumfd6T5YAgHbIad37n7HeLol47Xb4hTy6YLZKoeOe2KG8u16raYUl2G" +
+                        "7AdmysE3NE9rIkyDo3h3uRHYRhab9J5RFidsRkDHLOYQwXwNIRMLJhZNJJCc/JZMLGOFUqz" +
+                        "WwFyksEaQi7SLjIt1bFG3KHWKAa9QSwECFAMKAAAICAA7dlNSAAAAAAIAAAAAAAAACQAAAA" +
+                        "AAAAAAABAA7UEAAAAATUVUQS1JTkYvUEsBAhQDCgAACAgAFXZTUrJ/Au4bAAAAGQAAABQAA" +
+                        "AAAAAAAAAAAAKSBKQAAAE1FVEEtSU5GL01BTklGRVNULk1GUEsBAhQDCgAACAgAO3ZTUg1q" +
+                        "ZtQVAAAAGAAAABsAAAAAAAAAAAAAAKCBdgAAAE1FVEEtSU5GL3Rlc3Qua290bGluX21vZHV" +
+                        "sZVBLAQIUAwoAAAgIADt2U1IAAAAAAgAAAAAAAAAFAAAAAAAAAAAAEADoQcQAAAB0ZXN0L1" +
+                        "BLAQIUAwoAAAgIADt2U1IAAAAAAgAAAAAAAAAJAAAAAAAAAAAAEADoQekAAAB0ZXN0L3BrZ" +
+                        "y9QSwECFAMKAAAICAA7dlNSPYCyXGwBAABkAgAALQAAAAAAAAAAAAAAoIESAQAAdGVzdC9w" +
+                        "a2cvRXh0ZXJuYWxFeHBlcmltZW50YWxBbm5vdGF0aW9uLmNsYXNzUEsFBgAAAAAGAAYAhwE" +
+                        "AAMkCAAAAAA=="
+                )
+            ),
+            sourceFiles = arrayOf(
+                kotlin(
+                    """
+                    package test.pkg
+
+                    @ExternalExperimentalAnnotation
+                    class ClassUsingExternalExperimentalApi
+
+                    @InLibraryExperimentalAnnotation
+                    class ClassUsingInLibraryExperimentalApi
+                """
+                ),
+                kotlin(
+                    """
+                        package test.pkg
+                        @RequiresOptIn
+                        annotation class InLibraryExperimentalAnnotation
+                    """
+                )
+            ),
+            expectedIssues = "",
+            api =
+            """
+                // Signature format: 3.0
+                package test.pkg {
+                  @kotlin.RequiresOptIn public @interface InLibraryExperimentalAnnotation {
+                  }
+                }
+            """,
+            extraArguments = arrayOf(
+                ARG_HIDE_META_ANNOTATION, "kotlin.RequiresOptIn"
+            )
+        )
+    }
+
+    @Test
     fun `@IntRange value in kotlin`() {
         check(
             format = FileFormat.V3,
