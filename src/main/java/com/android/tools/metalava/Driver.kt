@@ -602,6 +602,12 @@ fun checkCompatibility(
                 kotlinStyleNulls = options.inputKotlinStyleNulls
             )
         } else if (!options.showUnannotated || apiType != ApiType.PUBLIC_API) {
+            if (options.baseApiForCompatCheck != null) {
+                // This option does not make sense with showAnnotation, as the "base" in that case
+                // is the non-annotated APIs.
+                throw DriverException(ARG_CHECK_COMPATIBILITY_BASE_API +
+                    " is not compatible with --showAnnotation.")
+            }
             val apiFile = apiType.getSignatureFile(codebase, "compat-check-signatures-$apiType")
 
             // Fast path: if the signature files are identical, we're already good!
@@ -620,6 +626,14 @@ fun checkCompatibility(
             val apiFile = options.apiFile
             if (apiFile != null && apiFile.readText(UTF_8) == signatureFile.readText(UTF_8)) {
                 return
+            }
+
+            val baseApiFile = options.baseApiForCompatCheck
+            if (baseApiFile != null) {
+                base = SignatureFileLoader.load(
+                    file = baseApiFile,
+                    kotlinStyleNulls = options.inputKotlinStyleNulls
+                )
             }
 
             codebase

@@ -93,6 +93,7 @@ const val ARG_CHECK_COMPATIBILITY_API_CURRENT = "--check-compatibility:api:curre
 const val ARG_CHECK_COMPATIBILITY_API_RELEASED = "--check-compatibility:api:released"
 const val ARG_CHECK_COMPATIBILITY_REMOVED_CURRENT = "--check-compatibility:removed:current"
 const val ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED = "--check-compatibility:removed:released"
+const val ARG_CHECK_COMPATIBILITY_BASE_API = "--check-compatibility:base"
 const val ARG_ALLOW_COMPATIBLE_DIFFERENCES = "--allow-compatible-differences"
 const val ARG_NO_NATIVE_DIFF = "--no-native-diff"
 const val ARG_INPUT_KOTLIN_NULLS = "--input-kotlin-nulls"
@@ -499,6 +500,9 @@ class Options(
 
     /** The list of compatibility checks to run */
     val compatibilityChecks: List<CheckRequest> = mutableCompatibilityChecks
+
+    /** The API to use a base for the otherwise checked API during compat checks. */
+    var baseApiForCompatCheck: File? = null
 
     /**
      * When checking signature files, whether compatible differences in signature
@@ -1098,6 +1102,11 @@ class Options(
                 ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED -> {
                     val file = stringToExistingFile(getValue(args, ++index))
                     mutableCompatibilityChecks.add(CheckRequest(file, ApiType.REMOVED, ReleaseType.RELEASED))
+                }
+
+                ARG_CHECK_COMPATIBILITY_BASE_API -> {
+                    val file = stringToExistingFile(getValue(args, ++index))
+                    baseApiForCompatCheck = file
                 }
 
                 ARG_ALLOW_COMPATIBLE_DIFFERENCES -> allowCompatibleDifferences = true
@@ -2384,6 +2393,11 @@ class Options(
                 "released API, respectively. Different compatibility checks apply in the two scenarios. " +
                 "For example, to check the code base against the current public API, use " +
                 "$ARG_CHECK_COMPATIBILITY:api:current.",
+            "$ARG_CHECK_COMPATIBILITY_BASE_API <file>", "When performing a compat check, use the provided signature " +
+                "file as a base api, which is treated as part of the API being checked. This allows us to compute the " +
+                "full API surface from a partial API surface (e.g. the current @SystemApi txt file), which allows us to " +
+                "recognize when an API is moved from the partial API to the base API and avoid incorrectly flagging this " +
+                "as an API removal.",
             "$ARG_API_LINT [api file]", "Check API for Android API best practices. If a signature file is " +
                 "provided, only the APIs that are new since the API will be checked.",
             "$ARG_API_LINT_IGNORE_PREFIX [prefix]", "A list of package prefixes to ignore API issues in " +
