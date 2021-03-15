@@ -280,7 +280,15 @@ class PsiModifierItem(
         fun create(codebase: PsiBasedCodebase, original: PsiModifierItem): PsiModifierItem {
             val originalAnnotations = original.annotations ?: return PsiModifierItem(codebase, original.flags)
             val copy: MutableList<AnnotationItem> = ArrayList(originalAnnotations.size)
-            originalAnnotations.mapTo(copy) { PsiAnnotationItem.create(codebase, it as PsiAnnotationItem) }
+            originalAnnotations.mapTo(copy) { item ->
+                when (item) {
+                    is PsiAnnotationItem -> PsiAnnotationItem.create(codebase, item)
+                    is UAnnotationItem -> UAnnotationItem.create(codebase, item)
+                    else -> {
+                        throw Exception("Unexpected annotation type ${item::class.qualifiedName}")
+                    }
+                }
+            }
             return PsiModifierItem(codebase, original.flags, copy)
         }
     }

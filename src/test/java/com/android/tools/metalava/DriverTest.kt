@@ -27,17 +27,16 @@ import com.android.tools.lint.LintCliClient
 import com.android.tools.lint.UastEnvironment
 import com.android.tools.lint.checks.ApiLookup
 import com.android.tools.lint.checks.infrastructure.ClassName
-import com.android.tools.lint.checks.infrastructure.LintDetectorTest
 import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.lint.checks.infrastructure.TestFiles
 import com.android.tools.lint.checks.infrastructure.TestFiles.java
 import com.android.tools.lint.checks.infrastructure.TestFiles.kotlin
 import com.android.tools.lint.checks.infrastructure.stripComments
 import com.android.tools.lint.client.api.LintClient
-import com.android.tools.metalava.model.text.ApiFile
 import com.android.tools.metalava.model.SUPPORT_TYPE_USE_ANNOTATIONS
 import com.android.tools.metalava.model.defaultConfiguration
 import com.android.tools.metalava.model.parseDocument
+import com.android.tools.metalava.model.text.ApiFile
 import com.android.utils.FileUtils
 import com.android.utils.SdkUtils
 import com.android.utils.StdLogger
@@ -1557,19 +1556,19 @@ abstract class DriverTest {
             }
         }
 
-        fun java(to: String, @Language("JAVA") source: String): LintDetectorTest.TestFile {
+        fun java(to: String, @Language("JAVA") source: String): TestFile {
             return TestFiles.java(to, source.trimIndent())
         }
 
-        fun java(@Language("JAVA") source: String): LintDetectorTest.TestFile {
+        fun java(@Language("JAVA") source: String): TestFile {
             return TestFiles.java(source.trimIndent())
         }
 
-        fun kotlin(@Language("kotlin") source: String): LintDetectorTest.TestFile {
+        fun kotlin(@Language("kotlin") source: String): TestFile {
             return TestFiles.kotlin(source.trimIndent())
         }
 
-        fun kotlin(to: String, @Language("kotlin") source: String): LintDetectorTest.TestFile {
+        fun kotlin(to: String, @Language("kotlin") source: String): TestFile {
             return TestFiles.kotlin(to, source.trimIndent())
         }
 

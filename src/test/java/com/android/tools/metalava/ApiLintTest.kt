@@ -653,7 +653,6 @@ class ApiLintTest : DriverTest() {
             apiLint = "", // enabled
             compatibilityMode = false,
             expectedIssues = """
-                src/android/pkg/KotlinClass.kt:5: error: Constant field names must be named with only upper case characters: `android.pkg.KotlinClass#BadConstant`, should be `BAD_CONSTANT`? [AllUpper] [See https://s.android.com/api-guidelines#constant-naming]
                 src/android/pkg/MyClass.java:11: error: Non-static field ALSO_BAD_CONSTANT must be named using fooBar style [StartWithLower] [See https://s.android.com/api-guidelines#style-conventions]
                 src/android/pkg/MyClass.java:11: error: Constant ALSO_BAD_CONSTANT must be marked static final [AllUpper] [See https://s.android.com/api-guidelines#constant-naming]
                 src/android/pkg/MyClass.java:7: error: Non-static field AlsoBadName must be named using fooBar style [StartWithLower] [See https://s.android.com/api-guidelines#style-conventions]
@@ -695,10 +694,12 @@ class ApiLintTest : DriverTest() {
 
                     class KotlinClass(val ok: Int) {
                         companion object {
-                            const val BadConstant = 1
+                            const val OkConstant = 1
                             const val OK_CONSTANT = 2
                             @JvmField
                             val OkSingleton = KotlinClass(3)
+                            @JvmField
+                            val OK_SINGLETON = KotlinClass(4)
                         }
 
                         object OkObject
@@ -726,16 +727,16 @@ class ApiLintTest : DriverTest() {
                     package android.pkg;
 
                     import java.util.List;import java.util.concurrent.CompletableFuture;import java.util.concurrent.Future;
-                    import androidx.annotation.Nullable;
+                    import androidx.annotation.NonNull;
 
                     public final class MyClass {
-                        public @Nullable java.net.URL bad1() { return null; }
-                        public void bad2(@Nullable List<java.net.URI> param) { }
-                        public void bad3(@Nullable android.net.URL param) { }
+                        public @NonNull java.net.URL bad1() { throw new RuntimeException(); }
+                        public void bad2(@NonNull List<java.net.URI> param) { }
+                        public void bad3(@NonNull android.net.URL param) { }
                     }
                     """
                 ),
-                androidxNullableSource
+                androidxNonNullSource
             )
         )
     }
@@ -1450,14 +1451,106 @@ class ApiLintTest : DriverTest() {
                     """
                     package android.pkg;
 
+                    import androidx.annotation.NonNull;
+
+                    public class MyClass {
+                        public MyClass(@NonNull java.util.HashMap<String,String> map1,
+                                @NonNull java.util.Map<String,String> map2) {
+                        }
+                        @NonNull
+                        public java.util.Vector<String> getList(@NonNull java.util.LinkedList<String> list) {
+                            throw new RuntimeException();
+                        }
+                    }
+                    """
+                ),
+                androidxNonNullSource
+            )
+        )
+    }
+
+    @Test
+    fun `Check nullable collections`() {
+        check(
+            apiLint = "", // enabled
+            compatibilityMode = false,
+            expectedIssues = """
+                src/android/pkg/MyClass.java:6: warning: Type of parameter coll in android.pkg.MyClass(java.util.Collection<java.lang.String> coll, java.util.List<java.lang.Object> list, android.os.Bundle bundle, android.os.PersistableBundle persistableBundle, java.util.Set<java.lang.Integer> set, java.util.Map<java.lang.String,java.lang.String> map) is a nullable collection (`java.util.Collection`); must be non-null [NullableCollection] [See https://s.android.com/api-guidelines#methods-prefer-non-null-collections]
+                src/android/pkg/MyClass.java:7: warning: Type of parameter list in android.pkg.MyClass(java.util.Collection<java.lang.String> coll, java.util.List<java.lang.Object> list, android.os.Bundle bundle, android.os.PersistableBundle persistableBundle, java.util.Set<java.lang.Integer> set, java.util.Map<java.lang.String,java.lang.String> map) is a nullable collection (`java.util.List`); must be non-null [NullableCollection] [See https://s.android.com/api-guidelines#methods-prefer-non-null-collections]
+                src/android/pkg/MyClass.java:8: warning: Type of parameter bundle in android.pkg.MyClass(java.util.Collection<java.lang.String> coll, java.util.List<java.lang.Object> list, android.os.Bundle bundle, android.os.PersistableBundle persistableBundle, java.util.Set<java.lang.Integer> set, java.util.Map<java.lang.String,java.lang.String> map) is a nullable collection (`android.os.Bundle`); must be non-null [NullableCollection] [See https://s.android.com/api-guidelines#methods-prefer-non-null-collections]
+                src/android/pkg/MyClass.java:9: warning: Type of parameter persistableBundle in android.pkg.MyClass(java.util.Collection<java.lang.String> coll, java.util.List<java.lang.Object> list, android.os.Bundle bundle, android.os.PersistableBundle persistableBundle, java.util.Set<java.lang.Integer> set, java.util.Map<java.lang.String,java.lang.String> map) is a nullable collection (`android.os.PersistableBundle`); must be non-null [NullableCollection] [See https://s.android.com/api-guidelines#methods-prefer-non-null-collections]
+                src/android/pkg/MyClass.java:10: warning: Type of parameter set in android.pkg.MyClass(java.util.Collection<java.lang.String> coll, java.util.List<java.lang.Object> list, android.os.Bundle bundle, android.os.PersistableBundle persistableBundle, java.util.Set<java.lang.Integer> set, java.util.Map<java.lang.String,java.lang.String> map) is a nullable collection (`java.util.Set`); must be non-null [NullableCollection] [See https://s.android.com/api-guidelines#methods-prefer-non-null-collections]
+                src/android/pkg/MyClass.java:11: warning: Type of parameter map in android.pkg.MyClass(java.util.Collection<java.lang.String> coll, java.util.List<java.lang.Object> list, android.os.Bundle bundle, android.os.PersistableBundle persistableBundle, java.util.Set<java.lang.Integer> set, java.util.Map<java.lang.String,java.lang.String> map) is a nullable collection (`java.util.Map`); must be non-null [NullableCollection] [See https://s.android.com/api-guidelines#methods-prefer-non-null-collections]
+                src/android/pkg/MyClass.java:13: warning: Return type of method android.pkg.MyClass.getList(java.util.List<java.lang.String>) is a nullable collection (`java.util.List`); must be non-null [NullableCollection] [See https://s.android.com/api-guidelines#methods-prefer-non-null-collections]
+                src/android/pkg/MyClass.java:14: warning: Type of parameter list in android.pkg.MyClass.getList(java.util.List<java.lang.String> list) is a nullable collection (`java.util.List`); must be non-null [NullableCollection] [See https://s.android.com/api-guidelines#methods-prefer-non-null-collections]
+                src/android/pkg/MyClass.java:17: warning: Type of field android.pkg.MyClass.STRINGS is a nullable collection (`java.lang.String[]`); must be non-null [NullableCollection] [See https://s.android.com/api-guidelines#methods-prefer-non-null-collections]
+                src/android/pkg/MySubClass.java:12: warning: Return type of method android.pkg.MySubClass.getOtherList(java.util.List<java.lang.String>) is a nullable collection (`java.util.List`); must be non-null [NullableCollection] [See https://s.android.com/api-guidelines#methods-prefer-non-null-collections]
+                src/android/pkg/MySubClass.java:14: warning: Type of parameter list in android.pkg.MySubClass.getOtherList(java.util.List<java.lang.String> list) is a nullable collection (`java.util.List`); must be non-null [NullableCollection] [See https://s.android.com/api-guidelines#methods-prefer-non-null-collections]
+                """,
+            sourceFiles = arrayOf(
+                java(
+                    """
+                    package android.pkg;
+
                     import androidx.annotation.Nullable;
 
                     public class MyClass {
-                        public MyClass(@Nullable java.util.HashMap<String,String> map1,
-                                @Nullable java.util.Map<String,String> map2) {
+                        public MyClass(@Nullable java.util.Collection<String> coll,
+                                @Nullable java.util.List<Object> list,
+                                @Nullable android.os.Bundle bundle,
+                                @Nullable android.os.PersistableBundle persistableBundle,
+                                @Nullable java.util.Set<Integer> set,
+                                @Nullable java.util.Map<String,String> map) {
                         }
                         @Nullable
-                        public java.util.Vector<String> getList(@Nullable  java.util.LinkedList<String> list) {
+                        public java.util.List<String> getList(@Nullable java.util.List<String> list) {
+                            return null;
+                        }
+                        @Nullable
+                        public static final String[] STRINGS = null;
+
+                        /** @deprecated don't use this. */
+                        @Deprecated
+                        @Nullable
+                        public String[] ignoredBecauseDeprecated(@Nullable String[] ignored) {
+                            return null;
+                        }
+
+                        protected MyClass() {
+                        }
+                    }
+                    """
+                ),
+                java(
+                    """
+                    package android.pkg;
+
+                    import androidx.annotation.Nullable;
+
+                    /** @hide */
+                    public interface MyHiddenInterface {
+                        @Nullable
+                        java.util.List<String> getOtherList(@Nullable java.util.List<String> list);
+                    }
+                    """
+                ),
+                java(
+                    """
+                    package android.pkg;
+
+                    import androidx.annotation.Nullable;
+
+                    public class MySubClass extends MyClass implements MyHiddenInterface {
+                        @Nullable
+                        public java.util.List<String> getList(@Nullable java.util.List<String> list) {
+                            // Ignored because it has the same nullability as its super method
+                            return null;
+                        }
+
+                        @Override
+                        @Nullable
+                        public java.util.List<String> getOtherList(@Nullable java.util.List<String> list) {
+                            // Reported because the super method is hidden.
                             return null;
                         }
                     }
@@ -2478,22 +2571,22 @@ class ApiLintTest : DriverTest() {
                     """
                     package android.pkg;
 
-                    import androidx.annotation.Nullable;
+                    import androidx.annotation.NonNull;
 
                     public class ArrayTest {
-                        @Nullable
-                        public int[] ok1() { return null; }
-                        @Nullable
-                        public String[] ok2() { return null; }
+                        @NonNull
+                        public int[] ok1() { throw new RuntimeException(); }
+                        @NonNull
+                        public String[] ok2() { throw new RuntimeException(); }
                         public void ok3(@Nullable int[] i) { }
-                        @Nullable
-                        public Object[] error1() { return null; }
-                        public void error2(@Nullable Number[] i) { }
-                        public void ok(@Nullable Number... args) { }
+                        @NonNull
+                        public Object[] error1() { throw new RuntimeException(); }
+                        public void error2(@NonNull Number[] i) { }
+                        public void ok(@NonNull Number... args) { }
                     }
                     """
                 ),
-                androidxNullableSource
+                androidxNonNullSource
             )
         )
     }

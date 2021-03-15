@@ -183,28 +183,26 @@ class Reporter(
 
         item ?: return false
 
-        if (severity == LINT || severity == WARNING || severity == ERROR) {
-            for (annotation in item.modifiers.annotations()) {
-                val annotationName = annotation.qualifiedName()
-                if (annotationName != null && annotationName in SUPPRESS_ANNOTATIONS) {
-                    for (attribute in annotation.attributes()) {
-                        // Assumption that all annotations in SUPPRESS_ANNOTATIONS only have
-                        // one attribute such as value/names that is varargs of String
-                        val value = attribute.value
-                        if (value is AnnotationArrayAttributeValue) {
-                            // Example: @SuppressLint({"RequiresFeature", "AllUpper"})
-                            for (innerValue in value.values) {
-                                val string = innerValue.value()?.toString() ?: continue
-                                if (suppressMatches(string, id.name, message)) {
-                                    return true
-                                }
-                            }
-                        } else {
-                            // Example: @SuppressLint("RequiresFeature")
-                            val string = value.value()?.toString()
-                            if (string != null && (suppressMatches(string, id.name, message))) {
+        for (annotation in item.modifiers.annotations()) {
+            val annotationName = annotation.qualifiedName()
+            if (annotationName != null && annotationName in SUPPRESS_ANNOTATIONS) {
+                for (attribute in annotation.attributes()) {
+                    // Assumption that all annotations in SUPPRESS_ANNOTATIONS only have
+                    // one attribute such as value/names that is varargs of String
+                    val value = attribute.value
+                    if (value is AnnotationArrayAttributeValue) {
+                        // Example: @SuppressLint({"RequiresFeature", "AllUpper"})
+                        for (innerValue in value.values) {
+                            val string = innerValue.value()?.toString() ?: continue
+                            if (suppressMatches(string, id.name, message)) {
                                 return true
                             }
+                        }
+                    } else {
+                        // Example: @SuppressLint("RequiresFeature")
+                        val string = value.value()?.toString()
+                        if (string != null && (suppressMatches(string, id.name, message))) {
+                            return true
                         }
                     }
                 }
