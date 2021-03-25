@@ -180,7 +180,8 @@ class DocAnalyzer(
             private fun handleAnnotation(
                 annotation: AnnotationItem,
                 item: Item,
-                depth: Int
+                depth: Int,
+                visitedClasses: MutableSet<String> = mutableSetOf()
             ) {
                 val name = annotation.qualifiedName()
                 if (name == null || name.startsWith(JAVA_LANG_PREFIX)) {
@@ -212,6 +213,7 @@ class DocAnalyzer(
                     "kotlin.Deprecated" -> handleKotlinDeprecation(annotation, item)
                 }
 
+                visitedClasses.add(name)
                 // Thread annotations are ignored here because they're handled as a group afterwards
 
                 // TODO: Resource type annotations
@@ -223,8 +225,8 @@ class DocAnalyzer(
                             "Unbounded recursion, processing annotation " +
                                 "${annotation.toSource()} in $item in ${item.compilationUnit()} "
                         )
-                    } else if (nested.qualifiedName() != annotation.qualifiedName()) {
-                        handleAnnotation(nested, item, depth + 1)
+                    } else if (nested.qualifiedName() !in visitedClasses) {
+                        handleAnnotation(nested, item, depth + 1, visitedClasses)
                     }
                 }
             }
