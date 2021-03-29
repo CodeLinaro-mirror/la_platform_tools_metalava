@@ -407,16 +407,18 @@ class ExtractAnnotationsTest : DriverTest() {
                 intRangeAnnotationSource,
                 recentlyNullableSource
             ),
-            stubs = arrayOf(
-                """
-                package test.pkg;
-                @SuppressWarnings({"unchecked", "deprecation", "all"})
-                public class Test {
-                public Test() { throw new RuntimeException("Stub!"); }
-                @androidx.annotation.RecentlyNullable
-                public static java.lang.String sayHello(int value) { throw new RuntimeException("Stub!"); }
-                }
-                """
+            stubFiles = arrayOf(
+                java(
+                    """
+                    package test.pkg;
+                    @SuppressWarnings({"unchecked", "deprecation", "all"})
+                    public class Test {
+                    public Test() { throw new RuntimeException("Stub!"); }
+                    @androidx.annotation.RecentlyNullable
+                    public static java.lang.String sayHello(int value) { throw new RuntimeException("Stub!"); }
+                    }
+                    """
+                )
             ),
             extractAnnotations = mapOf(
                 "test.pkg" to """

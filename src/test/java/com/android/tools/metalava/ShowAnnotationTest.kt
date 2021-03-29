@@ -217,27 +217,31 @@ class ShowAnnotationTest : DriverTest() {
                     """
                 )
             ),
-            stubs = arrayOf(
-                """
-                package test.pkg2;
-                @SuppressWarnings({"unchecked", "deprecation", "all"})
-                public class MyChild extends test.pkg1.MyParent {
-                public MyChild() { throw new RuntimeException("Stub!"); }
-                public static final long CONSTANT1 = 12345L; // 0x3039L
-                public static final long CONSTANT2 = 67890L; // 0x10932L
-                public static final long CONSTANT3 = 42L; // 0x2aL
-                }
-            """.trimIndent(),
-                """
-                package test.pkg1;
-                @SuppressWarnings({"unchecked", "deprecation", "all"})
-                public class MyParent implements java.io.Closeable {
-                public MyParent() { throw new RuntimeException("Stub!"); }
-                public static final long CONSTANT1 = 12345L; // 0x3039L
-                public static final long CONSTANT2 = 67890L; // 0x10932L
-                public static final long CONSTANT3 = 42L; // 0x2aL
-                }
-                """.trimIndent()
+            stubFiles = arrayOf(
+                java(
+                    """
+                    package test.pkg2;
+                    @SuppressWarnings({"unchecked", "deprecation", "all"})
+                    public class MyChild extends test.pkg1.MyParent {
+                    public MyChild() { throw new RuntimeException("Stub!"); }
+                    public static final long CONSTANT1 = 12345L; // 0x3039L
+                    public static final long CONSTANT2 = 67890L; // 0x10932L
+                    public static final long CONSTANT3 = 42L; // 0x2aL
+                    }
+                    """
+                ),
+                java(
+                    """
+                    package test.pkg1;
+                    @SuppressWarnings({"unchecked", "deprecation", "all"})
+                    public class MyParent implements java.io.Closeable {
+                    public MyParent() { throw new RuntimeException("Stub!"); }
+                    public static final long CONSTANT1 = 12345L; // 0x3039L
+                    public static final long CONSTANT2 = 67890L; // 0x10932L
+                    public static final long CONSTANT3 = 42L; // 0x2aL
+                    }
+                    """
+                )
             ),
             // Empty API: showUnannotated=false
             api = """
@@ -750,28 +754,33 @@ class ShowAnnotationTest : DriverTest() {
                   }
                 }
                 """,
-            stubs = arrayOf("""
-                package test.pkg;
-                /** @hide */
-                @SuppressWarnings({"unchecked", "deprecation", "all"})
-                public class Class1 {
-                public Class1() { throw new RuntimeException("Stub!"); }
-                /** @hide */
-                public void member() { throw new RuntimeException("Stub!"); }
-                /** @hide */
-                public static final java.lang.String FIELD = "Class1.FIELD";
-                }
-                """,
-                """
-                package test.pkg;
-                /** @hide */
-                @SuppressWarnings({"unchecked", "deprecation", "all"})
-                public class Class2 extends test.pkg.Class1 {
-                public Class2() { throw new RuntimeException("Stub!"); }
-                /** @hide */
-                public void member() { throw new RuntimeException("Stub!"); }
-                }
-                """
+            stubFiles = arrayOf(
+                java(
+                    """
+                    package test.pkg;
+                    /** @hide */
+                    @SuppressWarnings({"unchecked", "deprecation", "all"})
+                    public class Class1 {
+                    public Class1() { throw new RuntimeException("Stub!"); }
+                    /** @hide */
+                    public void member() { throw new RuntimeException("Stub!"); }
+                    /** @hide */
+                    public static final java.lang.String FIELD = "Class1.FIELD";
+                    }
+                    """
+                ),
+                java(
+                    """
+                    package test.pkg;
+                    /** @hide */
+                    @SuppressWarnings({"unchecked", "deprecation", "all"})
+                    public class Class2 extends test.pkg.Class1 {
+                    public Class2() { throw new RuntimeException("Stub!"); }
+                    /** @hide */
+                    public void member() { throw new RuntimeException("Stub!"); }
+                    }
+                    """
+                )
             )
         )
     }

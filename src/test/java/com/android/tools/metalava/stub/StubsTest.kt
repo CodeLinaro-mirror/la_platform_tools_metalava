@@ -18,6 +18,7 @@
 
 package com.android.tools.metalava.stub
 
+import com.android.tools.lint.checks.infrastructure.LintDetectorTest.source
 import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.metalava.ARG_CHECK_API
 import com.android.tools.metalava.ARG_EXCLUDE_ANNOTATIONS
@@ -66,7 +67,7 @@ class StubsTest : DriverTest() {
         check(
             sourceFiles = sourceFiles,
             showAnnotations = showAnnotations,
-            stubs = arrayOf(source),
+            stubFiles = arrayOf(java(source)),
             compatibilityMode = compatibilityMode,
             expectedIssues = warnings,
             checkCompilation = true,
@@ -175,33 +176,39 @@ class StubsTest : DriverTest() {
                 )
             ),
             expectedIssues = "",
-            stubs = arrayOf(
-                """
-                package test.pkg;
-                @SuppressWarnings({"unchecked", "deprecation", "all"})
-                public interface MyInterface2<T extends java.lang.Number> extends test.pkg.MyBaseInterface {
-                @SuppressWarnings({"unchecked", "deprecation", "all"})
-                public abstract static class Range<T extends java.lang.Comparable<? super T>> {
-                public Range() { throw new RuntimeException("Stub!"); }
-                }
-                @SuppressWarnings({"unchecked", "deprecation", "all"})
-                public static class TtsSpan<C extends test.pkg.MyInterface<?>> {
-                public TtsSpan() { throw new RuntimeException("Stub!"); }
-                }
-                }
-                """,
-                """
-                package test.pkg;
-                @SuppressWarnings({"unchecked", "deprecation", "all"})
-                public interface MyInterface<T> extends test.pkg.MyBaseInterface {
-                }
-                """,
-                """
-                package test.pkg;
-                @SuppressWarnings({"unchecked", "deprecation", "all"})
-                public interface MyBaseInterface {
-                }
-                """
+            stubFiles = arrayOf(
+                java(
+                    """
+                    package test.pkg;
+                    @SuppressWarnings({"unchecked", "deprecation", "all"})
+                    public interface MyInterface2<T extends java.lang.Number> extends test.pkg.MyBaseInterface {
+                    @SuppressWarnings({"unchecked", "deprecation", "all"})
+                    public abstract static class Range<T extends java.lang.Comparable<? super T>> {
+                    public Range() { throw new RuntimeException("Stub!"); }
+                    }
+                    @SuppressWarnings({"unchecked", "deprecation", "all"})
+                    public static class TtsSpan<C extends test.pkg.MyInterface<?>> {
+                    public TtsSpan() { throw new RuntimeException("Stub!"); }
+                    }
+                    }
+                    """
+                ),
+                java(
+                    """
+                    package test.pkg;
+                    @SuppressWarnings({"unchecked", "deprecation", "all"})
+                    public interface MyInterface<T> extends test.pkg.MyBaseInterface {
+                    }
+                    """
+                ),
+                java(
+                    """
+                    package test.pkg;
+                    @SuppressWarnings({"unchecked", "deprecation", "all"})
+                    public interface MyBaseInterface {
+                    }
+                    """
+                )
             )
         )
     }
@@ -1863,8 +1870,8 @@ class StubsTest : DriverTest() {
                       }
                     }
                     """,
-            stubs =
-                arrayOf(
+            stubFiles = arrayOf(
+                java(
                     """
                     package my.pkg;
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
@@ -1873,6 +1880,7 @@ class StubsTest : DriverTest() {
                     }
                     """
                 )
+            )
         )
     }
 
@@ -1897,15 +1905,16 @@ class StubsTest : DriverTest() {
                     }
                     """,
             docStubs = true,
-            stubs =
-            arrayOf(
-                """
-                    package my.pkg;
-                    @SuppressWarnings({"unchecked", "deprecation", "all"})
-                    public class String {
-                    public String(@androidx.annotation.NonNull char[] value) { throw new RuntimeException("Stub!"); }
-                    }
+            stubFiles = arrayOf(
+                java(
                     """
+                        package my.pkg;
+                        @SuppressWarnings({"unchecked", "deprecation", "all"})
+                        public class String {
+                        public String(@androidx.annotation.NonNull char[] value) { throw new RuntimeException("Stub!"); }
+                        }
+                    """
+                )
             )
         )
     }
@@ -1930,25 +1939,29 @@ class StubsTest : DriverTest() {
                       }
                     }
                     """,
-            stubs = if (SUPPORT_TYPE_USE_ANNOTATIONS) {
+            stubFiles = if (SUPPORT_TYPE_USE_ANNOTATIONS) {
                 arrayOf(
-                    """
-                    package my.pkg;
-                    @SuppressWarnings({"unchecked", "deprecation", "all"})
-                    public class String {
-                    public String(char @androidx.annotation.NonNull [] value) { throw new RuntimeException("Stub!"); }
-                    }
-                    """
+                    java(
+                        """
+                        package my.pkg;
+                        @SuppressWarnings({"unchecked", "deprecation", "all"})
+                        public class String {
+                        public String(char @androidx.annotation.NonNull [] value) { throw new RuntimeException("Stub!"); }
+                        }
+                        """
+                    )
                 )
             } else {
                 arrayOf(
-                    """
-                    package my.pkg;
-                    @SuppressWarnings({"unchecked", "deprecation", "all"})
-                    public class String {
-                    public String(char[] value) { throw new RuntimeException("Stub!"); }
-                    }
-                    """
+                    java(
+                        """
+                        package my.pkg;
+                        @SuppressWarnings({"unchecked", "deprecation", "all"})
+                        public class String {
+                        public String(char[] value) { throw new RuntimeException("Stub!"); }
+                        }
+                        """
+                    )
                 )
             }
         )
@@ -1984,14 +1997,17 @@ class StubsTest : DriverTest() {
                       }
                     }
                     """,
-            stubs = arrayOf(
+            stubFiles = arrayOf(
+                java(
                     """
                     package my.pkg;
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class String {
                     public String(@libcore.util.NonNull char[] value) { throw new RuntimeException("Stub!"); }
                     }
-                    """)
+                    """
+                )
+            )
         )
     }
 
@@ -2092,35 +2108,43 @@ class StubsTest : DriverTest() {
                       }
                     }
                     """,
-            stubs = arrayOf(
-                """
-                package test.pkg;
-                @SuppressWarnings({"unchecked", "deprecation", "all"})
-                public class MyClass1 {
-                MyClass1() { throw new RuntimeException("Stub!"); }
-                }
-                """,
-                """
-                package test.pkg;
-                @SuppressWarnings({"unchecked", "deprecation", "all"})
-                public class MySubClass1 extends test.pkg.MyClass1 {
-                MySubClass1() { throw new RuntimeException("Stub!"); }
-                }
-                """,
-                """
-                package test.pkg;
-                @SuppressWarnings({"unchecked", "deprecation", "all"})
-                public class MyClass2 {
-                MyClass2() { throw new RuntimeException("Stub!"); }
-                }
-                """,
-                """
-                package test.pkg;
-                @SuppressWarnings({"unchecked", "deprecation", "all"})
-                public class MySubClass2 extends test.pkg.MyClass2 {
-                public MySubClass2() { throw new RuntimeException("Stub!"); }
-                }
-                """
+            stubFiles = arrayOf(
+                java(
+                    """
+                    package test.pkg;
+                    @SuppressWarnings({"unchecked", "deprecation", "all"})
+                    public class MyClass1 {
+                    MyClass1() { throw new RuntimeException("Stub!"); }
+                    }
+                    """
+                ),
+                java(
+                    """
+                    package test.pkg;
+                    @SuppressWarnings({"unchecked", "deprecation", "all"})
+                    public class MySubClass1 extends test.pkg.MyClass1 {
+                    MySubClass1() { throw new RuntimeException("Stub!"); }
+                    }
+                    """
+                ),
+                java(
+                    """
+                    package test.pkg;
+                    @SuppressWarnings({"unchecked", "deprecation", "all"})
+                    public class MyClass2 {
+                    MyClass2() { throw new RuntimeException("Stub!"); }
+                    }
+                    """
+                ),
+                java(
+                    """
+                    package test.pkg;
+                    @SuppressWarnings({"unchecked", "deprecation", "all"})
+                    public class MySubClass2 extends test.pkg.MyClass2 {
+                    public MySubClass2() { throw new RuntimeException("Stub!"); }
+                    }
+                    """
+                )
             ),
             stubsSourceList = """
                 TESTROOT/stubs/test/pkg/MyClass1.java
@@ -2556,14 +2580,16 @@ class StubsTest : DriverTest() {
                     """
                 )
             ),
-            stubs = arrayOf(
-                """
-                package android.content.res;
-                @SuppressWarnings({"unchecked", "deprecation", "all"})
-                public interface XmlResourceParser extends org.xmlpull.v1.XmlPullParser,  android.util.AttributeSet, java.lang.AutoCloseable {
-                public void close();
-                }
-                """
+            stubFiles = arrayOf(
+                java(
+                    """
+                    package android.content.res;
+                    @SuppressWarnings({"unchecked", "deprecation", "all"})
+                    public interface XmlResourceParser extends org.xmlpull.v1.XmlPullParser,  android.util.AttributeSet, java.lang.AutoCloseable {
+                    public void close();
+                    }
+                    """
+                )
             )
         )
     }
@@ -3389,18 +3415,22 @@ class StubsTest : DriverTest() {
                   }
                 }
                 """,
-            stubs = arrayOf(
-                """
-                /** My package docs */
-                package test.pkg;
-                """,
-                """
-                package test.pkg;
-                @SuppressWarnings({"unchecked", "deprecation", "all"})
-                public abstract class Class1 {
-                public Class1() { throw new RuntimeException("Stub!"); }
-                }
-                """
+            stubFiles = arrayOf(
+                java(
+                    """
+                    /** My package docs */
+                    package test.pkg;
+                    """
+                ),
+                java(
+                    """
+                    package test.pkg;
+                    @SuppressWarnings({"unchecked", "deprecation", "all"})
+                    public abstract class Class1 {
+                    public Class1() { throw new RuntimeException("Stub!"); }
+                    }
+                    """
+                )
             )
         )
     }
@@ -3429,18 +3459,22 @@ class StubsTest : DriverTest() {
                   }
                 }
                 """,
-            stubs = arrayOf(
-                """
-                @androidx.annotation.RestrictTo(androidx.annotation.RestrictTo.Scope.SUBCLASSES)
-                package test.pkg;
-                """,
-                """
-                package test.pkg;
-                @SuppressWarnings({"unchecked", "deprecation", "all"})
-                public abstract class Class1 {
-                public Class1() { throw new RuntimeException("Stub!"); }
-                }
-                """
+            stubFiles = arrayOf(
+                java(
+                    """
+                    @androidx.annotation.RestrictTo(androidx.annotation.RestrictTo.Scope.SUBCLASSES)
+                    package test.pkg;
+                    """
+                ),
+                java(
+                    """
+                    package test.pkg;
+                    @SuppressWarnings({"unchecked", "deprecation", "all"})
+                    public abstract class Class1 {
+                    public Class1() { throw new RuntimeException("Stub!"); }
+                    }
+                    """
+                )
             ),
             extraArguments = arrayOf(ARG_HIDE_PACKAGE, "androidx.annotation")
         )
@@ -3467,19 +3501,21 @@ class StubsTest : DriverTest() {
                     """
                 )
             ),
-            stubs = arrayOf(
-                """
-                package test.pkg;
-                @SuppressWarnings({"unchecked", "deprecation", "all"})
-                public class Foo {
-                public Foo() { throw new RuntimeException("Stub!"); }
-                /**
-                 * @deprecated Use checkPermission instead.
-                 */
-                @Deprecated
-                protected boolean inClass(java.lang.String name) { throw new RuntimeException("Stub!"); }
-                }
-                """
+            stubFiles = arrayOf(
+                java(
+                    """
+                    package test.pkg;
+                    @SuppressWarnings({"unchecked", "deprecation", "all"})
+                    public class Foo {
+                    public Foo() { throw new RuntimeException("Stub!"); }
+                    /**
+                     * @deprecated Use checkPermission instead.
+                     */
+                    @Deprecated
+                    protected boolean inClass(java.lang.String name) { throw new RuntimeException("Stub!"); }
+                    }
+                    """
+                )
             )
         )
     }
@@ -3534,17 +3570,19 @@ class StubsTest : DriverTest() {
                     """
                 )
             ),
-            stubs = arrayOf(
-                """
-                package test.pkg;
-                /** @deprecated */
-                @SuppressWarnings({"unchecked", "deprecation", "all"})
-                @Deprecated
-                @test.pkg.MyRuntimeRetentionAnnotation
-                public class Foo {
-                private Foo() { throw new RuntimeException("Stub!"); }
-                }
-                """
+            stubFiles = arrayOf(
+                java(
+                    """
+                    package test.pkg;
+                    /** @deprecated */
+                    @SuppressWarnings({"unchecked", "deprecation", "all"})
+                    @Deprecated
+                    @test.pkg.MyRuntimeRetentionAnnotation
+                    public class Foo {
+                    private Foo() { throw new RuntimeException("Stub!"); }
+                    }
+                    """
+                )
             )
         )
     }
@@ -3601,21 +3639,23 @@ class StubsTest : DriverTest() {
                     """
                 )
             ),
-            stubs = arrayOf(
-                """
-                package test.pkg;
-                /** @deprecated */
-                @SuppressWarnings({"unchecked", "deprecation", "all"})
-                @Deprecated
-                @test.pkg.MyClassRetentionAnnotation
-                @test.pkg.MyRuntimeRetentionAnnotation
-                public class Foo {
-                private Foo() { throw new RuntimeException("Stub!"); }
-                @Deprecated
-                public void bar() { throw new RuntimeException("Stub!"); }
-                @Deprecated protected int foo;
-                }
-                """
+            stubFiles = arrayOf(
+                java(
+                    """
+                    package test.pkg;
+                    /** @deprecated */
+                    @SuppressWarnings({"unchecked", "deprecation", "all"})
+                    @Deprecated
+                    @test.pkg.MyClassRetentionAnnotation
+                    @test.pkg.MyRuntimeRetentionAnnotation
+                    public class Foo {
+                    private Foo() { throw new RuntimeException("Stub!"); }
+                    @Deprecated
+                    public void bar() { throw new RuntimeException("Stub!"); }
+                    @Deprecated protected int foo;
+                    }
+                    """
+                )
             )
         )
     }
@@ -3827,10 +3867,11 @@ class StubsTest : DriverTest() {
               }
             }
             """,
-            stubs = arrayOf(
-                """
-                This file should not be generated since --update-api is supplied.
-                """
+            stubFiles = arrayOf(
+                source(
+                    "test/pkg/Foo.java",
+                    "This file should not be generated since --update-api is supplied."
+                )
             )
         )
     }
@@ -3956,23 +3997,27 @@ class StubsTest : DriverTest() {
                   }
                 }
                 """,
-            stubs = arrayOf(
-                """
-                package test.pkg;
-                @SuppressWarnings({"unchecked", "deprecation", "all"})
-                public class PublicApi {
-                public PublicApi() { throw new RuntimeException("Stub!"); }
-                public test.pkg.HiddenType getHiddenType() { throw new RuntimeException("Stub!"); }
-                public test.pkg.HiddenType4 getHiddenType4() { throw new RuntimeException("Stub!"); }
-                }
-                """,
-                """
-                package test.pkg;
-                @SuppressWarnings({"unchecked", "deprecation", "all"})
-                public class PublicInterface {
-                public PublicInterface() { throw new RuntimeException("Stub!"); }
-                }
-                """
+            stubFiles = arrayOf(
+                java(
+                    """
+                    package test.pkg;
+                    @SuppressWarnings({"unchecked", "deprecation", "all"})
+                    public class PublicApi {
+                    public PublicApi() { throw new RuntimeException("Stub!"); }
+                    public test.pkg.HiddenType getHiddenType() { throw new RuntimeException("Stub!"); }
+                    public test.pkg.HiddenType4 getHiddenType4() { throw new RuntimeException("Stub!"); }
+                    }
+                    """
+                ),
+                java(
+                    """
+                    package test.pkg;
+                    @SuppressWarnings({"unchecked", "deprecation", "all"})
+                    public class PublicInterface {
+                    public PublicInterface() { throw new RuntimeException("Stub!"); }
+                    }
+                    """
+                )
             )
         )
     }
@@ -4009,14 +4054,16 @@ class StubsTest : DriverTest() {
                   }
                 }
                 """,
-            stubs = arrayOf(
-                """
-                package test.pkg;
-                @SuppressWarnings({"unchecked", "deprecation", "all"})
-                public class PublicApi {
-                public PublicApi(test.pkg.PublicApi.HiddenInner inner) { throw new RuntimeException("Stub!"); }
-                }
-                """
+            stubFiles = arrayOf(
+                java(
+                    """
+                    package test.pkg;
+                    @SuppressWarnings({"unchecked", "deprecation", "all"})
+                    public class PublicApi {
+                    public PublicApi(test.pkg.PublicApi.HiddenInner inner) { throw new RuntimeException("Stub!"); }
+                    }
+                    """
+                )
             )
         )
     }
@@ -4074,17 +4121,19 @@ class StubsTest : DriverTest() {
                   }
                 }
                 """,
-            stubs = arrayOf(
-                """
-                package test.pkg;
-                /** @deprecated */
-                @SuppressWarnings({"unchecked", "deprecation", "all"})
-                @Deprecated
-                public class BasicPoolEntryRef extends test.pkg.WeakRef<test.pkg.BasicPoolEntry> {
-                @Deprecated
-                public BasicPoolEntryRef(test.pkg.BasicPoolEntry entry) { super((test.pkg.BasicPoolEntry)null); throw new RuntimeException("Stub!"); }
-                }
-                """
+            stubFiles = arrayOf(
+                java(
+                    """
+                    package test.pkg;
+                    /** @deprecated */
+                    @SuppressWarnings({"unchecked", "deprecation", "all"})
+                    @Deprecated
+                    public class BasicPoolEntryRef extends test.pkg.WeakRef<test.pkg.BasicPoolEntry> {
+                    @Deprecated
+                    public BasicPoolEntryRef(test.pkg.BasicPoolEntry entry) { super((test.pkg.BasicPoolEntry)null); throw new RuntimeException("Stub!"); }
+                    }
+                    """
+                )
             )
         )
     }
@@ -4150,21 +4199,25 @@ class StubsTest : DriverTest() {
                   }
                 }
                 """,
-            stubs = arrayOf(
-                """
-                package test.pkg;
-                @SuppressWarnings({"unchecked", "deprecation", "all"})
-                public class Orange {
-                private Orange() { throw new RuntimeException("Stub!"); }
-                }
-                """,
-                """
-                package test.pkg;
-                @SuppressWarnings({"unchecked", "deprecation", "all"})
-                public class Alpha extends test.pkg.Charlie<test.pkg.Orange> {
-                private Alpha() { throw new RuntimeException("Stub!"); }
-                }
-                """
+            stubFiles = arrayOf(
+                java(
+                    """
+                    package test.pkg;
+                    @SuppressWarnings({"unchecked", "deprecation", "all"})
+                    public class Orange {
+                    private Orange() { throw new RuntimeException("Stub!"); }
+                    }
+                    """
+                ),
+                java(
+                    """
+                    package test.pkg;
+                    @SuppressWarnings({"unchecked", "deprecation", "all"})
+                    public class Alpha extends test.pkg.Charlie<test.pkg.Orange> {
+                    private Alpha() { throw new RuntimeException("Stub!"); }
+                    }
+                    """
+                )
             )
         )
     }
@@ -4273,28 +4326,32 @@ class StubsTest : DriverTest() {
                 """
                 )
             ),
-            stubs = arrayOf(
-                """
-                    /* My file header */
-                    // Another comment
-                    package test.pkg
-                    /** My class doc */
-                    @file:Suppress("ALL")
-                    class Kotlin : test.pkg.Parent() {
-                    open fun Kotlin(open property1: java.lang.String!, open arg2: int): test.pkg.Kotlin! = error("Stub!")
-                    open fun method(): java.lang.String = error("Stub!")
-                    /** My method doc */
-                    open fun otherMethod(open ok: boolean, open times: int): void = error("Stub!")
-                    open fun getProperty1(): java.lang.String = error("Stub!")
-                    }
-                """,
-                """
-                    package test.pkg
-                    @file:Suppress("ALL")
-                    open class ExtendableClass<T> {
-                    open fun ExtendableClass(): test.pkg.ExtendableClass<T!>! = error("Stub!")
-                    }
-                """
+            stubFiles = arrayOf(
+                kotlin(
+                    """
+                        /* My file header */
+                        // Another comment
+                        package test.pkg
+                        /** My class doc */
+                        @file:Suppress("ALL")
+                        class Kotlin : test.pkg.Parent() {
+                        open fun Kotlin(open property1: java.lang.String!, open arg2: int): test.pkg.Kotlin! = error("Stub!")
+                        open fun method(): java.lang.String = error("Stub!")
+                        /** My method doc */
+                        open fun otherMethod(open ok: boolean, open times: int): void = error("Stub!")
+                        open fun getProperty1(): java.lang.String = error("Stub!")
+                        }
+                    """
+                ),
+                kotlin(
+                    """
+                        package test.pkg
+                        @file:Suppress("ALL")
+                        open class ExtendableClass<T> {
+                        open fun ExtendableClass(): test.pkg.ExtendableClass<T!>! = error("Stub!")
+                        }
+                    """
+                )
             )
         )
     }
@@ -4315,14 +4372,16 @@ class StubsTest : DriverTest() {
                     interface MyInterface2
                 """)
             ),
-            stubs = arrayOf(
-                """
-                    package test.pkg
-                    @file:Suppress("ALL")
-                    class MainClass : test.pkg.MyParentClass(), test.pkg.MyInterface1, test.pkg.MyInterface2 {
-                    open fun MainClass(): test.pkg.MainClass! = error("Stub!")
-                    }
-                """
+            stubFiles = arrayOf(
+                kotlin(
+                    """
+                        package test.pkg
+                        @file:Suppress("ALL")
+                        class MainClass : test.pkg.MyParentClass(), test.pkg.MyInterface1, test.pkg.MyInterface2 {
+                        open fun MainClass(): test.pkg.MainClass! = error("Stub!")
+                        }
+                    """
+                )
             )
         )
     }
@@ -4362,14 +4421,16 @@ class StubsTest : DriverTest() {
                     """
                 )
             ),
-            stubs = arrayOf(
-                """
-                    package test.pkg;
-                    @SuppressWarnings({"unchecked", "deprecation", "all"})
-                    public class MainClass extends test.pkg.MyParentClass implements test.pkg.MyInterface1, test.pkg.MyInterface2 {
-                    public MainClass() { throw new RuntimeException("Stub!"); }
-                    }
-                """
+            stubFiles = arrayOf(
+                java(
+                    """
+                        package test.pkg;
+                        @SuppressWarnings({"unchecked", "deprecation", "all"})
+                        public class MainClass extends test.pkg.MyParentClass implements test.pkg.MyInterface1, test.pkg.MyInterface2 {
+                        public MainClass() { throw new RuntimeException("Stub!"); }
+                        }
+                    """
+                )
             )
         )
     }
@@ -4390,16 +4451,18 @@ class StubsTest : DriverTest() {
                     """
                 )
             ),
-            stubs = arrayOf(
-                """
-                    package test.pkg;
-                    @SuppressWarnings({"unchecked", "deprecation", "all"})
-                    public class MyClass {
-                    public MyClass() { throw new RuntimeException("Stub!"); }
-                    public static final double doubleNaN = (0.0/0.0);
-                    public static final float floatNaN = (0.0f/0.0f);
-                    }
-                """
+            stubFiles = arrayOf(
+                java(
+                    """
+                        package test.pkg;
+                        @SuppressWarnings({"unchecked", "deprecation", "all"})
+                        public class MyClass {
+                        public MyClass() { throw new RuntimeException("Stub!"); }
+                        public static final double doubleNaN = (0.0/0.0);
+                        public static final float floatNaN = (0.0f/0.0f);
+                        }
+                    """
+                )
             )
         )
     }

@@ -89,22 +89,24 @@ class SymlinkTest : DriverTest() {
                     ARG_SOURCE_PATH, ""
                 ),
                 checkCompilation = false, // needs androidx.annotations in classpath
-                stubs = arrayOf(
-                    """
-                    package test.pkg;
-                    @SuppressWarnings({"unchecked", "deprecation", "all"})
-                    public class Foo {
-                    public Foo() { throw new RuntimeException("Stub!"); }
-                    /** These are the docs for method1. */
-                    @android.annotation.Nullable
-                    public java.lang.Double method1(@android.annotation.NonNull java.lang.Double factor1, @android.annotation.NonNull java.lang.Double factor2) { throw new RuntimeException("Stub!"); }
-                    /** These are the docs for method2. It can sometimes return null. */
-                    @android.annotation.Nullable
-                    public java.lang.Double method2(@android.annotation.NonNull java.lang.Double factor1, @android.annotation.NonNull java.lang.Double factor2) { throw new RuntimeException("Stub!"); }
-                    @android.annotation.Nullable
-                    public java.lang.Double method3(@android.annotation.NonNull java.lang.Double factor1, @android.annotation.NonNull java.lang.Double factor2) { throw new RuntimeException("Stub!"); }
-                    }
-                    """
+                stubFiles = arrayOf(
+                    java(
+                        """
+                        package test.pkg;
+                        @SuppressWarnings({"unchecked", "deprecation", "all"})
+                        public class Foo {
+                        public Foo() { throw new RuntimeException("Stub!"); }
+                        /** These are the docs for method1. */
+                        @android.annotation.Nullable
+                        public java.lang.Double method1(@android.annotation.NonNull java.lang.Double factor1, @android.annotation.NonNull java.lang.Double factor2) { throw new RuntimeException("Stub!"); }
+                        /** These are the docs for method2. It can sometimes return null. */
+                        @android.annotation.Nullable
+                        public java.lang.Double method2(@android.annotation.NonNull java.lang.Double factor1, @android.annotation.NonNull java.lang.Double factor2) { throw new RuntimeException("Stub!"); }
+                        @android.annotation.Nullable
+                        public java.lang.Double method3(@android.annotation.NonNull java.lang.Double factor1, @android.annotation.NonNull java.lang.Double factor2) { throw new RuntimeException("Stub!"); }
+                        }
+                        """
+                    )
                 )
             )
         } finally {

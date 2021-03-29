@@ -343,7 +343,7 @@ open class PsiClassItem(
         if (replacementMap.isEmpty()) {
             newMethod = PsiMethodItem.create(codebase, this, method)
         } else {
-            val stub = method.toStub(replacementMap)
+            val stub = method.toStubForCloning(replacementMap)
             val psiMethod = codebase.createPsiMethod(stub, psiClass)
             newMethod = PsiMethodItem.create(codebase, this, psiMethod)
             newMethod.inheritedMethod = method.inheritedMethod

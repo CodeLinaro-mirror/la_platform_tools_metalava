@@ -38,7 +38,7 @@ class JavadocTest : DriverTest() {
         check(
             sourceFiles = sourceFiles,
             showAnnotations = showAnnotations,
-            stubs = arrayOf(source),
+            stubFiles = arrayOf(java(source)),
             compatibilityMode = compatibilityMode,
             expectedIssues = warnings,
             checkCompilation = true,
@@ -1027,35 +1027,37 @@ class JavadocTest : DriverTest() {
                 )
             ),
             docStubs = true,
-            stubs = arrayOf(
-                """
-                package android.view;
-                import android.graphics.Insets;
-                @SuppressWarnings({"unchecked", "deprecation", "all"})
-                public final class WindowInsets {
-                public WindowInsets() { throw new RuntimeException("Stub!"); }
-                /**
-                 * Returns a copy of this WindowInsets with selected system window insets replaced
-                 * with new values.
-                 *
-                 * @param left New left inset in pixels
-                 * @param top New top inset in pixels
-                 * @param right New right inset in pixels
-                 * @param bottom New bottom inset in pixels
-                 * @return A modified copy of this WindowInsets
-                 * @deprecated use {@link android.view.WindowInsets.Builder#Builder(android.view.WindowInsets) Builder#Builder(WindowInsets)} with
-                 *             {@link android.view.WindowInsets.Builder#setSystemWindowInsets(android.graphics.Insets) Builder#setSystemWindowInsets(Insets)} instead.
-                 */
-                @Deprecated
-                public android.view.WindowInsets replaceSystemWindowInsets(int left, int top, int right, int bottom) { throw new RuntimeException("Stub!"); }
-                @SuppressWarnings({"unchecked", "deprecation", "all"})
-                public static class Builder {
-                public Builder() { throw new RuntimeException("Stub!"); }
-                public Builder(android.view.WindowInsets insets) { throw new RuntimeException("Stub!"); }
-                public android.view.WindowInsets.Builder setSystemWindowInsets(android.graphics.Insets systemWindowInsets) { throw new RuntimeException("Stub!"); }
-                }
-                }
-                """
+            stubFiles = arrayOf(
+                java(
+                    """
+                    package android.view;
+                    import android.graphics.Insets;
+                    @SuppressWarnings({"unchecked", "deprecation", "all"})
+                    public final class WindowInsets {
+                    public WindowInsets() { throw new RuntimeException("Stub!"); }
+                    /**
+                     * Returns a copy of this WindowInsets with selected system window insets replaced
+                     * with new values.
+                     *
+                     * @param left New left inset in pixels
+                     * @param top New top inset in pixels
+                     * @param right New right inset in pixels
+                     * @param bottom New bottom inset in pixels
+                     * @return A modified copy of this WindowInsets
+                     * @deprecated use {@link android.view.WindowInsets.Builder#Builder(android.view.WindowInsets) Builder#Builder(WindowInsets)} with
+                     *             {@link android.view.WindowInsets.Builder#setSystemWindowInsets(android.graphics.Insets) Builder#setSystemWindowInsets(Insets)} instead.
+                     */
+                    @Deprecated
+                    public android.view.WindowInsets replaceSystemWindowInsets(int left, int top, int right, int bottom) { throw new RuntimeException("Stub!"); }
+                    @SuppressWarnings({"unchecked", "deprecation", "all"})
+                    public static class Builder {
+                    public Builder() { throw new RuntimeException("Stub!"); }
+                    public Builder(android.view.WindowInsets insets) { throw new RuntimeException("Stub!"); }
+                    public android.view.WindowInsets.Builder setSystemWindowInsets(android.graphics.Insets systemWindowInsets) { throw new RuntimeException("Stub!"); }
+                    }
+                    }
+                    """
+                )
             )
         )
     }
@@ -1107,39 +1109,45 @@ class JavadocTest : DriverTest() {
                     """
                 )
             ),
-            stubs = arrayOf(
-                """
-                package test.pkg;
-                import test.pkg.bar.Bar;
-                @SuppressWarnings({"unchecked", "deprecation", "all"})
-                public class Foo {
-                public Foo() { throw new RuntimeException("Stub!"); }
-                /**
-                 * @see test.pkg.bar.Bar
-                 */
-                public void bar() { throw new RuntimeException("Stub!"); }
-                }
-                """,
-                """
-                package test.pkg.bar;
-                import test.pkg.baz.Baz;
-                import test.pkg.Foo;
-                @SuppressWarnings({"unchecked", "deprecation", "all"})
-                public class Bar {
-                public Bar() { throw new RuntimeException("Stub!"); }
-                /** @see test.pkg.baz.Baz */
-                public void baz(test.pkg.baz.Baz baz) { throw new RuntimeException("Stub!"); }
-                /** @see test.pkg.Foo */
-                public void foo(test.pkg.Foo foo) { throw new RuntimeException("Stub!"); }
-                }
-                """,
-                """
-                package test.pkg.baz;
-                @SuppressWarnings({"unchecked", "deprecation", "all"})
-                public class Baz {
-                public Baz() { throw new RuntimeException("Stub!"); }
-                }
-                """
+            stubFiles = arrayOf(
+                java(
+                    """
+                    package test.pkg;
+                    import test.pkg.bar.Bar;
+                    @SuppressWarnings({"unchecked", "deprecation", "all"})
+                    public class Foo {
+                    public Foo() { throw new RuntimeException("Stub!"); }
+                    /**
+                     * @see test.pkg.bar.Bar
+                     */
+                    public void bar() { throw new RuntimeException("Stub!"); }
+                    }
+                    """
+                ),
+                java(
+                    """
+                    package test.pkg.bar;
+                    import test.pkg.baz.Baz;
+                    import test.pkg.Foo;
+                    @SuppressWarnings({"unchecked", "deprecation", "all"})
+                    public class Bar {
+                    public Bar() { throw new RuntimeException("Stub!"); }
+                    /** @see test.pkg.baz.Baz */
+                    public void baz(test.pkg.baz.Baz baz) { throw new RuntimeException("Stub!"); }
+                    /** @see test.pkg.Foo */
+                    public void foo(test.pkg.Foo foo) { throw new RuntimeException("Stub!"); }
+                    }
+                    """
+                ),
+                java(
+                    """
+                    package test.pkg.baz;
+                    @SuppressWarnings({"unchecked", "deprecation", "all"})
+                    public class Baz {
+                    public Baz() { throw new RuntimeException("Stub!"); }
+                    }
+                    """
+                )
             )
         )
     }
