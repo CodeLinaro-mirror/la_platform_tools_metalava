@@ -712,14 +712,16 @@ CompatibilityCheckTest : DriverTest() {
     fun `Remove default parameter`() {
         check(
             expectedIssues = """
+                src/test/pkg/Foo.kt:3: error: Attempted to remove default value from parameter s1 in test.pkg.Foo in constructor test.pkg.Foo [DefaultValueChange] [See https://s.android.com/api-guidelines#default-value-removal]
                 src/test/pkg/Foo.kt:7: error: Attempted to remove default value from parameter s1 in test.pkg.Foo.method4 in method test.pkg.Foo.method4 [DefaultValueChange] [See https://s.android.com/api-guidelines#default-value-removal]
+
                 """,
             compatibilityMode = false,
             inputKotlinStyleNulls = true,
             checkCompatibilityApi = """
                 package test.pkg {
                   public final class Foo {
-                    ctor public Foo();
+                    ctor public Foo(String? s1 = null);
                     method public final void method1(boolean b, String? s1);
                     method public final void method2(boolean b, String? s1);
                     method public final void method3(boolean b, String? s1 = "null");
@@ -732,7 +734,7 @@ CompatibilityCheckTest : DriverTest() {
                     """
                     package test.pkg
 
-                    class Foo {
+                    class Foo(s1: String?) {
                         fun method1(b: Boolean, s1: String?) { }         // No change
                         fun method2(b: Boolean, s1: String? = null) { }  // Adding: OK
                         fun method3(b: Boolean, s1: String? = null) { }  // No change
@@ -748,6 +750,7 @@ CompatibilityCheckTest : DriverTest() {
     fun `Remove optional parameter`() {
         check(
             expectedIssues = """
+                src/test/pkg/Foo.kt:3: error: Attempted to remove default value from parameter s1 in test.pkg.Foo in constructor test.pkg.Foo [DefaultValueChange] [See https://s.android.com/api-guidelines#default-value-removal]
                 src/test/pkg/Foo.kt:7: error: Attempted to remove default value from parameter s1 in test.pkg.Foo.method4 in method test.pkg.Foo.method4 [DefaultValueChange] [See https://s.android.com/api-guidelines#default-value-removal]
                 """,
             compatibilityMode = false,
@@ -756,7 +759,7 @@ CompatibilityCheckTest : DriverTest() {
             checkCompatibilityApi = """
                 package test.pkg {
                   public final class Foo {
-                    ctor public Foo();
+                    ctor public Foo(optional String? s1);
                     method public final void method1(boolean b, String? s1);
                     method public final void method2(boolean b, String? s1);
                     method public final void method3(boolean b, optional String? s1);
@@ -769,7 +772,7 @@ CompatibilityCheckTest : DriverTest() {
                     """
                     package test.pkg
 
-                    class Foo {
+                    class Foo(s1: String?) {                             // Removed
                         fun method1(b: Boolean, s1: String?) { }         // No change
                         fun method2(b: Boolean, s1: String? = null) { }  // Adding: OK
                         fun method3(b: Boolean, s1: String? = null) { }  // No change
@@ -2251,6 +2254,39 @@ CompatibilityCheckTest : DriverTest() {
                     """
                 )
             )
+        )
+    }
+
+    @Test
+    fun `Test check release with base api`() {
+        check(
+            expectedIssues = "",
+            checkCompatibilityApiReleased = """
+                package test.pkg {
+                  public class SomeClass {
+                      method public static void publicMethodA();
+                      method public static void publicMethodB();
+                  }
+                }
+                """,
+            sourceFiles = arrayOf(
+                java(
+                    """
+                    package test.pkg;
+
+                    public class SomeClass {
+                      public static void publicMethodA();
+                    }
+                    """
+                )
+            ),
+            checkCompatibilityBaseApi = """
+                package test.pkg {
+                  public class SomeClass {
+                      method public static void publicMethodB();
+                  }
+                }
+            """
         )
     }
 

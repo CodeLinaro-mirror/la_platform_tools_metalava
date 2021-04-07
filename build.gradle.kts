@@ -20,7 +20,8 @@ defaultTasks = mutableListOf(
 
 repositories {
     google()
-    jcenter()
+    mavenCentral()
+    jcenter() // needed for trove4j
     val lintRepo = project.findProperty("lintRepo") as String?
     if (lintRepo != null) {
         logger.warn("Building using custom $lintRepo maven repository")
@@ -31,7 +32,7 @@ repositories {
 }
 
 plugins {
-    kotlin("jvm") version "1.4.20"
+    kotlin("jvm") version "1.4.30"
     id("application")
     id("java")
     id("maven-publish")
@@ -69,7 +70,7 @@ val studioVersion: String = if (customLintVersion != null) {
 } else {
     "27.2.0-alpha11"
 }
-val kotlinVersion: String = "1.4.20"
+val kotlinVersion: String = "1.4.30"
 
 dependencies {
     implementation("com.android.tools.external.org-jetbrains:uast:$studioVersion")

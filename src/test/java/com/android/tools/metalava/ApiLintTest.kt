@@ -1475,17 +1475,10 @@ class ApiLintTest : DriverTest() {
             apiLint = "", // enabled
             compatibilityMode = false,
             expectedIssues = """
-                src/android/pkg/MyClass.java:6: warning: Type of parameter coll in android.pkg.MyClass(java.util.Collection<java.lang.String> coll, java.util.List<java.lang.Object> list, android.os.Bundle bundle, android.os.PersistableBundle persistableBundle, java.util.Set<java.lang.Integer> set, java.util.Map<java.lang.String,java.lang.String> map) is a nullable collection (`java.util.Collection`); must be non-null [NullableCollection] [See https://s.android.com/api-guidelines#methods-prefer-non-null-collections]
-                src/android/pkg/MyClass.java:7: warning: Type of parameter list in android.pkg.MyClass(java.util.Collection<java.lang.String> coll, java.util.List<java.lang.Object> list, android.os.Bundle bundle, android.os.PersistableBundle persistableBundle, java.util.Set<java.lang.Integer> set, java.util.Map<java.lang.String,java.lang.String> map) is a nullable collection (`java.util.List`); must be non-null [NullableCollection] [See https://s.android.com/api-guidelines#methods-prefer-non-null-collections]
-                src/android/pkg/MyClass.java:8: warning: Type of parameter bundle in android.pkg.MyClass(java.util.Collection<java.lang.String> coll, java.util.List<java.lang.Object> list, android.os.Bundle bundle, android.os.PersistableBundle persistableBundle, java.util.Set<java.lang.Integer> set, java.util.Map<java.lang.String,java.lang.String> map) is a nullable collection (`android.os.Bundle`); must be non-null [NullableCollection] [See https://s.android.com/api-guidelines#methods-prefer-non-null-collections]
-                src/android/pkg/MyClass.java:9: warning: Type of parameter persistableBundle in android.pkg.MyClass(java.util.Collection<java.lang.String> coll, java.util.List<java.lang.Object> list, android.os.Bundle bundle, android.os.PersistableBundle persistableBundle, java.util.Set<java.lang.Integer> set, java.util.Map<java.lang.String,java.lang.String> map) is a nullable collection (`android.os.PersistableBundle`); must be non-null [NullableCollection] [See https://s.android.com/api-guidelines#methods-prefer-non-null-collections]
-                src/android/pkg/MyClass.java:10: warning: Type of parameter set in android.pkg.MyClass(java.util.Collection<java.lang.String> coll, java.util.List<java.lang.Object> list, android.os.Bundle bundle, android.os.PersistableBundle persistableBundle, java.util.Set<java.lang.Integer> set, java.util.Map<java.lang.String,java.lang.String> map) is a nullable collection (`java.util.Set`); must be non-null [NullableCollection] [See https://s.android.com/api-guidelines#methods-prefer-non-null-collections]
-                src/android/pkg/MyClass.java:11: warning: Type of parameter map in android.pkg.MyClass(java.util.Collection<java.lang.String> coll, java.util.List<java.lang.Object> list, android.os.Bundle bundle, android.os.PersistableBundle persistableBundle, java.util.Set<java.lang.Integer> set, java.util.Map<java.lang.String,java.lang.String> map) is a nullable collection (`java.util.Map`); must be non-null [NullableCollection] [See https://s.android.com/api-guidelines#methods-prefer-non-null-collections]
-                src/android/pkg/MyClass.java:13: warning: Return type of method android.pkg.MyClass.getList(java.util.List<java.lang.String>) is a nullable collection (`java.util.List`); must be non-null [NullableCollection] [See https://s.android.com/api-guidelines#methods-prefer-non-null-collections]
-                src/android/pkg/MyClass.java:14: warning: Type of parameter list in android.pkg.MyClass.getList(java.util.List<java.lang.String> list) is a nullable collection (`java.util.List`); must be non-null [NullableCollection] [See https://s.android.com/api-guidelines#methods-prefer-non-null-collections]
-                src/android/pkg/MyClass.java:17: warning: Type of field android.pkg.MyClass.STRINGS is a nullable collection (`java.lang.String[]`); must be non-null [NullableCollection] [See https://s.android.com/api-guidelines#methods-prefer-non-null-collections]
+                src/android/pkg/MyCallback.java:4: warning: Type of parameter list in android.pkg.MyCallback.onFoo(java.util.List<java.lang.String> list) is a nullable collection (`java.util.List`); must be non-null [NullableCollection] [See https://s.android.com/api-guidelines#methods-prefer-non-null-collections]
+                src/android/pkg/MyClass.java:8: warning: Return type of method android.pkg.MyClass.getList(java.util.List<java.lang.String>) is a nullable collection (`java.util.List`); must be non-null [NullableCollection] [See https://s.android.com/api-guidelines#methods-prefer-non-null-collections]
+                src/android/pkg/MyClass.java:12: warning: Type of field android.pkg.MyClass.STRINGS is a nullable collection (`java.lang.String[]`); must be non-null [NullableCollection] [See https://s.android.com/api-guidelines#methods-prefer-non-null-collections]
                 src/android/pkg/MySubClass.java:12: warning: Return type of method android.pkg.MySubClass.getOtherList(java.util.List<java.lang.String>) is a nullable collection (`java.util.List`); must be non-null [NullableCollection] [See https://s.android.com/api-guidelines#methods-prefer-non-null-collections]
-                src/android/pkg/MySubClass.java:14: warning: Type of parameter list in android.pkg.MySubClass.getOtherList(java.util.List<java.lang.String> list) is a nullable collection (`java.util.List`); must be non-null [NullableCollection] [See https://s.android.com/api-guidelines#methods-prefer-non-null-collections]
                 """,
             sourceFiles = arrayOf(
                 java(
@@ -1495,13 +1488,8 @@ class ApiLintTest : DriverTest() {
                     import androidx.annotation.Nullable;
 
                     public class MyClass {
-                        public MyClass(@Nullable java.util.Collection<String> coll,
-                                @Nullable java.util.List<Object> list,
-                                @Nullable android.os.Bundle bundle,
-                                @Nullable android.os.PersistableBundle persistableBundle,
-                                @Nullable java.util.Set<Integer> set,
-                                @Nullable java.util.Map<String,String> map) {
-                        }
+                        public MyClass() { }
+                        
                         @Nullable
                         public java.util.List<String> getList(@Nullable java.util.List<String> list) {
                             return null;
@@ -1552,6 +1540,16 @@ class ApiLintTest : DriverTest() {
                         public java.util.List<String> getOtherList(@Nullable java.util.List<String> list) {
                             // Reported because the super method is hidden.
                             return null;
+                        }
+                    }
+                    """
+                ),
+                java(
+                    """
+                    package android.pkg;
+
+                    public class MyCallback {
+                        public void onFoo(@Nullable java.util.List<String> list) {
                         }
                     }
                     """
@@ -1960,8 +1958,8 @@ class ApiLintTest : DriverTest() {
             apiLint = "", // enabled
             compatibilityMode = false,
             expectedIssues = """
-                src/android/pkg/MyClass.java:16: warning: Registration methods should have overload that accepts delivery Executor: `registerWrongCallback` [ExecutorRegistration]
-                src/android/pkg/MyClass.java:6: warning: Registration methods should have overload that accepts delivery Executor: `MyClass` [ExecutorRegistration]
+                src/android/pkg/MyClass.java:16: warning: Registration methods should have overload that accepts delivery Executor: `registerWrongCallback` [ExecutorRegistration] [See https://s.android.com/api-guidelines#callbacks-listener]
+                src/android/pkg/MyClass.java:6: warning: Registration methods should have overload that accepts delivery Executor: `MyClass` [ExecutorRegistration] [See https://s.android.com/api-guidelines#callbacks-listener]
                 """,
             sourceFiles = arrayOf(
                 java(
@@ -2229,17 +2227,14 @@ class ApiLintTest : DriverTest() {
             extraArguments = arrayOf(ARG_API_LINT, ARG_HIDE, "NoByteOrShort"),
             compatibilityMode = false,
             expectedIssues = """
-                    src/android/pkg/UnitNameTest.java:7: error: Expected method name units to be `Hours`, was `Hr` in `getErrorHr` [MethodNameUnits]
-                    src/android/pkg/UnitNameTest.java:8: error: Expected method name units to be `Nanos`, was `Ns` in `getErrorNs` [MethodNameUnits]
-                    src/android/pkg/UnitNameTest.java:9: error: Expected method name units to be `Bytes`, was `Byte` in `getErrorByte` [MethodNameUnits]
-                    src/android/pkg/UnitNameTest.java:10: error: Returned time values are strongly encouraged to be in milliseconds unless you need the extra precision, was `getErrorNanos` [MethodNameUnits]
-                    src/android/pkg/UnitNameTest.java:11: error: Returned time values are strongly encouraged to be in milliseconds unless you need the extra precision, was `getErrorMicros` [MethodNameUnits]
-                    src/android/pkg/UnitNameTest.java:12: error: Returned time values must be in milliseconds, was `getErrorSeconds` [MethodNameUnits]
-                    src/android/pkg/UnitNameTest.java:18: error: Fractions must use floats, was `int` in `getErrorFraction` [FractionFloat]
-                    src/android/pkg/UnitNameTest.java:19: error: Fractions must use floats, was `int` in `setErrorFraction` [FractionFloat]
-                    src/android/pkg/UnitNameTest.java:23: error: Percentage must use ints, was `float` in `getErrorPercentage` [PercentageInt]
-                    src/android/pkg/UnitNameTest.java:24: error: Percentage must use ints, was `float` in `setErrorPercentage` [PercentageInt]
-                    src/android/pkg/UnitNameTest.java:26: error: Expected method name units to be `Bytes`, was `Byte` in `readSingleByte` [MethodNameUnits]
+                src/android/pkg/UnitNameTest.java:7: error: Expected method name units to be `Hours`, was `Hr` in `getErrorHr` [MethodNameUnits] [See https://s.android.com/api-guidelines#unit-names]
+                src/android/pkg/UnitNameTest.java:8: error: Expected method name units to be `Nanos`, was `Ns` in `getErrorNs` [MethodNameUnits] [See https://s.android.com/api-guidelines#unit-names]
+                src/android/pkg/UnitNameTest.java:9: error: Expected method name units to be `Bytes`, was `Byte` in `getErrorByte` [MethodNameUnits] [See https://s.android.com/api-guidelines#unit-names]
+                src/android/pkg/UnitNameTest.java:14: error: Fractions must use floats, was `int` in `getErrorFraction` [FractionFloat]
+                src/android/pkg/UnitNameTest.java:15: error: Fractions must use floats, was `int` in `setErrorFraction` [FractionFloat]
+                src/android/pkg/UnitNameTest.java:19: error: Percentage must use ints, was `float` in `getErrorPercentage` [PercentageInt]
+                src/android/pkg/UnitNameTest.java:20: error: Percentage must use ints, was `float` in `setErrorPercentage` [PercentageInt]
+                src/android/pkg/UnitNameTest.java:22: error: Expected method name units to be `Bytes`, was `Byte` in `readSingleByte` [MethodNameUnits] [See https://s.android.com/api-guidelines#unit-names]
                 """,
             expectedFail = DefaultLintErrorMessage,
             sourceFiles = arrayOf(
@@ -2255,10 +2250,6 @@ class ApiLintTest : DriverTest() {
                         public int getErrorHr() { return 0; }
                         public int getErrorNs() { return 0; }
                         public short getErrorByte() { return (short)0; }
-                        public int getErrorNanos() { return 0; }
-                        public long getErrorMicros() { return 0L; }
-                        public long getErrorSeconds() { return 0L; }
-                        public float getErrorSeconds() { return 0; }
 
                         public float getOkFraction() { return 0f; }
                         public void setOkFraction(float f) { }
@@ -2586,6 +2577,10 @@ class ApiLintTest : DriverTest() {
                     }
                     """
                 ),
+                kotlin("""
+                    package test.pkg
+                    fun okMethod(vararg values: Integer, foo: Float, bar: Float)
+                    """),
                 androidxNonNullSource
             )
         )

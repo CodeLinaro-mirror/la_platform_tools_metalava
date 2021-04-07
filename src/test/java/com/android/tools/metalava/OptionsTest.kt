@@ -262,6 +262,13 @@ Diffs and Checks:
                                              publicly released API, respectively. Different compatibility checks apply
                                              in the two scenarios. For example, to check the code base against the
                                              current public API, use --check-compatibility:api:current.
+--check-compatibility:base <file>
+                                             When performing a compat check, use the provided signature file as a base
+                                             api, which is treated as part of the API being checked. This allows us to
+                                             compute the full API surface from a partial API surface (e.g. the current
+                                             @SystemApi txt file), which allows us to recognize when an API is moved
+                                             from the partial API to the base API and avoid incorrectly flagging this as
+                                             an API removal.
 --api-lint [api file]
                                              Check API for Android API best practices. If a signature file is provided,
                                              only the APIs that are new since the API will be checked.

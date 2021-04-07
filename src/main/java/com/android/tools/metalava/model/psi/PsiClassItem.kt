@@ -465,11 +465,26 @@ open class PsiClassItem(
                 )
             }
 
+            // create methods
             val constructors: MutableList<PsiConstructorItem> = ArrayList(5)
+            var hasConstructorWithOnlyOptionalArgs = false
+            var noArgConstructor: PsiConstructorItem? = null
             for (psiMethod in psiMethods) {
                 if (psiMethod.isConstructor) {
                     val constructor = PsiConstructorItem.create(codebase, item, psiMethod)
-                    constructors.add(constructor)
+                    if (constructor.areAllParametersOptional()) {
+                        if (constructor.parameters().count() > 0) {
+                            constructors.add(constructor)
+                            // uast reported a constructor having only optional arguments, so if we
+                            // later find an explicit no-arg constructor, we can skip it because
+                            // its existence is implied
+                            hasConstructorWithOnlyOptionalArgs = true
+                        } else {
+                            noArgConstructor = constructor
+                        }
+                    } else {
+                        constructors.add(constructor)
+                    }
                 } else if (classType == ClassType.ENUM &&
                     !compatibility.defaultEnumMethods &&
                     psiMethod is SyntheticElement
@@ -479,6 +494,9 @@ open class PsiClassItem(
                     val method = PsiMethodItem.create(codebase, item, psiMethod)
                     methods.add(method)
                 }
+            }
+            if (noArgConstructor != null && !hasConstructorWithOnlyOptionalArgs) {
+                constructors.add(noArgConstructor)
             }
 
             if (hasImplicitDefaultConstructor) {

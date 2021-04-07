@@ -23,7 +23,7 @@ import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.psi.CodePrinter.Companion.constantToSource
 import com.intellij.psi.PsiParameter
 import org.jetbrains.kotlin.psi.KtConstantExpression
-import org.jetbrains.kotlin.psi.KtNamedFunction
+import org.jetbrains.kotlin.psi.KtFunction
 import org.jetbrains.kotlin.psi.KtParameter
 import org.jetbrains.uast.UExpression
 import org.jetbrains.uast.UastFacade
@@ -81,7 +81,7 @@ class PsiParameterItem(
 
     private fun getKtParameter(): KtParameter? {
         val ktParameters =
-            ((containingMethod.psiMethod as? KotlinUMethod)?.sourcePsi as? KtNamedFunction)?.valueParameters
+            ((containingMethod.psiMethod as? KotlinUMethod)?.sourcePsi as? KtFunction)?.valueParameters
                 ?: return null
 
         // Perform matching based on parameter names, because indices won't work in the
