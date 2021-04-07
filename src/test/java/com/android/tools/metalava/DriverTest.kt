@@ -17,7 +17,6 @@
 package com.android.tools.metalava
 
 import com.android.SdkConstants
-import com.android.SdkConstants.DOT_JAVA
 import com.android.SdkConstants.DOT_KT
 import com.android.ide.common.process.DefaultProcessExecutor
 import com.android.ide.common.process.LoggedProcessOutputHandler
@@ -63,12 +62,6 @@ import java.net.URL
 import kotlin.text.Charsets.UTF_8
 
 const val CHECK_JDIFF = false
-
-/**
- * Marker class for stubs argument to [DriverTest.check] indicating that no
- * stubs should be generated for a particular source file.
- */
-const val NO_STUB = ""
 
 abstract class DriverTest {
     @get:Rule
@@ -252,10 +245,8 @@ abstract class DriverTest {
         /** The subtract api signature content (corresponds to --subtract-api) */
         @Language("TEXT")
         subtractApi: String? = null,
-        /** Expected stubs (corresponds to --stubs) in order corresponding to [sourceFiles]. Use
-         * [NO_STUB] as a marker for source files that are not expected to generate stubs */
-        @Language("JAVA")
-        stubs: Array<String> = emptyArray(),
+        /** Expected stubs (corresponds to --stubs) */
+        stubFiles: Array<TestFile> = emptyArray(),
         /** Stub source file list generated */
         stubsSourceList: String? = null,
         /** Doc Stub source file list generated */
@@ -936,7 +927,7 @@ abstract class DriverTest {
         }
 
         var stubsDir: File? = null
-        val stubsArgs = if (stubs.isNotEmpty()) {
+        val stubsArgs = if (stubFiles.isNotEmpty()) {
             stubsDir = temporaryFolder.newFolder("stubs")
             if (docStubs) {
                 arrayOf(ARG_DOC_STUBS, stubsDir.path)
@@ -1371,56 +1362,15 @@ abstract class DriverTest {
             assertEquals(validateNullability, actualReport)
         }
 
-        if (stubs.isNotEmpty() && stubsDir != null) {
-            for (i in stubs.indices) {
-                var stub = stubs[i].trimIndent()
-
-                var targetPath: String
-                var stubFile: File
-                if (stub.startsWith("[") && stub.contains("]")) {
-                    val pathEnd = stub.indexOf("]\n")
-                    targetPath = stub.substring(1, pathEnd)
-                    stubFile = File(stubsDir, targetPath)
-                    if (stubFile.isFile) {
-                        stub = stub.substring(pathEnd + 2)
-                    }
+        if (stubFiles.isNotEmpty()) {
+            for (expected in stubFiles) {
+                val actual = File(stubsDir!!, expected.targetRelativePath)
+                if (actual.exists()) {
+                    val actualContents = readFile(actual, stripBlankLines, trim)
+                    assertEquals(expected.contents, actualContents)
                 } else {
-                    val sourceFile = sourceFiles[i]
-                    targetPath = if (sourceFile.targetPath.endsWith(DOT_KT)) {
-                        // Kotlin source stubs are rewritten as .java files for now
-                        sourceFile.targetPath.substring(0, sourceFile.targetPath.length - 3) + DOT_JAVA
-                    } else {
-                        sourceFile.targetPath
-                    }
-                    stubFile = File(stubsDir, targetPath.substring("src/".length))
-                }
-                if (!stubFile.isFile) {
-                    if (stub.startsWith("[") && stub.contains("]")) {
-                        val pathEnd = stub.indexOf("]\n")
-                        val path = stub.substring(1, pathEnd)
-                        stubFile = File(stubsDir, path)
-                        if (stubFile.isFile) {
-                            stub = stub.substring(pathEnd + 2)
-                        }
-                    }
-                }
-                if (stubFile.exists()) {
-                    val actualText = readFile(stubFile, stripBlankLines, trim)
-                    assertEquals(stub, actualText)
-                } else if (stub != NO_STUB) {
-                    /* Example:
-                        stubs = arrayOf(
-                            """
-                            [test/visible/package-info.java]
-                            <html>My package docs</html>
-                            package test.visible;
-                            """,
-                            ...
-                       Here the stub will be read from $stubsDir/test/visible/package-info.java.
-                     */
                     throw FileNotFoundException(
-                        "Could not find generated stub for $targetPath; consider " +
-                            "setting target relative path in stub header as prefix surrounded by []"
+                        "Could not find a generated stub for ${expected.targetRelativePath}"
                     )
                 }
             }

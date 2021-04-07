@@ -256,23 +256,27 @@ class AnnotationsMergerTest : DriverTest() {
                     @NonNull Appendable append(@Nullable java.lang.CharSequence csq);
                 }
                 """,
-            stubs = arrayOf(
-                """
-                package test.pkg;
-                @SuppressWarnings({"unchecked", "deprecation", "all"})
-                public interface Appendable {
-                @android.annotation.NonNull
-                public test.pkg.Appendable append(@android.annotation.Nullable java.lang.CharSequence csq);
-                }
-                """,
-                """
-                package test.pkg;
-                /** @hide */
-                @SuppressWarnings({"unchecked", "deprecation", "all"})
-                public interface ForTesting {
-                public void foo();
-                }
-                """
+            stubFiles = arrayOf(
+                java(
+                    """
+                    package test.pkg;
+                    @SuppressWarnings({"unchecked", "deprecation", "all"})
+                    public interface Appendable {
+                    @android.annotation.NonNull
+                    public test.pkg.Appendable append(@android.annotation.Nullable java.lang.CharSequence csq);
+                    }
+                    """
+                ),
+                java(
+                    """
+                    package test.pkg;
+                    /** @hide */
+                    @SuppressWarnings({"unchecked", "deprecation", "all"})
+                    public interface ForTesting {
+                    public void foo();
+                    }
+                    """
+                )
             ),
             api = """
                 package test.pkg {

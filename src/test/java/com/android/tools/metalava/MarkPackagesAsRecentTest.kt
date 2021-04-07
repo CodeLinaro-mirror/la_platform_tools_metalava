@@ -29,16 +29,18 @@ class MarkPackagesAsRecentTest : DriverTest() {
                 ARG_FORCE_CONVERT_TO_WARNING_NULLABILITY_ANNOTATIONS, "*"
             ),
 
-            stubs = arrayOf(
-                """
-                package test.pkg;
-                @SuppressWarnings({"unchecked", "deprecation", "all"})
-                public class Foo {
-                public Foo() { throw new RuntimeException("Stub!"); }
-                @androidx.annotation.RecentlyNullable
-                public void method() { throw new RuntimeException("Stub!"); }
-                }
-                """
+            stubFiles = arrayOf(
+                java(
+                    """
+                    package test.pkg;
+                    @SuppressWarnings({"unchecked", "deprecation", "all"})
+                    public class Foo {
+                    public Foo() { throw new RuntimeException("Stub!"); }
+                    @androidx.annotation.RecentlyNullable
+                    public void method() { throw new RuntimeException("Stub!"); }
+                    }
+                    """
+                )
             )
         )
     }
@@ -65,16 +67,18 @@ class MarkPackagesAsRecentTest : DriverTest() {
                 ARG_SHOW_ANNOTATION, "androidx.annotation.RestrictTo"
             ),
 
-            stubs = arrayOf(
-                """
-                package test.pkg;
-                @SuppressWarnings({"unchecked", "deprecation", "all"})
-                public class Foo {
-                public Foo() { throw new RuntimeException("Stub!"); }
-                @androidx.annotation.RecentlyNullable
-                public void method() { throw new RuntimeException("Stub!"); }
-                }
-                """
+            stubFiles = arrayOf(
+                java(
+                    """
+                    package test.pkg;
+                    @SuppressWarnings({"unchecked", "deprecation", "all"})
+                    public class Foo {
+                    public Foo() { throw new RuntimeException("Stub!"); }
+                    @androidx.annotation.RecentlyNullable
+                    public void method() { throw new RuntimeException("Stub!"); }
+                    }
+                    """
+                )
             )
         )
     }
