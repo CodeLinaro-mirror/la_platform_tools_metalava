@@ -252,7 +252,7 @@ open class TextClassItem(
         assert(emit == (position != SourcePositionInfo.UNKNOWN))
         return emit
     }
-    override fun toString(): String = qualifiedName()
+    override fun toString(): String = "class ${qualifiedName()}"
 
     override fun mapTypeVariables(target: ClassItem): Map<String, String> {
         return emptyMap()

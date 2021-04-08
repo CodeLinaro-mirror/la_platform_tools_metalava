@@ -461,13 +461,13 @@ class StubsTest : DriverTest() {
 
                     @SuppressWarnings("ALL")
                     public abstract class Foo {
-                        @Deprecated private static final long field1 = 5;
-                        @Deprecated private static volatile long field2 = 5;
-                        @Deprecated public static strictfp final synchronized void method1() { }
-                        @Deprecated public static final synchronized native void method2();
-                        @Deprecated protected static final class Inner1 { }
-                        @Deprecated protected static abstract  class Inner2 { }
-                        @Deprecated protected interface Inner3 {
+                        /** @deprecated */ @Deprecated private static final long field1 = 5;
+                        /** @deprecated */ @Deprecated private static volatile long field2 = 5;
+                        /** @deprecated */ @Deprecated public static strictfp final synchronized void method1() { }
+                        /** @deprecated */ @Deprecated public static final synchronized native void method2();
+                        /** @deprecated */ @Deprecated protected static final class Inner1 { }
+                        /** @deprecated */ @Deprecated protected static abstract  class Inner2 { }
+                        /** @deprecated */ @Deprecated protected interface Inner3 {
                             protected default void method3() { }
                             static void method4() { }
                         }
@@ -481,20 +481,25 @@ class StubsTest : DriverTest() {
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                 public abstract class Foo {
                 public Foo() { throw new RuntimeException("Stub!"); }
+                /** @deprecated */
                 @Deprecated
                 public static final synchronized void method1() { throw new RuntimeException("Stub!"); }
+                /** @deprecated */
                 @Deprecated
                 public static final synchronized native void method2();
+                /** @deprecated */
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                 @Deprecated
                 protected static final class Inner1 {
                 protected Inner1() { throw new RuntimeException("Stub!"); }
                 }
+                /** @deprecated */
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                 @Deprecated
                 protected abstract static class Inner2 {
                 protected Inner2() { throw new RuntimeException("Stub!"); }
                 }
+                /** @deprecated */
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                 @Deprecated
                 protected static interface Inner3 {
