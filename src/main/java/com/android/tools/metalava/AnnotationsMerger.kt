@@ -257,6 +257,10 @@ class AnnotationsMerger(
                 }
             }
 
+            override fun removed(old: Item, from: Item?) {
+                warning("qualifier annotations were given for $old but no matching item was found")
+            }
+
             private fun mergeAnnotation(
                 annotation: AnnotationItem,
                 newModifiers: ModifierList,
