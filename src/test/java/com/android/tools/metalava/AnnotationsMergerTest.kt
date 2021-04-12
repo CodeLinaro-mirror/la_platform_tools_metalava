@@ -169,7 +169,12 @@ class AnnotationsMergerTest : DriverTest() {
                     method @androidx.annotation.NonNull public test.pkg.Appendable append(@androidx.annotation.Nullable java.lang.CharSequence);
                   }
                 }
-                """
+                """,
+            expectedIssues = """
+                TESTROOT/merged-annotations.txt:4: warning: qualifier annotations were given for method test.pkg.Appendable.append2(CharSequence) but no matching item was found [UnmatchedMergeAnnotation]
+                TESTROOT/merged-annotations.txt:5: warning: qualifier annotations were given for method test.pkg.Appendable.reverse(String) but no matching item was found [UnmatchedMergeAnnotation]
+                TESTROOT/merged-annotations.txt:7: warning: qualifier annotations were given for class test.pkg.RandomClass but no matching item was found [UnmatchedMergeAnnotation]
+            """
         )
     }
 
@@ -478,6 +483,147 @@ class AnnotationsMergerTest : DriverTest() {
                   }
                 }
                 """
+        )
+    }
+
+    @Test
+    fun `Merge inclusion annotations on api in java namespace`() {
+        check(
+            sourceFiles = arrayOf(
+                java(
+                    "src/java/net/Example.java",
+                    """
+                    package java.net;
+
+                    public class Example {
+                        public void aNotAnnotated() { }
+                        public void bShown() { }
+                    }
+                    """
+                )
+            ),
+            compatibilityMode = false,
+            outputKotlinStyleNulls = false,
+            omitCommonPackages = false,
+            extraArguments = arrayOf(
+                ARG_SHOW_SINGLE_ANNOTATION, "test.annotation.Show"
+            ),
+            mergeInclusionAnnotations = """
+                package java.net;
+
+                public class Example {
+                    void aNotAnnotated();
+                    @test.annotation.Show void bShown();
+                }
+                """,
+            api = """
+                package java.net {
+                  public class Example {
+                    method public void bShown();
+                  }
+                }
+                """
+        )
+    }
+
+    @Test
+    fun `Redefining java lang object plus using some internal classes`() {
+        check(
+            sourceFiles = arrayOf(
+                java(
+                    """
+                    package java.util;
+                    public class HashMap {
+                        static class Node {
+                        }
+                        static class TreeNode extends LinkedHashMap.LinkedHashMapEntry {
+                        }
+                    }
+                    """
+                ),
+                java(
+                    """
+                    package java.util;
+
+                    public class LinkedHashMap<K,V>
+                        extends HashMap<K,V>
+                        implements Map<K,V>
+                    {
+                        static class LinkedHashMapEntry<K,V> extends HashMap.Node<K,V> {
+                        }
+                    }
+
+                    """
+                ),
+                java(
+                    """
+                    package java.lang;
+
+                    public class Object {
+                        protected void finalize() throws Throwable { }
+                    }
+                    """
+                )
+            ),
+            compatibilityMode = false,
+            extraArguments = arrayOf(
+                ARG_SHOW_SINGLE_ANNOTATION, "libcore.api.CorePlatformApi"
+            ),
+            mergeInclusionAnnotations = """
+                package java.util;
+
+                public class LinkedHashMap extends java.util.HashMap {
+                }
+                """,
+            api = "" // This test is checking that it doesn't crash
+        )
+    }
+
+    @Test
+    fun `Merge nullability into child`() {
+        // This is a contrived test that verifies that even if Child no longer directly declares
+        // method1, the inherited method1 is still found
+        check(
+            sourceFiles = arrayOf(
+                java(
+                    """
+                    package test.pkg;
+                    public class Child extends Parent {
+                    }
+                    """
+                ),
+                java(
+                    """
+                    package test.pkg;
+
+                    public class Parent {
+                        public void method1(String arg) {
+                        }
+                    }
+                    """
+                )
+            ),
+            compatibilityMode = false,
+            mergeJavaStubAnnotations = """
+                package test.pkg;
+
+                public class Child {
+                    public void method1(@Nullable String arg) {
+                    }
+                }
+                """,
+            api = """
+                package test.pkg {
+                  public class Child extends test.pkg.Parent {
+                    ctor public Child();
+                  }
+                  public class Parent {
+                    ctor public Parent();
+                    method public void method1(String);
+                  }
+                }
+                """,
+            expectedIssues = "" // should not report that Child.method1 is undefined
         )
     }
 }

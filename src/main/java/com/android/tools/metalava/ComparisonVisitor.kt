@@ -97,7 +97,7 @@ class CodebaseComparator {
         println("New:\n${ItemTree.prettyPrint(newTree)}")
         */
 
-        compare(visitor, oldTree, newTree, null, null)
+        compare(visitor, oldTree, newTree, null, null, filter)
     }
 
     private fun compare(
@@ -105,7 +105,8 @@ class CodebaseComparator {
         oldList: List<ItemTree>,
         newList: List<ItemTree>,
         newParent: Item?,
-        oldParent: Item?
+        oldParent: Item?,
+        filter: Predicate<Item>?
     ) {
         // Debugging tip: You can print out a tree like this: ItemTree.prettyPrint(list)
         var index1 = 0
@@ -127,13 +128,13 @@ class CodebaseComparator {
                         compare > 0 -> {
                             index2++
                             if (new.emit) {
-                                visitAdded(new, oldParent, visitor, newTree)
+                                visitAdded(new, oldParent, visitor, newTree, filter)
                             }
                         }
                         compare < 0 -> {
                             index1++
                             if (old.emit) {
-                                visitRemoved(visitor, old, newParent)
+                                visitRemoved(old, oldTree, visitor, newParent, filter)
                             }
                         }
                         else -> {
@@ -141,16 +142,16 @@ class CodebaseComparator {
                                 if (old.emit) {
                                     visitCompare(visitor, old, new)
                                 } else {
-                                    visitAdded(new, oldParent, visitor, newTree)
+                                    visitAdded(new, oldParent, visitor, newTree, filter)
                                 }
                             } else {
                                 if (old.emit) {
-                                    visitRemoved(visitor, old, newParent)
+                                    visitRemoved(old, oldTree, visitor, newParent, filter)
                                 }
                             }
 
                             // Compare the children (recurse)
-                            compare(visitor, oldTree.children, newTree.children, newTree.item(), oldTree.item())
+                            compare(visitor, oldTree.children, newTree.children, newTree.item(), oldTree.item(), filter)
 
                             index1++
                             index2++
@@ -159,7 +160,9 @@ class CodebaseComparator {
                 } else {
                     // All the remaining items in oldList have been deleted
                     while (index1 < length1) {
-                        visitRemoved(visitor, oldList[index1++].item(), newParent)
+                        val oldTree = oldList[index1++]
+                        val old = oldTree.item()
+                        visitRemoved(old, oldTree, visitor, newParent, filter)
                     }
                 }
             } else if (index2 < length2) {
@@ -168,7 +171,7 @@ class CodebaseComparator {
                     val newTree = newList[index2++]
                     val new = newTree.item()
 
-                    visitAdded(new, oldParent, visitor, newTree)
+                    visitAdded(new, oldParent, visitor, newTree, filter)
                 }
             } else {
                 break
@@ -180,7 +183,8 @@ class CodebaseComparator {
         new: Item,
         oldParent: Item?,
         visitor: ComparisonVisitor,
-        newTree: ItemTree
+        newTree: ItemTree,
+        filter: Predicate<Item>?
     ) {
         // If it's a method, we may not have added a new method,
         // we may simply have inherited it previously and overriding
@@ -202,7 +206,7 @@ class CodebaseComparator {
             // Compare the children (recurse)
             if (inherited.parameters().isNotEmpty()) {
                 val parameters = inherited.parameters().map { ItemTree(it) }.toList()
-                compare(visitor, parameters, newTree.children, newTree.item(), inherited)
+                compare(visitor, parameters, newTree.children, newTree.item(), inherited, filter)
             }
         } else {
             visitAdded(visitor, new)
@@ -243,6 +247,66 @@ class CodebaseComparator {
             is ParameterItem -> visitor.added(item)
             is PropertyItem -> visitor.added(item)
         }
+    }
+
+    private fun visitRemoved(
+        old: Item,
+        oldTree: ItemTree,
+        visitor: ComparisonVisitor,
+        newParent: Item?,
+        filter: Predicate<Item>?
+    ) {
+
+        // If it's a method, we may not have removed the method, we may have simply
+        // removed an override and are now inheriting the method from a superclass.
+        // Alternatively, it may have always truly been an inherited method, but if the base
+        // class was hidden then the signature file may have listed the method as being
+        // declared on the subclass
+        val inheritedMethod =
+            if (old is MethodItem && !old.isConstructor() && newParent is ClassItem) {
+                val superMethod = newParent.findPredicateMethodWithSuper(old, filter)
+
+                if (superMethod != null && (filter == null || filter.test(superMethod))) {
+                    superMethod.duplicate(newParent)
+                } else {
+                    null
+                }
+            } else {
+                null
+            }
+
+        if (inheritedMethod != null) {
+            visitCompare(visitor, old, inheritedMethod)
+            // Compare the children (recurse)
+            if (inheritedMethod.parameters().isNotEmpty()) {
+                val parameters = inheritedMethod.parameters().map { ItemTree(it) }.toList()
+                compare(visitor, oldTree.children, parameters, oldTree.item(), inheritedMethod, filter)
+            }
+            return
+        }
+
+        // fields may also be moved to superclasses like methods may
+        val inheritedField =
+            if (old is FieldItem && newParent is ClassItem) {
+                val superField = newParent.findField(
+                    fieldName = old.name(),
+                    includeSuperClasses = true,
+                    includeInterfaces = true)
+
+                if (superField != null && (filter == null || filter.test(superField))) {
+                    superField.duplicate(newParent)
+                } else {
+                    null
+                }
+            } else {
+                null
+            }
+
+        if (inheritedField != null) {
+            visitCompare(visitor, old, inheritedField)
+            return
+        }
+        visitRemoved(visitor, old, newParent)
     }
 
     @Suppress("USELESS_CAST") // Overloaded visitor methods: be explicit about which one is being invoked

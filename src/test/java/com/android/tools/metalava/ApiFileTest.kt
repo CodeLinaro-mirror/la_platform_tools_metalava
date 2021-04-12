@@ -162,22 +162,22 @@ class ApiFileTest : DriverTest() {
                     import android.view.View
 
                     class Foo {
-                        fun method1(int: Int = 42,
-                            int2: Int? = null,
-                            byte: Int = 2 * 21,
+                        fun method1(myInt: Int = 42,
+                            myInt2: Int? = null,
+                            myByte: Int = 2 * 21,
                             str: String = "hello " + "world",
                             vararg args: String) { }
 
-                        fun method2(int: Int, int2: Int = (2*int) * SIZE) { }
+                        fun method2(myInt: Int, myInt2: Int = (2*int) * SIZE) { }
 
-                        fun method3(str: String, int: Int, int2: Int = double(int) + str.length) { }
+                        fun method3(str: String, myInt: Int, myInt2: Int = double(int) + str.length) { }
 
                         fun emptyLambda(sizeOf: () -> Unit = {  }) {}
 
                         fun View.drawToBitmap(config: Bitmap.Config = Bitmap.Config.ARGB_8888): Bitmap? = null
 
                         companion object {
-                            fun double(int: Int) = 2 * int
+                            fun double(myInt: Int) = 2 * myInt
                             fun print(foo: Foo = Foo()) { println(foo) }
                         }
                     }
@@ -201,13 +201,13 @@ class ApiFileTest : DriverTest() {
                     ctor public Foo();
                     method public android.graphics.Bitmap? drawToBitmap(android.view.View, android.graphics.Bitmap.Config config = android.graphics.Bitmap.Config.ARGB_8888);
                     method public void emptyLambda(kotlin.jvm.functions.Function0<kotlin.Unit> sizeOf = {});
-                    method public void method1(int p = 42, Integer? int2 = null, int p1 = 42, String str = "hello world", java.lang.String... args);
-                    method public void method2(int p, int int2 = (2 * int) * some.other.pkg.Constants.Misc.SIZE);
-                    method public void method3(String str, int p, int int2 = double(int) + str.length);
+                    method public void method1(int myInt = 42, Integer? myInt2 = null, int myByte = 42, String str = "hello world", java.lang.String... args);
+                    method public void method2(int myInt, int myInt2 = (2 * int) * some.other.pkg.Constants.Misc.SIZE);
+                    method public void method3(String str, int myInt, int myInt2 = double(int) + str.length);
                     field public static final test.pkg.Foo.Companion Companion;
                   }
                   public static final class Foo.Companion {
-                    method public int double(int p);
+                    method public int double(int myInt);
                     method public void print(test.pkg.Foo foo = test.pkg.Foo());
                   }
                 }
@@ -340,7 +340,7 @@ class ApiFileTest : DriverTest() {
                     method public java.lang.String getProperty1();
                     method public java.lang.String getProperty2();
                     method public void otherMethod(boolean ok, int times);
-                    method public void setProperty2(java.lang.String p);
+                    method public void setProperty2(java.lang.String property2);
                     property public final java.lang.String property1;
                     property public final java.lang.String property2;
                     field public static final test.pkg.Kotlin.Companion Companion;
@@ -446,7 +446,8 @@ class ApiFileTest : DriverTest() {
                 kotlin(
                     """
                     package test.pkg
-                    suspend inline fun hello() { }
+                    suspend inline fun hello(foo: Int) { }
+                    suspend fun helloTwoContinuations(myContinuation: kotlin.coroutines.Continuation<Any>) { }
                     internal suspend fun internalHello() { }
                     private suspend fun privateHello() { }
                     """
@@ -455,7 +456,8 @@ class ApiFileTest : DriverTest() {
             api = """
                 package test.pkg {
                   public final class TestKt {
-                    method @Nullable public static suspend inline Object hello(@NonNull kotlin.coroutines.Continuation<? super kotlin.Unit> p);
+                    method @Nullable public static suspend inline Object hello(int foo, @NonNull kotlin.coroutines.Continuation<? super kotlin.Unit>);
+                    method @Nullable public static suspend Object helloTwoContinuations(@NonNull kotlin.coroutines.Continuation<java.lang.Object> myContinuation, @NonNull kotlin.coroutines.Continuation<? super kotlin.Unit>);
                   }
                 }
                 """
@@ -1085,7 +1087,7 @@ class ApiFileTest : DriverTest() {
                   public final class SimpleClass {
                     ctor public SimpleClass();
                     method public int getNonJvmField();
-                    method public void setNonJvmField(int p);
+                    method public void setNonJvmField(int nonJvmField);
                     property public final int nonJvmField;
                     field public int jvmField;
                   }
@@ -1119,8 +1121,8 @@ class ApiFileTest : DriverTest() {
                     ctor public SimpleClass();
                     method public int getAnotherProperty();
                     method public int myPropertyJvmGetter();
-                    method public void setAnotherProperty(int p);
-                    method public void setMyProperty(int p);
+                    method public void setAnotherProperty(int anotherProperty);
+                    method public void setMyProperty(int myProperty);
                     property public final int anotherProperty;
                     property public final int myProperty;
                   }
@@ -1236,8 +1238,8 @@ class ApiFileTest : DriverTest() {
                 // Signature format: 3.0
                 package androidx.annotation.experimental {
                   @kotlin.annotation.Retention(kotlin.annotation.AnnotationRetention) @kotlin.annotation.Target(allowedTargets={kotlin.annotation.AnnotationTarget, kotlin.annotation.AnnotationTarget, kotlin.annotation.AnnotationTarget, kotlin.annotation.AnnotationTarget, kotlin.annotation.AnnotationTarget, kotlin.annotation.AnnotationTarget, kotlin.annotation.AnnotationTarget, kotlin.annotation.AnnotationTarget, kotlin.annotation.AnnotationTarget, kotlin.annotation.AnnotationTarget}) public @interface UseExperimental {
-                    method public abstract Class<? extends java.lang.annotation.Annotation>[] markerClass();
-                    property public abstract Class<? extends java.lang.annotation.Annotation>![] markerClass;
+                    method public abstract kotlin.reflect.KClass<? extends java.lang.annotation.Annotation>[] markerClass();
+                    property public abstract kotlin.reflect.KClass<? extends java.lang.annotation.Annotation>![] markerClass;
                   }
                 }
                 package test.pkg {
@@ -4426,22 +4428,22 @@ class ApiFileTest : DriverTest() {
                     import android.view.View
 
                     class Foo(a: String = "1", b: String = "2") {
-                        fun method1(int: Int = 42,
-                            int2: Int? = null,
-                            byte: Int = 2 * 21,
+                        fun method1(myInt: Int = 42,
+                            myInt2: Int? = null,
+                            myByte: Int = 2 * 21,
                             str: String = "hello " + "world",
                             vararg args: String) { }
 
-                        fun method2(int: Int, int2: Int = (2*int) * SIZE) { }
+                        fun method2(myInt: Int, myInt2: Int = (2*int) * SIZE) { }
 
-                        fun method3(str: String, int: Int, int2: Int = double(int) + str.length) { }
+                        fun method3(str: String, myInt: Int, myInt2: Int = double(int) + str.length) { }
 
                         fun emptyLambda(sizeOf: () -> Unit = {  }) {}
 
                         fun View.drawToBitmap(config: Bitmap.Config = Bitmap.Config.ARGB_8888): Bitmap? = null
 
                         companion object {
-                            fun double(int: Int) = 2 * int
+                            fun double(myInt: Int) = 2 * myInt
                             fun print(foo: Foo = Foo()) { println(foo) }
                         }
                     }
@@ -4465,13 +4467,13 @@ class ApiFileTest : DriverTest() {
                     ctor public Foo(optional String a, optional String b);
                     method public android.graphics.Bitmap? drawToBitmap(android.view.View, optional android.graphics.Bitmap.Config config);
                     method public void emptyLambda(optional kotlin.jvm.functions.Function0<kotlin.Unit> sizeOf);
-                    method public void method1(optional int p, optional Integer? int2, optional int p1, optional String str, java.lang.String... args);
-                    method public void method2(int p, optional int int2);
-                    method public void method3(String str, int p, optional int int2);
+                    method public void method1(optional int myInt, optional Integer? myInt2, optional int myByte, optional String str, java.lang.String... args);
+                    method public void method2(int myInt, optional int myInt2);
+                    method public void method3(String str, int myInt, optional int myInt2);
                     field public static final test.pkg.Foo.Companion Companion;
                   }
                   public static final class Foo.Companion {
-                    method public int double(int p);
+                    method public int double(int myInt);
                     method public void print(optional test.pkg.Foo foo);
                   }
                 }

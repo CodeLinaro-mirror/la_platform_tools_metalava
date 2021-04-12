@@ -1744,6 +1744,7 @@ class DocAnalyzerTest : DriverTest() {
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     @Deprecated
                     public final class Foo {
+                    @Deprecated
                     public Foo() { throw new RuntimeException("Stub!"); }
                     public void foo() { throw new RuntimeException("Stub!"); }
                     /**

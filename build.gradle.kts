@@ -21,7 +21,6 @@ defaultTasks = mutableListOf(
 repositories {
     google()
     mavenCentral()
-    jcenter() // needed for trove4j
     val lintRepo = project.findProperty("lintRepo") as String?
     if (lintRepo != null) {
         logger.warn("Building using custom $lintRepo maven repository")
@@ -42,7 +41,7 @@ group = "com.android.tools.metalava"
 version = getMetalavaVersion()
 
 application {
-    mainClassName = "com.android.tools.metalava.Driver"
+    mainClass.set("com.android.tools.metalava.Driver")
     applicationDefaultJvmArgs = listOf("-ea", "-Xms2g", "-Xmx4g")
 }
 
@@ -68,7 +67,7 @@ val studioVersion: String = if (customLintVersion != null) {
     logger.warn("Building using custom $customLintVersion version of Android Lint")
     customLintVersion
 } else {
-    "27.2.0-alpha11"
+    "30.0.0-alpha14"
 }
 val kotlinVersion: String = "1.4.30"
 
@@ -230,7 +229,7 @@ publishing {
 tasks.withType(GenerateModuleMetadata::class.java).configureEach {
     doLast {
         val metadata = outputFile.asFile.get()
-        var text = metadata.readText()
+        val text = metadata.readText()
         metadata.writeText(
             text.replace(
                 "\"buildId\": .*".toRegex(),
