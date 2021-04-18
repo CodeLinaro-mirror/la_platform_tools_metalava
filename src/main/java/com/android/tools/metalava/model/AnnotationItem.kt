@@ -282,6 +282,11 @@ interface AnnotationItem {
                 "android.support.annotation.LongDef",
                 "android.annotation.LongDef" -> return "androidx.annotation.LongDef"
 
+                // Context Types
+                "android.annotation.UiContext" -> return "androidx.annotation.UiContext"
+                "android.annotation.DisplayContext" -> return "androidx.annotation.DisplayContext"
+                "android.annotation.NonUiContext" -> return "androidx.annotation.NonUiContext"
+
                 // Misc
                 "android.support.annotation.CallSuper",
                 "android.annotation.CallSuper" -> return "androidx.annotation.CallSuper"
@@ -394,6 +399,13 @@ interface AnnotationItem {
         private fun nonNullAnnotationName(target: AnnotationTarget) =
             if (target == AnnotationTarget.SDK_STUBS_FILE) ANDROID_NONNULL else ANDROIDX_NONNULL
 
+        private val TYPEDEF_ANNOTATION_TARGETS =
+            if (options.typedefMode == Options.TypedefMode.INLINE ||
+                options.typedefMode == Options.TypedefMode.NONE) // just here for compatibility purposes
+                ANNOTATION_EXTERNAL
+            else
+                ANNOTATION_EXTERNAL_ONLY
+
         /** The applicable targets for this annotation */
         fun computeTargets(
             annotation: AnnotationItem,
@@ -416,7 +428,7 @@ interface AnnotationItem {
                 "androidx.annotation.StringDef",
                 "android.support.annotation.LongDef",
                 "android.annotation.LongDef",
-                "androidx.annotation.LongDef" -> return ANNOTATION_EXTERNAL_ONLY
+                "androidx.annotation.LongDef" -> return TYPEDEF_ANNOTATION_TARGETS
 
                 // Not directly API relevant
                 "android.view.ViewDebug.ExportedProperty",

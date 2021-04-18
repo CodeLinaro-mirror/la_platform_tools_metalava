@@ -65,7 +65,7 @@ class PsiAnnotationItem private constructor(
     }
 
     override fun resolve(): ClassItem? {
-        return codebase.findClass(originalName ?: return null)
+        return codebase.findOrCreateClass(originalName ?: return null)
     }
 
     override fun isNonNull(): Boolean {

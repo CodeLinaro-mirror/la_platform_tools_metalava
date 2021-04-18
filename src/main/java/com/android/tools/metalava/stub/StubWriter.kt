@@ -161,8 +161,13 @@ class StubWriter(
 
     private fun getClassFile(classItem: ClassItem): File {
         assert(classItem.containingClass() == null) { "Should only be called on top level classes" }
-        // TODO: Look up compilation unit language
-        return File(getPackageDir(classItem.containingPackage()), "${classItem.simpleName()}.java")
+        val packageDir = getPackageDir(classItem.containingPackage())
+
+        return if (classItem.isKotlin() && options.kotlinStubs) {
+            File(packageDir, "${classItem.simpleName()}.kt")
+        } else {
+            File(packageDir, "${classItem.simpleName()}.java")
+        }
     }
 
     /**

@@ -562,7 +562,10 @@ interface ClassItem : Item {
      * Return methods matching the given predicate. Forcibly includes local
      * methods that override a matching method in an ancestor class.
      */
-    fun filteredMethods(predicate: Predicate<Item>): Collection<MethodItem> {
+    fun filteredMethods(
+        predicate: Predicate<Item>,
+        includeSuperClassMethods: Boolean = false
+    ): Collection<MethodItem> {
         val methods = LinkedHashSet<MethodItem>()
         for (method in methods()) {
             if (predicate.test(method) || method.findPredicateSuperMethod(predicate) != null) {
@@ -571,6 +574,9 @@ interface ClassItem : Item {
                 methods.remove(method)
                 methods.add(method)
             }
+        }
+        if (includeSuperClassMethods) {
+            superClass()?.filteredMethods(predicate, includeSuperClassMethods)?.let { methods += it }
         }
         return methods
     }

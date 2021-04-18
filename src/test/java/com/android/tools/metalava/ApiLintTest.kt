@@ -1202,6 +1202,24 @@ class ApiLintTest : DriverTest() {
                     """
                     package android.pkg;
 
+                    public class SubOk extends Ok {
+
+                        public static final class Builder {
+                            public Builder() {}
+
+                            @NonNull
+                            public SubOk build() { return null; }
+
+                            @NonNull
+                            public Builder setInt(int value) { return this; }
+                        }
+                    }
+                    """
+                ),
+                java(
+                    """
+                    package android.pkg;
+
                     import androidx.annotation.NonNull;
                     import androidx.annotation.Nullable;
 
@@ -1265,6 +1283,40 @@ class ApiLintTest : DriverTest() {
                 ),
                 androidxNonNullSource,
                 androidxNullableSource
+            )
+        )
+    }
+
+    @Test
+    fun `Check suppress works on inherited methods`() {
+        check(
+            apiLint = "", // enabled
+            compatibilityMode = false,
+            expectedIssues = """
+                warning: Should avoid odd sized primitives; use `int` instead of `short` in method android.pkg.Ok.Public.shouldFail(PublicT) [NoByteOrShort] [See https://s.android.com/api-guidelines#avoid-short-byte]
+                """,
+            sourceFiles = arrayOf(
+                java(
+                """
+                package android.pkg;
+
+                import androidx.annotation.NonNull;
+
+                public class Ok {
+
+                    static final class Hidden<HiddenT> {
+                        @SuppressWarnings("NoByteOrShort")
+                        public short suppressed(HiddenT t) { return null; }
+
+                        public short shouldFail(HiddenT t) { return null; }
+                    }
+
+                    public static final class Public<PublicT> extends Hidden<PublicT> {
+                    }
+                }
+                """
+                ),
+                androidxNonNullSource
             )
         )
     }
