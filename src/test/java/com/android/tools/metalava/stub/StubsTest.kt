@@ -4344,7 +4344,6 @@ class StubsTest : DriverTest() {
                         open fun method(): java.lang.String = error("Stub!")
                         /** My method doc */
                         open fun otherMethod(open ok: boolean, open times: int): void = error("Stub!")
-                        open fun getProperty1(): java.lang.String = error("Stub!")
                         }
                     """
                 ),

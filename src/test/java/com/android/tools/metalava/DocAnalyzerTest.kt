@@ -2216,4 +2216,60 @@ class DocAnalyzerTest : DriverTest() {
             )
         )
     }
+
+    @Test
+    fun `memberDoc crash`() {
+        check(
+            sourceFiles = arrayOf(
+                java("""
+                    package test.pkg;
+                    import java.lang.annotation.ElementType;
+                    import java.lang.annotation.Retention;
+                    import java.lang.annotation.RetentionPolicy;
+                    import java.lang.annotation.Target;
+                    /**
+                     * More text here
+                     * @memberDoc Important {@link another.pkg.Bar#BAR}
+                     * and here
+                     */
+                    @Target({ ElementType.FIELD })
+                    @Retention(RetentionPolicy.SOURCE)
+                    public @interface Foo { }
+                """),
+                java("""
+                    package another.pkg;
+                    public class Bar {
+                        public String BAR = "BAAAAR";
+                    }
+                """),
+                java("""
+                    package yetonemore.pkg;
+                    public class Fun {
+                        /**
+                         * Separate comment
+                         */
+                        @test.pkg.Foo
+                        public static final String FUN = "FUN";
+                    }
+                """)
+            ),
+            docStubs = true,
+            stubFiles = arrayOf(
+                java("""
+                    package yetonemore.pkg;
+                    @SuppressWarnings({"unchecked", "deprecation", "all"})
+                    public class Fun {
+                    public Fun() { throw new RuntimeException("Stub!"); }
+                    /**
+                     * Separate comment
+                     * <br>
+                     * Important {@link another.pkg.Bar#BAR}
+                     * and here
+                     */
+                    public static final java.lang.String FUN = "FUN";
+                    }
+                """)
+            )
+        )
+    }
 }

@@ -32,6 +32,7 @@ import com.intellij.psi.util.PsiTypesUtil
 import com.intellij.psi.util.TypeConversionUtil
 import org.intellij.lang.annotations.Language
 import org.jetbrains.kotlin.psi.KtNamedFunction
+import org.jetbrains.kotlin.psi.KtParameter
 import org.jetbrains.kotlin.psi.KtProperty
 import org.jetbrains.kotlin.psi.KtPropertyAccessor
 import org.jetbrains.uast.UClass
@@ -171,7 +172,8 @@ open class PsiMethodItem(
     override fun isKotlinProperty(): Boolean {
         return psiMethod is KotlinUMethod && (
             psiMethod.sourcePsi is KtProperty ||
-            psiMethod.sourcePsi is KtPropertyAccessor)
+            psiMethod.sourcePsi is KtPropertyAccessor ||
+            psiMethod.sourcePsi is KtParameter && (psiMethod.sourcePsi as KtParameter).hasValOrVar())
     }
 
     override fun findThrownExceptions(): Set<ClassItem> {

@@ -583,7 +583,8 @@ fun checkCompatibility(
         throw DriverException("Cannot perform compatibility check of signature file $signatureFile in format ${current.format} without analyzing current codebase with $ARG_FORMAT=${current.format}")
     }
 
-    var base: Codebase? = null
+    var newBase: Codebase? = null
+    var oldBase: Codebase? = null
     val releaseType = check.releaseType
     val apiType = check.apiType
 
@@ -608,19 +609,11 @@ fun checkCompatibility(
                 throw DriverException(ARG_CHECK_COMPATIBILITY_BASE_API +
                     " is not compatible with --showAnnotation.")
             }
-            val apiFile = apiType.getSignatureFile(codebase, "compat-check-signatures-$apiType")
 
-            // Fast path: if the signature files are identical, we're already good!
-            if (apiFile.readText(UTF_8) == signatureFile.readText(UTF_8)) {
-                return
-            }
+            newBase = codebase
+            oldBase = newBase
 
-            base = codebase
-
-            SignatureFileLoader.load(
-                file = apiFile,
-                kotlinStyleNulls = options.inputKotlinStyleNulls
-            )
+            codebase
         } else {
             // Fast path: if we've already generated a signature file and it's identical, we're good!
             val apiFile = options.apiFile
@@ -630,10 +623,11 @@ fun checkCompatibility(
 
             val baseApiFile = options.baseApiForCompatCheck
             if (baseApiFile != null) {
-                base = SignatureFileLoader.load(
+                oldBase = SignatureFileLoader.load(
                     file = baseApiFile,
                     kotlinStyleNulls = options.inputKotlinStyleNulls
                 )
+                newBase = oldBase
             }
 
             codebase
@@ -641,7 +635,7 @@ fun checkCompatibility(
 
     // If configured, compares the new API with the previous API and reports
     // any incompatibilities.
-    CompatibilityCheck.checkCompatibility(new, current, releaseType, apiType, base)
+    CompatibilityCheck.checkCompatibility(new, current, releaseType, apiType, oldBase, newBase)
 
     // Make sure the text files are identical too? (only applies for *current.txt;
     // last-released is expected to differ)
