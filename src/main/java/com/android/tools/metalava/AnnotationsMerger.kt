@@ -258,7 +258,7 @@ class AnnotationsMerger(
             }
 
             override fun removed(old: Item, from: Item?) {
-                warning("qualifier annotations were given for $old but no matching item was found")
+                reporter.report(Issues.UNMATCHED_MERGE_ANNOTATION, old, "qualifier annotations were given for $old but no matching item was found")
             }
 
             private fun mergeAnnotation(

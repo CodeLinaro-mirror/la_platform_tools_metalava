@@ -53,6 +53,13 @@ class PsiParameterItem(
             if (isReceiver()) {
                 return null
             }
+            // Don't print out name for the generated suspend function continuation parameter
+            if (containingMethod.modifiers.isSuspend() &&
+                    "kotlin.coroutines.Continuation" == type.asClass()?.qualifiedName() &&
+                    containingMethod.parameters().size - 1 == parameterIndex
+            ) {
+                return null
+            }
             return name
         } else {
             // Java: Look for @ParameterName annotation

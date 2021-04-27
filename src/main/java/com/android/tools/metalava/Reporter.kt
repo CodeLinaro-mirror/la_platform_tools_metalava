@@ -34,6 +34,7 @@ import com.intellij.psi.PsiCompiledElement
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiModifierListOwner
 import com.intellij.psi.impl.light.LightElement
+import org.jetbrains.uast.kotlin.KotlinUClass
 import java.io.File
 import java.io.PrintWriter
 
@@ -231,7 +232,9 @@ class Reporter(
     private fun getTextRange(element: PsiElement): TextRange? {
         var range: TextRange? = null
 
-        if (element is PsiCompiledElement) {
+        if (element is KotlinUClass) {
+            range = element.sourcePsi?.textRange
+        } else if (element is PsiCompiledElement) {
             if (element is LightElement) {
                 range = (element as PsiElement).textRange
             }

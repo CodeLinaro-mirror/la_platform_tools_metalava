@@ -26,6 +26,7 @@ object Issues {
     private val nameToIssue: MutableMap<String, Issue> = HashMap(300)
 
     val PARSE_ERROR = Issue(Severity.ERROR)
+    // Compatibility issues
     val ADDED_PACKAGE = Issue(Severity.WARNING, Category.COMPATIBILITY)
     val ADDED_CLASS = Issue(Severity.WARNING, Category.COMPATIBILITY)
     val ADDED_METHOD = Issue(Severity.WARNING, Category.COMPATIBILITY)
@@ -111,6 +112,7 @@ object Issues {
     val RETURNING_UNEXPECTED_CONSTANT = Issue(Severity.WARNING)
     val DEPRECATED_OPTION = Issue(Severity.WARNING)
     val BOTH_PACKAGE_INFO_AND_HTML = Issue(Severity.WARNING, Category.DOCUMENTATION)
+    val UNMATCHED_MERGE_ANNOTATION = Issue(Severity.WARNING)
     // The plan is for this to be set as an error once (1) existing code is marked as @deprecated
     // and (2) the principle is adopted by the API council
     val REFERENCES_DEPRECATED = Issue(Severity.HIDDEN)
