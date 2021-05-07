@@ -2087,7 +2087,8 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
                 "java.lang.Float",
                 "java.lang.Integer",
                 "java.lang.Long",
-                "java.lang.Short" ->
+                "java.lang.Short",
+                "java.lang.Boolean" ->
                     true
                 else ->
                     false

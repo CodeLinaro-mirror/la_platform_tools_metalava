@@ -1794,16 +1794,19 @@ class ApiLintTest : DriverTest() {
             apiLint = "", // enabled
             compatibilityMode = false,
             expectedIssues = """
-                src/android/pkg/MyClass.java:9: error: Must avoid boxed primitives (`java.lang.Long`) [AutoBoxing] [See https://s.android.com/api-guidelines#auto-boxing]
-                src/android/pkg/MyClass.java:11: error: Must avoid boxed primitives (`java.lang.Short`) [AutoBoxing] [See https://s.android.com/api-guidelines#auto-boxing]
-                src/android/pkg/MyClass.java:12: error: Must avoid boxed primitives (`java.lang.Double`) [AutoBoxing] [See https://s.android.com/api-guidelines#auto-boxing]
-                src/android/pkg/MyClass.java:6: error: Must avoid boxed primitives (`java.lang.Integer`) [AutoBoxing] [See https://s.android.com/api-guidelines#auto-boxing]
+                src/test/pkg/KotlinClass.kt:4: error: Must avoid boxed primitives (`java.lang.Double`) [AutoBoxing] [See https://s.android.com/api-guidelines#auto-boxing]
+                src/test/pkg/KotlinClass.kt:6: error: Must avoid boxed primitives (`java.lang.Boolean`) [AutoBoxing] [See https://s.android.com/api-guidelines#auto-boxing]
+                src/test/pkg/MyClass.java:9: error: Must avoid boxed primitives (`java.lang.Long`) [AutoBoxing] [See https://s.android.com/api-guidelines#auto-boxing]
+                src/test/pkg/MyClass.java:11: error: Must avoid boxed primitives (`java.lang.Short`) [AutoBoxing] [See https://s.android.com/api-guidelines#auto-boxing]
+                src/test/pkg/MyClass.java:12: error: Must avoid boxed primitives (`java.lang.Double`) [AutoBoxing] [See https://s.android.com/api-guidelines#auto-boxing]
+                src/test/pkg/MyClass.java:13: error: Must avoid boxed primitives (`java.lang.Boolean`) [AutoBoxing] [See https://s.android.com/api-guidelines#auto-boxing]
+                src/test/pkg/MyClass.java:6: error: Must avoid boxed primitives (`java.lang.Integer`) [AutoBoxing] [See https://s.android.com/api-guidelines#auto-boxing]
                 """,
             expectedFail = DefaultLintErrorMessage,
             sourceFiles = arrayOf(
                 java(
                     """
-                    package android.pkg;
+                    package test.pkg;
 
                     import androidx.annotation.Nullable;
 
@@ -1815,9 +1818,20 @@ class ApiLintTest : DriverTest() {
                         }
                         @Nullable
                         public Short getDouble(@Nullable Double l) { return null; }
+                        @Nullable
+                        public Boolean getBoolean() { return null; }
                     }
                     """
                 ),
+                kotlin("""
+                    package test.pkg
+                    class KotlinClass {
+                        fun getIntegerOk(): Double { TODO() }
+                        fun getIntegerBad(): Double? { TODO() }
+                        fun getBooleanOk(): Boolean { TODO() }
+                        fun getBooleanBad(): Boolean? { TODO() }
+                    }
+                """),
                 androidxNullableSource
             )
         )
@@ -3443,6 +3457,25 @@ class ApiLintTest : DriverTest() {
                 )
             ),
             extraArguments = arrayOf("--error", "NoSettingsProvider")
+        )
+    }
+
+    @Test
+    fun `No warnings about nullability on private constructor getters`() {
+        check(
+            compatibilityMode = false,
+            expectedIssues = "",
+            apiLint = "",
+            sourceFiles = arrayOf(
+                kotlin(
+                    """
+                        package test.pkg
+                        class MyClass private constructor(
+                            val myParameter: Set<Int>
+                        )
+                    """
+                )
+            )
         )
     }
 }

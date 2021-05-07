@@ -26,6 +26,7 @@ import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.Item.Companion.describe
+import com.android.tools.metalava.model.MergedCodebase
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
@@ -734,23 +735,6 @@ class CompatibilityCheck(
             return
         }
 
-        if (base != null) {
-            // We're diffing "overlay" APIs, such as system or test API files,
-            // where the signature files only list a delta from the full, "base" API.
-            // In that case, if an API is promoted from @SystemApi or @TestApi to be
-            // a full part of the API, it will look like a removal; it appeared in the
-            // previous file and not in the new file, but it's not removed, it's just
-            // not a delta anymore.
-            //
-            // For that reason, we also pass in the "base" API in these cases, and when
-            // an item is removed, we also check the full API to see if it's present
-            // there, and if so, this item is not actually deleted.
-            val baseItem = findBaseItem(item)
-            if (baseItem != null && ApiPredicate(ignoreShown = true).test(baseItem)) {
-                return
-            }
-        }
-
         report(issue, item, "Removed ${if (item.deprecated) "deprecated " else ""}${describe(item)}")
     }
 
@@ -911,18 +895,23 @@ class CompatibilityCheck(
             previous: Codebase,
             releaseType: ReleaseType,
             apiType: ApiType,
-            base: Codebase? = null
+            oldBase: Codebase? = null,
+            newBase: Codebase? = null
         ) {
             val filter = apiType.getReferenceFilter()
                 .or(apiType.getEmitFilter())
                 .or(ApiType.PUBLIC_API.getReferenceFilter())
                 .or(ApiType.PUBLIC_API.getEmitFilter())
-            val checker = CompatibilityCheck(filter, previous, apiType, base, getReporterForReleaseType(releaseType))
+            val checker = CompatibilityCheck(filter, previous, apiType, newBase, getReporterForReleaseType(releaseType))
             val issueConfiguration = releaseType.getIssueConfiguration()
             val previousConfiguration = configuration
+            // newBase is considered part of the current codebase
+            val currentFullCodebase = MergedCodebase(listOf(newBase, codebase).filterNotNull())
+            // oldBase is considered part of the previous codebase
+            val previousFullCodebase = MergedCodebase(listOf(oldBase, previous).filterNotNull())
             try {
                 configuration = issueConfiguration
-                CodebaseComparator().compare(checker, previous, codebase, filter)
+                CodebaseComparator().compare(checker, previousFullCodebase, currentFullCodebase, filter)
             } finally {
                 configuration = previousConfiguration
             }

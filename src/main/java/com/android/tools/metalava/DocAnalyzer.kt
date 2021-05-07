@@ -580,7 +580,7 @@ class DocAnalyzer(
                 if (original != qualified) {
                     qualified.substring(if (qualified[3] == ' ') 4 else 3, qualified.length - 2)
                 } else {
-                    original
+                    insert
                 }
             } else {
                 insert

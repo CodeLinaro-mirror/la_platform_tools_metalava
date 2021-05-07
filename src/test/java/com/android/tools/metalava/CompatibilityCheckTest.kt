@@ -1777,7 +1777,6 @@ CompatibilityCheckTest : DriverTest() {
         check(
             includeSystemApiAnnotations = true,
             expectedIssues = """
-                src/test/pkg/Bar.java:17: error: Added method test.pkg.Bar.Inner1.Inner2.addedMethod() to the system API [AddedMethod]
                 TESTROOT/current-api.txt:4: error: Removed method test.pkg.Bar.Inner1.Inner2.removedMethod() [RemovedMethod]
                 """,
             sourceFiles = arrayOf(
@@ -1850,7 +1849,6 @@ CompatibilityCheckTest : DriverTest() {
             includeSystemApiAnnotations = true,
             expectedIssues = """
                 TESTROOT/current-api.txt:4: error: Removed method android.rolecontrollerservice.RoleControllerService.onClearRoleHolders() [RemovedMethod]
-                src/android/rolecontrollerservice/RoleControllerService.java:7: error: Added method android.rolecontrollerservice.RoleControllerService.onGrantDefaultRoles() to the system API [AddedAbstractMethod]
                 """,
             sourceFiles = arrayOf(
                 java(
@@ -1970,13 +1968,14 @@ CompatibilityCheckTest : DriverTest() {
     fun `Test verifying simple removed API`() {
         check(
             expectedIssues = """
-                src/test/pkg/Bar.java:8: error: Added method test.pkg.Bar.newlyRemoved() to the removed API [AddedMethod]
+                TESTROOT/removed-current-api.txt:5: error: Removed method test.pkg.Bar.removedMethod2() [RemovedMethod]
                 """,
             checkCompatibilityRemovedApiCurrent = """
                 package test.pkg {
                   public class Bar {
                     ctor public Bar();
                     method public void removedMethod();
+                    method public void removedMethod2();
                   }
                   public class Bar.Inner {
                     ctor public Bar.Inner();
@@ -1989,16 +1988,16 @@ CompatibilityCheckTest : DriverTest() {
                     package test.pkg;
                     @SuppressWarnings("JavaDoc")
                     public class Bar {
-                        /** @removed */
+                        /** @removed */ // still part of the removed api
                         public Bar() { }
-                        // No longer removed: /** @removed */
+                        // no longer part of the removed api
                         public void removedMethod() { }
                         /** @removed */
                         public void newlyRemoved() { }
 
                         public void newlyAdded() { }
 
-                        /** @removed */
+                        /** @removed */ // still part of the removed api
                         public class Inner { }
                     }
                     """
@@ -2286,6 +2285,44 @@ CompatibilityCheckTest : DriverTest() {
                   }
                 }
             """
+        )
+    }
+
+    @Test
+    fun `Test check a class moving from the released api to the base api`() {
+        check(
+            compatibilityMode = false,
+            checkCompatibilityApiReleased = """
+                package test.pkg {
+                  public class SomeClass1 {
+                    method public void method1();
+                  }
+                  public class SomeClass2 {
+                    method public void oldMethod();
+                  }
+                }
+                """,
+            checkCompatibilityBaseApi = """
+                package test.pkg {
+                  public class SomeClass2 {
+                    method public void newMethod();
+                  }
+                }
+            """,
+            sourceFiles = arrayOf(
+                java(
+                    """
+                    package test.pkg;
+
+                    public class SomeClass1 {
+                        public void method1();
+                    }
+                    """
+                )
+            ),
+            expectedIssues = """
+            TESTROOT/released-api.txt:6: error: Removed method test.pkg.SomeClass2.oldMethod() [RemovedMethod]
+            """.trimIndent()
         )
     }
 
@@ -2629,6 +2666,105 @@ CompatibilityCheckTest : DriverTest() {
     }
 
     @Test
+    fun `Inherited systemApi method in an inner class`() {
+        check(
+            compatibilityMode = false,
+            checkCompatibilityApiReleased = """
+                package android.telephony {
+                  public class MmTelFeature.Capabilities {
+                    method public boolean isCapable(int);
+                  }
+                }
+                """,
+            sourceFiles = arrayOf(
+                java(
+                    """
+                    package android.telephony;
+
+                    /**
+                     * @hide
+                     */
+                    @android.annotation.SystemApi
+                    public class MmTelFeature {
+                        public static class Capabilities extends ParentCapabilities {
+                            @Override
+                            boolean isCapable(int argument) { return true; }
+                        }
+                    }
+                    """
+                ),
+                java(
+                    """
+                    package android.telephony;
+
+                    /**
+                     * @hide
+                     */
+                    @android.annotation.SystemApi
+                    public class Parent {
+                        public static class ParentCapabilities {
+                            public boolean isCapable(int argument) { return false; }
+                        }
+                    }
+                    """
+                ),
+                systemApiSource
+            ),
+            extraArguments = arrayOf(
+                ARG_SHOW_ANNOTATION, "android.annotation.SystemApi",
+                ARG_HIDE_PACKAGE, "android.annotation",
+                ARG_HIDE_PACKAGE, "android.support.annotation"
+            ),
+            expectedIssues = ""
+        )
+    }
+
+    @Test
+    fun `Moving removed api back to public api`() {
+        check(
+            compatibilityMode = false,
+            checkCompatibilityRemovedApiReleased = """
+                package android.content {
+                  public class ContextWrapper {
+                    method public void createContextForSplit();
+                  }
+                }
+                """,
+            sourceFiles = arrayOf(
+                java(
+                    """
+                    package android.content;
+
+                    public class ContextWrapper extends Parent {
+                        /** @removed */
+                        @Override
+                        public void getSharedPreferences() { }
+
+                        /** @hide */
+                        @Override
+                        public void createContextForSplit() { }
+                    }
+                    """
+                ),
+                java(
+                    """
+                    package android.content;
+
+                    public abstract class Parent {
+                        /** @hide */
+                        @Override
+                        public void getSharedPreferences() { }
+
+                        public abstract void createContextForSplit() { }
+                    }
+                    """
+                )
+            ),
+            expectedIssues = ""
+        )
+    }
+
+    @Test
     fun `Inherited nullability annotations`() {
         check(
             compatibilityMode = false,
@@ -2769,6 +2905,64 @@ CompatibilityCheckTest : DriverTest() {
                 )
             ),
             expectedIssues = """
+                """
+        )
+    }
+
+    @Test
+    fun `Move class from SystemApi to public and then remove a method`() {
+        check(
+            compatibilityMode = false,
+            checkCompatibilityApiReleased = """
+                package android.hardware.lights {
+                  public static final class LightsRequest.Builder {
+                    ctor public LightsRequest.Builder();
+                    method public void clearLight();
+                    method public void setLight();
+                  }
+
+                  public final class LightsManager {
+                  }
+                }
+                """,
+            sourceFiles = arrayOf(
+                java(
+                    """
+                    package android.hardware.lights;
+
+                    import android.annotation.SystemApi;
+
+                    public class LightsRequest {
+                        public static class Builder {
+                            void clearLight() { }
+                        }
+                    }
+                    """
+                ),
+                java(
+                    """
+                    package android.hardware.lights;
+
+                    import android.annotation.SystemApi;
+
+                    /**
+                     * @hide
+                     */
+                    @SystemApi
+                    public class LightsManager {
+                    }
+                    """
+                ),
+                systemApiSource
+            ),
+            extraArguments = arrayOf(
+                ARG_SHOW_ANNOTATION, "android.annotation.SystemApi",
+                ARG_HIDE_PACKAGE, "android.annotation",
+                ARG_HIDE_PACKAGE, "android.support.annotation"
+            ),
+
+            expectedIssues = """
+                TESTROOT/released-api.txt:5: error: Removed method android.hardware.lights.LightsRequest.Builder.setLight() [RemovedMethod]
                 """
         )
     }
@@ -2967,6 +3161,46 @@ CompatibilityCheckTest : DriverTest() {
                     }
                     """
                 )
+            ),
+            expectedIssues = ""
+        )
+    }
+
+    @Test
+    fun `Inherited abstract method`() {
+        check(
+            compatibilityMode = false,
+            checkCompatibilityApiReleased = """
+                package test.pkg {
+                  public class MeasureFormat {
+                      method public test.pkg.MeasureFormat parse();
+                  }
+                }
+                """,
+            sourceFiles = arrayOf(
+                java(
+                    """
+                    package test.pkg;
+
+                    public class MeasureFormat extends UFormat {
+                        private MeasureFormat() { }
+                        /** @hide */
+                        public MeasureFormat parse();
+                    }
+                    """
+                ),
+                java(
+                    """
+                    package test.pkg;
+                    import android.annotation.SystemApi;
+
+                    public abstract class UFormat {
+                        public abstract UFormat parse() {
+                        }
+                    }
+                    """
+                ),
+                systemApiSource
             ),
             expectedIssues = ""
         )
