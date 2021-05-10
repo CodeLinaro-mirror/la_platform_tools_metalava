@@ -83,7 +83,7 @@ const val ARG_STUBS_SOURCE_LIST = "--write-stubs-source-list"
 const val ARG_DOC_STUBS_SOURCE_LIST = "--write-doc-stubs-source-list"
 const val ARG_PROGUARD = "--proguard"
 const val ARG_EXTRACT_ANNOTATIONS = "--extract-annotations"
-const val ARG_EXCLUDE_ANNOTATIONS = "--exclude-annotations"
+const val ARG_EXCLUDE_ALL_ANNOTATIONS = "--exclude-all-annotations"
 const val ARG_EXCLUDE_DOCUMENTATION_FROM_STUBS = "--exclude-documentation-from-stubs"
 const val ARG_HIDE_PACKAGE = "--hide-package"
 const val ARG_MANIFEST = "--manifest"
@@ -147,6 +147,7 @@ const val ARG_INCLUDE_ANNOTATION_CLASSES = "--include-annotation-classes"
 const val ARG_REWRITE_ANNOTATIONS = "--rewrite-annotations"
 const val ARG_INCLUDE_SOURCE_RETENTION = "--include-source-retention"
 const val ARG_PASS_THROUGH_ANNOTATION = "--pass-through-annotation"
+const val ARG_EXCLUDE_ANNOTATION = "--exclude-annotation"
 const val ARG_INCLUDE_SIG_VERSION = "--include-signature-version"
 const val ARG_UPDATE_API = "--only-update-api"
 const val ARG_CHECK_API = "--only-check-api"
@@ -218,7 +219,8 @@ class Options(
     private val mutableConvertToXmlFiles: MutableList<ConvertFile> = mutableListOf()
     /** Internal list backing [passThroughAnnotations] */
     private val mutablePassThroughAnnotations: MutableSet<String> = mutableSetOf()
-
+    /** Internal list backing [excludeAnnotations] */
+    private val mutableExcludeAnnotations: MutableSet<String> = mutableSetOf()
     /** Ignored flags we've already warned about - store here such that we don't keep reporting them */
     private val alreadyWarned: MutableSet<String> = mutableSetOf()
 
@@ -489,6 +491,9 @@ class Options(
 
     /** The set of annotation classes that should be passed through unchanged */
     var passThroughAnnotations = mutablePassThroughAnnotations
+
+    /** The set of annotation classes that should be removed from all outputs */
+    var excludeAnnotations = mutableExcludeAnnotations
 
     /**
      * A signature file to migrate nullness data from
@@ -916,7 +921,7 @@ class Options(
                 ARG_STUBS_SOURCE_LIST -> stubsSourceList = stringToNewFile(getValue(args, ++index))
                 ARG_DOC_STUBS_SOURCE_LIST -> docStubsSourceList = stringToNewFile(getValue(args, ++index))
 
-                ARG_EXCLUDE_ANNOTATIONS -> generateAnnotations = false
+                ARG_EXCLUDE_ALL_ANNOTATIONS -> generateAnnotations = false
 
                 ARG_EXCLUDE_DOCUMENTATION_FROM_STUBS -> includeDocumentationInStubs = false
 
@@ -929,6 +934,13 @@ class Options(
                     val annotations = getValue(args, ++index)
                     annotations.split(",").forEach { path ->
                         mutablePassThroughAnnotations.add(path)
+                    }
+                }
+
+                ARG_EXCLUDE_ANNOTATION -> {
+                    val annotations = getValue(args, ++index)
+                    annotations.split(",").forEach { path ->
+                        mutableExcludeAnnotations.add(path)
                     }
                 }
 
@@ -2367,9 +2379,11 @@ class Options(
             ARG_KOTLIN_STUBS, "[CURRENTLY EXPERIMENTAL] If specified, stubs generated from Kotlin source code will " +
                 "be written in Kotlin rather than the Java programming language.",
             ARG_INCLUDE_ANNOTATIONS, "Include annotations such as @Nullable in the stub files.",
-            ARG_EXCLUDE_ANNOTATIONS, "Exclude annotations such as @Nullable from the stub files; the default.",
+            ARG_EXCLUDE_ALL_ANNOTATIONS, "Exclude annotations such as @Nullable from the stub files; the default.",
             "$ARG_PASS_THROUGH_ANNOTATION <annotation classes>", "A comma separated list of fully qualified names of " +
                 "annotation classes that must be passed through unchanged.",
+            "$ARG_EXCLUDE_ANNOTATION <annotation classes>", "A comma separated list of fully qualified names of " +
+                "annotation classes that must be stripped from metalava's outputs.",
             ARG_EXCLUDE_DOCUMENTATION_FROM_STUBS, "Exclude element documentation (javadoc and kdoc) " +
                 "from the generated stubs. (Copyright notices are not affected by this, they are always included. " +
                 "Documentation stubs (--doc-stubs) are not affected.)",
