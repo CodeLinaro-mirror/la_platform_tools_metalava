@@ -176,6 +176,9 @@ interface AnnotationItem {
             if (options.passThroughAnnotations.contains(qualifiedName)) {
                 return qualifiedName
             }
+            if (options.excludeAnnotations.contains(qualifiedName)) {
+                return null
+            }
             when (qualifiedName) {
                 // Resource annotations
                 "android.support.annotation.AnimRes",

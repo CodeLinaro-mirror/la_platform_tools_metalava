@@ -2,11 +2,11 @@ package com.android.tools.metalava
 
 import com.android.tools.lint.checks.infrastructure.TestFiles.source
 import com.android.tools.metalava.model.psi.trimDocIndent
-import com.google.common.io.Files
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.File
+import java.nio.file.Files
 import kotlin.text.Charsets.UTF_8
 
 /** Tests for the [DocAnalyzer] which enhances the docs */
@@ -2012,7 +2012,7 @@ class DocAnalyzerTest : DriverTest() {
             return
         }
 
-        val dir = Files.createTempDir()
+        val dir = Files.createTempDirectory(null).toFile()
         val html = "$dir/javadoc"
         val sourceList = "$dir/sources.txt"
 

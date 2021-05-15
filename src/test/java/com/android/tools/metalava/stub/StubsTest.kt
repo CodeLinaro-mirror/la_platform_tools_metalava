@@ -21,11 +21,12 @@ package com.android.tools.metalava.stub
 import com.android.tools.lint.checks.infrastructure.LintDetectorTest.source
 import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.metalava.ARG_CHECK_API
-import com.android.tools.metalava.ARG_EXCLUDE_ANNOTATIONS
+import com.android.tools.metalava.ARG_EXCLUDE_ALL_ANNOTATIONS
 import com.android.tools.metalava.ARG_EXCLUDE_DOCUMENTATION_FROM_STUBS
 import com.android.tools.metalava.ARG_HIDE_PACKAGE
 import com.android.tools.metalava.ARG_KOTLIN_STUBS
 import com.android.tools.metalava.ARG_PASS_THROUGH_ANNOTATION
+import com.android.tools.metalava.ARG_EXCLUDE_ANNOTATION
 import com.android.tools.metalava.ARG_UPDATE_API
 import com.android.tools.metalava.DriverTest
 import com.android.tools.metalava.FileFormat
@@ -2054,6 +2055,52 @@ class StubsTest : DriverTest() {
     }
 
     @Test
+    fun `Skip RequiresApi annotation`() {
+        check(
+            extraArguments = arrayOf(
+                ARG_EXCLUDE_ANNOTATION, "androidx.annotation.RequiresApi"
+            ),
+            sourceFiles = arrayOf(
+                java(
+                    """
+                    package my.pkg;
+                    public class MyClass {
+                        @androidx.annotation.RequiresApi(21)
+                        public void testMethod() {}
+                    }
+                    """
+                ),
+                requiresApiSource
+            ),
+            expectedIssues = "",
+            api = """
+                    package androidx.annotation {
+                      public abstract class RequiresApi implements java.lang.annotation.Annotation {
+                      }
+                    }
+                    package my.pkg {
+                      public class MyClass {
+                        ctor public MyClass();
+                        method public void testMethod();
+                      }
+                    }
+                    """,
+            stubFiles = arrayOf(
+                java(
+                    """
+                    package my.pkg;
+                    @SuppressWarnings({"unchecked", "deprecation", "all"})
+                    public class MyClass {
+                    public MyClass() { throw new RuntimeException("Stub!"); }
+                    public void testMethod() { throw new RuntimeException("Stub!"); }
+                    }
+                    """
+                )
+            )
+        )
+    }
+
+    @Test
     fun `Test inaccessible constructors`() {
         // If the constructors of a class are not visible, and the class has subclasses,
         // those subclass stubs will need to reference these inaccessible constructors.
@@ -3486,9 +3533,9 @@ class StubsTest : DriverTest() {
     }
 
     @Test
-    fun `Ensure we emit both deprecated javadoc and annotation with exclude-annotations`() {
+    fun `Ensure we emit both deprecated javadoc and annotation with exclude-all-annotations`() {
         check(
-            extraArguments = arrayOf(ARG_EXCLUDE_ANNOTATIONS),
+            extraArguments = arrayOf(ARG_EXCLUDE_ALL_ANNOTATIONS),
             compatibilityMode = false,
             sourceFiles = arrayOf(
                 java(
@@ -3528,7 +3575,7 @@ class StubsTest : DriverTest() {
     @Test
     fun `Ensure we emit runtime and deprecated annotations in stubs with exclude-annotations`() {
         check(
-            extraArguments = arrayOf(ARG_EXCLUDE_ANNOTATIONS),
+            extraArguments = arrayOf(ARG_EXCLUDE_ALL_ANNOTATIONS),
             compatibilityMode = false,
             sourceFiles = arrayOf(
                 java(
@@ -3845,7 +3892,7 @@ class StubsTest : DriverTest() {
         check(
             extraArguments = arrayOf(
                 ARG_UPDATE_API,
-                ARG_EXCLUDE_ANNOTATIONS
+                ARG_EXCLUDE_ALL_ANNOTATIONS
             ),
             compatibilityMode = false,
             sourceFiles = arrayOf(
@@ -3886,7 +3933,7 @@ class StubsTest : DriverTest() {
         check(
             extraArguments = arrayOf(
                 ARG_CHECK_API,
-                ARG_EXCLUDE_ANNOTATIONS
+                ARG_EXCLUDE_ALL_ANNOTATIONS
             ),
             compatibilityMode = false,
             sourceFiles = arrayOf(
