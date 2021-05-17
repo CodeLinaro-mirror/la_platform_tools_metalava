@@ -2020,6 +2020,9 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
                 // for Foo<Bar>, Bar does.
                 return // Do not enforce nullability for generics
             }
+            if (item is MethodItem && item.isKotlinProperty()) {
+                return // kotlinc doesn't add nullability https://youtrack.jetbrains.com/issue/KT-45771
+            }
             val where = when (item) {
                 is ParameterItem -> "parameter `${item.name()}` in method `${item.parent()?.name()}`"
                 is FieldItem -> {
@@ -2084,7 +2087,8 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
                 "java.lang.Float",
                 "java.lang.Integer",
                 "java.lang.Long",
-                "java.lang.Short" ->
+                "java.lang.Short",
+                "java.lang.Boolean" ->
                     true
                 else ->
                     false

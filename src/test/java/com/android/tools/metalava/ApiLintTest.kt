@@ -869,7 +869,7 @@ class ApiLintTest : DriverTest() {
                         public void registerUnpairedCallback(@Nullable Runnable r) { }
                         // OK here because it is override
                         @Override
-                        public void registerOverriddenUnpairedCallback(@Nullable Runnable r) { } 
+                        public void registerOverriddenUnpairedCallback(@Nullable Runnable r) { }
                         public void unregisterMismatchedCallback(@Nullable Runnable r) { }
                         public void addCallback(@Nullable Runnable r) { }
 
@@ -1541,7 +1541,7 @@ class ApiLintTest : DriverTest() {
 
                     public class MyClass {
                         public MyClass() { }
-                        
+
                         @Nullable
                         public java.util.List<String> getList(@Nullable java.util.List<String> list) {
                             return null;
@@ -1794,16 +1794,19 @@ class ApiLintTest : DriverTest() {
             apiLint = "", // enabled
             compatibilityMode = false,
             expectedIssues = """
-                src/android/pkg/MyClass.java:9: error: Must avoid boxed primitives (`java.lang.Long`) [AutoBoxing] [See https://s.android.com/api-guidelines#auto-boxing]
-                src/android/pkg/MyClass.java:11: error: Must avoid boxed primitives (`java.lang.Short`) [AutoBoxing] [See https://s.android.com/api-guidelines#auto-boxing]
-                src/android/pkg/MyClass.java:12: error: Must avoid boxed primitives (`java.lang.Double`) [AutoBoxing] [See https://s.android.com/api-guidelines#auto-boxing]
-                src/android/pkg/MyClass.java:6: error: Must avoid boxed primitives (`java.lang.Integer`) [AutoBoxing] [See https://s.android.com/api-guidelines#auto-boxing]
+                src/test/pkg/KotlinClass.kt:4: error: Must avoid boxed primitives (`java.lang.Double`) [AutoBoxing] [See https://s.android.com/api-guidelines#auto-boxing]
+                src/test/pkg/KotlinClass.kt:6: error: Must avoid boxed primitives (`java.lang.Boolean`) [AutoBoxing] [See https://s.android.com/api-guidelines#auto-boxing]
+                src/test/pkg/MyClass.java:9: error: Must avoid boxed primitives (`java.lang.Long`) [AutoBoxing] [See https://s.android.com/api-guidelines#auto-boxing]
+                src/test/pkg/MyClass.java:11: error: Must avoid boxed primitives (`java.lang.Short`) [AutoBoxing] [See https://s.android.com/api-guidelines#auto-boxing]
+                src/test/pkg/MyClass.java:12: error: Must avoid boxed primitives (`java.lang.Double`) [AutoBoxing] [See https://s.android.com/api-guidelines#auto-boxing]
+                src/test/pkg/MyClass.java:13: error: Must avoid boxed primitives (`java.lang.Boolean`) [AutoBoxing] [See https://s.android.com/api-guidelines#auto-boxing]
+                src/test/pkg/MyClass.java:6: error: Must avoid boxed primitives (`java.lang.Integer`) [AutoBoxing] [See https://s.android.com/api-guidelines#auto-boxing]
                 """,
             expectedFail = DefaultLintErrorMessage,
             sourceFiles = arrayOf(
                 java(
                     """
-                    package android.pkg;
+                    package test.pkg;
 
                     import androidx.annotation.Nullable;
 
@@ -1815,9 +1818,20 @@ class ApiLintTest : DriverTest() {
                         }
                         @Nullable
                         public Short getDouble(@Nullable Double l) { return null; }
+                        @Nullable
+                        public Boolean getBoolean() { return null; }
                     }
                     """
                 ),
+                kotlin("""
+                    package test.pkg
+                    class KotlinClass {
+                        fun getIntegerOk(): Double { TODO() }
+                        fun getIntegerBad(): Double? { TODO() }
+                        fun getBooleanOk(): Boolean { TODO() }
+                        fun getBooleanBad(): Boolean? { TODO() }
+                    }
+                """),
                 androidxNullableSource
             )
         )
@@ -3003,12 +3017,9 @@ class ApiLintTest : DriverTest() {
         check(
             apiLint = "", // enabled
             compatibilityMode = false,
-            // Note, src/android/pkg/FontFamily.kt:1 warning should not be there, it is a bug in PSI
-            // https://youtrack.jetbrains.com/issue/KT-32556
             expectedIssues = """
                 src/android/pkg/A.kt:3: info: Note that adding the `operator` keyword would allow calling this method using operator syntax [KotlinOperator]
                 src/android/pkg/Bar.kt:4: info: Note that adding the `operator` keyword would allow calling this method using operator syntax [KotlinOperator]
-                src/android/pkg/FontFamily.kt:1: info: Note that adding the `operator` keyword would allow calling this method using operator syntax [KotlinOperator]
                 src/android/pkg/Foo.java:7: info: Method can be invoked as a binary operator from Kotlin: `div` (this is usually desirable; just make sure it makes sense for this type of object) [KotlinOperator]
                 """,
             sourceFiles = arrayOf(
@@ -3338,6 +3349,129 @@ class ApiLintTest : DriverTest() {
 
                         annotation class MyAnnotation(
                             vararg val markerClass: KClass<out Annotation>
+                        )
+                    """
+                )
+            )
+        )
+    }
+
+    @Test
+    fun `Inherited interface constants`() {
+        check(
+            compatibilityMode = false,
+            expectedIssues = "",
+            expectedFail = "",
+            apiLint = """
+                package javax.microedition.khronos.egl {
+                    public interface EGL {
+                    }
+                    public interface EGL10 extends javax.microedition.khronos.egl.EGL {
+                        field public static final int EGL_SUCCESS = 0;
+                    }
+                    public interface EGL11 extends javax.microedition.khronos.egl.EGL10 {
+                        field public static final int EGL_CONTEXT_LOST = 1;
+                    }
+                    public interface EGLDisplay {
+                    }
+                }
+                """,
+            sourceFiles = arrayOf(
+                java(
+                    """
+                        package javax.microedition.khronos.egl;
+
+                        public interface EGL {
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package javax.microedition.khronos.egl;
+
+                        public interface EGL10 extends EGL {
+                            EGLDisplay EGL_SUCCESS = new EGLImpl();
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package javax.microedition.khronos.egl;
+
+                        public interface EGL11 extends EGL10 {
+                            int EGL_CONTEXT_LOST = 1;
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package javax.microedition.khronos.egl;
+
+                        public abstract class EGLDisplay {
+                        }
+                    """
+                )
+            )
+        )
+    }
+
+    @Test
+    fun `Inherited interface constants inherited through parents into children`() {
+        check(
+            compatibilityMode = false,
+            expectedIssues = "",
+            expectedFail = "",
+            apiLint = """
+                package android.provider {
+                  public static final class Settings.Global extends android.provider.Settings.NameValueTable {
+                  }
+                  public static class Settings.NameValueTable implements android.provider.BaseColumns {
+                  }
+                  public interface BaseColumns {
+                      field public static final String _ID = "_id";
+                  }
+                }
+                """,
+            sourceFiles = arrayOf(
+                java(
+                    """
+                        package android.provider;
+
+                        public class Settings {
+                            private Settings() { }
+                            public static final class Global extends NameValueTable {
+                            }
+                            public static final class NameValueTable implements BaseColumns {
+                            }
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package android.provider;
+
+                        public interface BaseColumns {
+                            public static final String _ID = "_id";
+                        }
+                    """
+                )
+            ),
+            extraArguments = arrayOf("--error", "NoSettingsProvider")
+        )
+    }
+
+    @Test
+    fun `No warnings about nullability on private constructor getters`() {
+        check(
+            compatibilityMode = false,
+            expectedIssues = "",
+            apiLint = "",
+            sourceFiles = arrayOf(
+                kotlin(
+                    """
+                        package test.pkg
+                        class MyClass private constructor(
+                            val myParameter: Set<Int>
                         )
                     """
                 )

@@ -118,15 +118,26 @@ abstract class DriverTest {
                 if (cleanupString(expectedFail, null).replace(".", "").trim() !=
                     actualFail.replace(".", "").trim()
                 ) {
+                    val reportedCompatError = actualFail.startsWith("Aborting: Found compatibility problems checking the ")
                     if (expectedFail == "Aborting: Found compatibility problems with --check-compatibility" &&
-                        actualFail.startsWith("Aborting: Found compatibility problems checking the ")
+                        reportedCompatError
                     ) {
                         // Special case for compat checks; we don't want to force each one of them
                         // to pass in the right string (which may vary based on whether writing out
                         // the signature was passed at the same time
                         // ignore
                     } else {
-                        assertEquals(expectedFail.trimIndent(), actualFail)
+                        if (reportedCompatError) {
+                            // if a compatibility error was unexpectedly reported, then mark that as
+                            // an error but keep going so we can see the actual compatibility error
+                            if (expectedFail.trimIndent() != actualFail) {
+                                addError("ComparisonFailure: expected failure $expectedFail, actual $actualFail")
+                            }
+                        } else {
+                            // no compatibility error; check for other errors now, and
+                            // if one is found, fail right away
+                            assertEquals(expectedFail.trimIndent(), actualFail)
+                        }
                     }
                 }
             }
@@ -1193,9 +1204,9 @@ abstract class DriverTest {
             expectedFail = expectedFail
         )
 
-        if (expectedIssues != null) {
+        if (expectedIssues != null || allReportedIssues.toString() != "") {
             assertEquals(
-                expectedIssues.trimIndent().trim(),
+                expectedIssues?.trimIndent()?.trim() ?: "",
                 cleanupString(allReportedIssues.toString(), project)
             )
         }
