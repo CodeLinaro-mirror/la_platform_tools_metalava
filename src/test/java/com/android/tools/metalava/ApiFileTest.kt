@@ -4299,6 +4299,38 @@ class ApiFileTest : DriverTest() {
     }
 
     @Test
+    fun `Annotation value visibility`() {
+        check(
+            format = FileFormat.V2,
+            sourceFiles = arrayOf(
+                java("""
+                    package test.pkg
+
+                    import androidx.annotation.IntRange
+
+                    public final class ApiClass {
+                        private int hiddenConstant = 1;
+                        public ApiClass(@IntRange(from=1) int x) {}
+                        public void method(@IntRange(from = hiddenConstant) int x) {}
+                    }
+                """
+                ),
+                androidxIntRangeSource
+            ),
+            extraArguments = arrayOf(ARG_HIDE_PACKAGE, "androidx.annotation"),
+            api = """
+                // Signature format: 2.0
+                package test.pkg {
+                  public final class ApiClass {
+                    ctor public ApiClass(@IntRange(from=1) int);
+                    method public void method(@IntRange(from=0x1) int);
+                  }
+                }
+            """
+        )
+    }
+
+    @Test
     fun `Kotlin properties with overriding get`() {
         check(
             format = FileFormat.V3,
