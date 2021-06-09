@@ -31,7 +31,7 @@ repositories {
 }
 
 plugins {
-    kotlin("jvm") version "1.4.30"
+    kotlin("jvm") version "1.5.0"
     id("application")
     id("java")
     id("maven-publish")
@@ -69,7 +69,7 @@ val studioVersion: String = if (customLintVersion != null) {
 } else {
     "30.0.0-alpha14"
 }
-val kotlinVersion: String = "1.4.30"
+val kotlinVersion: String = "1.5.0"
 
 dependencies {
     implementation("com.android.tools.external.org-jetbrains:uast:$studioVersion")
@@ -92,7 +92,16 @@ dependencies {
     testImplementation("org.jetbrains.kotlin:kotlin-test:$kotlinVersion")
 }
 
-tasks.withType(Test::class.java) {
+val zipTask: TaskProvider<Zip> = project.tasks.register(
+    "zipResultsOf${name.capitalize()}",
+    Zip::class.java
+) {
+    destinationDirectory.set(File(getDistributionDirectory(), "host-test-reports"))
+    archiveFileName.set("metalava-tests.zip")
+}
+
+val testTask = tasks.named("test", Test::class.java)
+testTask.configure {
     testLogging.events = hashSetOf(
         TestLogEvent.FAILED,
         TestLogEvent.PASSED,
@@ -100,17 +109,11 @@ tasks.withType(Test::class.java) {
         TestLogEvent.STANDARD_OUT,
         TestLogEvent.STANDARD_ERROR
     )
-    val zipTask = project.tasks.register("zipResultsOf${name.capitalize()}", Zip::class.java) {
-        destinationDirectory.set(File(getDistributionDirectory(), "host-test-reports"))
-        archiveFileName.set("metalava-tests.zip")
-    }
     if (isBuildingOnServer()) ignoreFailures = true
     finalizedBy(zipTask)
-    doFirst {
-        zipTask.configure {
-            from(reports.junitXml.destination)
-        }
-    }
+}
+zipTask.configure {
+    from(testTask.map { it.reports.junitXml.outputLocation.get() })
 }
 
 fun getMetalavaVersion(): Any {
@@ -227,13 +230,16 @@ publishing {
 
 // Workaround for https://github.com/gradle/gradle/issues/11717
 tasks.withType(GenerateModuleMetadata::class.java).configureEach {
+    val outDirProvider = project.providers.environmentVariable("DIST_DIR")
+    inputs.property("buildOutputDirectory", outDirProvider).optional(true)
     doLast {
         val metadata = outputFile.asFile.get()
         val text = metadata.readText()
+        val buildId = outDirProvider.orNull?.let { File(it).name } ?: "0"
         metadata.writeText(
             text.replace(
                 "\"buildId\": .*".toRegex(),
-                "\"buildId:\": \"${getBuildId()}\"")
+                "\"buildId:\": \"${buildId}\"")
         )
     }
 }

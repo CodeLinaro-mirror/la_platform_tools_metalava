@@ -227,11 +227,14 @@ Generating Stubs:
                                              code will be written in Kotlin rather than the Java programming language.
 --include-annotations
                                              Include annotations such as @Nullable in the stub files.
---exclude-annotations
+--exclude-all-annotations
                                              Exclude annotations such as @Nullable from the stub files; the default.
 --pass-through-annotation <annotation classes>
                                              A comma separated list of fully qualified names of annotation classes that
                                              must be passed through unchanged.
+--exclude-annotation <annotation classes>
+                                             A comma separated list of fully qualified names of annotation classes that
+                                             must be stripped from metalava's outputs.
 --exclude-documentation-from-stubs
                                              Exclude element documentation (javadoc and kdoc) from the generated stubs.
                                              (Copyright notices are not affected by this, they are always included.
