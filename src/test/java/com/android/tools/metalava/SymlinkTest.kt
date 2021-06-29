@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava
 
+import com.android.tools.lint.checks.infrastructure.TestFiles.source
 import org.junit.Test
 import java.io.File
 
@@ -37,20 +38,9 @@ class SymlinkTest : DriverTest() {
         val before = System.getProperty("user.dir")
         try {
             check(
-                expectedIssues = "TESTROOT/src/test/pkg/sub1/sub2/sub3: info: Ignoring symlink during source file discovery directory traversal [IgnoringSymlink]",
-                projectSetup = { dir ->
-                    // Add a symlink from deep in the source tree back out to the
-                    // root, which makes a cycle
-                    val file = File(dir, "src/test/pkg/sub1/sub2")
-                    file.mkdirs()
-                    val symlink = File(file, "sub3").toPath()
-                    java.nio.file.Files.createSymbolicLink(symlink, dir.toPath())
-
-                    val git = File(file, ".git").toPath()
-                    java.nio.file.Files.createSymbolicLink(git, dir.toPath())
-
-                    // Write implicit source files to be discovered by our crawl.
-                    File(dir, "src/test/pkg/Foo.java").writeText(
+                expectedIssues = "TESTROOT/src/test/pkg/sub1/sub2/sub3: info: Ignoring symlink during package.html discovery directory traversal [IgnoringSymlink]",
+                sourceFiles = arrayOf(
+                    java(
                         """
                         package test.pkg;
                         import android.annotation.Nullable;
@@ -62,8 +52,10 @@ class SymlinkTest : DriverTest() {
                             @Nullable public Double method2(@NonNull Double factor1, @NonNull Double factor2) { }
                             @Nullable public Double method3(@NonNull Double factor1, @NonNull Double factor2) { }
                         }
-                        """)
-                    File(dir, "src/test/pkg/sub1/package.html").writeText(
+                        """
+                    ),
+                    source(
+                        "src/test/pkg/sub1/package.html",
                         """
                         <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
                         <!-- not a body tag: <body> -->
@@ -75,7 +67,21 @@ class SymlinkTest : DriverTest() {
                         Another line.<br>
                         </BODY>
                         </html>
-                        """)
+                        """
+                    ).indented(),
+                    nonNullSource,
+                    nullableSource
+                ),
+                projectSetup = { dir ->
+                    // Add a symlink from deep in the source tree back out to the
+                    // root, which makes a cycle
+                    val file = File(dir, "src/test/pkg/sub1/sub2")
+                    file.mkdirs()
+                    val symlink = File(file, "sub3").toPath()
+                    java.nio.file.Files.createSymbolicLink(symlink, dir.toPath())
+
+                    val git = File(file, ".git").toPath()
+                    java.nio.file.Files.createSymbolicLink(git, dir.toPath())
                 },
                 // Empty source path: don't pick up random directory stuff
                 extraArguments = arrayOf(

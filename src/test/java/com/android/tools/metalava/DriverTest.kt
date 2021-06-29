@@ -1380,9 +1380,8 @@ abstract class DriverTest {
                     val actualContents = readFile(actual, stripBlankLines, trim)
                     assertEquals(expected.contents, actualContents)
                 } else {
-                    val existing = stubsDir.walkTopDown().filter { it.isFile }.map { it.path }.joinToString("\n  ")
                     throw FileNotFoundException(
-                        "Could not find a generated stub for ${expected.targetRelativePath}. Found these files: \n  $existing"
+                        "Could not find a generated stub for ${expected.targetRelativePath}"
                     )
                 }
             }
