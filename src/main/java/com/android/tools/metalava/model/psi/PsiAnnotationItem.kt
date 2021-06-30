@@ -217,7 +217,8 @@ class PsiAnnotationItem private constructor(
                                 val initializer = resolved.initializer
                                 if (initializer != null) {
                                     val fieldItem = cls.findField(resolved.name)
-                                    if (fieldItem == null || fieldItem.isHiddenOrRemoved()) {
+                                    if (fieldItem == null || fieldItem.isHiddenOrRemoved() ||
+                                            !fieldItem.isPublic) {
                                         // Use the literal value instead
                                         val source = getConstantSource(initializer)
                                         if (source != null) {
