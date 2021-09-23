@@ -245,7 +245,7 @@ class ShowAnnotationTest : DriverTest() {
             ),
             // Empty API: showUnannotated=false
             api = """
-                """.trimIndent(),
+            """.trimIndent(),
             includeSystemApiAnnotations = true,
             extraArguments = arrayOf(
                 ARG_SHOW_ANNOTATION, "android.annotation.TestApi",
@@ -364,6 +364,7 @@ class ShowAnnotationTest : DriverTest() {
     @Test
     fun `showAnnotation with parameters`() {
         check(
+            format = FileFormat.V1,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -405,7 +406,7 @@ class ShowAnnotationTest : DriverTest() {
                   public class Foo {
                     ctor public Foo();
                     method public void method1();
-                    method public void method2();
+                    method @RestrictTo(androidx.annotation.RestrictTo.Scope.LIBRARY_GROUP) public void method2();
                     method public void method4();
                   }
                 }
@@ -618,7 +619,8 @@ class ShowAnnotationTest : DriverTest() {
                     }
                  */
                 base64gzip(
-                    "test.jar", "" +
+                    "test.jar",
+                    "" +
                         "H4sICDVE/F0AA3Rlc3QuamFyAAvwZmYRYeDg4GB4kDrFnwEJcDKwMPi6hjjq" +
                         "evq56f87xcDAzBDgzc4BkmKCKgnAqVkEiOGafR39PN1cg0P0fN0++5457eOt" +
                         "q3eR11tX69yZ85uDDK4YP3hapOflq+Ppe7F0FQtnxAvJI9JREq+WPX++/PmS" +
@@ -692,6 +694,7 @@ class ShowAnnotationTest : DriverTest() {
         // and if a client refers to Class2.FIELD, that resolves to Class*1*.FIELD.
         // - Class3 is (very naturally) hidden even though the super class is visible.
         check(
+            format = FileFormat.V1,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -747,7 +750,7 @@ class ShowAnnotationTest : DriverTest() {
                   public class Class1 {
                     ctor public Class1();
                     method public void member();
-                    field public static final java.lang.String FIELD = "Class1.FIELD";
+                    field public static final String FIELD = "Class1.FIELD";
                   }
                   public class Class2 extends test.pkg.Class1 {
                     ctor public Class2();

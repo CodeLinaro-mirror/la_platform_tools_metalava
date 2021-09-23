@@ -44,8 +44,7 @@ class TextModifiers(
         return TextModifiers(codebase, flags, newAnnotations)
     }
 
-    fun addAnnotations(annotationSources: List<String>?) {
-        annotationSources ?: return
+    fun addAnnotations(annotationSources: List<String>) {
         if (annotationSources.isEmpty()) {
             return
         }

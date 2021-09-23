@@ -16,12 +16,10 @@
 
 package com.android.tools.metalava.model.psi
 
-import com.android.tools.metalava.compatibility
 import com.android.tools.metalava.model.AnnotationTarget
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ModifierList
-import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.intellij.psi.PsiAnnotationMethod
@@ -29,7 +27,6 @@ import com.intellij.psi.PsiArrayType
 import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiMethod
 import com.intellij.psi.util.PsiTypesUtil
-import com.intellij.psi.util.TypeConversionUtil
 import org.intellij.lang.annotations.Language
 import org.jetbrains.kotlin.psi.KtNamedFunction
 import org.jetbrains.kotlin.psi.KtParameter
@@ -62,7 +59,8 @@ open class PsiMethodItem(
         modifiers = modifiers,
         documentation = documentation,
         element = psiMethod
-    ), MethodItem {
+    ),
+    MethodItem {
 
     init {
         for (parameter in parameters) {
@@ -107,7 +105,7 @@ open class PsiMethodItem(
 
     override fun returnType(): TypeItem? = returnType
 
-    override fun parameters(): List<ParameterItem> = parameters
+    override fun parameters(): List<PsiParameterItem> = parameters
 
     override val synthetic: Boolean get() = isEnumSyntheticMethod()
 
@@ -125,7 +123,8 @@ open class PsiMethodItem(
     override fun typeParameterList(): TypeParameterList {
         if (psiMethod.hasTypeParameters()) {
             return PsiTypeParameterList(
-                codebase, psiMethod.typeParameterList
+                codebase,
+                psiMethod.typeParameterList
                     ?: return TypeParameterList.NONE
             )
         } else {
@@ -172,8 +171,9 @@ open class PsiMethodItem(
     override fun isKotlinProperty(): Boolean {
         return psiMethod is KotlinUMethod && (
             psiMethod.sourcePsi is KtProperty ||
-            psiMethod.sourcePsi is KtPropertyAccessor ||
-            psiMethod.sourcePsi is KtParameter && (psiMethod.sourcePsi as KtParameter).hasValOrVar())
+                psiMethod.sourcePsi is KtPropertyAccessor ||
+                psiMethod.sourcePsi is KtParameter && (psiMethod.sourcePsi as KtParameter).hasValOrVar()
+            )
     }
 
     override fun findThrownExceptions(): Set<ClassItem> {
@@ -270,7 +270,7 @@ open class PsiMethodItem(
         if (targetContainingClass.docOnly) {
             duplicated.docOnly = true
         }
-        if (targetContainingClass.deprecated && compatibility.propagateDeprecatedMembers) {
+        if (targetContainingClass.deprecated) {
             duplicated.deprecated = true
         }
         duplicated.throwsTypes = throwsTypes
@@ -458,12 +458,6 @@ open class PsiMethodItem(
 
             val result = ArrayList<ClassItem>(interfaces.size)
             for (cls in interfaces) {
-                if (compatibility.useErasureInThrows) {
-                    val erased = TypeConversionUtil.erasure(cls)
-                    result.add(codebase.findClass(erased) ?: continue)
-                    continue
-                }
-
                 result.add(codebase.findClass(cls) ?: continue)
             }
 

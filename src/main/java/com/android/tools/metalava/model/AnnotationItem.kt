@@ -30,12 +30,11 @@ import com.android.tools.metalava.ANDROIDX_NULLABLE
 import com.android.tools.metalava.ANDROID_NONNULL
 import com.android.tools.metalava.ANDROID_NULLABLE
 import com.android.tools.metalava.ANDROID_SUPPORT_ANNOTATION_PREFIX
-import com.android.tools.metalava.Compatibility
+import com.android.tools.metalava.ApiPredicate
 import com.android.tools.metalava.JAVA_LANG_PREFIX
 import com.android.tools.metalava.Options
 import com.android.tools.metalava.RECENTLY_NONNULL
 import com.android.tools.metalava.RECENTLY_NULLABLE
-import com.android.tools.metalava.ApiPredicate
 import com.android.tools.metalava.model.psi.PsiBasedCodebase
 import com.android.tools.metalava.options
 import com.intellij.psi.PsiCallExpression
@@ -98,12 +97,14 @@ interface AnnotationItem {
         if (!(name.endsWith("Def"))) {
             return false
         }
-        return (INT_DEF_ANNOTATION.isEquals(name) ||
-            STRING_DEF_ANNOTATION.isEquals(name) ||
-            LONG_DEF_ANNOTATION.isEquals(name) ||
-            ANDROID_INT_DEF == name ||
-            ANDROID_STRING_DEF == name ||
-            ANDROID_LONG_DEF == name)
+        return (
+            INT_DEF_ANNOTATION.isEquals(name) ||
+                STRING_DEF_ANNOTATION.isEquals(name) ||
+                LONG_DEF_ANNOTATION.isEquals(name) ||
+                ANDROID_INT_DEF == name ||
+                ANDROID_STRING_DEF == name ||
+                ANDROID_LONG_DEF == name
+            )
     }
 
     /**
@@ -295,6 +296,7 @@ interface AnnotationItem {
                 "android.annotation.CallSuper" -> return "androidx.annotation.CallSuper"
                 "android.support.annotation.CheckResult",
                 "android.annotation.CheckResult" -> return "androidx.annotation.CheckResult"
+                "android.annotation.Discouraged" -> return "androidx.annotation.Discouraged"
                 "android.support.annotation.RequiresPermission",
                 "android.annotation.RequiresPermission" -> return "androidx.annotation.RequiresPermission"
                 "android.annotation.RequiresPermission.Read" -> return "androidx.annotation.RequiresPermission.Read"
@@ -404,7 +406,8 @@ interface AnnotationItem {
 
         private val TYPEDEF_ANNOTATION_TARGETS =
             if (options.typedefMode == Options.TypedefMode.INLINE ||
-                options.typedefMode == Options.TypedefMode.NONE) // just here for compatibility purposes
+                options.typedefMode == Options.TypedefMode.NONE
+            ) // just here for compatibility purposes
                 ANNOTATION_EXTERNAL
             else
                 ANNOTATION_EXTERNAL_ONLY
@@ -552,8 +555,7 @@ interface AnnotationItem {
 
         /**
          * Given a "full" annotation name, shortens it by removing redundant package names.
-         * This is intended to be used by the [Compatibility.omitCommonPackages] flag
-         * to reduce clutter in signature files.
+         * This is intended to be used to reduce clutter in signature files.
          *
          * For example, this method will convert `@androidx.annotation.Nullable` to just
          * `@Nullable`, and `@androidx.annotation.IntRange(from=20)` to `IntRange(from=20)`.
@@ -643,8 +645,10 @@ interface AnnotationItem {
                         nullable = false
                     }
                 }
-            } else if (item.synthetic && (item is MethodItem && item.isEnumSyntheticMethod() ||
-                    item is ParameterItem && item.containingMethod().isEnumSyntheticMethod())
+            } else if (item.synthetic && (
+                item is MethodItem && item.isEnumSyntheticMethod() ||
+                    item is ParameterItem && item.containingMethod().isEnumSyntheticMethod()
+                )
             ) {
                 // Workaround the fact that the Kotlin synthetic enum methods
                 // do not have nullness information
@@ -843,7 +847,8 @@ abstract class DefaultAnnotationValue : AnnotationAttributeValue {
     override fun toString(): String = toSource()
 }
 
-class DefaultAnnotationSingleAttributeValue(override val valueSource: String) : DefaultAnnotationValue(),
+class DefaultAnnotationSingleAttributeValue(override val valueSource: String) :
+    DefaultAnnotationValue(),
     AnnotationSingleAttributeValue {
     @Suppress("IMPLICIT_CAST_TO_ANY")
     override val value = when {
@@ -867,7 +872,8 @@ class DefaultAnnotationSingleAttributeValue(override val valueSource: String) : 
     override fun toSource() = valueSource
 }
 
-class DefaultAnnotationArrayAttributeValue(val value: String) : DefaultAnnotationValue(),
+class DefaultAnnotationArrayAttributeValue(val value: String) :
+    DefaultAnnotationValue(),
     AnnotationArrayAttributeValue {
     init {
         assert(value.startsWith("{") && value.endsWith("}")) { value }

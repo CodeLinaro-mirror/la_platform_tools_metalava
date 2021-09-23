@@ -147,6 +147,9 @@ class PsiModifierItem(
                         visibilityFlags = PUBLIC
                     }
                 }
+                if (ktModifierList.hasModifier(KtTokens.VALUE_KEYWORD)) {
+                    flags = flags or VALUE
+                }
                 if (ktModifierList.hasModifier(KtTokens.SUSPEND_KEYWORD)) {
                     flags = flags or SUSPEND
                 }
@@ -155,6 +158,9 @@ class PsiModifierItem(
                 }
                 if (ktModifierList.hasFunModifier()) {
                     flags = flags or FUN
+                }
+                if (ktModifierList.hasModifier(KtTokens.DATA_KEYWORD)) {
+                    flags = flags or DATA
                 }
             }
             // Methods that are property accessors inherit visibility from the source element
@@ -191,7 +197,8 @@ class PsiModifierItem(
                         val qualifiedName = it.qualifiedName
                         // Consider also supporting com.android.internal.annotations.VisibleForTesting?
                         if (qualifiedName == ANDROIDX_VISIBLE_FOR_TESTING ||
-                            qualifiedName == ANDROID_SUPPORT_VISIBLE_FOR_TESTING) {
+                            qualifiedName == ANDROID_SUPPORT_VISIBLE_FOR_TESTING
+                        ) {
                             val otherwise = it.findAttributeValue(ATTR_OTHERWISE)
                             val ref = when {
                                 otherwise is PsiReferenceExpression -> otherwise.referenceName ?: ""
@@ -235,7 +242,8 @@ class PsiModifierItem(
 
                         val qualifiedName = it.qualifiedName
                         if (qualifiedName == ANDROIDX_VISIBLE_FOR_TESTING ||
-                            qualifiedName == ANDROID_SUPPORT_VISIBLE_FOR_TESTING) {
+                            qualifiedName == ANDROID_SUPPORT_VISIBLE_FOR_TESTING
+                        ) {
                             val otherwise = it.findAttributeValue(ATTR_OTHERWISE)
                             val ref = when {
                                 otherwise is PsiReferenceExpression -> otherwise.referenceName ?: ""

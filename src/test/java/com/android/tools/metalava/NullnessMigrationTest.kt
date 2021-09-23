@@ -62,7 +62,6 @@ class NullnessMigrationTest : DriverTest() {
     fun `Method which is now marked null should be marked as recently migrated null`() {
         check(
             outputKotlinStyleNulls = false,
-            compatibilityMode = false,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -113,7 +112,6 @@ class NullnessMigrationTest : DriverTest() {
     fun `Parameter which is now marked null should be marked as recently migrated null`() {
         check(
             outputKotlinStyleNulls = false,
-            compatibilityMode = false,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -162,7 +160,6 @@ class NullnessMigrationTest : DriverTest() {
     fun `Comprehensive check of migration`() {
         check(
             outputKotlinStyleNulls = false,
-            compatibilityMode = false,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -233,7 +230,6 @@ class NullnessMigrationTest : DriverTest() {
     fun `Comprehensive check of migration, Kotlin-style output`() {
         check(
             outputKotlinStyleNulls = true,
-            compatibilityMode = false,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -285,7 +281,6 @@ class NullnessMigrationTest : DriverTest() {
     fun `Convert libcore nullness annotations to support`() {
         check(
             outputKotlinStyleNulls = false,
-            compatibilityMode = false,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -392,7 +387,6 @@ class NullnessMigrationTest : DriverTest() {
     fun `Check androidx package annotation`() {
         check(
             outputKotlinStyleNulls = false,
-            compatibilityMode = false,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -442,7 +436,6 @@ class NullnessMigrationTest : DriverTest() {
     fun `Migrate nullness for type-use annotations`() {
         check(
             outputKotlinStyleNulls = false,
-            compatibilityMode = false,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -516,7 +509,6 @@ class NullnessMigrationTest : DriverTest() {
     fun `Do not migrate type-use annotations when not changed`() {
         check(
             outputKotlinStyleNulls = false,
-            compatibilityMode = false,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -584,7 +576,6 @@ class NullnessMigrationTest : DriverTest() {
     fun `Regression test for issue 111054266, type use annotations`() {
         check(
             outputKotlinStyleNulls = false,
-            compatibilityMode = false,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -686,8 +677,6 @@ class NullnessMigrationTest : DriverTest() {
                 androidxNonNullSource,
                 androidxNullableSource
             ),
-            compatibilityMode = false,
-            omitCommonPackages = false,
             migrateNullsApi = """
                 package test.pkg {
                   public interface Appendable {
@@ -724,7 +713,7 @@ class NullnessMigrationTest : DriverTest() {
             api = """
                 package test.pkg {
                   public interface ForSystemUse {
-                    method @androidx.annotation.NonNull public java.lang.Object foo(@androidx.annotation.Nullable java.lang.String);
+                    method @NonNull public Object foo(@Nullable String);
                   }
                 }
                 """

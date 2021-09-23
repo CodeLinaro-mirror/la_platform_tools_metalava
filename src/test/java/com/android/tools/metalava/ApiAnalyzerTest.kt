@@ -29,7 +29,8 @@ class ApiAnalyzerTest : DriverTest() {
                 src/test/pkg/PublicClass.java:6: error: badPackagePrivateMethod cannot be hidden and abstract when PublicClass has a visible constructor, in case a third-party attempts to subclass it. [HiddenAbstractMethod]
             """,
             sourceFiles = arrayOf(
-                java("""
+                java(
+                    """
                     package test.pkg;
                     import android.annotation.SystemApi;
                     public abstract class PublicClass {
@@ -46,7 +47,8 @@ class ApiAnalyzerTest : DriverTest() {
                     }
                 """
                 ),
-                java("""
+                java(
+                    """
                     package test.pkg;
                     import android.annotation.SystemApi;
                     public abstract class PublicClassWithHiddenConstructor {
@@ -56,7 +58,8 @@ class ApiAnalyzerTest : DriverTest() {
                     }
                 """
                 ),
-                java("""
+                java(
+                    """
                    package test.pkg;
                    import android.annotation.SystemApi;
                    /** @hide */
@@ -74,7 +77,8 @@ class ApiAnalyzerTest : DriverTest() {
                    }
                """
                 ),
-                java("""
+                java(
+                    """
                     package test.pkg;
                     import android.annotation.SystemApi;
                     /** This class is OK because it is all hidden @hide */
@@ -97,7 +101,8 @@ class ApiAnalyzerTest : DriverTest() {
                 src/test/pkg/PublicClass.java:7: error: badAbstractSystemHiddenMethod cannot be hidden and abstract when PublicClass has a visible constructor, in case a third-party attempts to subclass it. [HiddenAbstractMethod]
             """,
             sourceFiles = arrayOf(
-                java("""
+                java(
+                    """
                     package test.pkg;
                     import android.annotation.SystemApi;
                     public abstract class PublicClass {

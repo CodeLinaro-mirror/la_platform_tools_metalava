@@ -17,10 +17,10 @@
 package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.model.ClassItem
-import com.android.tools.metalava.model.CompilationUnit
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.PackageItem
+import com.android.tools.metalava.model.SourceFileItem
 import com.android.tools.metalava.model.visitors.ItemVisitor
 import com.google.common.collect.ArrayListMultimap
 import com.google.common.collect.Multimap
@@ -43,11 +43,11 @@ import java.util.function.Predicate
 /** Whether we should limit import statements to symbols found in class docs  */
 private const val ONLY_IMPORT_CLASSES_REFERENCED_IN_DOCS = true
 
-class PsiCompilationUnit(
-    val codebase: PsiBasedCodebase,
-    uFile: UFile?,
-    containingFile: PsiFile
-) : CompilationUnit(containingFile, uFile) {
+class PsiSourceFileItem(
+    codebase: PsiBasedCodebase,
+    val file: PsiFile,
+    val uFile: UFile? = null
+) : SourceFileItem, PsiItem(codebase, file, PsiModifierItem(codebase), documentation = "") {
     override fun getHeaderComments(): String? {
         if (uFile != null) {
             var comment: String? = null
@@ -167,7 +167,7 @@ class PsiCompilationUnit(
                 // We keep the wildcard imports since we don't know which ones of those are relevant
                 imports.filterIsInstance<PackageItem>().forEach { result.add(it) }
 
-                for (cls in classes(predicate)) {
+                for (cls in classes().filter { predicate.test(it) }) {
                     cls.accept(object : ItemVisitor() {
                         override fun visitItem(item: Item) {
                             // Do not let documentation on hidden items affect the imports.
@@ -209,19 +209,28 @@ class PsiCompilationUnit(
         return emptyList()
     }
 
-    private fun classes(predicate: Predicate<Item>): List<ClassItem> {
-        val topLevel = mutableListOf<ClassItem>()
-        if (file is PsiClassOwner) {
-            for (psiClass in file.classes) {
-                val classItem = codebase.findClass(psiClass) ?: continue
-                if (predicate.test(classItem)) {
-                    topLevel.add(classItem)
-                }
-            }
-        }
-
-        return topLevel
+    override fun classes(): Sequence<ClassItem> {
+        return (file as? PsiClassOwner)?.classes?.asSequence()
+            ?.mapNotNull { codebase.findClass(it) }
+            .orEmpty()
     }
+
+    override fun containingPackage(strict: Boolean): PackageItem? {
+        return when {
+            uFile != null -> codebase.findPackage(uFile.packageName)
+            file is PsiJavaFile -> codebase.findPackage(file.packageName)
+            else -> null
+        }
+    }
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        return other is PsiSourceFileItem && file == other.file
+    }
+
+    override fun hashCode(): Int = file.hashCode()
+
+    override fun toString(): String = "file ${file.virtualFile?.path}"
 
     companion object {
         // Cache pattern compilation across source files

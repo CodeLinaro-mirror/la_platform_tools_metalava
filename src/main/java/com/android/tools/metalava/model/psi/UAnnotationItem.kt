@@ -120,7 +120,7 @@ class UAnnotationItem private constructor(
         }
 
         private fun getAttributes(annotation: UAnnotation, showDefaultAttrs: Boolean):
-                List<Pair<String?, UExpression?>> {
+            List<Pair<String?, UExpression?>> {
             val annotationClass = annotation.javaPsi?.nameReferenceElement?.resolve() as? PsiClass
             val list = mutableListOf<Pair<String?, UExpression?>>()
             if (annotationClass != null && showDefaultAttrs) {

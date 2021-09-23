@@ -18,12 +18,11 @@ import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.psi.containsLinkTags
 import com.android.tools.metalava.model.visitors.ApiVisitor
-import com.google.common.io.Files
 import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiField
 import com.intellij.psi.PsiMethod
 import java.io.File
-import java.util.HashMap
+import java.nio.file.Files
 import java.util.regex.Pattern
 import kotlin.math.min
 
@@ -150,8 +149,10 @@ class DocAnalyzer(
                 for (annotation in annotations) {
                     val name = annotation.qualifiedName()
                     if (name != null && name.endsWith("Thread") &&
-                        (name.startsWith(ANDROID_SUPPORT_ANNOTATION_PREFIX) ||
-                            name.startsWith(ANDROIDX_ANNOTATION_PREFIX))
+                        (
+                            name.startsWith(ANDROID_SUPPORT_ANNOTATION_PREFIX) ||
+                                name.startsWith(ANDROIDX_ANNOTATION_PREFIX)
+                            )
                     ) {
                         if (result == null) {
                             result = mutableListOf()
@@ -222,8 +223,8 @@ class DocAnalyzer(
                 annotation.resolve()?.modifiers?.annotations()?.forEach { nested ->
                     if (depth == 20) { // Temp debugging
                         throw StackOverflowError(
-                            "Unbounded recursion, processing annotation " +
-                                "${annotation.toSource()} in $item in ${item.compilationUnit()} "
+                            "Unbounded recursion, processing annotation ${annotation.toSource()} " +
+                                "in $item in ${item.sourceFile()} "
                         )
                     } else if (nested.qualifiedName() !in visitedClasses) {
                         handleAnnotation(nested, item, depth + 1, visitedClasses)
@@ -674,50 +675,7 @@ class DocAnalyzer(
     }
 
     fun applyApiLevels(applyApiLevelsXml: File) {
-        @Suppress("DEPRECATION") // still using older lint-api when building with soong
-        val client = object : LintCliClient() {
-            override fun findResource(relativePath: String): File? {
-                if (relativePath == ApiLookup.XML_FILE_PATH) {
-                    return applyApiLevelsXml
-                }
-                return super.findResource(relativePath)
-            }
-
-            override fun getCacheDir(name: String?, create: Boolean): File? {
-                if (create && isUnderTest()) {
-                    // Pick unique directory during unit tests
-                    return Files.createTempDir()
-                }
-
-                val sb = StringBuilder(PROGRAM_NAME)
-                if (name != null) {
-                    sb.append(File.separator)
-                    sb.append(name)
-                }
-                val relative = sb.toString()
-
-                val tmp = System.getenv("TMPDIR")
-                if (tmp != null) {
-                    // Android Build environment: Make sure we're really creating a unique
-                    // temp directory each time since builds could be running in
-                    // parallel here.
-                    val dir = File(tmp, relative)
-                    if (!dir.isDirectory) {
-                        dir.mkdirs()
-                    }
-
-                    return java.nio.file.Files.createTempDirectory(dir.toPath(), null).toFile()
-                }
-
-                val dir = File(System.getProperty("java.io.tmpdir"), relative)
-                if (create && !dir.isDirectory) {
-                    dir.mkdirs()
-                }
-                return dir
-            }
-        }
-
-        val apiLookup = ApiLookup.get(client)
+        val apiLookup = getApiLookup(applyApiLevelsXml)
 
         val pkgApi = HashMap<PackageItem, Int?>(300)
         codebase.accept(object : ApiVisitor(visitConstructorsAsMethods = true) {
@@ -782,7 +740,8 @@ class DocAnalyzer(
                 item.appendDocumentation(code, "@apiSince")
             } else {
                 reporter.report(
-                    Issues.FORBIDDEN_TAG, item, "Documentation should not specify @apiSince " +
+                    Issues.FORBIDDEN_TAG, item,
+                    "Documentation should not specify @apiSince " +
                         "manually; it's computed and injected at build time by $PROGRAM_NAME"
                 )
             }
@@ -814,7 +773,8 @@ class DocAnalyzer(
                 item.appendDocumentation(code, "@deprecatedSince")
             } else {
                 reporter.report(
-                    Issues.FORBIDDEN_TAG, item, "Documentation should not specify @deprecatedSince " +
+                    Issues.FORBIDDEN_TAG, item,
+                    "Documentation should not specify @deprecatedSince " +
                         "manually; it's computed and injected at build time by $PROGRAM_NAME"
                 )
             }
@@ -870,4 +830,58 @@ fun ApiLookup.getFieldDeprecatedIn(field: PsiField): Int {
     val containingClass = field.containingClass ?: return -1
     val owner = containingClass.qualifiedName ?: return -1
     return getFieldDeprecatedIn(owner, field.name)
+}
+
+fun getApiLookup(xmlFile: File, cacheDir: File? = null): ApiLookup {
+    val client = object : LintCliClient(PROGRAM_NAME) {
+        override fun getCacheDir(name: String?, create: Boolean): File? {
+            if (cacheDir != null) {
+                return cacheDir
+            }
+
+            if (create && isUnderTest()) {
+                // Pick unique directory during unit tests
+                return Files.createTempDirectory(PROGRAM_NAME).toFile()
+            }
+
+            val sb = StringBuilder(PROGRAM_NAME)
+            if (name != null) {
+                sb.append(File.separator)
+                sb.append(name)
+            }
+            val relative = sb.toString()
+
+            val tmp = System.getenv("TMPDIR")
+            if (tmp != null) {
+                // Android Build environment: Make sure we're really creating a unique
+                // temp directory each time since builds could be running in
+                // parallel here.
+                val dir = File(tmp, relative)
+                if (!dir.isDirectory) {
+                    dir.mkdirs()
+                }
+
+                return Files.createTempDirectory(dir.toPath(), null).toFile()
+            }
+
+            val dir = File(System.getProperty("java.io.tmpdir"), relative)
+            if (create && !dir.isDirectory) {
+                dir.mkdirs()
+            }
+            return dir
+        }
+    }
+
+    val xmlPathProperty = "LINT_API_DATABASE"
+    val prev = System.getProperty(xmlPathProperty)
+    try {
+        System.setProperty(xmlPathProperty, xmlFile.path)
+        return ApiLookup.get(client) ?: error("ApiLookup creation failed")
+    } finally {
+        if (prev != null) {
+            System.setProperty(xmlPathProperty, xmlFile.path)
+        } else {
+            System.clearProperty(xmlPathProperty)
+        }
+    }
 }

@@ -33,7 +33,8 @@ class DocReplacement(
     private fun appliesToPackage(packageItem: PackageItem): Boolean {
         val fqn = packageItem.qualifiedName()
         return packageNames.any {
-                pkg -> fqn.startsWith(pkg) && (fqn.length == pkg.length || fqn[pkg.length] == '.')
+            pkg ->
+            fqn.startsWith(pkg) && (fqn.length == pkg.length || fqn[pkg.length] == '.')
         }
     }
 
