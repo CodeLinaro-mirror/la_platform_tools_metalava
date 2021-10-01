@@ -27,6 +27,7 @@ class CoreApiTest : DriverTest() {
     @Test
     fun `Hidden with --hide-annotation`() {
         check(
+            format = FileFormat.V1,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -77,13 +78,13 @@ class CoreApiTest : DriverTest() {
             api =
             """
                 package libcore.api {
-                  public abstract class IntraCoreApi implements java.lang.annotation.Annotation {
+                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.SOURCE) @java.lang.annotation.Target({java.lang.annotation.ElementType.TYPE, java.lang.annotation.ElementType.FIELD, java.lang.annotation.ElementType.METHOD, java.lang.annotation.ElementType.CONSTRUCTOR, java.lang.annotation.ElementType.ANNOTATION_TYPE, java.lang.annotation.ElementType.PACKAGE}) @libcore.api.IntraCoreApi public @interface IntraCoreApi {
                   }
                 }
                 package test.pkg {
-                  public class Exposed {
-                    method public void exposed();
-                    field public java.lang.String exposed;
+                  @libcore.api.IntraCoreApi public class Exposed {
+                    method @libcore.api.IntraCoreApi public void exposed();
+                    field @libcore.api.IntraCoreApi public String exposed;
                   }
                 }
                 """,
@@ -121,6 +122,7 @@ class CoreApiTest : DriverTest() {
     @Test
     fun `Hidden with package javadoc and hiding default constructor explicitly`() {
         check(
+            format = FileFormat.V1,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -170,12 +172,12 @@ class CoreApiTest : DriverTest() {
             api =
             """
                 package libcore.api {
-                  public abstract class IntraCoreApi implements java.lang.annotation.Annotation {
+                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.SOURCE) @java.lang.annotation.Target({java.lang.annotation.ElementType.TYPE, java.lang.annotation.ElementType.FIELD, java.lang.annotation.ElementType.METHOD, java.lang.annotation.ElementType.CONSTRUCTOR, java.lang.annotation.ElementType.ANNOTATION_TYPE, java.lang.annotation.ElementType.PACKAGE}) @libcore.api.IntraCoreApi public @interface IntraCoreApi {
                   }
                 }
                 package test.pkg {
-                  public class Exposed {
-                    method public void exposed();
+                  @libcore.api.IntraCoreApi public class Exposed {
+                    method @libcore.api.IntraCoreApi public void exposed();
                   }
                 }
                 """,
@@ -214,6 +216,7 @@ class CoreApiTest : DriverTest() {
     @Test
     fun `Complain if annotating a member and the surrounding class is not included`() {
         check(
+            format = FileFormat.V1,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -256,7 +259,7 @@ class CoreApiTest : DriverTest() {
             api =
             """
                 package libcore.api {
-                  public abstract class IntraCoreApi implements java.lang.annotation.Annotation {
+                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.SOURCE) @java.lang.annotation.Target({java.lang.annotation.ElementType.TYPE, java.lang.annotation.ElementType.FIELD, java.lang.annotation.ElementType.METHOD, java.lang.annotation.ElementType.CONSTRUCTOR, java.lang.annotation.ElementType.ANNOTATION_TYPE, java.lang.annotation.ElementType.PACKAGE}) @libcore.api.IntraCoreApi public @interface IntraCoreApi {
                   }
                 }
                 """,
@@ -275,6 +278,7 @@ class CoreApiTest : DriverTest() {
     @Test
     fun `Hidden with --hide-meta-annotation`() {
         check(
+            format = FileFormat.V1,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -327,16 +331,16 @@ class CoreApiTest : DriverTest() {
                 libcoreCoreMetaHidden
             ),
             api =
-                """
+            """
                 package libcore.api {
-                  public abstract class LibCoreMetaHidden implements java.lang.annotation.Annotation {
+                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS) @java.lang.annotation.Target({java.lang.annotation.ElementType.ANNOTATION_TYPE}) public @interface LibCoreMetaHidden {
                   }
                 }
                 package test.pkg {
                   public class ExposedClass {
                     ctor public ExposedClass();
                     method public void exposedMethod();
-                    field public java.lang.String exposedField;
+                    field public String exposedField;
                   }
                 }
                 """,

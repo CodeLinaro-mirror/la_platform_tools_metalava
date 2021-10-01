@@ -33,6 +33,7 @@ import com.android.tools.metalava.model.visitors.ItemVisitor
 import java.util.ArrayList
 import java.util.HashMap
 import java.util.HashSet
+import java.util.Locale
 import java.util.function.Predicate
 
 /**
@@ -178,8 +179,10 @@ class ApiAnalyzer(
                 for (constructor in constructors) {
                     val superConstructor = constructor.superConstructor
                     if (superConstructor == null ||
-                        (superConstructor.containingClass() != superClass &&
-                            superConstructor.containingClass() != cls)
+                        (
+                            superConstructor.containingClass() != superClass &&
+                                superConstructor.containingClass() != cls
+                            )
                     ) {
                         constructor.superConstructor = superDefaultConstructor
                     }
@@ -675,7 +678,8 @@ class ApiAnalyzer(
                     reporter.report(
                         Issues.SHOWING_MEMBER_IN_HIDDEN_CLASS, item,
                         "Attempting to unhide ${item.describe()}, but surrounding ${parent.describe()} is " +
-                            "hidden and should also be annotated with $violatingAnnotation")
+                            "hidden and should also be annotated with $violatingAnnotation"
+                    )
                 }
             }
         })
@@ -744,7 +748,8 @@ class ApiAnalyzer(
                     hasAnnotation = false
                 } else if (any && nonSystem.isNotEmpty() || !any && system.isEmpty()) {
                     reporter.report(
-                        Issues.REQUIRES_PERMISSION, method, "Method '" + method.name() +
+                        Issues.REQUIRES_PERMISSION, method,
+                        "Method '" + method.name() +
                             "' must be protected with a system permission; it currently" +
                             " allows non-system callers holding " + nonSystem.toString()
                     )
@@ -754,7 +759,8 @@ class ApiAnalyzer(
 
         if (!hasAnnotation) {
             reporter.report(
-                Issues.REQUIRES_PERMISSION, method, "Method '" + method.name() +
+                Issues.REQUIRES_PERMISSION, method,
+                "Method '" + method.name() +
                     "' must be protected with a system permission."
             )
         }
@@ -795,9 +801,11 @@ class ApiAnalyzer(
                     !item.originallyHidden &&
                     !item.modifiers.hasShowSingleAnnotation()
                 ) {
-                    val annotationName = (item.modifiers.annotations().firstOrNull { annotation ->
-                        options.showAnnotations.matches(annotation)
-                    }?.qualifiedName() ?: options.showAnnotations.firstQualifiedName()).removePrefix(ANDROID_ANNOTATION_PREFIX)
+                    val annotationName = (
+                        item.modifiers.annotations().firstOrNull { annotation ->
+                            options.showAnnotations.matches(annotation)
+                        }?.qualifiedName() ?: options.showAnnotations.firstQualifiedName()
+                        ).removePrefix(ANDROID_ANNOTATION_PREFIX)
                     reporter.report(
                         Issues.UNHIDDEN_SYSTEM_API, item,
                         "@$annotationName APIs must also be marked @hide: ${item.describe()}"
@@ -810,7 +818,7 @@ class ApiAnalyzer(
                 // Done here rather than in the analyzer which propagates visibility, since we want to do it
                 // after warning
                 val containingClass = cls.containingClass()
-                if (containingClass != null && containingClass.deprecated && compatibility.propagateDeprecatedInnerClasses) {
+                if (containingClass != null && containingClass.deprecated) {
                     cls.deprecated = true
                 }
 
@@ -834,7 +842,7 @@ class ApiAnalyzer(
 
             override fun visitField(field: FieldItem) {
                 val containingClass = field.containingClass()
-                if (containingClass.deprecated && compatibility.propagateDeprecatedMembers) {
+                if (containingClass.deprecated) {
                     field.deprecated = true
                 }
 
@@ -850,7 +858,7 @@ class ApiAnalyzer(
                 }
 
                 val containingClass = method.containingClass()
-                if (containingClass.deprecated && compatibility.propagateDeprecatedMembers) {
+                if (containingClass.deprecated) {
                     method.deprecated = true
                 }
 
@@ -969,7 +977,8 @@ class ApiAnalyzer(
                         // don't bother reporting deprecated methods
                         // unless they are public
                         reporter.report(
-                            Issues.DEPRECATED, m, "Method " + cl.qualifiedName() + "." +
+                            Issues.DEPRECATED, m,
+                            "Method " + cl.qualifiedName() + "." +
                                 m.name() + " is deprecated"
                         )
                     }
@@ -1131,17 +1140,20 @@ class ApiAnalyzer(
         }
         // blow open super class and interfaces
         // TODO: Consider using val superClass = cl.filteredSuperclass(filter)
-        val superClass = cl.superClass()
-        if (superClass != null) {
-            if (superClass.isHiddenOrRemoved()) {
+        val superItems = cl.allInterfaces().toMutableSet()
+        cl.superClass()?.let { superClass -> superItems.add(superClass) }
+
+        for (superItem in superItems) {
+            if (superItem.isHiddenOrRemoved()) {
                 // cl is a public class declared as extending a hidden superclass.
                 // this is not a desired practice but it's happened, so we deal
                 // with it by finding the first super class which passes checkLevel for purposes of
                 // generating the doc & stub information, and proceeding normally.
-                if (!superClass.isFromClassPath()) {
+                if (!superItem.isFromClassPath()) {
                     reporter.report(
-                        Issues.HIDDEN_SUPERCLASS, cl, "Public class " + cl.qualifiedName() +
-                            " stripped of unavailable superclass " + superClass.qualifiedName()
+                        Issues.HIDDEN_SUPERCLASS, cl,
+                        "Public class " + cl.qualifiedName() +
+                            " stripped of unavailable superclass " + superItem.qualifiedName()
                     )
                 }
             } else {
@@ -1149,10 +1161,11 @@ class ApiAnalyzer(
                 // right (this was just done for its stub handling)
                 //   cantStripThis(superClass, filter, notStrippable, stubImportPackages, cl, "as super class")
 
-                if (superClass.isPrivate && !superClass.isFromClassPath()) {
+                if (superItem.isPrivate && !superItem.isFromClassPath()) {
                     reporter.report(
-                        Issues.PRIVATE_SUPERCLASS, cl, "Public class " +
-                            cl.qualifiedName() + " extends private class " + superClass.qualifiedName()
+                        Issues.PRIVATE_SUPERCLASS, cl,
+                        "Public class " +
+                            cl.qualifiedName() + " extends private class " + superItem.qualifiedName()
                     )
                 }
             }
@@ -1274,5 +1287,15 @@ class ApiAnalyzer(
             }
         }
         return null
+    }
+}
+
+private fun String.capitalize(): String {
+    return this.replaceFirstChar {
+        if (it.isLowerCase()) {
+            it.titlecase(Locale.getDefault())
+        } else {
+            it.toString()
+        }
     }
 }

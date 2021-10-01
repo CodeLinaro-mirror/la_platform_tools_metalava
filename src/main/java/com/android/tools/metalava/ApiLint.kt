@@ -202,11 +202,14 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
     private fun check() {
         if (oldCodebase != null) {
             // Only check the new APIs
-            CodebaseComparator().compare(object : ComparisonVisitor() {
-                override fun added(new: Item) {
-                    new.accept(this@ApiLint)
-                }
-            }, oldCodebase, codebase, filterReference)
+            CodebaseComparator().compare(
+                object : ComparisonVisitor() {
+                    override fun added(new: Item) {
+                        new.accept(this@ApiLint)
+                    }
+                },
+                oldCodebase, codebase, filterReference
+            )
         } else {
             // No previous codebase to compare with: visit the whole thing
             codebase.accept(this)
@@ -499,7 +502,7 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
 
         val name = field.name()
         if (!constantNamePattern.matches(name)) {
-            val suggested = SdkVersionInfo.camelCaseToUnderlines(name).toUpperCase(Locale.US)
+            val suggested = SdkVersionInfo.camelCaseToUnderlines(name).uppercase(Locale.US)
             report(
                 ALL_UPPER, field,
                 "Constant field names must be named with only upper case characters: `$qualified#$name`, should be `$suggested`?"
@@ -979,26 +982,35 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
         val modifiers = field.modifiers
         if (!modifiers.isFinal()) {
             if (className !in classesWithBareFields &&
-                    !className.endsWith("LayoutParams") &&
-                    !className.startsWith("android.util.Mutable")) {
-                report(MUTABLE_BARE_FIELD, field,
-                        "Bare field ${field.name()} must be marked final, or moved behind accessors if mutable")
+                !className.endsWith("LayoutParams") &&
+                !className.startsWith("android.util.Mutable")
+            ) {
+                report(
+                    MUTABLE_BARE_FIELD, field,
+                    "Bare field ${field.name()} must be marked final, or moved behind accessors if mutable"
+                )
             }
         }
         if (!modifiers.isStatic()) {
             if (!fieldNamePattern.matches(field.name())) {
-                report(START_WITH_LOWER, field,
-                        "Non-static field ${field.name()} must be named using fooBar style")
+                report(
+                    START_WITH_LOWER, field,
+                    "Non-static field ${field.name()} must be named using fooBar style"
+                )
             }
         }
         if (internalNamePattern.matches(field.name())) {
-            report(INTERNAL_FIELD, field,
-                    "Internal field ${field.name()} must not be exposed")
+            report(
+                INTERNAL_FIELD, field,
+                "Internal field ${field.name()} must not be exposed"
+            )
         }
         if (constantNamePattern.matches(field.name()) && field.isJava()) {
             if (!modifiers.isStatic() || !modifiers.isFinal()) {
-                report(ALL_UPPER, field,
-                        "Constant ${field.name()} must be marked static final")
+                report(
+                    ALL_UPPER, field,
+                    "Constant ${field.name()} must be marked static final"
+                )
             }
         }
     }
@@ -1009,8 +1021,10 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
         val type = field.type()
 
         if (modifiers.isFinal() && modifiers.isStatic() && type.isString() && className in settingsKeyClasses) {
-            report(NO_SETTINGS_PROVIDER, field,
-                "New setting keys are not allowed (Field: ${field.name()}); use getters/setters in relevant manager class")
+            report(
+                NO_SETTINGS_PROVIDER, field,
+                "New setting keys are not allowed (Field: ${field.name()}); use getters/setters in relevant manager class"
+            )
         }
     }
 
@@ -1408,7 +1422,8 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
                 }
                 val allowedGetters: Set<String>? = if (isBool && name.startsWith("set")) {
                     val pattern = goodBooleanGetterSetterPrefixes.match(
-                            name, GetterSetterPattern::setter)!!
+                        name, GetterSetterPattern::setter
+                    )!!
                     setOf("${pattern.getter}${name.removePrefix(pattern.setter)}")
                 } else {
                     when {
@@ -1424,9 +1439,9 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
                                     listOf(nameWithoutPrefix, "${nameWithoutPrefix}es")
                                 }
                                 name.endsWith("sh") || name.endsWith("ch") || name.endsWith("x") ||
-                                        name.endsWith("z") -> listOf("${nameWithoutPrefix}es")
+                                    name.endsWith("z") -> listOf("${nameWithoutPrefix}es")
                                 name.endsWith("y") &&
-                                        name[name.length - 2] !in listOf('a', 'e', 'i', 'o', 'u')
+                                    name[name.length - 2] !in listOf('a', 'e', 'i', 'o', 'u')
                                 -> {
                                     listOf("${nameWithoutPrefix.removeSuffix("y")}ies")
                                 }
@@ -1457,12 +1472,12 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
                     val expectedGetterCalls = expectedGetterNames.map { "$it()" }
                     val errorString = if (expectedGetterCalls.size == 1) {
                         "${builtClass.qualifiedName()} does not declare a " +
-                                "`${expectedGetterCalls.first()}` method matching " +
-                                "${setter.describe()}"
+                            "`${expectedGetterCalls.first()}` method matching " +
+                            setter.describe()
                     } else {
                         "${builtClass.qualifiedName()} does not declare a getter method " +
-                                "matching ${setter.describe()} (expected one of: " +
-                                "$expectedGetterCalls)"
+                            "matching ${setter.describe()} (expected one of: " +
+                            "$expectedGetterCalls)"
                     }
                     report(MISSING_GETTER_MATCHING_BUILDER, setter, errorString)
                 }
@@ -1785,7 +1800,7 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
         val superItem: Item? = when (item) {
             is MethodItem -> item.findPredicateSuperMethod(filterReference)
             is ParameterItem -> item.containingMethod().findPredicateSuperMethod(filterReference)
-                    ?.parameters()?.find { it.parameterIndex == item.parameterIndex }
+                ?.parameters()?.find { it.parameterIndex == item.parameterIndex }
             else -> null
         }
 
@@ -1794,12 +1809,13 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
         }
 
         if (type.isArray() ||
-                typeAsClass.extendsOrImplements("java.util.Collection") ||
-                typeAsClass.extendsOrImplements("kotlin.collections.Collection") ||
-                typeAsClass.extendsOrImplements("java.util.Map") ||
-                typeAsClass.extendsOrImplements("kotlin.collections.Map") ||
-                typeAsClass.qualifiedName() == "android.os.Bundle" ||
-                typeAsClass.qualifiedName() == "android.os.PersistableBundle") {
+            typeAsClass.extendsOrImplements("java.util.Collection") ||
+            typeAsClass.extendsOrImplements("kotlin.collections.Collection") ||
+            typeAsClass.extendsOrImplements("java.util.Map") ||
+            typeAsClass.extendsOrImplements("kotlin.collections.Map") ||
+            typeAsClass.qualifiedName() == "android.os.Bundle" ||
+            typeAsClass.qualifiedName() == "android.os.PersistableBundle"
+        ) {
             val where = when (item) {
                 is MethodItem -> "Return type of ${item.describe()}"
                 else -> "Type of ${item.describe()}"
@@ -1807,8 +1823,8 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
 
             val erased = type.toErasedTypeString(item)
             report(
-                    NULLABLE_COLLECTION, item,
-                    "$where is a nullable collection (`$erased`); must be non-null"
+                NULLABLE_COLLECTION, item,
+                "$where is a nullable collection (`$erased`); must be non-null"
             )
         }
     }
@@ -2003,7 +2019,8 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
 
     private fun checkHasNullability(item: Item) {
         if (item.requiresNullnessInfo() && !item.hasNullnessInfo() &&
-                getImplicitNullness(item) == null) {
+            getImplicitNullness(item) == null
+        ) {
             val type = item.type()
             val inherited = when (item) {
                 is ParameterItem -> item.containingMethod().inheritedMethod
@@ -2156,7 +2173,8 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
             }
 
             if (methods.none { !it.modifiers.isStatic() } &&
-                fields.none { !it.modifiers.isStatic() }) {
+                fields.none { !it.modifiers.isStatic() }
+            ) {
                 report(
                     STATIC_UTILS, cls,
                     "Fully-static utility classes must not have constructor"
@@ -2337,8 +2355,10 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
 
         fun packageContainsSegment(packageName: String?, segment: String): Boolean {
             packageName ?: return false
-            return (packageName.contains(segment) &&
-                (packageName.contains(".$segment.") || packageName.endsWith(".$segment")))
+            return (
+                packageName.contains(segment) &&
+                    (packageName.contains(".$segment.") || packageName.endsWith(".$segment"))
+                )
         }
 
         fun skipPackage(packageName: String?): Boolean {
@@ -2635,7 +2655,7 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
             }
 
             STYLEABLE, // appears as R class but name check is implicitly done as part of style class check
-                // DECLARE_STYLEABLE,
+            // DECLARE_STYLEABLE,
             STYLE_ITEM,
             PUBLIC,
             SAMPLE_DATA,
@@ -3001,7 +3021,8 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
             if (method.isKotlin()) {
                 report(
                     KOTLIN_OPERATOR, method,
-                    "Note that adding the `operator` keyword would allow calling this method using operator syntax")
+                    "Note that adding the `operator` keyword would allow calling this method using operator syntax"
+                )
             } else {
                 report(
                     KOTLIN_OPERATOR, method,
@@ -3041,10 +3062,11 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
                     val assignName = name + "Assign"
 
                     if (methods.any {
-                            it.name() == assignName &&
-                                it.parameters().size == 1 &&
-                                it.returnType()?.toTypeString() == "void"
-                        }) {
+                        it.name() == assignName &&
+                            it.parameters().size == 1 &&
+                            it.returnType()?.toTypeString() == "void"
+                    }
+                    ) {
                         report(
                             UNIQUE_KOTLIN_OPERATOR, method,
                             "Only one of `$name` and `${name}Assign` methods should be present for Kotlin"
@@ -3234,12 +3256,16 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
 
         val qualifiedName = cls.qualifiedName()
         for (suffix in badParameterClassNames) {
-            if (qualifiedName.endsWith(suffix) && !((qualifiedName.endsWith("Params") ||
-                    qualifiedName == "android.app.ActivityOptions" ||
-                    qualifiedName == "android.app.BroadcastOptions" ||
-                    qualifiedName == "android.os.Bundle" ||
-                    qualifiedName == "android.os.BaseBundle" ||
-                    qualifiedName == "android.os.PersistableBundle"))
+            if (qualifiedName.endsWith(suffix) && !(
+                (
+                    qualifiedName.endsWith("Params") ||
+                        qualifiedName == "android.app.ActivityOptions" ||
+                        qualifiedName == "android.app.BroadcastOptions" ||
+                        qualifiedName == "android.os.Bundle" ||
+                        qualifiedName == "android.os.BaseBundle" ||
+                        qualifiedName == "android.os.PersistableBundle"
+                    )
+                )
             ) {
                 report(
                     USER_HANDLE_NAME, cls,
@@ -3265,7 +3291,8 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
          */
         val type = field.type()
         if (!type.isString() || !field.modifiers.isFinal() || !field.modifiers.isStatic() ||
-            field.containingClass().qualifiedName() != "android.content.Context") {
+            field.containingClass().qualifiedName() != "android.content.Context"
+        ) {
             return
         }
         val name = field.name()
@@ -3277,7 +3304,8 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
                 if (!endsWithService) " and its name must end with `_SERVICE`" else ""
 
             report(
-                SERVICE_NAME, field, "Non-constant service constant `$name`. Must be static," +
+                SERVICE_NAME, field,
+                "Non-constant service constant `$name`. Must be static," +
                     " final and initialized with a String literal$mustEndInService."
             )
             return
@@ -3290,7 +3318,7 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
                     "`${name.removeSuffix("_MANAGER_SERVICE")}_SERVICE`, was `$name`"
             )
         } else if (endsWithService) {
-            val service = name.substring(0, name.length - "_SERVICE".length).toLowerCase(Locale.US)
+            val service = name.substring(0, name.length - "_SERVICE".length).lowercase(Locale.US)
             if (service != value) {
                 report(
                     SERVICE_NAME, field,
@@ -3301,9 +3329,10 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
                 )
             }
         } else {
-            val valueUpper = value.toUpperCase(Locale.US)
+            val valueUpper = value.uppercase(Locale.US)
             report(
-                SERVICE_NAME, field, "Inconsistent service constant name;" +
+                SERVICE_NAME, field,
+                "Inconsistent service constant name;" +
                     " expected `${valueUpper}_SERVICE`, was `$name`"
             )
         }
@@ -3435,7 +3464,8 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
 
          */
         if (item.containingClass()?.qualifiedName() in lowLevelFileClassNames ||
-            isServiceDumpMethod(item)) {
+            isServiceDumpMethod(item)
+        ) {
             return
         }
 
@@ -3535,7 +3565,8 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
         badFutureTypes.firstOrNull { cls.extendsOrImplements(it) }?.let {
             val extendOrImplement = if (cls.extends(it)) "extend" else "implement"
             report(
-                BAD_FUTURE, cls, "${cls.simpleName()} should not $extendOrImplement `$it`." +
+                BAD_FUTURE, cls,
+                "${cls.simpleName()} should not $extendOrImplement `$it`." +
                     " In AndroidX, use (but do not extend) ListenableFuture. In platform, use a combination of Consumer<T>, Executor, and CancellationSignal`."
             )
         }
@@ -3584,7 +3615,8 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
     private fun checkFutures(typeString: String, item: Item) {
         badFutureTypes.firstOrNull { typeString.contains(it) }?.let {
             report(
-                BAD_FUTURE, item, "Use ListenableFuture (library), " +
+                BAD_FUTURE, item,
+                "Use ListenableFuture (library), " +
                     "or a combination of Consumer<T>, Executor, and CancellationSignal (platform) instead of $it (${item.describe()})"
             )
         }
@@ -3749,7 +3781,14 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
             if (s.none { it.isLowerCase() }) {
                 // The entire thing is capitalized. If so, just perform
                 // normal capitalization, but try dropping _'s.
-                return SdkVersionInfo.underlinesToCamelCase(s.toLowerCase(Locale.US)).capitalize()
+                return SdkVersionInfo.underlinesToCamelCase(s.lowercase(Locale.US))
+                    .replaceFirstChar {
+                        if (it.isLowerCase()) {
+                            it.titlecase(Locale.getDefault())
+                        } else {
+                            it.toString()
+                        }
+                    }
             }
 
             while (true) {
@@ -3762,13 +3801,13 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
                 // next word so capitalize it
                 s = if (index == s.length - acronym.length) {
                     // acronym at the end of the word word
-                    val decapitalized = acronym[0] + acronym.substring(1).toLowerCase(Locale.US)
+                    val decapitalized = acronym[0] + acronym.substring(1).lowercase(Locale.US)
                     s.replace(acronym, decapitalized)
                 } else {
                     val replacement = acronym[0] + acronym.substring(
                         1,
                         acronym.length - 1
-                    ).toLowerCase(Locale.US) + acronym[acronym.length - 1]
+                    ).lowercase(Locale.US) + acronym[acronym.length - 1]
                     s.replace(acronym, replacement)
                 }
             }

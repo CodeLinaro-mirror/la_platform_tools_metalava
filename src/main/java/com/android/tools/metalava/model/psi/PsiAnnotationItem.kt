@@ -32,8 +32,8 @@ import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.psi.CodePrinter.Companion.constantToExpression
 import com.android.tools.metalava.model.psi.CodePrinter.Companion.constantToSource
 import com.intellij.psi.PsiAnnotation
-import com.intellij.psi.PsiAnnotationMethod
 import com.intellij.psi.PsiAnnotationMemberValue
+import com.intellij.psi.PsiAnnotationMethod
 import com.intellij.psi.PsiArrayInitializerMemberValue
 import com.intellij.psi.PsiBinaryExpression
 import com.intellij.psi.PsiClass
@@ -135,7 +135,7 @@ class PsiAnnotationItem private constructor(
         }
 
         private fun getAttributes(annotation: PsiAnnotation, showDefaultAttrs: Boolean):
-                List<Pair<String?, PsiAnnotationMemberValue?>> {
+            List<Pair<String?, PsiAnnotationMemberValue?>> {
             val annotationClass = annotation.nameReferenceElement?.resolve() as? PsiClass
             val list = mutableListOf<Pair<String?, PsiAnnotationMemberValue?>>()
             if (annotationClass != null && showDefaultAttrs) {
@@ -218,7 +218,8 @@ class PsiAnnotationItem private constructor(
                                 if (initializer != null) {
                                     val fieldItem = cls.findField(resolved.name)
                                     if (fieldItem == null || fieldItem.isHiddenOrRemoved() ||
-                                            !fieldItem.isPublic) {
+                                        !fieldItem.isPublic
+                                    ) {
                                         // Use the literal value instead
                                         val source = getConstantSource(initializer)
                                         if (source != null) {

@@ -46,20 +46,20 @@ class KotlinInteropChecks(val reporter: Reporter) {
             // No need to check "for stubs only APIs" (== "implicit" APIs)
             includeApisForStubPurposes = false
         ) {
-            private var isKotlin = false
+                private var isKotlin = false
 
-            override fun visitClass(cls: ClassItem) {
-                isKotlin = cls.isKotlin()
-            }
+                override fun visitClass(cls: ClassItem) {
+                    isKotlin = cls.isKotlin()
+                }
 
-            override fun visitMethod(method: MethodItem) {
-                checkMethod(method, isKotlin)
-            }
+                override fun visitMethod(method: MethodItem) {
+                    checkMethod(method, isKotlin)
+                }
 
-            override fun visitField(field: FieldItem) {
-                checkField(field, isKotlin)
-            }
-        })
+                override fun visitField(field: FieldItem) {
+                    checkField(field, isKotlin)
+                }
+            })
     }
 
     fun checkField(field: FieldItem, isKotlin: Boolean = field.isKotlin()) {
@@ -94,8 +94,10 @@ class KotlinInteropChecks(val reporter: Reporter) {
         }
         val doc = method.documentation
         for (exception in exceptions.sortedBy { it.qualifiedName() }) {
-            val checked = !(exception.extends("java.lang.RuntimeException") ||
-                exception.extends("java.lang.Error"))
+            val checked = !(
+                exception.extends("java.lang.RuntimeException") ||
+                    exception.extends("java.lang.Error")
+                )
             if (checked) {
                 val annotation = method.modifiers.findAnnotation("kotlin.jvm.Throws")
                 if (annotation != null) {
@@ -165,8 +167,9 @@ class KotlinInteropChecks(val reporter: Reporter) {
                     }
                     for (ktProperty in ktProperties) {
                         if (ktProperty.annotationEntries.none { annotationEntry ->
-                                annotationEntry.shortName?.asString() == "JvmStatic"
-                            }) {
+                            annotationEntry.shortName?.asString() == "JvmStatic"
+                        }
+                        ) {
                             reporter.report(
                                 Issues.MISSING_JVMSTATIC, ktProperty,
                                 "Companion object constants like ${ktProperty.name} should be marked @JvmField for Java interoperability; see https://developer.android.com/kotlin/interop#companion_constants"

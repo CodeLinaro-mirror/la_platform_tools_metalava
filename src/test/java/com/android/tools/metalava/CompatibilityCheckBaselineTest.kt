@@ -26,7 +26,6 @@ class CompatibilityCheckBaselineTest : DriverTest() {
             expectedIssues = """
                 TESTROOT/released-api.txt:1: error: Removed package test.pkg [RemovedPackage]
                 """,
-            compatibilityMode = false,
             errorMessageCheckCompatibilityReleased = "*** release-api check failed ***",
             errorMessageCheckCompatibilityCurrent = "*** current-api check failed ***",
             checkCompatibilityApiReleased = """
@@ -51,7 +50,6 @@ class CompatibilityCheckBaselineTest : DriverTest() {
             expectedIssues = """
                 TESTROOT/current-api.txt:1: error: Removed package test.pkg [RemovedPackage]
                 """,
-            compatibilityMode = false,
             errorMessageCheckCompatibilityReleased = "*** release-api check failed ***",
             errorMessageCheckCompatibilityCurrent = "*** current-api check failed ***",
             checkCompatibilityApi = """
@@ -75,7 +73,6 @@ class CompatibilityCheckBaselineTest : DriverTest() {
         check(
             expectedIssues = """
                 """,
-            compatibilityMode = false,
             baseline = """
                 // Baseline format: 1.0
                 ChangedScope: test.pkg.MyTest1:
@@ -102,7 +99,6 @@ class CompatibilityCheckBaselineTest : DriverTest() {
         check(
             expectedIssues = """
                 """,
-            compatibilityMode = false,
             baseline = """
                 // Baseline format: 1.0
                 ChangedScope: test.pkg.MyTest1:
@@ -129,7 +125,6 @@ class CompatibilityCheckBaselineTest : DriverTest() {
         check(
             expectedIssues = """
                 """,
-            compatibilityMode = false,
             baselineCheckCompatibilityReleased = """
                 // Baseline format: 1.0
                 ChangedScope: test.pkg.MyTest1:
@@ -156,7 +151,6 @@ class CompatibilityCheckBaselineTest : DriverTest() {
         check(
             expectedIssues = """
                 """,
-            compatibilityMode = false,
             baselineCheckCompatibilityReleased = """
                 """,
             updateBaselineCheckCompatibilityReleased = """
@@ -183,7 +177,6 @@ class CompatibilityCheckBaselineTest : DriverTest() {
     fun `Test current-API check, but with compatibility-released baseline`() {
         // Use released-API check baseline, which shouldn't be used in current-API check.
         check(
-            compatibilityMode = false,
             expectedIssues = """
                 TESTROOT/load-api.txt:2: error: Class test.pkg.MyTest1 changed visibility from public to private [ChangedScope]
                 """,

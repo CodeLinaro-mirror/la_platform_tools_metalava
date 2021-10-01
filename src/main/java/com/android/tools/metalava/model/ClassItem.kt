@@ -235,6 +235,10 @@ interface ClassItem : Item {
 
     var hasPrivateConstructor: Boolean
 
+    /** The primary constructor for this class in Kotlin, if present. */
+    val primaryConstructor: ConstructorItem?
+        get() = constructors().singleOrNull { it.isPrimary }
+
     /**
      * Maven artifact of this class, if any. (Not used for the Android SDK, but used in
      * for example support libraries.
@@ -529,8 +533,8 @@ interface ClassItem : Item {
         return true
     }
 
-    /** Returns the corresponding compilation unit, if any */
-    fun getCompilationUnit(): CompilationUnit? = null
+    /** Returns the corresponding source file, if any */
+    fun getSourceFile(): SourceFileItem? = null
 
     /** If this class is an annotation type, returns the retention of this class */
     fun getRetention(): AnnotationRetention

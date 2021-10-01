@@ -30,7 +30,7 @@ class OptionsTest : DriverTest() {
     private val DESCRIPTION = """
 $PROGRAM_NAME extracts metadata from source code to generate artifacts such as the signature files, the SDK stub files,
 external annotations etc.
-""".trimIndent()
+    """.trimIndent()
 
     private val FLAGS = """
 Usage: metalava <flags>
@@ -49,9 +49,6 @@ General:
                                              Attempt to colorize the output (defaults to true if ${"$"}TERM is xterm)
 --no-color
                                              Do not attempt to colorize the output
---no-docs
-                                             Cancel any other documentation flags supplied to metalava. This is here to
-                                             make it easier customize build system tasks.
 --only-update-api
                                              Cancel any other "action" flags other than generating signature files. This
                                              is here to make it easier customize build system tasks, particularly for
@@ -136,7 +133,7 @@ API sources:
 --java-source <level>
                                              Sets the source level for Java source files; default is 1.8.
 --kotlin-source <level>
-                                             Sets the source level for Kotlin source files; default is 1.4.
+                                             Sets the source level for Kotlin source files; default is 1.5.
 --sdk-home <dir>
                                              If set, locate the `android.jar` file from the given Android SDK
 --compile-sdk-version <api>
@@ -194,14 +191,6 @@ Extracting Signature Files:
 --output-default-values[=yes|no]
                                              Controls whether default values should be included in signature files. The
                                              default is yes.
---compatible-output=[yes|no]
-                                             Controls whether to keep signature files compatible with the historical
-                                             format (with its various quirks) or to generate the new format (which will
-                                             also include annotations that are part of the API, etc.)
---omit-common-packages[=yes|no]
-                                             Skip common package prefixes like java.lang.* and kotlin.* in signature
-                                             files, along with packages for well known annotations like @Nullable and
-                                             @NonNull.
 --include-signature-version[=yes|no]
                                              Whether the signature files should include a comment listing the format
                                              version of the signature file.
@@ -209,6 +198,8 @@ Extracting Signature Files:
                                              Write a ProGuard keep file for the API
 --sdk-values <dir>
                                              Write SDK values files to the given directory
+--kotlin-model
+                                             [CURRENTLY EXPERIMENTAL] If set, use Kotlin PSI for Kotlin instead of UAST
 
 
 Generating Stubs:
@@ -357,25 +348,6 @@ JDiff:
                                              writes out only the new parts of the API in the v2 format.
 
 
-Statistics:
---annotation-coverage-stats
-                                             Whether metalava should emit coverage statistics for annotations, listing
-                                             the percentage of the API that has been annotated with nullness
-                                             information.
---annotation-coverage-of <paths>
-                                             One or more jars (separated by `:`) containing existing apps that we want
-                                             to measure annotation coverage statistics for. The set of API usages in
-                                             those apps are counted up and the most frequently used APIs that are
-                                             missing annotation metadata are listed in descending order.
---skip-java-in-coverage-report
-                                             In the coverage annotation report, skip java.** and kotlin.** to narrow the
-                                             focus down to the Android framework APIs.
---write-class-coverage-to <path>
-                                             Specifies a file to write the annotation coverage report for classes to.
---write-member-coverage-to <path>
-                                             Specifies a file to write the annotation coverage report for members to.
-
-
 Extracting Annotations:
 --extract-annotations <zipfile>
                                              Extracts source annotations from the source files and writes them into the
@@ -413,6 +385,8 @@ Extracting API Levels:
 --android-jar-pattern <pattern>
                                              Patterns to use to locate Android JAR files. The default is
                                              ${"$"}ANDROID_HOME/platforms/android-%/android.jar.
+--first-version
+                                             Sets the first API level to generate an API database from; usually 1
 --current-version
                                              Sets the current API level of the current source code
 --current-codename
@@ -454,7 +428,7 @@ METALAVA_APPEND_ARGS
                                              One or more arguments (concatenated by space) to append to the end of the
                                              command line, after the generate documentation flags.
 
-""".trimIndent()
+    """.trimIndent()
 
     @Test
     fun `Test invalid arguments`() {
@@ -475,7 +449,8 @@ Aborting: Invalid argument --blah-blah-blah
 
 $FLAGS
 
-""".trimIndent(), stderr.toString()
+            """.trimIndent(),
+            stderr.toString()
         )
     }
 
@@ -500,7 +475,8 @@ $DESCRIPTION
 
 $FLAGS
 
-""".trimIndent(), stdout.toString()
+            """.trimIndent(),
+            stdout.toString()
         )
     }
 
@@ -572,8 +548,10 @@ $FLAGS
 
         try {
             check(
-                extraArguments = arrayOf("--strict-input-files-exempt",
-                    file1.path + File.pathSeparatorChar + dir.path)
+                extraArguments = arrayOf(
+                    "--strict-input-files-exempt",
+                    file1.path + File.pathSeparatorChar + dir.path
+                )
             )
 
             assertTrue(FileReadSandbox.isAccessAllowed(file1))

@@ -45,8 +45,6 @@ import com.android.tools.lint.annotations.Extractor.SUPPORT_NOTNULL
 import com.android.tools.lint.annotations.Extractor.SUPPORT_NULLABLE
 import com.android.tools.lint.checks.AnnotationDetector
 import com.android.tools.lint.detector.api.getChildren
-import com.android.tools.metalava.model.text.ApiFile
-import com.android.tools.metalava.model.text.ApiParseException
 import com.android.tools.metalava.model.AnnotationAttribute
 import com.android.tools.metalava.model.AnnotationAttributeValue
 import com.android.tools.metalava.model.AnnotationItem
@@ -63,6 +61,8 @@ import com.android.tools.metalava.model.parseDocument
 import com.android.tools.metalava.model.psi.PsiAnnotationItem
 import com.android.tools.metalava.model.psi.PsiBasedCodebase
 import com.android.tools.metalava.model.psi.PsiTypeItem
+import com.android.tools.metalava.model.text.ApiFile
+import com.android.tools.metalava.model.text.ApiParseException
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.google.common.io.ByteStreams
 import com.google.common.io.Closeables
@@ -125,7 +125,8 @@ class AnnotationsMerger(
                 javaStubFiles,
                 "Codebase loaded from stubs",
                 sourcePath = roots,
-                classpath = options.classpath)
+                classpath = options.classpath
+            )
             mergeJavaStubsCodebase(javaStubsCodebase)
         }
     }
@@ -580,7 +581,8 @@ class AnnotationsMerger(
                 val valName2 = valueElement2.getAttribute(ATTR_NAME)
                 val value2 = valueElement2.getAttribute(ATTR_VAL)
                 return PsiAnnotationItem.create(
-                    codebase, XmlBackedAnnotationItem(
+                    codebase,
+                    XmlBackedAnnotationItem(
                         codebase, AnnotationDetector.INT_RANGE_ANNOTATION.newName(),
                         listOf(
                             // Add "L" suffix to ensure that we don't for example interpret "-1" as
@@ -663,7 +665,8 @@ class AnnotationsMerger(
                     attributes.add(XmlBackedAnnotationAttribute(TYPE_DEF_FLAG_ATTRIBUTE, VALUE_TRUE))
                 }
                 return PsiAnnotationItem.create(
-                    codebase, XmlBackedAnnotationItem(
+                    codebase,
+                    XmlBackedAnnotationItem(
                         codebase,
                         if (valName == "stringValues") STRING_DEF_ANNOTATION.newName() else INT_DEF_ANNOTATION.newName(),
                         attributes
@@ -677,28 +680,34 @@ class AnnotationsMerger(
                 name == INT_DEF_ANNOTATION.oldName() ||
                 name == INT_DEF_ANNOTATION.newName() ||
                 name == ANDROID_INT_DEF -> {
+
+                val attributes = mutableListOf<XmlBackedAnnotationAttribute>()
+                val parseChild: (Element) -> Unit = { child: Element ->
+                    val elementName = child.getAttribute(ATTR_NAME)
+                    val value = child.getAttribute(ATTR_VAL)
+                    when (elementName) {
+                        TYPE_DEF_VALUE_ATTRIBUTE -> {
+                            attributes.add(XmlBackedAnnotationAttribute(TYPE_DEF_VALUE_ATTRIBUTE, value))
+                        }
+                        TYPE_DEF_FLAG_ATTRIBUTE -> {
+                            if (VALUE_TRUE == value) {
+                                attributes.add(XmlBackedAnnotationAttribute(TYPE_DEF_FLAG_ATTRIBUTE, VALUE_TRUE))
+                            }
+                        }
+                        else -> { error("Unrecognized element: " + elementName) }
+                    }
+                }
                 val children = getChildren(annotationElement)
-                var valueElement = children[0]
-                val valName = valueElement.getAttribute(ATTR_NAME)
-                assert(TYPE_DEF_VALUE_ATTRIBUTE == valName)
-                val value = valueElement.getAttribute(ATTR_VAL)
-                var flag = false
+                parseChild(children[0])
                 if (children.size == 2) {
-                    valueElement = children[1]
-                    assert(TYPE_DEF_FLAG_ATTRIBUTE == valueElement.getAttribute(ATTR_NAME))
-                    flag = VALUE_TRUE == valueElement.getAttribute(ATTR_VAL)
+                    parseChild(children[1])
                 }
                 val intDef = INT_DEF_ANNOTATION.oldName() == name ||
                     INT_DEF_ANNOTATION.newName() == name ||
                     ANDROID_INT_DEF == name
-
-                val attributes = mutableListOf<XmlBackedAnnotationAttribute>()
-                attributes.add(XmlBackedAnnotationAttribute(TYPE_DEF_VALUE_ATTRIBUTE, value))
-                if (flag) {
-                    attributes.add(XmlBackedAnnotationAttribute(TYPE_DEF_FLAG_ATTRIBUTE, VALUE_TRUE))
-                }
                 return PsiAnnotationItem.create(
-                    codebase, XmlBackedAnnotationItem(
+                    codebase,
+                    XmlBackedAnnotationItem(
                         codebase,
                         if (intDef) INT_DEF_ANNOTATION.newName() else STRING_DEF_ANNOTATION.newName(), attributes
                     )
@@ -712,7 +721,8 @@ class AnnotationsMerger(
                 val pure = valueElement.getAttribute(ATTR_PURE)
                 return if (pure != null && pure.isNotEmpty()) {
                     PsiAnnotationItem.create(
-                        codebase, XmlBackedAnnotationItem(
+                        codebase,
+                        XmlBackedAnnotationItem(
                             codebase, name,
                             listOf(
                                 XmlBackedAnnotationAttribute(TYPE_DEF_VALUE_ATTRIBUTE, value),
@@ -722,7 +732,8 @@ class AnnotationsMerger(
                     )
                 } else {
                     PsiAnnotationItem.create(
-                        codebase, XmlBackedAnnotationItem(
+                        codebase,
+                        XmlBackedAnnotationItem(
                             codebase, name,
                             listOf(XmlBackedAnnotationAttribute(TYPE_DEF_VALUE_ATTRIBUTE, value))
                         )

@@ -16,10 +16,9 @@
 
 package com.android.tools.metalava
 
+import com.android.tools.metalava.Issues.Issue
 import com.android.tools.metalava.NullnessMigration.Companion.findNullnessAnnotation
 import com.android.tools.metalava.NullnessMigration.Companion.isNullable
-import com.android.tools.metalava.Issues.Issue
-import com.android.tools.metalava.model.text.TextCodebase
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
@@ -32,6 +31,7 @@ import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.configuration
+import com.android.tools.metalava.model.text.TextCodebase
 import com.intellij.psi.PsiField
 import java.io.File
 import java.util.function.Predicate
@@ -562,7 +562,8 @@ class CompatibilityCheck(
                 if (!(old.name() == "finalize" && old.parameters().isEmpty()) &&
                     // exclude cases where throws clause was missing in signatures from
                     // old enum methods
-                    !old.isEnumSyntheticMethod()) {
+                    !old.isEnumSyntheticMethod()
+                ) {
                     val message = "${describe(new, capitalize = true)} added thrown exception ${exec.qualifiedName()}"
                     report(Issues.CHANGED_THROWS, new, message)
                 }

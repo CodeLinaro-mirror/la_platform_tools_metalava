@@ -28,7 +28,7 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageDocs
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PackageList
-import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.kotlin.KotlinClassItem
 import com.android.tools.metalava.options
 import com.android.tools.metalava.reporter
 import com.android.tools.metalava.tick
@@ -56,6 +56,9 @@ import com.intellij.psi.javadoc.PsiDocComment
 import com.intellij.psi.javadoc.PsiDocTag
 import com.intellij.psi.search.GlobalSearchScope
 import com.intellij.psi.util.PsiTreeUtil
+import org.jetbrains.kotlin.psi.KtClassOrObject
+import org.jetbrains.kotlin.psi.KtFile
+import org.jetbrains.kotlin.psi.classOrObjectVisitor
 import org.jetbrains.uast.UFile
 import org.jetbrains.uast.UastFacade
 import java.io.File
@@ -74,10 +77,7 @@ open class PsiBasedCodebase(location: File, override var description: String = "
         get() = uastEnvironment.ideaProject
 
     /** Map from class name to class item */
-    private val classMap: MutableMap<String, PsiClassItem> = HashMap(CLASS_ESTIMATE)
-
-    /** Map from psi type to type item */
-    private val typeMap: MutableMap<PsiType, TypeItem> = HashMap(400)
+    private val classMap: MutableMap<String, ClassItem> = HashMap(CLASS_ESTIMATE)
 
     /**
      * Map from classes to the set of methods for each (but only for classes where we've
@@ -89,7 +89,7 @@ open class PsiBasedCodebase(location: File, override var description: String = "
     private lateinit var packageMap: MutableMap<String, PsiPackageItem>
 
     /** Map from package name to list of classes in that package */
-    private lateinit var packageClasses: MutableMap<String, MutableList<PsiClassItem>>
+    private lateinit var packageClasses: MutableMap<String, MutableList<ClassItem>>
 
     /** A set of packages to hide */
     private lateinit var hiddenPackages: MutableMap<String, Boolean?>
@@ -110,9 +110,14 @@ open class PsiBasedCodebase(location: File, override var description: String = "
 
     private lateinit var emptyPackage: PsiPackageItem
 
-    fun initialize(uastEnvironment: UastEnvironment, units: List<PsiFile>, packages: PackageDocs) {
+    fun initialize(
+        uastEnvironment: UastEnvironment,
+        psiFiles: List<PsiFile>,
+        packages: PackageDocs,
+        useKtModel: Boolean
+    ) {
         initializing = true
-        this.units = units
+        this.units = psiFiles
         packageDocs = packages
 
         this.uastEnvironment = uastEnvironment
@@ -130,11 +135,11 @@ open class PsiBasedCodebase(location: File, override var description: String = "
         this.methodMap = HashMap(METHOD_ESTIMATE)
         topLevelClassesFromSource = ArrayList(CLASS_ESTIMATE)
 
-        // Make sure we only process the units once; sometimes there's overlap in the source lists
-        for (unit in units.asSequence().distinct()) {
+        // Make sure we only process the files once; sometimes there's overlap in the source lists
+        for (psiFile in psiFiles.asSequence().distinct()) {
             tick() // show progress
 
-            unit.accept(object : JavaRecursiveElementVisitor() {
+            psiFile.accept(object : JavaRecursiveElementVisitor() {
                 override fun visitImportStatement(element: PsiImportStatement) {
                     super.visitImportStatement(element)
                     if (element.resolve() == null) {
@@ -147,54 +152,61 @@ open class PsiBasedCodebase(location: File, override var description: String = "
                 }
             })
 
-            var classes = (unit as? PsiClassOwner)?.classes?.toList() ?: emptyList()
-            if (classes.isEmpty()) {
-                val uFile = UastFacade.convertElementWithParent(unit, UFile::class.java) as? UFile?
+            var classes = (psiFile as? PsiClassOwner)?.classes?.toList() ?: emptyList()
+            if (classes.isEmpty() && !useKtModel) {
+                val uFile = UastFacade.convertElementWithParent(psiFile, UFile::class.java) as? UFile?
                 classes = uFile?.classes?.map { it }?.toList() ?: emptyList()
             }
-            var packageName: String? = null
-            if (classes.isEmpty() && unit is PsiJavaFile) {
-                // package-info.java ?
-                val packageStatement = unit.packageStatement
-                // Look for javadoc on the package statement; this is NOT handed to us on
-                // the PsiPackage!
-                if (packageStatement != null) {
-                    packageName = packageStatement.packageName
-                    val comment = PsiTreeUtil.getPrevSiblingOfType(packageStatement, PsiDocComment::class.java)
-                    if (comment != null) {
-                        val text = comment.text
-                        if (text.contains("@hide")) {
-                            this.hiddenPackages[packageName] = true
+            when {
+                useKtModel && psiFile is KtFile -> {
+                    psiFile.acceptChildren(
+                        classOrObjectVisitor { ktClassOrObject ->
+                            topLevelClassesFromSource += createClass(ktClassOrObject)
                         }
-                        if (packageDocs[packageName] != null) {
-                            reporter.report(
-                                Issues.BOTH_PACKAGE_INFO_AND_HTML,
-                                unit,
-                                "It is illegal to provide both a package-info.java file and a " +
-                                    "package.html file for the same package"
-                            )
+                    )
+                }
+                classes.isEmpty() && psiFile is PsiJavaFile -> {
+                    // package-info.java ?
+                    val packageStatement = psiFile.packageStatement
+                    // Look for javadoc on the package statement; this is NOT handed to us on
+                    // the PsiPackage!
+                    if (packageStatement != null) {
+                        val comment = PsiTreeUtil.getPrevSiblingOfType(
+                            packageStatement,
+                            PsiDocComment::class.java
+                        )
+                        if (comment != null) {
+                            val packageName = packageStatement.packageName
+                            val text = comment.text
+                            if (text.contains("@hide")) {
+                                this.hiddenPackages[packageName] = true
+                            }
+                            if (packageDocs[packageName] != null) {
+                                reporter.report(
+                                    Issues.BOTH_PACKAGE_INFO_AND_HTML,
+                                    psiFile,
+                                    "It is illegal to provide both a package-info.java file and " +
+                                        "a package.html file for the same package"
+                                )
+                            }
+                            packageDocs[packageName] = text
                         }
-                        packageDocs[packageName] = text
                     }
                 }
-            } else {
-                for (psiClass in classes) {
-                    psiClass.accept(object : JavaRecursiveElementVisitor() {
-                        override fun visitErrorElement(element: PsiErrorElement) {
-                            super.visitErrorElement(element)
-                            reporter.report(
-                                Issues.INVALID_SYNTAX,
-                                element,
-                                "Syntax error: `${element.errorDescription}`"
-                            )
-                        }
-                    })
+                else -> {
+                    for (psiClass in classes) {
+                        psiClass.accept(object : JavaRecursiveElementVisitor() {
+                            override fun visitErrorElement(element: PsiErrorElement) {
+                                super.visitErrorElement(element)
+                                reporter.report(
+                                    Issues.INVALID_SYNTAX,
+                                    element,
+                                    "Syntax error: `${element.errorDescription}`"
+                                )
+                            }
+                        })
 
-                    val classItem = createClass(psiClass)
-                    topLevelClassesFromSource.add(classItem)
-
-                    if (packageName == null) {
-                        packageName = getPackageName(psiClass)
+                        topLevelClassesFromSource += createClass(psiClass)
                     }
                 }
             }
@@ -266,8 +278,7 @@ open class PsiBasedCodebase(location: File, override var description: String = "
             val psiPackage = JavaPsiFacade.getInstance(project).findPackage(pkgName) ?: continue
             val sortedClasses = emptyList<PsiClassItem>()
             val packageHtml = null
-            val pkg = registerPackage(psiPackage, sortedClasses, packageHtml, pkgName)
-            pkg.emit = false // don't expose these packages in the API signature files, stubs, etc
+            registerPackage(psiPackage, sortedClasses, packageHtml, pkgName)
         }
 
         // Connect up all the package items
@@ -292,7 +303,7 @@ open class PsiBasedCodebase(location: File, override var description: String = "
 
     private fun registerPackage(
         psiPackage: PsiPackage,
-        sortedClasses: List<PsiClassItem>?,
+        sortedClasses: List<ClassItem>?,
         packageHtml: String?,
         pkgName: String
     ): PsiPackageItem {
@@ -409,11 +420,11 @@ open class PsiBasedCodebase(location: File, override var description: String = "
         options.stdout.println(
             "INTERNAL STATS: Size of classMap=${classMap.size} and size of " +
                 "methodMap=${methodMap.size} and size of packageMap=${packageMap.size}, and the " +
-                "typemap size is ${typeMap.size}, and the packageClasses size is ${packageClasses.size} "
+                "size of packageClasses=${packageClasses.size} "
         )
     }
 
-    private fun registerPackageClass(packageName: String, cls: PsiClassItem) {
+    private fun registerPackageClass(packageName: String, cls: ClassItem) {
         var list = packageClasses[packageName]
         if (list == null) {
             list = ArrayList()
@@ -497,14 +508,27 @@ open class PsiBasedCodebase(location: File, override var description: String = "
                 val psiPackage = JavaPsiFacade.getInstance(project).findPackage(pkgName)
                 if (psiPackage != null) {
                     val packageItem = registerPackage(psiPackage, null, packageHtml, pkgName)
-                    // Don't include packages from API that isn't directly included in the API
-                    packageItem.emit = false
                     packageItem.addClass(classItem)
                 }
             } else {
                 pkg.addClass(classItem)
             }
         }
+
+        return classItem
+    }
+
+    private fun createClass(ktClassOrObject: KtClassOrObject): ClassItem {
+        val classItem = KotlinClassItem(this, ktClassOrObject)
+
+        if (!initializing) {
+            classItem.emit = false
+        }
+
+        classMap[classItem.qualifiedName()] = classItem
+
+        val packageName = ktClassOrObject.containingKtFile.packageFqName.asString()
+        registerPackageClass(packageName, classItem)
 
         return classItem
     }
@@ -526,13 +550,13 @@ open class PsiBasedCodebase(location: File, override var description: String = "
         return packageMap[pkgName]
     }
 
-    override fun findClass(className: String): PsiClassItem? {
+    override fun findClass(className: String): ClassItem? {
         return classMap[className]
     }
 
     open fun findClass(psiClass: PsiClass): PsiClassItem? {
         val qualifiedName: String = psiClass.qualifiedName ?: psiClass.name!!
-        return classMap[qualifiedName]
+        return classMap[qualifiedName] as? PsiClassItem
     }
 
     open fun findOrCreateClass(qualifiedName: String): PsiClassItem? {

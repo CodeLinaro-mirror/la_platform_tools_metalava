@@ -392,7 +392,8 @@ class Reporter(
                 id,
                 color = false,
                 omitLocations = false
-            ))
+            )
+        )
         return true
     }
 

@@ -307,7 +307,7 @@ object Issues {
             if (property.returnType.classifier != Issue::class) continue
             val issue = property.getter.call(Issues) as Issue
 
-            issue.name = SdkVersionInfo.underlinesToCamelCase(property.name.toLowerCase(Locale.US))
+            issue.name = SdkVersionInfo.underlinesToCamelCase(property.name.lowercase(Locale.US))
             nameToIssue[issue.name] = issue
         }
         for (issue in allIssues) {

@@ -48,7 +48,6 @@ import com.intellij.psi.PsiReturnStatement
 import org.jetbrains.uast.UAnnotation
 import org.jetbrains.uast.UCallExpression
 import org.jetbrains.uast.UExpression
-import org.jetbrains.uast.UNamedExpression
 import org.jetbrains.uast.UReferenceExpression
 import org.jetbrains.uast.USimpleNameReferenceExpression
 import org.jetbrains.uast.UastEmptyExpression
@@ -59,7 +58,6 @@ import java.io.File
 import java.io.FileOutputStream
 import java.io.PrintWriter
 import java.io.StringWriter
-import java.util.ArrayList
 import java.util.jar.JarEntry
 import java.util.jar.JarOutputStream
 import kotlin.text.Charsets.UTF_8
@@ -450,7 +448,7 @@ class ExtractAnnotations(
                         .replace(" ", "")
                         .replace("?extends", "? extends ")
                         .replace("?super", "? super ")
-                    sb.append(type)
+                    sb.append(escapeXml(type))
                     i++
                 }
                 sb.append(')')
@@ -500,30 +498,14 @@ class ExtractAnnotations(
         writer.println()
 
         // noinspection PointlessBooleanExpression,ConstantConditions
-        if (attributes.size > 1 && sortAnnotations) {
-            // Ensure mutable
-            attributes = ArrayList(attributes)
-
+        if (sortAnnotations) {
             // Ensure that the value attribute is written first
-            attributes.sortedWith(object : Comparator<UNamedExpression> {
-                private fun getName(pair: UNamedExpression): String {
-                    val name = pair.name
-                    return name ?: SdkConstants.ATTR_VALUE
-                }
-
-                private fun rank(pair: UNamedExpression): Int {
-                    return if (SdkConstants.ATTR_VALUE == getName(pair)) -1 else 0
-                }
-
-                override fun compare(o1: UNamedExpression, o2: UNamedExpression): Int {
-                    val r1 = rank(o1)
-                    val r2 = rank(o2)
-                    val delta = r1 - r2
-                    return if (delta != 0) {
-                        delta
-                    } else getName(o1).compareTo(getName(o2))
-                }
-            })
+            attributes = attributes.sortedWith(
+                compareBy(
+                    { (it.name ?: SdkConstants.ATTR_VALUE) != SdkConstants.ATTR_VALUE },
+                    { it.name }
+                )
+            )
         }
 
         if (attributes.size == 1 && Extractor.REQUIRES_PERMISSION.isPrefix(qualifiedName, true)) {

@@ -16,12 +16,13 @@
 
 package com.android.tools.metalava.model
 
-import com.android.tools.metalava.model.visitors.ItemVisitor
-import com.android.tools.metalava.model.visitors.TypeVisitor
 import com.android.tools.metalava.NullnessMigration.Companion.findNullnessAnnotation
 import com.android.tools.metalava.RECENTLY_NONNULL
 import com.android.tools.metalava.RECENTLY_NULLABLE
+import com.android.tools.metalava.model.visitors.ItemVisitor
+import com.android.tools.metalava.model.visitors.TypeVisitor
 import com.intellij.psi.PsiElement
+import java.util.concurrent.atomic.AtomicInteger
 
 /**
  * Represents a code element such as a package, a class, a method, a field, a parameter.
@@ -189,11 +190,11 @@ interface Item {
         return modifiers.checkLevel()
     }
 
-    fun compilationUnit(): CompilationUnit? {
+    fun sourceFile(): SourceFileItem? {
         var curr: Item? = this
         while (curr != null) {
             if (curr is ClassItem && curr.isTopLevelClass()) {
-                return curr.getCompilationUnit()
+                return curr.getSourceFile()
             }
             curr = curr.parent()
         }
@@ -238,7 +239,7 @@ interface Item {
     /**
      * Returns the associated type if any. For example, for a field, property or parameter,
      * this is the type of the variable; for a method, it's the return type.
-     * For packages, classes and compilation units, it's null.
+     * For packages, classes and files, it's null.
      */
     fun type(): TypeItem?
 
@@ -373,7 +374,7 @@ interface Item {
     }
 }
 
-abstract class DefaultItem(override val sortingRank: Int = nextRank++) : Item {
+abstract class DefaultItem(override val sortingRank: Int = nextRank.getAndIncrement()) : Item {
     override val isPublic: Boolean get() = modifiers.isPublic()
     override val isProtected: Boolean get() = modifiers.isProtected()
     override val isInternal: Boolean
@@ -385,6 +386,6 @@ abstract class DefaultItem(override val sortingRank: Int = nextRank++) : Item {
     override var tag: Boolean = false
 
     companion object {
-        private var nextRank: Int = 1
+        private var nextRank = AtomicInteger()
     }
 }
