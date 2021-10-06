@@ -46,6 +46,7 @@ class ReporterTest : DriverTest() {
     }
 
     @Test
+    @TestKotlinPsi
     fun `Test suppression annotations`() {
         check(
             apiLint = "",

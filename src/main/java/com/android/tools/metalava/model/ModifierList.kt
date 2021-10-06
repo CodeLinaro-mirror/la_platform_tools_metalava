@@ -166,7 +166,7 @@ interface ModifierList {
             return false
         }
         return annotations().any { annotation ->
-            options.hideMetaAnnotations.contains(annotation.qualifiedName())
+            options.hideMetaAnnotations.contains(annotation.qualifiedName)
         }
     }
 
@@ -179,7 +179,7 @@ interface ModifierList {
     fun findAnnotation(qualifiedName: String): AnnotationItem? {
         val mappedName = AnnotationItem.mapName(codebase, qualifiedName)
         return annotations().firstOrNull {
-            mappedName == it.qualifiedName()
+            mappedName == it.qualifiedName
         }
     }
 
@@ -433,7 +433,7 @@ interface ModifierList {
 
             // Ensure stable signature file order
             if (annotations.size > 1) {
-                annotations = annotations.sortedBy { it.qualifiedName() }
+                annotations = annotations.sortedBy { it.qualifiedName }
             }
 
             if (annotations.isNotEmpty()) {
@@ -446,13 +446,13 @@ interface ModifierList {
                     }
 
                     var printAnnotation = annotation
-                    if (!annotation.targets().contains(target)) {
+                    if (!annotation.targets.contains(target)) {
                         continue
                     } else if ((annotation.isNullnessAnnotation())) {
                         if (skipNullnessAnnotations) {
                             continue
                         }
-                    } else if (annotation.qualifiedName() == "java.lang.Deprecated") {
+                    } else if (annotation.qualifiedName == "java.lang.Deprecated") {
                         // Special cased in stubs and signature files: emitted first
                         continue
                     } else if (options.typedefMode == Options.TypedefMode.INLINE) {
@@ -461,12 +461,12 @@ interface ModifierList {
                             printAnnotation = typedef
                         }
                     } else if (options.typedefMode == Options.TypedefMode.REFERENCE &&
-                        annotation.targets() === ANNOTATION_SIGNATURE_ONLY &&
+                        annotation.targets === ANNOTATION_SIGNATURE_ONLY &&
                         annotation.findTypedefAnnotation() != null
                     ) {
                         // For annotation references, only include the simple name
                         writer.write("@")
-                        writer.write(annotation.resolve()?.simpleName() ?: annotation.qualifiedName()!!)
+                        writer.write(annotation.resolve()?.simpleName() ?: annotation.qualifiedName!!)
                         if (separateLines) {
                             writer.write("\n")
                         } else {
@@ -477,11 +477,11 @@ interface ModifierList {
 
                     // Optionally filter out duplicates
                     if (index > 0 && filterDuplicates) {
-                        val qualifiedName = annotation.qualifiedName()
+                        val qualifiedName = annotation.qualifiedName
                         var found = false
                         for (i in 0 until index) {
                             val prev = annotations[i]
-                            if (prev.qualifiedName() == qualifiedName) {
+                            if (prev.qualifiedName == qualifiedName) {
                                 found = true
                                 break
                             }

@@ -28,7 +28,7 @@ interface PropertyItem : MemberItem {
     val setter: MethodItem?
         get() = null
 
-    /** The backing field for this property, if available; inverse of [FieldItem.property] */
+    /** The backing field for this property, if it exists; inverse of [FieldItem.property] */
     val backingField: FieldItem?
         get() = null
 

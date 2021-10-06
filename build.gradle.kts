@@ -31,7 +31,7 @@ repositories {
 }
 
 plugins {
-    kotlin("jvm") version "1.5.21"
+    kotlin("jvm") version "1.5.31"
     id("application")
     id("java")
     id("maven-publish")
@@ -69,7 +69,7 @@ val studioVersion: String = if (customLintVersion != null) {
 } else {
     "30.1.0-alpha01"
 }
-val kotlinVersion: String = "1.5.21"
+val kotlinVersion: String = "1.5.31"
 
 dependencies {
     implementation("com.android.tools.external.org-jetbrains:uast:$studioVersion")
@@ -86,9 +86,10 @@ dependencies {
     implementation("org.jetbrains.kotlin:kotlin-reflect:$kotlinVersion")
     implementation("org.ow2.asm:asm:8.0")
     implementation("org.ow2.asm:asm-tree:8.0")
+    implementation("com.google.guava:guava:30.1.1-jre")
     testImplementation("com.android.tools.lint:lint-tests:$studioVersion")
-    testImplementation("junit:junit:4.11")
-    testImplementation("com.google.truth:truth:1.0")
+    testImplementation("junit:junit:4.12")
+    testImplementation("com.google.truth:truth:1.1.3")
     testImplementation("org.jetbrains.kotlin:kotlin-test:$kotlinVersion")
 }
 

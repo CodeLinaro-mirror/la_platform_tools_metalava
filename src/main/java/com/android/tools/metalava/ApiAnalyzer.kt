@@ -30,9 +30,6 @@ import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.model.visitors.ItemVisitor
-import java.util.ArrayList
-import java.util.HashMap
-import java.util.HashSet
 import java.util.Locale
 import java.util.function.Predicate
 
@@ -695,7 +692,7 @@ class ApiAnalyzer(
 
         if (annotation != null) {
             hasAnnotation = true
-            for (attribute in annotation.attributes()) {
+            for (attribute in annotation.attributes) {
                 var values: List<AnnotationAttributeValue>? = null
                 var any = false
                 when (attribute.name) {
@@ -804,7 +801,7 @@ class ApiAnalyzer(
                     val annotationName = (
                         item.modifiers.annotations().firstOrNull { annotation ->
                             options.showAnnotations.matches(annotation)
-                        }?.qualifiedName() ?: options.showAnnotations.firstQualifiedName()
+                        }?.qualifiedName ?: options.showAnnotations.firstQualifiedName()
                         ).removePrefix(ANDROID_ANNOTATION_PREFIX)
                     reporter.report(
                         Issues.UNHIDDEN_SYSTEM_API, item,

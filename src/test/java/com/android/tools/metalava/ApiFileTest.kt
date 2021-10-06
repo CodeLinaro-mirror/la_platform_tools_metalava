@@ -147,6 +147,7 @@ class ApiFileTest : DriverTest() {
     }
 
     @Test
+    @TestKotlinPsi
     fun `Default Values and Names in Kotlin`() {
         // Kotlin code which explicitly specifies parameter names
         check(
@@ -216,6 +217,7 @@ class ApiFileTest : DriverTest() {
     }
 
     @Test
+    @TestKotlinPsi
     fun `Default Values in Kotlin for expressions`() {
         // Testing trickier default values; regression test for problem
         // observed in androidx.core.util with LruCache
@@ -290,6 +292,7 @@ class ApiFileTest : DriverTest() {
     }
 
     @Test
+    @TestKotlinPsi
     fun `Basic Kotlin class`() {
         check(
             format = FileFormat.V1,
@@ -363,6 +366,7 @@ class ApiFileTest : DriverTest() {
     }
 
     @Test
+    @TestKotlinPsi
     fun `Kotlin Reified Methods`() {
         check(
             format = FileFormat.V1,
@@ -404,6 +408,7 @@ class ApiFileTest : DriverTest() {
     }
 
     @Test
+    @TestKotlinPsi
     fun `Kotlin Reified Methods 2`() {
         check(
             sourceFiles = arrayOf(
@@ -436,6 +441,7 @@ class ApiFileTest : DriverTest() {
     }
 
     @Test
+    @TestKotlinPsi
     fun `Suspend functions`() {
         check(
             sourceFiles = arrayOf(
@@ -461,6 +467,7 @@ class ApiFileTest : DriverTest() {
     }
 
     @Test
+    @TestKotlinPsi
     fun `Var properties with private setters`() {
         check(
             format = FileFormat.V3,
@@ -495,6 +502,7 @@ class ApiFileTest : DriverTest() {
     }
 
     @Test
+    @TestKotlinPsi
     fun `Kotlin Generics`() {
         check(
             format = FileFormat.V3,
@@ -526,6 +534,7 @@ class ApiFileTest : DriverTest() {
     }
 
     @Test
+    @TestKotlinPsi
     fun `Nullness in reified signatures`() {
         check(
             sourceFiles = arrayOf(
@@ -594,6 +603,7 @@ class ApiFileTest : DriverTest() {
     }
 
     @Test
+    @TestKotlinPsi
     fun `Nullness in varargs`() {
         check(
             sourceFiles = arrayOf(
@@ -688,6 +698,7 @@ class ApiFileTest : DriverTest() {
     }
 
     @Test
+    @TestKotlinPsi
     fun `Propagate Platform types in Kotlin`() {
         check(
             format = FileFormat.V3,
@@ -815,6 +826,7 @@ class ApiFileTest : DriverTest() {
     }
 
     @Test
+    @TestKotlinPsi
     fun `Known nullness`() {
         // Don't emit platform types for some unannotated elements that we know the
         // nullness for: annotation type members, equals-parameters, initialized constants, etc.
@@ -968,6 +980,7 @@ class ApiFileTest : DriverTest() {
     }
 
     @Test
+    @TestKotlinPsi
     fun JvmOverloads() {
         // Regression test for https://github.com/android/android-ktx/issues/366
         check(
@@ -1019,6 +1032,7 @@ class ApiFileTest : DriverTest() {
     }
 
     @Test
+    @TestKotlinPsi
     fun `Test JvmStatic`() {
         check(
             sourceFiles = arrayOf(
@@ -1055,6 +1069,7 @@ class ApiFileTest : DriverTest() {
     }
 
     @Test
+    @TestKotlinPsi
     fun `Test JvmField`() {
         check(
             sourceFiles = arrayOf(
@@ -1088,6 +1103,7 @@ class ApiFileTest : DriverTest() {
     }
 
     @Test
+    @TestKotlinPsi
     fun `Test JvmName`() {
         check(
             sourceFiles = arrayOf(
@@ -1123,6 +1139,7 @@ class ApiFileTest : DriverTest() {
     }
 
     @Test
+    @TestKotlinPsi
     fun `Test RequiresOptIn and OptIn`() {
         check(
             sourceFiles = arrayOf(
@@ -1166,6 +1183,7 @@ class ApiFileTest : DriverTest() {
     }
 
     @Test
+    @TestKotlinPsi
     fun `Test Experimental and UseExperimental`() {
         check(
             sourceFiles = arrayOf(
@@ -1581,6 +1599,7 @@ class ApiFileTest : DriverTest() {
     }
 
     @Test
+    @TestKotlinPsi
     fun `Annotation retention`() {
         // For annotations where the java.lang.annotation classes themselves are not
         // part of the source tree, ensure that we compute the right retention (runtime, meaning
@@ -2764,6 +2783,7 @@ class ApiFileTest : DriverTest() {
     }
 
     @Test
+    @TestKotlinPsi
     fun `Test invalid class name`() {
         // Regression test for b/73018978
         check(
@@ -2889,7 +2909,7 @@ class ApiFileTest : DriverTest() {
                 )
             ),
             expectedIssues = """
-                src/android/net/http/HttpResponseCache.java:6: warning: Public class android.net.http.HttpResponseCache stripped of unavailable superclass com.squareup.okhttp.OkCacheContainer [HiddenSuperclass]
+                src/android/net/http/HttpResponseCache.java:7: warning: Public class android.net.http.HttpResponseCache stripped of unavailable superclass com.squareup.okhttp.OkCacheContainer [HiddenSuperclass]
             """,
             api = """
                 package android.net.http {
@@ -3215,6 +3235,7 @@ class ApiFileTest : DriverTest() {
     }
 
     @Test
+    @TestKotlinPsi
     fun `Test Visible For Testing`() {
         // Use the otherwise= visibility in signatures
         // Regression test for issue 118763806
@@ -3387,6 +3408,7 @@ class ApiFileTest : DriverTest() {
     }
 
     @Test
+    @TestKotlinPsi
     fun `FooKt class constructors are not public`() {
         check(
             format = FileFormat.V3,
@@ -3807,6 +3829,7 @@ class ApiFileTest : DriverTest() {
     }
 
     @Test
+    @TestKotlinPsi
     fun `Test tracking of @Composable annotation from classpath`() {
         check(
             format = FileFormat.V3,
@@ -3881,6 +3904,7 @@ class ApiFileTest : DriverTest() {
     }
 
     @Test
+    @TestKotlinPsi
     fun `Test for experimental annotations from classpath`() {
         check(
             format = FileFormat.V3,
@@ -3955,6 +3979,7 @@ class ApiFileTest : DriverTest() {
     }
 
     @Test
+    @TestKotlinPsi
     fun `@IntRange value in kotlin`() {
         check(
             format = FileFormat.V3,
@@ -4023,6 +4048,7 @@ class ApiFileTest : DriverTest() {
     }
 
     @Test
+    @TestKotlinPsi
     fun `Kotlin properties with overriding get`() {
         check(
             format = FileFormat.V3,
@@ -4058,6 +4084,7 @@ class ApiFileTest : DriverTest() {
     }
 
     @Test
+    @TestKotlinPsi
     fun `Constructor property tracking`() {
         check(
             format = FileFormat.V3,
@@ -4142,6 +4169,7 @@ class ApiFileTest : DriverTest() {
     }
 
     @Test
+    @TestKotlinPsi
     fun `Concise default Values and Names in Kotlin`() {
         // Kotlin code which explicitly specifies parameter names
         check(
@@ -4211,6 +4239,7 @@ class ApiFileTest : DriverTest() {
     }
 
     @Test
+    @TestKotlinPsi
     fun `Concise default Values in Kotlin for expressions`() {
         // Testing trickier default values; regression test for problem
         // observed in androidx.core.util with LruCache
@@ -4308,6 +4337,7 @@ class ApiFileTest : DriverTest() {
     }
 
     @Test
+    @TestKotlinPsi
     fun `Functional interface in signature`() {
         check(
             format = FileFormat.V4,
@@ -4339,6 +4369,7 @@ class ApiFileTest : DriverTest() {
     }
 
     @Test
+    @TestKotlinPsi
     fun `Inline class`() {
         check(
             format = FileFormat.V4,
@@ -4365,6 +4396,8 @@ class ApiFileTest : DriverTest() {
                   public final inline class Dp implements java.lang.Comparable<test.pkg.Dp> {
                     ctor public Dp();
                     method public float getValue();
+                    method public inline operator float minus(float other);
+                    method public inline operator float plus(float other);
                     property public final float value;
                   }
                 }
@@ -4373,6 +4406,7 @@ class ApiFileTest : DriverTest() {
     }
 
     @Test
+    @TestKotlinPsi
     fun `Value class`() {
         check(
             format = FileFormat.V4,
@@ -4403,6 +4437,159 @@ class ApiFileTest : DriverTest() {
                     method public inline operator float plus(float other);
                     property public final boolean someBits;
                     property public final float value;
+                  }
+                }
+            """
+        )
+    }
+
+    @Test
+    @TestKotlinPsi
+    fun `Kotlin doesn't expand java named constants`() {
+        check(
+            format = FileFormat.V3,
+            sourceFiles =
+            arrayOf(
+                kotlin(
+                    """
+                        package test.pkg
+                        annotation class Foo(val bar: Long = java.lang.Long.MIN_VALUE)
+                    """
+                )
+            ),
+            api =
+            """
+                // Signature format: 3.0
+                package test.pkg {
+                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) public @interface Foo {
+                    method public abstract long bar() default java.lang.Long.MIN_VALUE;
+                    property public abstract long bar;
+                  }
+                }
+            """
+        )
+    }
+
+    @Test
+    @TestKotlinPsi
+    fun `Kotlin constructors with JvmOverloads`() {
+        check(
+            format = FileFormat.V4,
+            sourceFiles = arrayOf(
+                kotlin(
+                    """
+                        package test.pkg
+
+                        class AllOptionalJvmOverloads @JvmOverloads constructor(
+                            private val foo: Int = 0,
+                            private val bar: Int = 0
+                        )
+
+                        class AllOptionalNoJvmOverloads(
+                            private val foo: Int = 0,
+                            private val bar: Int = 0
+                        )
+
+                        class SomeOptionalJvmOverloads @JvmOverloads constructor(
+                            private val foo: Int,
+                            private val bar: Int = 0
+                        )
+
+                        class SomeOptionalNoJvmOverloads(
+                            private val foo: Int,
+                            private val bar: Int = 0
+                        )
+                    """
+                )
+            ),
+            api = """
+                // Signature format: 4.0
+                package test.pkg {
+                  public final class AllOptionalJvmOverloads {
+                    ctor public AllOptionalJvmOverloads(optional int foo, optional int bar);
+                    ctor public AllOptionalJvmOverloads(optional int foo);
+                    ctor public AllOptionalJvmOverloads();
+                  }
+                  public final class AllOptionalNoJvmOverloads {
+                    ctor public AllOptionalNoJvmOverloads(optional int foo, optional int bar);
+                  }
+                  public final class SomeOptionalJvmOverloads {
+                    ctor public SomeOptionalJvmOverloads(int foo, optional int bar);
+                    ctor public SomeOptionalJvmOverloads(int foo);
+                  }
+                  public final class SomeOptionalNoJvmOverloads {
+                    ctor public SomeOptionalNoJvmOverloads(int foo, optional int bar);
+                  }
+                }
+            """
+        )
+    }
+
+    @Test
+    fun `Kotlin public methods with DeprecationLevel HIDDEN are public API`() {
+        check(
+            format = FileFormat.V3,
+            sourceFiles = arrayOf(
+                kotlin(
+                    """
+                        package test.pkg
+                        @Deprecated(
+                            message = "So much regret",
+                            level = DeprecationLevel.HIDDEN
+                        )
+                        fun myMethod() { TODO() }
+                        @Deprecated(
+                            message = "So much regret",
+                            level = DeprecationLevel.HIDDEN
+                        )
+                        internal fun myInternalMethod() { TODO() }
+                        @Deprecated(
+                            message = "So much regret",
+                            level = DeprecationLevel.HIDDEN
+                        )
+                        private fun myPrivateMethod() { TODO() }
+                        @Deprecated(
+                            message = "So much regret",
+                            level = DeprecationLevel.WARNING
+                        )
+                        fun myNormalDeprecatedMethod() { TODO() }
+                    """
+                )
+            ),
+            api = """
+                // Signature format: 3.0
+                package test.pkg {
+                  public final class TestKt {
+                    method @Deprecated public static void myMethod();
+                    method @Deprecated public static void myNormalDeprecatedMethod();
+                  }
+                }
+            """
+        )
+    }
+
+    @Test
+    fun `Annotations aren't dropped when DeprecationLevel is HIDDEN`() {
+        check(
+            format = FileFormat.V3,
+            sourceFiles = arrayOf(
+                kotlin(
+                    """
+                        package test.pkg
+                        @Deprecated(
+                            message = "So much regret",
+                            level = DeprecationLevel.HIDDEN
+                        )
+                        @IntRange(from=0)
+                        fun myMethod() { TODO() }
+                    """
+                )
+            ),
+            api = """
+                // Signature format: 3.0
+                package test.pkg {
+                  public final class TestKt {
+                    method @Deprecated @kotlin.ranges.IntRange public static void myMethod();
                   }
                 }
             """

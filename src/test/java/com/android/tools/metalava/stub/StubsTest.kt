@@ -30,6 +30,7 @@ import com.android.tools.metalava.ARG_PASS_THROUGH_ANNOTATION
 import com.android.tools.metalava.ARG_UPDATE_API
 import com.android.tools.metalava.DriverTest
 import com.android.tools.metalava.FileFormat
+import com.android.tools.metalava.TestKotlinPsi
 import com.android.tools.metalava.androidxNullableSource
 import com.android.tools.metalava.extractRoots
 import com.android.tools.metalava.gatherSources
@@ -1321,6 +1322,7 @@ class StubsTest : DriverTest() {
     }
 
     @Test
+    @TestKotlinPsi
     fun `Basic Kotlin class`() {
         checkStubs(
             sourceFiles = arrayOf(
@@ -4314,6 +4316,7 @@ class StubsTest : DriverTest() {
     }
 
     @Test
+    @TestKotlinPsi
     fun `Basic Kotlin stubs`() {
         check(
             extraArguments = arrayOf(
@@ -4392,6 +4395,7 @@ class StubsTest : DriverTest() {
     }
 
     @Test
+    @TestKotlinPsi
     fun `Extends and implements multiple interfaces in Kotlin Stubs`() {
         check(
             extraArguments = arrayOf(

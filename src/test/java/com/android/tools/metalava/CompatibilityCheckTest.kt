@@ -171,6 +171,7 @@ CompatibilityCheckTest : DriverTest() {
     }
 
     @Test
+    @TestKotlinPsi
     fun `Kotlin Nullness`() {
         check(
             expectedIssues = """
@@ -222,7 +223,7 @@ CompatibilityCheckTest : DriverTest() {
     fun `Java Parameter Name Change`() {
         check(
             expectedIssues = """
-                src/test/pkg/JavaClass.java:6: error: Attempted to remove parameter name from parameter newName in test.pkg.JavaClass.method1 in method test.pkg.JavaClass.method1 [ParameterNameChange]
+                src/test/pkg/JavaClass.java:6: error: Attempted to remove parameter name from parameter newName in test.pkg.JavaClass.method1 [ParameterNameChange]
                 src/test/pkg/JavaClass.java:7: error: Attempted to change parameter name from secondParameter to newName in method test.pkg.JavaClass.method2 [ParameterNameChange]
                 """,
             checkCompatibilityApi = """
@@ -254,6 +255,7 @@ CompatibilityCheckTest : DriverTest() {
     }
 
     @Test
+    @TestKotlinPsi
     fun `Kotlin Parameter Name Change`() {
         check(
             expectedIssues = """
@@ -341,6 +343,7 @@ CompatibilityCheckTest : DriverTest() {
     }
 
     @Test
+    @TestKotlinPsi
     fun `Remove operator`() {
         check(
             expectedIssues = """
@@ -369,6 +372,7 @@ CompatibilityCheckTest : DriverTest() {
     }
 
     @Test
+    @TestKotlinPsi
     fun `Remove vararg`() {
         check(
             expectedIssues = """
@@ -395,6 +399,7 @@ CompatibilityCheckTest : DriverTest() {
     }
 
     @Test
+    @TestKotlinPsi
     fun `Add final`() {
         // Adding final on class or method is incompatible; adding it on a parameter is fine.
         // Field is iffy.
@@ -613,7 +618,7 @@ CompatibilityCheckTest : DriverTest() {
     fun `Added constructor`() {
         // Regression test for issue 116619591
         check(
-            expectedIssues = "src/test/pkg/AbstractMap.java:2: error: Added constructor test.pkg.AbstractMap() [AddedMethod]",
+            expectedIssues = "src/test/pkg/AbstractMap.java:3: error: Added constructor test.pkg.AbstractMap() [AddedMethod]",
             checkCompatibilityApi = """
                 package test.pkg {
                   public abstract class AbstractMap<K, V> implements java.util.Map {
@@ -634,6 +639,7 @@ CompatibilityCheckTest : DriverTest() {
     }
 
     @Test
+    @TestKotlinPsi
     fun `Remove infix`() {
         check(
             expectedIssues = """
@@ -666,6 +672,7 @@ CompatibilityCheckTest : DriverTest() {
     }
 
     @Test
+    @TestKotlinPsi
     fun `Add seal`() {
         check(
             expectedIssues = """
@@ -689,11 +696,12 @@ CompatibilityCheckTest : DriverTest() {
     }
 
     @Test
+    @TestKotlinPsi
     fun `Remove default parameter`() {
         check(
             expectedIssues = """
-                src/test/pkg/Foo.kt:3: error: Attempted to remove default value from parameter s1 in test.pkg.Foo in constructor test.pkg.Foo [DefaultValueChange] [See https://s.android.com/api-guidelines#default-value-removal]
-                src/test/pkg/Foo.kt:7: error: Attempted to remove default value from parameter s1 in test.pkg.Foo.method4 in method test.pkg.Foo.method4 [DefaultValueChange] [See https://s.android.com/api-guidelines#default-value-removal]
+                src/test/pkg/Foo.kt:3: error: Attempted to remove default value from parameter s1 in test.pkg.Foo [DefaultValueChange] [See https://s.android.com/api-guidelines#default-value-removal]
+                src/test/pkg/Foo.kt:7: error: Attempted to remove default value from parameter s1 in test.pkg.Foo.method4 [DefaultValueChange] [See https://s.android.com/api-guidelines#default-value-removal]
 
                 """,
             inputKotlinStyleNulls = true,
@@ -726,11 +734,12 @@ CompatibilityCheckTest : DriverTest() {
     }
 
     @Test
+    @TestKotlinPsi
     fun `Remove optional parameter`() {
         check(
             expectedIssues = """
-                src/test/pkg/Foo.kt:3: error: Attempted to remove default value from parameter s1 in test.pkg.Foo in constructor test.pkg.Foo [DefaultValueChange] [See https://s.android.com/api-guidelines#default-value-removal]
-                src/test/pkg/Foo.kt:7: error: Attempted to remove default value from parameter s1 in test.pkg.Foo.method4 in method test.pkg.Foo.method4 [DefaultValueChange] [See https://s.android.com/api-guidelines#default-value-removal]
+                src/test/pkg/Foo.kt:3: error: Attempted to remove default value from parameter s1 in test.pkg.Foo [DefaultValueChange] [See https://s.android.com/api-guidelines#default-value-removal]
+                src/test/pkg/Foo.kt:7: error: Attempted to remove default value from parameter s1 in test.pkg.Foo.method4 [DefaultValueChange] [See https://s.android.com/api-guidelines#default-value-removal]
                 """,
             inputKotlinStyleNulls = true,
             format = FileFormat.V4,
@@ -823,7 +832,7 @@ CompatibilityCheckTest : DriverTest() {
                 src/test/pkg/Parent.java:10: error: Field test.pkg.Parent.field7 has changed 'volatile' qualifier [ChangedVolatile]
                 src/test/pkg/Parent.java:11: error: Field test.pkg.Parent.field8 has changed deprecation state true --> false [ChangedDeprecated]
                 src/test/pkg/Parent.java:12: error: Field test.pkg.Parent.field9 has changed deprecation state false --> true [ChangedDeprecated]
-                src/test/pkg/Parent.java:19: error: Field test.pkg.Parent.field94 has changed value from 1 to 42 [ChangedValue]
+                src/test/pkg/Parent.java:20: error: Field test.pkg.Parent.field94 has changed value from 1 to 42 [ChangedValue]
                 """,
             checkCompatibilityApi = """
                 package test.pkg {
@@ -1096,7 +1105,7 @@ CompatibilityCheckTest : DriverTest() {
     fun `Incompatible class change -- deprecation`() {
         check(
             expectedIssues = """
-                src/test/pkg/Class1.java:3: error: Class test.pkg.Class1 has changed deprecation state false --> true [ChangedDeprecated]
+                src/test/pkg/Class1.java:4: error: Class test.pkg.Class1 has changed deprecation state false --> true [ChangedDeprecated]
                 """,
             checkCompatibilityApi = """
                 package test.pkg {
@@ -1564,6 +1573,7 @@ CompatibilityCheckTest : DriverTest() {
     }
 
     @Test
+    @TestKotlinPsi
     fun `Test Kotlin extensions`() {
         check(
             inputKotlinStyleNulls = true,
@@ -1611,6 +1621,7 @@ CompatibilityCheckTest : DriverTest() {
     }
 
     @Test
+    @TestKotlinPsi
     fun `Test Kotlin type bounds`() {
         check(
             inputKotlinStyleNulls = false,
@@ -2493,6 +2504,7 @@ CompatibilityCheckTest : DriverTest() {
     }
 
     @Test
+    @TestKotlinPsi
     fun `Compare signatures with Kotlin nullability from source`() {
         check(
             expectedIssues = """
@@ -2522,6 +2534,7 @@ CompatibilityCheckTest : DriverTest() {
     }
 
     @Test
+    @TestKotlinPsi
     fun `Adding and removing reified`() {
         check(
             inputKotlinStyleNulls = true,
@@ -3673,6 +3686,7 @@ CompatibilityCheckTest : DriverTest() {
     }
 
     @Test
+    @TestKotlinPsi
     fun `Remove fun modifier from interface`() {
         check(
             expectedIssues = """
@@ -3748,6 +3762,54 @@ CompatibilityCheckTest : DriverTest() {
                         Class<?> markerClass() default void.class;
                     }
                 """
+                )
+            )
+        )
+    }
+
+    @Test
+    @TestKotlinPsi
+    fun `adding methods to interfaces`() {
+        check(
+            expectedIssues = """
+                src/test/pkg/JavaInterface.java:5: error: Added method test.pkg.JavaInterface.hasDefault() [AddedMethod]
+                src/test/pkg/JavaInterface.java:8: error: Added method test.pkg.JavaInterface.newStatic() [AddedMethod]
+                src/test/pkg/JavaInterface.java:4: error: Added method test.pkg.JavaInterface.noDefault() [AddedAbstractMethod]
+                src/test/pkg/KotlinInterface.kt:5: error: Added method test.pkg.KotlinInterface.hasDefault() [AddedAbstractMethod]
+                src/test/pkg/KotlinInterface.kt:4: error: Added method test.pkg.KotlinInterface.noDefault() [AddedAbstractMethod]
+            """,
+            checkCompatibilityApi = """
+                // Signature format: 3.0
+                package test.pkg {
+                  public interface JavaInterface {
+                  }
+                  public interface KotlinInterface {
+                  }
+                }
+            """,
+            sourceFiles = arrayOf(
+                java(
+                    """
+                        package test.pkg;
+
+                        public interface JavaInterface {
+                            void noDefault();
+                            default boolean hasDefault() {
+                                return true;
+                            }
+                            static void newStatic();
+                        }
+                    """
+                ),
+                kotlin(
+                    """
+                        package test.pkg
+
+                        interface KotlinInterface {
+                            fun noDefault()
+                            fun hasDefault(): Boolean = true
+                        }
+                    """
                 )
             )
         )

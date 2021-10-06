@@ -59,10 +59,10 @@ interface AnnotationItem {
     val codebase: Codebase
 
     /** Fully qualified name of the annotation */
-    fun qualifiedName(): String?
+    val qualifiedName: String?
 
     /** Fully qualified name of the annotation (prior to name mapping) */
-    fun originalName(): String?
+    val originalName: String?
 
     /** Generates source code for this annotation (using fully qualified names) */
     fun toSource(
@@ -71,10 +71,10 @@ interface AnnotationItem {
     ): String
 
     /** The applicable targets for this annotation */
-    fun targets(): Set<AnnotationTarget>
+    val targets: Set<AnnotationTarget>
 
     /** Attributes of the annotation (may be empty) */
-    fun attributes(): List<AnnotationAttribute>
+    val attributes: List<AnnotationAttribute>
 
     /** True if this annotation represents @Nullable or @NonNull (or some synonymous annotation) */
     fun isNullnessAnnotation(): Boolean {
@@ -83,17 +83,17 @@ interface AnnotationItem {
 
     /** True if this annotation represents @Nullable (or some synonymous annotation) */
     fun isNullable(): Boolean {
-        return isNullableAnnotation(qualifiedName() ?: return false)
+        return isNullableAnnotation(qualifiedName ?: return false)
     }
 
     /** True if this annotation represents @NonNull (or some synonymous annotation) */
     fun isNonNull(): Boolean {
-        return isNonNullAnnotation(qualifiedName() ?: return false)
+        return isNonNullAnnotation(qualifiedName ?: return false)
     }
 
     /** True if this annotation represents @IntDef, @LongDef or @StringDef */
     fun isTypeDefAnnotation(): Boolean {
-        val name = qualifiedName() ?: return false
+        val name = qualifiedName ?: return false
         if (!(name.endsWith("Def"))) {
             return false
         }
@@ -112,7 +112,7 @@ interface AnnotationItem {
      * The parameter name should be the default attribute or "value".
      */
     fun isParameterName(): Boolean {
-        return qualifiedName()?.endsWith(".ParameterName") ?: return false
+        return qualifiedName?.endsWith(".ParameterName") ?: return false
     }
 
     /**
@@ -120,30 +120,30 @@ interface AnnotationItem {
      * The default value should be the default attribute or "value".
      */
     fun isDefaultValue(): Boolean {
-        return qualifiedName()?.endsWith(".DefaultValue") ?: return false
+        return qualifiedName?.endsWith(".DefaultValue") ?: return false
     }
 
     /** Returns the given named attribute if specified */
     fun findAttribute(name: String?): AnnotationAttribute? {
         val actualName = name ?: ATTR_VALUE
-        return attributes().firstOrNull { it.name == actualName }
+        return attributes.firstOrNull { it.name == actualName }
     }
 
     /** Find the class declaration for the given annotation */
     fun resolve(): ClassItem? {
-        return codebase.findClass(qualifiedName() ?: return null)
+        return codebase.findClass(qualifiedName ?: return null)
     }
 
     /** If this annotation has a typedef annotation associated with it, return it */
     fun findTypedefAnnotation(): AnnotationItem? {
-        val className = originalName() ?: return null
+        val className = originalName ?: return null
         return codebase.findClass(className)?.modifiers?.annotations()?.firstOrNull { it.isTypeDefAnnotation() }
     }
 
     /** Returns the retention of this annotation */
     val retention: AnnotationRetention
         get() {
-            val name = qualifiedName()
+            val name = qualifiedName
             if (name != null) {
                 val cls = codebase.findClass(name) ?: (codebase as? PsiBasedCodebase)?.findOrCreateClass(name)
                 if (cls != null) {
@@ -159,8 +159,7 @@ interface AnnotationItem {
     companion object {
         /** The simple name of an annotation, which is the annotation name (not qualified name) prefixed by @ */
         fun simpleName(item: AnnotationItem): String {
-            val qualifiedName = item.qualifiedName() ?: return ""
-            return "@${qualifiedName.substring(qualifiedName.lastIndexOf('.') + 1)}"
+            return item.qualifiedName?.let { "@${it.substringAfterLast('.')}" }.orEmpty()
         }
 
         /**
@@ -417,7 +416,7 @@ interface AnnotationItem {
             annotation: AnnotationItem,
             classFinder: (String) -> ClassItem?
         ): Set<AnnotationTarget> {
-            val qualifiedName = annotation.qualifiedName() ?: return NO_ANNOTATION_TARGETS
+            val qualifiedName = annotation.qualifiedName ?: return NO_ANNOTATION_TARGETS
             if (options.passThroughAnnotations.contains(qualifiedName)) {
                 return ANNOTATION_IN_ALL_STUBS
             }
@@ -440,6 +439,11 @@ interface AnnotationItem {
                 "android.view.ViewDebug.ExportedProperty",
                 "android.view.ViewDebug.CapturedViewProperty" -> return ANNOTATION_STUBS_ONLY
 
+                // Retained in the sdk/jar stub source code so that SdkConstant files can be extracted
+                // from those. This is useful for modularizing the main SDK stubs without having to
+                // add a separate module SDK artifact for sdk constants.
+                "android.annotation.SdkConstant" -> return ANNOTATION_SDK_STUBS_ONLY
+
                 // Skip known annotations that we (a) never want in external annotations and (b) we are
                 // specially overwriting anyway in the stubs (and which are (c) not API significant)
                 "com.android.modules.annotation.MinSdk",
@@ -461,6 +465,7 @@ interface AnnotationItem {
                 // for some common annotations.
 
                 "android.widget.RemoteViews.RemoteView",
+                "androidx.annotation.Discouraged",
 
                 "kotlin.annotation.Target",
                 "kotlin.annotation.Retention",
@@ -676,15 +681,8 @@ interface AnnotationItem {
 
 /** Default implementation of an annotation item */
 abstract class DefaultAnnotationItem(override val codebase: Codebase) : AnnotationItem {
-    protected var targets: Set<AnnotationTarget>? = null
-
-    override fun targets(): Set<AnnotationTarget> {
-        if (targets == null) {
-            targets = AnnotationItem.computeTargets(this) { className ->
-                codebase.findClass(className)
-            }
-        }
-        return targets!!
+    override val targets: Set<AnnotationTarget> by lazy {
+        AnnotationItem.computeTargets(this, codebase::findClass)
     }
 }
 

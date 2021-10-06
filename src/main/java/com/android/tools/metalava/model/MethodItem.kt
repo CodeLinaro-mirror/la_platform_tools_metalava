@@ -46,6 +46,9 @@ interface MethodItem : MemberItem {
 
     override fun type(): TypeItem? = returnType()
 
+    /** Returns the main documentation for the method (the documentation before any tags). */
+    fun findMainDocumentation(): String
+
     /**
      * Like [internalName] but is the desc-portion of the internal signature,
      * e.g. for the method "void create(int x, int y)" the internal name of

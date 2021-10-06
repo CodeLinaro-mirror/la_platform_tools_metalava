@@ -94,8 +94,11 @@ interface Item {
      */
     var documentation: String
 
-    /** Looks up docs for a specific tag */
-    fun findTagDocumentation(tag: String): String?
+    /**
+     * Looks up docs for the first instance of a specific javadoc tag having
+     * the (optionally) provided value (e.g. parameter name).
+     */
+    fun findTagDocumentation(tag: String, value: String? = null): String?
 
     /**
      * A rank used for sorting. This allows signature files etc to

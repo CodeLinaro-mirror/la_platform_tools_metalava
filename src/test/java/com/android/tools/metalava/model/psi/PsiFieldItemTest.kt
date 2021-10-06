@@ -14,16 +14,21 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava.model.kotlin
+package com.android.tools.metalava.model.psi
 
-import com.android.tools.metalava.model.AnnotationItem
-import com.android.tools.metalava.model.Codebase
-import com.android.tools.metalava.model.DefaultModifierList
-import com.android.tools.metalava.model.ModifierList
-import com.android.tools.metalava.model.MutableModifierList
+import com.android.tools.metalava.kotlin
+import kotlin.test.Test
+import kotlin.test.assertNotNull
+import kotlin.test.assertSame
 
-class KotlinModifierList(
-    codebase: Codebase,
-    flags: Int = PACKAGE_PRIVATE,
-    annotations: MutableList<AnnotationItem>? = null
-) : DefaultModifierList(codebase, flags, annotations), ModifierList, MutableModifierList
+class PsiFieldItemTest {
+    @Test
+    fun `backing fields have properties`() {
+        testCodebase(kotlin("class Foo(val bar: Int)")) { codebase ->
+            val field = codebase.assertClass("Foo").fields().single()
+
+            assertNotNull(field.property)
+            assertSame(field, field.property?.backingField)
+        }
+    }
+}

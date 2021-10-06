@@ -21,10 +21,11 @@ import org.junit.Test
 class HideAnnotationTest : DriverTest() {
     // Regression test for b/133364476 crash
     @Test
+    @TestKotlinPsi
     fun `Using hide annotation with Kotlin source`() {
         check(
             expectedIssues = """
-                src/test/pkg/).kt:2: warning: Public class test.pkg.ExtendingMyHiddenClass stripped of unavailable superclass test.pkg.MyHiddenClass [HiddenSuperclass]
+                src/test/pkg/).kt:3: warning: Public class test.pkg.ExtendingMyHiddenClass stripped of unavailable superclass test.pkg.MyHiddenClass [HiddenSuperclass]
             """,
             sourceFiles = arrayOf(
                 kotlin(

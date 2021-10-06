@@ -23,12 +23,12 @@ import com.android.tools.metalava.ANDROIDX_NULLABLE
 import com.android.tools.metalava.Issues
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.DefaultCodebase
+import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageDocs
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PackageList
-import com.android.tools.metalava.model.kotlin.KotlinClassItem
 import com.android.tools.metalava.options
 import com.android.tools.metalava.reporter
 import com.android.tools.metalava.tick
@@ -56,28 +56,50 @@ import com.intellij.psi.javadoc.PsiDocComment
 import com.intellij.psi.javadoc.PsiDocTag
 import com.intellij.psi.search.GlobalSearchScope
 import com.intellij.psi.util.PsiTreeUtil
-import org.jetbrains.kotlin.psi.KtClassOrObject
-import org.jetbrains.kotlin.psi.KtFile
-import org.jetbrains.kotlin.psi.classOrObjectVisitor
+import org.jetbrains.kotlin.psi.KtElement
+import org.jetbrains.kotlin.resolve.BindingContext
 import org.jetbrains.uast.UFile
 import org.jetbrains.uast.UastFacade
+import org.jetbrains.uast.kotlin.KotlinUastResolveProviderService
 import java.io.File
 import java.io.IOException
-import java.util.ArrayList
-import java.util.HashMap
 import java.util.zip.ZipFile
 
 const val PACKAGE_ESTIMATE = 500
 const val CLASS_ESTIMATE = 15000
 const val METHOD_ESTIMATE = 1000
 
-open class PsiBasedCodebase(location: File, override var description: String = "Unknown") : DefaultCodebase(location) {
+/**
+ * A codebase containing Java, Kotlin, or UAST PSI classes
+ *
+ * After creation, a list of PSI file or a JAR file is passed to [initialize]. This creates package
+ * and class items along with their members. This process is broken into two phases:
+ *
+ * First, [initializing] is set to true, and class items are created from the supplied sources.
+ * These are main classes of the codebase and have [ClassItem.emit] set to true and
+ * [ClassItem.isFromClassPath] set to false. While creating these, package names are reserved and
+ * associated with their classes in [packageClasses].
+ *
+ * Next, package items are created for source classes based on the contents of [packageClasses]
+ * with [PackageItem.emit] set to true.
+ *
+ * Then [initializing] is set to false and the second pass begins. This path iteratively resolves
+ * supertypes of class items until all are fully resolved, creating new class and package items as
+ * needed. Since all the source class and package items have been created, new items are assumed to
+ * originate from the classpath and have [Item.emit] set to false and [Item.isFromClassPath] set to
+ * true.
+ */
+open class PsiBasedCodebase(
+    location: File,
+    override var description: String = "Unknown",
+    internal val enableKotlinPsi: Boolean = false
+) : DefaultCodebase(location) {
     lateinit var uastEnvironment: UastEnvironment
     val project: Project
         get() = uastEnvironment.ideaProject
 
-    /** Map from class name to class item */
-    private val classMap: MutableMap<String, ClassItem> = HashMap(CLASS_ESTIMATE)
+    /** Map from class name to class item. Classes are added via [registerClass] */
+    private val classMap: MutableMap<String, PsiClassItem> = HashMap(CLASS_ESTIMATE)
 
     /**
      * Map from classes to the set of methods for each (but only for classes where we've
@@ -88,8 +110,8 @@ open class PsiBasedCodebase(location: File, override var description: String = "
     /** Map from package name to the corresponding package item */
     private lateinit var packageMap: MutableMap<String, PsiPackageItem>
 
-    /** Map from package name to list of classes in that package */
-    private lateinit var packageClasses: MutableMap<String, MutableList<ClassItem>>
+    /** Map from package name to list of classes in that package. Only used during [initialize]. */
+    private lateinit var packageClasses: MutableMap<String, MutableList<PsiClassItem>>
 
     /** A set of packages to hide */
     private lateinit var hiddenPackages: MutableMap<String, Boolean?>
@@ -98,8 +120,18 @@ open class PsiBasedCodebase(location: File, override var description: String = "
      * A list of the top-level classes declared in the codebase's source (rather than on its
      * classpath).
      */
-    private lateinit var topLevelClassesFromSource: MutableList<ClassItem>
+    private lateinit var topLevelClassesFromSource: MutableList<PsiClassItem>
 
+    /**
+     * Set to true in [initialize] for the first pass of creating class items for all classes in
+     * the codebase sources and false for the second pass of creating class items for the
+     * supertypes of the codebase classes. New class items created in the supertypes pass must come
+     * from the classpath (dependencies) since all source classes have been created.
+     *
+     * This information is used in [createClass] to set [ClassItem.emit] to true for source classes
+     * and [ClassItem.isFromClassPath] to true for classpath classes. It is also used in
+     * [registerPackage] to set [PackageItem.emit] to true for source packages.
+     */
     private var initializing = false
 
     override fun trustedApi(): Boolean = false
@@ -114,7 +146,6 @@ open class PsiBasedCodebase(location: File, override var description: String = "
         uastEnvironment: UastEnvironment,
         psiFiles: List<PsiFile>,
         packages: PackageDocs,
-        useKtModel: Boolean
     ) {
         initializing = true
         this.units = psiFiles
@@ -153,18 +184,11 @@ open class PsiBasedCodebase(location: File, override var description: String = "
             })
 
             var classes = (psiFile as? PsiClassOwner)?.classes?.toList() ?: emptyList()
-            if (classes.isEmpty() && !useKtModel) {
+            if (classes.isEmpty()) {
                 val uFile = UastFacade.convertElementWithParent(psiFile, UFile::class.java) as? UFile?
                 classes = uFile?.classes?.map { it }?.toList() ?: emptyList()
             }
             when {
-                useKtModel && psiFile is KtFile -> {
-                    psiFile.acceptChildren(
-                        classOrObjectVisitor { ktClassOrObject ->
-                            topLevelClassesFromSource += createClass(ktClassOrObject)
-                        }
-                    )
-                }
                 classes.isEmpty() && psiFile is PsiJavaFile -> {
                     // package-info.java ?
                     val packageStatement = psiFile.packageStatement
@@ -224,7 +248,6 @@ open class PsiBasedCodebase(location: File, override var description: String = "
             val sortedClasses = classes.toMutableList().sortedWith(ClassItem.fullNameComparator)
             registerPackage(psiPackage, sortedClasses, packageDocs[pkgName], pkgName)
         }
-
         initializing = false
 
         emptyPackage = findPackage("")!!
@@ -249,6 +272,8 @@ open class PsiBasedCodebase(location: File, override var description: String = "
         // Point to "parent" packages, since doclava treats packages as nested (e.g. an @hide on
         // android.foo will also apply to android.foo.bar)
         addParentPackages(packageMap.values)
+
+        packageClasses.clear() // Not used after this point
     }
 
     override fun dispose() {
@@ -303,11 +328,14 @@ open class PsiBasedCodebase(location: File, override var description: String = "
 
     private fun registerPackage(
         psiPackage: PsiPackage,
-        sortedClasses: List<ClassItem>?,
+        sortedClasses: List<PsiClassItem>?,
         packageHtml: String?,
         pkgName: String
     ): PsiPackageItem {
-        val packageItem = PsiPackageItem.create(this, psiPackage, packageHtml)
+        val packageItem = PsiPackageItem
+            .create(this, psiPackage, packageHtml, fromClassPath = !initializing)
+        packageItem.emit = initializing
+
         packageMap[pkgName] = packageItem
         if (isPackageHidden(pkgName)) {
             packageItem.hidden = true
@@ -414,6 +442,8 @@ open class PsiBasedCodebase(location: File, override var description: String = "
         for (pkg in packageMap.values) {
             pkg.finishInitialization()
         }
+
+        packageClasses.clear() // Not used after this point
     }
 
     fun dumpStats() {
@@ -424,7 +454,7 @@ open class PsiBasedCodebase(location: File, override var description: String = "
         )
     }
 
-    private fun registerPackageClass(packageName: String, cls: ClassItem) {
+    private fun registerPackageClass(packageName: String, cls: PsiClassItem) {
         var list = packageClasses[packageName]
         if (list == null) {
             list = ArrayList()
@@ -462,14 +492,12 @@ open class PsiBasedCodebase(location: File, override var description: String = "
     }
 
     private fun createClass(clz: PsiClass): PsiClassItem {
-        val classItem = PsiClassItem.create(this, clz)
+        // If initializing is true, this class is from source
+        val classItem = PsiClassItem.create(this, clz, fromClassPath = !initializing)
+        // Set emit to true for source classes but false for classpath classes
+        classItem.emit = initializing
 
         if (!initializing) {
-            // This class is found while we're no longer initializing all the source units:
-            // that means it must be found on the classpath instead. These should be treated
-            // as hidden; we don't want to generate code for them.
-            classItem.emit = false
-
             // Workaround: we're pulling in .aidl files from .jar files. These are
             // marked @hide, but since we only see the .class files we don't know that.
             if (classItem.simpleName().startsWith("I") &&
@@ -488,15 +516,12 @@ open class PsiBasedCodebase(location: File, override var description: String = "
             classItem.finishInitialization()
             return classItem
         }
-        val qualifiedName: String = clz.qualifiedName ?: clz.name!!
-        classMap[qualifiedName] = classItem
 
         // TODO: Cache for adjacent files!
         val packageName = getPackageName(clz)
         registerPackageClass(packageName, classItem)
 
         if (!initializing) {
-            classItem.emit = false
             classItem.finishInitialization()
             val pkgName = getPackageName(clz)
             val pkg = findPackage(pkgName)
@@ -518,21 +543,6 @@ open class PsiBasedCodebase(location: File, override var description: String = "
         return classItem
     }
 
-    private fun createClass(ktClassOrObject: KtClassOrObject): ClassItem {
-        val classItem = KotlinClassItem(this, ktClassOrObject)
-
-        if (!initializing) {
-            classItem.emit = false
-        }
-
-        classMap[classItem.qualifiedName()] = classItem
-
-        val packageName = ktClassOrObject.containingKtFile.packageFqName.asString()
-        registerPackageClass(packageName, classItem)
-
-        return classItem
-    }
-
     override fun getPackages(): PackageList {
         // TODO: Sorting is probably not necessary here!
         return PackageList(this, packageMap.values.toMutableList().sortedWith(PackageItem.comparator))
@@ -550,13 +560,13 @@ open class PsiBasedCodebase(location: File, override var description: String = "
         return packageMap[pkgName]
     }
 
-    override fun findClass(className: String): ClassItem? {
+    override fun findClass(className: String): PsiClassItem? {
         return classMap[className]
     }
 
     open fun findClass(psiClass: PsiClass): PsiClassItem? {
         val qualifiedName: String = psiClass.qualifiedName ?: psiClass.name!!
-        return classMap[qualifiedName] as? PsiClassItem
+        return classMap[qualifiedName]
     }
 
     open fun findOrCreateClass(qualifiedName: String): PsiClassItem? {
@@ -684,7 +694,7 @@ open class PsiBasedCodebase(location: File, override var description: String = "
         return methodItem
     }
 
-    fun findField(field: PsiField): Item? {
+    fun findField(field: PsiField): FieldItem? {
         val containingClass = field.containingClass ?: return null
         val cls = findOrCreateClass(containingClass)
         return cls.findField(field.name)
@@ -758,9 +768,17 @@ open class PsiBasedCodebase(location: File, override var description: String = "
 
     override fun toString(): String = description
 
-    fun registerClass(cls: PsiClassItem) {
-        assert(classMap[cls.qualifiedName()] == null || classMap[cls.qualifiedName()] == cls)
-
+    /** Add a class to the codebase. Called from [createClass] and [PsiClassItem.create]. */
+    internal fun registerClass(cls: PsiClassItem) {
         classMap[cls.qualifiedName()] = cls
+    }
+
+    /** Get a Kotlin [BindingContext] at [element]
+     *
+     * Do not cache returned binding context for longer than the lifetime of this codebase
+     */
+    fun bindingContext(element: KtElement): BindingContext {
+        return checkNotNull(project.getService(KotlinUastResolveProviderService::class.java))
+            .getBindingContext(element)
     }
 }

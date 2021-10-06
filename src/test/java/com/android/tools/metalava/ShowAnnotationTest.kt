@@ -10,7 +10,7 @@ class ShowAnnotationTest : DriverTest() {
     fun `Basic showAnnotation test`() {
         check(
             includeSystemApiAnnotations = true,
-            expectedIssues = "src/test/pkg/Foo.java:17: error: @SystemApi APIs must also be marked @hide: method test.pkg.Foo.method4() [UnhiddenSystemApi]",
+            expectedIssues = "src/test/pkg/Foo.java:18: error: @SystemApi APIs must also be marked @hide: method test.pkg.Foo.method4() [UnhiddenSystemApi]",
             sourceFiles = arrayOf(
                 java(
                     """
@@ -67,7 +67,7 @@ class ShowAnnotationTest : DriverTest() {
         check(
             includeSystemApiAnnotations = true,
             showUnannotated = true,
-            expectedIssues = "src/test/pkg/Foo.java:17: error: @SystemApi APIs must also be marked @hide: method test.pkg.Foo.method4() [UnhiddenSystemApi]",
+            expectedIssues = "src/test/pkg/Foo.java:18: error: @SystemApi APIs must also be marked @hide: method test.pkg.Foo.method4() [UnhiddenSystemApi]",
             sourceFiles = arrayOf(
                 java(
                     """
@@ -354,9 +354,9 @@ class ShowAnnotationTest : DriverTest() {
             ),
             showAnnotations = arrayOf("android.annotation.SystemApi"),
             expectedIssues = """
-                src/test/pkg/Class1.java:6: error: Attempting to unhide method test.pkg.Class1.method1(), but surrounding class test.pkg.Class1 is hidden and should also be annotated with @android.annotation.SystemApi [ShowingMemberInHiddenClass]
-                src/test/pkg/Class1.java:10: error: Attempting to unhide class test.pkg.Class1.InnerClass1, but surrounding class test.pkg.Class1 is hidden and should also be annotated with @android.annotation.SystemApi [ShowingMemberInHiddenClass]
-                src/test/pkg/Class2.java:9: error: Attempting to unhide method test.pkg.Class2.InnerClass2.method2(), but surrounding class test.pkg.Class2.InnerClass2 is hidden and should also be annotated with @android.annotation.SystemApi [ShowingMemberInHiddenClass]
+                src/test/pkg/Class1.java:8: error: Attempting to unhide method test.pkg.Class1.method1(), but surrounding class test.pkg.Class1 is hidden and should also be annotated with @android.annotation.SystemApi [ShowingMemberInHiddenClass]
+                src/test/pkg/Class1.java:12: error: Attempting to unhide class test.pkg.Class1.InnerClass1, but surrounding class test.pkg.Class1 is hidden and should also be annotated with @android.annotation.SystemApi [ShowingMemberInHiddenClass]
+                src/test/pkg/Class2.java:11: error: Attempting to unhide method test.pkg.Class2.InnerClass2.method2(), but surrounding class test.pkg.Class2.InnerClass2 is hidden and should also be annotated with @android.annotation.SystemApi [ShowingMemberInHiddenClass]
                 """
         )
     }
@@ -653,6 +653,7 @@ class ShowAnnotationTest : DriverTest() {
     }
 
     @Test
+    @TestKotlinPsi
     fun `Check @PublishedApi handling`() {
         check(
             format = FileFormat.V3,

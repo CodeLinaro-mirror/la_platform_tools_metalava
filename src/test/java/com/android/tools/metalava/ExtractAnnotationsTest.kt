@@ -77,7 +77,7 @@ class ExtractAnnotationsTest : DriverTest() {
             includeSourceRetentionAnnotations = false,
             format = FileFormat.V2,
             sourceFiles = sourceFiles1,
-            expectedIssues = "src/test/pkg/IntDefTest.java:11: error: This typedef annotation class should have @Retention(RetentionPolicy.SOURCE) [AnnotationExtraction]",
+            expectedIssues = "src/test/pkg/IntDefTest.java:13: error: This typedef annotation class should have @Retention(RetentionPolicy.SOURCE) [AnnotationExtraction]",
             extractAnnotations = mapOf(
                 "test.pkg" to """
                 <?xml version="1.0" encoding="UTF-8"?>
@@ -106,6 +106,7 @@ class ExtractAnnotationsTest : DriverTest() {
     }
 
     @Test
+    @TestKotlinPsi
     fun `Check Kotlin and referencing hidden constants from typedef`() {
         check(
             includeSourceRetentionAnnotations = false,
@@ -184,6 +185,7 @@ class ExtractAnnotationsTest : DriverTest() {
     }
 
     @Test
+    @TestKotlinPsi
     fun `Check including only class retention annotations other than typedefs`() {
         check(
             includeSourceRetentionAnnotations = true,

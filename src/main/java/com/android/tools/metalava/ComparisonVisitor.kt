@@ -30,7 +30,6 @@ import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.VisitCandidate
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.intellij.util.containers.Stack
-import java.util.Comparator
 import java.util.function.Predicate
 
 /**
@@ -452,7 +451,7 @@ class CodebaseComparator {
                         item1.parameterIndex.compareTo((item2 as ParameterItem).parameterIndex)
                     }
                     is AnnotationItem -> {
-                        (item1.qualifiedName() ?: "").compareTo((item2 as AnnotationItem).qualifiedName() ?: "")
+                        (item1.qualifiedName ?: "").compareTo((item2 as AnnotationItem).qualifiedName ?: "")
                     }
                     is PropertyItem -> {
                         item1.name().compareTo((item2 as PropertyItem).name())

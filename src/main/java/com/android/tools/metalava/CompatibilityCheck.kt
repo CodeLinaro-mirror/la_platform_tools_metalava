@@ -31,6 +31,7 @@ import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.configuration
+import com.android.tools.metalava.model.psi.PsiItem
 import com.android.tools.metalava.model.text.TextCodebase
 import com.intellij.psi.PsiField
 import java.io.File
@@ -182,7 +183,7 @@ class CompatibilityCheck(
             report(
                 Issues.PARAMETER_NAME_CHANGE,
                 new,
-                "Attempted to remove parameter name from ${describe(new)} in ${describe(new.containingMethod())}"
+                "Attempted to remove parameter name from ${describe(new)}"
             )
         } else if (newName != prevName) {
             report(
@@ -196,7 +197,7 @@ class CompatibilityCheck(
             report(
                 Issues.DEFAULT_VALUE_CHANGE,
                 new,
-                "Attempted to remove default value from ${describe(new)} in ${describe(new.containingMethod())}"
+                "Attempted to remove default value from ${describe(new)}"
             )
         }
 
@@ -823,7 +824,26 @@ class CompatibilityCheck(
         }
 
         if (inherited == null || inherited == new || !inherited.modifiers.isAbstract()) {
-            val error = if (new.modifiers.isAbstract()) Issues.ADDED_ABSTRACT_METHOD else Issues.ADDED_METHOD
+            val error = when {
+                new.modifiers.isAbstract() -> Issues.ADDED_ABSTRACT_METHOD
+                new.containingClass().isInterface() -> when {
+                    new.modifiers.isStatic() -> Issues.ADDED_METHOD
+                    new.modifiers.isDefault() -> {
+                        // Hack to always mark added Kotlin interface methods as abstract until
+                        // we properly support JVM default methods for Kotlin. This has to check
+                        // if it's a PsiItem because TextItem doesn't support isKotlin.
+                        //
+                        // TODO(b/200077254): Remove Kotlin special case
+                        if (new is PsiItem && new.isKotlin()) {
+                            Issues.ADDED_ABSTRACT_METHOD
+                        } else {
+                            Issues.ADDED_METHOD
+                        }
+                    }
+                    else -> Issues.ADDED_ABSTRACT_METHOD
+                }
+                else -> Issues.ADDED_METHOD
+            }
             handleAdded(error, new)
         }
     }
