@@ -24,6 +24,10 @@ class DocAnalyzerTest : DriverTest() {
                         /** These are the docs for method2. It can sometimes return null. */
                         @Nullable public Double method2(@NonNull Double factor1, @NonNull Double factor2) { }
                         @Nullable public Double method3(@NonNull Double factor1, @NonNull Double factor2) { }
+                        /**
+                         * @param factor2 Don't pass null here please.
+                         */
+                        @Nullable public Double method4(@NonNull Double factor1, @NonNull Double factor2) { }
                     }
                     """
                 ),
@@ -62,6 +66,13 @@ class DocAnalyzerTest : DriverTest() {
                      */
                     @androidx.annotation.Nullable
                     public java.lang.Double method3(@androidx.annotation.NonNull java.lang.Double factor1, @androidx.annotation.NonNull java.lang.Double factor2) { throw new RuntimeException("Stub!"); }
+                    /**
+                     * @param factor2 Don't pass null here please.
+                     * @param factor1 This value must never be {@code null}.
+                     * @return This value may be {@code null}.
+                     */
+                    @androidx.annotation.Nullable
+                    public java.lang.Double method4(@androidx.annotation.NonNull java.lang.Double factor1, @androidx.annotation.NonNull java.lang.Double factor2) { throw new RuntimeException("Stub!"); }
                     }
                     """
                 )
@@ -118,6 +129,7 @@ class DocAnalyzerTest : DriverTest() {
 
     @Test
     fun `Fix typo replacement`() {
+        // common_typos_disable
         check(
             sourceFiles = arrayOf(
                 java(
@@ -134,7 +146,7 @@ class DocAnalyzerTest : DriverTest() {
             ),
             checkCompilation = true,
             docStubs = true,
-            expectedIssues = "src/test/pkg/Foo.java:2: warning: Replaced Andriod with Android in the documentation for class test.pkg.Foo [Typo]",
+            expectedIssues = "src/test/pkg/Foo.java:3: warning: Replaced Andriod with Android in the documentation for class test.pkg.Foo [Typo]",
             stubFiles = arrayOf(
                 java(
                     """
@@ -149,6 +161,7 @@ class DocAnalyzerTest : DriverTest() {
                 )
             )
         )
+        // common_typos_enable
     }
 
     @Test
@@ -189,7 +202,7 @@ class DocAnalyzerTest : DriverTest() {
                         }
 
                         // Typo in marker
-                        @RequiresPermission(anyOf = {Manifest.permission.ACCESS_COARSE_LOCATION, "carier priviliges"})
+                        @RequiresPermission(anyOf = {Manifest.permission.ACCESS_COARSE_LOCATION, "carier priviliges"}) // NOTYPO
                         public void test6() {
                         }
                     }
@@ -212,8 +225,9 @@ class DocAnalyzerTest : DriverTest() {
                 requiresPermissionSource
             ),
             checkCompilation = false, // needs androidx.annotations in classpath
-            expectedIssues = "src/test/pkg/PermissionTest.java:31: lint: Unrecognized permission `carier priviliges`; did you mean `carrier privileges`? [MissingPermission]",
+            expectedIssues = "src/test/pkg/PermissionTest.java:33: lint: Unrecognized permission `carier priviliges`; did you mean `carrier privileges`? [MissingPermission]", // NOTYPO
             stubFiles = arrayOf(
+                // common_typos_disable
                 java(
                     """
                     package test.pkg;
@@ -256,6 +270,7 @@ class DocAnalyzerTest : DriverTest() {
                     }
                     """
                 )
+                // common_typos_enable
             )
         )
     }
@@ -431,7 +446,7 @@ class DocAnalyzerTest : DriverTest() {
                 workerThreadSource
             ),
             checkCompilation = true,
-            expectedIssues = "src/test/pkg/RangeTest.java:5: lint: Found more than one threading annotation on method test.pkg.RangeTest.test1(); the auto-doc feature does not handle this correctly [MultipleThreadAnnotations]",
+            expectedIssues = "src/test/pkg/RangeTest.java:6: lint: Found more than one threading annotation on method test.pkg.RangeTest.test1(); the auto-doc feature does not handle this correctly [MultipleThreadAnnotations]",
             docStubs = true,
             stubFiles = arrayOf(
                 java(
@@ -460,7 +475,7 @@ class DocAnalyzerTest : DriverTest() {
     @Test
     fun `Merge Multiple sections`() {
         check(
-            expectedIssues = "src/android/widget/Toolbar2.java:14: error: Documentation should not specify @apiSince manually; it's computed and injected at build time by metalava [ForbiddenTag]",
+            expectedIssues = "src/android/widget/Toolbar2.java:18: error: Documentation should not specify @apiSince manually; it's computed and injected at build time by metalava [ForbiddenTag]",
             sourceFiles = arrayOf(
                 java(
                     """
@@ -726,7 +741,7 @@ class DocAnalyzerTest : DriverTest() {
             ),
             checkCompilation = true,
             docStubs = true,
-            expectedIssues = "src/test/pkg/RangeTest.java:4: lint: Cannot find permission field for \"MyPermission\" required by method test.pkg.RangeTest.test1() (may be hidden or removed) [MissingPermission]",
+            expectedIssues = "src/test/pkg/RangeTest.java:5: lint: Cannot find permission field for \"MyPermission\" required by method test.pkg.RangeTest.test1() (may be hidden or removed) [MissingPermission]",
             stubFiles = arrayOf(
                 java(
                     """
@@ -1703,6 +1718,7 @@ class DocAnalyzerTest : DriverTest() {
     }
 
     @Test
+    @TestKotlinPsi
     fun `Include Kotlin deprecation text`() {
         check(
             sourceFiles = arrayOf(
@@ -2026,7 +2042,7 @@ class DocAnalyzerTest : DriverTest() {
             ),
             checkCompilation = false, // stubs contain Cursor.NONEXISTENT so it does not compile
             expectedIssues = """
-                src/test/pkg/ColumnTest.java:12: warning: Cannot find feature field for Cursor.NONEXISTENT required by field ColumnTest.BOGUS (may be hidden or removed) [MissingColumn]
+                src/test/pkg/ColumnTest.java:13: warning: Cannot find feature field for Cursor.NONEXISTENT required by field ColumnTest.BOGUS (may be hidden or removed) [MissingColumn]
                 """,
             docStubs = true,
             stubFiles = arrayOf(

@@ -80,6 +80,7 @@ const val ARG_PROGUARD = "--proguard"
 const val ARG_EXTRACT_ANNOTATIONS = "--extract-annotations"
 const val ARG_EXCLUDE_ALL_ANNOTATIONS = "--exclude-all-annotations"
 const val ARG_EXCLUDE_DOCUMENTATION_FROM_STUBS = "--exclude-documentation-from-stubs"
+const val ARG_ENHANCE_DOCUMENTATION = "--enhance-documentation"
 const val ARG_HIDE_PACKAGE = "--hide-package"
 const val ARG_MANIFEST = "--manifest"
 const val ARG_MIGRATE_NULLNESS = "--migrate-nullness"
@@ -166,7 +167,7 @@ const val ARG_STRICT_INPUT_FILES_STACK = "--strict-input-files:stack"
 const val ARG_STRICT_INPUT_FILES_WARN = "--strict-input-files:warn"
 const val ARG_STRICT_INPUT_FILES_EXEMPT = "--strict-input-files-exempt"
 const val ARG_REPEAT_ERRORS_MAX = "--repeat-errors-max"
-const val ARG_KOTLIN_MODEL = "--kotlin-model"
+const val ARG_ENABLE_KOTLIN_PSI = "--enable-kotlin-psi"
 
 class Options(
     private val args: Array<String>,
@@ -250,6 +251,12 @@ class Options(
      * (--doc-stubs) are not affected.)
      */
     var includeDocumentationInStubs = true
+
+    /**
+     * Enhance documentation in various ways, for example auto-generating documentation based on
+     * source annotations present in the code. This is implied by --doc-stubs.
+     */
+    var enhanceDocumentation = false
 
     /**
      * Whether metalava is invoked as part of updating the API files. When this is true, metalava
@@ -504,7 +511,7 @@ class Options(
     /** Whether to use the experimental KtPsi model on .kt source files instead of existing
      * PSI implementation
      */
-    var useKtModel = false
+    var enableKotlinPsi = false
 
     /**
      * mapping from API level to android.jar files, if computing API levels
@@ -790,7 +797,7 @@ class Options(
                     throw DriverException(stdout = "$PROGRAM_NAME version: ${Version.VERSION}")
                 }
 
-                ARG_KOTLIN_MODEL -> useKtModel = true
+                ARG_ENABLE_KOTLIN_PSI -> enableKotlinPsi = true
 
                 // For now we don't distinguish between bootclasspath and classpath
                 ARG_CLASS_PATH, "-classpath", "-bootclasspath" -> {
@@ -907,6 +914,7 @@ class Options(
                 ARG_EXCLUDE_ALL_ANNOTATIONS -> generateAnnotations = false
 
                 ARG_EXCLUDE_DOCUMENTATION_FROM_STUBS -> includeDocumentationInStubs = false
+                ARG_ENHANCE_DOCUMENTATION -> enhanceDocumentation = true
 
                 // Note that this only affects stub generation, not signature files.
                 // For signature files, clear the compatibility mode
@@ -2260,9 +2268,8 @@ class Options(
 
             "$ARG_PROGUARD <file>", "Write a ProGuard keep file for the API",
             "$ARG_SDK_VALUES <dir>", "Write SDK values files to the given directory",
-            ARG_KOTLIN_MODEL,
-            "[CURRENTLY EXPERIMENTAL] If set, use Kotlin PSI for Kotlin " +
-                "instead of UAST",
+            ARG_ENABLE_KOTLIN_PSI,
+            "[EXPERIMENTAL] If set, use Kotlin PSI for Kotlin instead of UAST",
 
             "", "\nGenerating Stubs:",
             "$ARG_STUBS <dir>", "Generate stub source files for the API",
@@ -2284,6 +2291,9 @@ class Options(
             "$ARG_EXCLUDE_ANNOTATION <annotation classes>",
             "A comma separated list of fully qualified names of " +
                 "annotation classes that must be stripped from metalava's outputs.",
+            ARG_ENHANCE_DOCUMENTATION,
+            "Enhance documentation in various ways, for example auto-generating documentation based on source " +
+                "annotations present in the code. This is implied by --doc-stubs.",
             ARG_EXCLUDE_DOCUMENTATION_FROM_STUBS,
             "Exclude element documentation (javadoc and kdoc) " +
                 "from the generated stubs. (Copyright notices are not affected by this, they are always included. " +

@@ -26,8 +26,8 @@ import org.jetbrains.kotlin.psi.KtConstantExpression
 import org.jetbrains.kotlin.psi.KtFunction
 import org.jetbrains.kotlin.psi.KtParameter
 import org.jetbrains.uast.UExpression
+import org.jetbrains.uast.UMethod
 import org.jetbrains.uast.UastFacade
-import org.jetbrains.uast.kotlin.declarations.KotlinUMethod
 
 class PsiParameterItem(
     override val codebase: PsiBasedCodebase,
@@ -68,7 +68,7 @@ class PsiParameterItem(
             // Java: Look for @ParameterName annotation
             val annotation = modifiers.annotations().firstOrNull { it.isParameterName() }
             if (annotation != null) {
-                return annotation.attributes().firstOrNull()?.value?.value()?.toString()
+                return annotation.attributes.firstOrNull()?.value?.value()?.toString()
             }
         }
 
@@ -91,7 +91,7 @@ class PsiParameterItem(
 
     private fun getKtParameter(): KtParameter? {
         val ktParameters =
-            ((containingMethod.psiMethod as? KotlinUMethod)?.sourcePsi as? KtFunction)?.valueParameters
+            ((containingMethod.psiMethod as? UMethod)?.sourcePsi as? KtFunction)?.valueParameters
                 ?: return null
 
         // Perform matching based on parameter names, because indices won't work in the
@@ -166,7 +166,7 @@ class PsiParameterItem(
             // Java: Look for @ParameterName annotation
             val annotation = modifiers.annotations().firstOrNull { it.isDefaultValue() }
             if (annotation != null) {
-                return annotation.attributes().firstOrNull()?.value?.value()?.toString()
+                return annotation.attributes.firstOrNull()?.value?.value()?.toString()
             }
         }
 

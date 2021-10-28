@@ -16,7 +16,7 @@
 
 package com.android.tools.metalava.model.psi
 
-import com.android.SdkConstants
+import com.android.SdkConstants.ATTR_VALUE
 import com.android.tools.lint.detector.api.ConstantEvaluator
 import com.android.tools.metalava.model.AnnotationArrayAttributeValue
 import com.android.tools.metalava.model.AnnotationAttribute
@@ -47,13 +47,9 @@ import org.jetbrains.uast.util.isArrayInitializer
 class UAnnotationItem private constructor(
     override val codebase: PsiBasedCodebase,
     val uAnnotation: UAnnotation,
-    private val originalName: String?
+    override val originalName: String?
 ) : DefaultAnnotationItem(codebase) {
-    private val qualifiedName = AnnotationItem.mapName(codebase, originalName)
-
-    private var attributes: List<AnnotationAttribute>? = null
-
-    override fun originalName(): String? = originalName
+    override val qualifiedName: String? = AnnotationItem.mapName(codebase, originalName)
 
     override fun toString(): String = toSource()
 
@@ -77,37 +73,14 @@ class UAnnotationItem private constructor(
         return super.isNonNull()
     }
 
-    override fun qualifiedName() = qualifiedName
-
-    override fun attributes(): List<AnnotationAttribute> {
-        if (attributes == null) {
-            val uAttributes = uAnnotation.attributeValues
-            attributes = if (uAttributes.isEmpty()) {
-                emptyList()
-            } else {
-                val list = mutableListOf<AnnotationAttribute>()
-                for (parameter in uAttributes) {
-                    list.add(
-                        UAnnotationAttribute(
-                            codebase,
-                            parameter.name ?: SdkConstants.ATTR_VALUE, parameter.expression
-                        )
-                    )
-                }
-                list
-            }
-        }
-
-        return attributes!!
+    override val attributes: List<UAnnotationAttribute> by lazy {
+        uAnnotation.attributeValues.map { attribute ->
+            UAnnotationAttribute(codebase, attribute.name ?: ATTR_VALUE, attribute.expression)
+        }.toList()
     }
 
-    override fun targets(): Set<AnnotationTarget> {
-        if (targets == null) {
-            targets = AnnotationItem.computeTargets(this) { className ->
-                codebase.findOrCreateClass(className)
-            }
-        }
-        return targets!!
+    override val targets: Set<AnnotationTarget> by lazy {
+        AnnotationItem.computeTargets(this, codebase::findOrCreateClass)
     }
 
     companion object {
@@ -157,7 +130,7 @@ class UAnnotationItem private constructor(
             sb.append("@")
             sb.append(qualifiedName)
             sb.append("(")
-            if (attributes.size == 1 && (attributes[0].first == null || attributes[0].first == SdkConstants.ATTR_VALUE)) {
+            if (attributes.size == 1 && (attributes[0].first == null || attributes[0].first == ATTR_VALUE)) {
                 // Special case: omit "value" if it's the only attribute
                 appendValue(codebase, sb, attributes[0].second, target, showDefaultAttrs)
             } else {
@@ -168,7 +141,7 @@ class UAnnotationItem private constructor(
                     } else {
                         sb.append(", ")
                     }
-                    sb.append(attribute.first ?: SdkConstants.ATTR_VALUE)
+                    sb.append(attribute.first ?: ATTR_VALUE)
                     sb.append('=')
                     appendValue(codebase, sb, attribute.second, target, showDefaultAttrs)
                 }

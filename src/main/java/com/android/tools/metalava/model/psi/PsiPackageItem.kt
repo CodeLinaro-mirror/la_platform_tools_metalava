@@ -19,7 +19,6 @@ package com.android.tools.metalava.model.psi
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.VisibilityLevel
-import com.android.tools.metalava.model.kotlin.KotlinClassItem
 import com.intellij.psi.PsiPackage
 
 class PsiPackageItem(
@@ -27,7 +26,9 @@ class PsiPackageItem(
     private val psiPackage: PsiPackage,
     private val qualifiedName: String,
     modifiers: PsiModifierItem,
-    documentation: String
+    documentation: String,
+    /** True if this package is from the classpath (dependencies). Exposed in [isFromClassPath]. */
+    private val fromClassPath: Boolean
 ) :
     PsiItem(
         codebase = codebase,
@@ -36,10 +37,6 @@ class PsiPackageItem(
         element = psiPackage
     ),
     PackageItem {
-
-    init {
-        emit = false // [emit] defaults to false until a class with emit == true is added
-    }
 
     // Note - top level classes only
     private val classes: MutableList<ClassItem> = mutableListOf()
@@ -79,7 +76,7 @@ class PsiPackageItem(
         }
     }
 
-    fun addClass(cls: ClassItem) {
+    fun addClass(cls: PsiClassItem) {
         if (!cls.isTopLevelClass()) {
             // TODO: Stash in a list somewhere to make allClasses() faster?
             return
@@ -97,12 +94,10 @@ class PsiPackageItem(
         */
 
         classes.add(cls)
-        if (cls.emit) emit = true
-        if (cls is PsiClassItem) cls.containingPackage = this
-        if (cls is KotlinClassItem) cls.containingPackage = this
+        cls.containingPackage = this
     }
 
-    fun addClasses(classList: List<ClassItem>) {
+    fun addClasses(classList: List<PsiClassItem>) {
         for (cls in classList) {
             addClass(cls)
         }
@@ -140,8 +135,15 @@ class PsiPackageItem(
         }
     }
 
+    override fun isFromClassPath(): Boolean = fromClassPath
+
     companion object {
-        fun create(codebase: PsiBasedCodebase, psiPackage: PsiPackage, extraDocs: String?): PsiPackageItem {
+        fun create(
+            codebase: PsiBasedCodebase,
+            psiPackage: PsiPackage,
+            extraDocs: String?,
+            fromClassPath: Boolean
+        ): PsiPackageItem {
             val commentText = javadoc(psiPackage) + if (extraDocs != null) "\n$extraDocs" else ""
             val modifiers = modifiers(codebase, psiPackage, commentText)
             if (modifiers.isPackagePrivate()) {
@@ -155,7 +157,8 @@ class PsiPackageItem(
                 psiPackage = psiPackage,
                 qualifiedName = qualifiedName,
                 documentation = commentText,
-                modifiers = modifiers
+                modifiers = modifiers,
+                fromClassPath = fromClassPath
             )
             pkg.modifiers.setOwner(pkg)
             return pkg
@@ -167,7 +170,8 @@ class PsiPackageItem(
                 psiPackage = original.psiPackage,
                 qualifiedName = original.qualifiedName,
                 documentation = original.documentation,
-                modifiers = PsiModifierItem.create(codebase, original.modifiers)
+                modifiers = PsiModifierItem.create(codebase, original.modifiers),
+                fromClassPath = original.isFromClassPath()
             )
             pkg.modifiers.setOwner(pkg)
             return pkg

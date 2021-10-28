@@ -38,7 +38,8 @@ class PsiTypeParameterItem(
     hasImplicitDefaultConstructor = false,
     classType = TYPE_PARAMETER,
     modifiers = modifiers,
-    documentation = ""
+    documentation = "",
+    fromClassPath = false
 ),
     TypeParameterItem {
     override fun bounds(): List<ClassItem> = bounds

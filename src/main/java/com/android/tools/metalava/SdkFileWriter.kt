@@ -77,7 +77,7 @@ class SdkFileWriter(val codebase: Codebase, private val outputDir: File) {
                 val value = field.initialValue() ?: continue
                 val annotations = field.modifiers.annotations()
                 for (annotation in annotations) {
-                    if (SDK_CONSTANT_ANNOTATION == annotation.qualifiedName()) {
+                    if (SDK_CONSTANT_ANNOTATION == annotation.qualifiedName) {
                         val resolved =
                             annotation.findAttribute(null)?.leafValues()?.firstOrNull()?.resolve() as? FieldItem
                                 ?: continue
@@ -99,11 +99,11 @@ class SdkFileWriter(val codebase: Codebase, private val outputDir: File) {
                 val annotations = clazz.modifiers.annotations()
                 if (annotations.isNotEmpty()) {
                     for (annotation in annotations) {
-                        if (SDK_WIDGET_ANNOTATION == annotation.qualifiedName()) {
+                        if (SDK_WIDGET_ANNOTATION == annotation.qualifiedName) {
                             widgets.add(clazz)
                             annotated = true
                             break
-                        } else if (SDK_LAYOUT_ANNOTATION == annotation.qualifiedName()) {
+                        } else if (SDK_LAYOUT_ANNOTATION == annotation.qualifiedName) {
                             layouts.add(clazz)
                             annotated = true
                             break

@@ -147,7 +147,7 @@ class DocAnalyzer(
             private fun findThreadAnnotations(annotations: List<AnnotationItem>): List<String> {
                 var result: MutableList<String>? = null
                 for (annotation in annotations) {
-                    val name = annotation.qualifiedName()
+                    val name = annotation.qualifiedName
                     if (name != null && name.endsWith("Thread") &&
                         (
                             name.startsWith(ANDROID_SUPPORT_ANNOTATION_PREFIX) ||
@@ -184,7 +184,7 @@ class DocAnalyzer(
                 depth: Int,
                 visitedClasses: MutableSet<String> = mutableSetOf()
             ) {
-                val name = annotation.qualifiedName()
+                val name = annotation.qualifiedName
                 if (name == null || name.startsWith(JAVA_LANG_PREFIX)) {
                     // Ignore java.lang.Retention etc.
                     return
@@ -226,7 +226,7 @@ class DocAnalyzer(
                             "Unbounded recursion, processing annotation ${annotation.toSource()} " +
                                 "in $item in ${item.sourceFile()} "
                         )
-                    } else if (nested.qualifiedName() !in visitedClasses) {
+                    } else if (nested.qualifiedName !in visitedClasses) {
                         handleAnnotation(nested, item, depth + 1, visitedClasses)
                     }
                 }
@@ -250,9 +250,17 @@ class DocAnalyzer(
                     // Some docs already specifically talk about null policy; in that case,
                     // don't include the docs (since it may conflict with more specific conditions
                     // outlined in the docs).
-                    if (item.documentation.contains("null") &&
-                        mentionsNull.matcher(item.documentation).find()
-                    ) {
+                    val doc =
+                        if (item is ParameterItem) {
+                            item.containingMethod().findTagDocumentation("param", item.name())
+                                ?: ""
+                        } else if (item is MethodItem) {
+                            // Don't inspect param docs (and other tags) for this purpose.
+                            item.findMainDocumentation() + (item.findTagDocumentation("return") ?: "")
+                        } else {
+                            item.documentation
+                        }
+                    if (doc.contains("null") && mentionsNull.matcher(doc).find()) {
                         return
                     }
                 }
@@ -284,7 +292,7 @@ class DocAnalyzer(
                 var values: List<AnnotationAttributeValue>? = null
                 var any = false
                 var conditional = false
-                for (attribute in annotation.attributes()) {
+                for (attribute in annotation.attributes) {
                     when (attribute.name) {
                         "value", "allOf" -> {
                             values = attribute.leafValues()

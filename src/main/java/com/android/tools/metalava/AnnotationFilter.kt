@@ -45,7 +45,7 @@ class MutableAnnotationFilter : AnnotationFilter {
     }
 
     override fun matches(annotation: AnnotationItem): Boolean {
-        if (annotation.qualifiedName() == null) {
+        if (annotation.qualifiedName == null) {
             return false
         }
         val wrapper = AnnotationFilterEntry.fromAnnotationItem(annotation)

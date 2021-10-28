@@ -25,6 +25,7 @@ import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiModifierListOwner
 import org.jetbrains.kotlin.idea.KotlinLanguage
 import org.jetbrains.kotlin.kdoc.psi.api.KDoc
+import org.jetbrains.kotlin.psi.KtDeclaration
 import org.jetbrains.uast.UElement
 import org.jetbrains.uast.sourcePsiElement
 import kotlin.properties.ReadWriteProperty
@@ -46,6 +47,9 @@ abstract class PsiItem(
     override var removed = documentation.contains("@removed")
 
     override val synthetic = false
+
+    /** The source PSI provided by UAST */
+    val sourcePsi: PsiElement? = (element as? UElement)?.sourcePsi
 
     // a property with a lazily calculated default value
     inner class LazyDelegate<T>(
@@ -81,13 +85,8 @@ abstract class PsiItem(
 
     override fun psi(): PsiElement? = element
 
-    // TODO: Consider only doing this in tests!
     override fun isFromClassPath(): Boolean {
-        return if (element is UElement) {
-            (element.sourcePsi ?: element.javaPsi) is PsiCompiledElement
-        } else {
-            element is PsiCompiledElement
-        }
+        return containingClass()?.isFromClassPath() ?: false
     }
 
     override fun isCloned(): Boolean = false
@@ -95,7 +94,7 @@ abstract class PsiItem(
     /** Get a mutable version of modifiers for this item */
     override fun mutableModifiers(): MutableModifierList = modifiers
 
-    override fun findTagDocumentation(tag: String): String? {
+    override fun findTagDocumentation(tag: String, value: String?): String? {
         if (element is PsiCompiledElement) {
             return null
         }
@@ -107,9 +106,17 @@ abstract class PsiItem(
         // the comment and then the comment snapshot in PSI isn't up to date with our
         // latest changes
         val docComment = codebase.getComment(documentation)
-        val docTag = docComment.findTagByName(tag) ?: return null
-        val text = docTag.text
+        val tagComment = if (value == null) {
+            docComment.findTagByName(tag)
+        } else {
+            docComment.findTagsByName(tag).firstOrNull { it.valueElement?.text == value }
+        }
 
+        if (tagComment == null) {
+            return null
+        }
+
+        val text = tagComment.text
         // Trim trailing next line (javadoc *)
         var index = text.length - 1
         while (index > 0) {
@@ -120,10 +127,10 @@ abstract class PsiItem(
             index--
         }
         index++
-        return if (index < text.length) {
-            text.substring(0, index)
+        if (index < text.length) {
+            return text.substring(0, index)
         } else {
-            text
+            return text
         }
     }
 
@@ -240,6 +247,10 @@ abstract class PsiItem(
         fun javadoc(element: PsiElement): String {
             if (element is PsiCompiledElement) {
                 return ""
+            }
+
+            if (element is KtDeclaration) {
+                return element.docComment?.text.orEmpty()
             }
 
             if (element is UElement) {

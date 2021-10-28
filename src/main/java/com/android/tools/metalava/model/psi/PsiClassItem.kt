@@ -38,14 +38,13 @@ import com.intellij.psi.PsiTypeParameter
 import com.intellij.psi.SyntheticElement
 import com.intellij.psi.impl.source.PsiClassReferenceType
 import com.intellij.psi.util.PsiUtil
+import org.jetbrains.kotlin.asJava.classes.KtLightClassForFacade
 import org.jetbrains.kotlin.psi.KtParameter
 import org.jetbrains.kotlin.psi.KtProperty
 import org.jetbrains.kotlin.psi.KtPropertyAccessor
 import org.jetbrains.kotlin.psi.psiUtil.isPropertyParameter
 import org.jetbrains.uast.UClass
-import org.jetbrains.uast.UElement
 import org.jetbrains.uast.UFile
-import org.jetbrains.uast.UMethod
 import org.jetbrains.uast.getParentOfType
 import org.jetbrains.uast.kotlin.KotlinUClass
 
@@ -58,7 +57,9 @@ open class PsiClassItem(
     private val hasImplicitDefaultConstructor: Boolean,
     val classType: ClassType,
     modifiers: PsiModifierItem,
-    documentation: String
+    documentation: String,
+    /** True if this class is from the class path (dependencies). Exposed in [isFromClassPath]. */
+    private val fromClassPath: Boolean
 ) :
     PsiItem(
         codebase = codebase,
@@ -78,6 +79,7 @@ open class PsiClassItem(
     override fun isInterface(): Boolean = classType == ClassType.INTERFACE
     override fun isAnnotationType(): Boolean = classType == ClassType.ANNOTATION_TYPE
     override fun isEnum(): Boolean = classType == ClassType.ENUM
+    override fun isFromClassPath(): Boolean = fromClassPath
     override fun hasImplicitDefaultConstructor(): Boolean = hasImplicitDefaultConstructor
 
     private var superClass: ClassItem? = null
@@ -421,7 +423,11 @@ open class PsiClassItem(
             return false
         }
 
-        fun create(codebase: PsiBasedCodebase, psiClass: PsiClass): PsiClassItem {
+        fun create(
+            codebase: PsiBasedCodebase,
+            psiClass: PsiClass,
+            fromClassPath: Boolean
+        ): PsiClassItem {
             if (psiClass is PsiTypeParameter) {
                 return PsiTypeParameterItem.create(codebase, psiClass)
             }
@@ -432,7 +438,10 @@ open class PsiClassItem(
             val classType = ClassType.getClassType(psiClass)
 
             val commentText = PsiItem.javadoc(psiClass)
-            val modifiers = modifiers(codebase, psiClass, commentText)
+            val isFacade = (psiClass as? KotlinUClass)?.javaPsi is KtLightClassForFacade
+            val modifiers = PsiModifierItem
+                .create(codebase, psiClass, commentText, codebase.enableKotlinPsi && !isFacade)
+
             val item = PsiClassItem(
                 codebase = codebase,
                 psiClass = psiClass,
@@ -442,10 +451,14 @@ open class PsiClassItem(
                 classType = classType,
                 hasImplicitDefaultConstructor = hasImplicitDefaultConstructor,
                 documentation = commentText,
-                modifiers = modifiers
+                modifiers = modifiers,
+                fromClassPath = fromClassPath
             )
-            codebase.registerClass(item)
             item.modifiers.setOwner(item)
+
+            // Register this class now so it's present when calling Codebase.findOrCreateClass for
+            // inner classes below
+            codebase.registerClass(item)
 
             // Construct the children
             val psiMethods = psiClass.methods
@@ -491,7 +504,14 @@ open class PsiClassItem(
                     methods.add(method)
                 }
             }
-            if (noArgConstructor != null && !hasConstructorWithOnlyOptionalArgs) {
+
+            // Add the no-arg constructor back in if no constructors have only optional arguments
+            // or if an all-optional constructor created it as part of @JvmOverloads
+            if (noArgConstructor != null && (
+                !hasConstructorWithOnlyOptionalArgs ||
+                    noArgConstructor.modifiers.isAnnotatedWith("kotlin.jvm.JvmOverloads")
+                )
+            ) {
                 constructors.add(noArgConstructor)
             }
 
@@ -504,7 +524,7 @@ open class PsiClassItem(
                 constructors.add(PsiConstructorItem.createDefaultConstructor(codebase, item, psiClass))
             }
 
-            val fields: MutableList<FieldItem> = mutableListOf()
+            val fields: MutableList<PsiFieldItem> = mutableListOf()
             val psiFields = psiClass.fields
             if (psiFields.isNotEmpty()) {
                 psiFields.asSequence()
@@ -533,50 +553,48 @@ open class PsiClassItem(
             item.fields = fields
 
             item.properties = emptyList()
-            if (isKotlin) {
-                val primaryParameters = item.primaryConstructor?.parameters()
-                    ?.associateBy { (it.element as? UElement)?.sourcePsi as? KtParameter }
+
+            if (isKotlin && methods.isNotEmpty()) {
+                val getters = mutableMapOf<String, PsiMethodItem>()
+                val setters = mutableMapOf<String, PsiMethodItem>()
+                val backingFields = fields.associateBy { it.name() }
+                val constructorParameters = item.primaryConstructor?.parameters()
+                    ?.filter { (it.sourcePsi as? KtParameter)?.isPropertyParameter() ?: false }
+                    ?.associateBy { it.name() }
                     .orEmpty()
-                // Try to initialize the Kotlin properties
-                val properties = mutableListOf<PsiPropertyItem>()
-                for (method in psiMethods) {
-                    if (method is UMethod) {
-                        if (method.modifierList.hasModifierProperty(PsiModifier.STATIC)) {
-                            // Skip extension properties
-                            continue
-                        }
-                        val sourcePsi = method.sourcePsi
-                        if (sourcePsi is KtProperty ||
-                            sourcePsi is KtPropertyAccessor ||
-                            sourcePsi is KtParameter
-                        ) {
-                            if (method.name.startsWith("set") ||
-                                method.name.startsWith("component")
-                            ) {
-                                continue
+
+                for (method in methods) {
+                    if (method.isKotlinProperty()) {
+                        val name = when (val sourcePsi = method.sourcePsi) {
+                            is KtProperty -> sourcePsi.name
+                            is KtPropertyAccessor -> sourcePsi.property.name
+                            is KtParameter -> sourcePsi.name
+                            else -> null
+                        } ?: continue
+
+                        if (method.parameters().isEmpty()) {
+                            if (!method.name().startsWith("component")) {
+                                getters[name] = method
                             }
-                            val name =
-                                when (sourcePsi) {
-                                    is KtProperty -> sourcePsi.name
-                                    is KtPropertyAccessor -> sourcePsi.property.name
-                                    is KtParameter -> {
-                                        if (sourcePsi.isPropertyParameter()) {
-                                            sourcePsi.name
-                                        } else null
-                                    }
-                                    else -> null
-                                } ?: continue
-                            val psiType = method.returnType ?: continue
-                            PsiPropertyItem.create(
-                                codebase = codebase,
-                                containingClass = item,
-                                name = name,
-                                psiType = psiType,
-                                psiMethod = method,
-                                constructorParameter = primaryParameters[sourcePsi as? KtParameter]
-                            ).also { properties.add(it) }
+                        } else {
+                            setters[name] = method
                         }
                     }
+                }
+
+                val properties = mutableListOf<PsiPropertyItem>()
+                for ((name, getter) in getters) {
+                    val type = getter.returnType() as? PsiTypeItem ?: continue
+                    properties += PsiPropertyItem.create(
+                        codebase = codebase,
+                        containingClass = item,
+                        name = name,
+                        type = type,
+                        getter = getter,
+                        setter = setters[name],
+                        constructorParameter = constructorParameters[name],
+                        backingField = backingFields[name]
+                    )
                 }
                 item.properties = properties
             }

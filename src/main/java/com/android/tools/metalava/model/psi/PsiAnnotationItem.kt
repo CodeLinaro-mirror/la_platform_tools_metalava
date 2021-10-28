@@ -48,13 +48,9 @@ import org.jetbrains.kotlin.asJava.elements.KtLightNullabilityAnnotation
 class PsiAnnotationItem private constructor(
     override val codebase: PsiBasedCodebase,
     val psiAnnotation: PsiAnnotation,
-    private val originalName: String?
+    override val originalName: String?
 ) : DefaultAnnotationItem(codebase) {
-    private val qualifiedName = AnnotationItem.mapName(codebase, originalName)
-
-    private var attributes: List<AnnotationAttribute>? = null
-
-    override fun originalName(): String? = originalName
+    override val qualifiedName: String? = AnnotationItem.mapName(codebase, originalName)
 
     override fun toString(): String = toSource()
 
@@ -78,37 +74,16 @@ class PsiAnnotationItem private constructor(
         return super.isNonNull()
     }
 
-    override fun qualifiedName() = qualifiedName
-
-    override fun attributes(): List<AnnotationAttribute> {
-        if (attributes == null) {
-            val psiAttributes = psiAnnotation.parameterList.attributes
-            attributes = if (psiAttributes.isEmpty()) {
-                emptyList()
-            } else {
-                val list = mutableListOf<AnnotationAttribute>()
-                for (parameter in psiAttributes) {
-                    list.add(
-                        PsiAnnotationAttribute(
-                            codebase,
-                            parameter.name ?: ATTR_VALUE, parameter.value ?: continue
-                        )
-                    )
-                }
-                list
+    override val attributes: List<PsiAnnotationAttribute> by lazy {
+        psiAnnotation.parameterList.attributes.mapNotNull { attribute ->
+            attribute.value?.let { value ->
+                PsiAnnotationAttribute(codebase, attribute.name ?: ATTR_VALUE, value)
             }
-        }
-
-        return attributes!!
+        }.toList()
     }
 
-    override fun targets(): Set<AnnotationTarget> {
-        if (targets == null) {
-            targets = AnnotationItem.computeTargets(this) { className ->
-                codebase.findOrCreateClass(className)
-            }
-        }
-        return targets!!
+    override val targets: Set<AnnotationTarget> by lazy {
+        AnnotationItem.computeTargets(this, codebase::findOrCreateClass)
     }
 
     companion object {

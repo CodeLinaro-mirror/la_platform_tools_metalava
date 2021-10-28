@@ -521,7 +521,7 @@ class PsiTypePrinter(
 
         if (elementAnnotations != null) {
             for (annotation in elementAnnotations) {
-                val name = mapAnnotation(annotation.qualifiedName())
+                val name = mapAnnotation(annotation.qualifiedName)
                 if (name != null) {
                     sb.append(annotation.toSource()).append(' ')
                     updated = true

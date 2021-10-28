@@ -238,6 +238,7 @@ object Issues {
         Issue(Severity.WARNING, Category.API_LINT, "builders-nonnull-constructors")
     val NO_SETTINGS_PROVIDER = Issue(Severity.HIDDEN, Category.API_LINT, "no-settings-provider")
     val NULLABLE_COLLECTION = Issue(Severity.WARNING, Category.API_LINT, "methods-prefer-non-null-collections")
+    val ASYNC_SUFFIX_FUTURE = Issue(Severity.ERROR, Category.API_LINT)
 
     fun findIssueById(id: String?): Issue? {
         return nameToIssue[id]

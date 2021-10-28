@@ -186,7 +186,7 @@ class ExtractAnnotations(
     /** For a given item, extract the relevant annotations for that item */
     private fun checkItem(item: Item) {
         for (annotation in item.modifiers.annotations()) {
-            val qualifiedName = annotation.qualifiedName() ?: continue
+            val qualifiedName = annotation.qualifiedName ?: continue
             if (qualifiedName.startsWith(JAVA_LANG_PREFIX) ||
                 qualifiedName.startsWith(ANDROIDX_ANNOTATION_PREFIX) ||
                 qualifiedName.startsWith(ANDROID_ANNOTATION_PREFIX) ||
@@ -195,7 +195,7 @@ class ExtractAnnotations(
                 if (annotation.isTypeDefAnnotation()) {
                     // Imported typedef
                     addItem(item, AnnotationHolder(null, annotation, null))
-                } else if (annotation.targets().contains(AnnotationTarget.EXTERNAL_ANNOTATIONS_FILE) &&
+                } else if (annotation.targets.contains(AnnotationTarget.EXTERNAL_ANNOTATIONS_FILE) &&
                     !options.includeSourceRetentionAnnotations
                 ) {
                     addItem(item, AnnotationHolder(null, annotation, null))
@@ -481,7 +481,7 @@ class ExtractAnnotations(
                     JavaUAnnotation.wrap(annotationItem.psiAnnotation)
                 else -> return
             }
-        val qualifiedName = annotationItem.qualifiedName()
+        val qualifiedName = annotationItem.qualifiedName
 
         writer.mark()
         writer.print("    <annotation name=\"")
