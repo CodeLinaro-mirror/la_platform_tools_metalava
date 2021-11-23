@@ -30,7 +30,7 @@ import org.jetbrains.kotlin.psi.KtObjectDeclaration
 import org.jetbrains.kotlin.psi.KtProperty
 import org.jetbrains.kotlin.psi.psiUtil.containingClassOrObject
 import org.jetbrains.kotlin.psi.psiUtil.isPublic
-import org.jetbrains.uast.kotlin.KotlinUField
+import org.jetbrains.uast.UField
 
 // Enforces the interoperability guidelines outlined in
 //   https://android.github.io/kotlin-guides/interop.html
@@ -133,7 +133,7 @@ class KotlinInteropChecks(val reporter: Reporter) {
             // dip into Kotlin PSI to figure out if this field was really declared in
             // a companion object
             val psi = field.psi()
-            if (psi is KotlinUField) {
+            if (psi is UField) {
                 val sourcePsi = psi.sourcePsi
                 if (sourcePsi is KtProperty) {
                     val companionClassName = sourcePsi.containingClassOrObject?.name

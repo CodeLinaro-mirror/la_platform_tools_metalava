@@ -15,6 +15,7 @@
  */
 package com.android.tools.metalava.model.text
 
+import com.android.SdkConstants.DOT_TXT
 import com.android.tools.lint.checks.infrastructure.stripComments
 import com.android.tools.metalava.ANDROIDX_NONNULL
 import com.android.tools.metalava.ANDROIDX_NULLABLE
@@ -162,7 +163,7 @@ object ApiFile {
 
         // Remove the block comments.
         val strippedApiText = if (apiText.contains("/*")) {
-            stripComments(apiText, false) // line comments are used to stash field constants
+            stripComments(apiText, DOT_TXT, false) // line comments are used to stash field constants
         } else {
             apiText
         }

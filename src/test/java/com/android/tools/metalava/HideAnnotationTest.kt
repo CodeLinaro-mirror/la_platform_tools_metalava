@@ -25,7 +25,7 @@ class HideAnnotationTest : DriverTest() {
     fun `Using hide annotation with Kotlin source`() {
         check(
             expectedIssues = """
-                src/test/pkg/).kt:3: warning: Public class test.pkg.ExtendingMyHiddenClass stripped of unavailable superclass test.pkg.MyHiddenClass [HiddenSuperclass]
+                src/test/pkg/ExtendingMyHiddenClass.kt:3: warning: Public class test.pkg.ExtendingMyHiddenClass stripped of unavailable superclass test.pkg.MyHiddenClass [HiddenSuperclass]
             """,
             sourceFiles = arrayOf(
                 kotlin(
