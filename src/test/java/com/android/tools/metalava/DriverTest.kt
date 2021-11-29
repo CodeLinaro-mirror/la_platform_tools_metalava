@@ -18,6 +18,8 @@ package com.android.tools.metalava
 
 import com.android.SdkConstants
 import com.android.SdkConstants.DOT_KT
+import com.android.SdkConstants.DOT_TXT
+import com.android.SdkConstants.DOT_XML
 import com.android.ide.common.process.DefaultProcessExecutor
 import com.android.ide.common.process.LoggedProcessOutputHandler
 import com.android.ide.common.process.ProcessException
@@ -1180,7 +1182,7 @@ abstract class DriverTest {
         if (api != null && apiFile != null) {
             assertTrue("${apiFile.path} does not exist even though --api was used", apiFile.exists())
             val actualText = readFile(apiFile, stripBlankLines, trim)
-            assertEquals(stripComments(api, stripLineComments = false).trimIndent(), actualText)
+            assertEquals(stripComments(api, DOT_TXT, stripLineComments = false).trimIndent(), actualText)
             // Make sure we can read back the files we write
             ApiFile.parseApi(apiFile, options.outputKotlinStyleNulls)
         }
@@ -1191,7 +1193,7 @@ abstract class DriverTest {
                 apiXmlFile.exists()
             )
             val actualText = readFile(apiXmlFile, stripBlankLines, trim)
-            assertEquals(stripComments(apiXml, stripLineComments = false).trimIndent(), actualText)
+            assertEquals(stripComments(apiXml, DOT_XML, stripLineComments = false).trimIndent(), actualText)
             // Make sure we can read back the files we write
             parseDocument(apiXmlFile.readText(UTF_8), false)
         }
@@ -1211,7 +1213,7 @@ abstract class DriverTest {
             // If "update baseline" is set, use it.
             // Otherwise, the original baseline.
             val sourceFile = mergeBaselineContent ?: updateBaselineContent ?: baselineContent ?: ""
-            assertEquals(stripComments(sourceFile, stripLineComments = false).trimIndent(), actualText)
+            assertEquals(stripComments(sourceFile, DOT_XML, stripLineComments = false).trimIndent(), actualText)
         }
         checkBaseline(ARG_BASELINE, baseline, updateBaseline, mergeBaseline, baselineFile)
         checkBaseline(ARG_BASELINE_API_LINT, baselineApiLint, updateBaselineApiLint, null, baselineApiLintFile)
@@ -1232,7 +1234,10 @@ abstract class DriverTest {
                 if (actualText.contains("<api")) {
                     parseDocument(actualText, false)
                 }
-                assertEquals(stripComments(expected, stripLineComments = false).trimIndent(), actualText)
+                assertEquals(
+                    stripComments(expected, DOT_XML, stripLineComments = false).trimIndent(),
+                    actualText
+                )
                 // Make sure we can read back the files we write
             }
         }
@@ -1243,7 +1248,10 @@ abstract class DriverTest {
                 dexApiFile.exists()
             )
             val actualText = readFile(dexApiFile, stripBlankLines, trim)
-            assertEquals(stripComments(dexApi, stripLineComments = false).trimIndent(), actualText)
+            assertEquals(
+                stripComments(dexApi, DOT_TXT, stripLineComments = false).trimIndent(),
+                actualText
+            )
         }
 
         if (removedApi != null && removedApiFile != null) {
@@ -1252,7 +1260,10 @@ abstract class DriverTest {
                 removedApiFile.exists()
             )
             val actualText = readFile(removedApiFile, stripBlankLines, trim)
-            assertEquals(stripComments(removedApi, stripLineComments = false).trimIndent(), actualText)
+            assertEquals(
+                stripComments(removedApi, DOT_TXT, stripLineComments = false).trimIndent(),
+                actualText
+            )
             // Make sure we can read back the files we write
             ApiFile.parseApi(removedApiFile, options.outputKotlinStyleNulls)
         }
@@ -1263,7 +1274,10 @@ abstract class DriverTest {
                 "${proguardFile.path} does not exist even though --proguard was used",
                 proguardFile.exists()
             )
-            assertEquals(stripComments(proguard, stripLineComments = false).trimIndent(), expectedProguard.trim())
+            assertEquals(
+                stripComments(proguard, DOT_TXT, stripLineComments = false).trimIndent(),
+                expectedProguard.trim()
+            )
         }
 
         if (sdk_broadcast_actions != null) {
@@ -1340,7 +1354,10 @@ abstract class DriverTest {
                 // To make golden files look better put one entry per line instead of a single
                 // space separated line
                 .replace(' ', '\n')
-            assertEquals(stripComments(stubsSourceList, stripLineComments = false).trimIndent(), actualText)
+            assertEquals(
+                stripComments(stubsSourceList, DOT_TXT, stripLineComments = false).trimIndent(),
+                actualText
+            )
         }
 
         if (docStubsSourceList != null && docStubsSourceListFile != null) {
@@ -1352,7 +1369,10 @@ abstract class DriverTest {
                 // To make golden files look better put one entry per line instead of a single
                 // space separated line
                 .replace(' ', '\n')
-            assertEquals(stripComments(docStubsSourceList, stripLineComments = false).trimIndent(), actualText)
+            assertEquals(
+                stripComments(docStubsSourceList, DOT_TXT, stripLineComments = false).trimIndent(),
+                actualText
+            )
         }
 
         if (checkCompilation && stubsDir != null) {

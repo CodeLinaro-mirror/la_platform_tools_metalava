@@ -398,7 +398,7 @@ class ApiFileTest : DriverTest() {
                     ctor public Context();
                     method public final <T> T getSystemService(Class<T>);
                   }
-                  public final class _java_Kt {
+                  public final class TestKt {
                     method public static inline <reified T> T systemService1(@NonNull test.pkg.Context);
                     method public static inline String systemService2(@NonNull test.pkg.Context);
                   }

@@ -36,6 +36,8 @@ import com.android.tools.metalava.model.psi.PsiMethodItem
 import com.android.tools.metalava.model.psi.UAnnotationItem
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.google.common.xml.XmlEscapers
+import com.intellij.lang.jvm.annotation.JvmAnnotationConstantValue
+import com.intellij.lang.jvm.annotation.JvmAnnotationEnumFieldValue
 import com.intellij.psi.JavaRecursiveElementVisitor
 import com.intellij.psi.PsiAnnotation
 import com.intellij.psi.PsiClass
@@ -51,8 +53,8 @@ import org.jetbrains.uast.UExpression
 import org.jetbrains.uast.UReferenceExpression
 import org.jetbrains.uast.USimpleNameReferenceExpression
 import org.jetbrains.uast.UastEmptyExpression
-import org.jetbrains.uast.java.JavaUAnnotation
-import org.jetbrains.uast.java.expressions.JavaUAnnotationCallExpression
+import org.jetbrains.uast.UastFacade
+import org.jetbrains.uast.toUElement
 import java.io.BufferedOutputStream
 import java.io.File
 import java.io.FileOutputStream
@@ -332,8 +334,15 @@ class ExtractAnnotations(
         val modifierList = cls.modifierList
         if (modifierList != null) {
             for (psiAnnotation in modifierList.annotations) {
-                val annotation = JavaUAnnotation.wrap(psiAnnotation)
-                if (hasSourceRetention(annotation)) {
+                val uAnnotation = psiAnnotation.toUElement(UAnnotation::class.java)
+                val hasSourceRetention =
+                    if (uAnnotation != null) {
+                        hasSourceRetention(uAnnotation)
+                    } else {
+                        // There is a hole in UAST conversion. If so, fall back to using PSI.
+                        hasSourceRetention(psiAnnotation)
+                    }
+                if (hasSourceRetention) {
                     return true
                 }
             }
@@ -344,7 +353,7 @@ class ExtractAnnotations(
 
     private fun hasSourceRetention(annotation: UAnnotation): Boolean {
         val qualifiedName = annotation.qualifiedName
-        if ("java.lang.annotation.Retention" == qualifiedName || "kotlin.annotation.Retention" == qualifiedName) {
+        if (isRetention(qualifiedName)) {
             val attributes = annotation.attributeValues
             if (attributes.size != 1) {
                 reporter.report(
@@ -359,14 +368,36 @@ class ExtractAnnotations(
                     val element = value.resolve()
                     if (element is PsiField) {
                         val field = element as PsiField?
-                        if ("SOURCE" == field!!.name) {
+                        if (SOURCE == field!!.name) {
                             return true
                         }
                     }
                 } catch (t: Throwable) {
                     val s = value.asSourceString()
-                    return s.contains("SOURCE")
+                    return s.contains(SOURCE)
                 }
+            }
+        }
+
+        return false
+    }
+
+    private fun hasSourceRetention(psiAnnotation: PsiAnnotation): Boolean {
+        val qualifiedName = psiAnnotation.qualifiedName
+        if (isRetention(qualifiedName)) {
+            val attributes = psiAnnotation.parameterList.attributes
+            if (attributes.size != 1) {
+                reporter.report(
+                    Issues.ANNOTATION_EXTRACTION, psiAnnotation,
+                    "Expected exactly one parameter passed to @Retention"
+                )
+                return false
+            }
+            return when (val value = attributes[0].attributeValue) {
+                is JvmAnnotationEnumFieldValue -> SOURCE == value.fieldName
+                is JvmAnnotationConstantValue ->
+                    (value.constantValue as? String)?.contains(SOURCE) ?: false
+                else -> false
             }
         }
 
@@ -478,7 +509,7 @@ class ExtractAnnotations(
                 is UAnnotationItem -> annotationItem.uAnnotation
                 is PsiAnnotationItem ->
                     // Imported annotation
-                    JavaUAnnotation.wrap(annotationItem.psiAnnotation)
+                    annotationItem.psiAnnotation.toUElement(UAnnotation::class.java) ?: return
                 else -> return
             }
         val qualifiedName = annotationItem.qualifiedName
@@ -522,14 +553,17 @@ class ExtractAnnotations(
                 // but we'll counteract that on the read-annotations side.
                 val annotation = expression as UAnnotation
                 attributes = annotation.attributeValues
-            } else if (expression is JavaUAnnotationCallExpression) {
-                val annotation = expression.uAnnotation
-                attributes = annotation.attributeValues
+            } else if (expression is UCallExpression) {
+                val nestedPsi = expression.sourcePsi as? PsiAnnotation
+                val annotation = nestedPsi?.let {
+                    UastFacade.convertElement(it, expression, UAnnotation::class.java)
+                } as? UAnnotation
+                annotation?.attributeValues?.let { attributes = it }
             } else if (expression is UastEmptyExpression && attributes[0].sourcePsi is PsiNameValuePair) {
                 val memberValue = (attributes[0].sourcePsi as PsiNameValuePair).value
                 if (memberValue is PsiAnnotation) {
-                    val annotation = JavaUAnnotation.wrap(memberValue)
-                    attributes = annotation.attributeValues
+                    val annotation = memberValue.toUElement(UAnnotation::class.java)
+                    annotation?.attributeValues?.let { attributes = it }
                 }
             }
         }
@@ -592,4 +626,13 @@ class ExtractAnnotations(
 
     /** Whether to sort annotation attributes (otherwise their declaration order is used)  */
     private val sortAnnotations: Boolean = true
+
+    companion object {
+        private const val SOURCE = "SOURCE"
+        private const val JAVA_RETENTION = "java.lang.annotation.Retention"
+        private const val KT_RETENTION = "kotlin.annotation.Retention"
+
+        private fun isRetention(qualifiedName: String?): Boolean =
+            JAVA_RETENTION == qualifiedName || KT_RETENTION == qualifiedName
+    }
 }

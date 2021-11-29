@@ -67,7 +67,7 @@ val studioVersion: String = if (customLintVersion != null) {
     logger.warn("Building using custom $customLintVersion version of Android Lint")
     customLintVersion
 } else {
-    "30.1.0-alpha01"
+    "30.1.0-alpha13"
 }
 val kotlinVersion: String = "1.5.31"
 
@@ -88,7 +88,7 @@ dependencies {
     implementation("org.ow2.asm:asm-tree:8.0")
     implementation("com.google.guava:guava:30.1.1-jre")
     testImplementation("com.android.tools.lint:lint-tests:$studioVersion")
-    testImplementation("junit:junit:4.12")
+    testImplementation("junit:junit:4.13.2")
     testImplementation("com.google.truth:truth:1.1.3")
     testImplementation("org.jetbrains.kotlin:kotlin-test:$kotlinVersion")
 }

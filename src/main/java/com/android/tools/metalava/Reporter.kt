@@ -36,8 +36,8 @@ import com.intellij.psi.PsiModifierListOwner
 import com.intellij.psi.PsiNameIdentifierOwner
 import com.intellij.psi.impl.light.LightElement
 import org.jetbrains.kotlin.psi.KtModifierListOwner
+import org.jetbrains.uast.UClass
 import org.jetbrains.uast.UElement
-import org.jetbrains.uast.kotlin.KotlinUClass
 import java.io.File
 import java.io.PrintWriter
 
@@ -235,7 +235,7 @@ class Reporter(
     private fun getTextRange(element: PsiElement): TextRange? {
         var range: TextRange? = null
 
-        if (element is KotlinUClass) {
+        if (element is UClass) {
             range = element.sourcePsi?.textRange
         } else if (element is PsiCompiledElement) {
             if (element is LightElement) {
