@@ -16,6 +16,9 @@
 
 package com.android.tools.metalava.model.psi
 
+import com.android.tools.metalava.JAVA_RETENTION
+import com.android.tools.metalava.KT_RETENTION
+import com.android.tools.metalava.isRetention
 import com.android.tools.metalava.model.AnnotationRetention
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ConstructorItem
@@ -46,7 +49,6 @@ import org.jetbrains.kotlin.psi.psiUtil.isPropertyParameter
 import org.jetbrains.uast.UClass
 import org.jetbrains.uast.UFile
 import org.jetbrains.uast.getParentOfType
-import org.jetbrains.uast.kotlin.KotlinUClass
 
 open class PsiClassItem(
     override val codebase: PsiBasedCodebase,
@@ -399,11 +401,15 @@ open class PsiClassItem(
     override fun toString(): String = "class ${qualifiedName()}"
 
     companion object {
-        private fun hasExplicitRetention(modifiers: PsiModifierItem, psiClass: PsiClass, isKotlin: Boolean): Boolean {
-            if (modifiers.findAnnotation("java.lang.annotation.Retention") != null) {
+        private fun hasExplicitRetention(
+            modifiers: PsiModifierItem,
+            psiClass: PsiClass,
+            isKotlin: Boolean
+        ): Boolean {
+            if (modifiers.findAnnotation(JAVA_RETENTION) != null) {
                 return true
             }
-            if (modifiers.findAnnotation("kotlin.annotation.Retention") != null) {
+            if (modifiers.findAnnotation(KT_RETENTION) != null) {
                 return true
             }
             if (isKotlin && psiClass is UClass) {
@@ -411,11 +417,8 @@ open class PsiClassItem(
                 // a @DslMarker annotation will imply a runtime annotation which is present
                 // in the java facade, not in the source list of annotations
                 val modifierList = psiClass.modifierList
-                if (modifierList != null && modifierList.annotations.any {
-                    val qualifiedName = it.qualifiedName
-                    qualifiedName == "kotlin.annotation.Retention" ||
-                        qualifiedName == "java.lang.annotation.Retention"
-                }
+                if (modifierList != null &&
+                    modifierList.annotations.any { isRetention(it.qualifiedName) }
                 ) {
                     return true
                 }
@@ -438,7 +441,7 @@ open class PsiClassItem(
             val classType = ClassType.getClassType(psiClass)
 
             val commentText = PsiItem.javadoc(psiClass)
-            val isFacade = (psiClass as? KotlinUClass)?.javaPsi is KtLightClassForFacade
+            val isFacade = (psiClass as? UClass)?.javaPsi is KtLightClassForFacade
             val modifiers = PsiModifierItem
                 .create(codebase, psiClass, commentText, codebase.enableKotlinPsi && !isFacade)
 
@@ -646,7 +649,7 @@ open class PsiClassItem(
                 //     @file:JvmName("-ViewModelExtensions") // Hide from Java sources in the IDE.
                 return false
             }
-            if (psiClass is KotlinUClass && psiClass.sourcePsi == null) {
+            if (psiClass is UClass && psiClass.sourcePsi == null) {
                 // Top level kt classes (FooKt for Foo.kt) do not have implicit default constructor
                 return false
             }

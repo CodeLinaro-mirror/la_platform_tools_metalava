@@ -629,10 +629,5 @@ class ExtractAnnotations(
 
     companion object {
         private const val SOURCE = "SOURCE"
-        private const val JAVA_RETENTION = "java.lang.annotation.Retention"
-        private const val KT_RETENTION = "kotlin.annotation.Retention"
-
-        private fun isRetention(qualifiedName: String?): Boolean =
-            JAVA_RETENTION == qualifiedName || KT_RETENTION == qualifiedName
     }
 }

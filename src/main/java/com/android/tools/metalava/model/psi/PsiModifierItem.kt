@@ -31,6 +31,8 @@ import com.intellij.psi.PsiModifierListOwner
 import com.intellij.psi.PsiPrimitiveType
 import com.intellij.psi.PsiReferenceExpression
 import com.intellij.psi.impl.light.LightModifierList
+import org.jetbrains.annotations.NotNull
+import org.jetbrains.annotations.Nullable
 import org.jetbrains.kotlin.asJava.elements.KtLightModifierList
 import org.jetbrains.kotlin.asJava.elements.KtLightNullabilityAnnotation
 import org.jetbrains.kotlin.descriptors.DeclarationDescriptorWithVisibility
@@ -49,10 +51,10 @@ import org.jetbrains.kotlin.psi.psiUtil.hasFunModifier
 import org.jetbrains.kotlin.psi.psiUtil.visibilityModifier
 import org.jetbrains.kotlin.resolve.BindingContext
 import org.jetbrains.uast.UAnnotated
+import org.jetbrains.uast.UAnnotation
 import org.jetbrains.uast.UElement
 import org.jetbrains.uast.UMethod
 import org.jetbrains.uast.UVariable
-import org.jetbrains.uast.kotlin.KotlinNullabilityUAnnotation
 
 class PsiModifierItem(
     codebase: Codebase,
@@ -285,7 +287,7 @@ class PsiModifierItem(
                 PsiModifierItem(codebase, flags)
             } else {
                 val annotations: MutableList<AnnotationItem> =
-                    // psi sometimes returns duplicate annotations, using distint() to counter that.
+                    // psi sometimes returns duplicate annotations, using distinct() to counter that.
                     psiAnnotations.distinct().map {
                         val qualifiedName = it.qualifiedName
                         // Consider also supporting com.android.internal.annotations.VisibleForTesting?
@@ -339,7 +341,11 @@ class PsiModifierItem(
 
                 val annotations: MutableList<AnnotationItem> = uAnnotations
                     // Uast sometimes puts nullability annotations on primitives!?
-                    .filter { !isPrimitiveVariable || it !is KotlinNullabilityUAnnotation }
+                    .filter {
+                        !isPrimitiveVariable ||
+                            it.qualifiedName == null ||
+                            !it.isKotlinNullabilityAnnotation
+                    }
                     .map {
 
                         val qualifiedName = it.qualifiedName
@@ -371,6 +377,12 @@ class PsiModifierItem(
                 PsiModifierItem(codebase, flags, annotations)
             }
         }
+
+        private val NOT_NULL = NotNull::class.qualifiedName
+        private val NULLABLE = Nullable::class.qualifiedName
+
+        private val UAnnotation.isKotlinNullabilityAnnotation: Boolean
+            get() = qualifiedName == NOT_NULL || qualifiedName == NULLABLE
 
         /** Modifies the modifier flags based on the VisibleForTesting otherwise constants */
         private fun getVisibilityFlag(ref: String, flags: Int): Int {
