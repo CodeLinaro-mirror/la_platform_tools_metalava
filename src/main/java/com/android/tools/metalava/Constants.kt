@@ -47,3 +47,9 @@ const val ENV_VAR_METALAVA_TESTS_RUNNING = "METALAVA_TESTS_RUNNING"
 const val ENV_VAR_METALAVA_DUMP_ARGV = "METALAVA_DUMP_ARGV"
 const val ENV_VAR_METALAVA_PREPEND_ARGS = "METALAVA_PREPEND_ARGS"
 const val ENV_VAR_METALAVA_APPEND_ARGS = "METALAVA_APPEND_ARGS"
+
+const val JAVA_RETENTION = "java.lang.annotation.Retention"
+const val KT_RETENTION = "kotlin.annotation.Retention"
+
+fun isRetention(qualifiedName: String?): Boolean =
+    JAVA_RETENTION == qualifiedName || KT_RETENTION == qualifiedName
