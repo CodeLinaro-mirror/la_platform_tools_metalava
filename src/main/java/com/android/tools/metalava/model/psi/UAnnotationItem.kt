@@ -41,6 +41,7 @@ import org.jetbrains.uast.UCallExpression
 import org.jetbrains.uast.UElement
 import org.jetbrains.uast.UExpression
 import org.jetbrains.uast.ULiteralExpression
+import org.jetbrains.uast.UQualifiedReferenceExpression
 import org.jetbrains.uast.UReferenceExpression
 import org.jetbrains.uast.util.isArrayInitializer
 
@@ -164,38 +165,17 @@ class UAnnotationItem private constructor(
             when (value) {
                 null -> sb.append("null")
                 is ULiteralExpression -> sb.append(CodePrinter.constantToSource(value.value))
+                is UQualifiedReferenceExpression -> { // the value is a Foo.BAR type of reference.
+                    // expand `Foo` to fully qualified name `com.example.Foo`
+                    appendQualifiedName(codebase, sb, value.receiver as UReferenceExpression)
+                    // append accessor `.`
+                    sb.append(value.accessType.name)
+                    // append `BAR`
+                    sb.append(value.selector.asRenderString())
+                }
                 is UReferenceExpression -> {
-                    when (val resolved = value.resolve()) {
-                        is PsiField -> {
-                            val containing = resolved.containingClass
-                            if (containing != null) {
-                                // If it's a field reference, see if it looks like the field is hidden; if
-                                // so, inline the value
-                                val cls = codebase.findOrCreateClass(containing)
-                                val initializer = resolved.initializer
-                                if (initializer != null) {
-                                    val fieldItem = cls.findField(resolved.name)
-                                    if (fieldItem == null || fieldItem.isHiddenOrRemoved()) {
-                                        // Use the literal value instead
-                                        val source = getConstantSource(initializer)
-                                        if (source != null) {
-                                            sb.append(source)
-                                            return
-                                        }
-                                    }
-                                }
-                                containing.qualifiedName?.let {
-                                    sb.append(it).append('.')
-                                }
-                            }
-
-                            sb.append(resolved.name)
-                        }
-                        is PsiClass -> resolved.qualifiedName?.let { sb.append(it) }
-                        else -> {
-                            sb.append(value.sourcePsi?.text ?: value.asSourceString())
-                        }
-                    }
+                    // expand Foo to fully qualified name com.example.Foo
+                    appendQualifiedName(codebase, sb, value)
                 }
                 is UBinaryExpression -> {
                     appendValue(codebase, sb, value.leftOperand, target, showDefaultAttrs)
@@ -228,6 +208,40 @@ class UAnnotationItem private constructor(
                         sb.append(source)
                         return
                     }
+                    sb.append(value.sourcePsi?.text ?: value.asSourceString())
+                }
+            }
+        }
+
+        private fun appendQualifiedName(codebase: PsiBasedCodebase, sb: StringBuilder, value: UReferenceExpression) {
+            when (val resolved = value.resolve()) {
+                is PsiField -> {
+                    val containing = resolved.containingClass
+                    if (containing != null) {
+                        // If it's a field reference, see if it looks like the field is hidden; if
+                        // so, inline the value
+                        val cls = codebase.findOrCreateClass(containing)
+                        val initializer = resolved.initializer
+                        if (initializer != null) {
+                            val fieldItem = cls.findField(resolved.name)
+                            if (fieldItem == null || fieldItem.isHiddenOrRemoved()) {
+                                // Use the literal value instead
+                                val source = getConstantSource(initializer)
+                                if (source != null) {
+                                    sb.append(source)
+                                    return
+                                }
+                            }
+                        }
+                        containing.qualifiedName?.let {
+                            sb.append(it).append('.')
+                        }
+                    }
+
+                    sb.append(resolved.name)
+                }
+                is PsiClass -> resolved.qualifiedName?.let { sb.append(it) }
+                else -> {
                     sb.append(value.sourcePsi?.text ?: value.asSourceString())
                 }
             }
