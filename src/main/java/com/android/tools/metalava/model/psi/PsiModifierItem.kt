@@ -46,6 +46,7 @@ import org.jetbrains.kotlin.psi.KtElement
 import org.jetbrains.kotlin.psi.KtModifierList
 import org.jetbrains.kotlin.psi.KtModifierListOwner
 import org.jetbrains.kotlin.psi.KtNamedFunction
+import org.jetbrains.kotlin.psi.KtParameter
 import org.jetbrains.kotlin.psi.KtPropertyAccessor
 import org.jetbrains.kotlin.psi.psiUtil.hasFunModifier
 import org.jetbrains.kotlin.psi.psiUtil.visibilityModifier
@@ -248,30 +249,35 @@ class PsiModifierItem(
 
             fun set(flag: Int) { flags = flags or flag }
 
-            // Class-specific modifier rules
-            if (element is KtClassOrObject) {
-                // Abstractness
-                when {
-                    element is KtClass && element.isInterface() -> set(ABSTRACT)
-                    element.isAnnotation() -> set(ABSTRACT)
-                    element.hasModifier(KtTokens.ABSTRACT_KEYWORD) -> set(ABSTRACT)
-                    element.hasModifier(KtTokens.SEALED_KEYWORD) -> set(SEALED or ABSTRACT)
-                    element.hasModifier(KtTokens.OPEN_KEYWORD) -> {}
-                    else -> set(FINAL)
-                }
+            // Element specific modifier rules
+            when (element) {
+                is KtClassOrObject -> {
+                    // Abstractness
+                    when {
+                        element is KtClass && element.isInterface() -> set(ABSTRACT)
+                        element.isAnnotation() -> set(ABSTRACT)
+                        element.hasModifier(KtTokens.ABSTRACT_KEYWORD) -> set(ABSTRACT)
+                        element.hasModifier(KtTokens.SEALED_KEYWORD) -> set(SEALED or ABSTRACT)
+                        element.hasModifier(KtTokens.OPEN_KEYWORD) -> {}
+                        else -> set(FINAL)
+                    }
 
-                // Class types
-                when {
-                    element.hasModifier(KtTokens.INLINE_KEYWORD) -> set(INLINE)
-                    element.hasModifier(KtTokens.DATA_KEYWORD) -> set(DATA)
-                    element.hasModifier(KtTokens.VALUE_KEYWORD) -> set(VALUE)
-                    element.hasModifier(KtTokens.FUN_KEYWORD) -> set(FUN)
-                    element.hasModifier(KtTokens.COMPANION_KEYWORD) -> set(COMPANION)
-                }
+                    // Class types
+                    when {
+                        element.hasModifier(KtTokens.INLINE_KEYWORD) -> set(INLINE)
+                        element.hasModifier(KtTokens.DATA_KEYWORD) -> set(DATA)
+                        element.hasModifier(KtTokens.VALUE_KEYWORD) -> set(VALUE)
+                        element.hasModifier(KtTokens.FUN_KEYWORD) -> set(FUN)
+                        element.hasModifier(KtTokens.COMPANION_KEYWORD) -> set(COMPANION)
+                    }
 
-                // Static
-                if (!element.hasModifier(KtTokens.INNER_KEYWORD) && !element.isTopLevel()) {
-                    set(STATIC)
+                    // Static
+                    if (!element.hasModifier(KtTokens.INNER_KEYWORD) && !element.isTopLevel()) {
+                        set(STATIC)
+                    }
+                }
+                is KtParameter -> {
+                    if (element.isVarArg) set(VARARG)
                 }
             }
 
