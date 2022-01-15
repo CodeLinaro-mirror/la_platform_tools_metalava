@@ -180,4 +180,24 @@ class PsiModifierItemTest {
             assertTrue(codebase.assertClass("TopLevel.Object").modifiers.isStatic())
         }
     }
+
+    fun `Kotlin vararg parameters`() {
+        testCodebase(
+            kotlin(
+                "Foo.kt",
+                """
+                    fun varArg(vararg parameter: Int) { TODO() }
+                    fun nonVarArg(parameter: Int) { TODO() }
+                """
+            )
+        ) { codebase ->
+            val facade = codebase.assertClass("FooKt")
+            val varArg = facade.methods().single { it.name() == "varArg" }.parameters().single()
+            val nonVarArg =
+                facade.methods().single { it.name() == "nonVarArg" }.parameters().single()
+
+            assertTrue(varArg.modifiers.isVarArg())
+            assertFalse(nonVarArg.modifiers.isVarArg())
+        }
+    }
 }

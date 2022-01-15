@@ -25,6 +25,7 @@ import com.intellij.psi.PsiParameter
 import org.jetbrains.kotlin.psi.KtConstantExpression
 import org.jetbrains.kotlin.psi.KtFunction
 import org.jetbrains.kotlin.psi.KtParameter
+import org.jetbrains.uast.UElement
 import org.jetbrains.uast.UExpression
 import org.jetbrains.uast.UMethod
 import org.jetbrains.uast.UastFacade
@@ -240,12 +241,18 @@ class PsiParameterItem(
             return original.map { create(codebase, it as PsiParameterItem) }
         }
 
-        fun createParameterModifiers(
+        private fun createParameterModifiers(
             codebase: PsiBasedCodebase,
             psiParameter: PsiParameter,
             commentText: String
         ): PsiModifierItem {
-            val modifiers = modifiers(codebase, psiParameter, commentText)
+            // Only use the Kotlin PSI path for parameters with a [KtParameter] source PSI. UAST's
+            // view of Kotlin doesn't always include a source PSI. This occurs in two main cases:
+            // property setters and the receiver parameter of extension functions.
+            val enableKotlinPsi = codebase.enableKotlinPsi &&
+                psiParameter is UElement && psiParameter.sourcePsi is KtParameter
+            val modifiers = PsiModifierItem
+                .create(codebase, psiParameter, commentText, enableKotlinPsi)
             // Method parameters don't have a visibility level; they are visible to anyone that can
             // call their method. However, Kotlin constructors sometimes appear to specify the
             // visibility of a constructor parameter by putting visibility inside the constructor
