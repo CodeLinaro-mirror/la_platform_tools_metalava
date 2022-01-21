@@ -251,7 +251,8 @@ private fun processFlags() {
         } else {
             return
         }
-    codebase.apiLevel = options.currentApiLevel + if (options.currentCodeName != null) 1 else 0
+    codebase.apiLevel = options.currentApiLevel +
+        if (options.currentCodeName != null && "REL" != options.currentCodeName) 1 else 0
     options.manifest?.let { codebase.manifest = it }
 
     if (options.verbose) {

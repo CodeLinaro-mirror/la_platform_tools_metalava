@@ -191,25 +191,6 @@ abstract class DriverTest {
         }
     }
 
-    private fun findKotlinStdlibPath(): List<String> {
-        val classPath: String = System.getProperty("java.class.path")
-        val paths = mutableListOf<String>()
-        for (path in classPath.split(':')) {
-            val file = File(path)
-            val name = file.name
-            if (name.startsWith("kotlin-stdlib") ||
-                name.startsWith("kotlin-reflect") ||
-                name.startsWith("kotlin-script-runtime")
-            ) {
-                paths.add(file.path)
-            }
-        }
-        if (paths.isEmpty()) {
-            error("Did not find kotlin-stdlib-jre8 in $PROGRAM_NAME classpath: $classPath")
-        }
-        return paths
-    }
-
     protected fun getJdkPath(): String? {
         val javaHome = System.getProperty("java.home")
         if (javaHome != null) {
@@ -986,15 +967,7 @@ abstract class DriverTest {
             skipEmitPackagesArgs.add(it)
         }
 
-        val kotlinPath = findKotlinStdlibPath()
-        val kotlinPathArgs =
-            if (kotlinPath.isNotEmpty() &&
-                sourceList.asSequence().any { it.endsWith(DOT_KT) }
-            ) {
-                arrayOf(ARG_CLASS_PATH, kotlinPath.joinToString(separator = File.pathSeparator) { it })
-            } else {
-                emptyArray()
-            }
+        val kotlinPathArgs = findKotlinStdlibPathArgs(sourceList)
 
         val sdkFilesDir: File?
         val sdkFilesArgs: Array<String>
@@ -1505,6 +1478,37 @@ abstract class DriverTest {
             return apiText
         }
     }
+}
+
+/**
+ * A slight modification of com.android.tools.lint.checks.infrastructure.findKotlinStdLibPath
+ * that prints program name on error. Returns the paths as metalava args expected by Options.
+ */
+fun findKotlinStdlibPathArgs(sources: Array<String>): Array<String> {
+    val classPath: String = System.getProperty("java.class.path")
+    val paths = mutableListOf<String>()
+    for (path in classPath.split(':')) {
+        val file = File(path)
+        val name = file.name
+        if (name.startsWith("kotlin-stdlib") ||
+            name.startsWith("kotlin-reflect") ||
+            name.startsWith("kotlin-script-runtime")
+        ) {
+            paths.add(file.path)
+        }
+    }
+    if (paths.isEmpty()) {
+        error("Did not find kotlin-stdlib-jre8 in $PROGRAM_NAME classpath: $classPath")
+    }
+    val kotlinPathArgs =
+        if (paths.isNotEmpty() &&
+            sources.asSequence().any { it.endsWith(DOT_KT) }
+        ) {
+            arrayOf(ARG_CLASS_PATH, paths.joinToString(separator = File.pathSeparator) { it })
+        } else {
+            emptyArray()
+        }
+    return kotlinPathArgs
 }
 
 val intRangeAnnotationSource: TestFile = java(
