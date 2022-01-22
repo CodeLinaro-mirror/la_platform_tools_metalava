@@ -21,6 +21,7 @@ import com.android.tools.lint.UastEnvironment
 import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.metalava.ENV_VAR_METALAVA_TESTS_RUNNING
 import com.android.tools.metalava.Options
+import com.android.tools.metalava.findKotlinStdlibPathArgs
 import com.android.tools.metalava.options
 import com.android.tools.metalava.parseSources
 import com.android.tools.metalava.tempDirectory
@@ -52,7 +53,10 @@ fun createTestCodebase(
 ): PsiBasedCodebase {
     System.setProperty(ENV_VAR_METALAVA_TESTS_RUNNING, SdkConstants.VALUE_TRUE)
     Disposer.setDebugMode(true)
-    options = Options(emptyArray())
+
+    val sourcePaths = sources.map { it.targetPath }.toTypedArray()
+    val kotlinPathArgs = findKotlinStdlibPathArgs(sourcePaths)
+    options = Options(kotlinPathArgs)
 
     return parseSources(
         sources = sources.map { it.createFile(directory) },
