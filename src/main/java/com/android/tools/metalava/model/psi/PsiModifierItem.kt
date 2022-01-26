@@ -31,6 +31,8 @@ import com.intellij.psi.PsiModifierListOwner
 import com.intellij.psi.PsiPrimitiveType
 import com.intellij.psi.PsiReferenceExpression
 import com.intellij.psi.impl.light.LightModifierList
+import org.jetbrains.annotations.NotNull
+import org.jetbrains.annotations.Nullable
 import org.jetbrains.kotlin.asJava.elements.KtLightModifierList
 import org.jetbrains.kotlin.asJava.elements.KtLightNullabilityAnnotation
 import org.jetbrains.kotlin.descriptors.DeclarationDescriptorWithVisibility
@@ -44,15 +46,16 @@ import org.jetbrains.kotlin.psi.KtElement
 import org.jetbrains.kotlin.psi.KtModifierList
 import org.jetbrains.kotlin.psi.KtModifierListOwner
 import org.jetbrains.kotlin.psi.KtNamedFunction
+import org.jetbrains.kotlin.psi.KtParameter
 import org.jetbrains.kotlin.psi.KtPropertyAccessor
 import org.jetbrains.kotlin.psi.psiUtil.hasFunModifier
 import org.jetbrains.kotlin.psi.psiUtil.visibilityModifier
 import org.jetbrains.kotlin.resolve.BindingContext
 import org.jetbrains.uast.UAnnotated
+import org.jetbrains.uast.UAnnotation
 import org.jetbrains.uast.UElement
 import org.jetbrains.uast.UMethod
 import org.jetbrains.uast.UVariable
-import org.jetbrains.uast.kotlin.KotlinNullabilityUAnnotation
 
 class PsiModifierItem(
     codebase: Codebase,
@@ -246,30 +249,35 @@ class PsiModifierItem(
 
             fun set(flag: Int) { flags = flags or flag }
 
-            // Class-specific modifier rules
-            if (element is KtClassOrObject) {
-                // Abstractness
-                when {
-                    element is KtClass && element.isInterface() -> set(ABSTRACT)
-                    element.isAnnotation() -> set(ABSTRACT)
-                    element.hasModifier(KtTokens.ABSTRACT_KEYWORD) -> set(ABSTRACT)
-                    element.hasModifier(KtTokens.SEALED_KEYWORD) -> set(SEALED or ABSTRACT)
-                    element.hasModifier(KtTokens.OPEN_KEYWORD) -> {}
-                    else -> set(FINAL)
-                }
+            // Element specific modifier rules
+            when (element) {
+                is KtClassOrObject -> {
+                    // Abstractness
+                    when {
+                        element is KtClass && element.isInterface() -> set(ABSTRACT)
+                        element.isAnnotation() -> set(ABSTRACT)
+                        element.hasModifier(KtTokens.ABSTRACT_KEYWORD) -> set(ABSTRACT)
+                        element.hasModifier(KtTokens.SEALED_KEYWORD) -> set(SEALED or ABSTRACT)
+                        element.hasModifier(KtTokens.OPEN_KEYWORD) -> {}
+                        else -> set(FINAL)
+                    }
 
-                // Class types
-                when {
-                    element.hasModifier(KtTokens.INLINE_KEYWORD) -> set(INLINE)
-                    element.hasModifier(KtTokens.DATA_KEYWORD) -> set(DATA)
-                    element.hasModifier(KtTokens.VALUE_KEYWORD) -> set(VALUE)
-                    element.hasModifier(KtTokens.FUN_KEYWORD) -> set(FUN)
-                    element.hasModifier(KtTokens.COMPANION_KEYWORD) -> set(COMPANION)
-                }
+                    // Class types
+                    when {
+                        element.hasModifier(KtTokens.INLINE_KEYWORD) -> set(INLINE)
+                        element.hasModifier(KtTokens.DATA_KEYWORD) -> set(DATA)
+                        element.hasModifier(KtTokens.VALUE_KEYWORD) -> set(VALUE)
+                        element.hasModifier(KtTokens.FUN_KEYWORD) -> set(FUN)
+                        element.hasModifier(KtTokens.COMPANION_KEYWORD) -> set(COMPANION)
+                    }
 
-                // Static
-                if (!element.hasModifier(KtTokens.INNER_KEYWORD) && !element.isTopLevel()) {
-                    set(STATIC)
+                    // Static
+                    if (!element.hasModifier(KtTokens.INNER_KEYWORD) && !element.isTopLevel()) {
+                        set(STATIC)
+                    }
+                }
+                is KtParameter -> {
+                    if (element.isVarArg) set(VARARG)
                 }
             }
 
@@ -285,7 +293,7 @@ class PsiModifierItem(
                 PsiModifierItem(codebase, flags)
             } else {
                 val annotations: MutableList<AnnotationItem> =
-                    // psi sometimes returns duplicate annotations, using distint() to counter that.
+                    // psi sometimes returns duplicate annotations, using distinct() to counter that.
                     psiAnnotations.distinct().map {
                         val qualifiedName = it.qualifiedName
                         // Consider also supporting com.android.internal.annotations.VisibleForTesting?
@@ -339,7 +347,11 @@ class PsiModifierItem(
 
                 val annotations: MutableList<AnnotationItem> = uAnnotations
                     // Uast sometimes puts nullability annotations on primitives!?
-                    .filter { !isPrimitiveVariable || it !is KotlinNullabilityUAnnotation }
+                    .filter {
+                        !isPrimitiveVariable ||
+                            it.qualifiedName == null ||
+                            !it.isKotlinNullabilityAnnotation
+                    }
                     .map {
 
                         val qualifiedName = it.qualifiedName
@@ -371,6 +383,12 @@ class PsiModifierItem(
                 PsiModifierItem(codebase, flags, annotations)
             }
         }
+
+        private val NOT_NULL = NotNull::class.qualifiedName
+        private val NULLABLE = Nullable::class.qualifiedName
+
+        private val UAnnotation.isKotlinNullabilityAnnotation: Boolean
+            get() = qualifiedName == NOT_NULL || qualifiedName == NULLABLE
 
         /** Modifies the modifier flags based on the VisibleForTesting otherwise constants */
         private fun getVisibilityFlag(ref: String, flags: Int): Int {

@@ -25,7 +25,7 @@ class HideAnnotationTest : DriverTest() {
     fun `Using hide annotation with Kotlin source`() {
         check(
             expectedIssues = """
-                src/test/pkg/).kt:3: warning: Public class test.pkg.ExtendingMyHiddenClass stripped of unavailable superclass test.pkg.MyHiddenClass [HiddenSuperclass]
+                src/test/pkg/ExtendingMyHiddenClass.kt:3: warning: Public class test.pkg.ExtendingMyHiddenClass stripped of unavailable superclass test.pkg.MyHiddenClass [HiddenSuperclass]
             """,
             sourceFiles = arrayOf(
                 kotlin(
@@ -73,7 +73,7 @@ class HideAnnotationTest : DriverTest() {
                   public class ExtendingMyHiddenClass<Float> {
                     ctor public ExtendingMyHiddenClass();
                   }
-                  @kotlin.annotation.Retention(kotlin.annotation.AnnotationRetention) @kotlin.annotation.Target(allowedTargets=kotlin.annotation.AnnotationTarget) public @interface MetaHide {
+                  @kotlin.annotation.Retention(kotlin.annotation.AnnotationRetention.BINARY) @kotlin.annotation.Target(allowedTargets=kotlin.annotation.AnnotationTarget.ANNOTATION_CLASS) public @interface MetaHide {
                   }
                 }
                 """
