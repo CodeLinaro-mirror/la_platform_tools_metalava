@@ -2589,7 +2589,9 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
             name: String,
             prop: (GetterSetterPattern) -> String
         ) = firstOrNull {
-            name.startsWith(prop(it)) && name.getOrNull(prop(it).length)?.isUpperCase() ?: false
+            name.startsWith(prop(it)) && name.getOrNull(prop(it).length)?.let { charAfterPrefix ->
+                charAfterPrefix.isUpperCase() || charAfterPrefix.isDigit()
+            } ?: false
         }
 
         private val badBooleanGetterPrefixes = listOf("isHas", "isCan", "isShould", "get", "is")
