@@ -4595,4 +4595,55 @@ class ApiFileTest : DriverTest() {
             """
         )
     }
+
+    @Test
+    fun `Constants in a file scope annotation`() {
+        check(
+            format = FileFormat.V4,
+            sourceFiles = arrayOf(
+                kotlin(
+                    """
+                    @file:RestrictTo(RestrictTo.Scope.LIBRARY)
+                    package test.pkg
+                    import androidx.annotation.RestrictTo
+                    private fun veryFun(): Boolean = true
+                """
+                ),
+                restrictToSource
+            ),
+            extraArguments = arrayOf(ARG_HIDE_PACKAGE, "androidx.annotation"),
+            api = """
+                // Signature format: 4.0
+                package test.pkg {
+                  @RestrictTo({androidx.annotation.RestrictTo.Scope.LIBRARY}) public final class TestKt {
+                  }
+                }
+            """
+        )
+    }
+
+    @Test
+    fun `RestrictTo on a file hiding it`() {
+        check(
+            format = FileFormat.V4,
+            sourceFiles = arrayOf(
+                kotlin(
+                    """
+                    @file:RestrictTo(RestrictTo.Scope.LIBRARY)
+                    package test.pkg
+                    import androidx.annotation.RestrictTo
+                    private fun veryFun(): Boolean = true
+                """
+                ),
+                restrictToSource
+            ),
+            extraArguments = arrayOf(ARG_HIDE_PACKAGE, "androidx.annotation", "--show-unannotated"),
+            hideAnnotations = arrayOf(
+                "androidx.annotation.RestrictTo(androidx.annotation.RestrictTo.Scope.LIBRARY)"
+            ),
+            api = """
+                // Signature format: 4.0
+            """
+        )
+    }
 }

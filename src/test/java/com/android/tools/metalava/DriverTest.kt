@@ -1942,22 +1942,35 @@ val widgetSource: TestFile = java(
     """
 ).indented()
 
-val restrictToSource: TestFile = java(
+val restrictToSource: TestFile = kotlin(
     """
-    package androidx.annotation;
-    import java.lang.annotation.*;
-    import static java.lang.annotation.ElementType.*;
-    import static java.lang.annotation.RetentionPolicy.*;
-    @SuppressWarnings("WeakerAccess")
-    @Retention(CLASS)
-    @Target({ANNOTATION_TYPE, TYPE, METHOD, CONSTRUCTOR, FIELD, PACKAGE})
-    public @interface RestrictTo {
-        Scope[] value();
-        enum Scope {
+    package androidx.annotation
+
+    import androidx.annotation.RestrictTo.Scope
+    import java.lang.annotation.ElementType.*
+
+    @MustBeDocumented
+    @kotlin.annotation.Retention(AnnotationRetention.BINARY)
+    @Target(
+        AnnotationTarget.ANNOTATION_CLASS,
+        AnnotationTarget.CLASS,
+        AnnotationTarget.FUNCTION,
+        AnnotationTarget.PROPERTY_GETTER,
+        AnnotationTarget.PROPERTY_SETTER,
+        AnnotationTarget.CONSTRUCTOR,
+        AnnotationTarget.FIELD,
+        AnnotationTarget.FILE
+    )
+    // Needed due to Kotlin's lack of PACKAGE annotation target
+    // https://youtrack.jetbrains.com/issue/KT-45921
+    @Suppress("DEPRECATED_JAVA_ANNOTATION")
+    @java.lang.annotation.Target(ANNOTATION_TYPE, TYPE, METHOD, CONSTRUCTOR, FIELD, PACKAGE)
+    public annotation class RestrictTo(vararg val value: Scope) {
+        public enum class Scope {
             LIBRARY,
             LIBRARY_GROUP,
-            /** @deprecated */
-            @Deprecated
+            LIBRARY_GROUP_PREFIX,
+            @Deprecated("Use LIBRARY_GROUP_PREFIX instead.")
             GROUP_ID,
             TESTS,
             SUBCLASSES,

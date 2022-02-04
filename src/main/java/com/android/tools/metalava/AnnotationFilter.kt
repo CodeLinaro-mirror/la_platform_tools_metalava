@@ -1,8 +1,10 @@
 package com.android.tools.metalava
 
 import com.android.SdkConstants.ATTR_VALUE
+import com.android.tools.metalava.model.AnnotationArrayAttributeValue
 import com.android.tools.metalava.model.AnnotationAttribute
 import com.android.tools.metalava.model.AnnotationItem
+import com.android.tools.metalava.model.AnnotationSingleAttributeValue
 import com.android.tools.metalava.model.DefaultAnnotationAttribute
 
 interface AnnotationFilter {
@@ -93,9 +95,29 @@ class MutableAnnotationFilter : AnnotationFilter {
             return false
         }
         for (attribute in filter.attributes) {
-            val existingValue = existingAnnotation.findAttribute(attribute.name)?.value?.toSource()
-            if (existingValue != attribute.value.toSource()) {
-                return false
+            val existingValue = existingAnnotation.findAttribute(attribute.name)?.value
+            val existingValueSource = existingValue?.toSource()
+            val attributeValueSource = attribute.value.toSource()
+            if (attribute.name == "value") {
+                // Special-case where varargs value annotation attribute can be specified with
+                // either @Foo(BAR) or @Foo({BAR}) and they are equivalent.
+                when {
+                    attribute.value is AnnotationSingleAttributeValue &&
+                        existingValue is AnnotationArrayAttributeValue -> {
+                        if (existingValueSource != "{$attributeValueSource}") return false
+                    }
+                    attribute.value is AnnotationArrayAttributeValue &&
+                        existingValue is AnnotationSingleAttributeValue -> {
+                        if ("{$existingValueSource}" != attributeValueSource) return false
+                    }
+                    else -> {
+                        if (existingValueSource != attributeValueSource) return false
+                    }
+                }
+            } else {
+                if (existingValueSource != attributeValueSource) {
+                    return false
+                }
             }
         }
         return true
