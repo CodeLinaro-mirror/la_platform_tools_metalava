@@ -2326,6 +2326,7 @@ CompatibilityCheckTest : DriverTest() {
                     enum_constant @Deprecated public static final androidx.annotation.RestrictTo.Scope GROUP_ID;
                     enum_constant public static final androidx.annotation.RestrictTo.Scope LIBRARY;
                     enum_constant public static final androidx.annotation.RestrictTo.Scope LIBRARY_GROUP;
+                    enum_constant public static final androidx.annotation.RestrictTo.Scope LIBRARY_GROUP_PREFIX;
                     enum_constant public static final androidx.annotation.RestrictTo.Scope SUBCLASSES;
                     enum_constant public static final androidx.annotation.RestrictTo.Scope TESTS;
                   }
@@ -2432,6 +2433,7 @@ CompatibilityCheckTest : DriverTest() {
                     enum_constant public static final deprecated androidx.annotation.RestrictTo.Scope GROUP_ID;
                     enum_constant public static final androidx.annotation.RestrictTo.Scope LIBRARY;
                     enum_constant public static final androidx.annotation.RestrictTo.Scope LIBRARY_GROUP;
+                    enum_constant public static final androidx.annotation.RestrictTo.Scope LIBRARY_GROUP_PREFIX;
                     enum_constant public static final androidx.annotation.RestrictTo.Scope SUBCLASSES;
                     enum_constant public static final androidx.annotation.RestrictTo.Scope TESTS;
                   }
