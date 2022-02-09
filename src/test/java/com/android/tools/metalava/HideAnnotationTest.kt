@@ -144,4 +144,39 @@ class HideAnnotationTest : DriverTest() {
                 """
         )
     }
+
+    @Test
+    fun `Using hide annotation on file scope`() {
+        check(
+            sourceFiles = arrayOf(
+                kotlin(
+                    """
+                        package test.pkg
+                        @Target(AnnotationTarget.FILE)
+                        annotation class HideFile
+                    """
+                ),
+                kotlin(
+                    """
+                        @file:HideFile
+                        package test.pkg
+
+                        fun hiddenTopLevelFunction() = 1
+                        var hiddenTopLevelProperty = 2
+                        class VisibleTopLevelClass
+                    """
+                )
+            ),
+            hideAnnotations = arrayOf("test.pkg.HideFile"),
+            api = """
+                package test.pkg {
+                  @kotlin.annotation.Target(allowedTargets=kotlin.annotation.AnnotationTarget.FILE) public @interface HideFile {
+                  }
+                  public final class VisibleTopLevelClass {
+                    ctor public VisibleTopLevelClass();
+                  }
+                }
+                """
+        )
+    }
 }

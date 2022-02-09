@@ -223,7 +223,10 @@ class CompatibilityCheck(
         val oldModifiers = old.modifiers
         val newModifiers = new.modifiers
 
-        if (old.isInterface() != new.isInterface()) {
+        if (old.isInterface() != new.isInterface() ||
+            old.isEnum() != new.isEnum() ||
+            old.isAnnotationType() != new.isAnnotationType()
+        ) {
             report(
                 Issues.CHANGED_CLASS, new, "${describe(new, capitalize = true)} changed class/interface declaration"
             )

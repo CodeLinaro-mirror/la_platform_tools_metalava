@@ -3817,6 +3817,79 @@ CompatibilityCheckTest : DriverTest() {
         )
     }
 
+    @Test
+    fun `Changing visibility from public to private`() {
+        check(
+            expectedIssues = """
+                TESTROOT/load-api.txt:2: error: Class test.pkg.Foo changed visibility from public to private [ChangedScope]
+            """.trimIndent(),
+            signatureSource = """
+                package test.pkg {
+                  private class Foo {}
+                }
+            """.trimIndent(),
+            format = FileFormat.V4,
+            checkCompatibilityApiReleased = """
+                package test.pkg {
+                  public class Foo {}
+                }
+            """.trimIndent()
+        )
+    }
+
+    @Test
+    fun `Changing class kind`() {
+        check(
+            expectedIssues = """
+                TESTROOT/load-api.txt:11: error: Class test.pkg.AnnotationToClass changed class/interface declaration [ChangedClass]
+                TESTROOT/load-api.txt:13: error: Class test.pkg.AnnotationToEnum changed class/interface declaration [ChangedClass]
+                TESTROOT/load-api.txt:12: error: Class test.pkg.AnnotationToInterface changed class/interface declaration [ChangedClass]
+                TESTROOT/load-api.txt:4: error: Class test.pkg.ClassToAnnotation changed class/interface declaration [ChangedClass]
+                TESTROOT/load-api.txt:2: error: Class test.pkg.ClassToEnum changed class/interface declaration [ChangedClass]
+                TESTROOT/load-api.txt:3: error: Class test.pkg.ClassToInterface changed class/interface declaration [ChangedClass]
+                TESTROOT/load-api.txt:7: error: Class test.pkg.EnumToAnnotation changed class/interface declaration [ChangedClass]
+                TESTROOT/load-api.txt:5: error: Class test.pkg.EnumToClass changed class/interface declaration [ChangedClass]
+                TESTROOT/load-api.txt:6: error: Class test.pkg.EnumToInterface changed class/interface declaration [ChangedClass]
+                TESTROOT/load-api.txt:10: error: Class test.pkg.InterfaceToAnnotation changed class/interface declaration [ChangedClass]
+                TESTROOT/load-api.txt:8: error: Class test.pkg.InterfaceToClass changed class/interface declaration [ChangedClass]
+                TESTROOT/load-api.txt:9: error: Class test.pkg.InterfaceToEnum changed class/interface declaration [ChangedClass]
+            """.trimIndent(),
+            signatureSource = """
+                package test.pkg {
+                  public enum ClassToEnum {}
+                  public interface ClassToInterface {}
+                  public @interface ClassToAnnotation {}
+                  public class EnumToClass {}
+                  public interface EnumToInterface {}
+                  public @interface EnumToAnnotation {}
+                  public class InterfaceToClass {}
+                  public enum InterfaceToEnum {}
+                  public @interface InterfaceToAnnotation {}
+                  public class  AnnotationToClass {}
+                  public interface AnnotationToInterface {}
+                  public enum AnnotationToEnum {}
+                }
+            """.trimIndent(),
+            format = FileFormat.V4,
+            checkCompatibilityApiReleased = """
+                package test.pkg {
+                  public class ClassToEnum {}
+                  public class ClassToInterface {}
+                  public class ClassToAnnotation {}
+                  public enum EnumToClass {}
+                  public enum EnumToInterface {}
+                  public enum EnumToAnnotation {}
+                  public interface InterfaceToClass {}
+                  public interface InterfaceToEnum {}
+                  public interface InterfaceToAnnotation {}
+                  public @interface  AnnotationToClass {}
+                  public @interface AnnotationToInterface {}
+                  public @interface AnnotationToEnum {}
+                }
+            """.trimIndent()
+        )
+    }
+
     // TODO: Check method signatures changing incompatibly (look especially out for adding new overloaded
     // methods and comparator getting confused!)
     //   ..equals on the method items should actually be very useful!
