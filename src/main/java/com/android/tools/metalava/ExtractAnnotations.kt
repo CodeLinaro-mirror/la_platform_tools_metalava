@@ -18,7 +18,6 @@ package com.android.tools.metalava
 
 import com.android.SdkConstants
 import com.android.tools.lint.annotations.Extractor
-import com.android.tools.lint.client.api.AnnotationLookup
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.AnnotationTarget
 import com.android.tools.metalava.model.ClassItem
@@ -73,8 +72,6 @@ class ExtractAnnotations(
 ) : ApiVisitor() {
     // Used linked hash map for order such that we always emit parameters after their surrounding method etc
     private val packageToAnnotationPairs = LinkedHashMap<PackageItem, MutableList<Pair<Item, AnnotationHolder>>>()
-
-    private val annotationLookup = AnnotationLookup()
 
     private data class AnnotationHolder(
         val annotationClass: ClassItem?,
@@ -238,11 +235,11 @@ class ExtractAnnotations(
                         if (typeDefAnnotation is PsiAnnotationItem && typeDefClass is PsiClassItem) {
                             AnnotationHolder(
                                 typeDefClass, typeDefAnnotation,
-                                annotationLookup.findRealAnnotation(
+                                UastFacade.convertElement(
                                     typeDefAnnotation.psiAnnotation,
-                                    typeDefClass.psiClass,
-                                    null
-                                )
+                                    null,
+                                    UAnnotation::class.java
+                                ) as UAnnotation
                             )
                         } else if (typeDefAnnotation is UAnnotationItem && typeDefClass is PsiClassItem) {
                             AnnotationHolder(

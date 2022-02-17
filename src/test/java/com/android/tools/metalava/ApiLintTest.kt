@@ -3473,4 +3473,33 @@ class ApiLintTest : DriverTest() {
             )
         )
     }
+
+    @Test
+    fun `No crash when setter start with numbers`() {
+        check(
+            expectedIssues = "",
+            apiLint = "",
+            sourceFiles = arrayOf(
+                java(
+                    """
+                        package test.pkg;
+                        import androidx.annotation.NonNull;
+                        public class Config {
+                            public boolean is80211mcSupported() { return true; }
+                            public static final class Builder {
+                                @NonNull
+                                public Builder set80211mcSupported(boolean supports80211mc) {
+                                }
+                                @NonNull
+                                public Config build() {
+                                    return Config();
+                                }
+                            }
+                        }
+                    """
+                ),
+                androidxNonNullSource,
+            )
+        )
+    }
 }

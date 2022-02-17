@@ -74,7 +74,7 @@ class TextTypeItem(
             when (nullable) {
                 null -> return "$typeString!"
                 true -> return "$typeString?"
-                // else: non-null: nothing to add
+                else -> { /* non-null: nothing to add */ }
             }
         }
         return typeString

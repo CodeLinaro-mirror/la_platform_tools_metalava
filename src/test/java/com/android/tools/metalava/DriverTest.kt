@@ -191,25 +191,6 @@ abstract class DriverTest {
         }
     }
 
-    private fun findKotlinStdlibPath(): List<String> {
-        val classPath: String = System.getProperty("java.class.path")
-        val paths = mutableListOf<String>()
-        for (path in classPath.split(':')) {
-            val file = File(path)
-            val name = file.name
-            if (name.startsWith("kotlin-stdlib") ||
-                name.startsWith("kotlin-reflect") ||
-                name.startsWith("kotlin-script-runtime")
-            ) {
-                paths.add(file.path)
-            }
-        }
-        if (paths.isEmpty()) {
-            error("Did not find kotlin-stdlib-jre8 in $PROGRAM_NAME classpath: $classPath")
-        }
-        return paths
-    }
-
     protected fun getJdkPath(): String? {
         val javaHome = System.getProperty("java.home")
         if (javaHome != null) {
@@ -986,15 +967,7 @@ abstract class DriverTest {
             skipEmitPackagesArgs.add(it)
         }
 
-        val kotlinPath = findKotlinStdlibPath()
-        val kotlinPathArgs =
-            if (kotlinPath.isNotEmpty() &&
-                sourceList.asSequence().any { it.endsWith(DOT_KT) }
-            ) {
-                arrayOf(ARG_CLASS_PATH, kotlinPath.joinToString(separator = File.pathSeparator) { it })
-            } else {
-                emptyArray()
-            }
+        val kotlinPathArgs = findKotlinStdlibPathArgs(sourceList)
 
         val sdkFilesDir: File?
         val sdkFilesArgs: Array<String>
@@ -1507,6 +1480,37 @@ abstract class DriverTest {
     }
 }
 
+/**
+ * A slight modification of com.android.tools.lint.checks.infrastructure.findKotlinStdLibPath
+ * that prints program name on error. Returns the paths as metalava args expected by Options.
+ */
+fun findKotlinStdlibPathArgs(sources: Array<String>): Array<String> {
+    val classPath: String = System.getProperty("java.class.path")
+    val paths = mutableListOf<String>()
+    for (path in classPath.split(':')) {
+        val file = File(path)
+        val name = file.name
+        if (name.startsWith("kotlin-stdlib") ||
+            name.startsWith("kotlin-reflect") ||
+            name.startsWith("kotlin-script-runtime")
+        ) {
+            paths.add(file.path)
+        }
+    }
+    if (paths.isEmpty()) {
+        error("Did not find kotlin-stdlib-jre8 in $PROGRAM_NAME classpath: $classPath")
+    }
+    val kotlinPathArgs =
+        if (paths.isNotEmpty() &&
+            sources.asSequence().any { it.endsWith(DOT_KT) }
+        ) {
+            arrayOf(ARG_CLASS_PATH, paths.joinToString(separator = File.pathSeparator) { it })
+        } else {
+            emptyArray()
+        }
+    return kotlinPathArgs
+}
+
 val intRangeAnnotationSource: TestFile = java(
     """
         package android.annotation;
@@ -1938,22 +1942,35 @@ val widgetSource: TestFile = java(
     """
 ).indented()
 
-val restrictToSource: TestFile = java(
+val restrictToSource: TestFile = kotlin(
     """
-    package androidx.annotation;
-    import java.lang.annotation.*;
-    import static java.lang.annotation.ElementType.*;
-    import static java.lang.annotation.RetentionPolicy.*;
-    @SuppressWarnings("WeakerAccess")
-    @Retention(CLASS)
-    @Target({ANNOTATION_TYPE, TYPE, METHOD, CONSTRUCTOR, FIELD, PACKAGE})
-    public @interface RestrictTo {
-        Scope[] value();
-        enum Scope {
+    package androidx.annotation
+
+    import androidx.annotation.RestrictTo.Scope
+    import java.lang.annotation.ElementType.*
+
+    @MustBeDocumented
+    @kotlin.annotation.Retention(AnnotationRetention.BINARY)
+    @Target(
+        AnnotationTarget.ANNOTATION_CLASS,
+        AnnotationTarget.CLASS,
+        AnnotationTarget.FUNCTION,
+        AnnotationTarget.PROPERTY_GETTER,
+        AnnotationTarget.PROPERTY_SETTER,
+        AnnotationTarget.CONSTRUCTOR,
+        AnnotationTarget.FIELD,
+        AnnotationTarget.FILE
+    )
+    // Needed due to Kotlin's lack of PACKAGE annotation target
+    // https://youtrack.jetbrains.com/issue/KT-45921
+    @Suppress("DEPRECATED_JAVA_ANNOTATION")
+    @java.lang.annotation.Target(ANNOTATION_TYPE, TYPE, METHOD, CONSTRUCTOR, FIELD, PACKAGE)
+    public annotation class RestrictTo(vararg val value: Scope) {
+        public enum class Scope {
             LIBRARY,
             LIBRARY_GROUP,
-            /** @deprecated */
-            @Deprecated
+            LIBRARY_GROUP_PREFIX,
+            @Deprecated("Use LIBRARY_GROUP_PREFIX instead.")
             GROUP_ID,
             TESTS,
             SUBCLASSES,
