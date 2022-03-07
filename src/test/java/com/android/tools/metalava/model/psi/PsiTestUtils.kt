@@ -33,22 +33,18 @@ inline fun testCodebase(
     vararg sources: TestFile,
     action: (PsiBasedCodebase) -> Unit
 ) {
-    // TODO(b/198440244): Remove parameterization
-    for (enableKotlinPsi in arrayOf(true, false)) {
-        tempDirectory { tempDirectory ->
-            val codebase = createTestCodebase(tempDirectory, enableKotlinPsi, *sources)
-            try {
-                action(codebase)
-            } finally {
-                destroyTestCodebase(codebase)
-            }
+    tempDirectory { tempDirectory ->
+        val codebase = createTestCodebase(tempDirectory, *sources)
+        try {
+            action(codebase)
+        } finally {
+            destroyTestCodebase(codebase)
         }
     }
 }
 
 fun createTestCodebase(
     directory: File,
-    enableKotlinPsi: Boolean,
     vararg sources: TestFile
 ): PsiBasedCodebase {
     System.setProperty(ENV_VAR_METALAVA_TESTS_RUNNING, SdkConstants.VALUE_TRUE)
@@ -60,8 +56,7 @@ fun createTestCodebase(
 
     return parseSources(
         sources = sources.map { it.createFile(directory) },
-        description = "Test ${if (enableKotlinPsi) "Kotlin PSI" else "UAST"} Codebase",
-        enableKotlinPsi = enableKotlinPsi
+        description = "Test Codebase",
     )
 }
 

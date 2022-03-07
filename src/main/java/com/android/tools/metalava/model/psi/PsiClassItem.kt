@@ -41,7 +41,6 @@ import com.intellij.psi.PsiTypeParameter
 import com.intellij.psi.SyntheticElement
 import com.intellij.psi.impl.source.PsiClassReferenceType
 import com.intellij.psi.util.PsiUtil
-import org.jetbrains.kotlin.asJava.classes.KtLightClassForFacade
 import org.jetbrains.kotlin.psi.KtParameter
 import org.jetbrains.kotlin.psi.KtProperty
 import org.jetbrains.kotlin.psi.KtPropertyAccessor
@@ -441,9 +440,7 @@ open class PsiClassItem(
             val classType = ClassType.getClassType(psiClass)
 
             val commentText = PsiItem.javadoc(psiClass)
-            val isFacade = (psiClass as? UClass)?.javaPsi is KtLightClassForFacade
-            val modifiers = PsiModifierItem
-                .create(codebase, psiClass, commentText, codebase.enableKotlinPsi && !isFacade)
+            val modifiers = PsiModifierItem.create(codebase, psiClass, commentText)
 
             val item = PsiClassItem(
                 codebase = codebase,

@@ -61,6 +61,7 @@ class NullnessMigrationTest : DriverTest() {
     @Test
     fun `Method which is now marked null should be marked as recently migrated null`() {
         check(
+            format = FileFormat.V2,
             outputKotlinStyleNulls = false,
             sourceFiles = arrayOf(
                 java(
@@ -111,6 +112,7 @@ class NullnessMigrationTest : DriverTest() {
     @Test
     fun `Parameter which is now marked null should be marked as recently migrated null`() {
         check(
+            format = FileFormat.V2,
             outputKotlinStyleNulls = false,
             sourceFiles = arrayOf(
                 java(
@@ -159,6 +161,7 @@ class NullnessMigrationTest : DriverTest() {
     @Test
     fun `Comprehensive check of migration`() {
         check(
+            format = FileFormat.V2,
             outputKotlinStyleNulls = false,
             sourceFiles = arrayOf(
                 java(
@@ -229,6 +232,7 @@ class NullnessMigrationTest : DriverTest() {
     @Test
     fun `Comprehensive check of migration, Kotlin-style output`() {
         check(
+            format = FileFormat.V3,
             outputKotlinStyleNulls = true,
             sourceFiles = arrayOf(
                 java(
@@ -280,6 +284,7 @@ class NullnessMigrationTest : DriverTest() {
     @Test
     fun `Convert libcore nullness annotations to support`() {
         check(
+            format = FileFormat.V2,
             outputKotlinStyleNulls = false,
             sourceFiles = arrayOf(
                 java(
@@ -386,6 +391,7 @@ class NullnessMigrationTest : DriverTest() {
     @Test
     fun `Check androidx package annotation`() {
         check(
+            format = FileFormat.V2,
             outputKotlinStyleNulls = false,
             sourceFiles = arrayOf(
                 java(
@@ -646,6 +652,7 @@ class NullnessMigrationTest : DriverTest() {
     @Test
     fun `Merge nullness annotations in stubs that are not in the API signature file`() {
         check(
+            format = FileFormat.V2,
             includeSystemApiAnnotations = true,
             sourceFiles = arrayOf(
                 java(

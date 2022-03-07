@@ -53,7 +53,6 @@ class Java9LanguageFeaturesTest : DriverTest() {
     }
 
     @Test
-    @TestKotlinPsi
     fun `Kotlin language level`() {
         // See https://kotlinlang.org/docs/reference/whatsnew13.html
         check(
@@ -194,6 +193,7 @@ class Java9LanguageFeaturesTest : DriverTest() {
         // Non-Android example
         val jdk = System.getProperty("java.home") ?: error("Expected java.home to be set")
         check(
+            format = FileFormat.V2,
             sourceFiles = arrayOf(
                 java(
                     """

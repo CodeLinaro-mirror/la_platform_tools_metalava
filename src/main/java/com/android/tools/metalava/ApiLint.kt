@@ -75,6 +75,7 @@ import com.android.tools.metalava.Issues.EXECUTOR_REGISTRATION
 import com.android.tools.metalava.Issues.EXTENDS_ERROR
 import com.android.tools.metalava.Issues.FORBIDDEN_SUPER_CLASS
 import com.android.tools.metalava.Issues.FRACTION_FLOAT
+import com.android.tools.metalava.Issues.GENERIC_CALLBACKS
 import com.android.tools.metalava.Issues.GENERIC_EXCEPTION
 import com.android.tools.metalava.Issues.GETTER_ON_BUILDER
 import com.android.tools.metalava.Issues.GETTER_SETTER_NAMES
@@ -301,6 +302,7 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
         checkManager(cls, methods, constructors)
         checkStaticUtils(cls, methods, constructors, fields)
         checkCallbackHandlers(cls, methodsAndConstructors, superClass)
+        checkGenericCallbacks(cls, methods, constructors, fields)
         checkResourceNames(cls, fields)
         checkFiles(methodsAndConstructors)
         checkManagerList(cls, methods)
@@ -556,6 +558,45 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
                     }
                 }
             }
+        }
+    }
+
+    private fun checkGenericCallbacks(
+        cls: ClassItem,
+        methods: Sequence<MethodItem>,
+        constructors: Sequence<ConstructorItem>,
+        fields: Sequence<FieldItem>
+    ) {
+        val simpleName = cls.simpleName()
+        if (!simpleName.endsWith("Callback") && !simpleName.endsWith("Listener")) return
+
+        // The following checks for an interface or abstract class of the same shape as
+        // OutcomeReceiver, i.e. two methods, both with the "on" prefix for callbacks, one of
+        // them taking a Throwable or subclass.
+        if (constructors.any { !it.isImplicitConstructor() }) return
+        if (fields.any()) return
+        if (methods.count() != 2) return
+
+        fun isSingleParamCallbackMethod(method: MethodItem) =
+            method.parameters().size == 1 &&
+                method.name().startsWith("on") &&
+                !method.parameters().first().type().primitive &&
+                method.returnType()?.toTypeString() == Void.TYPE.name
+
+        if (!methods.all(::isSingleParamCallbackMethod)) return
+
+        fun TypeItem.extendsThrowable() = asClass()?.extends(JAVA_LANG_THROWABLE) ?: false
+        fun isErrorMethod(method: MethodItem) =
+            method.name().run { startsWith("onError") || startsWith("onFail") } &&
+                method.parameters().first().type().extendsThrowable()
+
+        if (methods.count(::isErrorMethod) == 1) {
+            report(
+                GENERIC_CALLBACKS,
+                cls,
+                "${cls.fullName()} can be replaced with OutcomeReceiver<R,E> (platform)" +
+                    " or suspend fun / ListenableFuture (AndroidX)."
+            )
         }
     }
 
@@ -2521,7 +2562,7 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
             report(
                 BAD_FUTURE, cls,
                 "${cls.simpleName()} should not $extendOrImplement `$it`." +
-                    " In AndroidX, use (but do not extend) ListenableFuture. In platform, use a combination of Consumer<T>, Executor, and CancellationSignal`."
+                    " In AndroidX, use (but do not extend) ListenableFuture. In platform, use a combination of OutcomeReceiver<R,E>, Executor, and CancellationSignal`."
             )
         }
     }
@@ -2547,7 +2588,7 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
             report(
                 BAD_FUTURE, item,
                 "Use ListenableFuture (library), " +
-                    "or a combination of Consumer<T>, Executor, and CancellationSignal (platform) instead of $it (${item.describe()})"
+                    "or a combination of OutcomeReceiver<R,E>, Executor, and CancellationSignal (platform) instead of $it (${item.describe()})"
             )
         }
     }

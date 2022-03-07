@@ -91,8 +91,7 @@ const val METHOD_ESTIMATE = 1000
  */
 open class PsiBasedCodebase(
     location: File,
-    override var description: String = "Unknown",
-    internal val enableKotlinPsi: Boolean = false
+    override var description: String = "Unknown"
 ) : DefaultCodebase(location) {
     lateinit var uastEnvironment: UastEnvironment
     val project: Project

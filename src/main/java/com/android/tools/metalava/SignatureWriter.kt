@@ -244,7 +244,7 @@ class SignatureWriter(
             }
             if (parameter.hasDefaultValue() &&
                 options.outputDefaultValues &&
-                options.outputConciseDefaultValues
+                options.outputFormat.conciseDefaultValues
             ) {
                 // Concise representation of a parameter with a default
                 write("optional ")
@@ -258,7 +258,7 @@ class SignatureWriter(
             }
             if (parameter.isDefaultValueKnown() &&
                 options.outputDefaultValues &&
-                !options.outputConciseDefaultValues
+                !options.outputFormat.conciseDefaultValues
             ) {
                 write(" = ")
                 val defaultValue = parameter.defaultValue()
