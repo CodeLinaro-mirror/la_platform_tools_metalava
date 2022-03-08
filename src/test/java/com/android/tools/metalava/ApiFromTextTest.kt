@@ -36,6 +36,7 @@ class ApiFromTextTest : DriverTest() {
                 """
 
         check(
+            format = FileFormat.V2,
             signatureSource = source,
             api = source
         )
@@ -161,6 +162,7 @@ class ApiFromTextTest : DriverTest() {
                 }
                 """
         check(
+            format = FileFormat.V2,
             outputKotlinStyleNulls = false,
             signatureSource = source,
             api = source
@@ -211,6 +213,7 @@ class ApiFromTextTest : DriverTest() {
     @Test
     fun `Type use annotations`() {
         check(
+            format = FileFormat.V2,
             outputKotlinStyleNulls = false,
             signatureSource = """
                 package test.pkg {
@@ -258,6 +261,7 @@ class ApiFromTextTest : DriverTest() {
     @Test
     fun `Infer fully qualified names from shorter names`() {
         check(
+            format = FileFormat.V2,
             signatureSource = """
                 package test.pkg {
                   public class MyTest {
@@ -292,6 +296,7 @@ class ApiFromTextTest : DriverTest() {
                 }
                 """
         check(
+            format = FileFormat.V2,
             signatureSource = source,
             api = """
                 package test.pkg {
@@ -344,6 +349,7 @@ class ApiFromTextTest : DriverTest() {
             """
 
         check(
+            format = FileFormat.V2,
             signatureSource = source,
             api = source
         )
@@ -419,6 +425,7 @@ class ApiFromTextTest : DriverTest() {
                 """
 
         check(
+            format = FileFormat.V2,
             signatureSource = source,
             api = source
         )
@@ -501,6 +508,7 @@ class ApiFromTextTest : DriverTest() {
     @Test
     fun `Sort throws list by full name`() {
         check(
+            format = FileFormat.V2,
             signatureSource = """
                     package android.accounts {
                       public abstract interface AccountManagerFuture<V> {
@@ -645,6 +653,7 @@ class ApiFromTextTest : DriverTest() {
                 """
 
         check(
+            format = FileFormat.V3,
             inputKotlinStyleNulls = true,
             outputKotlinStyleNulls = true,
             signatureSource = source,
@@ -690,6 +699,7 @@ class ApiFromTextTest : DriverTest() {
                 }
                 """
         check(
+            format = FileFormat.V3,
             inputKotlinStyleNulls = true,
             outputKotlinStyleNulls = true,
             signatureSource = source,
@@ -712,6 +722,7 @@ class ApiFromTextTest : DriverTest() {
                 """
 
         check(
+            format = FileFormat.V2,
             signatureSource = source,
             api = source
         )
@@ -729,6 +740,7 @@ class ApiFromTextTest : DriverTest() {
                 """
 
         check(
+            format = FileFormat.V2,
             signatureSource = source,
             api = source
         )

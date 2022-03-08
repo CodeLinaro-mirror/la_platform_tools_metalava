@@ -52,7 +52,6 @@ class KotlinInteropChecksTest : DriverTest() {
     }
 
     @Test
-    @TestKotlinPsi
     fun `Sam-compatible parameters should be last`() {
         check(
             apiLint = "",
@@ -112,7 +111,6 @@ class KotlinInteropChecksTest : DriverTest() {
     }
 
     @Test
-    @TestKotlinPsi
     fun `Companion object methods should be marked with JvmStatic`() {
         check(
             apiLint = "",
@@ -157,7 +155,6 @@ class KotlinInteropChecksTest : DriverTest() {
     }
 
     @Test
-    @TestKotlinPsi
     fun `Methods with default parameters should specify JvmOverloads`() {
         check(
             apiLint = "",
@@ -189,7 +186,6 @@ class KotlinInteropChecksTest : DriverTest() {
     }
 
     @Test
-    @TestKotlinPsi
     fun `Methods which throw exceptions should document them`() {
         check(
             apiLint = "",

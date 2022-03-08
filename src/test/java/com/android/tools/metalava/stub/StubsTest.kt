@@ -30,7 +30,6 @@ import com.android.tools.metalava.ARG_PASS_THROUGH_ANNOTATION
 import com.android.tools.metalava.ARG_UPDATE_API
 import com.android.tools.metalava.DriverTest
 import com.android.tools.metalava.FileFormat
-import com.android.tools.metalava.TestKotlinPsi
 import com.android.tools.metalava.androidxNullableSource
 import com.android.tools.metalava.extractRoots
 import com.android.tools.metalava.gatherSources
@@ -64,7 +63,7 @@ class StubsTest : DriverTest() {
         showAnnotations: Array<String> = emptyArray(),
         includeSourceRetentionAnnotations: Boolean = true,
         skipEmitPackages: List<String> = listOf("java.lang", "java.util", "java.io"),
-        format: FileFormat? = null,
+        format: FileFormat = FileFormat.latest,
         sourceFiles: Array<TestFile>
     ) {
         check(
@@ -1244,6 +1243,7 @@ class StubsTest : DriverTest() {
     @Test
     fun `Check generating type parameters in interface list`() {
         checkStubs(
+            format = FileFormat.V2,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -1322,7 +1322,6 @@ class StubsTest : DriverTest() {
     }
 
     @Test
-    @TestKotlinPsi
     fun `Basic Kotlin class`() {
         checkStubs(
             sourceFiles = arrayOf(
@@ -1418,6 +1417,7 @@ class StubsTest : DriverTest() {
         // When APIs reference annotations that are hidden, make sure the're excluded from the stubs and
         // signature files
         checkStubs(
+            format = FileFormat.V2,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -1861,6 +1861,7 @@ class StubsTest : DriverTest() {
     @Test
     fun `Rewrite unknown nullability annotations as sdk stubs`() {
         check(
+            format = FileFormat.V2,
             checkCompilation = true,
             sourceFiles = arrayOf(
                 java(
@@ -1895,6 +1896,7 @@ class StubsTest : DriverTest() {
     @Test
     fun `Rewrite unknown nullability annotations as doc stubs`() {
         check(
+            format = FileFormat.V2,
             checkCompilation = true,
             sourceFiles = arrayOf(
                 java(
@@ -1978,6 +1980,7 @@ class StubsTest : DriverTest() {
     @Test
     fun `Pass through libcore annotations`() {
         check(
+            format = FileFormat.V2,
             checkCompilation = true,
             extraArguments = arrayOf(
                 ARG_PASS_THROUGH_ANNOTATION, "libcore.util.NonNull"
@@ -2493,6 +2496,7 @@ class StubsTest : DriverTest() {
     fun `Rewriting implements class references`() {
         // Checks some more subtle bugs around generics type variable renaming
         checkStubs(
+            format = FileFormat.V2,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -2654,6 +2658,7 @@ class StubsTest : DriverTest() {
     @Test
     fun `Picking Super Constructors`() {
         checkStubs(
+            format = FileFormat.V2,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -3405,6 +3410,7 @@ class StubsTest : DriverTest() {
     @Test
     fun `Check writing package info file`() {
         checkStubs(
+            format = FileFormat.V2,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -3882,6 +3888,7 @@ class StubsTest : DriverTest() {
     @Test(expected = FileNotFoundException::class)
     fun `Test update-api should not generate stubs`() {
         check(
+            format = FileFormat.V2,
             extraArguments = arrayOf(
                 ARG_UPDATE_API,
                 ARG_EXCLUDE_ALL_ANNOTATIONS
@@ -3957,6 +3964,7 @@ class StubsTest : DriverTest() {
     fun `Include package private classes referenced from public API`() {
         // Real world example: android.net.http.Connection in apache-http referenced from RequestHandle
         check(
+            format = FileFormat.V2,
             expectedIssues = """
                 src/test/pkg/PublicApi.java:4: error: Class test.pkg.HiddenType is not public but was referenced (as return type) from public method test.pkg.PublicApi.getHiddenType() [ReferencesHidden]
                 src/test/pkg/PublicApi.java:5: error: Class test.pkg.HiddenType4 is hidden but was referenced (as return type) from public method test.pkg.PublicApi.getHiddenType4() [ReferencesHidden]
@@ -4068,6 +4076,7 @@ class StubsTest : DriverTest() {
         // Real world example: hidden android.car.vms.VmsOperationRecorder.Writer in android.car-system-stubs
         // referenced from outer class constructor
         check(
+            format = FileFormat.V2,
             expectedIssues = """
                 src/test/pkg/PublicApi.java:4: error: Class test.pkg.PublicApi.HiddenInner is hidden but was referenced (as parameter type) from public parameter inner in test.pkg.PublicApi(test.pkg.PublicApi.HiddenInner inner) [ReferencesHidden]
                 src/test/pkg/PublicApi.java:4: warning: Parameter inner references hidden type test.pkg.PublicApi.HiddenInner. [HiddenTypeParameter]
@@ -4111,6 +4120,7 @@ class StubsTest : DriverTest() {
     @Test
     fun `Use type argument in constructor cast`() {
         check(
+            format = FileFormat.V2,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -4316,7 +4326,6 @@ class StubsTest : DriverTest() {
     }
 
     @Test
-    @TestKotlinPsi
     fun `Basic Kotlin stubs`() {
         check(
             extraArguments = arrayOf(
@@ -4395,7 +4404,6 @@ class StubsTest : DriverTest() {
     }
 
     @Test
-    @TestKotlinPsi
     fun `Extends and implements multiple interfaces in Kotlin Stubs`() {
         check(
             extraArguments = arrayOf(

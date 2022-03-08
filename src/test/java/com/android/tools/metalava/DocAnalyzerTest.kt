@@ -1718,7 +1718,6 @@ class DocAnalyzerTest : DriverTest() {
     }
 
     @Test
-    @TestKotlinPsi
     fun `Include Kotlin deprecation text`() {
         check(
             sourceFiles = arrayOf(

@@ -28,6 +28,7 @@ class AnnotationsMergerTest : DriverTest() {
     @Test
     fun `Signature files contain annotations`() {
         check(
+            format = FileFormat.V2,
             outputKotlinStyleNulls = false,
             includeSystemApiAnnotations = false,
             sourceFiles = arrayOf(
@@ -74,6 +75,7 @@ class AnnotationsMergerTest : DriverTest() {
     @Test
     fun `Merged class and method annotations with no arguments`() {
         check(
+            format = FileFormat.V2,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -132,6 +134,7 @@ class AnnotationsMergerTest : DriverTest() {
     @Test
     fun `Merge signature files`() {
         check(
+            format = FileFormat.V2,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -175,6 +178,7 @@ class AnnotationsMergerTest : DriverTest() {
     @Test
     fun `Merge qualifier annotations from Java stub files`() {
         check(
+            format = FileFormat.V2,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -290,6 +294,7 @@ class AnnotationsMergerTest : DriverTest() {
     fun `Merge type use qualifier annotations from Java stub files`() {
         // See b/123223339
         check(
+            format = FileFormat.V2,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -326,6 +331,7 @@ class AnnotationsMergerTest : DriverTest() {
     @Test
     fun `Merge qualifier annotations from Java stub files making sure they apply to public members of hidden superclasses`() {
         check(
+            format = FileFormat.V2,
             sourceFiles = arrayOf(
                 java(
                     """
@@ -563,6 +569,7 @@ class AnnotationsMergerTest : DriverTest() {
         // This is a contrived test that verifies that even if Child no longer directly declares
         // method1, the inherited method1 is still found
         check(
+            format = FileFormat.V2,
             sourceFiles = arrayOf(
                 java(
                     """

@@ -550,7 +550,6 @@ fun checkCompatibility(
 
     var newBase: Codebase? = null
     var oldBase: Codebase? = null
-    val releaseType = check.releaseType
     val apiType = check.apiType
 
     // If diffing with a system-api or test-api (or other signature-based codebase
@@ -602,42 +601,7 @@ fun checkCompatibility(
 
     // If configured, compares the new API with the previous API and reports
     // any incompatibilities.
-    CompatibilityCheck.checkCompatibility(new, current, releaseType, apiType, oldBase, newBase)
-
-    // Make sure the text files are identical too? (only applies for *current.txt;
-    // last-released is expected to differ)
-    if (releaseType == ReleaseType.DEV && !options.allowCompatibleDifferences) {
-        val apiFile = if (new.location.isFile)
-            new.location
-        else
-            apiType.getSignatureFile(codebase, "compat-diff-signatures-$apiType")
-
-        fun getCanonicalSignatures(file: File): String {
-            // Get rid of trailing newlines and Windows line endings
-            val text = file.readText(UTF_8)
-            return text.replace("\r\n", "\n").trim()
-        }
-        val currentTxt = getCanonicalSignatures(signatureFile)
-        val newTxt = getCanonicalSignatures(apiFile)
-        if (newTxt != currentTxt) {
-            val diff = getNativeDiff(signatureFile, apiFile) ?: getDiff(currentTxt, newTxt, 1)
-            val updateApi = if (isBuildingAndroid())
-                "Run make update-api to update.\n"
-            else
-                ""
-            val message =
-                """
-                    Your changes have resulted in differences in the signature file
-                    for the ${apiType.displayName} API.
-
-                    The changes may be compatible, but the signature file needs to be updated.
-                    $updateApi
-                    Diffs:
-                """.trimIndent() + "\n" + diff
-
-            throw DriverException(exitCode = -1, stderr = message)
-        }
-    }
+    CompatibilityCheck.checkCompatibility(new, current, apiType, oldBase, newBase)
 }
 
 fun createTempFile(namePrefix: String, nameSuffix: String): File {
@@ -749,8 +713,7 @@ internal fun parseSources(
     classpath: List<File> = options.classpath,
     javaLanguageLevel: LanguageLevel = options.javaLanguageLevel,
     kotlinLanguageLevel: LanguageVersionSettings = options.kotlinLanguageLevel,
-    manifest: File? = options.manifest,
-    enableKotlinPsi: Boolean = options.enableKotlinPsi
+    manifest: File? = options.manifest
 ): PsiBasedCodebase {
     val sourceRoots = mutableListOf<File>()
     sourcePath.filterTo(sourceRoots) { it.path.isNotBlank() }
@@ -781,7 +744,7 @@ internal fun parseSources(
     val units = Extractor.createUnitsForFiles(environment.ideaProject, sources)
     val packageDocs = gatherPackageJavadoc(sources, sourceRoots)
 
-    val codebase = PsiBasedCodebase(rootDir, description, enableKotlinPsi)
+    val codebase = PsiBasedCodebase(rootDir, description)
     codebase.initialize(environment, units, packageDocs)
     codebase.manifest = manifest
     return codebase

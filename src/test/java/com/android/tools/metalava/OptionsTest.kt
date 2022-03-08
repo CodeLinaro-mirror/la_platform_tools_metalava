@@ -198,8 +198,6 @@ Extracting Signature Files:
                                              Write a ProGuard keep file for the API
 --sdk-values <dir>
                                              Write SDK values files to the given directory
---enable-kotlin-psi
-                                             [EXPERIMENTAL] If set, use Kotlin PSI for Kotlin instead of UAST
 
 
 Generating Stubs:
@@ -241,10 +239,6 @@ Generating Stubs:
                                              stubs; otherwise it's the non-documentation stubs.
 --write-doc-stubs-source-list <file>
                                              Write the list of generated doc stub files into the given source list file
---register-artifact <api-file> <id>
-                                             Registers the given id for the packages found in the given signature file.
-                                             metalava will inject an @artifactId <id> tag into every top level stub
-                                             class in that API.
 
 
 Diffs and Checks:
@@ -326,10 +320,6 @@ Diffs and Checks:
                                              If set, metalava shows it when errors are detected in
                                              --check-compatibility:api:released and
                                              --check-compatibility:removed:released.
---error-message:compatibility:current <message>
-                                             If set, metalava shows it when errors are detected in
-                                             --check-compatibility:api:current and
-                                             --check-compatibility:removed:current.
 
 
 JDiff:
