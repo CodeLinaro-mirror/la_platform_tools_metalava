@@ -2762,7 +2762,7 @@ class ApiLintTest : DriverTest() {
 
                     public class CloneTest {
                         public void clone(int i) { } // ok
-                        @Nullable
+                        @NonNull
                         public CloneTest clone() { return super.clone(); } // error
                     }
                     """
@@ -2837,11 +2837,11 @@ class ApiLintTest : DriverTest() {
                     """
                     package android.yada;
 
-                    import android.annotation.NonNull;
+                    import android.annotation.Nullable;
 
                     public class YadaService extends android.app.Service {
                         @Override
-                        public final void dump(@NonNull java.io.FileDescriptor fd, @NonNull java.io.PrintWriter pw, @NonNull String[] args) {
+                        public final void dump(@Nullable java.io.FileDescriptor fd, @Nullable java.io.PrintWriter pw, @Nullable String[] args) {
                         }
                     }
                     """
@@ -3163,9 +3163,9 @@ class ApiLintTest : DriverTest() {
                     public class MyClass extends HiddenParent<String> {
                         public void method1() { }
 
-                        @Nullable
+                        @NonNull
                         @Override
-                        public String method3(@NonNull String input) { return null; }
+                        public String method3(@Nullable String input) { return null; }
 
                         @Override
                         public String method4(String input) { return null; }
@@ -3542,6 +3542,176 @@ class ApiLintTest : DriverTest() {
                     """
                 ),
                 androidxNonNullSource,
+            )
+        )
+    }
+
+    @Test
+    fun `No error for nullability on synthetic methods`() {
+        check(
+            expectedIssues = "",
+            apiLint = "",
+            sourceFiles = arrayOf(
+                kotlin(
+                    """
+                        package test.pkg
+                        class Foo {
+                            @JvmSynthetic
+                            fun bar(): String {}
+                        }
+                    """
+                )
+            )
+        )
+    }
+
+    @Test
+    fun `Constructors return types don't require nullability`() {
+        check(
+            expectedIssues = "",
+            apiLint = "",
+            sourceFiles = arrayOf(
+                java(
+                    """
+                        package test.pkg;
+                        public class Foo() {
+                            // Doesn't require nullability
+                            public Foo(@NonNull String bar);
+                            // Requires nullability
+                            public @NonNull String baz(@NonNull String whatever);
+                        }
+                    """
+                )
+            )
+        )
+    }
+
+    @Test
+    fun `No nullability allowed on overrides of unannotated methods or parameters`() {
+        check(
+            expectedIssues = """
+                src/test/pkg/Foo.java:10: error: Invalid nullability on method `bar` return. Overrides of unannotated super method cannot be Nullable. [InvalidNullability] [See https://s.android.com/api-guidelines#annotations-nullability-overrides]
+                src/test/pkg/Foo.java:10: error: Invalid nullability on parameter `baz` in method `bar`. Parameters of overrides cannot be NonNull if the super parameter is unannotated. [InvalidNullability] [See https://s.android.com/api-guidelines#annotations-nullability-overrides]
+                src/test/pkg/Foo.java:5: error: Missing nullability on method `bar` return [MissingNullability] [See https://s.android.com/api-guidelines#annotations]
+                src/test/pkg/Foo.java:5: error: Missing nullability on parameter `baz` in method `bar` [MissingNullability] [See https://s.android.com/api-guidelines#annotations]
+                """,
+            apiLint = "",
+            expectedFail = DefaultLintErrorMessage,
+            sourceFiles = arrayOf(
+                java(
+                    """
+                        package test.pkg;
+
+                        public class Foo {
+                            // Not annotated
+                            public String bar(String baz);
+                        }
+                        // Not allowed to mark override method Nullable if parent is not annotated
+                        // Not allowed to mark override parameter NonNull if parent is not annotated
+                        public class Bar extends Foo {
+                            @Nullable @Override public String bar(@NonNull String baz);
+                        }
+                    """
+                ),
+                androidxNullableSource,
+                androidxNonNullSource
+            )
+        )
+    }
+
+    @Test
+    fun `Override enforcement on kotlin sourced child class`() {
+
+        check(
+            expectedIssues = """
+                src/test/pkg/Bar.kt:5: error: Invalid nullability on parameter `baz` in method `bar`. Parameters of overrides cannot be NonNull if the super parameter is unannotated. [InvalidNullability] [See https://s.android.com/api-guidelines#annotations-nullability-overrides]
+                src/test/pkg/Foo.java:5: error: Missing nullability on method `bar` return [MissingNullability] [See https://s.android.com/api-guidelines#annotations]
+                src/test/pkg/Foo.java:5: error: Missing nullability on parameter `baz` in method `bar` [MissingNullability] [See https://s.android.com/api-guidelines#annotations]
+                """,
+            apiLint = "",
+            expectedFail = DefaultLintErrorMessage,
+            sourceFiles = arrayOf(
+                java(
+                    """
+                        package test.pkg;
+
+                        public class Foo {
+                            // Not annotated
+                            public String bar(String baz);
+                        }
+                        """
+                ),
+                kotlin(
+                    """
+                        package test.pkg
+                        // Not allowed to mark override method Nullable if parent is not annotated
+                        // Not allowed to mark override parameter NonNull if parent is not annotated
+                        class Bar : Foo {
+                            override fun bar(baz: String): String
+                        }
+                    """
+                ),
+                androidxNullableSource,
+                androidxNonNullSource
+            )
+        )
+    }
+
+    @Test
+    fun `Overrides of non-null methods cannot be nullable`() {
+        check(
+            expectedIssues = """
+                src/test/pkg/Foo.java:9: error: Invalid nullability on method `bar` return. Overrides of NonNull methods cannot be Nullable. [InvalidNullability] [See https://s.android.com/api-guidelines#annotations-nullability-overrides]
+                """,
+            apiLint = "",
+            expectedFail = DefaultLintErrorMessage,
+            sourceFiles = arrayOf(
+                java(
+                    """
+                        package test.pkg;
+
+                        public class Foo {
+                            @NonNull public String bar(@Nullable String baz);
+                        }
+
+                        // Not allowed to mark override method Nullable if parent is nonNull
+                        public class Bar extends Foo {
+                            @Nullable @Override public String bar(@Nullable String baz);
+                        }
+                    """
+                ),
+                androidxNullableSource,
+                androidxNonNullSource
+            )
+        )
+    }
+
+    @Test
+    fun `Overrides of nullable parameters cannot be non-null`() {
+        check(
+            expectedIssues = """
+                src/test/pkg/Foo.java:10: error: Invalid nullability on parameter `baz` in method `bar`. Parameters of overrides cannot be NonNull if super parameter is Nullable. [InvalidNullability] [See https://s.android.com/api-guidelines#annotations-nullability-overrides]
+                """,
+            apiLint = "",
+            expectedFail = DefaultLintErrorMessage,
+            sourceFiles = arrayOf(
+                java(
+                    """
+                        package test.pkg;
+
+                        public class Foo {
+                            // Not annotated
+                            @NonNull public String bar(@Nullable String baz);
+                        }
+
+                        // Not allowed to mark override parameter NonNull if parent is Nullable
+                        public class Bar extends Foo {
+                            @NonNull @Override public String bar(@NonNull String baz);
+                        }
+                    """
+                ),
+                androidxNullableSource,
+                androidxNonNullSource
             )
         )
     }

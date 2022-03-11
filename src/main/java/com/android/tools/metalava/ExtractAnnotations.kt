@@ -201,6 +201,12 @@ class ExtractAnnotations(
                 }
 
                 continue
+            } else if (qualifiedName.startsWith(ORG_JETBRAINS_ANNOTATIONS_PREFIX) ||
+                qualifiedName.startsWith(ORG_INTELLIJ_LANG_ANNOTATIONS_PREFIX)
+            ) {
+                // Externally merged metadata, like @Contract and @Language
+                addItem(item, AnnotationHolder(null, annotation, null))
+                continue
             }
 
             val typeDefClass = annotation.resolve() ?: continue

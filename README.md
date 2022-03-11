@@ -18,7 +18,7 @@ a number of purposes:
   annotations).
 
 * Diffing versions of the API and determining whether a newer version is
-  compatible with the older version.
+  compatible with the older version. (See [COMPATIBILITY.md](COMPATIBILITY.md)))
 
 ## Building and running
 
@@ -84,7 +84,7 @@ example, you'll see something like this (unless running with --quiet) :
   annotations. This isn't just merged at export time, it's merged at codebase
   load time such that it can be part of the API analysis.
 
-* Support for an updated signature file format (which is described in FORMAT.md)
+* Support for an updated signature file format (which is described in [FORMAT.md](FORMAT.md))
 
   * Address errors in the doclava1 format which for example was missing
     annotation class instance methods

@@ -1947,3 +1947,18 @@ val publishedApiSource: TestFile = kotlin(
     public annotation class PublishedApi
     """
 ).indented()
+
+val deprecatedForSdkSource: TestFile = java(
+    """
+    package android.annotation;
+    import static java.lang.annotation.RetentionPolicy.SOURCE;
+    import java.lang.annotation.Retention;
+    /** @hide */
+    @Retention(SOURCE)
+    @SuppressWarnings("WeakerAccess")
+    public @interface DeprecatedForSdk {
+        String value();
+        Class<?>[] allowIn() default {};
+    }
+    """
+).indented()

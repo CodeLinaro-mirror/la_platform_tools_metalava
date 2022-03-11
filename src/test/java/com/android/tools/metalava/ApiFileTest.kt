@@ -1235,7 +1235,7 @@ class ApiFileTest : DriverTest() {
                 package androidx.annotation.experimental {
                   @kotlin.annotation.Retention(kotlin.annotation.AnnotationRetention.BINARY) @kotlin.annotation.Target(allowedTargets={kotlin.annotation.AnnotationTarget.CLASS, kotlin.annotation.AnnotationTarget.PROPERTY, kotlin.annotation.AnnotationTarget.LOCAL_VARIABLE, kotlin.annotation.AnnotationTarget.VALUE_PARAMETER, kotlin.annotation.AnnotationTarget.CONSTRUCTOR, kotlin.annotation.AnnotationTarget.FUNCTION, kotlin.annotation.AnnotationTarget.PROPERTY_GETTER, kotlin.annotation.AnnotationTarget.PROPERTY_SETTER, kotlin.annotation.AnnotationTarget.FILE, kotlin.annotation.AnnotationTarget.TYPEALIAS}) public @interface UseExperimental {
                     method public abstract kotlin.reflect.KClass<? extends java.lang.annotation.Annotation>[] markerClass();
-                    property public abstract kotlin.reflect.KClass<? extends java.lang.annotation.Annotation>![] markerClass;
+                    property public abstract kotlin.reflect.KClass<? extends java.lang.annotation.Annotation>[] markerClass;
                   }
                 }
                 package test.pkg {
@@ -4618,6 +4618,36 @@ class ApiFileTest : DriverTest() {
             ),
             api = """
                 // Signature format: 4.0
+            """
+        )
+    }
+
+    /** Regression test for b/202968090 */
+    @Test
+    fun `annotation arrays should be non-null`() {
+        check(
+            format = FileFormat.V4,
+            sourceFiles = arrayOf(
+                kotlin(
+                    """
+                        package test.pkg
+                        annotation class Foo (
+                            val bar: Array<String>,
+                            vararg val baz: String
+                        )
+                    """
+                )
+            ),
+            api = """
+                // Signature format: 4.0
+                package test.pkg {
+                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) public @interface Foo {
+                    method public abstract String[] bar();
+                    method public abstract String[] baz();
+                    property public abstract String[] bar;
+                    property public abstract String[] baz;
+                  }
+                }
             """
         )
     }

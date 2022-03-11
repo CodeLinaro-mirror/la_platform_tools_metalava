@@ -31,7 +31,7 @@ repositories {
 }
 
 plugins {
-    kotlin("jvm") version "1.6.10"
+    alias(libs.plugins.kotlinJvm)
     id("application")
     id("java")
     id("maven-publish")
@@ -67,9 +67,8 @@ val studioVersion: String = if (customLintVersion != null) {
     logger.warn("Building using custom $customLintVersion version of Android Lint")
     customLintVersion
 } else {
-    "30.1.0-alpha13"
+    "30.3.0-alpha01"
 }
-val kotlinVersion: String = "1.6.10"
 
 dependencies {
     implementation("com.android.tools.external.org-jetbrains:uast:$studioVersion")
@@ -82,15 +81,15 @@ dependencies {
     implementation("com.android.tools:common:$studioVersion")
     implementation("com.android.tools:sdk-common:$studioVersion")
     implementation("com.android.tools:sdklib:$studioVersion")
-    implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlinVersion")
-    implementation("org.jetbrains.kotlin:kotlin-reflect:$kotlinVersion")
+    implementation(libs.kotlinStdlib)
+    implementation(libs.kotlinReflect)
     implementation("org.ow2.asm:asm:8.0")
     implementation("org.ow2.asm:asm-tree:8.0")
     implementation("com.google.guava:guava:30.1.1-jre")
     testImplementation("com.android.tools.lint:lint-tests:$studioVersion")
     testImplementation("junit:junit:4.13.2")
     testImplementation("com.google.truth:truth:1.1.3")
-    testImplementation("org.jetbrains.kotlin:kotlin-test:$kotlinVersion")
+    testImplementation(libs.kotlinTest)
 }
 
 val zipTask: TaskProvider<Zip> = project.tasks.register(
@@ -138,9 +137,9 @@ fun getMetalavaVersion(): Any {
 
 fun getBuildDirectory(): File {
     return if (System.getenv("OUT_DIR") != null) {
-        File(System.getenv("OUT_DIR"), "host/common/metalava")
+        File(System.getenv("OUT_DIR"), "metalava")
     } else {
-        File("../../out/host/common")
+        File(projectDir, "../../out/metalava")
     }
 }
 
@@ -152,7 +151,7 @@ fun getDistributionDirectory(): File {
     return if (System.getenv("DIST_DIR") != null) {
         File(System.getenv("DIST_DIR"))
     } else {
-        File("../../out/dist")
+        File(projectDir, "../../out/dist")
     }
 }
 

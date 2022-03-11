@@ -290,7 +290,9 @@ class KotlinInteropChecks(val reporter: Reporter) {
 
         if (haveDefault && method.modifiers.findAnnotation("kotlin.jvm.JvmOverloads") == null &&
             // Extension methods and inline functions aren't really useful from Java anyway
-            !method.isExtensionMethod() && !method.modifiers.isInline()
+            !method.isExtensionMethod() && !method.modifiers.isInline() &&
+            // Methods marked @JvmSynthetic are hidden from java, overloads not useful
+            !method.modifiers.hasJvmSyntheticAnnotation()
         ) {
             reporter.report(
                 Issues.MISSING_JVMSTATIC, method,

@@ -16,8 +16,6 @@
 package com.android.tools.metalava
 
 import com.android.sdklib.SdkVersionInfo
-import java.util.ArrayList
-import java.util.HashMap
 import java.util.Locale
 import kotlin.reflect.full.declaredMemberProperties
 
@@ -45,8 +43,8 @@ object Issues {
     val CHANGED_VALUE = Issue(Severity.ERROR, Category.COMPATIBILITY)
     val CHANGED_SUPERCLASS = Issue(Severity.ERROR, Category.COMPATIBILITY)
     val CHANGED_SCOPE = Issue(Severity.ERROR, Category.COMPATIBILITY)
-    val CHANGED_ABSTRACT = Issue(Severity.WARNING, Category.COMPATIBILITY)
-    val CHANGED_THROWS = Issue(Severity.WARNING, Category.COMPATIBILITY)
+    val CHANGED_ABSTRACT = Issue(Severity.ERROR, Category.COMPATIBILITY)
+    val CHANGED_THROWS = Issue(Severity.ERROR, Category.COMPATIBILITY)
     val CHANGED_NATIVE = Issue(Severity.HIDDEN, Category.COMPATIBILITY)
     val CHANGED_CLASS = Issue(Severity.ERROR, Category.COMPATIBILITY)
     val CHANGED_DEPRECATED = Issue(Severity.HIDDEN, Category.COMPATIBILITY)
@@ -211,6 +209,7 @@ object Issues {
     val DOCUMENT_EXCEPTIONS = Issue(Severity.ERROR, Category.API_LINT, "docs-throws")
     val FORBIDDEN_SUPER_CLASS = Issue(Severity.ERROR, Category.API_LINT)
     val MISSING_NULLABILITY = Issue(Severity.ERROR, Category.API_LINT, "annotations")
+    val INVALID_NULLABILITY = Issue(Severity.ERROR, Category.API_LINT, "annotations-nullability-overrides")
     val MUTABLE_BARE_FIELD = Issue(Severity.ERROR, Category.API_LINT, "mutable-bare-field")
     val INTERNAL_FIELD = Issue(Severity.ERROR, Category.API_LINT, "internal-fields")
     val PUBLIC_TYPEDEF = Issue(Severity.ERROR, Category.API_LINT, "no-public-typedefs")
