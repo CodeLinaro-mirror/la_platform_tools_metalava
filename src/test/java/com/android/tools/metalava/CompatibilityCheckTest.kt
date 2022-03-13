@@ -944,7 +944,7 @@ CompatibilityCheckTest : DriverTest() {
     fun `Incompatible class change -- change qualifiers`() {
         check(
             expectedIssues = """
-                src/test/pkg/Parent.java:3: warning: Class test.pkg.Parent changed 'abstract' qualifier [ChangedAbstract]
+                src/test/pkg/Parent.java:3: error: Class test.pkg.Parent changed 'abstract' qualifier [ChangedAbstract]
                 src/test/pkg/Parent.java:3: error: Class test.pkg.Parent changed 'static' qualifier [ChangedStatic]
                 """,
             checkCompatibilityApiReleased = """
@@ -1133,7 +1133,7 @@ CompatibilityCheckTest : DriverTest() {
     fun `Incompatible method change -- modifiers`() {
         check(
             expectedIssues = """
-                src/test/pkg/MyClass.java:5: warning: Method test.pkg.MyClass.myMethod2 has changed 'abstract' qualifier [ChangedAbstract]
+                src/test/pkg/MyClass.java:5: error: Method test.pkg.MyClass.myMethod2 has changed 'abstract' qualifier [ChangedAbstract]
                 src/test/pkg/MyClass.java:6: error: Method test.pkg.MyClass.myMethod3 has changed 'static' qualifier [ChangedStatic]
                 """,
             checkCompatibilityApiReleased = """
@@ -1938,7 +1938,7 @@ CompatibilityCheckTest : DriverTest() {
             expectedIssues = """
                 src/test/pkg/Class1.java:3: error: Class test.pkg.Class1 added 'final' qualifier [AddedFinal]
                 TESTROOT/released-api.txt:3: error: Removed constructor test.pkg.Class1() [RemovedMethod]
-                src/test/pkg/MyClass.java:5: warning: Method test.pkg.MyClass.myMethod2 has changed 'abstract' qualifier [ChangedAbstract]
+                src/test/pkg/MyClass.java:5: error: Method test.pkg.MyClass.myMethod2 has changed 'abstract' qualifier [ChangedAbstract]
                 src/test/pkg/MyClass.java:6: error: Method test.pkg.MyClass.myMethod3 has changed 'static' qualifier [ChangedStatic]
                 TESTROOT/released-api.txt:14: error: Removed class test.pkg.MyOldClass [RemovedClass]
                 TESTROOT/released-api.txt:17: error: Removed package test.pkg3 [RemovedPackage]
@@ -3657,6 +3657,75 @@ CompatibilityCheckTest : DriverTest() {
                     method protected void baz();
                     method protected void spam();
                   }
+                }
+            """
+        )
+    }
+
+    @Test
+    fun `configuring issue severity`() {
+        check(
+            extraArguments = arrayOf(ARG_HIDE, Issues.REMOVED_METHOD.name),
+            signatureSource = """
+                package test.pkg {
+                    public class Foo {
+                    }
+                }
+            """,
+            checkCompatibilityApiReleased = """
+                package test.pkg {
+                    public class Foo {
+                        ctor public Foo();
+                        method public void bar();
+                    }
+                }
+            """
+        )
+    }
+
+    @Test
+    fun `block changing open to abstract`() {
+        check(
+            expectedIssues = """
+                TESTROOT/load-api.txt:2: error: Class test.pkg.Foo changed 'abstract' qualifier [ChangedAbstract]
+                TESTROOT/load-api.txt:4: error: Method test.pkg.Foo.bar has changed 'abstract' qualifier [ChangedAbstract]
+            """,
+            signatureSource = """
+                package test.pkg {
+                    public abstract class Foo {
+                        ctor public Foo();
+                        method public abstract void bar();
+                    }
+                }
+            """,
+            checkCompatibilityApiReleased = """
+                package test.pkg {
+                    public class Foo {
+                        ctor public Foo();
+                        method public void bar();
+                    }
+                }
+            """
+        )
+    }
+
+    @Test
+    fun `allow changing abstract to open`() {
+        check(
+            signatureSource = """
+                package test.pkg {
+                    public class Foo {
+                        ctor public Foo();
+                        method public void bar();
+                    }
+                }
+            """,
+            checkCompatibilityApiReleased = """
+                package test.pkg {
+                    public abstract class Foo {
+                        ctor public Foo();
+                        method public abstract void bar();
+                    }
                 }
             """
         )

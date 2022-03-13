@@ -86,6 +86,7 @@ import com.android.tools.metalava.Issues.INTENT_NAME
 import com.android.tools.metalava.Issues.INTERFACE_CONSTANT
 import com.android.tools.metalava.Issues.INTERNAL_CLASSES
 import com.android.tools.metalava.Issues.INTERNAL_FIELD
+import com.android.tools.metalava.Issues.INVALID_NULLABILITY
 import com.android.tools.metalava.Issues.Issue
 import com.android.tools.metalava.Issues.KOTLIN_OPERATOR
 import com.android.tools.metalava.Issues.LISTENER_INTERFACE
@@ -1535,9 +1536,8 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
     }
 
     private fun checkHasNullability(item: Item) {
-        if (item.requiresNullnessInfo() && !item.hasNullnessInfo() &&
-            getImplicitNullness(item) == null
-        ) {
+        if (!item.requiresNullnessInfo()) return
+        if (!item.hasNullnessInfo() && getImplicitNullness(item) == null) {
             val type = item.type()
             val inherited = when (item) {
                 is ParameterItem -> item.containingMethod().inheritedMethod
@@ -1586,6 +1586,61 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
                 else -> throw IllegalStateException("Unexpected item type: $item")
             }
             report(MISSING_NULLABILITY, item, "Missing nullability on $where")
+        } else {
+            when (item) {
+                is ParameterItem -> {
+                    // We don't enforce this check on constructor params
+                    if (item.containingMethod().isConstructor()) return
+                    if (item.modifiers.isNonNull()) {
+                        if (anySuperParameterLacksNullnessInfo(item)) {
+                            report(INVALID_NULLABILITY, item, "Invalid nullability on parameter `${item.name()}` in method `${item.parent()?.name()}`. Parameters of overrides cannot be NonNull if the super parameter is unannotated.")
+                        } else if (anySuperParameterIsNullable(item)) {
+                            report(INVALID_NULLABILITY, item, "Invalid nullability on parameter `${item.name()}` in method `${item.parent()?.name()}`. Parameters of overrides cannot be NonNull if super parameter is Nullable.")
+                        }
+                    }
+                }
+                is MethodItem -> {
+                    // We don't enforce this check on constructors
+                    if (item.isConstructor()) return
+                    if (item.modifiers.isNullable()) {
+                        if (anySuperMethodLacksNullnessInfo(item)) {
+                            report(INVALID_NULLABILITY, item, "Invalid nullability on method `${item.name()}` return. Overrides of unannotated super method cannot be Nullable.")
+                        } else if (anySuperMethodIsNonNull(item)) {
+                            report(INVALID_NULLABILITY, item, "Invalid nullability on method `${item.name()}` return. Overrides of NonNull methods cannot be Nullable.")
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private fun anySuperMethodIsNonNull(method: MethodItem): Boolean {
+        return method.superMethods().any { superMethod ->
+            superMethod.modifiers.isNonNull()
+        }
+    }
+
+    private fun anySuperParameterIsNullable(parameter: ParameterItem): Boolean {
+        return parameter.containingMethod().superMethods().any { superMethod ->
+            superMethod.parameters().firstOrNull { param ->
+                parameter.parameterIndex == param.parameterIndex
+            }?.modifiers?.isNullable() ?: false
+        }
+    }
+
+    private fun anySuperMethodLacksNullnessInfo(method: MethodItem): Boolean {
+        return method.superMethods().any { superMethod ->
+            !superMethod.hasNullnessInfo()
+        }
+    }
+
+    private fun anySuperParameterLacksNullnessInfo(parameter: ParameterItem): Boolean {
+        return parameter.containingMethod().superMethods().any { superMethod ->
+            !(
+                superMethod.parameters().firstOrNull { param ->
+                    parameter.parameterIndex == param.parameterIndex
+                }?.hasNullnessInfo() ?: true
+                )
         }
     }
 

@@ -366,17 +366,13 @@ interface MethodItem : MemberItem {
     }
 
     override fun requiresNullnessInfo(): Boolean {
-        if (isConstructor()) {
-            return false
-        } else if (returnType()?.primitive != true) {
-            return true
+        return when {
+            modifiers.hasJvmSyntheticAnnotation() -> false
+            isConstructor() -> false
+            (returnType()?.primitive != true) -> true
+            parameters().any { !it.type().primitive } -> true
+            else -> false
         }
-        for (parameter in parameters()) {
-            if (!parameter.type().primitive) {
-                return true
-            }
-        }
-        return false
     }
 
     override fun hasNullnessInfo(): Boolean {
