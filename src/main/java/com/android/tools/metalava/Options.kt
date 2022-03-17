@@ -57,10 +57,6 @@ const val ARG_API = "--api"
 const val ARG_XML_API = "--api-xml"
 const val ARG_CONVERT_TO_JDIFF = "--convert-to-jdiff"
 const val ARG_CONVERT_NEW_TO_JDIFF = "--convert-new-to-jdiff"
-const val ARG_CONVERT_TO_V1 = "--convert-to-v1"
-const val ARG_CONVERT_TO_V2 = "--convert-to-v2"
-const val ARG_CONVERT_NEW_TO_V1 = "--convert-new-to-v1"
-const val ARG_CONVERT_NEW_TO_V2 = "--convert-new-to-v2"
 const val ARG_DEX_API = "--dex-api"
 const val ARG_SDK_VALUES = "--sdk-values"
 const val ARG_REMOVED_API = "--removed-api"
@@ -687,8 +683,7 @@ class Options(
         val fromApiFile: File,
         val outputFile: File,
         val baseApiFile: File? = null,
-        val strip: Boolean = false,
-        val outputFormat: FileFormat = FileFormat.JDIFF
+        val strip: Boolean = false
     )
 
     /** Temporary folder to use instead of the JDK default, if any */
@@ -1159,39 +1154,24 @@ class Options(
                 }
 
                 ARG_CONVERT_TO_JDIFF,
-                ARG_CONVERT_TO_V1,
-                ARG_CONVERT_TO_V2,
                 // doclava compatibility:
                 "-convert2xml",
                 "-convert2xmlnostrip" -> {
                     val strip = arg == "-convert2xml"
-                    val format = when (arg) {
-                        ARG_CONVERT_TO_V1 -> FileFormat.V1
-                        ARG_CONVERT_TO_V2 -> FileFormat.V2
-                        else -> FileFormat.JDIFF
-                    }
-
                     val signatureFile = stringToExistingFile(getValue(args, ++index))
                     val outputFile = stringToNewFile(getValue(args, ++index))
-                    mutableConvertToXmlFiles.add(ConvertFile(signatureFile, outputFile, null, strip, format))
+                    mutableConvertToXmlFiles.add(ConvertFile(signatureFile, outputFile, null, strip))
                 }
 
                 ARG_CONVERT_NEW_TO_JDIFF,
-                ARG_CONVERT_NEW_TO_V1,
-                ARG_CONVERT_NEW_TO_V2,
                 // doclava compatibility:
                 "-new_api",
                 "-new_api_no_strip" -> {
-                    val format = when (arg) {
-                        ARG_CONVERT_NEW_TO_V1 -> FileFormat.V1
-                        ARG_CONVERT_NEW_TO_V2 -> FileFormat.V2
-                        else -> FileFormat.JDIFF
-                    }
                     val strip = arg == "-new_api"
                     val baseFile = stringToExistingFile(getValue(args, ++index))
                     val signatureFile = stringToExistingFile(getValue(args, ++index))
                     val jDiffFile = stringToNewFile(getValue(args, ++index))
-                    mutableConvertToXmlFiles.add(ConvertFile(signatureFile, jDiffFile, baseFile, strip, format))
+                    mutableConvertToXmlFiles.add(ConvertFile(signatureFile, jDiffFile, baseFile, strip))
                 }
 
                 "--write-android-jar-signatures" -> {
@@ -2271,15 +2251,6 @@ class Options(
             "$ARG_CONVERT_NEW_TO_JDIFF <old> <new> <xml>",
             "Reads in the given old and new api files, " +
                 "computes the difference, and writes out only the new parts of the API in the JDiff XML format.",
-            "$ARG_CONVERT_TO_V1 <sig> <sig>",
-            "Reads in the given signature file and writes it out as a " +
-                "signature file in the original v1/doclava format.",
-            "$ARG_CONVERT_TO_V2 <sig> <sig>",
-            "Reads in the given signature file and writes it out as a " +
-                "signature file in the new signature format, v2.",
-            "$ARG_CONVERT_NEW_TO_V2 <old> <new> <sig>",
-            "Reads in the given old and new api files, " +
-                "computes the difference, and writes out only the new parts of the API in the v2 format.",
 
             "", "\nExtracting Annotations:",
             "$ARG_EXTRACT_ANNOTATIONS <zipfile>",

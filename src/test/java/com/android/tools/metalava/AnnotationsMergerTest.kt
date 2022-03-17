@@ -57,7 +57,6 @@ class AnnotationsMergerTest : DriverTest() {
             extraArguments = arrayOf(
                 ARG_HIDE_PACKAGE, "android.annotation",
                 ARG_HIDE_PACKAGE, "androidx.annotation",
-                ARG_HIDE_PACKAGE, "android.support.annotation"
             ),
             api = """
                 package test.pkg {
@@ -93,19 +92,19 @@ class AnnotationsMergerTest : DriverTest() {
             mergeXmlAnnotations = """<?xml version="1.0" encoding="UTF-8"?>
                 <root>
                   <item name="test.pkg.MyTest">
-                    <annotation name="android.support.annotation.UiThread" />
+                    <annotation name="androidx.annotation.UiThread" />
                   </item>
                   <item name="test.pkg.MyTest java.lang.Double convert(java.lang.Float)">
-                    <annotation name="android.support.annotation.Nullable" />
+                    <annotation name="androidx.annotation.Nullable" />
                   </item>
                   <item name="test.pkg.MyTest java.lang.Double convert(java.lang.Float) 0">
-                    <annotation name="android.support.annotation.NonNull" />
+                    <annotation name="androidx.annotation.NonNull" />
                   </item>
                   <item name="test.pkg.MyTest myNumber">
-                    <annotation name="android.support.annotation.Nullable" />
+                    <annotation name="androidx.annotation.Nullable" />
                   </item>
                   <item name="test.pkg.MyTest int clamp(int)">
-                    <annotation name="android.support.annotation.IntRange">
+                    <annotation name="androidx.annotation.IntRange">
                       <val name="from" val="10" />
                       <val name="to" val="20" />
                     </annotation>
@@ -646,7 +645,7 @@ class AnnotationsMergerTest : DriverTest() {
                     </annotation>
                   </item>
                   <item name="android.text.TextUtils boolean isEmpty(java.lang.CharSequence) 0">
-                    <annotation name="android.support.annotation.Nullable" />
+                    <annotation name="androidx.annotation.Nullable" />
                   </item>
                   <item name="android.graphics.RuntimeShader RuntimeShader(java.lang.String) 0">
                     <annotation name="org.intellij.lang.annotations.Language">

@@ -489,36 +489,10 @@ fun processNonCodebaseFlags() {
                 signatureApi
             }
 
-        val output = convert.outputFile
-        if (convert.outputFormat == FileFormat.JDIFF) {
-            // See JDiff's XMLToAPI#nameAPI
-            val apiName = convert.outputFile.nameWithoutExtension.replace(' ', '_')
-            createReportFile(outputApi, output, "JDiff File") { printWriter ->
-                JDiffXmlWriter(printWriter, apiEmit, apiReference, signatureApi.preFiltered && !strip, apiName)
-            }
-        } else {
-            val prevOptions = options
-            try {
-                when (convert.outputFormat) {
-                    FileFormat.V1 -> {
-                        options = Options(emptyArray(), options.stdout, options.stderr)
-                        FileFormat.V1.configureOptions(options)
-                    }
-                    FileFormat.V2 -> {
-                        options = Options(emptyArray(), options.stdout, options.stderr)
-                        FileFormat.V2.configureOptions(options)
-                    }
-                    else -> error("Unsupported format ${convert.outputFormat}")
-                }
-
-                createReportFile(outputApi, output, "Diff API File") { printWriter ->
-                    SignatureWriter(
-                        printWriter, apiEmit, apiReference, signatureApi.preFiltered && !strip
-                    )
-                }
-            } finally {
-                options = prevOptions
-            }
+        // See JDiff's XMLToAPI#nameAPI
+        val apiName = convert.outputFile.nameWithoutExtension.replace(' ', '_')
+        createReportFile(outputApi, convert.outputFile, "JDiff File") { printWriter ->
+            JDiffXmlWriter(printWriter, apiEmit, apiReference, signatureApi.preFiltered && !strip, apiName)
         }
     }
 }

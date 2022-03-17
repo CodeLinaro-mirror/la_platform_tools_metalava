@@ -23,12 +23,12 @@ class TextTypeItemTest {
     @Test
     fun `test typeString()`() {
         val full =
-            "@android.support.annotation.Nullable java.util.List<@android.support.annotation.Nullable java.lang.String>"
+            "@androidx.annotation.Nullable java.util.List<@androidx.annotation.Nullable java.lang.String>"
         assertThat(TextTypeItem.toTypeString(full, false, false, false)).isEqualTo(
             "java.util.List<java.lang.String>"
         )
         assertThat(TextTypeItem.toTypeString(full, false, true, false)).isEqualTo(
-            "java.util.List<@android.support.annotation.Nullable java.lang.String>"
+            "java.util.List<@androidx.annotation.Nullable java.lang.String>"
         )
         assertThat(TextTypeItem.toTypeString(full, false, false, true)).isEqualTo(
             "java.util.List"
@@ -40,7 +40,7 @@ class TextTypeItemTest {
                 true,
                 false
             )
-        ).isEqualTo("@android.support.annotation.Nullable java.util.List<@android.support.annotation.Nullable java.lang.String>")
+        ).isEqualTo("@androidx.annotation.Nullable java.util.List<@androidx.annotation.Nullable java.lang.String>")
         assertThat(
             TextTypeItem.toTypeString(
                 full,
@@ -48,7 +48,7 @@ class TextTypeItemTest {
                 true,
                 true
             )
-        ).isEqualTo("@android.support.annotation.Nullable java.util.List")
+        ).isEqualTo("@androidx.annotation.Nullable java.util.List")
         assertThat(TextTypeItem.toTypeString("int", false, false, false)).isEqualTo("int")
 
         assertThat(

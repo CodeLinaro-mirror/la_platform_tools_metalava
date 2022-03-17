@@ -285,10 +285,6 @@ class CompatibilityCheck(
                         Issues.ADDED_FINAL, new, "${describe(new, capitalize = true)} added 'final' qualifier"
                     )
                 }
-            } else if (oldModifiers.isFinal() && !newModifiers.isFinal()) {
-                report(
-                    Issues.REMOVED_FINAL, new, "${describe(new, capitalize = true)} removed 'final' qualifier"
-                )
             }
 
             if (oldModifiers.isStatic() != newModifiers.isStatic()) {
@@ -338,10 +334,10 @@ class CompatibilityCheck(
             }
         }
 
-        if (old.hasTypeVariables() && new.hasTypeVariables()) {
+        if (old.hasTypeVariables() || new.hasTypeVariables()) {
             val oldTypeParamsCount = old.typeParameterList().typeParameterCount()
             val newTypeParamsCount = new.typeParameterList().typeParameterCount()
-            if (oldTypeParamsCount != newTypeParamsCount) {
+            if (oldTypeParamsCount > 0 && oldTypeParamsCount != newTypeParamsCount) {
                 report(
                     Issues.CHANGED_TYPE, new,
                     "${describe(
@@ -419,8 +415,12 @@ class CompatibilityCheck(
                 report(Issues.CHANGED_TYPE, new, message)
             }
 
-            // Annotation methods?
-            if (!old.hasSameValue(new)) {
+            // Annotation methods
+            if (
+                new.containingClass().isAnnotationType() &&
+                old.containingClass().isAnnotationType() &&
+                new.defaultValue() != old.defaultValue()
+            ) {
                 val prevValue = old.defaultValue()
                 val prevString = if (prevValue.isEmpty()) {
                     "nothing"
@@ -475,6 +475,14 @@ class CompatibilityCheck(
             }
         }
 
+        if (new.containingClass().isInterface() || new.containingClass().isAnnotationType()) {
+            if (oldModifiers.isDefault() && newModifiers.isAbstract()) {
+                report(
+                    Issues.CHANGED_DEFAULT, new, "${describe(new, capitalize = true)} has changed 'default' qualifier"
+                )
+            }
+        }
+
         if (oldModifiers.isNative() != newModifiers.isNative()) {
             report(
                 Issues.CHANGED_NATIVE, new, "${describe(new, capitalize = true)} has changed 'native' qualifier"
@@ -495,11 +503,9 @@ class CompatibilityCheck(
                 // and (b) the method is not already inferred to be 'final' by virtue of its class.
                 if (!old.isEffectivelyFinal() && new.isEffectivelyFinal()) {
                     report(
-                        Issues.ADDED_FINAL, new, "${describe(new, capitalize = true)} has added 'final' qualifier"
-                    )
-                } else if (old.isEffectivelyFinal() && !new.isEffectivelyFinal()) {
-                    report(
-                        Issues.REMOVED_FINAL, new, "${describe(new, capitalize = true)} has removed 'final' qualifier"
+                        Issues.ADDED_FINAL,
+                        new,
+                        "${describe(new, capitalize = true)} has added 'final' qualifier"
                     )
                 }
             }
@@ -614,14 +620,14 @@ class CompatibilityCheck(
                 val message = "${describe(new, capitalize = true)} has changed type from $oldType to $newType"
                 report(Issues.CHANGED_TYPE, new, message)
             } else if (!old.hasSameValue(new)) {
-                val prevValue = old.initialValue(true)
+                val prevValue = old.initialValue()
                 val prevString = if (prevValue == null && !old.modifiers.isFinal()) {
                     "nothing/not constant"
                 } else {
                     prevValue
                 }
 
-                val newValue = new.initialValue(true)
+                val newValue = new.initialValue()
                 val newString = if (newValue is PsiField) {
                     newValue.containingClass?.qualifiedName + "." + newValue.name
                 } else {
@@ -645,13 +651,18 @@ class CompatibilityCheck(
         val oldVisibility = oldModifiers.getVisibilityString()
         val newVisibility = newModifiers.getVisibilityString()
         if (oldVisibility != newVisibility) {
-            // TODO: Use newModifiers.asAccessibleAs(oldModifiers) to provide different error messages
-            // based on whether this seems like a reasonable change, e.g. making a private or final method more
-            // accessible is fine (no overridden method affected) but not making methods less accessible etc
-            report(
-                Issues.CHANGED_SCOPE, new,
-                "${describe(new, capitalize = true)} changed visibility from $oldVisibility to $newVisibility"
-            )
+            // Only report issue if the change is a decrease in access; e.g. public -> protected
+            if (!newModifiers.asAccessibleAs(oldModifiers)) {
+                report(
+                    Issues.CHANGED_SCOPE, new,
+                    "${
+                    describe(
+                        new,
+                        capitalize = true
+                    )
+                    } changed visibility from $oldVisibility to $newVisibility"
+                )
+            }
         }
 
         if (oldModifiers.isStatic() != newModifiers.isStatic()) {
@@ -664,15 +675,13 @@ class CompatibilityCheck(
             report(
                 Issues.ADDED_FINAL, new, "${describe(new, capitalize = true)} has added 'final' qualifier"
             )
-        } else if (oldModifiers.isFinal() && !newModifiers.isFinal()) {
+        } else if (
+            // Final can't be removed if field is static with compile-time constant
+            oldModifiers.isFinal() && !newModifiers.isFinal() &&
+            oldModifiers.isStatic() && old.initialValue() != null
+        ) {
             report(
                 Issues.REMOVED_FINAL, new, "${describe(new, capitalize = true)} has removed 'final' qualifier"
-            )
-        }
-
-        if (oldModifiers.isTransient() != newModifiers.isTransient()) {
-            report(
-                Issues.CHANGED_TRANSIENT, new, "${describe(new, capitalize = true)} has changed 'transient' qualifier"
             )
         }
 

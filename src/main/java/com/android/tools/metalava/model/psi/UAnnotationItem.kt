@@ -162,7 +162,7 @@ class UAnnotationItem private constructor(
             // because that may not use fully qualified names, e.g. the source may say
             //  @RequiresPermission(Manifest.permission.ACCESS_COARSE_LOCATION)
             // and we want to compute
-            //  @android.support.annotation.RequiresPermission(android.Manifest.permission.ACCESS_COARSE_LOCATION)
+            //  @androidx.annotation.RequiresPermission(android.Manifest.permission.ACCESS_COARSE_LOCATION)
             when (value) {
                 null -> sb.append("null")
                 is ULiteralExpression -> sb.append(CodePrinter.constantToSource(value.value))

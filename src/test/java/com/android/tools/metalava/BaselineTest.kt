@@ -164,7 +164,6 @@ class BaselineTest : DriverTest() {
             extraArguments = arrayOf(
                 ARG_SHOW_ANNOTATION, "android.annotation.TestApi",
                 ARG_HIDE_PACKAGE, "android.annotation",
-                ARG_HIDE_PACKAGE, "android.support.annotation",
                 ARG_API_LINT
             ),
             baseline = """

@@ -176,7 +176,7 @@ class AndroidApiChecks {
     private fun checkRequiresPermission(method: MethodItem) {
         val text = method.documentation
 
-        val annotation = method.modifiers.findAnnotation("android.support.annotation.RequiresPermission")
+        val annotation = method.modifiers.findAnnotation("androidx.annotation.RequiresPermission")
         if (annotation != null) {
             for (attribute in annotation.attributes) {
                 var values: List<AnnotationAttributeValue>? = null

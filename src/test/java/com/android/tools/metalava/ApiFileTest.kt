@@ -337,7 +337,7 @@ class ApiFileTest : DriverTest() {
                     method @NonNull public String getProperty1();
                     method @Nullable public String getProperty2();
                     method public void otherMethod(boolean ok, int times);
-                    method public void setProperty2(@Nullable String property2);
+                    method public void setProperty2(@Nullable String value);
                     property @NonNull public final String property1;
                     property @Nullable public final String property2;
                     field @NonNull public static final test.pkg.Kotlin.Companion Companion;
@@ -1081,7 +1081,7 @@ class ApiFileTest : DriverTest() {
                   public final class SimpleClass {
                     ctor public SimpleClass();
                     method public int getNonJvmField();
-                    method public void setNonJvmField(int nonJvmField);
+                    method public void setNonJvmField(int value);
                     property public final int nonJvmField;
                     field public int jvmField;
                   }
@@ -1115,8 +1115,8 @@ class ApiFileTest : DriverTest() {
                     ctor public SimpleClass();
                     method public int getAnotherProperty();
                     method public int myPropertyJvmGetter();
-                    method public void setAnotherProperty(int anotherProperty);
-                    method public void setMyProperty(int myProperty);
+                    method public void setAnotherProperty(int value);
+                    method public void setMyProperty(int value);
                     property public final int anotherProperty;
                     property public final int myProperty;
                   }
@@ -3987,10 +3987,10 @@ class ApiFileTest : DriverTest() {
                 // Signature format: 3.0
                 package test.pkg {
                   public final class KotlinClass {
-                    ctor public KotlinClass(@IntRange(from=1) int param);
-                    ctor public KotlinClass(@IntRange(from=2) int differentParam);
+                    ctor public KotlinClass(@IntRange(from=1L) int param);
+                    ctor public KotlinClass(@IntRange(from=2L) int differentParam);
                     method public int getParam();
-                    method public void myMethod(@IntRange(from=3) int methodParam);
+                    method public void myMethod(@IntRange(from=3L) int methodParam);
                     property public final int param;
                   }
                 }

@@ -48,7 +48,6 @@ class ShowAnnotationTest : DriverTest() {
 
             extraArguments = arrayOf(
                 ARG_HIDE_PACKAGE, "android.annotation",
-                ARG_HIDE_PACKAGE, "android.support.annotation"
             ),
 
             api = """
@@ -105,7 +104,6 @@ class ShowAnnotationTest : DriverTest() {
 
             extraArguments = arrayOf(
                 ARG_HIDE_PACKAGE, "android.annotation",
-                ARG_HIDE_PACKAGE, "android.support.annotation"
             ),
 
             api = """
@@ -165,7 +163,6 @@ class ShowAnnotationTest : DriverTest() {
             extraArguments = arrayOf(
                 ARG_SHOW_ANNOTATION, "android.annotation.TestApi",
                 ARG_HIDE_PACKAGE, "android.annotation",
-                ARG_HIDE_PACKAGE, "android.support.annotation"
             ),
 
             api = """
@@ -250,7 +247,6 @@ class ShowAnnotationTest : DriverTest() {
             extraArguments = arrayOf(
                 ARG_SHOW_ANNOTATION, "android.annotation.TestApi",
                 ARG_HIDE_PACKAGE, "android.annotation",
-                ARG_HIDE_PACKAGE, "android.support.annotation"
             )
         )
     }
@@ -297,7 +293,6 @@ class ShowAnnotationTest : DriverTest() {
             extraArguments = arrayOf(
                 ARG_SHOW_SINGLE_ANNOTATION, "android.annotation.SystemApi",
                 ARG_HIDE_PACKAGE, "android.annotation",
-                ARG_HIDE_PACKAGE, "android.support.annotation"
             ),
 
             api = """

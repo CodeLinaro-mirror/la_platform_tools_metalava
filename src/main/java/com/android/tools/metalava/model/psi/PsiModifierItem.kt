@@ -18,7 +18,6 @@ package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.ANDROIDX_VISIBLE_FOR_TESTING
 import com.android.tools.metalava.ANDROID_DEPRECATED_FOR_SDK
-import com.android.tools.metalava.ANDROID_SUPPORT_VISIBLE_FOR_TESTING
 import com.android.tools.metalava.ATTR_ALLOW_IN
 import com.android.tools.metalava.ATTR_OTHERWISE
 import com.android.tools.metalava.model.AnnotationItem
@@ -250,9 +249,7 @@ class PsiModifierItem(
                     psiAnnotations.distinct().map {
                         val qualifiedName = it.qualifiedName
                         // Consider also supporting com.android.internal.annotations.VisibleForTesting?
-                        if (qualifiedName == ANDROIDX_VISIBLE_FOR_TESTING ||
-                            qualifiedName == ANDROID_SUPPORT_VISIBLE_FOR_TESTING
-                        ) {
+                        if (qualifiedName == ANDROIDX_VISIBLE_FOR_TESTING) {
                             val otherwise = it.findAttributeValue(ATTR_OTHERWISE)
                             val ref = when {
                                 otherwise is PsiReferenceExpression -> otherwise.referenceName ?: ""
@@ -300,9 +297,7 @@ class PsiModifierItem(
                     .map {
 
                         val qualifiedName = it.qualifiedName
-                        if (qualifiedName == ANDROIDX_VISIBLE_FOR_TESTING ||
-                            qualifiedName == ANDROID_SUPPORT_VISIBLE_FOR_TESTING
-                        ) {
+                        if (qualifiedName == ANDROIDX_VISIBLE_FOR_TESTING) {
                             val otherwise = it.findAttributeValue(ATTR_OTHERWISE)
                             val ref = when {
                                 otherwise is PsiReferenceExpression -> otherwise.referenceName ?: ""
