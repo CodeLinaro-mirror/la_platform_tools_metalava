@@ -30,6 +30,7 @@ class AnnotationsDifferTest {
 
     @Test
     fun `Write diff`() {
+        options = Options(arrayOf(ARG_CLASS_PATH, DriverTest.getAndroidJar().path))
         val codebase = ApiFile.parseApi(
             "old.txt",
             """
@@ -61,7 +62,7 @@ class AnnotationsDifferTest {
         )
 
         val apiFile = temporaryFolder.newFile("diff.txt")
-        options = Options(emptyArray())
+        options = Options(arrayOf(ARG_CLASS_PATH, DriverTest.getAndroidJar().path))
         AnnotationsDiffer(codebase, codebase2).writeDiffSignature(apiFile)
         assertTrue(apiFile.exists())
         val actual = apiFile.readText(UTF_8)

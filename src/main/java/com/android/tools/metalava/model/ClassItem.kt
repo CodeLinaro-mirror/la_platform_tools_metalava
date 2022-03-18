@@ -96,6 +96,15 @@ interface ClassItem : Item {
     /** The super class of this class, if any  */
     fun superClass(): ClassItem?
 
+    /** All super classes, if any */
+    fun allSuperClasses(): Sequence<ClassItem> {
+        return superClass()?.let { cls ->
+            return generateSequence(cls) {
+                it.superClass()
+            }
+        } ?: return emptySequence()
+    }
+
     /** The super class type of this class, if any. The difference between this and [superClass] is
      * that the type reference can include type arguments; e.g. in "class MyList extends List<String>"
      * the super class is java.util.List and the super class type is java.util.List<java.lang.String>.

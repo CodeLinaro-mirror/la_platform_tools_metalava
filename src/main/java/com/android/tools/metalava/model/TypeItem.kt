@@ -176,10 +176,6 @@ interface TypeItem {
             if (cleaned.contains("@androidx.annotation.")) {
                 cleaned = cleaned.replace("@androidx.annotation.", "@")
             }
-            if (cleaned.contains("@android.support.annotation.")) {
-                cleaned = cleaned.replace("@android.support.annotation.", "@")
-            }
-
             return stripJavaLangPrefix(cleaned)
         }
 

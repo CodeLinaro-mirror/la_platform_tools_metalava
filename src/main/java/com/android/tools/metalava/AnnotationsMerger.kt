@@ -563,7 +563,7 @@ class AnnotationsMerger(
 
     /** Reads in annotation data from an XML item (using IntelliJ IDE's external annotations XML format) and
      * creates a corresponding [AnnotationItem], performing some "translations" in the process (e.g. mapping
-     * from IntelliJ annotations like `org.jetbrains.annotations.Nullable` to `android.support.annotation.Nullable`. */
+     * from IntelliJ annotations like `org.jetbrains.annotations.Nullable` to `androidx.annotation.Nullable`. */
     private fun createAnnotation(annotationElement: Element): AnnotationItem? {
         val tagName = annotationElement.tagName
         assert(tagName == "annotation") { tagName }

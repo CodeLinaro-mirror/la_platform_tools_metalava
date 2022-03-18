@@ -188,8 +188,7 @@ class ExtractAnnotations(
             val qualifiedName = annotation.qualifiedName ?: continue
             if (qualifiedName.startsWith(JAVA_LANG_PREFIX) ||
                 qualifiedName.startsWith(ANDROIDX_ANNOTATION_PREFIX) ||
-                qualifiedName.startsWith(ANDROID_ANNOTATION_PREFIX) ||
-                qualifiedName.startsWith(ANDROID_SUPPORT_ANNOTATION_PREFIX)
+                qualifiedName.startsWith(ANDROID_ANNOTATION_PREFIX)
             ) {
                 if (annotation.isTypeDefAnnotation()) {
                     // Imported typedef

@@ -1636,8 +1636,6 @@ class ApiLintTest : DriverTest() {
                 src/android/pkg/MyClass.java:6: error: Methods must not throw generic exceptions (`java.lang.Exception`) [GenericException] [See https://s.android.com/api-guidelines#appropriate-exception]
                 src/android/pkg/MyClass.java:7: error: Methods must not throw generic exceptions (`java.lang.Throwable`) [GenericException] [See https://s.android.com/api-guidelines#appropriate-exception]
                 src/android/pkg/MyClass.java:8: error: Methods must not throw generic exceptions (`java.lang.Error`) [GenericException] [See https://s.android.com/api-guidelines#appropriate-exception]
-                src/android/pkg/MyClass.java:9: warning: Methods taking no arguments should throw `IllegalStateException` instead of `java.lang.IllegalArgumentException` [IllegalStateException] [See https://s.android.com/api-guidelines#appropriate-exception]
-                src/android/pkg/MyClass.java:10: warning: Methods taking no arguments should throw `IllegalStateException` instead of `java.lang.NullPointerException` [IllegalStateException] [See https://s.android.com/api-guidelines#appropriate-exception]
                 src/android/pkg/MyClass.java:11: error: Methods calling system APIs should rethrow `RemoteException` as `RuntimeException` (but do not list it in the throws clause) [RethrowRemoteException] [See https://s.android.com/api-guidelines#appropriate-exception]
                 """,
             expectedFail = DefaultLintErrorMessage,
@@ -2185,32 +2183,6 @@ class ApiLintTest : DriverTest() {
                          public abstract static class MyOkManager {
                              private MyOkManager() {}
                          }
-                    }
-                    """
-                )
-            )
-        )
-    }
-
-    @Test
-    fun `Check for banned runtime exceptions`() {
-        check(
-            apiLint = "", // enabled
-            expectedIssues = """
-                src/android/pkg/MyClass.java:7: error: Methods must not mention RuntimeException subclasses in throws clauses (was `java.lang.SecurityException`) [BannedThrow]
-                src/android/pkg/MyClass.java:6: error: Methods must not mention RuntimeException subclasses in throws clauses (was `java.lang.ClassCastException`) [BannedThrow]
-                """,
-            expectedFail = DefaultLintErrorMessage,
-            sourceFiles = arrayOf(
-                java(
-                    """
-                    package android.pkg;
-
-                    public class MyClass {
-                         private MyClass() throws NullPointerException {} // OK, private
-                         @SuppressWarnings("RedundantThrows") public MyClass(int i) throws java.io.IOException {} // OK, not runtime exception
-                         public MyClass(double l) throws ClassCastException {} // error
-                         public void foo() throws SecurityException {} // error
                     }
                     """
                 )
@@ -3712,6 +3684,138 @@ class ApiLintTest : DriverTest() {
                 ),
                 androidxNullableSource,
                 androidxNonNullSource
+            )
+        )
+    }
+
+    @Test
+    fun `Unchecked exceptions not allowed`() {
+        check(
+            expectedIssues = """
+                src/test/pkg/Foo.java:22: error: Methods must not throw unchecked exceptions [BannedThrow]
+                src/test/pkg/Foo.java:23: error: Methods must not throw unchecked exceptions [BannedThrow]
+                src/test/pkg/Foo.java:24: error: Methods must not throw unchecked exceptions [BannedThrow]
+                src/test/pkg/Foo.java:25: error: Methods must not throw unchecked exceptions [BannedThrow]
+                src/test/pkg/Foo.java:26: error: Methods must not throw unchecked exceptions [BannedThrow]
+                src/test/pkg/Foo.java:27: error: Methods must not throw unchecked exceptions [BannedThrow]
+                src/test/pkg/Foo.java:28: error: Methods must not throw unchecked exceptions [BannedThrow]
+                src/test/pkg/Foo.java:29: error: Methods must not throw unchecked exceptions [BannedThrow]
+                src/test/pkg/Foo.java:30: error: Methods must not throw unchecked exceptions [BannedThrow]
+                src/test/pkg/Foo.java:31: error: Methods must not throw unchecked exceptions [BannedThrow]
+                src/test/pkg/Foo.java:32: error: Methods must not throw unchecked exceptions [BannedThrow]
+                src/test/pkg/Foo.java:33: error: Methods must not throw unchecked exceptions [BannedThrow]
+                src/test/pkg/Foo.java:34: error: Methods must not throw unchecked exceptions [BannedThrow]
+                src/test/pkg/Foo.java:35: error: Methods must not throw unchecked exceptions [BannedThrow]
+                src/test/pkg/Foo.java:36: error: Methods must not throw unchecked exceptions [BannedThrow]
+                src/test/pkg/Foo.java:37: error: Methods must not throw unchecked exceptions [BannedThrow]
+                src/test/pkg/Foo.java:38: error: Methods must not throw unchecked exceptions [BannedThrow]
+                src/test/pkg/Foo.java:39: error: Methods must not throw unchecked exceptions [BannedThrow]
+                src/test/pkg/Foo.java:40: error: Methods must not throw unchecked exceptions [BannedThrow]
+                src/test/pkg/Foo.java:41: error: Methods must not throw unchecked exceptions [BannedThrow]
+                src/test/pkg/Foo.java:42: error: Methods must not throw unchecked exceptions [BannedThrow]
+                src/test/pkg/Foo.java:43: error: Methods must not throw unchecked exceptions [BannedThrow]
+                src/test/pkg/Foo.java:44: error: Methods must not throw unchecked exceptions [BannedThrow]
+                src/test/pkg/Foo.java:45: error: Methods must not throw unchecked exceptions [BannedThrow]
+                src/test/pkg/Foo.java:46: error: Methods must not throw unchecked exceptions [BannedThrow]
+                src/test/pkg/Foo.java:47: error: Methods must not throw unchecked exceptions [BannedThrow]
+                src/test/pkg/Foo.java:48: error: Methods must not throw unchecked exceptions [BannedThrow]
+                src/test/pkg/Foo.java:49: error: Methods must not throw unchecked exceptions [BannedThrow]
+                src/test/pkg/Foo.java:50: error: Methods must not throw unchecked exceptions [BannedThrow]
+                src/test/pkg/Foo.java:51: error: Methods must not throw unchecked exceptions [BannedThrow]
+                src/test/pkg/Foo.java:52: error: Methods must not throw unchecked exceptions [BannedThrow]
+                src/test/pkg/Foo.java:53: error: Methods must not throw unchecked exceptions [BannedThrow]
+            """,
+            apiLint = "",
+            expectedFail = DefaultLintErrorMessage,
+            sourceFiles = arrayOf(
+                java(
+                    """
+                        package test.pkg;
+                        import java.lang.reflect.UndeclaredThrowableException;
+                        import java.lang.reflect.MalformedParametersException;
+                        import java.lang.reflect.MalformedParameterizedTypeException;
+                        import java.lang.invoke.WrongMethodTypeException;
+                        import java.lang.annotation.AnnotationTypeMismatchException;
+                        import java.lang.annotation.IncompleteAnnotationException;
+                        import java.util.MissingResourceException;
+                        import java.util.EmptyStackException;
+                        import java.util.concurrent.CompletionException;
+                        import java.util.concurrent.RejectedExecutionException;
+                        import java.util.IllformedLocaleException;
+                        import java.util.ConcurrentModificationException;
+                        import java.util.NoSuchElementException;
+                        import java.io.UncheckedIOException;
+                        import java.time.DateTimeException;
+                        import java.security.ProviderException;
+                        import java.nio.BufferUnderflowException;
+                        import java.nio.BufferOverflowException;
+                        public class Foo {
+                            // 32 errors
+                            public void a() throws NullPointerException;
+                            public void b() throws ClassCastException;
+                            public void c() throws IndexOutOfBoundsException;
+                            public void d() throws UndeclaredThrowableException;
+                            public void e() throws MalformedParametersException;
+                            public void f() throws MalformedParameterizedTypeException;
+                            public void g() throws WrongMethodTypeException;
+                            public void h() throws EnumConstantNotPresentException;
+                            public void i() throws IllegalMonitorStateException;
+                            public void j() throws SecurityException;
+                            public void k() throws UnsupportedOperationException;
+                            public void l() throws AnnotationTypeMismatchException;
+                            public void m() throws IncompleteAnnotationException;
+                            public void n() throws TypeNotPresentException;
+                            public void o() throws IllegalStateException;
+                            public void p() throws ArithmeticException;
+                            public void q() throws IllegalArgumentException;
+                            public void r() throws ArrayStoreException;
+                            public void s() throws NegativeArraySizeException;
+                            public void t() throws MissingResourceException;
+                            public void u() throws EmptyStackException;
+                            public void v() throws CompletionException;
+                            public void w() throws RejectedExecutionException;
+                            public void x() throws IllformedLocaleException;
+                            public void y() throws ConcurrentModificationException;
+                            public void z() throws NoSuchElementException;
+                            public void aa() throws UncheckedIOException;
+                            public void ab() throws DateTimeException;
+                            public void ac() throws ProviderException;
+                            public void ad() throws BufferUnderflowException;
+                            public void ae() throws BufferOverflowException;
+                            public void af() throws AssertionError;
+                        }
+                    """
+                ),
+            )
+        )
+    }
+
+    @Test
+    fun `Nullability overrides in unbounded generics should be allowed`() {
+        check(
+            apiLint = "",
+            sourceFiles = arrayOf(
+                kotlin(
+                    """
+                        package test.pkg;
+
+                        interface Base<T> {
+                            fun method1(input: T): T
+                        }
+
+                        class Subject1 : Base<String> {
+                            override fun method1(input: String): String {
+                                TODO()
+                            }
+                        }
+
+                        class Subject2 : Base<String?> {
+                            override fun method1(input: String?): String? {
+                                TODO()
+                            }
+                        }
+                    """
+                )
             )
         )
     }

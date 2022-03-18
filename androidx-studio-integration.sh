@@ -20,9 +20,9 @@ export LINT_VERSION=`grep -oP "(?<=baseVersion = ).*" tools/buildSrc/base/versio
 export LINT_REPO="$(pwd)/out/repo"
 
 # Integration build is broken, need to wait for Android Lint to ship to fix
-#tools/gradlew -p tools/metalava \
-#  --no-daemon \
-#  --stacktrace \
-#   --dependency-verification=off \
-#  -PlintRepo=$LINT_REPO \
-#  -PlintVersion=$LINT_VERSION
+tools/gradlew -p tools/metalava \
+  --no-daemon \
+  --stacktrace \
+   --dependency-verification=off \
+  -PlintRepo=$LINT_REPO \
+  -PlintVersion=$LINT_VERSION

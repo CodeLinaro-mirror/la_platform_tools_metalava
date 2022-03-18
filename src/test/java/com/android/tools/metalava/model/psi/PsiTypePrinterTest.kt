@@ -17,7 +17,9 @@
 package com.android.tools.metalava.model.psi
 
 import com.android.tools.lint.checks.infrastructure.TestFile
+import com.android.tools.metalava.ARG_CLASS_PATH
 import com.android.tools.metalava.DriverTest
+import com.android.tools.metalava.Options
 import com.android.tools.metalava.java
 import com.android.tools.metalava.kotlin
 import com.android.tools.metalava.libcoreNonNullSource
@@ -26,6 +28,7 @@ import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.nonNullSource
 import com.android.tools.metalava.nullableSource
+import com.android.tools.metalava.options
 import com.android.tools.metalava.parseSources
 import com.intellij.psi.JavaRecursiveElementVisitor
 import com.intellij.psi.PsiAnnotation
@@ -811,6 +814,7 @@ class PsiTypePrinterTest : DriverTest() {
         }
         classPath.add(getAndroidJar())
 
+        options = Options(arrayOf(ARG_CLASS_PATH, getAndroidJar().path))
         // TestDriver#check normally sets this for all the other tests
         val codebase = parseSources(
             sourceFiles, "test project",

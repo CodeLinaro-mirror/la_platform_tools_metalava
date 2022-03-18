@@ -216,7 +216,6 @@ abstract class DriverTest {
         val outputFile: String,
         val baseApi: String? = null,
         val strip: Boolean = true,
-        val format: FileFormat = FileFormat.JDIFF
     )
 
     protected fun check(
@@ -761,7 +760,7 @@ abstract class DriverTest {
                 val base = convert.baseApi
                 val convertSig = temporaryFolder.newFile("convert-signatures$index.txt")
                 convertSig.writeText(signature.trimIndent(), UTF_8)
-                val extension = convert.format.preferredExtension()
+                val extension = FileFormat.JDIFF.preferredExtension()
                 val output = temporaryFolder.newFile("convert-output$index$extension")
                 val baseFile = if (base != null) {
                     val baseFile = temporaryFolder.newFile("convert-signatures$index-base.txt")
@@ -770,17 +769,12 @@ abstract class DriverTest {
                 } else {
                     null
                 }
-                convertFiles += Options.ConvertFile(
-                    convertSig, output, baseFile,
-                    strip = true, outputFormat = convert.format
-                )
+                convertFiles += Options.ConvertFile(convertSig, output, baseFile, strip = true)
                 index++
 
                 if (baseFile != null) {
                     args +=
                         when {
-                            convert.format == FileFormat.V1 -> ARG_CONVERT_NEW_TO_V1
-                            convert.format == FileFormat.V2 -> ARG_CONVERT_NEW_TO_V2
                             convert.strip -> "-new_api"
                             else -> ARG_CONVERT_NEW_TO_JDIFF
                         }
@@ -788,8 +782,6 @@ abstract class DriverTest {
                 } else {
                     args +=
                         when {
-                            convert.format == FileFormat.V1 -> ARG_CONVERT_TO_V1
-                            convert.format == FileFormat.V2 -> ARG_CONVERT_TO_V2
                             convert.strip -> "-convert2xml"
                             else -> ARG_CONVERT_TO_JDIFF
                         }

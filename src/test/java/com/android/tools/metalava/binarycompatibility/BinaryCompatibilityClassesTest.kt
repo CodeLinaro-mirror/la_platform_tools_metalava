@@ -552,12 +552,11 @@ class BinaryCompatibilityClassesTest : DriverTest() {
         )
     }
 
-    @Ignore("b/217746739")
     @Test
     fun `Delete type parameter (Incompatible)`() {
         check(
             expectedIssues = """
-                (expected issue for class Bar)
+                TESTROOT/load-api.txt:2: error: Class test.pkg.Bar changed number of type parameters from 1 to 0 [ChangedType]
                 TESTROOT/load-api.txt:4: error: Class test.pkg.Foo changed number of type parameters from 2 to 1 [ChangedType]
             """,
             signatureSource = """
