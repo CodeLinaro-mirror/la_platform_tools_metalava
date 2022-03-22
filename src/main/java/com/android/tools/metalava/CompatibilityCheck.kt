@@ -23,6 +23,7 @@ import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.FieldItem
+import com.android.tools.metalava.model.IssueConfiguration
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.Item.Companion.describe
 import com.android.tools.metalava.model.MergedCodebase
@@ -63,11 +64,10 @@ class CompatibilityCheck(
     data class CheckRequest(
         val file: File,
         val apiType: ApiType,
-        val releaseType: ReleaseType,
         val codebase: File? = null
     ) {
         override fun toString(): String {
-            return "--check-compatibility:${apiType.flagName}:${releaseType.flagName} $file"
+            return "--check-compatibility:${apiType.flagName}:released $file"
         }
     }
 
@@ -515,13 +515,13 @@ class CompatibilityCheck(
         val oldVisibility = oldModifiers.getVisibilityString()
         val newVisibility = newModifiers.getVisibilityString()
         if (oldVisibility != newVisibility) {
-            // TODO: Use newModifiers.asAccessibleAs(oldModifiers) to provide different error messages
-            // based on whether this seems like a reasonable change, e.g. making a private or final method more
-            // accessible is fine (no overridden method affected) but not making methods less accessible etc
-            report(
-                Issues.CHANGED_SCOPE, new,
-                "${describe(new, capitalize = true)} changed visibility from $oldVisibility to $newVisibility"
-            )
+            // Only report issue if the change is a decrease in access; e.g. public -> protected
+            if (!newModifiers.asAccessibleAs(oldModifiers)) {
+                report(
+                    Issues.CHANGED_SCOPE, new,
+                    "${describe(new, capitalize = true)} changed visibility from $oldVisibility to $newVisibility"
+                )
+            }
         }
 
         if (old.deprecated != new.deprecated) {
@@ -586,7 +586,7 @@ class CompatibilityCheck(
                         new,
                         capitalize = true
                     )} made type variable ${newTypes[i].simpleName()} reified: incompatible change"
-                    report(Issues.CHANGED_THROWS, new, message)
+                    report(Issues.ADDED_REIFIED, new, message)
                 }
             }
         }
@@ -917,7 +917,6 @@ class CompatibilityCheck(
         fun checkCompatibility(
             codebase: Codebase,
             previous: Codebase,
-            releaseType: ReleaseType,
             apiType: ApiType,
             oldBase: Codebase? = null,
             newBase: Codebase? = null
@@ -926,8 +925,8 @@ class CompatibilityCheck(
                 .or(apiType.getEmitFilter())
                 .or(ApiType.PUBLIC_API.getReferenceFilter())
                 .or(ApiType.PUBLIC_API.getEmitFilter())
-            val checker = CompatibilityCheck(filter, previous, apiType, newBase, getReporterForReleaseType(releaseType))
-            val issueConfiguration = releaseType.getIssueConfiguration()
+            val checker = CompatibilityCheck(filter, previous, apiType, newBase, options.reporterCompatibilityReleased)
+            val issueConfiguration = IssueConfiguration()
             val previousConfiguration = configuration
             // newBase is considered part of the current codebase
             val currentFullCodebase = MergedCodebase(listOf(newBase, codebase).filterNotNull())
@@ -946,11 +945,6 @@ class CompatibilityCheck(
             if (checker.foundProblems) {
                 throw DriverException(exitCode = -1, stderr = message)
             }
-        }
-
-        private fun getReporterForReleaseType(releaseType: ReleaseType): Reporter = when (releaseType) {
-            ReleaseType.DEV -> options.reporterCompatibilityCurrent
-            ReleaseType.RELEASED -> options.reporterCompatibilityReleased
         }
     }
 }

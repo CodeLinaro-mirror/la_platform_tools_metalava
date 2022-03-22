@@ -18,6 +18,7 @@ package com.android.tools.metalava.model.psi
 
 import com.android.tools.lint.checks.infrastructure.TestFiles.base64gzip
 import com.android.tools.metalava.DriverTest
+import com.android.tools.metalava.FileFormat
 import com.android.tools.metalava.java
 import org.junit.Test
 
@@ -25,6 +26,7 @@ class PsiBasedCodebaseTest : DriverTest() {
     @Test
     fun `Regression test for issue 112931426`() {
         check(
+            format = FileFormat.V2,
             sourceFiles = arrayOf(
                 java(
                     """

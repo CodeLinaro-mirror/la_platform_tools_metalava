@@ -30,7 +30,7 @@ CompatibilityCheckTest : DriverTest() {
                 TESTROOT/load-api.txt:2: error: Class test.pkg.MyTest1 changed class/interface declaration [ChangedClass]
                 TESTROOT/load-api.txt:4: error: Class test.pkg.MyTest2 changed class/interface declaration [ChangedClass]
                 """,
-            checkCompatibilityApi = """
+            checkCompatibilityApiReleased = """
                 package test.pkg {
                   public class MyTest1 {
                   }
@@ -65,7 +65,7 @@ CompatibilityCheckTest : DriverTest() {
                 TESTROOT/load-api.txt:2: error: Class test.pkg.MyTest1 changed class/interface declaration [ChangedClass]
                 TESTROOT/load-api.txt:4: error: Class test.pkg.MyTest2 changed class/interface declaration [ChangedClass]
                 """,
-            checkCompatibilityApi = """
+            checkCompatibilityApiReleased = """
                 package test.pkg {
                   public class MyTest1 {
                   }
@@ -97,11 +97,11 @@ CompatibilityCheckTest : DriverTest() {
     fun `Ensure warnings for removed APIs`() {
         check(
             expectedIssues = """
-                TESTROOT/current-api.txt:3: error: Removed method test.pkg.MyTest1.method(Float) [RemovedMethod]
-                TESTROOT/current-api.txt:4: error: Removed field test.pkg.MyTest1.field [RemovedField]
-                TESTROOT/current-api.txt:6: error: Removed class test.pkg.MyTest2 [RemovedClass]
+                TESTROOT/released-api.txt:3: error: Removed method test.pkg.MyTest1.method(Float) [RemovedMethod]
+                TESTROOT/released-api.txt:4: error: Removed field test.pkg.MyTest1.field [RemovedField]
+                TESTROOT/released-api.txt:6: error: Removed class test.pkg.MyTest2 [RemovedClass]
                 """,
-            checkCompatibilityApi = """
+            checkCompatibilityApiReleased = """
                 package test.pkg {
                   public class MyTest1 {
                     method public Double method(Float);
@@ -136,7 +136,7 @@ CompatibilityCheckTest : DriverTest() {
                 TESTROOT/load-api.txt:8: error: Attempted to change method return from @NonNull to @Nullable: incompatible change for method test.pkg.MyTest.convert6(Float) [InvalidNullConversion]
                 """,
             outputKotlinStyleNulls = false,
-            checkCompatibilityApi = """
+            checkCompatibilityApiReleased = """
                 package test.pkg {
                   public class MyTest {
                     method public Double convert1(Float);
@@ -171,7 +171,6 @@ CompatibilityCheckTest : DriverTest() {
     }
 
     @Test
-    @TestKotlinPsi
     fun `Kotlin Nullness`() {
         check(
             expectedIssues = """
@@ -184,7 +183,7 @@ CompatibilityCheckTest : DriverTest() {
                 """,
             inputKotlinStyleNulls = true,
             outputKotlinStyleNulls = true,
-            checkCompatibilityApi = """
+            checkCompatibilityApiReleased = """
                     package test.pkg {
                       public final class Outer {
                         ctor public Outer();
@@ -226,7 +225,7 @@ CompatibilityCheckTest : DriverTest() {
                 src/test/pkg/JavaClass.java:6: error: Attempted to remove parameter name from parameter newName in test.pkg.JavaClass.method1 [ParameterNameChange]
                 src/test/pkg/JavaClass.java:7: error: Attempted to change parameter name from secondParameter to newName in method test.pkg.JavaClass.method2 [ParameterNameChange]
                 """,
-            checkCompatibilityApi = """
+            checkCompatibilityApiReleased = """
                 package test.pkg {
                   public class JavaClass {
                     ctor public JavaClass();
@@ -255,7 +254,6 @@ CompatibilityCheckTest : DriverTest() {
     }
 
     @Test
-    @TestKotlinPsi
     fun `Kotlin Parameter Name Change`() {
         check(
             expectedIssues = """
@@ -263,7 +261,7 @@ CompatibilityCheckTest : DriverTest() {
                 """,
             inputKotlinStyleNulls = true,
             outputKotlinStyleNulls = true,
-            checkCompatibilityApi = """
+            checkCompatibilityApiReleased = """
                 package test.pkg {
                   public final class KotlinClass {
                     ctor public KotlinClass();
@@ -291,7 +289,7 @@ CompatibilityCheckTest : DriverTest() {
             expectedIssues = "",
             inputKotlinStyleNulls = true,
             outputKotlinStyleNulls = true,
-            checkCompatibilityApi = """
+            checkCompatibilityApiReleased = """
                 package test.pkg {
                   public final class TestKt {
                     ctor public TestKt();
@@ -311,45 +309,12 @@ CompatibilityCheckTest : DriverTest() {
     }
 
     @Test
-    fun `Add flag new methods but not overrides from platform`() {
-        check(
-            expectedIssues = """
-                src/test/pkg/MyClass.java:6: error: Added method test.pkg.MyClass.method2(String) [AddedMethod]
-                src/test/pkg/MyClass.java:7: error: Added field test.pkg.MyClass.newField [AddedField]
-                """,
-            checkCompatibilityApi = """
-                package test.pkg {
-                  public class MyClass {
-                    method public String method1(String);
-                  }
-                }
-                """,
-            sourceFiles = arrayOf(
-                java(
-                    """
-                    package test.pkg;
-
-                    public class MyClass  {
-                        private MyClass() { }
-                        public String method1(String newName) { return null; }
-                        public String method2(String newName) { return null; }
-                        public int newField = 5;
-                        public String toString() { return "Hello World"; }
-                    }
-                    """
-                )
-            )
-        )
-    }
-
-    @Test
-    @TestKotlinPsi
     fun `Remove operator`() {
         check(
             expectedIssues = """
                 src/test/pkg/Foo.kt:4: error: Cannot remove `operator` modifier from method test.pkg.Foo.plus(String): Incompatible change [OperatorRemoval]
                 """,
-            checkCompatibilityApi = """
+            checkCompatibilityApiReleased = """
                 package test.pkg {
                   public final class Foo {
                     ctor public Foo();
@@ -372,13 +337,12 @@ CompatibilityCheckTest : DriverTest() {
     }
 
     @Test
-    @TestKotlinPsi
     fun `Remove vararg`() {
         check(
             expectedIssues = """
                 src/test/pkg/test.kt:3: error: Changing from varargs to array is an incompatible change: parameter x in test.pkg.TestKt.method2(int[] x) [VarargRemoval]
                 """,
-            checkCompatibilityApi = """
+            checkCompatibilityApiReleased = """
                 package test.pkg {
                   public final class TestKt {
                     method public static final void method1(int[] x);
@@ -399,7 +363,6 @@ CompatibilityCheckTest : DriverTest() {
     }
 
     @Test
-    @TestKotlinPsi
     fun `Add final`() {
         // Adding final on class or method is incompatible; adding it on a parameter is fine.
         // Field is iffy.
@@ -408,7 +371,7 @@ CompatibilityCheckTest : DriverTest() {
                 src/test/pkg/Java.java:4: error: Method test.pkg.Java.method has added 'final' qualifier [AddedFinal]
                 src/test/pkg/Kotlin.kt:4: error: Method test.pkg.Kotlin.method has added 'final' qualifier [AddedFinal]
                 """,
-            checkCompatibilityApi = """
+            checkCompatibilityApiReleased = """
                 package test.pkg {
                   public class Java {
                     method public void method(int);
@@ -449,7 +412,7 @@ CompatibilityCheckTest : DriverTest() {
         check(
             expectedIssues = """
                 """,
-            checkCompatibilityApi = """
+            checkCompatibilityApiReleased = """
                 package test.pkg {
                   public final class Cls extends test.pkg.Parent {
                   }
@@ -489,7 +452,7 @@ CompatibilityCheckTest : DriverTest() {
         check(
             expectedIssues = """
                 """,
-            checkCompatibilityApi = """
+            checkCompatibilityApiReleased = """
                 package test.pkg {
                   public final class Cls extends test.pkg.Parent {
                   }
@@ -526,7 +489,7 @@ CompatibilityCheckTest : DriverTest() {
         check(
             expectedIssues = """
                 """,
-            checkCompatibilityApi = """
+            checkCompatibilityApiReleased = """
                 package test.pkg {
                   public final class Cls implements test.pkg.Interface {
                     method public void method(int);
@@ -577,7 +540,7 @@ CompatibilityCheckTest : DriverTest() {
         check(
             expectedIssues = """
                 """,
-            checkCompatibilityApi = """
+            checkCompatibilityApiReleased = """
                 package test.pkg {
                   public abstract class AbstractMap<K, V> implements java.util.Map {
                     method public java.util.Set<K> keySet();
@@ -618,8 +581,8 @@ CompatibilityCheckTest : DriverTest() {
     fun `Added constructor`() {
         // Regression test for issue 116619591
         check(
-            expectedIssues = "src/test/pkg/AbstractMap.java:3: error: Added constructor test.pkg.AbstractMap() [AddedMethod]",
-            checkCompatibilityApi = """
+            expectedIssues = "",
+            checkCompatibilityApiReleased = """
                 package test.pkg {
                   public abstract class AbstractMap<K, V> implements java.util.Map {
                   }
@@ -639,13 +602,12 @@ CompatibilityCheckTest : DriverTest() {
     }
 
     @Test
-    @TestKotlinPsi
     fun `Remove infix`() {
         check(
             expectedIssues = """
                 src/test/pkg/Foo.kt:5: error: Cannot remove `infix` modifier from method test.pkg.Foo.add2(String): Incompatible change [InfixRemoval]
                 """,
-            checkCompatibilityApi = """
+            checkCompatibilityApiReleased = """
                 package test.pkg {
                   public final class Foo {
                     ctor public Foo();
@@ -672,13 +634,12 @@ CompatibilityCheckTest : DriverTest() {
     }
 
     @Test
-    @TestKotlinPsi
     fun `Add seal`() {
         check(
             expectedIssues = """
                 src/test/pkg/Foo.kt:2: error: Cannot add 'sealed' modifier to class test.pkg.Foo: Incompatible change [AddSealed]
                 """,
-            checkCompatibilityApi = """
+            checkCompatibilityApiReleased = """
                 package test.pkg {
                   public class Foo {
                   }
@@ -696,7 +657,6 @@ CompatibilityCheckTest : DriverTest() {
     }
 
     @Test
-    @TestKotlinPsi
     fun `Remove default parameter`() {
         check(
             expectedIssues = """
@@ -705,7 +665,7 @@ CompatibilityCheckTest : DriverTest() {
 
                 """,
             inputKotlinStyleNulls = true,
-            checkCompatibilityApi = """
+            checkCompatibilityApiReleased = """
                 package test.pkg {
                   public final class Foo {
                     ctor public Foo(String? s1 = null);
@@ -734,7 +694,6 @@ CompatibilityCheckTest : DriverTest() {
     }
 
     @Test
-    @TestKotlinPsi
     fun `Remove optional parameter`() {
         check(
             expectedIssues = """
@@ -743,7 +702,7 @@ CompatibilityCheckTest : DriverTest() {
                 """,
             inputKotlinStyleNulls = true,
             format = FileFormat.V4,
-            checkCompatibilityApi = """
+            checkCompatibilityApiReleased = """
                 package test.pkg {
                   public final class Foo {
                     ctor public Foo(optional String? s1);
@@ -776,7 +735,7 @@ CompatibilityCheckTest : DriverTest() {
         check(
             expectedIssues = """
                 """,
-            checkCompatibilityApi = """
+            checkCompatibilityApiReleased = """
                 package test.pkg {
                   public class Child extends test.pkg.Parent {
                     ctor public Child();
@@ -830,11 +789,9 @@ CompatibilityCheckTest : DriverTest() {
                 src/test/pkg/Parent.java:8: error: Field test.pkg.Parent.field5 has changed 'static' qualifier [ChangedStatic]
                 src/test/pkg/Parent.java:9: error: Field test.pkg.Parent.field6 has changed 'transient' qualifier [ChangedTransient]
                 src/test/pkg/Parent.java:10: error: Field test.pkg.Parent.field7 has changed 'volatile' qualifier [ChangedVolatile]
-                src/test/pkg/Parent.java:11: error: Field test.pkg.Parent.field8 has changed deprecation state true --> false [ChangedDeprecated]
-                src/test/pkg/Parent.java:12: error: Field test.pkg.Parent.field9 has changed deprecation state false --> true [ChangedDeprecated]
                 src/test/pkg/Parent.java:20: error: Field test.pkg.Parent.field94 has changed value from 1 to 42 [ChangedValue]
                 """,
-            checkCompatibilityApi = """
+            checkCompatibilityApiReleased = """
                 package test.pkg {
                   public class Parent {
                     ctor public Parent();
@@ -895,7 +852,7 @@ CompatibilityCheckTest : DriverTest() {
                 src/test/pkg/ExportedProperty.java:14: error: Method test.pkg.ExportedProperty.floating has changed value from 1.0f to 1.1f [ChangedValue]
                 src/test/pkg/ExportedProperty.java:13: error: Method test.pkg.ExportedProperty.prefix has changed value from "" to "hello" [ChangedValue]
                 """,
-            checkCompatibilityApi = """
+            checkCompatibilityApiReleased = """
                 package test.pkg {
                   public @interface ExportedProperty {
                     method public abstract boolean resolveId() default false;
@@ -938,7 +895,7 @@ CompatibilityCheckTest : DriverTest() {
             expectedIssues = """
                 src/test/pkg/Parent.java:3: error: Class test.pkg.Parent changed class/interface declaration [ChangedClass]
                 """,
-            checkCompatibilityApi = """
+            checkCompatibilityApiReleased = """
                 package test.pkg {
                   public class Parent {
                   }
@@ -962,9 +919,8 @@ CompatibilityCheckTest : DriverTest() {
         check(
             expectedIssues = """
                 src/test/pkg/Parent.java:3: error: Class test.pkg.Parent no longer implements java.io.Closeable [RemovedInterface]
-                src/test/pkg/Parent.java:3: error: Added interface java.util.List to class class test.pkg.Parent [AddedInterface]
                 """,
-            checkCompatibilityApi = """
+            checkCompatibilityApiReleased = """
                 package test.pkg {
                   public abstract class Parent implements java.io.Closeable, java.util.Map {
                   }
@@ -988,10 +944,10 @@ CompatibilityCheckTest : DriverTest() {
     fun `Incompatible class change -- change qualifiers`() {
         check(
             expectedIssues = """
-                src/test/pkg/Parent.java:3: error: Class test.pkg.Parent changed 'abstract' qualifier [ChangedAbstract]
+                src/test/pkg/Parent.java:3: warning: Class test.pkg.Parent changed 'abstract' qualifier [ChangedAbstract]
                 src/test/pkg/Parent.java:3: error: Class test.pkg.Parent changed 'static' qualifier [ChangedStatic]
                 """,
-            checkCompatibilityApi = """
+            checkCompatibilityApiReleased = """
                 package test.pkg {
                   public class Parent {
                   }
@@ -1016,11 +972,9 @@ CompatibilityCheckTest : DriverTest() {
         check(
             expectedIssues = """
                 src/test/pkg/Class1.java:3: error: Class test.pkg.Class1 added 'final' qualifier [AddedFinal]
-                TESTROOT/current-api.txt:3: error: Removed constructor test.pkg.Class1() [RemovedMethod]
-                src/test/pkg/Class2.java:3: error: Class test.pkg.Class2 added 'final' qualifier but was previously uninstantiable and therefore could not be subclassed [AddedFinalUninstantiable]
-                src/test/pkg/Class3.java:3: error: Class test.pkg.Class3 removed 'final' qualifier [RemovedFinal]
+                TESTROOT/released-api.txt:3: error: Removed constructor test.pkg.Class1() [RemovedMethod]
                 """,
-            checkCompatibilityApi = """
+            checkCompatibilityApiReleased = """
                 package test.pkg {
                   public class Class1 {
                       ctor public Class1();
@@ -1070,7 +1024,7 @@ CompatibilityCheckTest : DriverTest() {
                 src/test/pkg/Class1.java:3: error: Class test.pkg.Class1 changed visibility from protected to public [ChangedScope]
                 src/test/pkg/Class2.java:3: error: Class test.pkg.Class2 changed visibility from public to protected [ChangedScope]
                 """,
-            checkCompatibilityApi = """
+            checkCompatibilityApiReleased = """
                 package test.pkg {
                   protected class Class1 {
                   }
@@ -1102,39 +1056,12 @@ CompatibilityCheckTest : DriverTest() {
     }
 
     @Test
-    fun `Incompatible class change -- deprecation`() {
-        check(
-            expectedIssues = """
-                src/test/pkg/Class1.java:4: error: Class test.pkg.Class1 has changed deprecation state false --> true [ChangedDeprecated]
-                """,
-            checkCompatibilityApi = """
-                package test.pkg {
-                  public class Class1 {
-                  }
-                }
-                """,
-            sourceFiles = arrayOf(
-                java(
-                    """
-                    package test.pkg;
-
-                    /** @deprecated */
-                    @Deprecated public class Class1 {
-                        private Class1() {}
-                    }
-                    """
-                )
-            )
-        )
-    }
-
-    @Test
     fun `Incompatible class change -- superclass`() {
         check(
             expectedIssues = """
                 src/test/pkg/Class3.java:3: error: Class test.pkg.Class3 superclass changed from java.lang.Char to java.lang.Number [ChangedSuperclass]
                 """,
-            checkCompatibilityApi = """
+            checkCompatibilityApiReleased = """
                 package test.pkg {
                   public abstract class Class1 {
                   }
@@ -1182,7 +1109,7 @@ CompatibilityCheckTest : DriverTest() {
             expectedIssues = """
                 src/test/pkg/Class1.java:3: error: Class test.pkg.Class1 changed number of type parameters from 1 to 2 [ChangedType]
                 """,
-            checkCompatibilityApi = """
+            checkCompatibilityApiReleased = """
                 package test.pkg {
                   public class Class1<X> {
                   }
@@ -1206,11 +1133,10 @@ CompatibilityCheckTest : DriverTest() {
     fun `Incompatible method change -- modifiers`() {
         check(
             expectedIssues = """
-                src/test/pkg/MyClass.java:5: error: Method test.pkg.MyClass.myMethod2 has changed 'abstract' qualifier [ChangedAbstract]
+                src/test/pkg/MyClass.java:5: warning: Method test.pkg.MyClass.myMethod2 has changed 'abstract' qualifier [ChangedAbstract]
                 src/test/pkg/MyClass.java:6: error: Method test.pkg.MyClass.myMethod3 has changed 'static' qualifier [ChangedStatic]
-                src/test/pkg/MyClass.java:7: error: Method test.pkg.MyClass.myMethod4 has changed deprecation state true --> false [ChangedDeprecated]
                 """,
-            checkCompatibilityApi = """
+            checkCompatibilityApiReleased = """
                 package test.pkg {
                   public abstract class MyClass {
                       method public void myMethod2();
@@ -1241,9 +1167,8 @@ CompatibilityCheckTest : DriverTest() {
         check(
             expectedIssues = """
                 src/test/pkg/Outer.java:7: error: Method test.pkg.Outer.Class1.method1 has added 'final' qualifier [AddedFinal]
-                src/test/pkg/Outer.java:19: error: Method test.pkg.Outer.Class4.method4 has removed 'final' qualifier [RemovedFinal]
                 """,
-            checkCompatibilityApi = """
+            checkCompatibilityApiReleased = """
                 package test.pkg {
                   public abstract class Outer {
                   }
@@ -1295,10 +1220,9 @@ CompatibilityCheckTest : DriverTest() {
     fun `Incompatible method change -- visibility`() {
         check(
             expectedIssues = """
-                src/test/pkg/MyClass.java:5: error: Method test.pkg.MyClass.myMethod1 changed visibility from protected to public [ChangedScope]
                 src/test/pkg/MyClass.java:6: error: Method test.pkg.MyClass.myMethod2 changed visibility from public to protected [ChangedScope]
                 """,
-            checkCompatibilityApi = """
+            checkCompatibilityApiReleased = """
                 package test.pkg {
                   public abstract class MyClass {
                       method protected void myMethod1();
@@ -1322,6 +1246,7 @@ CompatibilityCheckTest : DriverTest() {
         )
     }
 
+    @Ignore("TODO(aurimas) reenable once this is default on")
     @Test
     fun `Incompatible method change -- throws list`() {
         check(
@@ -1332,7 +1257,7 @@ CompatibilityCheckTest : DriverTest() {
                 src/test/pkg/MyClass.java:9: error: Method test.pkg.MyClass.method3 no longer throws exception java.lang.NumberFormatException [ChangedThrows]
                 src/test/pkg/MyClass.java:9: error: Method test.pkg.MyClass.method3 added thrown exception java.lang.UnsupportedOperationException [ChangedThrows]
                 """,
-            checkCompatibilityApi = """
+            checkCompatibilityApiReleased = """
                 package test.pkg {
                   public abstract class MyClass {
                       method public void finalize() throws java.lang.Throwable;
@@ -1374,7 +1299,7 @@ CompatibilityCheckTest : DriverTest() {
                 src/test/pkg/MyClass.java:11: error: Method test.pkg.MyClass.method7 has changed return type from T to Number [ChangedType]
                 src/test/pkg/MyClass.java:13: error: Method test.pkg.MyClass.method9 has changed return type from X (extends java.lang.Throwable) to U (extends java.lang.Number) [ChangedType]
                 """,
-            checkCompatibilityApi = """
+            checkCompatibilityApiReleased = """
                 package test.pkg {
                   public abstract class MyClass<T extends Number> {
                       method public float method1();
@@ -1418,9 +1343,8 @@ CompatibilityCheckTest : DriverTest() {
             expectedIssues = """
                 src/test/pkg/MyClass.java:5: error: Field test.pkg.MyClass.myField1 changed visibility from protected to public [ChangedScope]
                 src/test/pkg/MyClass.java:6: error: Field test.pkg.MyClass.myField2 changed visibility from public to protected [ChangedScope]
-                src/test/pkg/MyClass.java:7: error: Field test.pkg.MyClass.myField3 has removed 'final' qualifier [RemovedFinal]
                 """,
-            checkCompatibilityApi = """
+            checkCompatibilityApiReleased = """
                 package test.pkg {
                   public abstract class MyClass {
                       field protected int myField1;
@@ -1450,13 +1374,10 @@ CompatibilityCheckTest : DriverTest() {
     fun `Adding classes, interfaces and packages, and removing these`() {
         check(
             expectedIssues = """
-                src/test/pkg/MyClass.java:3: error: Added class test.pkg.MyClass [AddedClass]
-                src/test/pkg/MyInterface.java:3: error: Added class test.pkg.MyInterface [AddedInterface]
-                TESTROOT/current-api.txt:2: error: Removed class test.pkg.MyOldClass [RemovedClass]
-                error: Added package test.pkg2 [AddedPackage]
-                TESTROOT/current-api.txt:5: error: Removed package test.pkg3 [RemovedPackage]
+                TESTROOT/released-api.txt:2: error: Removed class test.pkg.MyOldClass [RemovedClass]
+                TESTROOT/released-api.txt:5: error: Removed package test.pkg3 [RemovedPackage]
                 """,
-            checkCompatibilityApi = """
+            checkCompatibilityApiReleased = """
                 package test.pkg {
                   public abstract class MyOldClass {
                   }
@@ -1501,9 +1422,9 @@ CompatibilityCheckTest : DriverTest() {
     fun `Test removing public constructor`() {
         check(
             expectedIssues = """
-                TESTROOT/current-api.txt:3: error: Removed constructor test.pkg.MyClass() [RemovedMethod]
+                TESTROOT/released-api.txt:3: error: Removed constructor test.pkg.MyClass() [RemovedMethod]
                 """,
-            checkCompatibilityApi = """
+            checkCompatibilityApiReleased = """
                 package test.pkg {
                   public abstract class MyClass {
                     ctor public MyClass();
@@ -1530,7 +1451,7 @@ CompatibilityCheckTest : DriverTest() {
             expectedIssues = """
                 src/test/pkg/MyClass.java:8: error: Method test.pkg.MyClass.myMethod4 has changed return type from S (extends java.lang.Object) to S (extends java.lang.Float) [ChangedType]
                 """,
-            checkCompatibilityApi = """
+            checkCompatibilityApiReleased = """
                 package test.pkg {
                   public abstract class MyClass<T extends test.pkg.Number,T_SPLITR> {
                     method public T myMethod1();
@@ -1573,13 +1494,12 @@ CompatibilityCheckTest : DriverTest() {
     }
 
     @Test
-    @TestKotlinPsi
     fun `Test Kotlin extensions`() {
         check(
             inputKotlinStyleNulls = true,
             outputKotlinStyleNulls = true,
             expectedIssues = "",
-            checkCompatibilityApi = """
+            checkCompatibilityApiReleased = """
                 package androidx.content {
                   public final class ContentValuesKt {
                     method public static android.content.ContentValues contentValuesOf(kotlin.Pair<String,?>... pairs);
@@ -1621,13 +1541,12 @@ CompatibilityCheckTest : DriverTest() {
     }
 
     @Test
-    @TestKotlinPsi
     fun `Test Kotlin type bounds`() {
         check(
             inputKotlinStyleNulls = false,
             outputKotlinStyleNulls = true,
             expectedIssues = "",
-            checkCompatibilityApi = """
+            checkCompatibilityApiReleased = """
                 package androidx.navigation {
                   public final class NavDestination {
                     ctor public NavDestination();
@@ -1663,7 +1582,7 @@ CompatibilityCheckTest : DriverTest() {
         check(
             expectedIssues = """
                 """,
-            checkCompatibilityApi = """
+            checkCompatibilityApiReleased = """
                 package test.pkg {
                   public class Child1 extends test.pkg.Parent {
                   }
@@ -1763,7 +1682,7 @@ CompatibilityCheckTest : DriverTest() {
         check(
             includeSystemApiAnnotations = true,
             expectedIssues = """
-                TESTROOT/current-api.txt:4: error: Removed method test.pkg.Bar.Inner1.Inner2.removedMethod() [RemovedMethod]
+                TESTROOT/released-api.txt:4: error: Removed method test.pkg.Bar.Inner1.Inner2.removedMethod() [RemovedMethod]
                 """,
             sourceFiles = arrayOf(
                 java(
@@ -1814,7 +1733,7 @@ CompatibilityCheckTest : DriverTest() {
                 ARG_HIDE_PACKAGE, "android.support.annotation"
             ),
 
-            checkCompatibilityApi =
+            checkCompatibilityApiReleased =
             """
                 package test.pkg {
                   public class Bar.Inner1.Inner2 {
@@ -1834,7 +1753,7 @@ CompatibilityCheckTest : DriverTest() {
         check(
             includeSystemApiAnnotations = true,
             expectedIssues = """
-                TESTROOT/current-api.txt:4: error: Removed method android.rolecontrollerservice.RoleControllerService.onClearRoleHolders() [RemovedMethod]
+                TESTROOT/released-api.txt:4: error: Removed method android.rolecontrollerservice.RoleControllerService.onClearRoleHolders() [RemovedMethod]
                 """,
             sourceFiles = arrayOf(
                 java(
@@ -1866,7 +1785,7 @@ CompatibilityCheckTest : DriverTest() {
                 ARG_HIDE_PACKAGE, "android.support.annotation"
             ),
 
-            checkCompatibilityApi =
+            checkCompatibilityApiReleased =
             """
                 package android.rolecontrollerservice {
                   public abstract class RoleControllerService extends android.rolecontrollerservice.Service {
@@ -1951,119 +1870,12 @@ CompatibilityCheckTest : DriverTest() {
     }
 
     @Test
-    fun `Test verifying simple removed API`() {
-        check(
-            expectedIssues = """
-                TESTROOT/removed-current-api.txt:5: error: Removed method test.pkg.Bar.removedMethod2() [RemovedMethod]
-                """,
-            checkCompatibilityRemovedApiCurrent = """
-                package test.pkg {
-                  public class Bar {
-                    ctor public Bar();
-                    method public void removedMethod();
-                    method public void removedMethod2();
-                  }
-                  public class Bar.Inner {
-                    ctor public Bar.Inner();
-                  }
-                }
-                """,
-            sourceFiles = arrayOf(
-                java(
-                    """
-                    package test.pkg;
-                    @SuppressWarnings("JavaDoc")
-                    public class Bar {
-                        /** @removed */ // still part of the removed api
-                        public Bar() { }
-                        // no longer part of the removed api
-                        public void removedMethod() { }
-                        /** @removed */
-                        public void newlyRemoved() { }
-
-                        public void newlyAdded() { }
-
-                        /** @removed */ // still part of the removed api
-                        public class Inner { }
-                    }
-                    """
-                )
-            )
-        )
-    }
-
-    @Test
-    fun `Test verifying removed API`() {
-        check(
-            expectedIssues = """
-                """,
-            checkCompatibilityRemovedApiCurrent = """
-                package test.pkg {
-                  public class Bar {
-                    ctor public Bar();
-                    method public void removedMethod();
-                    field public int removedField;
-                  }
-                  public class Bar.Inner {
-                    ctor public Bar.Inner();
-                  }
-                  public class Bar.Inner2.Inner3.Inner4 {
-                    ctor public Bar.Inner2.Inner3.Inner4();
-                  }
-                  public class Bar.Inner5.Inner6.Inner7 {
-                    field public int removed;
-                  }
-                }
-                """,
-            sourceFiles = arrayOf(
-                java(
-                    """
-                    package test.pkg;
-                    @SuppressWarnings("JavaDoc")
-                    public class Bar {
-                        /** @removed */
-                        public Bar() { }
-                        public int field;
-                        public void test() { }
-                        /** @removed */
-                        public int removedField;
-                        /** @removed */
-                        public void removedMethod() { }
-                        /** @removed and @hide - should not be listed */
-                        public int hiddenField;
-
-                        /** @removed */
-                        public class Inner { }
-
-                        public class Inner2 {
-                            public class Inner3 {
-                                /** @removed */
-                                public class Inner4 { }
-                            }
-                        }
-
-                        public class Inner5 {
-                            public class Inner6 {
-                                public class Inner7 {
-                                    /** @removed */
-                                    public int removed;
-                                }
-                            }
-                        }
-                    }
-                    """
-                )
-            )
-        )
-    }
-
-    @Test
     fun `Regression test for bug 120847535`() {
         // Regression test for
         // 120847535: check-api doesn't fail on method that is in current.txt, but marked @hide @TestApi
         check(
             expectedIssues = """
-                TESTROOT/current-api.txt:6: error: Removed method test.view.ViewTreeObserver.registerFrameCommitCallback(Runnable) [RemovedMethod]
+                TESTROOT/released-api.txt:6: error: Removed method test.view.ViewTreeObserver.registerFrameCommitCallback(Runnable) [RemovedMethod]
                 """,
             sourceFiles = arrayOf(
                 java(
@@ -2105,7 +1917,7 @@ CompatibilityCheckTest : DriverTest() {
                 ARG_HIDE_PACKAGE, "android.support.annotation"
             ),
 
-            checkCompatibilityApi = """
+            checkCompatibilityApiReleased = """
                 package test.view {
                   public final class View {
                   }
@@ -2315,7 +2127,7 @@ CompatibilityCheckTest : DriverTest() {
     fun `Implicit nullness`() {
         check(
             inputKotlinStyleNulls = true,
-            checkCompatibilityApi = """
+            checkCompatibilityApiReleased = """
                 // Signature format: 2.0
                 package androidx.annotation {
                   @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS) @java.lang.annotation.Target({java.lang.annotation.ElementType.ANNOTATION_TYPE, java.lang.annotation.ElementType.TYPE, java.lang.annotation.ElementType.METHOD, java.lang.annotation.ElementType.CONSTRUCTOR, java.lang.annotation.ElementType.FIELD, java.lang.annotation.ElementType.PACKAGE}) public @interface RestrictTo {
@@ -2343,7 +2155,7 @@ CompatibilityCheckTest : DriverTest() {
     fun `Java String constants`() {
         check(
             inputKotlinStyleNulls = true,
-            checkCompatibilityApi = """
+            checkCompatibilityApiReleased = """
                 package androidx.browser.browseractions {
                   public class BrowserActionsIntent {
                     field public static final String EXTRA_APP_ID = "androidx.browser.browseractions.APP_ID";
@@ -2370,7 +2182,7 @@ CompatibilityCheckTest : DriverTest() {
     fun `Classes with maps`() {
         check(
             inputKotlinStyleNulls = true,
-            checkCompatibilityApi = """
+            checkCompatibilityApiReleased = """
                 // Signature format: 2.0
                 package androidx.collection {
                   public class SimpleArrayMap<K, V> {
@@ -2396,7 +2208,7 @@ CompatibilityCheckTest : DriverTest() {
     fun `Referencing type parameters in types`() {
         check(
             inputKotlinStyleNulls = true,
-            checkCompatibilityApi = """
+            checkCompatibilityApiReleased = """
                 // Signature format: 2.0
                 package androidx.collection {
                   public class MyMap<Key, Value> {
@@ -2425,7 +2237,7 @@ CompatibilityCheckTest : DriverTest() {
     @Test
     fun `Comparing annotations with methods with v1 signature files`() {
         check(
-            checkCompatibilityApi = """
+            checkCompatibilityApiReleased = """
                 package androidx.annotation {
                   public abstract class RestrictTo implements java.lang.annotation.Annotation {
                   }
@@ -2449,7 +2261,7 @@ CompatibilityCheckTest : DriverTest() {
     @Test
     fun `Insignificant type formatting differences`() {
         check(
-            checkCompatibilityApi = """
+            checkCompatibilityApiReleased = """
                 package test.pkg {
                   public final class UsageStatsManager {
                     method public java.util.Map<java.lang.String, java.lang.Integer> getAppStandbyBuckets();
@@ -2478,7 +2290,7 @@ CompatibilityCheckTest : DriverTest() {
             TESTROOT/load-api.txt:7: error: Attempted to change parameter from @Nullable to @NonNull: incompatible change for parameter str in test.pkg.Foo.method3(String str, int p, int int2) [InvalidNullConversion]
             """.trimIndent(),
             format = FileFormat.V3,
-            checkCompatibilityApi = """
+            checkCompatibilityApiReleased = """
                 // Signature format: 3.0
                 package test.pkg {
                   public final class Foo {
@@ -2506,14 +2318,13 @@ CompatibilityCheckTest : DriverTest() {
     }
 
     @Test
-    @TestKotlinPsi
     fun `Compare signatures with Kotlin nullability from source`() {
         check(
             expectedIssues = """
             src/test/pkg/test.kt:4: error: Attempted to change parameter from @Nullable to @NonNull: incompatible change for parameter str1 in test.pkg.TestKt.fun1(String str1, String str2, java.util.List<java.lang.String> list) [InvalidNullConversion]
             """.trimIndent(),
             format = FileFormat.V3,
-            checkCompatibilityApi = """
+            checkCompatibilityApiReleased = """
                 // Signature format: 3.0
                 package test.pkg {
                   public final class TestKt {
@@ -2536,15 +2347,14 @@ CompatibilityCheckTest : DriverTest() {
     }
 
     @Test
-    @TestKotlinPsi
     fun `Adding and removing reified`() {
         check(
             inputKotlinStyleNulls = true,
             expectedIssues = """
-                src/test/pkg/test.kt:5: error: Method test.pkg.TestKt.add made type variable T reified: incompatible change [ChangedThrows]
-                src/test/pkg/test.kt:8: error: Method test.pkg.TestKt.two made type variable S reified: incompatible change [ChangedThrows]
+                src/test/pkg/test.kt:5: error: Method test.pkg.TestKt.add made type variable T reified: incompatible change [AddedReified]
+                src/test/pkg/test.kt:8: error: Method test.pkg.TestKt.two made type variable S reified: incompatible change [AddedReified]
                 """,
-            checkCompatibilityApi = """
+            checkCompatibilityApiReleased = """
                 package test.pkg {
                   public final class TestKt {
                     method public static inline <T> void add(T! t);
@@ -3258,7 +3068,7 @@ CompatibilityCheckTest : DriverTest() {
 
                 ),
                 expectedIssues = expected[apiLevel]?.trimIndent() ?: "",
-                checkCompatibilityApi = previousApi,
+                checkCompatibilityApiReleased = previousApi,
                 apiJar = current
             )
 
@@ -3282,7 +3092,7 @@ CompatibilityCheckTest : DriverTest() {
                             ?: "AddedPackage,AddedClass,AddedMethod,AddedInterface,AddedField,ChangedDeprecated,RemovedField,RemovedClass,RemovedDeprecatedClass"
                     ),
                     expectedIssues = expected[apiLevel]?.trimIndent() ?: "",
-                    checkCompatibilityApi = previousSignatureApi,
+                    checkCompatibilityApiReleased = previousSignatureApi,
                     apiJar = current
                 )
             }
@@ -3294,7 +3104,7 @@ CompatibilityCheckTest : DriverTest() {
         check(
             expectedIssues = """
                 """,
-            checkCompatibilityApi = """
+            checkCompatibilityApiReleased = """
                 package test.pkg {
                   public class MyClass {
                     ctor public MyClass();
@@ -3330,65 +3140,12 @@ CompatibilityCheckTest : DriverTest() {
     }
 
     @Test
-    fun `Fail on compatible changes that affect signature file contents`() {
-        // Regression test for 122916999
-        check(
-            extraArguments = arrayOf(ARG_NO_NATIVE_DIFF),
-            allowCompatibleDifferences = false,
-            expectedFail = """
-                Aborting: Your changes have resulted in differences in the signature file
-                for the public API.
-
-                The changes may be compatible, but the signature file needs to be updated.
-
-                Diffs:
-                @@ -5 +5
-                      ctor public MyClass();
-                -     method public void method2();
-                      method public void method1();
-                @@ -7 +6
-                      method public void method1();
-                +     method public void method2();
-                      method public void method3();
-            """.trimIndent(),
-            // Methods in order
-            checkCompatibilityApi = """
-                package test.pkg {
-
-                  public class MyClass {
-                    ctor public MyClass();
-                    method public void method2();
-                    method public void method1();
-                    method public void method3();
-                    method public void method4();
-                  }
-
-                }
-                """,
-            sourceFiles = arrayOf(
-                java(
-                    """
-                    package test.pkg;
-
-                    public class MyClass {
-                        public void method1() { }
-                        public void method2() { }
-                        public void method3() { }
-                        public native void method4();
-                    }
-                    """
-                )
-            )
-        )
-    }
-
-    @Test
     fun `Empty bundle files`() {
         // Regression test for 124333557
         // Makes sure we properly handle conflicting definitions of a java file in separate source roots
         check(
             expectedIssues = "",
-            checkCompatibilityApi = """
+            checkCompatibilityApiReleased = """
                 // Signature format: 3.0
                 package com.android.location.provider {
                   public class LocationProviderBase1 {
@@ -3449,7 +3206,7 @@ CompatibilityCheckTest : DriverTest() {
         // Regression test for 130567941
         check(
             expectedIssues = "",
-            checkCompatibilityApi = """
+            checkCompatibilityApiReleased = """
                 // Signature format: 3.0
                 package androidx.coordinatorlayout.widget {
                   public class CoordinatorLayout {
@@ -3490,7 +3247,7 @@ CompatibilityCheckTest : DriverTest() {
             """,
             inputKotlinStyleNulls = true,
             outputKotlinStyleNulls = true,
-            checkCompatibilityApi = """
+            checkCompatibilityApiReleased = """
                 // Signature format: 3.0
                 package test.pkg.sample {
                   public abstract class SampleClass {
@@ -3521,7 +3278,7 @@ CompatibilityCheckTest : DriverTest() {
             """,
             inputKotlinStyleNulls = true,
             outputKotlinStyleNulls = true,
-            checkCompatibilityApi = """
+            checkCompatibilityApiReleased = """
                 // Signature format: 3.0
                 package androidx.versionedparcelable {
                   public abstract class VersionedParcel {
@@ -3566,7 +3323,7 @@ CompatibilityCheckTest : DriverTest() {
                 )
             ),
 
-            checkCompatibilityApi = """
+            checkCompatibilityApiReleased = """
                 // Signature format: 3.0
                 package test.pkg {
                   public class SampleArray<D extends java.util.ArrayList> extends java.util.ArrayList<D[]> {
@@ -3579,42 +3336,6 @@ CompatibilityCheckTest : DriverTest() {
     }
 
     @Test
-    fun `Check implicit containing class`() {
-        // Regression test for 131633221
-        check(
-            expectedIssues = """
-            src/androidx/core/app/NotificationCompat.java:5: error: Added class androidx.core.app.NotificationCompat [AddedClass]
-            """,
-            inputKotlinStyleNulls = true,
-            outputKotlinStyleNulls = true,
-            checkCompatibilityApi = """
-                // Signature format: 3.0
-                package androidx.core.app {
-                  public static class NotificationCompat.Builder {
-                    ctor public NotificationCompat.Builder();
-                  }
-                }
-                """,
-            sourceFiles = arrayOf(
-                java(
-                    """
-                    package androidx.core.app;
-
-                    import android.content.Context;
-
-                    public class NotificationCompat {
-                      private NotificationCompat() {
-                      }
-                      public static class Builder {
-                      }
-                    }
-                    """
-                )
-            )
-        )
-    }
-
-    @Test
     fun `New default method on annotation`() {
         // Regression test for 134754815
         check(
@@ -3623,7 +3344,7 @@ CompatibilityCheckTest : DriverTest() {
             """,
             inputKotlinStyleNulls = true,
             outputKotlinStyleNulls = true,
-            checkCompatibilityApi = """
+            checkCompatibilityApiReleased = """
                 // Signature format: 3.0
                 package androidx.room {
                   public @interface Relation {
@@ -3652,7 +3373,7 @@ CompatibilityCheckTest : DriverTest() {
                 TESTROOT/load-api.txt:11: error: Class test.pkg.ParentClass.AnotherBadInnerClass changed 'static' qualifier [ChangedStatic]
                 TESTROOT/load-api.txt:8: error: Class test.pkg.ParentClass.BadInnerClass changed 'static' qualifier [ChangedStatic]
             """,
-            checkCompatibilityApi = """
+            checkCompatibilityApiReleased = """
                 package test.pkg {
                   public class ParentClass {
                   }
@@ -3688,14 +3409,13 @@ CompatibilityCheckTest : DriverTest() {
     }
 
     @Test
-    @TestKotlinPsi
     fun `Remove fun modifier from interface`() {
         check(
             expectedIssues = """
                 src/test/pkg/FunctionalInterface.kt:3: error: Cannot remove 'fun' modifier from class test.pkg.FunctionalInterface: source incompatible change [FunRemoval]
                 """,
             format = FileFormat.V4,
-            checkCompatibilityApi = """
+            checkCompatibilityApiReleased = """
                 // Signature format: 4.0
                 package test.pkg {
                   public fun interface FunctionalInterface {
@@ -3724,7 +3444,7 @@ CompatibilityCheckTest : DriverTest() {
                 TESTROOT/load-api.txt:3: error: Cannot remove 'fun' modifier from class test.pkg.FunctionalInterface: source incompatible change [FunRemoval]
                 """,
             format = FileFormat.V4,
-            checkCompatibilityApi = """
+            checkCompatibilityApiReleased = """
                 // Signature format: 4.0
                 package test.pkg {
                   public fun interface FunctionalInterface {
@@ -3748,7 +3468,7 @@ CompatibilityCheckTest : DriverTest() {
         check(
             expectedIssues = "",
             format = FileFormat.V4,
-            checkCompatibilityApi = """
+            checkCompatibilityApiReleased = """
                 // Signature format: 4.0
                 package androidx.annotation.experimental {
                   public @interface UseExperimental {
@@ -3770,17 +3490,14 @@ CompatibilityCheckTest : DriverTest() {
     }
 
     @Test
-    @TestKotlinPsi
     fun `adding methods to interfaces`() {
         check(
             expectedIssues = """
-                src/test/pkg/JavaInterface.java:5: error: Added method test.pkg.JavaInterface.hasDefault() [AddedMethod]
-                src/test/pkg/JavaInterface.java:8: error: Added method test.pkg.JavaInterface.newStatic() [AddedMethod]
                 src/test/pkg/JavaInterface.java:4: error: Added method test.pkg.JavaInterface.noDefault() [AddedAbstractMethod]
                 src/test/pkg/KotlinInterface.kt:5: error: Added method test.pkg.KotlinInterface.hasDefault() [AddedAbstractMethod]
                 src/test/pkg/KotlinInterface.kt:4: error: Added method test.pkg.KotlinInterface.noDefault() [AddedAbstractMethod]
             """,
-            checkCompatibilityApi = """
+            checkCompatibilityApiReleased = """
                 // Signature format: 3.0
                 package test.pkg {
                   public interface JavaInterface {
@@ -3887,6 +3604,61 @@ CompatibilityCheckTest : DriverTest() {
                   public @interface AnnotationToEnum {}
                 }
             """.trimIndent()
+        )
+    }
+
+    @Test
+    fun `Allow increased access`() {
+        check(
+            signatureSource = """
+                package test.pkg {
+                  class Foo {
+                    method public void bar();
+                    method protected void baz();
+                    method protected void spam();
+                  }
+                }
+            """,
+            format = FileFormat.V4,
+            checkCompatibilityApiReleased = """
+                package test.pkg {
+                  class Foo {
+                    method protected void bar();
+                    method private void baz();
+                    method internal void spam();
+                  }
+                }
+            """
+        )
+    }
+
+    @Test
+    fun `Block decreased access`() {
+        check(
+            expectedIssues = """
+                TESTROOT/load-api.txt:3: error: Method test.pkg.Foo.bar changed visibility from public to protected [ChangedScope]
+                TESTROOT/load-api.txt:4: error: Method test.pkg.Foo.baz changed visibility from protected to private [ChangedScope]
+                TESTROOT/load-api.txt:5: error: Method test.pkg.Foo.spam changed visibility from protected to internal [ChangedScope]
+            """,
+            signatureSource = """
+                package test.pkg {
+                  class Foo {
+                    method protected void bar();
+                    method private void baz();
+                    method internal void spam();
+                  }
+                }
+            """,
+            format = FileFormat.V4,
+            checkCompatibilityApiReleased = """
+                package test.pkg {
+                  class Foo {
+                    method public void bar();
+                    method protected void baz();
+                    method protected void spam();
+                  }
+                }
+            """
         )
     }
 

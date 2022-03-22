@@ -63,27 +63,8 @@ class DocAnalyzer(
             codebase.accept(docReplacement)
         }
 
-        injectArtifactIds()
-
         // TODO:
         // insertMissingDocFromHiddenSuperclasses()
-    }
-
-    private fun injectArtifactIds() {
-        val artifacts = options.artifactRegistrations
-        if (!artifacts.any()) {
-            return
-        }
-
-        artifacts.tag(codebase)
-
-        codebase.accept(object : ApiVisitor() {
-            override fun visitClass(cls: ClassItem) {
-                cls.artifact?.let {
-                    cls.appendDocumentation(it, "@artifactId")
-                }
-            }
-        })
     }
 
     val mentionsNull: Pattern = Pattern.compile("\\bnull\\b")

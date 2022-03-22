@@ -106,7 +106,6 @@ class ExtractAnnotationsTest : DriverTest() {
     }
 
     @Test
-    @TestKotlinPsi
     fun `Check Kotlin and referencing hidden constants from typedef`() {
         check(
             includeSourceRetentionAnnotations = false,
@@ -185,7 +184,6 @@ class ExtractAnnotationsTest : DriverTest() {
     }
 
     @Test
-    @TestKotlinPsi
     fun `Check including only class retention annotations other than typedefs`() {
         check(
             includeSourceRetentionAnnotations = true,
