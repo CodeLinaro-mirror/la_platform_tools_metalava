@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.model.psi
 
-import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.psi.ClassType.TYPE_PARAMETER
 import com.intellij.psi.PsiTypeParameter
@@ -42,13 +41,13 @@ class PsiTypeParameterItem(
     fromClassPath = false
 ),
     TypeParameterItem {
-    override fun bounds(): List<ClassItem> = bounds
+    override fun typeBounds(): List<PsiTypeItem> = bounds
 
     override fun isReified(): Boolean {
         return isReified(element as? PsiTypeParameter)
     }
 
-    private lateinit var bounds: List<ClassItem>
+    private lateinit var bounds: List<PsiTypeItem>
 
     override fun finishInitialization() {
         super.finishInitialization()
@@ -57,7 +56,7 @@ class PsiTypeParameterItem(
         bounds = if (refs != null && refs.isNotEmpty()) {
             // Omit java.lang.Object since PSI will turn "T extends Comparable" to "T extends Object & Comparable"
             // and this just makes comparisons harder; *everything* extends Object.
-            refs.mapNotNull { PsiTypeItem.create(codebase, it).asClass() }.filter { !it.isJavaLangObject() }
+            refs.mapNotNull { PsiTypeItem.create(codebase, it) }.filter { !it.isJavaLangObject() }
         } else {
             emptyList()
         }

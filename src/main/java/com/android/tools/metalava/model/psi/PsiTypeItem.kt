@@ -342,6 +342,16 @@ class PsiTypeItem private constructor(
         toInnerAnnotatedString = toAnnotatedString
     }
 
+    /**
+     * Returns `true` if `this` type can be assigned from `other` without unboxing the other.
+     */
+    fun isAssignableFromWithoutUnboxing(other: PsiTypeItem): Boolean {
+        if (this.primitive && !other.primitive) {
+            return false
+        }
+        return TypeConversionUtil.isAssignable(psiType, other.psiType)
+    }
+
     companion object {
         private fun getPrimitiveSignature(typeName: String): String? = when (typeName) {
             "boolean" -> "Z"

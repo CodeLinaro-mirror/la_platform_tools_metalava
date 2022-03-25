@@ -176,20 +176,22 @@ class CompatibilityCheck(
     }
 
     override fun compare(old: ParameterItem, new: ParameterItem) {
-        val prevName = old.publicName() ?: return
+        val prevName = old.publicName()
         val newName = new.publicName()
-        if (newName == null) {
-            report(
-                Issues.PARAMETER_NAME_CHANGE,
-                new,
-                "Attempted to remove parameter name from ${describe(new)}"
-            )
-        } else if (newName != prevName) {
-            report(
-                Issues.PARAMETER_NAME_CHANGE,
-                new,
-                "Attempted to change parameter name from $prevName to $newName in ${describe(new.containingMethod())}"
-            )
+        if (prevName != null) {
+            if (newName == null) {
+                report(
+                    Issues.PARAMETER_NAME_CHANGE,
+                    new,
+                    "Attempted to remove parameter name from ${describe(new)}"
+                )
+            } else if (newName != prevName) {
+                report(
+                    Issues.PARAMETER_NAME_CHANGE,
+                    new,
+                    "Attempted to change parameter name from $prevName to $newName in ${describe(new.containingMethod())}"
+                )
+            }
         }
 
         if (old.hasDefaultValue() && !new.hasDefaultValue()) {
@@ -368,10 +370,11 @@ class CompatibilityCheck(
                     compatible = false
                 }
             } else if (oldTypeParameter == null && newTypeParameter != null) {
-                val constraints = newTypeParameter.bounds()
+                val constraints = newTypeParameter.typeBounds()
                 for (constraint in constraints) {
                     val oldClass = oldReturnType.asClass()
-                    if (oldClass == null || !oldClass.extendsOrImplements(constraint.qualifiedName())) {
+                    val newClass = constraint.asClass()
+                    if (oldClass == null || newClass == null || !oldClass.extendsOrImplements(newClass.qualifiedName())) {
                         compatible = false
                     }
                 }
@@ -382,8 +385,8 @@ class CompatibilityCheck(
             } else {
                 // If both return types are parameterized then the constraints must be
                 // exactly the same.
-                val oldConstraints = oldTypeParameter?.bounds() ?: emptyList()
-                val newConstraints = newTypeParameter?.bounds() ?: emptyList()
+                val oldConstraints = oldTypeParameter?.typeBounds() ?: emptyList()
+                val newConstraints = newTypeParameter?.typeBounds() ?: emptyList()
                 if (oldConstraints.size != newConstraints.size ||
                     newConstraints != oldConstraints
                 ) {
@@ -599,13 +602,13 @@ class CompatibilityCheck(
 
     private fun describeBounds(
         type: TypeItem,
-        constraints: List<ClassItem>
+        constraints: List<TypeItem>
     ): String {
         return type.toSimpleType() +
             if (constraints.isEmpty()) {
                 " (extends java.lang.Object)"
             } else {
-                " (extends ${constraints.joinToString(separator = " & ") { it.qualifiedName() }})"
+                " (extends ${constraints.joinToString(separator = " & ") { it.toTypeString() }})"
             }
     }
 

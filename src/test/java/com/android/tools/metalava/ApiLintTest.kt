@@ -3819,4 +3819,76 @@ class ApiLintTest : DriverTest() {
             )
         )
     }
+
+    @Test
+    fun `Nullability overrides in unbounded generics (Object to generic and back)`() {
+        check(
+            apiLint = "",
+            sourceFiles = arrayOf(
+                kotlin(
+                    """
+                        package test.pkg
+
+                        open class SimpleArrayMap<K, V> {
+                            open operator fun get(key: K): V? {
+                                TODO()
+                            }
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        
+                        import java.util.Map;
+                        
+                        public class ArrayMap<K, V> extends SimpleArrayMap<K, V> implements Map<K, V> {
+                            @Override
+                            @Nullable
+                            public V get(@NonNull Object key) {
+                                return super.get((K) key);
+                            }
+                        }
+                        
+                    """
+                )
+            )
+        )
+    }
+
+    @Test
+    fun `Nullability overrides in unbounded generics (one super method lacks nullness info)`() {
+        check(
+            apiLint = "",
+            sourceFiles = arrayOf(
+                kotlin(
+                    """
+                        package test.pkg
+
+                        open class SimpleArrayMap<K, V> {
+                            open operator fun get(key: K): V? {
+                                TODO()
+                            }
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        
+                        import java.util.Map;
+                        
+                        public class ArrayMap<K, V> extends SimpleArrayMap<K, V> implements Map<K, V> {
+                            @Override
+                            @Nullable
+                            public V get(@Nullable Object key) {
+                                return super.get((K) key);
+                            }
+                        }
+                        
+                    """
+                )
+            )
+        )
+    }
 }

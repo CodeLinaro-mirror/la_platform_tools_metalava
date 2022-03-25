@@ -1328,7 +1328,6 @@ CompatibilityCheckTest : DriverTest() {
                 src/test/pkg/MyClass.java:7: error: Method test.pkg.MyClass.method3 has changed return type from java.util.List<Integer> to java.util.List<java.lang.Number> [ChangedType]
                 src/test/pkg/MyClass.java:8: error: Method test.pkg.MyClass.method4 has changed return type from String to String[] [ChangedType]
                 src/test/pkg/MyClass.java:9: error: Method test.pkg.MyClass.method5 has changed return type from String[] to String[][] [ChangedType]
-                src/test/pkg/MyClass.java:10: error: Method test.pkg.MyClass.method6 has changed return type from T (extends java.lang.Object) to U (extends java.lang.Number) [ChangedType]
                 src/test/pkg/MyClass.java:11: error: Method test.pkg.MyClass.method7 has changed return type from T to Number [ChangedType]
                 src/test/pkg/MyClass.java:13: error: Method test.pkg.MyClass.method9 has changed return type from X (extends java.lang.Throwable) to U (extends java.lang.Number) [ChangedType]
                 """,
@@ -3808,6 +3807,7 @@ CompatibilityCheckTest : DriverTest() {
         )
     }
 
+    @Test
     fun `Change default to abstract`() {
         check(
             expectedIssues = """
@@ -3830,6 +3830,7 @@ CompatibilityCheckTest : DriverTest() {
         )
     }
 
+    @Test
     fun `Allow change from non-final to final in sealed class`() {
         check(
             signatureSource = """
@@ -3847,6 +3848,32 @@ CompatibilityCheckTest : DriverTest() {
                   }
                 }
             """
+        )
+    }
+
+    @Test
+    fun `unchanged self-referencing type parameter is compatible`() {
+        check(
+            checkCompatibilityApiReleased = """
+                package test.pkg {
+                    public abstract class Foo<T extends test.pkg.Foo<T>> {
+                            method public static <T extends test.pkg.Foo<T>> T valueOf(Class<T>, String);
+                    }
+                }
+            """,
+            sourceFiles = arrayOf(
+                java(
+                    """
+                    package test.pkg;
+                    import android.annotation.NonNull;
+                    public abstract class Foo<T extends Foo<T>> {
+                        @NonNull
+                        public static <T extends Foo<T>> T valueOf(@NonNull Class<T> fooType, @NonNull String name) {}
+                    }
+                    """
+                ),
+                nonNullSource
+            )
         )
     }
 
