@@ -154,6 +154,7 @@ import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.SetMinSdkVersion
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.psi.PsiMethodItem
+import com.android.tools.metalava.model.psi.PsiTypeItem
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.intellij.psi.JavaRecursiveElementVisitor
 import com.intellij.psi.PsiClassObjectAccessExpression
@@ -1039,7 +1040,7 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
         // Maps each setter to a list of potential getters that would satisfy it.
         val expectedGetters = mutableListOf<Pair<Item, Set<String>>>()
         var builtType: TypeItem? = null
-        val clsType = cls.toType().toTypeString()
+        val clsType = cls.toType()
 
         for (method in methods) {
             val name = method.name()
@@ -1052,17 +1053,30 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
                     "Getter should be on the built object, not the builder: ${method.describe()}"
                 )
             } else if (name.startsWith("set") || name.startsWith("add") || name.startsWith("clear")) {
-                val returnType = method.returnType()?.toTypeString() ?: ""
-                val returnTypeBounds = method.returnType()?.asTypeParameter(context = method)?.bounds()?.map {
-                    it.toType().toTypeString()
-                } ?: listOf()
-
-                if (returnType != clsType && !returnTypeBounds.contains(clsType)) {
-                    report(
-                        SETTER_RETURNS_THIS, method,
-                        "Methods must return the builder object (return type $clsType instead of $returnType): ${method.describe()}"
-                    )
+                val returnType = method.returnType()
+                if (returnType != null) {
+                    val returnsClassType = if (
+                        returnType is PsiTypeItem && clsType is PsiTypeItem
+                    ) {
+                        clsType.isAssignableFromWithoutUnboxing(returnType)
+                    } else {
+                        // fallback to a limited text based check
+                        val returnTypeBounds = returnType
+                            .asTypeParameter(context = method)
+                            ?.typeBounds()?.map {
+                                it.toTypeString()
+                            } ?: emptyList()
+                        returnTypeBounds.contains(clsType.toTypeString()) || returnType == clsType
+                    }
+                    if (!returnsClassType) {
+                        report(
+                            SETTER_RETURNS_THIS, method,
+                            "Methods must return the builder object (return type " +
+                                "$clsType instead of $returnType): ${method.describe()}"
+                        )
+                    }
                 }
+
                 if (method.modifiers.isNullable()) {
                     report(
                         SETTER_RETURNS_THIS, method,
@@ -1629,12 +1643,14 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
     }
 
     private fun anySuperParameterIsNullable(parameter: ParameterItem): Boolean {
-        return parameter.containingMethod().superMethods().any { superMethod ->
+        val supers = parameter.containingMethod().superMethods()
+        return supers.all { superMethod ->
             // Disable check for generics
             superMethod.parameters().none {
                 it.type().isTypeParameter()
-            } &&
-                superMethod.parameters().firstOrNull { param ->
+            }
+        } && supers.any { superMethod ->
+            superMethod.parameters().firstOrNull { param ->
                 parameter.parameterIndex == param.parameterIndex
             }?.modifiers?.isNullable() ?: false
         }
@@ -1649,16 +1665,18 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
     }
 
     private fun anySuperParameterLacksNullnessInfo(parameter: ParameterItem): Boolean {
-        return parameter.containingMethod().superMethods().any { superMethod ->
+        val supers = parameter.containingMethod().superMethods()
+        return supers.all { superMethod ->
             // Disable check for generics
             superMethod.parameters().none {
                 it.type().isTypeParameter()
-            } &&
-                !(
-                    superMethod.parameters().firstOrNull { param ->
-                        parameter.parameterIndex == param.parameterIndex
-                    }?.hasNullnessInfo() ?: true
-                    )
+            }
+        } && supers.any { superMethod ->
+            !(
+                superMethod.parameters().firstOrNull { param ->
+                    parameter.parameterIndex == param.parameterIndex
+                }?.hasNullnessInfo() ?: true
+                )
         }
     }
 
