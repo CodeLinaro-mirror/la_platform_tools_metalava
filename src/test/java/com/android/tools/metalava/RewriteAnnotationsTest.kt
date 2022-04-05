@@ -40,7 +40,10 @@ class RewriteAnnotationsTest : DriverTest() {
 
             ARG_COPY_ANNOTATIONS,
             source.path,
-            target.path
+            target.path,
+
+            ARG_CLASS_PATH,
+            getAndroidJar().path
         )
 
         // Source retention: Shouldn't exist
@@ -109,7 +112,10 @@ class RewriteAnnotationsTest : DriverTest() {
             ARG_NO_BANNER,
 
             ARG_REWRITE_ANNOTATIONS,
-            compiledStubs.path
+            compiledStubs.path,
+
+            ARG_CLASS_PATH,
+            getAndroidJar().path
         )
 
         // Load the class to make sure it's legit
@@ -147,7 +153,10 @@ class RewriteAnnotationsTest : DriverTest() {
             ARG_NO_BANNER,
 
             ARG_REWRITE_ANNOTATIONS,
-            jarFile.path
+            jarFile.path,
+
+            ARG_CLASS_PATH,
+            getAndroidJar().path
         )
 
         // Load the class to make sure it's legit

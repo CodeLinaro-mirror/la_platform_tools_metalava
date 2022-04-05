@@ -87,8 +87,8 @@ interface FieldItem : MemberItem {
      * to accommodate toolchains with different fp -> string conversions.
      */
     fun hasSameValue(other: FieldItem): Boolean {
-        val thisConstant = initialValue(true)
-        val otherConstant = other.initialValue(true)
+        val thisConstant = initialValue()
+        val otherConstant = other.initialValue()
         if (thisConstant == null != (otherConstant == null)) {
             return false
         }

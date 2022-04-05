@@ -337,7 +337,7 @@ class ApiFileTest : DriverTest() {
                     method @NonNull public String getProperty1();
                     method @Nullable public String getProperty2();
                     method public void otherMethod(boolean ok, int times);
-                    method public void setProperty2(@Nullable String property2);
+                    method public void setProperty2(@Nullable String value);
                     property @NonNull public final String property1;
                     property @Nullable public final String property2;
                     field @NonNull public static final test.pkg.Kotlin.Companion Companion;
@@ -1081,7 +1081,7 @@ class ApiFileTest : DriverTest() {
                   public final class SimpleClass {
                     ctor public SimpleClass();
                     method public int getNonJvmField();
-                    method public void setNonJvmField(int nonJvmField);
+                    method public void setNonJvmField(int value);
                     property public final int nonJvmField;
                     field public int jvmField;
                   }
@@ -1115,8 +1115,8 @@ class ApiFileTest : DriverTest() {
                     ctor public SimpleClass();
                     method public int getAnotherProperty();
                     method public int myPropertyJvmGetter();
-                    method public void setAnotherProperty(int anotherProperty);
-                    method public void setMyProperty(int myProperty);
+                    method public void setAnotherProperty(int value);
+                    method public void setMyProperty(int value);
                     property public final int anotherProperty;
                     property public final int myProperty;
                   }
@@ -1235,7 +1235,7 @@ class ApiFileTest : DriverTest() {
                 package androidx.annotation.experimental {
                   @kotlin.annotation.Retention(kotlin.annotation.AnnotationRetention.BINARY) @kotlin.annotation.Target(allowedTargets={kotlin.annotation.AnnotationTarget.CLASS, kotlin.annotation.AnnotationTarget.PROPERTY, kotlin.annotation.AnnotationTarget.LOCAL_VARIABLE, kotlin.annotation.AnnotationTarget.VALUE_PARAMETER, kotlin.annotation.AnnotationTarget.CONSTRUCTOR, kotlin.annotation.AnnotationTarget.FUNCTION, kotlin.annotation.AnnotationTarget.PROPERTY_GETTER, kotlin.annotation.AnnotationTarget.PROPERTY_SETTER, kotlin.annotation.AnnotationTarget.FILE, kotlin.annotation.AnnotationTarget.TYPEALIAS}) public @interface UseExperimental {
                     method public abstract kotlin.reflect.KClass<? extends java.lang.annotation.Annotation>[] markerClass();
-                    property public abstract kotlin.reflect.KClass<? extends java.lang.annotation.Annotation>![] markerClass;
+                    property public abstract kotlin.reflect.KClass<? extends java.lang.annotation.Annotation>[] markerClass;
                   }
                 }
                 package test.pkg {
@@ -3987,10 +3987,10 @@ class ApiFileTest : DriverTest() {
                 // Signature format: 3.0
                 package test.pkg {
                   public final class KotlinClass {
-                    ctor public KotlinClass(@IntRange(from=1) int param);
-                    ctor public KotlinClass(@IntRange(from=2) int differentParam);
+                    ctor public KotlinClass(@IntRange(from=1L) int param);
+                    ctor public KotlinClass(@IntRange(from=2L) int differentParam);
                     method public int getParam();
-                    method public void myMethod(@IntRange(from=3) int methodParam);
+                    method public void myMethod(@IntRange(from=3L) int methodParam);
                     property public final int param;
                   }
                 }
@@ -4618,6 +4618,36 @@ class ApiFileTest : DriverTest() {
             ),
             api = """
                 // Signature format: 4.0
+            """
+        )
+    }
+
+    /** Regression test for b/202968090 */
+    @Test
+    fun `annotation arrays should be non-null`() {
+        check(
+            format = FileFormat.V4,
+            sourceFiles = arrayOf(
+                kotlin(
+                    """
+                        package test.pkg
+                        annotation class Foo (
+                            val bar: Array<String>,
+                            vararg val baz: String
+                        )
+                    """
+                )
+            ),
+            api = """
+                // Signature format: 4.0
+                package test.pkg {
+                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) public @interface Foo {
+                    method public abstract String[] bar();
+                    method public abstract String[] baz();
+                    property public abstract String[] bar;
+                    property public abstract String[] baz;
+                  }
+                }
             """
         )
     }

@@ -86,7 +86,7 @@ class PsiTypeParameterItem(
             ) {
                 return true
             } else if (element is KotlinLightTypeParameterBuilder) {
-                if (element.sourcePsi.text.startsWith("reified")) {
+                if (element.origin.text.startsWith("reified")) {
                     return true
                 }
             }

@@ -366,17 +366,13 @@ interface MethodItem : MemberItem {
     }
 
     override fun requiresNullnessInfo(): Boolean {
-        if (isConstructor()) {
-            return false
-        } else if (returnType()?.primitive != true) {
-            return true
+        return when {
+            modifiers.hasJvmSyntheticAnnotation() -> false
+            isConstructor() -> false
+            (returnType()?.primitive != true) -> true
+            parameters().any { !it.type().primitive } -> true
+            else -> false
         }
-        for (parameter in parameters()) {
-            if (!parameter.type().primitive) {
-                return true
-            }
-        }
-        return false
     }
 
     override fun hasNullnessInfo(): Boolean {
@@ -413,19 +409,6 @@ interface MethodItem : MemberItem {
 
     fun hasDefaultValue(): Boolean {
         return defaultValue() != ""
-    }
-
-    /**
-     * Check the declared default annotation value and return true if the defaults
-     * are the same. Only defined on two annotation methods; for all other
-     * methods the result is "true".
-     */
-    fun hasSameValue(other: MethodItem): Boolean {
-        if (!containingClass().isAnnotationType() || !other.containingClass().isAnnotationType()) {
-            return true
-        }
-
-        return defaultValue() == other.defaultValue()
     }
 
     /**

@@ -37,6 +37,7 @@ import com.intellij.psi.PsiAnnotationMethod
 import com.intellij.psi.PsiArrayInitializerMemberValue
 import com.intellij.psi.PsiBinaryExpression
 import com.intellij.psi.PsiClass
+import com.intellij.psi.PsiClassObjectAccessExpression
 import com.intellij.psi.PsiExpression
 import com.intellij.psi.PsiField
 import com.intellij.psi.PsiLiteral
@@ -177,7 +178,7 @@ class PsiAnnotationItem private constructor(
             // because that may not use fully qualified names, e.g. the source may say
             //  @RequiresPermission(Manifest.permission.ACCESS_COARSE_LOCATION)
             // and we want to compute
-            //  @android.support.annotation.RequiresPermission(android.Manifest.permission.ACCESS_COARSE_LOCATION)
+            //  @androidx.annotation.RequiresPermission(android.Manifest.permission.ACCESS_COARSE_LOCATION)
             when (value) {
                 null -> sb.append("null")
                 is PsiLiteral -> sb.append(constantToSource(value.value))
@@ -297,6 +298,12 @@ class PsiAnnotationSingleAttributeValue(
             val value = ConstantEvaluator.evaluate(null, psiValue)
             if (value != null) {
                 return value
+            }
+
+            if (psiValue is PsiClassObjectAccessExpression) {
+                // The value of a class literal expression like String.class or String::class
+                // is the fully qualified name, java.lang.String
+                return psiValue.operand.type.canonicalText
             }
 
             return psiValue.text ?: psiValue.text.removeSurrounding("\"")

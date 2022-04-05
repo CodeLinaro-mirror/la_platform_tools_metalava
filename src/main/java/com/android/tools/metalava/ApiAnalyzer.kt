@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava
 
+import com.android.SdkConstants.ATTR_VALUE
 import com.android.tools.metalava.model.AnnotationAttributeValue
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
@@ -784,13 +785,32 @@ class ApiAnalyzer(
                     // Don't warn about this in Kotlin; the Kotlin deprecation annotation includes deprecation
                     // messages (unlike java.lang.Deprecated which has no attributes). Instead, these
                     // are added to the documentation by the [DocAnalyzer].
-                    !item.isKotlin()
+                    !item.isKotlin() &&
+                    // @DeprecatedForSdk will show up as an alias for @Deprecated, but it's correct
+                    // and expected to *not* combine this with @deprecated in the text; here,
+                    // the text comes from an annotation attribute.
+                    item.modifiers.findAnnotation(JAVA_LANG_DEPRECATED)?.originalName != ANDROID_DEPRECATED_FOR_SDK
                 ) {
                     reporter.report(
                         Issues.DEPRECATION_MISMATCH, item,
                         "${item.toString().capitalize()}: @Deprecated annotation (present) and @deprecated doc tag (not present) do not match"
                     )
                     // TODO: Check opposite (doc tag but no annotation)
+                } else {
+                    val deprecatedForSdk = item.modifiers.findExactAnnotation(ANDROID_DEPRECATED_FOR_SDK)
+                    if (deprecatedForSdk != null) {
+                        item.deprecated = true
+                        if (item.documentation.contains("@deprecated")) {
+                            reporter.report(
+                                Issues.DEPRECATION_MISMATCH, item,
+                                "${item.toString().capitalize()}: Documentation contains `@deprecated` which implies this API is fully deprecated, not just @DeprecatedForSdk"
+                            )
+                        } else {
+                            val value = deprecatedForSdk.findAttribute(ATTR_VALUE)
+                            val message = value?.value?.value()?.toString() ?: ""
+                            item.appendDocumentation(message, "@deprecated")
+                        }
+                    }
                 }
 
                 if (checkHiddenShowAnnotations &&

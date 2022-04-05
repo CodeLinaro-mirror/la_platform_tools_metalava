@@ -16,6 +16,8 @@ interface AnnotationFilter {
     // Returns a list of fully qualified annotation names that may be included by this filter.
     // Note that this filter might incorporate parameters but this function strips them.
     fun getIncludedAnnotationNames(): List<String>
+    // Returns true if [getIncludedAnnotationNames] includes the given qualified name
+    fun matchesAnnotationName(qualifiedName: String): Boolean
     // Tells whether there exists an annotation that is accepted by this filter and that
     // ends with the given suffix
     fun matchesSuffix(annotationSuffix: String): Boolean
@@ -66,6 +68,15 @@ class MutableAnnotationFilter : AnnotationFilter {
             annotationNames.add(expression.qualifiedName)
         }
         return annotationNames
+    }
+
+    /** Cache for [getIncludedAnnotationNames] since we call this method over and over again */
+    private var includedNames: List<String>? = null
+
+    override fun matchesAnnotationName(qualifiedName: String): Boolean {
+        val includedNames = includedNames
+            ?: getIncludedAnnotationNames().also { includedNames = it }
+        return includedNames.contains(qualifiedName)
     }
 
     override fun matchesSuffix(annotationSuffix: String): Boolean {

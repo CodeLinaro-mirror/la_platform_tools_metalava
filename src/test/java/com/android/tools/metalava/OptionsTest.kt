@@ -133,7 +133,7 @@ API sources:
 --java-source <level>
                                              Sets the source level for Java source files; default is 1.8.
 --kotlin-source <level>
-                                             Sets the source level for Kotlin source files; default is 1.5.
+                                             Sets the source level for Kotlin source files; default is 1.6.
 --sdk-home <dir>
                                              If set, locate the `android.jar` file from the given Android SDK
 --compile-sdk-version <api>
@@ -331,15 +331,6 @@ JDiff:
 --convert-new-to-jdiff <old> <new> <xml>
                                              Reads in the given old and new api files, computes the difference, and
                                              writes out only the new parts of the API in the JDiff XML format.
---convert-to-v1 <sig> <sig>
-                                             Reads in the given signature file and writes it out as a signature file in
-                                             the original v1/doclava format.
---convert-to-v2 <sig> <sig>
-                                             Reads in the given signature file and writes it out as a signature file in
-                                             the new signature format, v2.
---convert-new-to-v2 <old> <new> <sig>
-                                             Reads in the given old and new api files, computes the difference, and
-                                             writes out only the new parts of the API in the v2 format.
 
 
 Extracting Annotations:

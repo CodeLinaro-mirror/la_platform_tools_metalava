@@ -38,6 +38,7 @@ import org.jetbrains.kotlin.asJava.elements.KtLightNullabilityAnnotation
 import org.jetbrains.uast.UAnnotation
 import org.jetbrains.uast.UBinaryExpression
 import org.jetbrains.uast.UCallExpression
+import org.jetbrains.uast.UClassLiteralExpression
 import org.jetbrains.uast.UElement
 import org.jetbrains.uast.UExpression
 import org.jetbrains.uast.ULiteralExpression
@@ -161,7 +162,7 @@ class UAnnotationItem private constructor(
             // because that may not use fully qualified names, e.g. the source may say
             //  @RequiresPermission(Manifest.permission.ACCESS_COARSE_LOCATION)
             // and we want to compute
-            //  @android.support.annotation.RequiresPermission(android.Manifest.permission.ACCESS_COARSE_LOCATION)
+            //  @androidx.annotation.RequiresPermission(android.Manifest.permission.ACCESS_COARSE_LOCATION)
             when (value) {
                 null -> sb.append("null")
                 is ULiteralExpression -> sb.append(CodePrinter.constantToSource(value.value))
@@ -305,6 +306,15 @@ class UAnnotationSingleAttributeValue(
             val value = ConstantEvaluator.evaluate(null, psiValue)
             if (value != null) {
                 return value
+            }
+
+            if (psiValue is UClassLiteralExpression) {
+                // The value of a class literal expression like String.class or String::class
+                // is the fully qualified name, java.lang.String
+                val type = psiValue.type
+                if (type != null) {
+                    return type.canonicalText
+                }
             }
 
             return getText(psiValue).removeSurrounding("\"")

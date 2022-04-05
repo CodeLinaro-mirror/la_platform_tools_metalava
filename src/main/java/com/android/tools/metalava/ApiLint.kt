@@ -80,12 +80,12 @@ import com.android.tools.metalava.Issues.GENERIC_EXCEPTION
 import com.android.tools.metalava.Issues.GETTER_ON_BUILDER
 import com.android.tools.metalava.Issues.GETTER_SETTER_NAMES
 import com.android.tools.metalava.Issues.HEAVY_BIT_SET
-import com.android.tools.metalava.Issues.ILLEGAL_STATE_EXCEPTION
 import com.android.tools.metalava.Issues.INTENT_BUILDER_NAME
 import com.android.tools.metalava.Issues.INTENT_NAME
 import com.android.tools.metalava.Issues.INTERFACE_CONSTANT
 import com.android.tools.metalava.Issues.INTERNAL_CLASSES
 import com.android.tools.metalava.Issues.INTERNAL_FIELD
+import com.android.tools.metalava.Issues.INVALID_NULLABILITY
 import com.android.tools.metalava.Issues.Issue
 import com.android.tools.metalava.Issues.KOTLIN_OPERATOR
 import com.android.tools.metalava.Issues.LISTENER_INTERFACE
@@ -234,10 +234,7 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
         val superClass = cls.filteredSuperclass(filterReference)
         val interfaces = cls.filteredInterfaceTypes(filterReference).asSequence()
         val allMethods = methods.asSequence() + constructors.asSequence()
-        checkClass(
-            cls, methods, constructors, allMethods, fields, superClass, interfaces,
-            filterReference
-        )
+        checkClass(cls, methods, constructors, allMethods, fields, superClass, interfaces)
     }
 
     override fun visitMethod(method: MethodItem) {
@@ -281,8 +278,7 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
         methodsAndConstructors: Sequence<MethodItem>,
         fields: Sequence<FieldItem>,
         superClass: ClassItem?,
-        interfaces: Sequence<TypeItem>,
-        filterReference: Predicate<Item>
+        interfaces: Sequence<TypeItem>
     ) {
         checkEquals(methods)
         checkEnums(cls)
@@ -307,7 +303,6 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
         checkFiles(methodsAndConstructors)
         checkManagerList(cls, methods)
         checkAbstractInner(cls)
-        checkRuntimeExceptions(methodsAndConstructors, filterReference)
         checkError(cls, superClass)
         checkCloseable(cls, methods)
         checkNotKotlinOperator(methods)
@@ -1445,40 +1440,52 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
 
     private fun checkExceptions(method: MethodItem, filterReference: Predicate<Item>) {
         for (exception in method.filteredThrowsTypes(filterReference)) {
-            when (val qualifiedName = exception.qualifiedName()) {
-                "java.lang.Exception",
-                "java.lang.Throwable",
-                "java.lang.Error" -> {
-                    report(
-                        GENERIC_EXCEPTION, method,
-                        "Methods must not throw generic exceptions (`$qualifiedName`)"
-                    )
-                }
-                "android.os.RemoteException" -> {
-                    when (method.containingClass().qualifiedName()) {
-                        "android.content.ContentProviderClient",
-                        "android.os.Binder",
-                        "android.os.IBinder" -> {
-                            // exceptions
-                        }
-                        else -> {
-                            report(
-                                RETHROW_REMOTE_EXCEPTION, method,
-                                "Methods calling system APIs should rethrow `RemoteException` as `RuntimeException` (but do not list it in the throws clause)"
-                            )
-                        }
-                    }
-                }
-                "java.lang.IllegalArgumentException",
-                "java.lang.NullPointerException" -> {
-                    if (method.parameters().isEmpty()) {
+            if (isUncheckedException(exception)) {
+                report(
+                    BANNED_THROW, method,
+                    "Methods must not throw unchecked exceptions"
+                )
+            } else {
+                when (val qualifiedName = exception.qualifiedName()) {
+                    "java.lang.Exception",
+                    "java.lang.Throwable",
+                    "java.lang.Error" -> {
                         report(
-                            ILLEGAL_STATE_EXCEPTION, method,
-                            "Methods taking no arguments should throw `IllegalStateException` instead of `$qualifiedName`"
+                            GENERIC_EXCEPTION, method,
+                            "Methods must not throw generic exceptions (`$qualifiedName`)"
                         )
+                    }
+                    "android.os.RemoteException" -> {
+                        when (method.containingClass().qualifiedName()) {
+                            "android.content.ContentProviderClient",
+                            "android.os.Binder",
+                            "android.os.IBinder" -> {
+                                // exceptions
+                            }
+                            else -> {
+                                report(
+                                    RETHROW_REMOTE_EXCEPTION, method,
+                                    "Methods calling system APIs should rethrow `RemoteException` as `RuntimeException` (but do not list it in the throws clause)"
+                                )
+                            }
+                        }
                     }
                 }
             }
+        }
+    }
+
+    /**
+     * Unchecked exceptions are subclasses of RuntimeException or Error. These are not
+     * checked by the compiler, and it is against API guidelines to put them in the 'throws'.
+     * See https://docs.oracle.com/javase/tutorial/essential/exceptions/runtime.html
+     */
+    private fun isUncheckedException(exception: ClassItem): Boolean {
+        val superNames = exception.allSuperClasses().map {
+            it.qualifiedName()
+        }
+        return superNames.any {
+            it == "java.lang.RuntimeException" || it == "java.lang.Error"
         }
     }
 
@@ -1535,9 +1542,8 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
     }
 
     private fun checkHasNullability(item: Item) {
-        if (item.requiresNullnessInfo() && !item.hasNullnessInfo() &&
-            getImplicitNullness(item) == null
-        ) {
+        if (!item.requiresNullnessInfo()) return
+        if (!item.hasNullnessInfo() && getImplicitNullness(item) == null) {
             val type = item.type()
             val inherited = when (item) {
                 is ParameterItem -> item.containingMethod().inheritedMethod
@@ -1586,6 +1592,73 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
                 else -> throw IllegalStateException("Unexpected item type: $item")
             }
             report(MISSING_NULLABILITY, item, "Missing nullability on $where")
+        } else {
+            when (item) {
+                is ParameterItem -> {
+                    // We don't enforce this check on constructor params
+                    if (item.containingMethod().isConstructor()) return
+                    if (item.modifiers.isNonNull()) {
+                        if (anySuperParameterLacksNullnessInfo(item)) {
+                            report(INVALID_NULLABILITY, item, "Invalid nullability on parameter `${item.name()}` in method `${item.parent()?.name()}`. Parameters of overrides cannot be NonNull if the super parameter is unannotated.")
+                        } else if (anySuperParameterIsNullable(item)) {
+                            report(INVALID_NULLABILITY, item, "Invalid nullability on parameter `${item.name()}` in method `${item.parent()?.name()}`. Parameters of overrides cannot be NonNull if super parameter is Nullable.")
+                        }
+                    }
+                }
+                is MethodItem -> {
+                    // We don't enforce this check on constructors
+                    if (item.isConstructor()) return
+                    if (item.modifiers.isNullable()) {
+                        if (anySuperMethodLacksNullnessInfo(item)) {
+                            report(INVALID_NULLABILITY, item, "Invalid nullability on method `${item.name()}` return. Overrides of unannotated super method cannot be Nullable.")
+                        } else if (anySuperMethodIsNonNull(item)) {
+                            report(INVALID_NULLABILITY, item, "Invalid nullability on method `${item.name()}` return. Overrides of NonNull methods cannot be Nullable.")
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private fun anySuperMethodIsNonNull(method: MethodItem): Boolean {
+        return method.superMethods().any { superMethod ->
+            superMethod.modifiers.isNonNull() &&
+                // Disable check for generics
+                superMethod.returnType()?.isTypeParameter() != true
+        }
+    }
+
+    private fun anySuperParameterIsNullable(parameter: ParameterItem): Boolean {
+        return parameter.containingMethod().superMethods().any { superMethod ->
+            // Disable check for generics
+            superMethod.parameters().none {
+                it.type().isTypeParameter()
+            } &&
+                superMethod.parameters().firstOrNull { param ->
+                parameter.parameterIndex == param.parameterIndex
+            }?.modifiers?.isNullable() ?: false
+        }
+    }
+
+    private fun anySuperMethodLacksNullnessInfo(method: MethodItem): Boolean {
+        return method.superMethods().any { superMethod ->
+            !superMethod.hasNullnessInfo() &&
+                // Disable check for generics
+                superMethod.returnType()?.isTypeParameter() != true
+        }
+    }
+
+    private fun anySuperParameterLacksNullnessInfo(parameter: ParameterItem): Boolean {
+        return parameter.containingMethod().superMethods().any { superMethod ->
+            // Disable check for generics
+            superMethod.parameters().none {
+                it.type().isTypeParameter()
+            } &&
+                !(
+                    superMethod.parameters().firstOrNull { param ->
+                        parameter.parameterIndex == param.parameterIndex
+                    }?.hasNullnessInfo() ?: true
+                    )
         }
     }
 
@@ -2055,57 +2128,6 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
                 ABSTRACT_INNER, cls,
                 "Abstract inner classes should be static to improve testability: ${cls.describe()}"
             )
-        }
-    }
-
-    private fun checkRuntimeExceptions(
-        methodsAndConstructors: Sequence<MethodItem>,
-        filterReference: Predicate<Item>
-    ) {
-        for (method in methodsAndConstructors) {
-            if (method.synthetic) {
-                continue
-            }
-            for (throws in method.filteredThrowsTypes(filterReference)) {
-                when (throws.qualifiedName()) {
-                    "java.lang.NullPointerException",
-                    "java.lang.ClassCastException",
-                    "java.lang.IndexOutOfBoundsException",
-                    "java.lang.reflect.UndeclaredThrowableException",
-                    "java.lang.reflect.MalformedParametersException",
-                    "java.lang.reflect.MalformedParameterizedTypeException",
-                    "java.lang.invoke.WrongMethodTypeException",
-                    "java.lang.EnumConstantNotPresentException",
-                    "java.lang.IllegalMonitorStateException",
-                    "java.lang.SecurityException",
-                    "java.lang.UnsupportedOperationException",
-                    "java.lang.annotation.AnnotationTypeMismatchException",
-                    "java.lang.annotation.IncompleteAnnotationException",
-                    "java.lang.TypeNotPresentException",
-                    "java.lang.IllegalStateException",
-                    "java.lang.ArithmeticException",
-                    "java.lang.IllegalArgumentException",
-                    "java.lang.ArrayStoreException",
-                    "java.lang.NegativeArraySizeException",
-                    "java.util.MissingResourceException",
-                    "java.util.EmptyStackException",
-                    "java.util.concurrent.CompletionException",
-                    "java.util.concurrent.RejectedExecutionException",
-                    "java.util.IllformedLocaleException",
-                    "java.util.ConcurrentModificationException",
-                    "java.util.NoSuchElementException",
-                    "java.io.UncheckedIOException",
-                    "java.time.DateTimeException",
-                    "java.security.ProviderException",
-                    "java.nio.BufferUnderflowException",
-                    "java.nio.BufferOverflowException" -> {
-                        report(
-                            BANNED_THROW, method,
-                            "Methods must not mention RuntimeException subclasses in throws clauses (was `${throws.qualifiedName()}`)"
-                        )
-                    }
-                }
-            }
         }
     }
 

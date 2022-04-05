@@ -463,16 +463,11 @@ class PsiTypeItem private constructor(
                             codebase.getNonNullAnnotationProvider()
                         }
 
-                        if (implicitNullness == false &&
-                            owner is MethodItem &&
-                            (
-                                owner.containingClass().isAnnotationType() ||
-                                    owner.containingClass().isEnum() && owner.name() == "values"
-                                ) &&
-                            type is PsiArrayType
+                        // Special handling for implicitly non-null arrays that also have an
+                        // implicitly non-null component type
+                        if (implicitNullness == false && type is PsiArrayType &&
+                            owner != null && owner.impliesNonNullArrayComponents()
                         ) {
-                            // For arrays in annotations not only is the method itself non null but so
-                            // is the component type
                             type.componentType.annotate(provider).createArrayType()
                                 .annotate(provider)
                         } else if (implicitNullness == false &&
@@ -512,6 +507,20 @@ class PsiTypeItem private constructor(
                 }
             } catch (e: Throwable) {
                 return type.getCanonicalText(false)
+            }
+        }
+
+        /**
+         * Determine if this item implies that its associated type is a non-null array with
+         * non-null components. This is true for the synthetic `Enum.values()` method and any
+         * annotation properties or accessors.
+         */
+        private fun Item.impliesNonNullArrayComponents(): Boolean {
+            return when (this) {
+                is MemberItem -> containingClass().isAnnotationType() && !modifiers.isStatic()
+                is MethodItem -> containingClass().isEnum() && modifiers.isStatic() &&
+                    name() == "values" && parameters().isEmpty()
+                else -> false
             }
         }
 

@@ -188,8 +188,7 @@ class ExtractAnnotations(
             val qualifiedName = annotation.qualifiedName ?: continue
             if (qualifiedName.startsWith(JAVA_LANG_PREFIX) ||
                 qualifiedName.startsWith(ANDROIDX_ANNOTATION_PREFIX) ||
-                qualifiedName.startsWith(ANDROID_ANNOTATION_PREFIX) ||
-                qualifiedName.startsWith(ANDROID_SUPPORT_ANNOTATION_PREFIX)
+                qualifiedName.startsWith(ANDROID_ANNOTATION_PREFIX)
             ) {
                 if (annotation.isTypeDefAnnotation()) {
                     // Imported typedef
@@ -200,6 +199,12 @@ class ExtractAnnotations(
                     addItem(item, AnnotationHolder(null, annotation, null))
                 }
 
+                continue
+            } else if (qualifiedName.startsWith(ORG_JETBRAINS_ANNOTATIONS_PREFIX) ||
+                qualifiedName.startsWith(ORG_INTELLIJ_LANG_ANNOTATIONS_PREFIX)
+            ) {
+                // Externally merged metadata, like @Contract and @Language
+                addItem(item, AnnotationHolder(null, annotation, null))
                 continue
             }
 
