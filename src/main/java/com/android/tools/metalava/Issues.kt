@@ -210,7 +210,7 @@ object Issues {
     val DOCUMENT_EXCEPTIONS = Issue(Severity.ERROR, Category.API_LINT, "docs-throws")
     val FORBIDDEN_SUPER_CLASS = Issue(Severity.ERROR, Category.API_LINT)
     val MISSING_NULLABILITY = Issue(Severity.ERROR, Category.API_LINT, "annotations")
-    val INVALID_NULLABILITY = Issue(Severity.ERROR, Category.API_LINT, "annotations-nullability-overrides")
+    val INVALID_NULLABILITY_OVERRIDE = Issue(Severity.ERROR, Category.API_LINT, "annotations-nullability-overrides")
     val MUTABLE_BARE_FIELD = Issue(Severity.ERROR, Category.API_LINT, "mutable-bare-field")
     val INTERNAL_FIELD = Issue(Severity.ERROR, Category.API_LINT, "internal-fields")
     val PUBLIC_TYPEDEF = Issue(Severity.ERROR, Category.API_LINT, "no-public-typedefs")
