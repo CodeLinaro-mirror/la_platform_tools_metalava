@@ -414,22 +414,23 @@ class BinaryCompatibilityInterfaceMethodsTest : DriverTest() {
             """
         )
     }
+     */
 
     @Test
     fun `Change last parameter from array type T(array) to variable arity T(elipse) (Compatible)`() {
         check(
             signatureSource = """
                 package test.pkg {
-                  class Foo {
-                    method public <T> void bar(T...);
-                  }
+                    interface Foo {
+                        method public <T> void bar(T...);
+                    }
                 }
             """,
             checkCompatibilityApiReleased = """
                 package test.pkg {
-                  class Foo {
-                    method public <T> void bar(T[]);
-                  }
+                    interface Foo {
+                        method public <T> void bar(T[]);
+                    }
                 }
             """
         )
@@ -438,24 +439,25 @@ class BinaryCompatibilityInterfaceMethodsTest : DriverTest() {
     @Test
     fun `Change last parameter from variable arity T(elipse) to array type T(array) (Incompatible)`() {
         check(
+            expectedIssues = """
+                TESTROOT/load-api.txt:3: error: Changing from varargs to array is an incompatible change: parameter arg1 in test.pkg.Foo.bar(T[] arg1) [VarargRemoval]
+            """,
             signatureSource = """
                 package test.pkg {
-                  class Foo {
-                    method public <T> void bar(T[]);
-                  }
+                    interface Foo {
+                        method public <T> void bar(T[]);
+                    }
                 }
             """,
             checkCompatibilityApiReleased = """
                 package test.pkg {
-                  class Foo {
-                    method public <T> void bar(T...);
-                  }
+                    interface Foo {
+                        method public <T> void bar(T...);
+                    }
                 }
             """
         )
     }
-
-     */
 
     @Test
     fun `Add default clause to annotation type element (Compatible)`() {
