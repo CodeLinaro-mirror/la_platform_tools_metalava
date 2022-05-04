@@ -59,10 +59,6 @@ class DocAnalyzer(
 
         tweakGrammar()
 
-        for (docReplacement in options.docReplacements) {
-            codebase.accept(docReplacement)
-        }
-
         // TODO:
         // insertMissingDocFromHiddenSuperclasses()
     }

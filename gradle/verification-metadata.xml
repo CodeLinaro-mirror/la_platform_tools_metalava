@@ -93,6 +93,7 @@
             <trusting group="org.apache.ant"/>
             <trusting group="org.apache.commons"/>
          </trusted-key>
+         <trusted-key id="d041cad2e452550f" group="com.google.protobuf"/>
          <trusted-key id="d6f1bc78607808ec8e9f69437a8860944fad5f62" group="org.apache.commons"/>
          <trusted-key id="da7a1bb85b19e4fb05073431205c8673dc742c7c" group="org.apache"/>
          <trusted-key id="dcba03381ef6c89096acd985ac5ec74981f9cda6" group="org.testng"/>
