@@ -52,16 +52,25 @@ class PsiParameterItem(
 
     override fun publicName(): String? {
         if (isKotlin(psiParameter)) {
-            // Don't print out names for extension function receiver parameters
+            // Omit names of some special parameters in Kotlin. None of these parameters may be
+            // set through Kotlin keyword arguments, so there's no need to track their names for
+            // compatibility. This also helps avoid signature file churn if PSI or the compiler
+            // change what name they're using for these parameters.
+
+            // Receiver parameter of extension function
             if (isReceiver()) {
                 return null
             }
-            // Hardcode parameter name for the generated suspend function continuation parameter
+            // Property setter parameter
+            if (containingMethod.isKotlinProperty()) {
+                return null
+            }
+            // Continuation parameter of suspend function
             if (containingMethod.modifiers.isSuspend() &&
                 "kotlin.coroutines.Continuation" == type.asClass()?.qualifiedName() &&
                 containingMethod.parameters().size - 1 == parameterIndex
             ) {
-                return "p"
+                return null
             }
             return name
         } else {

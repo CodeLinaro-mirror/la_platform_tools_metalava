@@ -337,7 +337,7 @@ class ApiFileTest : DriverTest() {
                     method @NonNull public String getProperty1();
                     method @Nullable public String getProperty2();
                     method public void otherMethod(boolean ok, int times);
-                    method public void setProperty2(@Nullable String value);
+                    method public void setProperty2(@Nullable String);
                     property @NonNull public final String property1;
                     property @Nullable public final String property2;
                     field @NonNull public static final test.pkg.Kotlin.Companion Companion;
@@ -454,8 +454,8 @@ class ApiFileTest : DriverTest() {
             api = """
                 package test.pkg {
                   public final class TestKt {
-                    method @Nullable public static suspend inline Object hello(int foo, @NonNull kotlin.coroutines.Continuation<? super kotlin.Unit> p);
-                    method @Nullable public static suspend Object helloTwoContinuations(@NonNull kotlin.coroutines.Continuation<java.lang.Object> myContinuation, @NonNull kotlin.coroutines.Continuation<? super kotlin.Unit> p);
+                    method @Nullable public static suspend inline Object hello(int foo, @NonNull kotlin.coroutines.Continuation<? super kotlin.Unit>);
+                    method @Nullable public static suspend Object helloTwoContinuations(@NonNull kotlin.coroutines.Continuation<java.lang.Object> myContinuation, @NonNull kotlin.coroutines.Continuation<? super kotlin.Unit>);
                   }
                 }
                 """
@@ -1081,7 +1081,7 @@ class ApiFileTest : DriverTest() {
                   public final class SimpleClass {
                     ctor public SimpleClass();
                     method public int getNonJvmField();
-                    method public void setNonJvmField(int value);
+                    method public void setNonJvmField(int);
                     property public final int nonJvmField;
                     field public int jvmField;
                   }
@@ -1115,8 +1115,8 @@ class ApiFileTest : DriverTest() {
                     ctor public SimpleClass();
                     method public int getAnotherProperty();
                     method public int myPropertyJvmGetter();
-                    method public void setAnotherProperty(int value);
-                    method public void setMyProperty(int value);
+                    method public void setAnotherProperty(int);
+                    method public void setMyProperty(int);
                     property public final int anotherProperty;
                     property public final int myProperty;
                   }
@@ -4646,6 +4646,30 @@ class ApiFileTest : DriverTest() {
                     method public abstract String[] baz();
                     property public abstract String[] bar;
                     property public abstract String[] baz;
+                  }
+                }
+            """
+        )
+    }
+
+    @Test
+    fun `property setter parameters are unnamed`() {
+        check(
+            sourceFiles = arrayOf(
+                kotlin(
+                    """
+                        package test.pkg
+                        class Foo(var bar: Int)
+                    """
+                )
+            ),
+            api = """
+                package test.pkg {
+                  public final class Foo {
+                    ctor public Foo(int bar);
+                    method public int getBar();
+                    method public void setBar(int);
+                    property public final int bar;
                   }
                 }
             """

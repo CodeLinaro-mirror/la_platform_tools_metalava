@@ -85,7 +85,7 @@ import com.android.tools.metalava.Issues.INTENT_NAME
 import com.android.tools.metalava.Issues.INTERFACE_CONSTANT
 import com.android.tools.metalava.Issues.INTERNAL_CLASSES
 import com.android.tools.metalava.Issues.INTERNAL_FIELD
-import com.android.tools.metalava.Issues.INVALID_NULLABILITY
+import com.android.tools.metalava.Issues.INVALID_NULLABILITY_OVERRIDE
 import com.android.tools.metalava.Issues.Issue
 import com.android.tools.metalava.Issues.KOTLIN_OPERATOR
 import com.android.tools.metalava.Issues.LISTENER_INTERFACE
@@ -1613,9 +1613,9 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
                     if (item.containingMethod().isConstructor()) return
                     if (item.modifiers.isNonNull()) {
                         if (anySuperParameterLacksNullnessInfo(item)) {
-                            report(INVALID_NULLABILITY, item, "Invalid nullability on parameter `${item.name()}` in method `${item.parent()?.name()}`. Parameters of overrides cannot be NonNull if the super parameter is unannotated.")
+                            report(INVALID_NULLABILITY_OVERRIDE, item, "Invalid nullability on parameter `${item.name()}` in method `${item.parent()?.name()}`. Parameters of overrides cannot be NonNull if the super parameter is unannotated.")
                         } else if (anySuperParameterIsNullable(item)) {
-                            report(INVALID_NULLABILITY, item, "Invalid nullability on parameter `${item.name()}` in method `${item.parent()?.name()}`. Parameters of overrides cannot be NonNull if super parameter is Nullable.")
+                            report(INVALID_NULLABILITY_OVERRIDE, item, "Invalid nullability on parameter `${item.name()}` in method `${item.parent()?.name()}`. Parameters of overrides cannot be NonNull if super parameter is Nullable.")
                         }
                     }
                 }
@@ -1624,9 +1624,9 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
                     if (item.isConstructor()) return
                     if (item.modifiers.isNullable()) {
                         if (anySuperMethodLacksNullnessInfo(item)) {
-                            report(INVALID_NULLABILITY, item, "Invalid nullability on method `${item.name()}` return. Overrides of unannotated super method cannot be Nullable.")
+                            report(INVALID_NULLABILITY_OVERRIDE, item, "Invalid nullability on method `${item.name()}` return. Overrides of unannotated super method cannot be Nullable.")
                         } else if (anySuperMethodIsNonNull(item)) {
-                            report(INVALID_NULLABILITY, item, "Invalid nullability on method `${item.name()}` return. Overrides of NonNull methods cannot be Nullable.")
+                            report(INVALID_NULLABILITY_OVERRIDE, item, "Invalid nullability on method `${item.name()}` return. Overrides of NonNull methods cannot be Nullable.")
                         }
                     }
                 }
