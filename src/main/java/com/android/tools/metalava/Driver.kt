@@ -41,7 +41,6 @@ import com.google.common.collect.Lists
 import com.google.common.io.Files
 import com.intellij.core.CoreApplicationEnvironment
 import com.intellij.openapi.diagnostic.DefaultLogger
-import com.intellij.openapi.util.Disposer
 import com.intellij.pom.java.LanguageLevel
 import com.intellij.psi.javadoc.CustomJavadocTagProvider
 import com.intellij.psi.javadoc.JavadocTagInfo
@@ -788,7 +787,7 @@ private val uastEnvironments = mutableListOf<UastEnvironment>()
 private fun disposeUastEnvironment() {
     // Codebase.dispose() is not consistently called, so we dispose the environments here too.
     for (env in uastEnvironments) {
-        if (!Disposer.isDisposed(env.ideaProject)) {
+        if (!env.ideaProject.isDisposed) {
             env.dispose()
         }
     }
