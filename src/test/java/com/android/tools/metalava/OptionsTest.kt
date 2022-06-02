@@ -103,12 +103,6 @@ API sources:
                                              A .jar file to read APIs from directly
 --manifest <file>
                                              A manifest file, used to for check permissions to cross check APIs
---replace-documentation <p> <r> <t>
-                                             Amongst nonempty documentation of items from Java packages <p> and their
-                                             subpackages, replaces any matches of regular expression <r> with
-                                             replacement text <t>. <p> is given as a nonempty list of Java package names
-                                             separated by ':' (e.g. "java:android.util"); <t> may contain backreferences
-                                             ($1, $2 etc.) to matching groups from <r>.
 --hide-package <package>
                                              Remove the given packages from the API even if they have not been marked
                                              with @hide

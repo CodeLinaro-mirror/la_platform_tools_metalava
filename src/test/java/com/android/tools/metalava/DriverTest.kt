@@ -1340,7 +1340,7 @@ abstract class DriverTest {
     }
 
     companion object {
-        private const val API_LEVEL = 30
+        private const val API_LEVEL = 31
 
         private fun getAndroidJarFromEnv(apiLevel: Int): File {
             val sdkRoot = System.getenv("ANDROID_SDK_ROOT")
