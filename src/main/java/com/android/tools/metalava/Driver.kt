@@ -267,7 +267,10 @@ private fun processFlags() {
     val apiLevelJars = options.apiLevelJars
     if (androidApiLevelXml != null && apiLevelJars != null) {
         progress("Generating API levels XML descriptor file, ${androidApiLevelXml.name}: ")
-        ApiGenerator.generate(apiLevelJars, options.firstApiLevel, androidApiLevelXml, codebase)
+        ApiGenerator.generate(
+            apiLevelJars, options.firstApiLevel, androidApiLevelXml, codebase,
+            options.sdkJarRoot, options.sdkFilterFile
+        )
     }
 
     if (options.docStubsDir != null || options.enhanceDocumentation) {

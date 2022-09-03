@@ -74,7 +74,7 @@ class AndroidJarReader {
             api = new Api(mMinApi, max);
             for (int apiLevel = mMinApi; apiLevel < mApiLevels.length; apiLevel++) {
                 File jar = getAndroidJarFile(apiLevel);
-                readJar(api, apiLevel, jar);
+                JarReaderUtilsKt.readJar(api, apiLevel, jar);
             }
             if (mCodebase != null) {
                 int apiLevel = mCodebase.getApiLevel();
@@ -101,7 +101,7 @@ class AndroidJarReader {
                     }
                     break;
                 }
-                readJar(api, apiLevel, jar);
+                JarReaderUtilsKt.readJar(api, apiLevel, jar);
             }
         }
 
@@ -118,67 +118,6 @@ class AndroidJarReader {
             return;
         }
         AddApisFromCodebaseKt.addApisFromCodebase(api, apiLevel, mCodebase);
-    }
-
-    private void readJar(Api api, int apiLevel, File jar) throws IOException {
-        api.update(apiLevel);
-
-        FileInputStream fis = new FileInputStream(jar);
-        ZipInputStream zis = new ZipInputStream(fis);
-        ZipEntry entry = zis.getNextEntry();
-        while (entry != null) {
-            String name = entry.getName();
-
-            if (name.endsWith(SdkConstants.DOT_CLASS)) {
-                byte[] bytes = ByteStreams.toByteArray(zis);
-                ClassReader reader = new ClassReader(bytes);
-                ClassNode classNode = new ClassNode(Opcodes.ASM5);
-                reader.accept(classNode, 0 /*flags*/);
-
-                ApiClass theClass = api.addClass(classNode.name, apiLevel,
-                    (classNode.access & Opcodes.ACC_DEPRECATED) != 0);
-
-                theClass.updateHidden(apiLevel, (classNode.access & Opcodes.ACC_PUBLIC) == 0);
-
-                // super class
-                if (classNode.superName != null) {
-                    theClass.addSuperClass(classNode.superName, apiLevel);
-                }
-
-                // interfaces
-                for (Object interfaceName : classNode.interfaces) {
-                    theClass.addInterface((String) interfaceName, apiLevel);
-                }
-
-                // fields
-                for (Object field : classNode.fields) {
-                    FieldNode fieldNode = (FieldNode) field;
-                    if (((fieldNode.access & (Opcodes.ACC_PUBLIC | Opcodes.ACC_PROTECTED)) == 0)) {
-                        continue;
-                    }
-                    if (!fieldNode.name.startsWith("this$") &&
-                        !fieldNode.name.equals("$VALUES")) {
-                        boolean deprecated = (fieldNode.access & Opcodes.ACC_DEPRECATED) != 0;
-                        theClass.addField(fieldNode.name, apiLevel, deprecated);
-                    }
-                }
-
-                // methods
-                for (Object method : classNode.methods) {
-                    MethodNode methodNode = (MethodNode) method;
-                    if (((methodNode.access & (Opcodes.ACC_PUBLIC | Opcodes.ACC_PROTECTED)) == 0)) {
-                        continue;
-                    }
-                    if (!methodNode.name.equals("<clinit>")) {
-                        boolean deprecated = (methodNode.access & Opcodes.ACC_DEPRECATED) != 0;
-                        theClass.addMethod(methodNode.name + methodNode.desc, apiLevel, deprecated);
-                    }
-                }
-            }
-            entry = zis.getNextEntry();
-        }
-
-        Closeables.close(fis, true);
     }
 
     private File getAndroidJarFile(int apiLevel) {

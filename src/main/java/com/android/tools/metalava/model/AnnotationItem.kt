@@ -409,6 +409,13 @@ interface AnnotationItem {
                 "kotlin.UseExperimental",
                 "kotlin.OptIn" -> return NO_ANNOTATION_TARGETS
 
+                // These optimization-related annotations shouldn't be exported.
+                "dalvik.annotation.optimization.CriticalNative",
+                "dalvik.annotation.optimization.FastNative",
+                "dalvik.annotation.optimization.NeverCompile",
+                "dalvik.annotation.optimization.ReachabilitySensitive" ->
+                    return NO_ANNOTATION_TARGETS
+
                 // TODO(aurimas): consider using annotation directly instead of modifiers
                 "kotlin.Deprecated" -> return NO_ANNOTATION_TARGETS // tracked separately as a pseudo-modifier
                 "android.annotation.DeprecatedForSdk",
