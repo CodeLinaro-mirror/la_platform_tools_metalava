@@ -17,6 +17,7 @@ package com.android.tools.metalava.apilevels;
 
 import java.io.PrintStream;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -40,7 +41,7 @@ public class Api extends ApiElement {
      * @param stream the stream to print the XML elements to
      */
     public void print(PrintStream stream) {
-        stream.print("<api version=\"2\"");
+        stream.print("<api version=\"3\"");
         if (mMin > 1) {
             stream.print(" min=\"" + mMin + "\"");
         }
@@ -68,11 +69,19 @@ public class Api extends ApiElement {
         return classElement;
     }
 
+    public void removeClass(String name) {
+        mClasses.remove(name);
+    }
+
     public ApiClass findClass(String name) {
         if (name == null) {
             return null;
         }
         return mClasses.get(name);
+    }
+
+    public Collection<ApiClass> getClasses() {
+        return Collections.unmodifiableCollection(mClasses.values());
     }
 
     /**
