@@ -21,7 +21,7 @@ import com.android.tools.metalava.ARG_CURRENT_CODENAME
 import com.android.tools.metalava.ARG_CURRENT_VERSION
 import com.android.tools.metalava.ARG_FIRST_VERSION
 import com.android.tools.metalava.ARG_GENERATE_API_LEVELS
-import com.android.tools.metalava.ARG_SDK_FILTER_FILE
+import com.android.tools.metalava.ARG_SDK_INFO_FILE
 import com.android.tools.metalava.ARG_SDK_JAR_ROOT
 import com.android.tools.metalava.DriverTest
 import com.android.tools.metalava.getApiLookup
@@ -134,33 +134,33 @@ class ApiGeneratorTest : DriverTest() {
         filter.deleteOnExit()
         filter.writeText(
             """
-            ANDROID    0     platform
-            R          30    platform-ext
-            S          31    platform-ext
-            T          33    platform-ext
+            # Definitions
+            R    30
+            S    31
+            T    33
 
-            # Keep everything from these extension SDKs
-            # Specifically, keep framework-permission-s's android/app/role/RoleManager class
+            # Rules
             android.net.ipsec.ike              *    R
             art.module.public.api              *    R
             conscrypt.module.intra.core.api    *    R
             conscrypt.module.platform.api      *    R
             conscrypt.module.public.api        *    R
-            framework-connectivity             *    R
             framework-mediaprovider            *    R
             framework-mediaprovider            android.provider.MediaStore#canManageMedia    T
             framework-permission-s             *    R
             framework-permission               *    R
-            framework-scheduling               *    R
             framework-sdkextensions            *    R
+            framework-scheduling               *    R
             framework-statsd                   *    R
             framework-tethering                *    R
             legacy.art.module.platform.api     *    R
             service-media-s                    *    R
             service-permission                 *    R
 
-            # Remove everything from framework-media (by omitting that extension SDK in the filter)
-            # Specifically, remove framework-media's android/media/MediaFeature class
+            # framework-connectivity: only getAllExtensionVersions should have the 'from' attribute
+            framework-connectivity             android.net.CaptivePortal    R
+
+            # framework-media explicitly omitted: nothing in this module should have the 'from' attribute
             """.trimIndent()
         )
 
@@ -176,7 +176,7 @@ class ApiGeneratorTest : DriverTest() {
                 "${platformJars.path}/%/public/android.jar",
                 ARG_SDK_JAR_ROOT,
                 "$extensionSdkJars",
-                ARG_SDK_FILTER_FILE,
+                ARG_SDK_INFO_FILE,
                 filter.path,
                 ARG_FIRST_VERSION,
                 "21"
@@ -207,10 +207,16 @@ class ApiGeneratorTest : DriverTest() {
         val methodVersion = apiLookup.getMethodVersion("android/icu/util/CopticCalendar", "computeTime", "()")
         assertEquals(24, methodVersion)
 
-        // Everything in framework-permission-s should have been left intact
-        // Everything in extension SDK 'framework-media' should have been filtered out
+        // The filter says 'framework-permission-s             *    R' so RoleManager should exist and should have a module/from attributes
         assertTrue(apiLookup.containsClass("android/app/role/RoleManager"))
-        assertFalse(apiLookup.containsClass("android/media/MediaFeature"))
+        assertTrue(xml.contains("<method name=\"canManageMedia(Landroid/content/Context;)Z\" since=\"31\" from=\"0:31,33:1\"/>"))
+
+        // The filter doesn't mention framework-media, so no class in that module should have a module/from attributes
+        assertTrue(xml.contains("<class name=\"android/media/MediaFeature\" since=\"31\">"))
+
+        // The filter only defines a single API in framework-connectivity: verify that only that API has the module/from attributes
+        assertTrue(xml.contains("<class name=\"android/net/CaptivePortal\" module=\"framework-connectivity\" since=\"23\" from=\"0:23,30:1\">"))
+        assertTrue(xml.contains("<class name=\"android/net/ConnectivityDiagnosticsManager\" since=\"30\">"))
     }
 
     @Test

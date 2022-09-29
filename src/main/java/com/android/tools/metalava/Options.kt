@@ -161,7 +161,7 @@ const val ARG_STRICT_INPUT_FILES_WARN = "--strict-input-files:warn"
 const val ARG_STRICT_INPUT_FILES_EXEMPT = "--strict-input-files-exempt"
 const val ARG_REPEAT_ERRORS_MAX = "--repeat-errors-max"
 const val ARG_SDK_JAR_ROOT = "--sdk-extensions-root"
-const val ARG_SDK_FILTER_FILE = "--sdk-extensions-filter"
+const val ARG_SDK_INFO_FILE = "--sdk-extensions-info"
 
 class Options(
     private val args: Array<String>,
@@ -516,7 +516,7 @@ class Options(
      * Rules to filter out some of the extension SDK APIs from the API, and assign extensions to
      * the APIs that are kept
      */
-    var sdkFilterFile: File? = null
+    var sdkInfoFile: File? = null
 
     /** Level to include for javadoc */
     var docLevel = DocLevel.PROTECTED
@@ -1249,8 +1249,8 @@ class Options(
                     sdkJarRoot = stringToExistingDir(getValue(args, ++index))
                 }
 
-                ARG_SDK_FILTER_FILE -> {
-                    sdkFilterFile = stringToExistingFile(getValue(args, ++index))
+                ARG_SDK_INFO_FILE -> {
+                    sdkInfoFile = stringToExistingFile(getValue(args, ++index))
                 }
 
                 "--temp-folder" -> {
@@ -1466,8 +1466,8 @@ class Options(
             )
         }
 
-        if ((sdkJarRoot == null) != (sdkFilterFile == null)) {
-            throw DriverException(stderr = "$ARG_SDK_JAR_ROOT and $ARG_SDK_FILTER_FILE must both be supplied")
+        if ((sdkJarRoot == null) != (sdkInfoFile == null)) {
+            throw DriverException(stderr = "$ARG_SDK_JAR_ROOT and $ARG_SDK_INFO_FILE must both be supplied")
         }
 
         // outputKotlinStyleNulls implies at least format=v3
@@ -1497,7 +1497,7 @@ class Options(
             apiLevelJars = null
             generateApiLevelXml = null
             sdkJarRoot = null
-            sdkFilterFile = null
+            sdkInfoFile = null
             applyApiLevelsXml = null
             androidJarSignatureFiles = null
             stubsDir = null
@@ -1519,7 +1519,7 @@ class Options(
             apiLevelJars = null
             generateApiLevelXml = null
             sdkJarRoot = null
-            sdkFilterFile = null
+            sdkInfoFile = null
             applyApiLevelsXml = null
             androidJarSignatureFiles = null
             stubsDir = null
@@ -2301,11 +2301,11 @@ class Options(
                 "contain snapshots of historical extension SDK versions in the form of stub jars. " +
                 "The paths should be on the format \"<int>/public/<module-name>-stubs.jar\", where <int> " +
                 "corresponds to the extension SDK version, and <module-name> to the name of the mainline module.",
-            ARG_SDK_FILTER_FILE,
+            ARG_SDK_INFO_FILE,
             "Points to map of extension SDK APIs to include, if any. The file is a plain text file " +
                 "and describes, per extension SDK, what APIs from that extension to include in the " +
                 "file created via $ARG_GENERATE_API_LEVELS. The format of each line is one of the following: " +
-                "\"<module-name> <pattern> <ext-name> [<ext-name> [...]]\", where <module-name> is the" +
+                "\"<module-name> <pattern> <ext-name> [<ext-name> [...]]\", where <module-name> is the " +
                 "name of the mainline module this line refers to, <pattern> is a common Java name prefix " +
                 "of the APIs this line refers to, and <ext-name> is a list of extension SDK names " +
                 "in which these SDKs first appeared, or \"<ext-name> <ext-id> <type>\", where " +

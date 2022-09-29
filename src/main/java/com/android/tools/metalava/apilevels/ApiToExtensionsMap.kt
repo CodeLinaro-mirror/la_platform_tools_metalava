@@ -17,7 +17,7 @@ package com.android.tools.metalava.apilevels
 
 /**
  * A filter of classes, fields and methods that are allowed in and extension SDK, and for each item,
- * what extension SDK it first appeared in. Also, a mapping for SDK name, numerical ID and type.
+ * what extension SDK it first appeared in. Also, a mapping between SDK name and numerical ID.
  *
  * Internally, the filers are represented as a tree, where each node in the tree matches a part of a
  * package, class or member name. For example, given the patterns
@@ -91,31 +91,23 @@ class ApiToExtensionsMap private constructor(
     ): String {
         val versions = mutableSetOf<String>()
         if (androidSince != null) {
-            val platformSdkId = sdkIdentifiers.find {
-                it.type == SdkType.PLATFORM
-            } ?: throw IllegalStateException("no ${SdkType.PLATFORM} SDK")
-            versions.add("${platformSdkId.id}:$androidSince")
+            versions.add("$ANDROID_PLATFORM_SDK_ID:$androidSince")
         }
-        var earliestPlatformExt: Int? = null
         for (ext in extensions) {
             val ident = sdkIdentifiers.find {
                 it.name == ext
             } ?: throw IllegalStateException("unknown extension SDK \"$ext\"")
-            if (ident.type == SdkType.PLATFORM_EXT) {
-                if (earliestPlatformExt == null || ident.id < earliestPlatformExt) {
-                    earliestPlatformExt = ident.id
-                }
-            } else {
-                versions.add("${ident.id}:$extensionsSince")
-            }
-        }
-        if (earliestPlatformExt != null) {
-            versions.add("$earliestPlatformExt:$extensionsSince")
+            assert(ident.id != ANDROID_PLATFORM_SDK_ID) // invariant
+            versions.add("${ident.id}:$extensionsSince")
         }
         return versions.joinToString(",")
     }
 
     companion object {
+        // Hard-coded ID for the Android platform SDK. Used identically as the extension SDK IDs
+        // to express when an API first appeared in an SDK.
+        private const val ANDROID_PLATFORM_SDK_ID = 0
+
         private val REGEX_DELIMITERS = Regex("[.#$]")
         private val REGEX_WHITESPACE = Regex("\\s+")
 
@@ -154,17 +146,12 @@ class ApiToExtensionsMap private constructor(
             }
             for (line in lines) {
                 val all = line.split(REGEX_WHITESPACE, 3)
-                if (all.size != 3) {
-                    throw IllegalArgumentException("bad input: $line")
-                }
-
-                val sdkType = SdkType.valueOfOrNull(all[2])
-                if (sdkType != null) {
+                if (all.size == 2) {
                     // This line is an SDK declaration on the format
-                    // <name>  <numerical-id>  <type>
+                    // <name>  <numerical-id>
 
-                    sdkIdentifiers.add(SdkIdentifier(all[0], all[1].toInt(), sdkType))
-                } else {
+                    sdkIdentifiers.add(SdkIdentifier(all[0], all[1].toInt()))
+                } else if (all.size == 3) {
                     // This line is a filter pattern on the format
                     // <jar-name>  <pattern>  <sdk>[ <sdk>[ ...]]
 
@@ -192,16 +179,14 @@ class ApiToExtensionsMap private constructor(
                         throw IllegalArgumentException("duplicate pattern: $line")
                     }
                     node.extensions = extensions
+                } else {
+                    throw IllegalArgumentException("bad input: $line")
                 }
             }
 
-            // verify: exactly 1 platform SDK
-            val platformCount = sdkIdentifiers.count {
-                it.type == SdkType.PLATFORM
-            }
-            if (platformCount != 1) {
-                val what = if (platformCount == 0) { "missing" } else { "multiple" }
-                throw java.lang.IllegalArgumentException("bad SDK definitions: $what platform SDK")
+            // verify: the predefined Android platform SDK ID is not reused as an extension SDK ID
+            if (sdkIdentifiers.any { it.id == ANDROID_PLATFORM_SDK_ID }) {
+                throw java.lang.IllegalArgumentException("bad SDK definition: the ID $ANDROID_PLATFORM_SDK_ID is reserved for the Android platform SDK")
             }
 
             // verify: all rules refer to declared SDKs
@@ -220,18 +205,6 @@ class ApiToExtensionsMap private constructor(
             // verify: no duplicate SDK names
             if (sdkIdentifiers.size != sdkIdentifiers.distinctBy { it.name }.size) {
                 throw IllegalArgumentException("bad SDK definitions: duplicate SDK names")
-            }
-
-            // verify: check platform-ext IDs form an exclusive range
-            val minPlatformExt = sdkIdentifiers.filter { it.type == SdkType.PLATFORM_EXT }.minByOrNull { it.id }
-            val maxPlatformExt = sdkIdentifiers.filter { it.type == SdkType.PLATFORM_EXT }.maxByOrNull { it.id }
-            if (minPlatformExt != null && maxPlatformExt != null) {
-                val range = IntRange(minPlatformExt.id, maxPlatformExt.id)
-                for (ident in sdkIdentifiers.filter { it.type != SdkType.PLATFORM_EXT }) {
-                    if (range.contains(ident.id)) {
-                        throw IllegalArgumentException("${ident.type} ID ${ident.id} within ${SdkType.PLATFORM_EXT} range $range")
-                    }
-                }
             }
 
             return ApiToExtensionsMap(sdkIdentifiers, root)
@@ -257,21 +230,4 @@ private class Node(val breadcrumb: String) {
     val children: MutableSet<Node> = mutableSetOf()
 }
 
-private enum class SdkType(val value: String) {
-    PLATFORM("platform"),
-    PLATFORM_EXT("platform-ext"),
-    STANDALONE("standalone");
-
-    companion object {
-        fun valueOfOrNull(str: String): SdkType? {
-            for (type in values()) {
-                if (str == type.value) {
-                    return type
-                }
-            }
-            return null
-        }
-    }
-}
-
-private data class SdkIdentifier(val name: String, val id: Int, val type: SdkType)
+private data class SdkIdentifier(val name: String, val id: Int)

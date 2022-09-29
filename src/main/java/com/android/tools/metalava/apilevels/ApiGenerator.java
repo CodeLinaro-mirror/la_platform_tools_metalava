@@ -230,17 +230,16 @@ public class ApiGenerator {
 
                 Set<String> extensions = extensionsMap.getExtensions(clazz);
                 String clazzFromAttr = extensionsMap.calculateFromAttr(clazz.getSince(), extensions, sdkClass.getSince());
-                boolean classShouldBeRemoved = extensions.isEmpty();
-                boolean atLeastOneMemberKept = false;
+                if (!extensions.isEmpty()) {
+                    clazz.updateMainlineModule(mainlineModule);
+                    clazz.updateFrom(clazzFromAttr);
+                }
 
                 Iterator<ApiElement> iter = clazz.getFieldIterator();
                 while (iter.hasNext()) {
                     ApiElement field = iter.next();
                     extensions = extensionsMap.getExtensions(clazz, field);
-                    if (extensions.isEmpty()) {
-                        iter.remove();
-                    } else {
-                        atLeastOneMemberKept = true;
+                    if (!extensions.isEmpty()) {
                         ApiElement sdkField = sdkClass.getField(field.getName());
                         if (sdkField != null) {
                             String from = extensionsMap.calculateFromAttr(field.getSince(), extensions, sdkField.getSince());
@@ -258,10 +257,7 @@ public class ApiGenerator {
                 while (iter.hasNext()) {
                     ApiElement method = iter.next();
                     extensions = extensionsMap.getExtensions(clazz, method);
-                    if (extensions.isEmpty()) {
-                        iter.remove();
-                    } else {
-                        atLeastOneMemberKept = true;
+                    if (!extensions.isEmpty()) {
                         ApiElement sdkMethod = sdkClass.getMethod(method.getName());
                         if (sdkMethod != null) {
                             String from = extensionsMap.calculateFromAttr(method.getSince(), extensions, sdkMethod.getSince());
@@ -273,20 +269,6 @@ public class ApiGenerator {
                             // Introduce something equivalent to ARG_CURRENT_VERSION?
                         }
                     }
-                }
-
-                if (classShouldBeRemoved) {
-                    if (atLeastOneMemberKept) {
-                        // This will not detect the case where the class is an inner class, and the
-                        // outer class is removed. Since the explicit map is a temporary we ignore
-                        // this case: callers should manually verify the output is correct.
-                        throw new IllegalArgumentException("bad API to extensions map: class " +
-                            clazz.getName() + ": map says to remove the class but keep some of its members");
-                    }
-                    api.removeClass(clazz.getName());
-                } else {
-                    clazz.updateMainlineModule(mainlineModule);
-                    clazz.updateFrom(clazzFromAttr);
                 }
             }
         }

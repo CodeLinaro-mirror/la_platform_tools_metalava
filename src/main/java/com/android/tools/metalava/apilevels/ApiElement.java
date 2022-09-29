@@ -28,8 +28,24 @@ import java.util.List;
  */
 public class ApiElement implements Comparable<ApiElement> {
     private final String mName;
+
+    /**
+     * The Android platform SDK version this API was first introduced in.
+     */
     private int mSince;
+
+
+    /**
+     * The SDKs and their versions this API was first introduced in.
+     *
+     * The value is a comma-separated list of &lt;int&gt;:&lt;int&gt; values, where the first
+     * &lt;int&gt; is the integer ID of an SDK, and the second &lt;int&gt; the version of that SDK,
+     * in which this API first appeared.
+     *
+     * This field is a super-set of mSince, and if non-null, should be preferred.
+     */
     private String mFrom = null;
+
     private String mMainlineModule = null;
     private int mDeprecatedIn;
     private int mLastPresentIn;
