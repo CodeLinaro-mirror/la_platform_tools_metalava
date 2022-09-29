@@ -160,6 +160,8 @@ const val ARG_STRICT_INPUT_FILES_STACK = "--strict-input-files:stack"
 const val ARG_STRICT_INPUT_FILES_WARN = "--strict-input-files:warn"
 const val ARG_STRICT_INPUT_FILES_EXEMPT = "--strict-input-files-exempt"
 const val ARG_REPEAT_ERRORS_MAX = "--repeat-errors-max"
+const val ARG_SDK_JAR_ROOT = "--sdk-extensions-root"
+const val ARG_SDK_FILTER_FILE = "--sdk-extensions-filter"
 
 class Options(
     private val args: Array<String>,
@@ -506,6 +508,15 @@ class Options(
 
     /** Reads API XML file to apply into documentation */
     var applyApiLevelsXml: File? = null
+
+    /** Directory of prebuilt extension SDK jars that contribute to the API */
+    var sdkJarRoot: File? = null
+
+    /**
+     * Rules to filter out some of the extension SDK APIs from the API, and assign extensions to
+     * the APIs that are kept
+     */
+    var sdkFilterFile: File? = null
 
     /** Level to include for javadoc */
     var docLevel = DocLevel.PROTECTED
@@ -1234,6 +1245,14 @@ class Options(
                     repeatErrorsMax = Integer.parseInt(getValue(args, ++index))
                 }
 
+                ARG_SDK_JAR_ROOT -> {
+                    sdkJarRoot = stringToExistingDir(getValue(args, ++index))
+                }
+
+                ARG_SDK_FILTER_FILE -> {
+                    sdkFilterFile = stringToExistingFile(getValue(args, ++index))
+                }
+
                 "--temp-folder" -> {
                     tempFolder = stringToNewOrExistingDir(getValue(args, ++index))
                 }
@@ -1447,6 +1466,10 @@ class Options(
             )
         }
 
+        if ((sdkJarRoot == null) != (sdkFilterFile == null)) {
+            throw DriverException(stderr = "$ARG_SDK_JAR_ROOT and $ARG_SDK_FILTER_FILE must both be supplied")
+        }
+
         // outputKotlinStyleNulls implies at least format=v3
         if (outputKotlinStyleNulls) {
             if (outputFormat < FileFormat.V3) {
@@ -1473,6 +1496,8 @@ class Options(
             // flags count
             apiLevelJars = null
             generateApiLevelXml = null
+            sdkJarRoot = null
+            sdkFilterFile = null
             applyApiLevelsXml = null
             androidJarSignatureFiles = null
             stubsDir = null
@@ -1493,6 +1518,8 @@ class Options(
         } else if (onlyCheckApi) {
             apiLevelJars = null
             generateApiLevelXml = null
+            sdkJarRoot = null
+            sdkFilterFile = null
             applyApiLevelsXml = null
             androidJarSignatureFiles = null
             stubsDir = null
@@ -2269,6 +2296,28 @@ class Options(
             ARG_CURRENT_VERSION, "Sets the current API level of the current source code",
             ARG_CURRENT_CODENAME, "Sets the code name for the current source code",
             ARG_CURRENT_JAR, "Points to the current API jar, if any",
+            ARG_SDK_JAR_ROOT,
+            "Points to root of prebuilt extension SDK jars, if any. This directory is expected to " +
+                "contain snapshots of historical extension SDK versions in the form of stub jars. " +
+                "The paths should be on the format \"<int>/public/<module-name>-stubs.jar\", where <int> " +
+                "corresponds to the extension SDK version, and <module-name> to the name of the mainline module.",
+            ARG_SDK_FILTER_FILE,
+            "Points to map of extension SDK APIs to include, if any. The file is a plain text file " +
+                "and describes, per extension SDK, what APIs from that extension to include in the " +
+                "file created via $ARG_GENERATE_API_LEVELS. The format of each line is one of the following: " +
+                "\"<module-name> <pattern> <ext-name> [<ext-name> [...]]\", where <module-name> is the" +
+                "name of the mainline module this line refers to, <pattern> is a common Java name prefix " +
+                "of the APIs this line refers to, and <ext-name> is a list of extension SDK names " +
+                "in which these SDKs first appeared, or \"<ext-name> <ext-id> <type>\", where " +
+                "<ext-name> is the name of an SDK, " +
+                "<ext-id> its numerical ID and <type> is one of " +
+                "\"platform\" (the Android platform SDK), " +
+                "\"platform-ext\" (an extension to the Android platform SDK), " +
+                "\"standalone\" (a separate SDK). " +
+                "Fields are separated by whitespace. " +
+                "A mainline module may be listed multiple times. " +
+                "The special pattern \"*\" refers to all APIs in the given mainline module. " +
+                "Lines beginning with # are comments.",
 
             "", "\nSandboxing:",
             ARG_NO_IMPLICIT_ROOT,

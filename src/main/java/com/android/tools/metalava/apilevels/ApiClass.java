@@ -21,11 +21,13 @@ import org.jetbrains.annotations.NotNull;
 import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.ListIterator;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Represents a class or an interface and its methods/fields.
@@ -43,8 +45,8 @@ public class ApiClass extends ApiElement {
      */
     private int mPrivateUntil; // Package private class?
 
-    private final Map<String, ApiElement> mFields = new HashMap<>();
-    private final Map<String, ApiElement> mMethods = new HashMap<>();
+    private final Map<String, ApiElement> mFields = new ConcurrentHashMap<>();
+    private final Map<String, ApiElement> mMethods = new ConcurrentHashMap<>();
 
     public ApiClass(String name, int version, boolean deprecated) {
         super(name, version, deprecated);
@@ -310,5 +312,21 @@ public class ApiClass extends ApiElement {
                 break;
             }
         }
+    }
+
+    public Iterator<ApiElement> getFieldIterator() {
+        return mFields.values().iterator();
+    }
+
+    public Iterator<ApiElement> getMethodIterator() {
+        return mMethods.values().iterator();
+    }
+
+    public ApiElement getField(String name) {
+        return mFields.get(name);
+    }
+
+    public ApiElement getMethod(String name) {
+        return mMethods.get(name);
     }
 }
