@@ -69,10 +69,6 @@ public class Api extends ApiElement {
         return classElement;
     }
 
-    public void removeClass(String name) {
-        mClasses.remove(name);
-    }
-
     public ApiClass findClass(String name) {
         if (name == null) {
             return null;

@@ -379,12 +379,12 @@ Extracting API Levels:
                                              "<int>/public/<module-name>-stubs.jar", where <int> corresponds to the
                                              extension SDK version, and <module-name> to the name of the mainline
                                              module.
---sdk-extensions-filter
+--sdk-extensions-info
                                              Points to map of extension SDK APIs to include, if any. The file is a plain
                                              text file and describes, per extension SDK, what APIs from that extension
                                              to include in the file created via --generate-api-levels. The format of
                                              each line is one of the following: "<module-name> <pattern> <ext-name>
-                                             [<ext-name> [...]]", where <module-name> is thename of the mainline module
+                                             [<ext-name> [...]]", where <module-name> is the name of the mainline module
                                              this line refers to, <pattern> is a common Java name prefix of the APIs
                                              this line refers to, and <ext-name> is a list of extension SDK names in
                                              which these SDKs first appeared, or "<ext-name> <ext-id> <type>", where
