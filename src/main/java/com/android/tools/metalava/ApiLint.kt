@@ -2171,12 +2171,18 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
         val name = method.name()
         if (type == "int" || type == "long" || type == "short") {
             if (badUnits.any { name.endsWith(it.key) }) {
-                val badUnit = badUnits.keys.find { name.endsWith(it) }
-                val value = badUnits[badUnit]
-                report(
-                    METHOD_NAME_UNITS, method,
-                    "Expected method name units to be `$value`, was `$badUnit` in `$name`"
-                )
+                val typeIsTypeDef = method.modifiers.annotations().any { annotation ->
+                    val annotationClass = annotation.resolve() ?: return@any false
+                    annotationClass.modifiers.annotations().any { it.isTypeDefAnnotation() }
+                }
+                if (!typeIsTypeDef) {
+                    val badUnit = badUnits.keys.find { name.endsWith(it) }
+                    val value = badUnits[badUnit]
+                    report(
+                        METHOD_NAME_UNITS, method,
+                        "Expected method name units to be `$value`, was `$badUnit` in `$name`"
+                    )
+                }
             }
         } else if (type == "void") {
             if (method.parameters().size != 1) {

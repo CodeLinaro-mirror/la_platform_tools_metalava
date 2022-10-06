@@ -2278,6 +2278,13 @@ class ApiLintTest : DriverTest() {
                             @NonNull
                             public UnitNameTestBuilder setOkPercentage(int i) { return this; }
                         }
+
+                        @NamedDataSpace
+                        public int getOkDataSpace() { return 0; }
+
+                        /** @hide */
+                        @android.annotation.IntDef
+                        public @interface NamedDataSpace {}
                     }
                     """
                 )
