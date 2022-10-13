@@ -2299,7 +2299,7 @@ class Options(
             ARG_SDK_JAR_ROOT,
             "Points to root of prebuilt extension SDK jars, if any. This directory is expected to " +
                 "contain snapshots of historical extension SDK versions in the form of stub jars. " +
-                "The paths should be on the format \"<int>/public/<module-name>-stubs.jar\", where <int> " +
+                "The paths should be on the format \"<int>/public/<module-name>.jar\", where <int> " +
                 "corresponds to the extension SDK version, and <module-name> to the name of the mainline module.",
             ARG_SDK_INFO_FILE,
             "Points to map of extension SDK APIs to include, if any. The file is a plain text file " +
