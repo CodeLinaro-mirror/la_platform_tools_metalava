@@ -376,9 +376,8 @@ Extracting API Levels:
                                              Points to root of prebuilt extension SDK jars, if any. This directory is
                                              expected to contain snapshots of historical extension SDK versions in the
                                              form of stub jars. The paths should be on the format
-                                             "<int>/public/<module-name>-stubs.jar", where <int> corresponds to the
-                                             extension SDK version, and <module-name> to the name of the mainline
-                                             module.
+                                             "<int>/public/<module-name>.jar", where <int> corresponds to the extension
+                                             SDK version, and <module-name> to the name of the mainline module.
 --sdk-extensions-info
                                              Points to map of extension SDK APIs to include, if any. The file is a plain
                                              text file and describes, per extension SDK, what APIs from that extension
