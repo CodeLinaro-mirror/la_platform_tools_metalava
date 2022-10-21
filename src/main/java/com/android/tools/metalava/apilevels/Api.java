@@ -15,11 +15,14 @@
  */
 package com.android.tools.metalava.apilevels;
 
+import com.android.tools.metalava.SdkIdentifier;
+
 import java.io.PrintStream;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Represents the whole Android API.
@@ -40,12 +43,15 @@ public class Api extends ApiElement {
      *
      * @param stream the stream to print the XML elements to
      */
-    public void print(PrintStream stream) {
+    public void print(PrintStream stream, Set<SdkIdentifier> sdkIdentifiers) {
         stream.print("<api version=\"3\"");
         if (mMin > 1) {
             stream.print(" min=\"" + mMin + "\"");
         }
         stream.println(">");
+        for (SdkIdentifier sdk : sdkIdentifiers) {
+            stream.println("\t<sdk id=\"" + sdk.getId() + "\" name=\"" + sdk.getName() + "\"/>");
+        }
         print(mClasses.values(), "class", "\t", stream);
         printClosingTag("api", "", stream);
     }

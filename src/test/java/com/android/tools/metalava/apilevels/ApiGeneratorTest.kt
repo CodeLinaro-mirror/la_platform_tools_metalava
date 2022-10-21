@@ -186,6 +186,9 @@ class ApiGeneratorTest : DriverTest() {
         assertTrue(output.isFile)
         val xml = output.readText(UTF_8)
         assertTrue(xml.contains("<api version=\"3\" min=\"21\">"))
+        assertTrue(xml.contains("<sdk id=\"30\" name=\"R\"/>"))
+        assertTrue(xml.contains("<sdk id=\"31\" name=\"S\"/>"))
+        assertTrue(xml.contains("<sdk id=\"33\" name=\"T\"/>"))
         assertTrue(xml.contains("<class name=\"android/Manifest\" since=\"21\">"))
         assertTrue(xml.contains("<field name=\"showWhenLocked\" since=\"27\"/>"))
 
