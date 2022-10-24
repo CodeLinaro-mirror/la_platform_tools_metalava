@@ -1200,6 +1200,7 @@ CompatibilityCheckTest : DriverTest() {
         check(
             expectedIssues = """
                 src/test/pkg/Outer.java:7: error: Method test.pkg.Outer.Class1.method1 has added 'final' qualifier [AddedFinal]
+                src/test/pkg/Outer.java:19: error: Method test.pkg.Outer.Class4.method4 has removed 'final' qualifier [RemovedFinal]
                 """,
             checkCompatibilityApiReleased = """
                 package test.pkg {

@@ -15,6 +15,8 @@
  */
 package com.android.tools.metalava.apilevels
 
+import com.android.tools.metalava.SdkIdentifier
+
 /**
  * A filter of classes, fields and methods that are allowed in and extension SDK, and for each item,
  * what extension SDK it first appeared in. Also, a mapping between SDK name and numerical ID.
@@ -63,6 +65,8 @@ class ApiToExtensionsMap private constructor(
         }
         return lastSeenExtensions
     }
+
+    fun getSdkIdentifiers(): Set<SdkIdentifier> = sdkIdentifiers.toSet()
 
     /**
      * Construct a `from` attribute value
@@ -123,7 +127,7 @@ class ApiToExtensionsMap private constructor(
          * Note that arguments and return values of methods are omitted (and there is no way to
          * distinguish overloaded methods).
          *
-         * <ext> is the name of an extension SDK (e.g. T).
+         * <ext> is the short name of an extension SDK (e.g. T).
          *
          * All fields are separated by whitespace (spaces or tabs).
          *
@@ -148,9 +152,9 @@ class ApiToExtensionsMap private constructor(
                 val all = line.split(REGEX_WHITESPACE, 3)
                 if (all.size == 2) {
                     // This line is an SDK declaration on the format
-                    // <name>  <numerical-id>
+                    // <short-name>  <numerical-id>
 
-                    sdkIdentifiers.add(SdkIdentifier(all[0], all[1].toInt()))
+                    sdkIdentifiers.add(SdkIdentifier(all[1].toInt(), all[0]))
                 } else if (all.size == 3) {
                     // This line is a filter pattern on the format
                     // <jar-name>  <pattern>  <sdk>[ <sdk>[ ...]]
@@ -229,5 +233,3 @@ private class Node(val breadcrumb: String) {
     var extensions: Set<String> = emptySet()
     val children: MutableSet<Node> = mutableSetOf()
 }
-
-private data class SdkIdentifier(val name: String, val id: Int)
