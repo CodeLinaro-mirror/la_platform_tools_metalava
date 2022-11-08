@@ -110,7 +110,7 @@ class ApiToExtensionsMap private constructor(
     companion object {
         // Hard-coded ID for the Android platform SDK. Used identically as the extension SDK IDs
         // to express when an API first appeared in an SDK.
-        private const val ANDROID_PLATFORM_SDK_ID = 0
+        const val ANDROID_PLATFORM_SDK_ID = 0
 
         private val REGEX_DELIMITERS = Regex("[.#$]")
         private val REGEX_WHITESPACE = Regex("\\s+")

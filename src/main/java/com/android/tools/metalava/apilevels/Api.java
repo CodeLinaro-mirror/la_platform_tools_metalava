@@ -86,6 +86,33 @@ public class Api extends ApiElement {
         return Collections.unmodifiableCollection(mClasses.values());
     }
 
+    public void backfillHistoricalFixes() {
+        backfillSdkExtensions();
+    }
+
+    private void backfillSdkExtensions() {
+        // SdkExtensions.getExtensionVersion was added in 30/R, but was a SystemApi
+        // to avoid publishing the versioning API publicly before there was any
+        // valid use for it.
+        // getAllExtensionsVersions was added as part of 31/S
+        // The class and its APIs were made public between S and T, but we pretend
+        // here like it was always public, for maximum backward compatibility.
+        ApiClass sdkExtensions = findClass("android/os/ext/SdkExtensions");
+
+        if (sdkExtensions != null && sdkExtensions.getSince() != 30
+                && sdkExtensions.getSince() != 33) {
+            throw new AssertionError("Received unexpected historical data");
+        } else if (sdkExtensions == null || sdkExtensions.getSince() == 30) {
+            // This is the system API db (30), or module-lib/system-server dbs (null)
+            // They don't need patching.
+            return;
+        }
+        sdkExtensions.update(30, false);
+        sdkExtensions.addSuperClass("java/lang/Object", 30);
+        sdkExtensions.getMethod("getExtensionVersion(I)I").update(30, false);
+        sdkExtensions.getMethod("getAllExtensionVersions()Ljava/util/Map;").update(31, false);
+    }
+
     /**
      * The bytecode visitor registers interfaces listed for a class. However,
      * a class will <b>also</b> implement interfaces implemented by the super classes.

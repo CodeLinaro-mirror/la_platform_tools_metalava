@@ -1518,6 +1518,75 @@ class DocAnalyzerTest : DriverTest() {
     }
 
     @Test
+    fun `Generate SDK extension API levels javadocs`() {
+        check(
+            sourceFiles = arrayOf(
+                java(
+                    """
+                    package android.pkg;
+                    public class Test {
+                       public static final String UNIT_TEST_1 = "unit.test.1";
+                       public static final String UNIT_TEST_2 = "unit.test.2";
+                    }
+                    """
+                )
+            ),
+            applyApiLevelsXml = """
+                    <?xml version="1.0" encoding="utf-8"?>
+                    <api version="3">
+                        <sdk id="0" name="Android"/>
+                        <sdk id="30" name="R-ext"/>
+                        <sdk id="31" name="S-ext"/>
+                        <sdk id="33" name="T-ext"/>
+                        <class name="android/pkg/Test" since="1" from="0:1,30:2,31:2,33:2">
+                            <field name="UNIT_TEST_1"/>
+                            <field name="UNIT_TEST_2" since="2" from="0:2,31:3,33:3"/>
+                        </class>
+                    </api>
+                    """,
+            checkCompilation = true,
+            docStubs = true,
+            stubFiles = arrayOf(
+                java(
+                    """
+                    package android.pkg;
+                    /**
+                     * @apiSince 1
+                     * @sdkExtInfo 0 1
+                     * @sdkExtInfo 30 2
+                     * @sdkExtInfo 31 2
+                     * @sdkExtInfo 33 2
+                     */
+                    @SuppressWarnings({"unchecked", "deprecation", "all"})
+                    public class Test {
+                    public Test() { throw new RuntimeException("Stub!"); }
+                    /**
+                     * @apiSince 1
+                     * @sdkExtInfo 0 1
+                     * @sdkExtInfo 30 2
+                     * @sdkExtInfo 31 2
+                     * @sdkExtInfo 33 2
+                     */
+                    public static final java.lang.String UNIT_TEST_1 = "unit.test.1";
+                    /**
+                     * @apiSince 2
+                     * @sdkExtInfo 0 2
+                     * @sdkExtInfo 31 3
+                     * @sdkExtInfo 33 3
+                     */
+                    public static final java.lang.String UNIT_TEST_2 = "unit.test.2";
+                    }
+                    """
+                )
+            ),
+            docStubsSourceList = """
+                TESTROOT/stubs/android/pkg/package-info.java
+                TESTROOT/stubs/android/pkg/Test.java
+            """
+        )
+    }
+
+    @Test
     fun `Generate overview html docs`() {
         // If a codebase provides overview.html files in the a public package,
         // make sure that we include this in the exported stubs folder as well!

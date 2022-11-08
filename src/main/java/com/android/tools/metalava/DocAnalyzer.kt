@@ -21,9 +21,14 @@ import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiField
 import com.intellij.psi.PsiMethod
+import org.w3c.dom.Node
+import org.w3c.dom.NodeList
+import org.xml.sax.Attributes
+import org.xml.sax.helpers.DefaultHandler
 import java.io.File
 import java.nio.file.Files
 import java.util.regex.Pattern
+import javax.xml.parsers.SAXParserFactory
 import kotlin.math.min
 
 /**
@@ -659,12 +664,16 @@ class DocAnalyzer(
 
     fun applyApiLevels(applyApiLevelsXml: File) {
         val apiLookup = getApiLookup(applyApiLevelsXml)
+        val elementToSdkExtInfoMap = createSymbolToSdkExtInfoMap(applyApiLevelsXml)
 
         val pkgApi = HashMap<PackageItem, Int?>(300)
         codebase.accept(object : ApiVisitor(visitConstructorsAsMethods = true) {
             override fun visitMethod(method: MethodItem) {
                 val psiMethod = method.psi() as? PsiMethod ?: return
                 addApiLevelDocumentation(apiLookup.getMethodVersion(psiMethod), method)
+                elementToSdkExtInfoMap["${psiMethod.containingClass!!.qualifiedName}#${psiMethod.name}"]?.let {
+                    addApiExtensionsDocumentation(it, method)
+                }
                 addDeprecatedDocumentation(apiLookup.getMethodDeprecatedIn(psiMethod), method)
             }
 
@@ -678,12 +687,18 @@ class DocAnalyzer(
                     val pkg = cls.containingPackage()
                     pkgApi[pkg] = min(pkgApi[pkg] ?: Integer.MAX_VALUE, since)
                 }
+                elementToSdkExtInfoMap["${psiClass.qualifiedName}"]?.let {
+                    addApiExtensionsDocumentation(it, cls)
+                }
                 addDeprecatedDocumentation(apiLookup.getClassDeprecatedIn(psiClass), cls)
             }
 
             override fun visitField(field: FieldItem) {
                 val psiField = field.psi() as PsiField
                 addApiLevelDocumentation(apiLookup.getFieldVersion(psiField), field)
+                elementToSdkExtInfoMap["${psiField.containingClass!!.qualifiedName}#${psiField.name}"]?.let {
+                    addApiExtensionsDocumentation(it, field)
+                }
                 addDeprecatedDocumentation(apiLookup.getFieldDeprecatedIn(psiField), field)
             }
         })
@@ -728,6 +743,19 @@ class DocAnalyzer(
                         "manually; it's computed and injected at build time by $PROGRAM_NAME"
                 )
             }
+        }
+    }
+
+    private fun addApiExtensionsDocumentation(sdkExtInfo: List<SdkAndVersion>, item: Item) {
+        if (item.documentation.contains("@sdkExtInfo")) {
+            reporter.report(
+                Issues.FORBIDDEN_TAG, item,
+                "Documentation should not specify @sdkExtInfo " +
+                    "manually; it's computed and injected at build time by $PROGRAM_NAME"
+            )
+        }
+        for (sdkAndVersion in sdkExtInfo) {
+            item.appendDocumentation("${sdkAndVersion.sdk} ${sdkAndVersion.version}", "@sdkExtInfo")
         }
     }
 
@@ -868,3 +896,70 @@ fun getApiLookup(xmlFile: File, cacheDir: File? = null): ApiLookup {
         }
     }
 }
+
+/**
+ * Generate a map of symbol -> (list of SDKs and corresponding versions the symbol first appeared)
+ * in by parsing an api-versions.xml file. This will be used when injecting @sdkExtInfo annotations,
+ * which convey the same information, in a format documentation tools can consume.
+ *
+ * A symbol is either of a class, method or field.
+ */
+private fun createSymbolToSdkExtInfoMap(xmlFile: File): Map<String, List<SdkAndVersion>> {
+    data class OuterClass(val name: String, val sdkExtInfo: List<SdkAndVersion>?)
+
+    val sdkIdentifiers = mutableMapOf<Int, SdkIdentifier>()
+    var lastSeenClass: OuterClass? = null
+    val elementToSdkExtInfoMap = mutableMapOf<String, List<SdkAndVersion>>()
+    val memberTags = listOf("class", "method", "field")
+    val parser = SAXParserFactory.newDefaultInstance().newSAXParser()
+    parser.parse(
+        xmlFile,
+        object : DefaultHandler() {
+            override fun startElement(uri: String, localName: String, qualifiedName: String, attributes: Attributes) {
+                if (qualifiedName == "sdk") {
+                    val attrs = mutableListOf<String>()
+                    for (i in 0..attributes.getLength() - 1) {
+                        attrs.add(attributes.getLocalName(i))
+                    }
+                    val id: Int = attributes.getValue("id")?.toIntOrNull() ?: throw IllegalArgumentException("<sdk>: missing or non-integer id attribute")
+                    val name: String = attributes.getValue("name") ?: throw IllegalArgumentException("<sdk>: missing name attribute")
+                    sdkIdentifiers.put(id, SdkIdentifier(id, name))
+                } else if (memberTags.contains(qualifiedName)) {
+                    val name: String = attributes.getValue("name") ?: throw IllegalArgumentException("<$qualifiedName>: missing name attribute")
+                    val sdkExtInfo: List<SdkAndVersion>? = attributes.getValue("from")?.split(",")?.map {
+                        val (sdk, version) = it.split(":")
+                        SdkAndVersion(sdk.toInt(), version.toInt())
+                    }?.toList()
+
+                    when (qualifiedName) {
+                        "class" -> {
+                            lastSeenClass = OuterClass(name.replace('/', '.'), sdkExtInfo)
+                            if (sdkExtInfo != null) {
+                                elementToSdkExtInfoMap["${lastSeenClass!!.name}"] = sdkExtInfo
+                            }
+                        }
+                        "method", "field" -> {
+                            val element = "${lastSeenClass!!.name}#$name".split('(')[0]
+                            if (sdkExtInfo != null) {
+                                elementToSdkExtInfoMap[element] = sdkExtInfo
+                            } else if (lastSeenClass!!.sdkExtInfo != null) {
+                                elementToSdkExtInfoMap[element] = lastSeenClass!!.sdkExtInfo!!
+                            }
+                        }
+                    }
+                }
+            }
+
+            override fun endElement(uri: String, localName: String, qualifiedName: String) {
+                if (qualifiedName == "class") {
+                    lastSeenClass = null
+                }
+            }
+        }
+    )
+    return elementToSdkExtInfoMap
+}
+
+private fun NodeList.firstOrNull(): Node? = if (length > 0) { item(0) } else { null }
+
+private data class SdkAndVersion(val sdk: Int, val version: Int)

@@ -105,6 +105,11 @@ class ApiGeneratorTest : DriverTest() {
 
         val methodVersion = apiLookup.getMethodVersion("android/icu/util/CopticCalendar", "computeTime", "()")
         assertEquals(24, methodVersion)
+
+        // Verify historical backfill
+        assertEquals(30, apiLookup.getClassVersion("android/os/ext/SdkExtensions"))
+        assertEquals(30, apiLookup.getMethodVersion("android/os/ext/SdkExtensions", "getExtensionVersion", "(I)I"))
+        assertEquals(31, apiLookup.getMethodVersion("android/os/ext/SdkExtensions", "getAllExtensionVersions", "()Ljava/util/Map;"))
     }
 
     @Test
