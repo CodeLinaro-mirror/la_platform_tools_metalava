@@ -928,12 +928,12 @@ abstract class DriverTest {
             validateNullabilityTxt = null
             emptyArray()
         }
-        val validateNullablityFromListFile: File?
+        val validateNullabilityFromListFile: File?
         val validateNullabilityFromListArgs = if (validateNullabilityFromList != null) {
-            validateNullablityFromListFile = temporaryFolder.newFile("validate-nullability-classes.txt")
-            validateNullablityFromListFile.writeText(validateNullabilityFromList)
+            validateNullabilityFromListFile = temporaryFolder.newFile("validate-nullability-classes.txt")
+            validateNullabilityFromListFile.writeText(validateNullabilityFromList)
             arrayOf(
-                ARG_VALIDATE_NULLABILITY_FROM_LIST, validateNullablityFromListFile.path
+                ARG_VALIDATE_NULLABILITY_FROM_LIST, validateNullabilityFromListFile.path
             )
         } else {
             emptyArray()

@@ -201,24 +201,11 @@ class ApiAnalyzer(
                 return
             }
 
-            // No accessible constructors are available so one will have to be created, either a private constructor to
-            // prevent instances of the class from being created, or a package private constructor for use by subclasses
-            // in the package to use. Subclasses outside the package would need a protected or public constructor which
-            // would already be part of the API so should have dropped out above.
-            //
-            // The visibility levels on the constructors from the source can give a clue as to what is required. e.g.
-            // if all constructors are private then it is ok for the generated constructor to be private, otherwise it
-            // should be package private.
-            val allPrivate = allConstructors.asSequence()
-                .map { it.isPrivate }
-                .reduce { v1, v2 -> v1 and v2 }
-
-            val visibilityLevel = if (allPrivate) VisibilityLevel.PRIVATE else VisibilityLevel.PACKAGE_PRIVATE
-
-            // No constructors, yet somebody extends this (or private constructor): we have to invent one, such that
-            // subclasses can dispatch to it in the stub files etc
+            // No accessible constructors are available so a package private constructor is created.
+            // Technically, the stub now has a constructor that isn't available at runtime,
+            // but apps creating subclasses inside the android.* package is not supported.
             cls.stubConstructor = cls.createDefaultConstructor().also {
-                it.mutableModifiers().setVisibilityLevel(visibilityLevel)
+                it.mutableModifiers().setVisibilityLevel(VisibilityLevel.PACKAGE_PRIVATE)
                 it.hidden = false
                 it.superConstructor = superClass?.stubConstructor
             }
