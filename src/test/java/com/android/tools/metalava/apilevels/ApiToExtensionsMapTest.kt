@@ -46,8 +46,8 @@ class ApiToExtensionsMapTest {
         """.trimIndent()
         val map = ApiToExtensionsMap.fromString("file.jar", rules)
 
-        assertEquals(map.getExtensions("com.foo.Bar"), setOf("A"))
-        assertEquals(map.getExtensions("com.foo.SomeOtherBar"), setOf("A"))
+        assertEquals(map.getExtensions("com.foo.Bar"), listOf("A"))
+        assertEquals(map.getExtensions("com.foo.SomeOtherBar"), listOf("A"))
     }
 
     @Test
@@ -61,16 +61,16 @@ class ApiToExtensionsMapTest {
         """.trimIndent()
         val map = ApiToExtensionsMap.fromString("file.jar", rules)
 
-        assertEquals(map.getExtensions("com.foo.Bar"), setOf("A"))
-        assertEquals(map.getExtensions("com.foo.Bar#FIELD"), setOf("A"))
-        assertEquals(map.getExtensions("com.foo.Bar#method"), setOf("A"))
-        assertEquals(map.getExtensions("com.foo.Bar\$Inner"), setOf("A"))
-        assertEquals(map.getExtensions("com.foo.Bar\$Inner\$InnerInner"), setOf("A"))
+        assertEquals(map.getExtensions("com.foo.Bar"), listOf("A"))
+        assertEquals(map.getExtensions("com.foo.Bar#FIELD"), listOf("A"))
+        assertEquals(map.getExtensions("com.foo.Bar#method"), listOf("A"))
+        assertEquals(map.getExtensions("com.foo.Bar\$Inner"), listOf("A"))
+        assertEquals(map.getExtensions("com.foo.Bar\$Inner\$InnerInner"), listOf("A"))
 
         val clazz = ApiClass("com/foo/Bar", 1, false)
         val method = ApiElement("method(Ljava.lang.String;I)V", 2, false)
-        assertEquals(map.getExtensions(clazz), setOf("A"))
-        assertEquals(map.getExtensions(clazz, method), setOf("A"))
+        assertEquals(map.getExtensions(clazz), listOf("A"))
+        assertEquals(map.getExtensions(clazz, method), listOf("A"))
 
         assertTrue(map.getExtensions("com.foo.SomeOtherClass").isEmpty())
     }
@@ -88,7 +88,7 @@ class ApiToExtensionsMapTest {
         """.trimIndent()
         val map = ApiToExtensionsMap.fromString("file.jar", rules)
 
-        assertEquals(map.getExtensions("com.foo.Bar"), setOf("A", "B", "FOO", "BAR"))
+        assertEquals(map.getExtensions("com.foo.Bar"), listOf("A", "B", "FOO", "BAR"))
     }
 
     @Test
@@ -107,16 +107,16 @@ class ApiToExtensionsMapTest {
         """.trimIndent()
         val map = ApiToExtensionsMap.fromString("file.jar", rules)
 
-        assertEquals(map.getExtensions("anything"), setOf("A"))
+        assertEquals(map.getExtensions("anything"), listOf("A"))
 
-        assertEquals(map.getExtensions("com.foo.Bar"), setOf("B"))
-        assertEquals(map.getExtensions("com.foo.Bar#FIELD"), setOf("B"))
-        assertEquals(map.getExtensions("com.foo.Bar\$Inner"), setOf("B"))
+        assertEquals(map.getExtensions("com.foo.Bar"), listOf("B"))
+        assertEquals(map.getExtensions("com.foo.Bar#FIELD"), listOf("B"))
+        assertEquals(map.getExtensions("com.foo.Bar\$Inner"), listOf("B"))
 
-        assertEquals(map.getExtensions("com.foo.Bar\$Inner#method"), setOf("C"))
+        assertEquals(map.getExtensions("com.foo.Bar\$Inner#method"), listOf("C"))
 
-        assertEquals(map.getExtensions("com.bar.Foo"), setOf("D"))
-        assertEquals(map.getExtensions("com.bar.Foo#FIELD"), setOf("D"))
+        assertEquals(map.getExtensions("com.bar.Foo"), listOf("D"))
+        assertEquals(map.getExtensions("com.bar.Foo#FIELD"), listOf("D"))
     }
 
     @Test
@@ -133,8 +133,8 @@ class ApiToExtensionsMapTest {
         val allowListB = ApiToExtensionsMap.fromString("b.jar", rules)
         val allowListC = ApiToExtensionsMap.fromString("c.jar", rules)
 
-        assertEquals(allowListA.getExtensions("anything"), setOf("A"))
-        assertEquals(allowListB.getExtensions("anything"), setOf("B"))
+        assertEquals(allowListA.getExtensions("anything"), listOf("A"))
+        assertEquals(allowListB.getExtensions("anything"), listOf("B"))
         assertTrue(allowListC.getExtensions("anything").isEmpty())
     }
 
@@ -148,7 +148,7 @@ class ApiToExtensionsMapTest {
         """.trimIndent()
         val map = ApiToExtensionsMap.fromString("file.jar", rules)
 
-        assertEquals(map.getExtensions("com.foo.Bar"), setOf("A", "B"))
+        assertEquals(map.getExtensions("com.foo.Bar"), listOf("A", "B"))
     }
 
     @Test
@@ -226,10 +226,22 @@ class ApiToExtensionsMapTest {
                 """.trimIndent()
             )
         }
+        assertThrows {
+            ApiToExtensionsMap.fromString(
+                "file.jar",
+                """
+                # duplicate SDK for same symbol
+                A    1
+                B    2
+
+                file.jar    com.foo.Bar    A B A
+                """.trimIndent()
+            )
+        }
     }
 
     @Test
-    fun `calculate from xml attribute`() {
+    fun `calculate sdks xml attribute`() {
         val rules = """
             R      30
             S      31
@@ -241,32 +253,32 @@ class ApiToExtensionsMapTest {
 
         Assert.assertEquals(
             "",
-            filter.calculateFromAttr(null, setOf(), 4)
+            filter.calculateSdksAttr(null, listOf(), 4)
         )
 
         Assert.assertEquals(
             "30:4",
-            filter.calculateFromAttr(null, setOf("R"), 4)
+            filter.calculateSdksAttr(null, listOf("R"), 4)
         )
 
         Assert.assertEquals(
-            setOf("30:4", "31:4"),
-            filter.calculateFromAttr(null, setOf("R", "S"), 4).split(',').toSet()
+            "30:4,31:4",
+            filter.calculateSdksAttr(null, listOf("R", "S"), 4)
         )
 
         Assert.assertEquals(
-            setOf("0:33", "30:4", "31:4"),
-            filter.calculateFromAttr(33, setOf("R", "S"), 4).split(',').toSet()
+            "30:4,31:4,0:33",
+            filter.calculateSdksAttr(33, listOf("R", "S"), 4)
         )
 
         Assert.assertEquals(
-            setOf("0:33", "30:4", "31:4", "1000:4"),
-            filter.calculateFromAttr(33, setOf("R", "S", "FOO"), 4).split(',').toSet()
+            "30:4,31:4,1000:4,0:33",
+            filter.calculateSdksAttr(33, listOf("R", "S", "FOO"), 4)
         )
 
         Assert.assertEquals(
-            setOf("0:33", "30:4", "31:4", "1000:4", "1001:4"),
-            filter.calculateFromAttr(33, setOf("R", "S", "FOO", "BAR"), 4).split(',').toSet()
+            "30:4,31:4,1000:4,1001:4,0:33",
+            filter.calculateSdksAttr(33, listOf("R", "S", "FOO", "BAR"), 4)
         )
     }
 

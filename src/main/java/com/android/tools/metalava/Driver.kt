@@ -266,9 +266,19 @@ private fun processFlags() {
     val androidApiLevelXml = options.generateApiLevelXml
     val apiLevelJars = options.apiLevelJars
     if (androidApiLevelXml != null && apiLevelJars != null) {
+        assert(codebase.apiLevel != -1)
+        val suffix = "${codebase.apiLevel}/public/android.jar"
+        val isCurrentApiFinalized = apiLevelJars.any {
+            it.endsWith(suffix)
+        }
+
         progress("Generating API levels XML descriptor file, ${androidApiLevelXml.name}: ")
         ApiGenerator.generate(
-            apiLevelJars, options.firstApiLevel, androidApiLevelXml, codebase,
+            apiLevelJars, options.firstApiLevel, codebase.apiLevel, androidApiLevelXml,
+            // codebase represents the files in the Android source tree (as opposed to the snapshots
+            // in prebuilts/sdk): do not include codebase if building api-versions.xml for a
+            // finalized SDK
+            if (isCurrentApiFinalized) null else codebase,
             options.sdkJarRoot, options.sdkInfoFile
         )
     }
@@ -510,7 +520,7 @@ fun checkCompatibility(
     progress("Checking API compatibility ($check): ")
     val signatureFile = check.file
 
-    val current =
+    val old =
         if (signatureFile.path.endsWith(DOT_JAR)) {
             loadFromJarFile(signatureFile)
         } else {
@@ -520,8 +530,8 @@ fun checkCompatibility(
             )
         }
 
-    if (current is TextCodebase && current.format > FileFormat.V1 && options.outputFormat == FileFormat.V1) {
-        throw DriverException("Cannot perform compatibility check of signature file $signatureFile in format ${current.format} without analyzing current codebase with $ARG_FORMAT=${current.format}")
+    if (old is TextCodebase && old.format > FileFormat.V1 && options.outputFormat == FileFormat.V1) {
+        throw DriverException("Cannot perform compatibility check of signature file $signatureFile in format ${old.format} without analyzing current codebase with $ARG_FORMAT=${old.format}")
     }
 
     var newBase: Codebase? = null
@@ -537,12 +547,7 @@ fun checkCompatibility(
     // file. If we've only emitted one for the new API, use it directly, if not, generate
     // it first
     val new =
-        if (check.codebase != null) {
-            SignatureFileLoader.load(
-                file = check.codebase,
-                kotlinStyleNulls = options.inputKotlinStyleNulls
-            )
-        } else if (!options.showUnannotated || apiType != ApiType.PUBLIC_API) {
+        if (!options.showUnannotated || apiType != ApiType.PUBLIC_API) {
             if (options.baseApiForCompatCheck != null) {
                 // This option does not make sense with showAnnotation, as the "base" in that case
                 // is the non-annotated APIs.
@@ -577,7 +582,7 @@ fun checkCompatibility(
 
     // If configured, compares the new API with the previous API and reports
     // any incompatibilities.
-    CompatibilityCheck.checkCompatibility(new, current, apiType, oldBase, newBase)
+    CompatibilityCheck.checkCompatibility(new, old, apiType, oldBase, newBase)
 }
 
 fun createTempFile(namePrefix: String, nameSuffix: String): File {

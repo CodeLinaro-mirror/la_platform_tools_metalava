@@ -56,14 +56,11 @@ class CompatibilityCheck(
      * Request for compatibility checks.
      * [file] represents the signature file to be checked. [apiType] represents which
      * part of the API should be checked, [releaseType] represents what kind of codebase
-     * we are comparing it against. If [codebase] is specified, compare the signature file
-     * against the codebase instead of metalava's current source tree configured via the
-     * normal source path flags.
+     * we are comparing it against.
      */
     data class CheckRequest(
         val file: File,
-        val apiType: ApiType,
-        val codebase: File? = null
+        val apiType: ApiType
     ) {
         override fun toString(): String {
             return "--check-compatibility:${apiType.flagName}:released $file"
