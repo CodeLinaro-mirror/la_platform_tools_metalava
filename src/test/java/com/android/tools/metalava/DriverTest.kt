@@ -119,7 +119,7 @@ abstract class DriverTest {
                     actualFail.replace(".", "").trim()
                 ) {
                     val reportedCompatError = actualFail.startsWith("Aborting: Found compatibility problems checking the ")
-                    if (expectedFail == "Aborting: Found compatibility problems with --check-compatibility" &&
+                    if (expectedFail == "Aborting: Found compatibility problems" &&
                         reportedCompatError
                     ) {
                         // Special case for compat checks; we don't want to force each one of them
@@ -416,7 +416,7 @@ abstract class DriverTest {
             expectedFail != null -> expectedFail
             (checkCompatibilityApiReleased != null || checkCompatibilityRemovedApiReleased != null) &&
                 expectedIssues != null && expectedIssues.trim().isNotEmpty() -> {
-                "Aborting: Found compatibility problems with --check-compatibility"
+                "Aborting: Found compatibility problems"
             }
             else -> ""
         }

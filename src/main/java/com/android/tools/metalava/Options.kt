@@ -83,7 +83,6 @@ const val ARG_ENHANCE_DOCUMENTATION = "--enhance-documentation"
 const val ARG_HIDE_PACKAGE = "--hide-package"
 const val ARG_MANIFEST = "--manifest"
 const val ARG_MIGRATE_NULLNESS = "--migrate-nullness"
-const val ARG_CHECK_COMPATIBILITY = "--check-compatibility"
 const val ARG_CHECK_COMPATIBILITY_API_RELEASED = "--check-compatibility:api:released"
 const val ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED = "--check-compatibility:removed:released"
 const val ARG_CHECK_COMPATIBILITY_BASE_API = "--check-compatibility:base"
@@ -254,9 +253,9 @@ class Options(
 
     /**
      * Whether metalava is invoked as part of updating the API files. When this is true, metalava
-     * should *cancel* various other flags that are also being passed in, such as --check-compatibility.
+     * should *cancel* various other flags that are also being passed in, such as --check-compatibility:*.
      * This is there to ease integration in the build system: for a given target, the build system will
-     * pass all the applicable flags (--stubs, --api, --check-compatibility, --generate-documentation, etc),
+     * pass all the applicable flags (--stubs, --api, --check-compatibility:*, --generate-documentation, etc),
      * and this integration is re-used for the update-api facility where we *only* want to generate the
      * signature files. This avoids having duplicate metalava invocation logic where potentially newly
      * added flags are missing in one of the invocations etc.
@@ -269,7 +268,7 @@ class Options(
      * files.
      *
      * This is there to ease integration in the build system: for a given target, the build system will
-     * pass all the applicable flags (--stubs, --api, --check-compatibility, --generate-documentation, etc),
+     * pass all the applicable flags (--stubs, --api, --check-compatibility:*, --generate-documentation, etc),
      * and this integration is re-used for the checkapi facility where we *only* want to run compatibility
      * checks. This avoids having duplicate metalava invocation logic where potentially newly
      * added flags are missing in one of the invocations etc.
@@ -722,7 +721,6 @@ class Options(
 
         var androidJarPatterns: MutableList<String>? = null
         var currentJar: File? = null
-        var delayedCheckApiFiles = false
         var skipGenerateAnnotations = false
         reporter = Reporter(null, null)
 
@@ -1015,7 +1013,7 @@ class Options(
                     }
                 }
 
-                ARG_CHECK_COMPATIBILITY, ARG_CHECK_COMPATIBILITY_API_RELEASED -> {
+                ARG_CHECK_COMPATIBILITY_API_RELEASED -> {
                     val file = stringToExistingFile(getValue(args, ++index))
                     mutableCompatibilityChecks.add(CheckRequest(file, ApiType.PUBLIC_API))
                 }
@@ -1031,35 +1029,6 @@ class Options(
                 }
 
                 ARG_NO_NATIVE_DIFF -> noNativeDiff = true
-
-                // Compat flag for the old API check command, invoked from build/make/core/definitions.mk:
-                "--check-api-files" -> {
-                    if (index < args.size - 1 && args[index + 1].startsWith("-")) {
-                        // Work around bug where --check-api-files is invoked with all
-                        // the other metalava args before the 4 files; this will be
-                        // fixed by https://android-review.googlesource.com/c/platform/build/+/874473
-                        delayedCheckApiFiles = true
-                    } else {
-                        val stableApiFile = stringToExistingFile(getValue(args, ++index))
-                        val apiFileToBeTested = stringToExistingFile(getValue(args, ++index))
-                        val stableRemovedApiFile = stringToExistingFile(getValue(args, ++index))
-                        val removedApiFileToBeTested = stringToExistingFile(getValue(args, ++index))
-                        mutableCompatibilityChecks.add(
-                            CheckRequest(
-                                stableApiFile,
-                                ApiType.PUBLIC_API,
-                                apiFileToBeTested
-                            )
-                        )
-                        mutableCompatibilityChecks.add(
-                            CheckRequest(
-                                stableRemovedApiFile,
-                                ApiType.REMOVED,
-                                removedApiFileToBeTested
-                            )
-                        )
-                    }
-                }
 
                 ARG_ERROR, "-error" -> setIssueSeverity(
                     getValue(args, ++index),
@@ -1410,35 +1379,13 @@ class Options(
                         val usage = getUsage(includeHeader = false, colorize = color)
                         throw DriverException(stderr = "Invalid argument $arg\n\n$usage")
                     } else {
-                        if (delayedCheckApiFiles) {
-                            delayedCheckApiFiles = false
-                            val stableApiFile = stringToExistingFile(arg)
-                            val apiFileToBeTested = stringToExistingFile(getValue(args, ++index))
-                            val stableRemovedApiFile = stringToExistingFile(getValue(args, ++index))
-                            val removedApiFileToBeTested = stringToExistingFile(getValue(args, ++index))
-                            mutableCompatibilityChecks.add(
-                                CheckRequest(
-                                    stableApiFile,
-                                    ApiType.PUBLIC_API,
-                                    apiFileToBeTested
-                                )
-                            )
-                            mutableCompatibilityChecks.add(
-                                CheckRequest(
-                                    stableRemovedApiFile,
-                                    ApiType.REMOVED,
-                                    removedApiFileToBeTested
-                                )
-                            )
-                        } else {
-                            // All args that don't start with "-" are taken to be filenames
-                            mutableSources.addAll(stringToExistingFiles(arg))
+                        // All args that don't start with "-" are taken to be filenames
+                        mutableSources.addAll(stringToExistingFiles(arg))
 
-                            // Temporary workaround for
-                            // aosp/I73ff403bfc3d9dfec71789a3e90f9f4ea95eabe3
-                            if (arg.endsWith("hwbinder-stubs-docs-stubs.srcjar.rsp")) {
-                                skipGenerateAnnotations = true
-                            }
+                        // Temporary workaround for
+                        // aosp/I73ff403bfc3d9dfec71789a3e90f9f4ea95eabe3
+                        if (arg.endsWith("hwbinder-stubs-docs-stubs.srcjar.rsp")) {
+                            skipGenerateAnnotations = true
                         }
                     }
                 }
@@ -1448,6 +1395,10 @@ class Options(
         }
 
         if (generateApiLevelXml != null) {
+            if (currentApiLevel == -1) {
+                throw DriverException(stderr = "$ARG_GENERATE_API_LEVELS requires $ARG_CURRENT_VERSION")
+            }
+
             // <String> is redundant here but while IDE (with newer type inference engine
             // understands that) the current 1.3.x compiler does not
             @Suppress("RemoveExplicitTypeArguments")
@@ -2187,13 +2138,9 @@ class Options(
             "Whether the signature file being read should be " +
                 "interpreted as having encoded its types using Kotlin style types: a suffix of \"?\" for nullable " +
                 "types, no suffix for non nullable types, and \"!\" for unknown. The default is no.",
-            "$ARG_CHECK_COMPATIBILITY:type:state <file>",
+            "--check-compatibility:type:released <file>",
             "Check compatibility. Type is one of 'api' " +
-                "and 'removed', which checks either the public api or the removed api. State is one of " +
-                "'current' and 'released', to check either the currently in development API or the last publicly " +
-                "released API, respectively. Different compatibility checks apply in the two scenarios. " +
-                "For example, to check the code base against the current public API, use " +
-                "$ARG_CHECK_COMPATIBILITY:api:current.",
+                "and 'removed', which checks either the public api or the removed api.",
             "$ARG_CHECK_COMPATIBILITY_BASE_API <file>",
             "When performing a compat check, use the provided signature " +
                 "file as a base api, which is treated as part of the API being checked. This allows us to compute the " +

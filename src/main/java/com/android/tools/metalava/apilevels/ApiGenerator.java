@@ -165,6 +165,7 @@ public class ApiGenerator {
 
     public static boolean generate(@NotNull File[] apiLevels,
                                    int firstApiLevel,
+                                   int currentApiLevel,
                                    @NotNull File outputFile,
                                    @Nullable Codebase codebase,
                                    @Nullable File sdkJarRoot,
@@ -172,11 +173,12 @@ public class ApiGenerator {
         if ((sdkJarRoot == null) != (sdkFilterFile == null)) {
             throw new IllegalArgumentException("sdkJarRoot and sdkFilterFile must both be null, or non-null");
         }
+
         AndroidJarReader reader = new AndroidJarReader(apiLevels, firstApiLevel, codebase);
         Api api = reader.getApi();
         Set<SdkIdentifier> sdkIdentifiers = Collections.emptySet();
         if (sdkJarRoot != null && sdkFilterFile != null) {
-            sdkIdentifiers = processExtensionSdkApis(api, sdkJarRoot, sdkFilterFile);
+            sdkIdentifiers = processExtensionSdkApis(api, currentApiLevel + 1, sdkJarRoot, sdkFilterFile);
         }
         return createApiFile(outputFile, api, sdkIdentifiers);
     }
@@ -203,13 +205,23 @@ public class ApiGenerator {
      *   - remove APIs not listed in the filter
      *   - assign APIs listed in the filter their corresponding extensions
      *
+     * Some APIs only exist in extension SDKs and not in the Android SDK, but for backwards
+     * compatibility with tools that expect the Android SDK to be the only SDK, metalava needs to
+     * assign such APIs some Android SDK API level. The recommended value is current-api-level + 1,
+     * which is what non-finalized APIs use.
+     *
      * @param api the api to modify
+     * @param apiLevelNotInAndroidSdk fallback API level for APIs not in the Android SDK
      * @param sdkJarRoot path to directory containing extension SDK jars (usually $ANDROID_ROOT/prebuilts/sdk/extensions)
      * @param filterPath: path to the filter file. @see ApiToExtensionsMap
      * @throws IOException if the filter file can not be read
      * @throws IllegalArgumentException if an error is detected in the filter file, or if no jar files were found
      */
-    private static Set<SdkIdentifier> processExtensionSdkApis(@NotNull Api api, @NotNull File sdkJarRoot, @NotNull File filterPath) throws IOException, IllegalArgumentException {
+    private static Set<SdkIdentifier> processExtensionSdkApis(
+            @NotNull Api api,
+            int apiLevelNotInAndroidSdk,
+            @NotNull File sdkJarRoot,
+            @NotNull File filterPath) throws IOException, IllegalArgumentException {
         String rules = new String(Files.readAllBytes(filterPath.toPath()));
 
         Map<String, List<VersionAndPath>> map = ExtensionSdkJarReader.Companion.findExtensionSdkJarFiles(sdkJarRoot);
@@ -225,14 +237,22 @@ public class ApiGenerator {
             for (ApiClass sdkClass : sdkApi.getClasses()) {
                 ApiClass clazz = api.findClass(sdkClass.getName());
                 if (clazz == null) {
-                    continue;
+                    List<String> extensions = extensionsMap.getExtensions(sdkClass);
+                    if (extensions.isEmpty()) {
+                        continue;
+                    }
+                    clazz = api.addClass(sdkClass.getName(), apiLevelNotInAndroidSdk, sdkClass.isDeprecated());
                 }
 
-                Set<String> extensions = extensionsMap.getExtensions(clazz);
-                String clazzFromAttr = extensionsMap.calculateFromAttr(clazz.getSince(), extensions, sdkClass.getSince());
+                List<String> extensions = extensionsMap.getExtensions(clazz);
+                String clazzSdksAttr = extensionsMap.calculateSdksAttr(
+                    clazz.getSince() != apiLevelNotInAndroidSdk ? clazz.getSince() : null,
+                    extensions,
+                    sdkClass.getSince()
+                );
                 if (!extensions.isEmpty()) {
                     clazz.updateMainlineModule(mainlineModule);
-                    clazz.updateFrom(clazzFromAttr);
+                    clazz.updateSdks(clazzSdksAttr);
                 }
 
                 Iterator<ApiElement> iter = clazz.getFieldIterator();
@@ -242,9 +262,9 @@ public class ApiGenerator {
                     if (!extensions.isEmpty()) {
                         ApiElement sdkField = sdkClass.getField(field.getName());
                         if (sdkField != null) {
-                            String from = extensionsMap.calculateFromAttr(field.getSince(), extensions, sdkField.getSince());
-                            if (!clazzFromAttr.equals(from)) {
-                                field.updateFrom(from);
+                            String sdks = extensionsMap.calculateSdksAttr(field.getSince(), extensions, sdkField.getSince());
+                            if (!clazzSdksAttr.equals(sdks)) {
+                                field.updateSdks(sdks);
                             }
                         } else {
                             // TODO: this is a new field that was added in the current REL version. What to do?
@@ -260,9 +280,9 @@ public class ApiGenerator {
                     if (!extensions.isEmpty()) {
                         ApiElement sdkMethod = sdkClass.getMethod(method.getName());
                         if (sdkMethod != null) {
-                            String from = extensionsMap.calculateFromAttr(method.getSince(), extensions, sdkMethod.getSince());
-                            if (!clazzFromAttr.equals(from)) {
-                                method.updateFrom(from);
+                            String sdks = extensionsMap.calculateSdksAttr(method.getSince(), extensions, sdkMethod.getSince());
+                            if (!clazzSdksAttr.equals(sdks)) {
+                                method.updateSdks(sdks);
                             }
                         } else {
                             // TOOD: this is a new method that was added in the current REL version. What to do?

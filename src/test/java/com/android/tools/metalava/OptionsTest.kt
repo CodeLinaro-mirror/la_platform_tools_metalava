@@ -241,13 +241,9 @@ Diffs and Checks:
                                              encoded its types using Kotlin style types: a suffix of "?" for nullable
                                              types, no suffix for non nullable types, and "!" for unknown. The default
                                              is no.
---check-compatibility:type:state <file>
+--check-compatibility:type:released <file>
                                              Check compatibility. Type is one of 'api' and 'removed', which checks
-                                             either the public api or the removed api. State is one of 'current' and
-                                             'released', to check either the currently in development API or the last
-                                             publicly released API, respectively. Different compatibility checks apply
-                                             in the two scenarios. For example, to check the code base against the
-                                             current public API, use --check-compatibility:api:current.
+                                             either the public api or the removed api.
 --check-compatibility:base <file>
                                              When performing a compat check, use the provided signature file as a base
                                              api, which is treated as part of the API being checked. This allows us to
