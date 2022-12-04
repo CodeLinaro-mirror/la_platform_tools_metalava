@@ -22,5 +22,7 @@ package com.android.tools.metalava
  *
  * @param id: numerical ID of the SDK, primarily used in generated artifacts and consumed by tools
  * @param name: short name for the SDK, primarily used in configuration files
+ * @param reference: Java symbol in the Android SDK with the same numerical value as the id, using a
+ *                   JVM signature like syntax: "some/clazz$INNER$FIELD"
  */
-data class SdkIdentifier(val id: Int, val name: String)
+data class SdkIdentifier(val id: Int, val name: String, val reference: String)

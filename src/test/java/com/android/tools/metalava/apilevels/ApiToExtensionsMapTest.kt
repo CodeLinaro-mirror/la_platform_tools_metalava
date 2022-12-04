@@ -19,32 +19,37 @@ package com.android.tools.metalava.apilevels
 import org.junit.Assert
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
-import kotlin.test.fail
 
 class ApiToExtensionsMapTest {
     @Test
     fun `empty input`() {
-        val rules = """
-            # No rules is a valid (albeit weird).
-            R    30
-            S    31
-            T    33
+        val xml = """
+            <?xml version="1.0" encoding="utf-8"?>
+            <!-- No rules is a valid (albeit weird). -->
+            <sdk-extensions-info>
+                <sdk name="R-ext" id="30" reference="android/os/Build${'$'}VERSION_CODES${'$'}R" />
+                <sdk name="S-ext" id="31" reference="android/os/Build${'$'}VERSION_CODES${'$'}S" />
+                <sdk name="T-ext" id="33" reference="android/os/Build${'$'}VERSION_CODES${'$'}T" />
+            </sdk-extensions-info>
         """.trimIndent()
-        val map = ApiToExtensionsMap.fromString("file.jar", rules)
+        val map = ApiToExtensionsMap.fromXml("no-module", xml)
 
         assertTrue(map.getExtensions("com.foo.Bar").isEmpty())
     }
 
     @Test
     fun wildcard() {
-        val rules = """
-            # All APIs will default to extension SDK A.
-            A    1
-
-            file.jar    *    A
+        val xml = """
+            <?xml version="1.0" encoding="utf-8"?>
+            <!-- All APIs will default to extension SDK A. -->
+            <sdk-extensions-info>
+                <sdk name="A" id="1" reference="android/os/Build${'$'}VERSION_CODES${'$'}A" />
+                <symbol jar="mod" pattern="*" sdks="A" />
+            </sdk-extensions-info>
         """.trimIndent()
-        val map = ApiToExtensionsMap.fromString("file.jar", rules)
+        val map = ApiToExtensionsMap.fromXml("mod", xml)
 
         assertEquals(map.getExtensions("com.foo.Bar"), listOf("A"))
         assertEquals(map.getExtensions("com.foo.SomeOtherBar"), listOf("A"))
@@ -52,14 +57,16 @@ class ApiToExtensionsMapTest {
 
     @Test
     fun `single class`() {
-        val rules = """
-            # A single class. The class, any internal classes, and any methods are allowed;
-            # everything else is denied.
-            A    1
-
-            file.jar    com.foo.Bar    A
+        val xml = """
+            <?xml version="1.0" encoding="utf-8"?>
+            <!-- A single class. The class, any internal classes, and any methods are allowed;
+                 everything else is denied -->
+            <sdk-extensions-info>
+                <sdk name="A" id="1" reference="android/os/Build${'$'}VERSION_CODES${'$'}A" />
+                <symbol jar="mod" pattern="com.foo.Bar" sdks="A" />
+            </sdk-extensions-info>
         """.trimIndent()
-        val map = ApiToExtensionsMap.fromString("file.jar", rules)
+        val map = ApiToExtensionsMap.fromXml("mod", xml)
 
         assertEquals(map.getExtensions("com.foo.Bar"), listOf("A"))
         assertEquals(map.getExtensions("com.foo.Bar#FIELD"), listOf("A"))
@@ -77,35 +84,39 @@ class ApiToExtensionsMapTest {
 
     @Test
     fun `multiple extensions`() {
-        val rules = """
-            # Any number of white space separated extension SDKs may be listed.
-            A      1
-            B      2
-            FOO    10
-            BAR    11
-
-            file.jar    *    A B FOO BAR
+        val xml = """
+            <?xml version="1.0" encoding="utf-8"?>
+            <!-- Any number of white space separated extension SDKs may be listed. -->
+            <sdk-extensions-info>
+                <sdk name="A" id="1" reference="android/os/Build${'$'}VERSION_CODES${'$'}A" />
+                <sdk name="B" id="2" reference="android/os/Build${'$'}VERSION_CODES${'$'}B" />
+                <sdk name="FOO" id="10" reference="android/os/Build${'$'}VERSION_CODES${'$'}FOO" />
+                <sdk name="BAR" id="11" reference="android/os/Build${'$'}VERSION_CODES${'$'}BAR" />
+                <symbol jar="mod" pattern="*" sdks="A,B,FOO,BAR" />
+            </sdk-extensions-info>
         """.trimIndent()
-        val map = ApiToExtensionsMap.fromString("file.jar", rules)
+        val map = ApiToExtensionsMap.fromXml("mod", xml)
 
-        assertEquals(map.getExtensions("com.foo.Bar"), listOf("A", "B", "FOO", "BAR"))
+        assertEquals(listOf("A", "B", "FOO", "BAR"), map.getExtensions("com.foo.Bar"))
     }
 
     @Test
     fun precedence() {
-        val rules = """
-            # Multiple classes, and multiple rules with different precedence.
-            A    1
-            B    2
-            C    3
-            D    4
-
-            file.jar    *              A
-            file.jar    com.foo.Bar    B
-            file.jar    com.foo.Bar${'$'}Inner#method    C
-            file.jar    com.bar.Foo    D
+        val xml = """
+            <?xml version="1.0" encoding="utf-8"?>
+            <!-- Multiple classes, and multiple rules with different precedence. -->
+            <sdk-extensions-info>
+                <sdk name="A" id="1" reference="android/os/Build${'$'}VERSION_CODES${'$'}A" />
+                <sdk name="B" id="2" reference="android/os/Build${'$'}VERSION_CODES${'$'}B" />
+                <sdk name="C" id="3" reference="android/os/Build${'$'}VERSION_CODES${'$'}C" />
+                <sdk name="D" id="4" reference="android/os/Build${'$'}VERSION_CODES${'$'}D" />
+                <symbol jar="mod" pattern="*" sdks="A" />
+                <symbol jar="mod" pattern="com.foo.Bar" sdks="B" />
+                <symbol jar="mod" pattern="com.foo.Bar${'$'}Inner#method" sdks="C" />
+                <symbol jar="mod" pattern="com.bar.Foo" sdks="D" />
+            </sdk-extensions-info>
         """.trimIndent()
-        val map = ApiToExtensionsMap.fromString("file.jar", rules)
+        val map = ApiToExtensionsMap.fromXml("mod", xml)
 
         assertEquals(map.getExtensions("anything"), listOf("A"))
 
@@ -120,18 +131,20 @@ class ApiToExtensionsMapTest {
     }
 
     @Test
-    fun `multiple jar files`() {
-        val rules = """
-            # The allow list will only consider patterns that are marked with the given jar file
-            A    1
-            B    2
-
-            a.jar    *    A
-            b.jar    *    B
+    fun `multiple mainline modules`() {
+        val xml = """
+            <?xml version="1.0" encoding="utf-8"?>
+            <!-- The allow list will only consider patterns that are marked with the given mainline module -->
+            <sdk-extensions-info>
+                <sdk name="A" id="1" reference="android/os/Build${'$'}VERSION_CODES${'$'}A" />
+                <sdk name="B" id="2" reference="android/os/Build${'$'}VERSION_CODES${'$'}B" />
+                <symbol jar="foo" pattern="*" sdks="A" />
+                <symbol jar="bar" pattern="*" sdks="B" />
+            </sdk-extensions-info>
         """.trimIndent()
-        val allowListA = ApiToExtensionsMap.fromString("a.jar", rules)
-        val allowListB = ApiToExtensionsMap.fromString("b.jar", rules)
-        val allowListC = ApiToExtensionsMap.fromString("c.jar", rules)
+        val allowListA = ApiToExtensionsMap.fromXml("foo", xml)
+        val allowListB = ApiToExtensionsMap.fromXml("bar", xml)
+        val allowListC = ApiToExtensionsMap.fromXml("baz", xml)
 
         assertEquals(allowListA.getExtensions("anything"), listOf("A"))
         assertEquals(allowListB.getExtensions("anything"), listOf("B"))
@@ -140,101 +153,163 @@ class ApiToExtensionsMapTest {
 
     @Test
     fun `declarations and rules can be mixed`() {
-        val rules = """
-            # SDK declarations and rule lines can be mixed in any order
-            A    1
-            file.jar    *    A B
-            B    2
+        val xml = """
+            <?xml version="1.0" encoding="utf-8"?>
+            <!-- SDK declarations and rule lines can be mixed in any order -->
+            <sdk-extensions-info>
+                <sdk name="A" id="1" reference="android/os/Build${'$'}VERSION_CODES${'$'}A" />
+                <symbol jar="foo" pattern="*" sdks="A,B" />
+                <sdk name="B" id="2" reference="android/os/Build${'$'}VERSION_CODES${'$'}B" />
+            </sdk-extensions-info>
         """.trimIndent()
-        val map = ApiToExtensionsMap.fromString("file.jar", rules)
+        val map = ApiToExtensionsMap.fromXml("foo", xml)
 
         assertEquals(map.getExtensions("com.foo.Bar"), listOf("A", "B"))
     }
 
     @Test
     fun `bad input`() {
-        assertThrows {
-            ApiToExtensionsMap.fromString(
-                "file.jar",
+        assertFailsWith<IllegalArgumentException> {
+            ApiToExtensionsMap.fromXml(
+                "mod",
                 """
-                # using 0 (reserved for the Android platform SDK) as ID
-                A    0
-
-                file.jar com.foo.Bar    A
+                    <?xml version="1.0" encoding="utf-8"?>
+                    <!-- Missing root element -->
+                    <sdk name="A" id="1" reference="android/os/Build${'$'}VERSION_CODES${'$'}A" />
+                    <symbol jar="mod" pattern="com.foo.Bar" sdks="A" />
                 """.trimIndent()
             )
         }
 
-        assertThrows {
-            ApiToExtensionsMap.fromString(
-                "file.jar",
+        assertFailsWith<IllegalArgumentException> {
+            ApiToExtensionsMap.fromXml(
+                "mod",
                 """
-                # missing jar file
-                A    1
-
-                com.foo.Bar    A
+                    <?xml version="1.0" encoding="utf-8"?>
+                    <!-- <sdk> tag at unexpected depth  -->
+                    <sdk-extensions-info version="2">
+                        <foo>
+                            <sdk name="A" id="1" reference="android/os/Build${'$'}VERSION_CODES${'$'}A" >
+                        </foo>
+                        <symbol jar="mod" pattern="com.foo.Bar" sdks="A" />
+                    </sdk-extensions-info>
                 """.trimIndent()
             )
         }
 
-        assertThrows {
-            ApiToExtensionsMap.fromString(
-                "file.jar",
+        assertFailsWith<IllegalArgumentException> {
+            ApiToExtensionsMap.fromXml(
+                "mod",
                 """
-                # duplicate rules pattern
-                A    1
-
-                file.jar    com.foo.Bar    A
-                file.jar    com.foo.Bar    B
+                    <?xml version="1.0" encoding="utf-8"?>
+                    <!-- using 0 (reserved for the Android platform SDK) as ID -->
+                    <sdk-extensions-info>
+                        <sdk name="A" id="0" reference="android/os/Build${'$'}VERSION_CODES${'$'}A" />
+                        <symbol jar="mod" pattern="com.foo.Bar" sdks="A" />
+                    </sdk-extensions-info>
                 """.trimIndent()
             )
         }
 
-        assertThrows {
-            ApiToExtensionsMap.fromString(
-                "file.jar",
+        assertFailsWith<IllegalArgumentException> {
+            ApiToExtensionsMap.fromXml(
+                "mod",
                 """
-                # rules refer to a non-declared SDK
-                B    2
-
-                file.jar    com.foo.Bar    A
+                    <?xml version="1.0" encoding="utf-8"?>
+                    <!-- missing module attribute -->
+                    <sdk-extensions-info>
+                        <sdk name="A" id="1" reference="android/os/Build${'$'}VERSION_CODES${'$'}A" />
+                        <symbol pattern="com.foo.Bar" sdks="A" />
+                    </sdk-extensions-info>
                 """.trimIndent()
             )
         }
 
-        assertThrows {
-            ApiToExtensionsMap.fromString(
-                "file.jar",
+        assertFailsWith<IllegalArgumentException> {
+            ApiToExtensionsMap.fromXml(
+                "mod",
                 """
-                # duplicate numerical ID
-                A    1
-                B    1
-
-                file.jar    com.foo.Bar    A
+                    <?xml version="1.0" encoding="utf-8"?>
+                    <!-- duplicate module+pattern pairs -->
+                    <sdk-extensions-info>
+                        <sdk name="A" id="1" reference="android/os/Build${'$'}VERSION_CODES${'$'}A" />
+                        <symbol jar="mod" pattern="com.foo.Bar" sdks="A" />
+                        <symbol jar="mod" pattern="com.foo.Bar" sdks="B" />
+                    </sdk-extensions-info>
                 """.trimIndent()
             )
         }
-        assertThrows {
-            ApiToExtensionsMap.fromString(
-                "file.jar",
-                """
-                # duplicate SDK name
-                A    1
-                A    2
 
-                file.jar    com.foo.Bar    A
+        assertFailsWith<IllegalArgumentException> {
+            ApiToExtensionsMap.fromXml(
+                "mod",
+                """
+                    <?xml version="1.0" encoding="utf-8"?>
+                    <!-- sdks attribute refer to non-declared SDK -->
+                    <sdk-extensions-info>
+                        <sdk name="B" id="2" reference="android/os/Build${'$'}VERSION_CODES${'$'}A" />
+                        <symbol jar="mod" pattern="com.foo.Bar" sdks="A" />
+                    </sdk-extensions-info>
                 """.trimIndent()
             )
         }
-        assertThrows {
-            ApiToExtensionsMap.fromString(
-                "file.jar",
-                """
-                # duplicate SDK for same symbol
-                A    1
-                B    2
 
-                file.jar    com.foo.Bar    A B A
+        assertFailsWith<IllegalArgumentException> {
+            ApiToExtensionsMap.fromXml(
+                "mod",
+                """
+                    <?xml version="1.0" encoding="utf-8"?>
+                    <!-- duplicate numerical ID -->
+                    <sdk-extensions-info>
+                        <sdk name="A" id="1" reference="android/os/Build${'$'}VERSION_CODES${'$'}A" />
+                        <sdk name="B" id="1" reference="android/os/Build${'$'}VERSION_CODES${'$'}B" />
+                        <symbol jar="mod" pattern="com.foo.Bar" sdks="A" />
+                    </sdk-extensions-info>
+                """.trimIndent()
+            )
+        }
+
+        assertFailsWith<IllegalArgumentException> {
+            ApiToExtensionsMap.fromXml(
+                "mod",
+                """
+                    <?xml version="1.0" encoding="utf-8"?>
+                    <!-- duplicate SDK name -->
+                    <sdk-extensions-info>
+                        <sdk name="A" id="1" reference="android/os/Build${'$'}VERSION_CODES${'$'}A" />
+                        <sdk name="A" id="2" reference="android/os/Build${'$'}VERSION_CODES${'$'}B" />
+                        <symbol jar="mod" pattern="com.foo.Bar" sdks="A" />
+                    </sdk-extensions-info>
+                """.trimIndent()
+            )
+        }
+
+        assertFailsWith<IllegalArgumentException> {
+            ApiToExtensionsMap.fromXml(
+                "mod",
+                """
+                    <?xml version="1.0" encoding="utf-8"?>
+                    <!-- duplicate SDK reference -->
+                    <sdk-extensions-info version="1">
+                        <sdk name="A" id="1" reference="android/os/Build${'$'}VERSION_CODES${'$'}A" />
+                        <sdk name="B" id="2" reference="android/os/Build${'$'}VERSION_CODES${'$'}A" />
+                        <symbol jar="mod" pattern="com.foo.Bar" sdks="A" />
+                    </sdk-extensions-info>
+                """.trimIndent()
+            )
+        }
+
+        assertFailsWith<IllegalArgumentException> {
+            ApiToExtensionsMap.fromXml(
+                "mod",
+                """
+                    <?xml version="1.0" encoding="utf-8"?>
+                    <!-- duplicate SDK for same symbol -->
+                    <sdk-extensions-info>
+                        <sdk name="A" id="1" reference="android/os/Build${'$'}VERSION_CODES${'$'}A" />
+                        <sdk name="B" id="1" reference="android/os/Build${'$'}VERSION_CODES${'$'}B" />
+                        <symbol jar="mod" pattern="com.foo.Bar" sdks="A,B,A" />
+                    </sdk-extensions-info>
                 """.trimIndent()
             )
         }
@@ -242,14 +317,18 @@ class ApiToExtensionsMapTest {
 
     @Test
     fun `calculate sdks xml attribute`() {
-        val rules = """
-            R      30
-            S      31
-            T      33
-            FOO    1000
-            BAR    1001
+        val xml = """
+            <?xml version="1.0" encoding="utf-8"?>
+            <!-- Verify the calculateSdksAttr method -->
+            <sdk-extensions-info>
+                <sdk name="R" id="30" reference="android/os/Build${'$'}VERSION_CODES${'$'}R" />
+                <sdk name="S" id="31" reference="android/os/Build${'$'}VERSION_CODES${'$'}S" />
+                <sdk name="T" id="33" reference="android/os/Build${'$'}VERSION_CODES${'$'}T" />
+                <sdk name="FOO" id="1000" reference="android/os/Build${'$'}VERSION_CODES${'$'}FOO" />
+                <sdk name="BAR" id="1001" reference="android/os/Build${'$'}VERSION_CODES${'$'}BAR" />
+            </sdk-extensions-info>
         """.trimIndent()
-        val filter = ApiToExtensionsMap.fromString("file.jar", rules)
+        val filter = ApiToExtensionsMap.fromXml("mod", xml)
 
         Assert.assertEquals(
             "",
@@ -280,14 +359,5 @@ class ApiToExtensionsMapTest {
             "30:4,31:4,1000:4,1001:4,0:33",
             filter.calculateSdksAttr(33, listOf("R", "S", "FOO", "BAR"), 4)
         )
-    }
-
-    private fun assertThrows(expr: () -> Unit) {
-        try {
-            expr()
-        } catch (e: Exception) {
-            return
-        }
-        fail("expression did not throw exception")
     }
 }

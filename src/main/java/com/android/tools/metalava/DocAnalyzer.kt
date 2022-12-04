@@ -6,6 +6,7 @@ import com.android.tools.lint.LintCliClient
 import com.android.tools.lint.checks.ApiLookup
 import com.android.tools.lint.detector.api.editDistance
 import com.android.tools.lint.helpers.DefaultJavaEvaluator
+import com.android.tools.metalava.apilevels.ApiToExtensionsMap
 import com.android.tools.metalava.model.AnnotationAttributeValue
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ClassItem
@@ -754,8 +755,13 @@ class DocAnalyzer(
                     "manually; it's computed and injected at build time by $PROGRAM_NAME"
             )
         }
-        for (sdkAndVersion in sdkExtInfo) {
-            item.appendDocumentation("${sdkAndVersion.sdk} ${sdkAndVersion.version}", "@sdkExtInfo")
+        // Don't emit an @sdkExtInfo for every item in sdkExtInfo; instead, limit output to the
+        // first non-Android SDK listed for the symbol in sdk-extensions-info.txt (the Android SDK
+        // is already covered by @apiSince and doesn't have to be repeated)
+        sdkExtInfo.find {
+            it.sdk != ApiToExtensionsMap.ANDROID_PLATFORM_SDK_ID
+        }?.let {
+            item.appendDocumentation("${it.sdk} ${it.version}", "@sdkExtInfo")
         }
     }
 
@@ -917,16 +923,13 @@ private fun createSymbolToSdkExtInfoMap(xmlFile: File): Map<String, List<SdkAndV
         object : DefaultHandler() {
             override fun startElement(uri: String, localName: String, qualifiedName: String, attributes: Attributes) {
                 if (qualifiedName == "sdk") {
-                    val attrs = mutableListOf<String>()
-                    for (i in 0..attributes.getLength() - 1) {
-                        attrs.add(attributes.getLocalName(i))
-                    }
                     val id: Int = attributes.getValue("id")?.toIntOrNull() ?: throw IllegalArgumentException("<sdk>: missing or non-integer id attribute")
                     val name: String = attributes.getValue("name") ?: throw IllegalArgumentException("<sdk>: missing name attribute")
-                    sdkIdentifiers.put(id, SdkIdentifier(id, name))
+                    val reference: String = attributes.getValue("reference") ?: throw IllegalArgumentException("<sdk>: missing reference attribute")
+                    sdkIdentifiers.put(id, SdkIdentifier(id, name, reference))
                 } else if (memberTags.contains(qualifiedName)) {
                     val name: String = attributes.getValue("name") ?: throw IllegalArgumentException("<$qualifiedName>: missing name attribute")
-                    val sdkExtInfo: List<SdkAndVersion>? = attributes.getValue("from")?.split(",")?.map {
+                    val sdkExtInfo: List<SdkAndVersion>? = attributes.getValue("sdks")?.split(",")?.map {
                         val (sdk, version) = it.split(":")
                         SdkAndVersion(sdk.toInt(), version.toInt())
                     }?.toList()
