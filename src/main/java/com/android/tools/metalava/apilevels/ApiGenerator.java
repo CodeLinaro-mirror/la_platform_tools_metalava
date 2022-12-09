@@ -230,7 +230,7 @@ public class ApiGenerator {
         }
         for (Map.Entry<String, List<VersionAndPath>> entry : map.entrySet()) {
             String mainlineModule = entry.getKey();
-            ApiToExtensionsMap extensionsMap = ApiToExtensionsMap.Companion.fromString(mainlineModule, rules);
+            ApiToExtensionsMap extensionsMap = ApiToExtensionsMap.Companion.fromXml(mainlineModule, rules);
             ExtensionSdkJarReader sdkReader = new ExtensionSdkJarReader(mainlineModule, entry.getValue());
             Api sdkApi = sdkReader.getApi();
 
@@ -292,7 +292,7 @@ public class ApiGenerator {
                 }
             }
         }
-        return ApiToExtensionsMap.Companion.fromString("", rules).getSdkIdentifiers();
+        return ApiToExtensionsMap.Companion.fromXml("", rules).getSdkIdentifiers();
     }
 
     /**

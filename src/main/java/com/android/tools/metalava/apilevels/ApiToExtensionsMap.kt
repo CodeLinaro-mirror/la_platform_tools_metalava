@@ -16,6 +16,9 @@
 package com.android.tools.metalava.apilevels
 
 import com.android.tools.metalava.SdkIdentifier
+import org.xml.sax.Attributes
+import org.xml.sax.helpers.DefaultHandler
+import javax.xml.parsers.SAXParserFactory
 
 /**
  * A filter of classes, fields and methods that are allowed in and extension SDK, and for each item,
@@ -118,77 +121,95 @@ class ApiToExtensionsMap private constructor(
         /*
          * Create an ApiToExtensionsMap from a list of text based rules.
          *
-         * The input is a multi-line string, where each rules is written on the format
+         * The input is XML:
          *
-         *     <jar-file> <pattern> <ext> [<ext> [...]]
+         *     <?xml version="1.0" encoding="utf-8"?>
+         *     <sdk-extensions-info version="1">
+         *         <sdk name="<name>" id="<int>" reference="<constant>" />
+         *         <symbol jar="<jar>" pattern="<pattern>" sdks="<sdks>" />
+         *     </sdk-extensions-info>
          *
-         * <pattern> is either '*', which matches everything, or a 'com.foo.Bar$Inner#member' string
-         * (or prefix thereof terminated before . or $), which matches anything with that prefix.
-         * Note that arguments and return values of methods are omitted (and there is no way to
-         * distinguish overloaded methods).
+         * The <sdk> and <symbol> tags may be repeated.
          *
-         * <ext> is the short name of an extension SDK (e.g. T).
+         * - <name> is a short name for the SDK, e.g. "R-ext".
          *
-         * All fields are separated by whitespace (spaces or tabs).
+         * - <id> is the numerical identifier for the SDK, e.g. 30. It is an error to use the
+         *   Android SDK ID (0).
          *
-         * Lines beginning with # are comments and are ignored. Blank lines are ignored.
+         * - <jar> is the jar file symbol belongs to, named after the jar file in
+         *   prebuilts/sdk/extensions/<int>/public, e.g. "framework-sdkextensions".
          *
-         * It is an error to specify the same <pattern> twice.
+         * - <constant> is a Java symbol that can be passed to `SdkExtensions.getExtensionVersion`
+         *   to look up the version of the corresponding SDK, e.g.
+         *   "android/os/Build$VERSION_CODES$R"
          *
-         * A more specific rule has higher precedence than a less specific rule.
+         * - <pattern> is either '*', which matches everything, or a 'com.foo.Bar$Inner#member'
+         *   string (or prefix thereof terminated before . or $), which matches anything with that
+         *   prefix. Note that arguments and return values of methods are omitted (and there is no
+         *   way to distinguish overloaded methods).
          *
-         * @param jar jar file to limit lookups to: ignore lines belonging to other jar files
-         * @param rules multi-line string of filter patterns as described above
-         * @throws IllegalArgumentException if the input is malformed
+         * - <sdks> is a comma separated list of SDKs in which the symbol defined by <jar> and
+         *   <pattern> appears; the list items are <name> attributes of SDKs defined in the XML.
+         *
+         * It is an error to specify the same <jar> and <pattern> pair twice.
+         *
+         * A more specific <symbol> rule has higher precedence than a less specific rule.
+         *
+         * @param jar jar file to limit lookups to: ignore symbols not present in this jar file
+         * @param xml XML as described above
+         * @throws IllegalArgumentException if the XML is malformed
          */
-        fun fromString(jar: String, rules: String): ApiToExtensionsMap {
+        fun fromXml(filterByJar: String, xml: String): ApiToExtensionsMap {
             val root = Node("<root>")
             val sdkIdentifiers = mutableSetOf<SdkIdentifier>()
             val allSeenExtensions = mutableSetOf<String>()
-            val lines = rules.lines().filter {
-                it.isNotBlank() && !it.startsWith('#')
-            }
-            for (line in lines) {
-                val all = line.split(REGEX_WHITESPACE, 3)
-                if (all.size == 2) {
-                    // This line is an SDK declaration on the format
-                    // <short-name>  <numerical-id>
 
-                    sdkIdentifiers.add(SdkIdentifier(all[1].toInt(), all[0]))
-                } else if (all.size == 3) {
-                    // This line is a filter pattern on the format
-                    // <jar-name>  <pattern>  <sdk>[ <sdk>[ ...]]
-
-                    if (jar != all[0]) {
-                        // this is not the jar file you're looking for
-                        continue
+            val parser = SAXParserFactory.newDefaultInstance().newSAXParser()
+            try {
+                parser.parse(
+                    xml.byteInputStream(),
+                    object : DefaultHandler() {
+                        override fun startElement(uri: String, localName: String, qualifiedName: String, attributes: Attributes) {
+                            when (qualifiedName) {
+                                "sdk" -> {
+                                    val name = attributes.getStringOrThrow(qualifiedName, "name")
+                                    val id = attributes.getIntOrThrow(qualifiedName, "id")
+                                    val reference = attributes.getStringOrThrow(qualifiedName, "reference")
+                                    sdkIdentifiers.add(SdkIdentifier(id, name, reference))
+                                }
+                                "symbol" -> {
+                                    val jar = attributes.getStringOrThrow(qualifiedName, "jar")
+                                    if (jar != filterByJar) {
+                                        return
+                                    }
+                                    val sdks = attributes.getStringOrThrow(qualifiedName, "sdks").split(',')
+                                    if (sdks != sdks.distinct()) {
+                                        throw IllegalArgumentException("symbol lists the same SDK multiple times: '$sdks'")
+                                    }
+                                    allSeenExtensions.addAll(sdks)
+                                    val pattern = attributes.getStringOrThrow(qualifiedName, "pattern")
+                                    if (pattern == "*") {
+                                        root.extensions = sdks
+                                        return
+                                    }
+                                    // add each part of the pattern as separate nodes, e.g. if pattern is
+                                    // com.example.Foo, add nodes, "com" -> "example" -> "Foo"
+                                    val parts = pattern.split(REGEX_DELIMITERS)
+                                    var node = root.children.addNode(parts[0])
+                                    for (name in parts.stream().skip(1)) {
+                                        node = node.children.addNode(name)
+                                    }
+                                    if (node.extensions.isNotEmpty()) {
+                                        throw IllegalArgumentException("duplicate pattern: $pattern")
+                                    }
+                                    node.extensions = sdks
+                                }
+                            }
+                        }
                     }
-                    val pattern = all[1]
-                    val extensions = all[2].split(REGEX_WHITESPACE)
-                    if (extensions != extensions.distinct()) {
-                        throw IllegalArgumentException("symbol lists the same SDK multiple times: '$line'")
-                    }
-                    allSeenExtensions.addAll(extensions)
-
-                    if (pattern == "*") {
-                        root.extensions = extensions
-                        continue
-                    }
-
-                    // add each part of the pattern as separate nodes, e.g. if pattern is
-                    // com.example.Foo, add nodes, "com" -> "example" -> "Foo"
-                    val parts = pattern.split(REGEX_DELIMITERS)
-                    var node = root.children.addNode(parts[0])
-                    for (name in parts.stream().skip(1)) {
-                        node = node.children.addNode(name)
-                    }
-                    if (node.extensions.isNotEmpty()) {
-                        throw IllegalArgumentException("duplicate pattern: $line")
-                    }
-                    node.extensions = extensions
-                } else {
-                    throw IllegalArgumentException("bad input: $line")
-                }
+                )
+            } catch (e: Throwable) {
+                throw IllegalArgumentException("failed to parse xml", e)
             }
 
             // verify: the predefined Android platform SDK ID is not reused as an extension SDK ID
@@ -214,6 +235,11 @@ class ApiToExtensionsMap private constructor(
                 throw IllegalArgumentException("bad SDK definitions: duplicate SDK names")
             }
 
+            // verify: no duplicate SDK references
+            if (sdkIdentifiers.size != sdkIdentifiers.distinctBy { it.reference }.size) {
+                throw IllegalArgumentException("bad SDK definitions: duplicate SDK references")
+            }
+
             return ApiToExtensionsMap(sdkIdentifiers, root)
         }
     }
@@ -227,6 +253,10 @@ private fun MutableSet<Node>.addNode(name: String): Node {
     add(node)
     return node
 }
+
+private fun Attributes.getStringOrThrow(tag: String, attr: String): String = getValue(attr) ?: throw IllegalArgumentException("<$tag>: missing attribute: $attr")
+
+private fun Attributes.getIntOrThrow(tag: String, attr: String): Int = getStringOrThrow(tag, attr).toIntOrNull() ?: throw IllegalArgumentException("<$tag>: attribute $attr: not an integer")
 
 private fun Set<Node>.findNode(breadcrumb: String): Node? = find { it.breadcrumb == breadcrumb }
 
