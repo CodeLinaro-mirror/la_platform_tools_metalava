@@ -50,7 +50,8 @@ public class Api extends ApiElement {
         }
         stream.println(">");
         for (SdkIdentifier sdk : sdkIdentifiers) {
-            stream.println("\t<sdk id=\"" + sdk.getId() + "\" name=\"" + sdk.getName() + "\" reference=\"" + sdk.getReference() + "\"/>");
+            stream.println(String.format("\t<sdk id=\"%d\" shortname=\"%s\" name=\"%s\" reference=\"%s\"/>",
+                        sdk.getId(), sdk.getShortname(), sdk.getName(), sdk.getReference()));
         }
         print(mClasses.values(), "class", "\t", stream);
         printClosingTag("api", "", stream);

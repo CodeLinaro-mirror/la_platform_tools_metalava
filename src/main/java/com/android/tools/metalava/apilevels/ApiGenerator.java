@@ -28,141 +28,18 @@ import java.io.PrintStream;
 import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Function;
 
 /**
  * Main class for command line command to convert the existing API XML/TXT files into diff-based
  * simple text files.
  */
 public class ApiGenerator {
-    public static void main(String[] args) {
-        boolean error = false;
-        int minApi = 1;
-        int currentApi = -1;
-        String currentCodename = null;
-        File currentJar = null;
-        List<String> patterns = new ArrayList<>();
-        String outPath = null;
-
-        for (int i = 0; i < args.length && !error; i++) {
-            String arg = args[i];
-
-            if (arg.equals("--pattern")) {
-                i++;
-                if (i < args.length) {
-                    patterns.add(args[i]);
-                } else {
-                    System.err.println("Missing argument after " + arg);
-                    error = true;
-                }
-            } else if (arg.equals("--current-version")) {
-                i++;
-                if (i < args.length) {
-                    currentApi = Integer.parseInt(args[i]);
-                    if (currentApi <= 22) {
-                        System.err.println("Suspicious currentApi=" + currentApi + ", expected at least 23");
-                        error = true;
-                    }
-                } else {
-                    System.err.println("Missing number >= 1 after " + arg);
-                    error = true;
-                }
-            } else if (arg.equals("--current-codename")) {
-                i++;
-                if (i < args.length) {
-                    currentCodename = args[i];
-                } else {
-                    System.err.println("Missing codename after " + arg);
-                    error = true;
-                }
-            } else if (arg.equals("--current-jar")) {
-                i++;
-                if (i < args.length) {
-                    if (currentJar != null) {
-                        System.err.println("--current-jar should only be specified once");
-                        error = true;
-                    }
-                    String path = args[i];
-                    currentJar = new File(path);
-                } else {
-                    System.err.println("Missing argument after " + arg);
-                    error = true;
-                }
-            } else if (arg.equals("--min-api")) {
-                i++;
-                if (i < args.length) {
-                    minApi = Integer.parseInt(args[i]);
-                } else {
-                    System.err.println("Missing number >= 1 after " + arg);
-                    error = true;
-                }
-            } else if (arg.length() >= 2 && arg.startsWith("--")) {
-                System.err.println("Unknown argument: " + arg);
-                error = true;
-            } else if (outPath == null) {
-                outPath = arg;
-            } else if (new File(arg).isDirectory()) {
-                String pattern = arg;
-                if (!pattern.endsWith(File.separator)) {
-                    pattern += File.separator;
-                }
-                pattern += "platforms" + File.separator + "android-%" + File.separator + "android.jar";
-                patterns.add(pattern);
-            } else {
-                System.err.println("Unknown argument: " + arg);
-                error = true;
-            }
-        }
-
-        if (!error && outPath == null) {
-            System.err.println("Missing out file path");
-            error = true;
-        }
-
-        if (!error && patterns.isEmpty()) {
-            System.err.println("Missing SdkFolder or --pattern.");
-            error = true;
-        }
-
-        if (currentJar != null && currentApi == -1 || currentJar == null && currentApi != -1) {
-            System.err.println("You must specify both --current-jar and --current-version (or neither one)");
-            error = true;
-        }
-
-        // The SDK version number
-        if (currentCodename != null && !"REL".equals(currentCodename)) {
-            currentApi++;
-        }
-
-        if (error) {
-            printUsage();
-            System.exit(1);
-        }
-
-        try {
-            if (!generate(minApi, currentApi, currentJar, patterns, outPath, null)) {
-                System.exit(1);
-            }
-        } catch (IOException e) {
-            e.printStackTrace();
-            System.exit(-1);
-        }
-    }
-
-    private static boolean generate(int minApi,
-                                    int currentApi,
-                                    @NotNull File currentJar,
-                                    @NotNull List<String> patterns,
-                                    @NotNull String outPath,
-                                    @Nullable Codebase codebase) throws IOException {
-        AndroidJarReader reader = new AndroidJarReader(patterns, minApi, currentJar, currentApi, codebase);
-        Api api = reader.getApi();
-        return createApiFile(new File(outPath), api, Collections.emptySet());
-    }
-
     public static boolean generate(@NotNull File[] apiLevels,
                                    int firstApiLevel,
                                    int currentApiLevel,
@@ -176,27 +53,17 @@ public class ApiGenerator {
 
         AndroidJarReader reader = new AndroidJarReader(apiLevels, firstApiLevel, codebase);
         Api api = reader.getApi();
+        api.backfillHistoricalFixes();
+
         Set<SdkIdentifier> sdkIdentifiers = Collections.emptySet();
         if (sdkJarRoot != null && sdkFilterFile != null) {
             sdkIdentifiers = processExtensionSdkApis(api, currentApiLevel + 1, sdkJarRoot, sdkFilterFile);
         }
+        api.inlineFromHiddenSuperClasses();
+        api.removeImplicitInterfaces();
+        api.removeOverridingMethods();
+        api.prunePackagePrivateClasses();
         return createApiFile(outputFile, api, sdkIdentifiers);
-    }
-
-    private static void printUsage() {
-        System.err.println("\nGenerates a single API file from the content of an SDK.");
-        System.err.println("Usage:");
-        System.err.println("\tApiCheck [--min-api=1] OutFile [SdkFolder | --pattern sdk/%/public/android.jar]+");
-        System.err.println("Options:");
-        System.err.println("--min-api <int> : The first API level to consider (>=1).");
-        System.err.println("--pattern <pattern>: Path pattern to find per-API android.jar files, where\n" +
-            "            '%' is replaced by the API level.");
-        System.err.println("--current-jar <path>: Path pattern to find the current android.jar");
-        System.err.println("--current-version <int>: The API level for the current API");
-        System.err.println("--current-codename <name>: REL, if a release, or codename for previews");
-        System.err.println("SdkFolder: if given, this adds the pattern\n" +
-            "           '$SdkFolder/platforms/android-%/android.jar'");
-        System.err.println("If multiple --pattern are specified, they are tried in the order given.\n");
     }
 
     /**
@@ -228,68 +95,41 @@ public class ApiGenerator {
         if (map.isEmpty()) {
             throw new IllegalArgumentException("no extension sdk jar files found in " + sdkJarRoot);
         }
+        Map<String, ApiToExtensionsMap> moduleMaps = new HashMap<>();
         for (Map.Entry<String, List<VersionAndPath>> entry : map.entrySet()) {
             String mainlineModule = entry.getKey();
-            ApiToExtensionsMap extensionsMap = ApiToExtensionsMap.Companion.fromXml(mainlineModule, rules);
-            ExtensionSdkJarReader sdkReader = new ExtensionSdkJarReader(mainlineModule, entry.getValue());
-            Api sdkApi = sdkReader.getApi();
+            ApiToExtensionsMap moduleMap = ApiToExtensionsMap.Companion.fromXml(mainlineModule, rules);
+            if (moduleMap.isEmpty()) continue; // TODO(b/259115852): remove this (though it is an optimization too).
 
-            for (ApiClass sdkClass : sdkApi.getClasses()) {
-                ApiClass clazz = api.findClass(sdkClass.getName());
-                if (clazz == null) {
-                    List<String> extensions = extensionsMap.getExtensions(sdkClass);
-                    if (extensions.isEmpty()) {
-                        continue;
-                    }
-                    clazz = api.addClass(sdkClass.getName(), apiLevelNotInAndroidSdk, sdkClass.isDeprecated());
-                }
+            moduleMaps.put(mainlineModule, moduleMap);
+            for (VersionAndPath f : entry.getValue()) {
+                JarReaderUtilsKt.readExtensionJar(api, f.version, mainlineModule, f.path, apiLevelNotInAndroidSdk);
+            }
+        }
+        Function<ApiElement, Integer> getSince =
+            e -> e.getSince() != apiLevelNotInAndroidSdk ? e.getSince() : null;
+        for (ApiClass clazz : api.getClasses()) {
+            String module = clazz.getMainlineModule();
+            if (module == null) continue;
+            ApiToExtensionsMap extensionsMap = moduleMaps.get(module);
+            String sdks = extensionsMap.calculateSdksAttr(getSince.apply(clazz),
+                extensionsMap.getExtensions(clazz), clazz.getSinceExtension());
+            clazz.updateSdks(sdks);
 
-                List<String> extensions = extensionsMap.getExtensions(clazz);
-                String clazzSdksAttr = extensionsMap.calculateSdksAttr(
-                    clazz.getSince() != apiLevelNotInAndroidSdk ? clazz.getSince() : null,
-                    extensions,
-                    sdkClass.getSince()
-                );
-                if (!extensions.isEmpty()) {
-                    clazz.updateMainlineModule(mainlineModule);
-                    clazz.updateSdks(clazzSdksAttr);
-                }
+            Iterator<ApiElement> iter = clazz.getFieldIterator();
+            while (iter.hasNext()) {
+                ApiElement field = iter.next();
+                sdks = extensionsMap.calculateSdksAttr(getSince.apply(field),
+                    extensionsMap.getExtensions(clazz, field), field.getSinceExtension());
+                field.updateSdks(sdks);
+            }
 
-                Iterator<ApiElement> iter = clazz.getFieldIterator();
-                while (iter.hasNext()) {
-                    ApiElement field = iter.next();
-                    extensions = extensionsMap.getExtensions(clazz, field);
-                    if (!extensions.isEmpty()) {
-                        ApiElement sdkField = sdkClass.getField(field.getName());
-                        if (sdkField != null) {
-                            String sdks = extensionsMap.calculateSdksAttr(field.getSince(), extensions, sdkField.getSince());
-                            if (!clazzSdksAttr.equals(sdks)) {
-                                field.updateSdks(sdks);
-                            }
-                        } else {
-                            // TODO: this is a new field that was added in the current REL version. What to do?
-                            // Introduce something equivalent to ARG_CURRENT_VERSION?
-                        }
-                    }
-                }
-
-                iter = clazz.getMethodIterator();
-                while (iter.hasNext()) {
-                    ApiElement method = iter.next();
-                    extensions = extensionsMap.getExtensions(clazz, method);
-                    if (!extensions.isEmpty()) {
-                        ApiElement sdkMethod = sdkClass.getMethod(method.getName());
-                        if (sdkMethod != null) {
-                            String sdks = extensionsMap.calculateSdksAttr(method.getSince(), extensions, sdkMethod.getSince());
-                            if (!clazzSdksAttr.equals(sdks)) {
-                                method.updateSdks(sdks);
-                            }
-                        } else {
-                            // TOOD: this is a new method that was added in the current REL version. What to do?
-                            // Introduce something equivalent to ARG_CURRENT_VERSION?
-                        }
-                    }
-                }
+            iter = clazz.getMethodIterator();
+            while (iter.hasNext()) {
+                ApiElement method = iter.next();
+                sdks = extensionsMap.calculateSdksAttr(getSince.apply(method),
+                    extensionsMap.getExtensions(clazz, method), method.getSinceExtension());
+                method.updateSdks(sdks);
             }
         }
         return ApiToExtensionsMap.Companion.fromXml("", rules).getSdkIdentifiers();

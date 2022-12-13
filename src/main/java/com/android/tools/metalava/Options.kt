@@ -499,7 +499,10 @@ class Options(
      */
     var firstApiLevel = 1
 
-    /** The codename of the codebase, if it's a preview, or null if not specified */
+    /**
+     * The codename of the codebase: non-null string if this is a developer preview build, null if
+     * this is a release build.
+     */
     var currentCodeName: String? = null
 
     /** API level XML file to generate */
@@ -1098,7 +1101,10 @@ class Options(
                     firstApiLevel = Integer.parseInt(getValue(args, ++index))
                 }
                 ARG_CURRENT_CODENAME -> {
-                    currentCodeName = getValue(args, ++index)
+                    val codeName = getValue(args, ++index)
+                    if (codeName != "REL") {
+                        currentCodeName = codeName
+                    }
                 }
                 ARG_CURRENT_JAR -> {
                     currentJar = stringToExistingFile(getValue(args, ++index))
@@ -1411,8 +1417,7 @@ class Options(
             apiLevelJars = findAndroidJars(
                 patterns,
                 firstApiLevel,
-                currentApiLevel,
-                currentCodeName,
+                currentApiLevel + if (isDeveloperPreviewBuild()) 1 else 0,
                 currentJar
             )
         }
@@ -1540,6 +1545,8 @@ class Options(
         checkFlagConsistency()
     }
 
+    public fun isDeveloperPreviewBuild(): Boolean = currentCodeName != null
+
     /** Update the classpath to insert android.jar or JDK classpath elements if necessary */
     private fun updateClassPath() {
         val sdkHome = sdkHome
@@ -1615,17 +1622,8 @@ class Options(
         androidJarPatterns: List<String>,
         minApi: Int,
         currentApiLevel: Int,
-        currentCodeName: String?,
         currentJar: File?
     ): Array<File> {
-
-        @Suppress("NAME_SHADOWING")
-        val currentApiLevel = if (currentCodeName != null && "REL" != currentCodeName) {
-            currentApiLevel + 1
-        } else {
-            currentApiLevel
-        }
-
         val apiLevelFiles = mutableListOf<File>()
         // api level 0: placeholder, should not be processed.
         // (This is here because we want the array index to match

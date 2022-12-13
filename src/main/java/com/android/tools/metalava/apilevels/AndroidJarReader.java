@@ -38,24 +38,9 @@ import java.util.zip.ZipInputStream;
  * Reads all the android.jar files found in an SDK and generate a map of {@link ApiClass}.
  */
 class AndroidJarReader {
-    private int mMinApi;
-    private int mCurrentApi;
-    private File mCurrentJar;
-    private List<String> mPatterns;
-    private File[] mApiLevels;
+    private final int mMinApi;
+    private final File[] mApiLevels;
     private final Codebase mCodebase;
-
-    AndroidJarReader(@NotNull List<String> patterns,
-                     int minApi,
-                     @NotNull File currentJar,
-                     int currentApi,
-                     @Nullable Codebase codebase) {
-        mPatterns = patterns;
-        mMinApi = minApi;
-        mCurrentJar = currentJar;
-        mCurrentApi = currentApi;
-        mCodebase = codebase;
-    }
 
     AndroidJarReader(@NotNull File[] apiLevels, int firstApiLevel, @Nullable Codebase codebase) {
         mApiLevels = apiLevels;
@@ -64,53 +49,22 @@ class AndroidJarReader {
     }
 
     public Api getApi() throws IOException {
-        Api api;
-        if (mApiLevels != null) {
-            int max = mApiLevels.length - 1;
-            if (mCodebase != null) {
-                max = mCodebase.getApiLevel();
-            }
-
-            api = new Api(mMinApi, max);
-            for (int apiLevel = mMinApi; apiLevel < mApiLevels.length; apiLevel++) {
-                File jar = getAndroidJarFile(apiLevel);
-                JarReaderUtilsKt.readJar(api, apiLevel, jar);
-            }
-            if (mCodebase != null) {
-                int apiLevel = mCodebase.getApiLevel();
-                if (apiLevel != -1) {
-                    processCodebase(api, apiLevel);
-                }
-            }
-        } else {
-            api = new Api(mMinApi, mCurrentApi);
-            // Get all the android.jar. They are in platforms-#
-            int apiLevel = mMinApi - 1;
-            while (true) {
-                apiLevel++;
-                File jar = null;
-                if (apiLevel == mCurrentApi) {
-                    jar = mCurrentJar;
-                }
-                if (jar == null) {
-                    jar = getAndroidJarFile(apiLevel);
-                }
-                if (jar == null || !jar.isFile()) {
-                    if (mCodebase != null) {
-                        processCodebase(api, apiLevel);
-                    }
-                    break;
-                }
-                JarReaderUtilsKt.readJar(api, apiLevel, jar);
-            }
+        int max = mApiLevels.length - 1;
+        if (mCodebase != null) {
+            max = mCodebase.getApiLevel();
         }
 
-        api.backfillHistoricalFixes();
-        api.inlineFromHiddenSuperClasses();
-        api.removeImplicitInterfaces();
-        api.removeOverridingMethods();
-        api.prunePackagePrivateClasses();
-
+        Api api = new Api(mMinApi, max);
+        for (int apiLevel = mMinApi; apiLevel < mApiLevels.length; apiLevel++) {
+            File jar = getAndroidJarFile(apiLevel);
+            JarReaderUtilsKt.readAndroidJar(api, apiLevel, jar);
+        }
+        if (mCodebase != null) {
+            int apiLevel = mCodebase.getApiLevel();
+            if (apiLevel != -1) {
+                processCodebase(api, apiLevel);
+            }
+        }
         return api;
     }
 
@@ -122,15 +76,6 @@ class AndroidJarReader {
     }
 
     private File getAndroidJarFile(int apiLevel) {
-        if (mApiLevels != null) {
-            return mApiLevels[apiLevel];
-        }
-        for (String pattern : mPatterns) {
-            File f = new File(pattern.replace("%", Integer.toString(apiLevel)));
-            if (f.isFile()) {
-                return f;
-            }
-        }
-        return null;
+        return mApiLevels[apiLevel];
     }
 }

@@ -141,9 +141,9 @@ class ApiGeneratorTest : DriverTest() {
             """
                 <sdk-extensions-info>
                 <!-- SDK definitions -->
-                <sdk name="R" id="30" reference="android/os/Build${'$'}VERSION_CODES${'$'}R" />
-                <sdk name="S" id="31" reference="android/os/Build${'$'}VERSION_CODES${'$'}S" />
-                <sdk name="T" id="33" reference="android/os/Build${'$'}VERSION_CODES${'$'}T" />
+                <sdk shortname="R" name="R Extensions" id="30" reference="android/os/Build${'$'}VERSION_CODES${'$'}R" />
+                <sdk shortname="S" name="S Extensions" id="31" reference="android/os/Build${'$'}VERSION_CODES${'$'}S" />
+                <sdk shortname="T" name="T Extensions" id="33" reference="android/os/Build${'$'}VERSION_CODES${'$'}T" />
 
                 <!-- Rules -->
                 <symbol jar="art.module.public.api" pattern="*" sdks="R" />
@@ -199,9 +199,9 @@ class ApiGeneratorTest : DriverTest() {
         assertTrue(output.isFile)
         val xml = output.readText(UTF_8)
         assertTrue(xml.contains("<api version=\"3\" min=\"21\">"))
-        assertTrue(xml.contains("<sdk id=\"30\" name=\"R\" reference=\"android/os/Build\$VERSION_CODES\$R\"/>"))
-        assertTrue(xml.contains("<sdk id=\"31\" name=\"S\" reference=\"android/os/Build\$VERSION_CODES\$S\"/>"))
-        assertTrue(xml.contains("<sdk id=\"33\" name=\"T\" reference=\"android/os/Build\$VERSION_CODES\$T\"/>"))
+        assertTrue(xml.contains("<sdk id=\"30\" shortname=\"R\" name=\"R Extensions\" reference=\"android/os/Build\$VERSION_CODES\$R\"/>"))
+        assertTrue(xml.contains("<sdk id=\"31\" shortname=\"S\" name=\"S Extensions\" reference=\"android/os/Build\$VERSION_CODES\$S\"/>"))
+        assertTrue(xml.contains("<sdk id=\"33\" shortname=\"T\" name=\"T Extensions\" reference=\"android/os/Build\$VERSION_CODES\$T\"/>"))
         assertTrue(xml.contains("<class name=\"android/Manifest\" since=\"21\">"))
         assertTrue(xml.contains("<field name=\"showWhenLocked\" since=\"27\"/>"))
 
