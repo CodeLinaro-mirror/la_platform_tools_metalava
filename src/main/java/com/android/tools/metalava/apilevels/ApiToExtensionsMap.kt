@@ -46,6 +46,8 @@ class ApiToExtensionsMap private constructor(
     private val sdkIdentifiers: Set<SdkIdentifier>,
     private val root: Node,
 ) {
+    fun isEmpty(): Boolean = root.children.isEmpty() && root.extensions.isEmpty()
+
     fun getExtensions(clazz: ApiClass): List<String> = getExtensions(clazz.name.toDotNotation())
 
     fun getExtensions(clazz: ApiClass, member: ApiElement): List<String> =
@@ -99,12 +101,13 @@ class ApiToExtensionsMap private constructor(
         val versions = mutableSetOf<String>()
         for (ext in extensions) {
             val ident = sdkIdentifiers.find {
-                it.name == ext
+                it.shortname == ext
             } ?: throw IllegalStateException("unknown extension SDK \"$ext\"")
             assert(ident.id != ANDROID_PLATFORM_SDK_ID) // invariant
             versions.add("${ident.id}:$extensionsSince")
         }
-        if (androidSince != null) {
+        // Only populate "sdks" if it's different from "since" (i.e. has extension info).
+        if (!extensions.isEmpty() && androidSince != null) {
             versions.add("$ANDROID_PLATFORM_SDK_ID:$androidSince")
         }
         return versions.joinToString(",")
@@ -125,13 +128,15 @@ class ApiToExtensionsMap private constructor(
          *
          *     <?xml version="1.0" encoding="utf-8"?>
          *     <sdk-extensions-info version="1">
-         *         <sdk name="<name>" id="<int>" reference="<constant>" />
+         *         <sdk name="<name>" shortname="<short-name>" id="<int>" reference="<constant>" />
          *         <symbol jar="<jar>" pattern="<pattern>" sdks="<sdks>" />
          *     </sdk-extensions-info>
          *
          * The <sdk> and <symbol> tags may be repeated.
          *
-         * - <name> is a short name for the SDK, e.g. "R-ext".
+         * - <name> is a long name for the SDK, e.g. "R Extensions".
+         *
+         * - <short-name> is a short name for the SDK, e.g. "R-ext".
          *
          * - <id> is the numerical identifier for the SDK, e.g. 30. It is an error to use the
          *   Android SDK ID (0).
@@ -172,10 +177,11 @@ class ApiToExtensionsMap private constructor(
                         override fun startElement(uri: String, localName: String, qualifiedName: String, attributes: Attributes) {
                             when (qualifiedName) {
                                 "sdk" -> {
-                                    val name = attributes.getStringOrThrow(qualifiedName, "name")
                                     val id = attributes.getIntOrThrow(qualifiedName, "id")
+                                    val shortname = attributes.getStringOrThrow(qualifiedName, "shortname")
+                                    val name = attributes.getStringOrThrow(qualifiedName, "name")
                                     val reference = attributes.getStringOrThrow(qualifiedName, "reference")
-                                    sdkIdentifiers.add(SdkIdentifier(id, name, reference))
+                                    sdkIdentifiers.add(SdkIdentifier(id, shortname, name, reference))
                                 }
                                 "symbol" -> {
                                     val jar = attributes.getStringOrThrow(qualifiedName, "jar")
@@ -218,7 +224,7 @@ class ApiToExtensionsMap private constructor(
             }
 
             // verify: all rules refer to declared SDKs
-            val allSdkNames = sdkIdentifiers.map { it.name }.toList()
+            val allSdkNames = sdkIdentifiers.map { it.shortname }.toList()
             for (ext in allSeenExtensions) {
                 if (!allSdkNames.contains(ext)) {
                     throw IllegalArgumentException("bad SDK definitions: undefined SDK $ext")
@@ -228,6 +234,11 @@ class ApiToExtensionsMap private constructor(
             // verify: no duplicate SDK IDs
             if (sdkIdentifiers.size != sdkIdentifiers.distinctBy { it.id }.size) {
                 throw IllegalArgumentException("bad SDK definitions: duplicate SDK IDs")
+            }
+
+            // verify: no duplicate SDK names
+            if (sdkIdentifiers.size != sdkIdentifiers.distinctBy { it.shortname }.size) {
+                throw IllegalArgumentException("bad SDK definitions: duplicate SDK short names")
             }
 
             // verify: no duplicate SDK names

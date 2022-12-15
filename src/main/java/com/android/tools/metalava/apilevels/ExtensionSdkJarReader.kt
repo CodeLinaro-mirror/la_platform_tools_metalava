@@ -18,19 +18,8 @@ package com.android.tools.metalava.apilevels
 import com.android.SdkConstants
 import com.android.SdkConstants.PLATFORM_WINDOWS
 import java.io.File
-import java.lang.IllegalArgumentException
 
-class ExtensionSdkJarReader(val name: String, val files: List<VersionAndPath>) {
-    fun getApi(): Api {
-        if (files.isEmpty()) {
-            throw IllegalArgumentException("no files to read")
-        }
-        val api = Api(files.first().version, files.last().version)
-        for (f in files) {
-            api.readJar(f.version, f.path)
-        }
-        return api
-    }
+class ExtensionSdkJarReader() {
 
     companion object {
         private val REGEX_JAR_PATH = run {
@@ -65,4 +54,4 @@ class ExtensionSdkJarReader(val name: String, val files: List<VersionAndPath>) {
     }
 }
 
-data class VersionAndPath(val version: Int, val path: File)
+data class VersionAndPath(@JvmField val version: Int, @JvmField val path: File)

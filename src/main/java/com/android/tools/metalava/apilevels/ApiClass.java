@@ -52,16 +52,16 @@ public class ApiClass extends ApiElement {
         super(name, version, deprecated);
     }
 
-    public void addField(String name, int version, boolean deprecated) {
-        addToMap(mFields, name, version, deprecated);
+    public ApiElement addField(String name, int version, boolean deprecated) {
+        return addToMap(mFields, name, version, deprecated);
     }
 
-    public void addMethod(String name, int version, boolean deprecated) {
+    public ApiElement addMethod(String name, int version, boolean deprecated) {
         // Correct historical mistake in android.jar files
         if (name.endsWith(")Ljava/lang/AbstractStringBuilder;")) {
             name = name.substring(0, name.length() - ")Ljava/lang/AbstractStringBuilder;".length()) + ")L" + getName() + ";";
         }
-        addToMap(mMethods, name, version, deprecated);
+        return addToMap(mMethods, name, version, deprecated);
     }
 
     public ApiElement addSuperClass(String superClass, int since) {
@@ -109,7 +109,7 @@ public class ApiClass extends ApiElement {
         return mInterfaces;
     }
 
-    private void addToMap(Map<String, ApiElement> elements, String name, int version, boolean deprecated) {
+    private ApiElement addToMap(Map<String, ApiElement> elements, String name, int version, boolean deprecated) {
         ApiElement element = elements.get(name);
         if (element == null) {
             element = new ApiElement(name, version, deprecated);
@@ -117,6 +117,7 @@ public class ApiClass extends ApiElement {
         } else {
             element.update(version, deprecated);
         }
+        return element;
     }
 
     private ApiElement addToArray(Collection<ApiElement> elements, String name, int version) {
