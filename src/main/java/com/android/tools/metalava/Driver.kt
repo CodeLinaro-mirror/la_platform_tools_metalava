@@ -533,7 +533,8 @@ fun checkCompatibility(
         throw DriverException("Cannot perform compatibility check of signature file $signatureFile in format ${oldCodebase.format} without analyzing current codebase with $ARG_FORMAT=${oldCodebase.format}")
     }
 
-    var baseApi: Codebase? = newCodebase
+    var baseApi: Codebase? = null
+
     val apiType = check.apiType
 
     if (options.showUnannotated && apiType == ApiType.PUBLIC_API) {
@@ -543,15 +544,12 @@ fun checkCompatibility(
             return
         }
         val baseApiFile = options.baseApiForCompatCheck
-        baseApi =
-            if (baseApiFile == null) {
-                null
-            } else {
-                SignatureFileLoader.load(
-                    file = baseApiFile,
-                    kotlinStyleNulls = options.inputKotlinStyleNulls
-                )
-            }
+        if (baseApiFile != null) {
+            baseApi = SignatureFileLoader.load(
+                file = baseApiFile,
+                kotlinStyleNulls = options.inputKotlinStyleNulls
+            )
+        }
     } else if (options.baseApiForCompatCheck != null) {
         // This option does not make sense with showAnnotation, as the "base" in that case
         // is the non-annotated APIs.
@@ -563,7 +561,7 @@ fun checkCompatibility(
 
     // If configured, compares the new API with the previous API and reports
     // any incompatibilities.
-    CompatibilityCheck.checkCompatibility(newCodebase, oldCodebase, apiType, baseApi, baseApi)
+    CompatibilityCheck.checkCompatibility(newCodebase, oldCodebase, apiType, baseApi)
 }
 
 fun createTempFile(namePrefix: String, nameSuffix: String): File {
