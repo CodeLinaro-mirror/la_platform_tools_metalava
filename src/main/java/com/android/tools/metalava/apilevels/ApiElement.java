@@ -28,20 +28,36 @@ import java.util.List;
  */
 public class ApiElement implements Comparable<ApiElement> {
     private final String mName;
+
+    /**
+     * The Android platform SDK version this API was first introduced in.
+     */
     private int mSince;
-    private String mFrom = null;
+
+
+    /**
+     * The SDKs and their versions this API was first introduced in.
+     *
+     * The value is a comma-separated list of &lt;int&gt;:&lt;int&gt; values, where the first
+     * &lt;int&gt; is the integer ID of an SDK, and the second &lt;int&gt; the version of that SDK,
+     * in which this API first appeared.
+     *
+     * This field is a super-set of mSince, and if non-null, should be preferred.
+     */
+    private String mSdks = null;
+
     private String mMainlineModule = null;
     private int mDeprecatedIn;
     private int mLastPresentIn;
 
     /**
      * @param name       the name of the API element
-     * @param version    an API version for which the API element existed
+     * @param version    an API version for which the API element existed, or -1 if the class does
+     *                   not yet exist in the Android SDK (only in extension SDKs)
      * @param deprecated whether the API element was deprecated in the API version in question
      */
     ApiElement(String name, int version, boolean deprecated) {
         assert name != null;
-        assert version > 0;
         mName = name;
         mSince = version;
         mLastPresentIn = version;
@@ -114,7 +130,7 @@ public class ApiElement implements Comparable<ApiElement> {
         update(version, isDeprecated());
     }
 
-    public void updateFrom(String from) { mFrom = from; }
+    public void updateSdks(String sdks) { mSdks = sdks; }
 
     public void updateMainlineModule(String module) { mMainlineModule = module; }
 
@@ -165,9 +181,9 @@ public class ApiElement implements Comparable<ApiElement> {
             stream.print("\" since=\"");
             stream.print(mSince);
         }
-        if (mFrom != null) {
-            stream.print("\" from=\"");
-            stream.print(mFrom);
+        if (mSdks != null) {
+            stream.print("\" sdks=\"");
+            stream.print(mSdks);
         }
         if (mDeprecatedIn != 0) {
             stream.print("\" deprecated=\"");

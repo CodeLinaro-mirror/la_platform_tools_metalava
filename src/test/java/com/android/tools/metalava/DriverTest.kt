@@ -119,7 +119,7 @@ abstract class DriverTest {
                     actualFail.replace(".", "").trim()
                 ) {
                     val reportedCompatError = actualFail.startsWith("Aborting: Found compatibility problems checking the ")
-                    if (expectedFail == "Aborting: Found compatibility problems with --check-compatibility" &&
+                    if (expectedFail == "Aborting: Found compatibility problems" &&
                         reportedCompatError
                     ) {
                         // Special case for compat checks; we don't want to force each one of them
@@ -416,7 +416,7 @@ abstract class DriverTest {
             expectedFail != null -> expectedFail
             (checkCompatibilityApiReleased != null || checkCompatibilityRemovedApiReleased != null) &&
                 expectedIssues != null && expectedIssues.trim().isNotEmpty() -> {
-                "Aborting: Found compatibility problems with --check-compatibility"
+                "Aborting: Found compatibility problems"
             }
             else -> ""
         }
@@ -928,12 +928,12 @@ abstract class DriverTest {
             validateNullabilityTxt = null
             emptyArray()
         }
-        val validateNullablityFromListFile: File?
+        val validateNullabilityFromListFile: File?
         val validateNullabilityFromListArgs = if (validateNullabilityFromList != null) {
-            validateNullablityFromListFile = temporaryFolder.newFile("validate-nullability-classes.txt")
-            validateNullablityFromListFile.writeText(validateNullabilityFromList)
+            validateNullabilityFromListFile = temporaryFolder.newFile("validate-nullability-classes.txt")
+            validateNullabilityFromListFile.writeText(validateNullabilityFromList)
             arrayOf(
-                ARG_VALIDATE_NULLABILITY_FROM_LIST, validateNullablityFromListFile.path
+                ARG_VALIDATE_NULLABILITY_FROM_LIST, validateNullabilityFromListFile.path
             )
         } else {
             emptyArray()

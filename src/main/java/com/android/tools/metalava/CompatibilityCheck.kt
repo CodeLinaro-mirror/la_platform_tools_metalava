@@ -56,14 +56,11 @@ class CompatibilityCheck(
      * Request for compatibility checks.
      * [file] represents the signature file to be checked. [apiType] represents which
      * part of the API should be checked, [releaseType] represents what kind of codebase
-     * we are comparing it against. If [codebase] is specified, compare the signature file
-     * against the codebase instead of metalava's current source tree configured via the
-     * normal source path flags.
+     * we are comparing it against.
      */
     data class CheckRequest(
         val file: File,
-        val apiType: ApiType,
-        val codebase: File? = null
+        val apiType: ApiType
     ) {
         override fun toString(): String {
             return "--check-compatibility:${apiType.flagName}:released $file"
@@ -509,6 +506,16 @@ class CompatibilityCheck(
                         Issues.ADDED_FINAL,
                         new,
                         "${describe(new, capitalize = true)} has added 'final' qualifier"
+                    )
+                } else if (old.isEffectivelyFinal() && !new.isEffectivelyFinal()) {
+                    // Disallowed removing final: If an app inherits the class and starts overriding
+                    // the method it's going to crash on earlier versions where the method is final
+                    // It doesn't break compatibility in the strict sense, but does make it very
+                    // difficult to extend this method in practice.
+                    report(
+                        Issues.REMOVED_FINAL,
+                        new,
+                        "${describe(new, capitalize = true)} has removed 'final' qualifier"
                     )
                 }
             }

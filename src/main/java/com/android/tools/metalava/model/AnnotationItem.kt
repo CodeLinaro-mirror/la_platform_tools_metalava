@@ -413,6 +413,7 @@ interface AnnotationItem {
                 "dalvik.annotation.optimization.CriticalNative",
                 "dalvik.annotation.optimization.FastNative",
                 "dalvik.annotation.optimization.NeverCompile",
+                "dalvik.annotation.optimization.NeverInline",
                 "dalvik.annotation.optimization.ReachabilitySensitive" ->
                     return NO_ANNOTATION_TARGETS
 

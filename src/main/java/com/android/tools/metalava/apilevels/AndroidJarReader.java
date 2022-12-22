@@ -105,6 +105,7 @@ class AndroidJarReader {
             }
         }
 
+        api.backfillHistoricalFixes();
         api.inlineFromHiddenSuperClasses();
         api.removeImplicitInterfaces();
         api.removeOverridingMethods();

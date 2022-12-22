@@ -274,6 +274,10 @@ class ApiLintTest : DriverTest() {
     @Test
     fun `Test callbacks`() {
         check(
+            extraArguments = arrayOf(
+                ARG_ERROR,
+                "CallbackInterface"
+            ),
             apiLint = "", // enabled
             expectedIssues = """
                 src/android/pkg/MyCallback.java:9: error: Callback method names must follow the on<Something> style: bar [CallbackMethodName] [See https://s.android.com/api-guidelines#callback-method-naming]
@@ -2274,6 +2278,13 @@ class ApiLintTest : DriverTest() {
                             @NonNull
                             public UnitNameTestBuilder setOkPercentage(int i) { return this; }
                         }
+
+                        @NamedDataSpace
+                        public int getOkDataSpace() { return 0; }
+
+                        /** @hide */
+                        @android.annotation.IntDef
+                        public @interface NamedDataSpace {}
                     }
                     """
                 )

@@ -34,7 +34,7 @@ class ExtensionSdkJarReader(val name: String, val files: List<VersionAndPath>) {
 
     companion object {
         private val REGEX_JAR_PATH = run {
-            var pattern = ".*/(\\d+)/public/(.*)-stubs\\.jar$"
+            var pattern = ".*/(\\d+)/public/(.*)\\.jar$"
             if (SdkConstants.currentPlatform() == PLATFORM_WINDOWS) {
                 pattern = pattern.replace("/", "\\\\")
             }
