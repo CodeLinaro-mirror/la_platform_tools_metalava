@@ -543,9 +543,9 @@ class ExtractAnnotations(
                 name = ANNOTATION_ATTR_VALUE // default name
             }
 
-            // Platform typedef annotations now declare a prefix attribute for
-            // documentation generation purposes; this should not be part of the
-            // extracted metadata.
+            // Platform typedef annotations declare prefix/suffix attributes for historical reasons
+            // and they are no longer necessary; they should also not be part of the extracted
+            // metadata.
             if (("prefix" == name || "suffix" == name) && annotationItem.isTypeDefAnnotation()) {
                 reporter.report(
                     Issues.SUPERFLUOUS_PREFIX,

@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model.testsuite.typeitem
 
 import com.android.tools.metalava.model.ClassTypeItem
+import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.model.testsuite.TestParameters
 import com.android.tools.metalava.testing.java
@@ -135,6 +136,154 @@ class CommonTypeParameterItemTest(parameters: TestParameters) : BaseModelTest(pa
             assertThat((first as ClassTypeItem).qualifiedName).isEqualTo("java.lang.Object")
             assertThat(second).isInstanceOf(ClassTypeItem::class.java)
             assertThat((second as ClassTypeItem).qualifiedName).isEqualTo("java.lang.Comparable")
+        }
+    }
+
+    @Test
+    fun `Test self-referential type parameter`() {
+        runCodebaseTest(
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public class Foo<T extends test.pkg.Foo<T>> {
+                        method public <T extends test.pkg.Foo<T>> T foo();
+                      }
+                    }
+                """
+                    .trimIndent()
+            ),
+            java(
+                """
+                    package test.pkg;
+                    public class Foo<T extends Foo<T>> {
+                        public <T extends Foo<T>> T foo() {}
+                    }
+                    """
+            ),
+            kotlin(
+                """
+                    package test.pkg
+                    class Foo<T : Foo<T>> {
+                        fun foo<T : Foo<T>>(): T {}
+                    }
+                """
+            )
+        ) { codebase ->
+            val clazz = codebase.assertClass("test.pkg.Foo")
+            val classTypeParam = clazz.typeParameterList().typeParameters().single()
+            val classTypeParamBound = classTypeParam.typeBounds().single()
+            assertThat(classTypeParamBound).isInstanceOf(ClassTypeItem::class.java)
+            assertThat((classTypeParamBound as ClassTypeItem).qualifiedName)
+                .isEqualTo("test.pkg.Foo")
+            assertThat(classTypeParamBound.parameters).hasSize(1)
+            val classTypeParamBoundParam = classTypeParamBound.parameters.single()
+            assertThat(classTypeParamBoundParam).isInstanceOf(VariableTypeItem::class.java)
+            assertThat((classTypeParamBoundParam as VariableTypeItem).asTypeParameter)
+                .isEqualTo(classTypeParam)
+
+            val method = clazz.methods().single()
+            val methodTypeParam = method.typeParameterList().typeParameters().single()
+            val methodTypeParamBound = methodTypeParam.typeBounds().single()
+            assertThat(methodTypeParamBound).isInstanceOf(ClassTypeItem::class.java)
+            assertThat((methodTypeParamBound as ClassTypeItem).qualifiedName)
+                .isEqualTo("test.pkg.Foo")
+            assertThat(methodTypeParamBound.parameters).hasSize(1)
+            val methodTypeParamBoundParam = methodTypeParamBound.parameters.single()
+            assertThat(methodTypeParamBoundParam).isInstanceOf(VariableTypeItem::class.java)
+            assertThat((methodTypeParamBoundParam as VariableTypeItem).asTypeParameter)
+                .isEqualTo(methodTypeParam)
+        }
+    }
+
+    @Test
+    fun `Test type parameters that reference each other`() {
+        runCodebaseTest(
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public class Foo<A extends C, B extends A, C> {
+                      }
+                    }
+                """
+                    .trimIndent()
+            ),
+            java(
+                """
+                    package test.pkg;
+                    public class Foo<A extends C, B extends A, C> {}
+                """
+            ),
+            kotlin(
+                """
+                    package test.pkg
+                    class Foo<A : C, B : A, C>
+                """
+            )
+        ) { codebase ->
+            val typeParams =
+                codebase.assertClass("test.pkg.Foo").typeParameterList().typeParameters()
+            assertThat(typeParams).hasSize(3)
+            val a = typeParams[0]
+            val b = typeParams[1]
+            val c = typeParams[2]
+
+            // A extends C
+            val aBound = a.typeBounds().single()
+            assertThat(aBound).isInstanceOf(VariableTypeItem::class.java)
+            assertThat((aBound as VariableTypeItem).asTypeParameter).isEqualTo(c)
+
+            // B extends A
+            val bBound = b.typeBounds().single()
+            assertThat(bBound).isInstanceOf(VariableTypeItem::class.java)
+            assertThat((bBound as VariableTypeItem).asTypeParameter).isEqualTo(a)
+
+            // C
+            assertThat(c.typeBounds()).isEmpty()
+        }
+    }
+
+    @Test
+    fun `Test method type parameter that references class type parameter`() {
+        runCodebaseTest(
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public class Foo<T> {
+                        method public <E extends T> void foo();
+                      }
+                    }
+                """
+                    .trimIndent()
+            ),
+            java(
+                """
+                    package test.pkg;
+                    public class Foo<T> {
+                        public <E extends T> void foo() {}
+                    }
+                """
+            ),
+            kotlin(
+                """
+                    package test.pkg
+                    class Foo<T> {
+                        fun <E : T> foo() {}
+                    }
+                """
+            )
+        ) { codebase ->
+            val clazz = codebase.assertClass("test.pkg.Foo")
+            val clazzTypeParam = clazz.typeParameterList().typeParameters().single()
+
+            val method = clazz.methods().single()
+            val methodTypeParam = method.typeParameterList().typeParameters().single()
+            val methodTypeParamBound = methodTypeParam.typeBounds().single()
+            assertThat(methodTypeParamBound).isInstanceOf(VariableTypeItem::class.java)
+            assertThat((methodTypeParamBound as VariableTypeItem).asTypeParameter)
+                .isEqualTo(clazzTypeParam)
         }
     }
 }

@@ -18,10 +18,12 @@ package com.android.tools.metalava.model.testsuite
 
 import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.lint.checks.infrastructure.TestFiles
+import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.FieldItem
+import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.source.SourceCodebase
@@ -257,6 +259,14 @@ abstract class BaseModelTest(parameters: TestParameters) {
         val methodItem = findMethod(simpleName(), parameters)
         assertNotNull(methodItem) { "Expected ${simpleName()}($parameters) to be defined" }
         return assertIs(methodItem)
+    }
+
+    /** Get the annotation from the [Item], failing if it does not exist. */
+    fun Item.assertAnnotation(parameters: String): AnnotationItem {
+        val annoItem =
+            modifiers.annotations().filter { it.qualifiedName == parameters }.firstOrNull()
+        assertNotNull(annoItem) { "Expected item to be annotated with ($parameters)" }
+        return assertIs(annoItem)
     }
 }
 
