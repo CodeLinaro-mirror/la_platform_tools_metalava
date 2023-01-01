@@ -22,6 +22,7 @@ enum class TurbineClassType() {
     INTERFACE,
     ENUM,
     ANNOTATION,
+    TYPE_PARAMETER,
     CLASS;
 
     companion object {

@@ -162,9 +162,10 @@ internal class JavaStubWriter(
     }
 
     private fun generateSuperClassDeclaration(cls: ClassItem) {
-        if (cls.isEnum() || cls.isAnnotationType()) {
+        if (cls.isEnum() || cls.isAnnotationType() || cls.isInterface()) {
             // No extends statement for enums and annotations; it's implied by the "enum" and
-            // "@interface" keywords
+            // "@interface" keywords. Normal interfaces do support an extends statement but it is
+            // generated in [generateInterfaceList].
             return
         }
 
@@ -172,22 +173,8 @@ internal class JavaStubWriter(
             if (preFiltered) cls.superClassType() else cls.filteredSuperClassType(filterReference)
 
         if (superClass != null && !superClass.isJavaLangObject()) {
-            val qualifiedName = superClass.toTypeString()
             writer.print(" extends ")
-
-            if (qualifiedName.contains("<")) {
-                // TODO: I need to push this into the model at filter-time such that clients don't
-                // need
-                // to remember to do this!!
-                val s = superClass.asClass()
-                if (s != null) {
-                    val map = cls.mapTypeVariables(s)
-                    val replaced = superClass.convertTypeString(map)
-                    writer.print(replaced)
-                    return
-                }
-            }
-            writer.print(qualifiedName)
+            writer.print(superClass.toTypeString())
         }
     }
 
@@ -198,12 +185,11 @@ internal class JavaStubWriter(
         }
 
         val interfaces =
-            if (preFiltered) cls.interfaceTypes().asSequence()
-            else cls.filteredInterfaceTypes(filterReference).asSequence()
+            if (preFiltered) cls.interfaceTypes() else cls.filteredInterfaceTypes(filterReference)
 
         if (interfaces.any()) {
-            if (cls.isInterface() && cls.superClassType() != null) writer.print(", ")
-            else writer.print(" implements")
+            val label = if (cls.isInterface()) " extends" else " implements"
+            writer.print(label)
             interfaces.forEachIndexed { index, type ->
                 if (index > 0) {
                     writer.print(",")
@@ -215,8 +201,6 @@ internal class JavaStubWriter(
     }
 
     private fun generateTypeParameterList(typeList: TypeParameterList, addSpace: Boolean) {
-        // TODO: Do I need to map type variables?
-
         val typeListString = typeList.toString()
         if (typeListString.isNotEmpty()) {
             writer.print(typeListString)
@@ -262,13 +246,38 @@ internal class JavaStubWriter(
                     val type = parameter.type()
                     if (type !is PrimitiveTypeItem) {
                         if (includeCasts) {
-                            // Types with varargs can't appear as varargs when used as an argument
-                            val typeString = type.toErasedTypeString(it).replace("...", "[]")
+                            // Casting to the erased type could lead to unchecked warnings (which
+                            // are suppressed) but avoids having to deal with parameterized types
+                            // and ensures that casting to a vararg parameter uses an array type.
+                            val typeString = type.toErasedTypeString()
                             writer.write("(")
                             if (type is VariableTypeItem) {
-                                // It's a type parameter: see if we should map the type back to the
-                                // concrete
-                                // type in this class
+                                // The super constructor's parameter is a type variable: so see if
+                                // it should be mapped back to a type specified by this class. e.g.
+                                // Given:
+                                //   class Bar<T extends Number> {
+                                //       public Bar(int i) {}
+                                //       public Bar(T t) {}
+                                //   }
+                                //   class Foo extends Bar<Integer> {
+                                //       public Foo(Integer i) { super(i); }
+                                //   }
+                                //
+                                // The stub for Foo should use:
+                                //     super((Integer) i);
+                                // Not:
+                                //     super((Number) i);
+                                //
+                                // However, if the super class is referenced as a raw type then
+                                // there will be no mapping in which case fall back to the erased
+                                // type which will use the type variable's lower bound. e.g.
+                                // Given:
+                                //   class Foo extends Bar {
+                                //       public Foo(Integer i) { super(i); }
+                                //   }
+                                //
+                                // The stub for Foo should use:
+                                //     super((Number) i);
                                 val map =
                                     constructor
                                         .containingClass()
@@ -340,13 +349,7 @@ internal class JavaStubWriter(
         generateTypeParameterList(typeList = method.typeParameterList(), addSpace = true)
 
         val returnType = method.returnType()
-        writer.print(
-            returnType.toTypeString(
-                outerAnnotations = false,
-                innerAnnotations = generateAnnotations,
-                filter = filterReference
-            )
-        )
+        writer.print(returnType.toTypeString(annotations = false, filter = filterReference))
 
         writer.print(' ')
         writer.print(method.name())
@@ -384,15 +387,7 @@ internal class JavaStubWriter(
 
         appendDocumentation(field, writer, config)
         appendModifiers(field, removeAbstract = false, removeFinal = false)
-        writer.print(
-            field
-                .type()
-                .toTypeString(
-                    outerAnnotations = false,
-                    innerAnnotations = generateAnnotations,
-                    filter = filterReference
-                )
-        )
+        writer.print(field.type().toTypeString(annotations = false, filter = filterReference))
         writer.print(' ')
         writer.print(field.name())
         val needsInitialization =
@@ -426,13 +421,7 @@ internal class JavaStubWriter(
             }
             appendModifiers(parameter, false)
             writer.print(
-                parameter
-                    .type()
-                    .toTypeString(
-                        outerAnnotations = false,
-                        innerAnnotations = generateAnnotations,
-                        filter = filterReference
-                    )
+                parameter.type().toTypeString(annotations = false, filter = filterReference)
             )
             writer.print(' ')
             val name = parameter.publicName() ?: parameter.name()
@@ -455,7 +444,6 @@ internal class JavaStubWriter(
                 if (i > 0) {
                     writer.print(", ")
                 }
-                // TODO: Shouldn't declare raw types here!
                 writer.print(type.qualifiedName())
             }
         }

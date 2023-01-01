@@ -269,7 +269,7 @@ class JDiffXmlWriter(
             else cls.filteredInterfaceTypes(filterReference).asSequence()
 
         if (interfaces.any()) {
-            interfaces.sortedWith(TypeItem.comparator).forEach { item ->
+            interfaces.sortedWith(TypeItem.totalComparator).forEach { item ->
                 writer.print("<implements name=\"")
                 val type = item.toTypeString(context = cls)
                 writer.print(XmlUtils.toXmlAttributeValue(formatType(type)))

@@ -24,6 +24,10 @@ fun source(to: String, source: String): TestFile {
     return TestFiles.source(to, source.trimIndent())
 }
 
+fun html(to: String, @Language("HTML") source: String): TestFile {
+    return TestFiles.source(to, source.trimIndent())
+}
+
 fun java(to: String, @Language("JAVA") source: String): TestFile {
     return TestFiles.java(to, source.trimIndent())
 }

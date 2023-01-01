@@ -16,227 +16,718 @@
 
 package com.android.tools.metalava.model.testsuite.typeitem
 
+import com.android.tools.lint.checks.infrastructure.TestFile
+import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.model.PrimitiveTypeItem
+import com.android.tools.metalava.model.isNullnessAnnotation
 import com.android.tools.metalava.model.testsuite.BaseModelTest
-import com.android.tools.metalava.model.testsuite.TestParameters
+import com.android.tools.metalava.testing.KnownSourceFiles.intRangeTypeUseSource
+import com.android.tools.metalava.testing.KnownSourceFiles.libcoreNonNullSource
+import com.android.tools.metalava.testing.KnownSourceFiles.libcoreNullableSource
 import com.android.tools.metalava.testing.java
-import kotlin.test.assertEquals
-import kotlin.test.assertSame
-import org.junit.Assert
+import com.google.common.truth.Truth.assertThat
+import java.util.function.Predicate
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
+import org.junit.runners.Parameterized.Parameter
 
 @RunWith(Parameterized::class)
-class CommonTypeStringTest(combinedParameters: CombinedParameters) :
-    BaseModelTest(combinedParameters.baseParameters) {
+class CommonTypeStringTest : BaseModelTest() {
 
     data class TypeStringParameters(
-        val parameters: List<String>,
-        val methodTypeParameter: String? = null,
-        val name: String = parameters.joinToString(),
-        val expectedErasedParameters: String = parameters.joinToString(),
-        val searchParameters: String = expectedErasedParameters,
+        val name: String,
+        val sourceType: String = name,
+        val typeStringConfiguration: TypeStringConfiguration = TypeStringConfiguration(),
+        val expectedTypeString: String = sourceType,
+        val typeParameters: String? = null,
+        val extraJavaSourceFiles: List<TestFile> = emptyList(),
+        val extraTextPackages: List<String> = emptyList()
     ) {
-        constructor(
-            parameters: String,
-            methodTypeParameter: String? = null,
-            name: String = parameters,
-            expectedErasedType: String = parameters,
-            searchParameters: String = expectedErasedType,
-        ) : this(
-            parameters = listOf(parameters),
-            methodTypeParameter = methodTypeParameter,
-            name = name,
-            expectedErasedParameters = expectedErasedType,
-            searchParameters = searchParameters,
-        )
-
         override fun toString(): String {
             return name
         }
+
+        companion object {
+            fun forDefaultAndKotlinNulls(
+                name: String,
+                sourceType: String = name,
+                expectedDefaultTypeString: String = sourceType,
+                expectedKotlinNullsTypeString: String = sourceType,
+                typeParameters: String? = null,
+                extraJavaSourceFiles: List<TestFile> = emptyList(),
+                extraTextPackages: List<String> = emptyList()
+            ): List<TypeStringParameters> {
+                return fromConfigurations(
+                    name = name,
+                    sourceType = sourceType,
+                    configs =
+                        listOf(
+                            ConfigurationTestCase(
+                                name = "default",
+                                configuration = TypeStringConfiguration(),
+                                expectedTypeString = expectedDefaultTypeString
+                            ),
+                            ConfigurationTestCase(
+                                name = "kotlin nulls",
+                                configuration = TypeStringConfiguration(kotlinStyleNulls = true),
+                                expectedTypeString = expectedKotlinNullsTypeString
+                            )
+                        ),
+                    typeParameters = typeParameters,
+                    extraJavaSourceFiles = extraJavaSourceFiles,
+                    extraTextPackages = extraTextPackages
+                )
+            }
+
+            fun fromConfigurations(
+                name: String,
+                sourceType: String,
+                configs: List<ConfigurationTestCase>,
+                typeParameters: String? = null,
+                extraJavaSourceFiles: List<TestFile> = emptyList(),
+                extraTextPackages: List<String> = emptyList()
+            ): List<TypeStringParameters> {
+                return configs.map {
+                    TypeStringParameters(
+                        name = "$name - ${it.name}",
+                        sourceType = sourceType,
+                        typeStringConfiguration = it.configuration,
+                        expectedTypeString = it.expectedTypeString,
+                        typeParameters = typeParameters,
+                        extraJavaSourceFiles = extraJavaSourceFiles,
+                        extraTextPackages = extraTextPackages
+                    )
+                }
+            }
+        }
     }
 
-    data class CombinedParameters(
-        val baseParameters: TestParameters,
-        val typeStringParameters: TypeStringParameters,
-    ) {
-        override fun toString(): String {
-            return "$baseParameters,$typeStringParameters"
+    data class ConfigurationTestCase(
+        val name: String,
+        val configuration: TypeStringConfiguration,
+        val expectedTypeString: String
+    )
+
+    data class TypeStringConfiguration(
+        val annotations: Boolean = false,
+        val kotlinStyleNulls: Boolean = false,
+        val filter: Predicate<Item>? = null,
+    )
+
+    /**
+     * Set by injection by [Parameterized] after class initializers are called.
+     *
+     * Anything that accesses this, either directly or indirectly must do it after initialization,
+     * e.g. from lazy fields or in methods called from test methods.
+     *
+     * See [baseParameters] for more info.
+     */
+    @Parameter(1) lateinit var parameters: TypeStringParameters
+
+    private fun javaTestFiles() =
+        inputSet(
+            java(
+                """
+                package test.pkg;
+                public class Foo {
+                    public ${parameters.typeParameters.orEmpty()} void foo(${parameters.sourceType} arg) {}
+                }
+            """
+            ),
+            *parameters.extraJavaSourceFiles.toTypedArray()
+        )
+
+    private fun signatureTestFile() =
+        inputSet(
+            signature(
+                """
+                // Signature format: 5.0
+                // - kotlin-name-type-order=yes
+                // - include-type-use-annotations=yes
+                package test.pkg {
+                  public class Foo {
+                    ctor public Foo();
+                    method public ${parameters.typeParameters.orEmpty()} foo(_: ${parameters.sourceType}): void;
+                  }
+                }
+            """ +
+                    parameters.extraTextPackages.joinToString("\n")
+            )
+        )
+
+    @Test
+    fun `Type string`() {
+        runCodebaseTest(javaTestFiles(), signatureTestFile()) { codebase ->
+            val method = codebase.assertClass("test.pkg.Foo").methods().single()
+            val param = method.parameters().single()
+            val type = param.type()
+            val typeString =
+                type.toTypeString(
+                    annotations = parameters.typeStringConfiguration.annotations,
+                    kotlinStyleNulls = parameters.typeStringConfiguration.kotlinStyleNulls,
+                    filter = parameters.typeStringConfiguration.filter,
+                    context = param
+                )
+            assertThat(typeString).isEqualTo(parameters.expectedTypeString)
         }
     }
 
     companion object {
-        private val primitiveTypes =
-            listOf(
-                "boolean",
-                "byte",
-                "char",
-                "double",
-                "float",
-                "int",
-                "long",
-                "short",
+        // Turbine needs this type defined in order to use it in tests
+        private val innerParameterizedTypeSource =
+            java(
+                """
+                package test.pkg;
+                public class Outer<P1> {
+                    public class Inner<P2> {}
+                }
+            """
+                    .trimIndent()
             )
-        private val typeStringParameters =
-            primitiveTypes.map { TypeStringParameters(parameters = it) } +
-                listOf(
-                    TypeStringParameters(parameters = primitiveTypes, name = "primitives"),
-                    TypeStringParameters(
-                        name = "char array",
-                        parameters = "char[]",
-                    ),
-                    TypeStringParameters(
-                        name = "int array",
-                        parameters = "int[]",
-                    ),
-                    TypeStringParameters(
-                        name = "int varargs",
-                        parameters = "int[]",
-                    ),
-                    TypeStringParameters(
-                        parameters = "long",
-                    ),
-                    TypeStringParameters(
-                        parameters = "short",
-                    ),
-                    TypeStringParameters(
-                        parameters = "String",
-                        expectedErasedType = "java.lang.String",
-                    ),
-                    TypeStringParameters(
-                        name = "string array",
-                        parameters = "String[]",
-                        expectedErasedType = "java.lang.String[]",
-                    ),
-                    TypeStringParameters(
-                        name = "string varargs",
-                        parameters = "String...",
-                        expectedErasedType = "java.lang.String[]",
-                    ),
-                    TypeStringParameters(
-                        parameters = "T",
-                        methodTypeParameter = "<T>",
-                        expectedErasedType = "java.lang.Object",
-                    ),
-                    TypeStringParameters(
-                        name = "generic array",
-                        parameters = "T[]",
-                        methodTypeParameter = "<T>",
-                        expectedErasedType = "java.lang.Object[]",
-                    ),
-                    TypeStringParameters(
-                        name = "generic varargs",
-                        parameters = "T...",
-                        methodTypeParameter = "<T>",
-                        // This is inconsistent with how varargs are handled for non-generic types.
-                        expectedErasedType = "java.lang.Object[]",
-                    ),
-                    TypeStringParameters(
-                        name = "T extends Number",
-                        parameters = "T",
-                        methodTypeParameter = "<T extends Number>",
-                        expectedErasedType = "java.lang.Number",
-                    ),
-                    TypeStringParameters(
-                        name = "T extends Number array",
-                        parameters = "T[]",
-                        methodTypeParameter = "<T extends Number>",
-                        expectedErasedType = "java.lang.Number[]",
-                    ),
-                    TypeStringParameters(
-                        name = "T extends Number varargs",
-                        parameters = "T...",
-                        methodTypeParameter = "<T extends Number>",
-                        // This is inconsistent with how varargs are handled for non-generic types.
-                        expectedErasedType = "java.lang.Number[]",
-                    ),
-                    TypeStringParameters(
-                        parameters = "java.util.List<? extends Number>",
-                        expectedErasedType = "java.util.List",
-                    ),
-                    TypeStringParameters(
-                        name = "extends Comparable",
-                        parameters = "T",
-                        methodTypeParameter = "<T extends Comparable<T>>",
-                        expectedErasedType = "java.lang.Comparable",
-                    ),
-                    TypeStringParameters(
-                        name = "extends Object and Comparable",
-                        parameters = "T",
-                        methodTypeParameter = "<T extends Object & Comparable<T>>",
-                        expectedErasedType = "java.lang.Object",
-                    ),
-                )
+
+        private val libcoreTextPackage =
+            """
+                package libcore.util {
+                  @java.lang.annotation.Documented @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.SOURCE) @java.lang.annotation.Target({java.lang.annotation.ElementType.TYPE_USE}) public @interface NonNull {
+                  }
+                  @java.lang.annotation.Documented @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.SOURCE) @java.lang.annotation.Target({java.lang.annotation.ElementType.TYPE_USE}) public @interface Nullable {
+                  }
+                }
+            """
+        private val androidxTextPackage =
+            """
+                package androidx.annotation {
+                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.SOURCE) @java.lang.annotation.Target({java.lang.annotation.ElementType.METHOD, java.lang.annotation.ElementType.PARAMETER, java.lang.annotation.ElementType.FIELD, java.lang.annotation.ElementType.LOCAL_VARIABLE, java.lang.annotation.ElementType.ANNOTATION_TYPE, java.lang.annotation.ElementType.TYPE_USE}) public @interface IntRange {
+                    method public abstract from(): long default java.lang.Long.MIN_VALUE;
+                    method public abstract to(): long default java.lang.Long.MAX_VALUE;
+                  }
+                }
+            """
 
         @JvmStatic
-        @Parameterized.Parameters(name = "{0}")
-        fun combinedTestParameters(): Iterable<CombinedParameters> {
-            return testParameters().flatMap { baseParameters ->
-                typeStringParameters.map { CombinedParameters(baseParameters, it) }
-            }
+        @Parameterized.Parameters(name = "{0},{1}")
+        fun combinedTestParameters(): Iterable<Array<Any>> {
+            return crossProduct(testCases)
         }
-    }
 
-    private val parameters = combinedParameters.typeStringParameters
-
-    private fun javaTestFile() =
-        java(
-            """
-                        package test.pkg;
-                        public class Foo {
-                            public ${parameters.methodTypeParameter ?: ""} void foo(${
-            parameters.parameters.mapIndexed { index, type -> "$type p$index" }.joinToString()
-        }) {}
-                        }
-                    """
-        )
-
-    private fun signatureTestFile() =
-        signature(
-            """
-                        // Signature format: 3.0
-                        package test.pkg {
-                          public class Foo {
-                            ctor public Foo();
-                            method public ${parameters.methodTypeParameter ?: ""} void foo(${parameters.parameters.joinToString()});
-                          }
-                        }
-                    """
-        )
-
-    @Test
-    fun `Erased type string`() {
-        runCodebaseTest(javaTestFile(), signatureTestFile()) { codebase ->
-            val fooMethod = codebase.assertClass("test.pkg.Foo").methods().single()
-            val erasedParameters =
-                fooMethod.parameters().joinToString { parameter ->
-                    parameter.type().toErasedTypeString(fooMethod)
-                }
-            assertEquals(
-                parameters.expectedErasedParameters,
-                erasedParameters,
-            )
-        }
-    }
-
-    @Test
-    fun `Find method`() {
-        runCodebaseTest(javaTestFile(), signatureTestFile()) { codebase ->
-            val fooClass = codebase.assertClass("test.pkg.Foo")
-
-            val fooMethod = fooClass.methods().single()
-            val foundMethod = fooClass.findMethod("foo", parameters.expectedErasedParameters)
-
-            if (foundMethod == null) {
-                Assert.fail(
-                    "Searched for method with parameters (${parameters.expectedErasedParameters}) but method has erased parameters of (${
-                        fooMethod.parameters()
-                            .joinToString(", ") { it.type().toErasedTypeString(fooMethod) }
-                    })"
+        private val testCases =
+            // Test primitives besides void (the test setup puts the type in parameter position, and
+            // void can't be a parameter type).
+            PrimitiveTypeItem.Primitive.values()
+                .filter { it != PrimitiveTypeItem.Primitive.VOID }
+                .map { TypeStringParameters(name = it.primitiveName) } +
+                // Test additional types
+                TypeStringParameters.forDefaultAndKotlinNulls(
+                    name = "string",
+                    sourceType = "String",
+                    expectedDefaultTypeString = "java.lang.String",
+                    expectedKotlinNullsTypeString = "java.lang.String!"
+                ) +
+                TypeStringParameters.forDefaultAndKotlinNulls(
+                    name = "number",
+                    sourceType = "Number",
+                    expectedDefaultTypeString = "java.lang.Number",
+                    expectedKotlinNullsTypeString = "java.lang.Number!"
+                ) +
+                TypeStringParameters.forDefaultAndKotlinNulls(
+                    name = "int array",
+                    sourceType = "int[]",
+                    expectedKotlinNullsTypeString = "int[]!"
+                ) +
+                TypeStringParameters.forDefaultAndKotlinNulls(
+                    name = "string array",
+                    sourceType = "String[]",
+                    expectedDefaultTypeString = "java.lang.String[]",
+                    expectedKotlinNullsTypeString = "java.lang.String![]!"
+                ) +
+                TypeStringParameters.forDefaultAndKotlinNulls(
+                    name = "int varargs",
+                    sourceType = "int..."
+                ) +
+                TypeStringParameters.forDefaultAndKotlinNulls(
+                    name = "string varargs",
+                    sourceType = "String...",
+                    expectedDefaultTypeString = "java.lang.String...",
+                    expectedKotlinNullsTypeString = "java.lang.String!..."
+                ) +
+                TypeStringParameters.forDefaultAndKotlinNulls(
+                    name = "string list",
+                    sourceType = "java.util.List<java.lang.String>",
+                    expectedKotlinNullsTypeString = "java.util.List<java.lang.String!>!"
+                ) +
+                TypeStringParameters.forDefaultAndKotlinNulls(
+                    name = "extends string list",
+                    sourceType = "java.util.List<? extends java.lang.String>",
+                    expectedKotlinNullsTypeString = "java.util.List<? extends java.lang.String>!"
+                ) +
+                TypeStringParameters.forDefaultAndKotlinNulls(
+                    name = "T",
+                    expectedKotlinNullsTypeString = "T!",
+                    typeParameters = "<T>"
+                ) +
+                TypeStringParameters.fromConfigurations(
+                    name = "null annotated string",
+                    sourceType = "@libcore.util.Nullable String",
+                    configs =
+                        listOf(
+                            ConfigurationTestCase(
+                                name = "default",
+                                configuration = TypeStringConfiguration(),
+                                expectedTypeString = "java.lang.String"
+                            ),
+                            ConfigurationTestCase(
+                                name = "annotated",
+                                configuration = TypeStringConfiguration(annotations = true),
+                                expectedTypeString = "java.lang.@libcore.util.Nullable String"
+                            ),
+                            ConfigurationTestCase(
+                                name = "kotlin nulls",
+                                configuration = TypeStringConfiguration(kotlinStyleNulls = true),
+                                expectedTypeString = "java.lang.String?"
+                            ),
+                            ConfigurationTestCase(
+                                name = "annotated and kotlin nulls",
+                                configuration =
+                                    TypeStringConfiguration(
+                                        annotations = true,
+                                        kotlinStyleNulls = true
+                                    ),
+                                expectedTypeString = "java.lang.String?"
+                            ),
+                        ),
+                    extraJavaSourceFiles = listOf(libcoreNullableSource),
+                    extraTextPackages = listOf(libcoreTextPackage)
+                ) +
+                TypeStringParameters.fromConfigurations(
+                    name = "null annotated string list",
+                    sourceType =
+                        "java.util.@libcore.util.Nullable List<java.lang.@libcore.util.NonNull String>",
+                    configs =
+                        listOf(
+                            ConfigurationTestCase(
+                                name = "default",
+                                configuration = TypeStringConfiguration(),
+                                expectedTypeString = "java.util.List<java.lang.String>"
+                            ),
+                            ConfigurationTestCase(
+                                name = "annotated",
+                                configuration = TypeStringConfiguration(annotations = true),
+                                expectedTypeString =
+                                    "java.util.@libcore.util.Nullable List<java.lang.@libcore.util.NonNull String>"
+                            ),
+                            ConfigurationTestCase(
+                                name = "kotlin nulls",
+                                configuration = TypeStringConfiguration(kotlinStyleNulls = true),
+                                expectedTypeString = "java.util.List<java.lang.String>?"
+                            ),
+                            ConfigurationTestCase(
+                                name = "annotated and kotlin nulls",
+                                configuration =
+                                    TypeStringConfiguration(
+                                        annotations = true,
+                                        kotlinStyleNulls = true
+                                    ),
+                                expectedTypeString = "java.util.List<java.lang.String>?"
+                            ),
+                        ),
+                    extraJavaSourceFiles = listOf(libcoreNonNullSource, libcoreNullableSource),
+                    extraTextPackages = listOf(libcoreTextPackage)
+                ) +
+                TypeStringParameters.forDefaultAndKotlinNulls(
+                    name = "string to number map",
+                    sourceType = "java.util.Map<String, Number>",
+                    expectedDefaultTypeString = "java.util.Map<java.lang.String,java.lang.Number>",
+                    expectedKotlinNullsTypeString =
+                        "java.util.Map<java.lang.String!,java.lang.Number!>!"
+                ) +
+                TypeStringParameters.forDefaultAndKotlinNulls(
+                    name = "2d string array",
+                    sourceType = "String[][]",
+                    expectedDefaultTypeString = "java.lang.String[][]",
+                    expectedKotlinNullsTypeString = "java.lang.String![]![]!"
+                ) +
+                TypeStringParameters.fromConfigurations(
+                    name = "null annotated string array",
+                    sourceType = "@libcore.util.Nullable String @libcore.util.Nullable []",
+                    configs =
+                        listOf(
+                            ConfigurationTestCase(
+                                name = "default",
+                                configuration = TypeStringConfiguration(),
+                                expectedTypeString = "java.lang.String[]"
+                            ),
+                            ConfigurationTestCase(
+                                name = "annotated",
+                                configuration = TypeStringConfiguration(annotations = true),
+                                expectedTypeString =
+                                    "java.lang.@libcore.util.Nullable String @libcore.util.Nullable []"
+                            ),
+                            ConfigurationTestCase(
+                                name = "kotlin nulls",
+                                configuration = TypeStringConfiguration(kotlinStyleNulls = true),
+                                expectedTypeString = "java.lang.String?[]?"
+                            ),
+                            ConfigurationTestCase(
+                                name = "annotated and kotlin nulls",
+                                configuration =
+                                    TypeStringConfiguration(
+                                        annotations = true,
+                                        kotlinStyleNulls = true
+                                    ),
+                                expectedTypeString = "java.lang.String?[]?"
+                            ),
+                        ),
+                    extraJavaSourceFiles = listOf(libcoreNullableSource),
+                    extraTextPackages = listOf(libcoreTextPackage)
+                ) +
+                TypeStringParameters.fromConfigurations(
+                    name = "null annotated string varargs",
+                    sourceType = "@libcore.util.Nullable String @libcore.util.NonNull ...",
+                    configs =
+                        listOf(
+                            ConfigurationTestCase(
+                                name = "default",
+                                configuration = TypeStringConfiguration(),
+                                expectedTypeString = "java.lang.String..."
+                            ),
+                            ConfigurationTestCase(
+                                name = "annotated",
+                                configuration = TypeStringConfiguration(annotations = true),
+                                expectedTypeString =
+                                    "java.lang.@libcore.util.Nullable String @libcore.util.NonNull ..."
+                            ),
+                            ConfigurationTestCase(
+                                name = "kotlin nulls",
+                                configuration = TypeStringConfiguration(kotlinStyleNulls = true),
+                                expectedTypeString = "java.lang.String?..."
+                            ),
+                            ConfigurationTestCase(
+                                name = "annotated and kotlin nulls",
+                                configuration =
+                                    TypeStringConfiguration(
+                                        annotations = true,
+                                        kotlinStyleNulls = true
+                                    ),
+                                expectedTypeString = "java.lang.String?..."
+                            ),
+                        ),
+                    extraJavaSourceFiles = listOf(libcoreNonNullSource, libcoreNullableSource),
+                    extraTextPackages = listOf(libcoreTextPackage)
+                ) +
+                TypeStringParameters.fromConfigurations(
+                    name = "null annotated T",
+                    sourceType = "@libcore.util.NonNull T",
+                    configs =
+                        listOf(
+                            ConfigurationTestCase(
+                                name = "default",
+                                configuration = TypeStringConfiguration(),
+                                expectedTypeString = "T"
+                            ),
+                            ConfigurationTestCase(
+                                name = "annotated",
+                                configuration = TypeStringConfiguration(annotations = true),
+                                expectedTypeString = "@libcore.util.NonNull T"
+                            ),
+                            ConfigurationTestCase(
+                                name = "kotlin nulls",
+                                configuration = TypeStringConfiguration(kotlinStyleNulls = true),
+                                expectedTypeString = "T"
+                            ),
+                            ConfigurationTestCase(
+                                name = "annotated and kotlin nulls",
+                                configuration =
+                                    TypeStringConfiguration(
+                                        annotations = true,
+                                        kotlinStyleNulls = true
+                                    ),
+                                expectedTypeString = "T"
+                            ),
+                        ),
+                    typeParameters = "<T>",
+                    extraJavaSourceFiles = listOf(libcoreNonNullSource),
+                    extraTextPackages = listOf(libcoreTextPackage)
+                ) +
+                TypeStringParameters(
+                    name = "super T comparable",
+                    sourceType = "java.lang.Comparable<? super T>",
+                    typeParameters = "<T>"
+                ) +
+                TypeStringParameters.fromConfigurations(
+                    name = "null annotated extends T collection",
+                    sourceType =
+                        "java.util.@libcore.util.Nullable Collection<? extends @libcore.util.Nullable T>",
+                    configs =
+                        listOf(
+                            ConfigurationTestCase(
+                                name = "default",
+                                configuration = TypeStringConfiguration(),
+                                expectedTypeString = "java.util.Collection<? extends T>"
+                            ),
+                            ConfigurationTestCase(
+                                name = "annotated",
+                                configuration = TypeStringConfiguration(annotations = true),
+                                expectedTypeString =
+                                    "java.util.@libcore.util.Nullable Collection<? extends @libcore.util.Nullable T>"
+                            ),
+                            ConfigurationTestCase(
+                                name = "kotlin nulls",
+                                configuration = TypeStringConfiguration(kotlinStyleNulls = true),
+                                expectedTypeString = "java.util.Collection<? extends T?>?"
+                            ),
+                            ConfigurationTestCase(
+                                name = "annotated and kotlin nulls",
+                                configuration =
+                                    TypeStringConfiguration(
+                                        annotations = true,
+                                        kotlinStyleNulls = true
+                                    ),
+                                expectedTypeString = "java.util.Collection<? extends T?>?"
+                            ),
+                        ),
+                    typeParameters = "<T>",
+                    extraJavaSourceFiles = listOf(libcoreNullableSource),
+                    extraTextPackages = listOf(libcoreTextPackage)
+                ) +
+                TypeStringParameters.forDefaultAndKotlinNulls(
+                    name = "int array list",
+                    sourceType = "java.util.List<int[]>",
+                    expectedKotlinNullsTypeString = "java.util.List<int[]!>!"
+                ) +
+                TypeStringParameters.forDefaultAndKotlinNulls(
+                    name = "2d boolean array list",
+                    sourceType = "java.util.List<boolean[][]>",
+                    expectedKotlinNullsTypeString = "java.util.List<boolean[]![]!>!"
+                ) +
+                TypeStringParameters.forDefaultAndKotlinNulls(
+                    name = "inner class type",
+                    sourceType = "java.util.Map.Entry",
+                    expectedKotlinNullsTypeString = "java.util.Map.Entry!"
+                ) +
+                TypeStringParameters.forDefaultAndKotlinNulls(
+                    name = "extends number to super number map",
+                    sourceType =
+                        "java.util.Map<? extends java.lang.Number,? super java.lang.Number>",
+                    expectedKotlinNullsTypeString =
+                        "java.util.Map<? extends java.lang.Number,? super java.lang.Number>!"
+                ) +
+                TypeStringParameters.fromConfigurations(
+                    name = "annotated integer list",
+                    sourceType =
+                        "java.util.List<java.lang.@androidx.annotation.IntRange(from=5L, to=10L) Integer>",
+                    configs =
+                        listOf(
+                            ConfigurationTestCase(
+                                name = "default",
+                                configuration = TypeStringConfiguration(),
+                                expectedTypeString = "java.util.List<java.lang.Integer>"
+                            ),
+                            ConfigurationTestCase(
+                                name = "annotated",
+                                configuration = TypeStringConfiguration(annotations = true),
+                                expectedTypeString =
+                                    "java.util.List<java.lang.@androidx.annotation.IntRange(from=5L, to=10L) Integer>"
+                            ),
+                            ConfigurationTestCase(
+                                name = "kotlin nulls",
+                                configuration = TypeStringConfiguration(kotlinStyleNulls = true),
+                                expectedTypeString = "java.util.List<java.lang.Integer!>!"
+                            ),
+                            ConfigurationTestCase(
+                                name = "annotated and kotlin nulls",
+                                configuration =
+                                    TypeStringConfiguration(
+                                        annotations = true,
+                                        kotlinStyleNulls = true
+                                    ),
+                                expectedTypeString =
+                                    "java.util.List<java.lang.@androidx.annotation.IntRange(from=5L, to=10L) Integer!>!"
+                            ),
+                            ConfigurationTestCase(
+                                name = "annotated with negative filter",
+                                configuration =
+                                    TypeStringConfiguration(
+                                        annotations = true,
+                                        filter = { false },
+                                    ),
+                                expectedTypeString = "java.util.List<java.lang.Integer>"
+                            ),
+                            ConfigurationTestCase(
+                                name = "annotated with negative filter and kotlin nulls",
+                                configuration =
+                                    TypeStringConfiguration(
+                                        annotations = true,
+                                        filter = { false },
+                                        kotlinStyleNulls = true
+                                    ),
+                                expectedTypeString = "java.util.List<java.lang.Integer!>!"
+                            ),
+                            ConfigurationTestCase(
+                                name = "annotated with positive filter",
+                                configuration =
+                                    TypeStringConfiguration(
+                                        annotations = true,
+                                        filter = { true },
+                                    ),
+                                expectedTypeString =
+                                    "java.util.List<java.lang.@androidx.annotation.IntRange(from=5L, to=10L) Integer>"
+                            )
+                        ),
+                    extraJavaSourceFiles = listOf(intRangeTypeUseSource),
+                    extraTextPackages = listOf(androidxTextPackage)
+                ) +
+                TypeStringParameters.fromConfigurations(
+                    name = "annotated primitive",
+                    sourceType = "@androidx.annotation.IntRange(from=5L, to=10L) int",
+                    configs =
+                        listOf(
+                            ConfigurationTestCase(
+                                name = "default",
+                                configuration = TypeStringConfiguration(),
+                                expectedTypeString = "int"
+                            ),
+                            ConfigurationTestCase(
+                                name = "annotated",
+                                configuration = TypeStringConfiguration(annotations = true),
+                                expectedTypeString =
+                                    "@androidx.annotation.IntRange(from=5L, to=10L) int"
+                            ),
+                            ConfigurationTestCase(
+                                name = "kotlin nulls",
+                                configuration = TypeStringConfiguration(kotlinStyleNulls = true),
+                                expectedTypeString = "int"
+                            )
+                        ),
+                    extraJavaSourceFiles = listOf(intRangeTypeUseSource),
+                    extraTextPackages = listOf(androidxTextPackage)
+                ) +
+                TypeStringParameters.forDefaultAndKotlinNulls(
+                    name = "parameterized inner type",
+                    sourceType = "test.pkg.Outer<java.lang.String>.Inner<java.lang.Integer>",
+                    expectedKotlinNullsTypeString =
+                        "test.pkg.Outer<java.lang.String!>.Inner<java.lang.Integer!>!",
+                    extraJavaSourceFiles = listOf(innerParameterizedTypeSource)
+                ) +
+                TypeStringParameters.fromConfigurations(
+                    name = "null annotated parameterized inner type",
+                    sourceType =
+                        "test.pkg.Outer<java.lang.@libcore.util.Nullable String>.@libcore.util.Nullable Inner<java.lang.@libcore.util.NonNull Integer>",
+                    configs =
+                        listOf(
+                            ConfigurationTestCase(
+                                name = "default",
+                                configuration = TypeStringConfiguration(),
+                                expectedTypeString =
+                                    "test.pkg.Outer<java.lang.String>.Inner<java.lang.Integer>"
+                            ),
+                            ConfigurationTestCase(
+                                name = "annotated",
+                                configuration = TypeStringConfiguration(annotations = true),
+                                expectedTypeString =
+                                    "test.pkg.Outer<java.lang.@libcore.util.Nullable String>.@libcore.util.Nullable Inner<java.lang.@libcore.util.NonNull Integer>"
+                            ),
+                            ConfigurationTestCase(
+                                name = "kotlin nulls",
+                                configuration = TypeStringConfiguration(kotlinStyleNulls = true),
+                                expectedTypeString =
+                                    "test.pkg.Outer<java.lang.String?>.Inner<java.lang.Integer>?"
+                            )
+                        ),
+                    extraJavaSourceFiles =
+                        listOf(
+                            innerParameterizedTypeSource,
+                            libcoreNullableSource,
+                            libcoreNonNullSource
+                        ),
+                    extraTextPackages = listOf(libcoreTextPackage)
+                ) +
+                TypeStringParameters.fromConfigurations(
+                    name = "multiple annotations integer list",
+                    sourceType =
+                        "java.util.List<java.lang.@libcore.util.Nullable @androidx.annotation.IntRange(from=5L, to=10L) Integer>",
+                    listOf(
+                        ConfigurationTestCase(
+                            name = "default",
+                            configuration = TypeStringConfiguration(),
+                            expectedTypeString = "java.util.List<java.lang.Integer>"
+                        ),
+                        ConfigurationTestCase(
+                            name = "annotated",
+                            configuration = TypeStringConfiguration(annotations = true),
+                            expectedTypeString =
+                                "java.util.List<java.lang.@libcore.util.Nullable @androidx.annotation.IntRange(from=5L, to=10L) Integer>"
+                        ),
+                        ConfigurationTestCase(
+                            name = "kotlin nulls",
+                            configuration = TypeStringConfiguration(kotlinStyleNulls = true),
+                            expectedTypeString = "java.util.List<java.lang.Integer?>!"
+                        ),
+                        ConfigurationTestCase(
+                            name = "annotated and kotlin nulls",
+                            configuration =
+                                TypeStringConfiguration(
+                                    annotations = true,
+                                    kotlinStyleNulls = true
+                                ),
+                            expectedTypeString =
+                                "java.util.List<java.lang.@androidx.annotation.IntRange(from=5L, to=10L) Integer?>!"
+                        ),
+                        ConfigurationTestCase(
+                            name = "annotated with filter",
+                            configuration =
+                                TypeStringConfiguration(
+                                    annotations = true,
+                                    // Filter that removes nullness annotations
+                                    filter = {
+                                        (it as? ClassItem)?.qualifiedName()?.let { name ->
+                                            isNullnessAnnotation(name)
+                                        } != true
+                                    }
+                                ),
+                            expectedTypeString =
+                                "java.util.List<java.lang.@androidx.annotation.IntRange(from=5L, to=10L) Integer>"
+                        ),
+                        ConfigurationTestCase(
+                            name = "annotated and kotlin nulls with filter",
+                            configuration =
+                                TypeStringConfiguration(
+                                    annotations = true,
+                                    kotlinStyleNulls = true,
+                                    // Filter that removes nullness annotations, but Kotlin-nulls
+                                    // should still be present
+                                    filter = {
+                                        (it as? ClassItem)?.qualifiedName()?.let { name ->
+                                            isNullnessAnnotation(name)
+                                        } != true
+                                    }
+                                ),
+                            expectedTypeString =
+                                "java.util.List<java.lang.@androidx.annotation.IntRange(from=5L, to=10L) Integer?>!"
+                        ),
+                    ),
+                    extraJavaSourceFiles = listOf(libcoreNullableSource, intRangeTypeUseSource),
+                    extraTextPackages = listOf(libcoreTextPackage, androidxTextPackage)
+                ) +
+                TypeStringParameters.fromConfigurations(
+                    name = "annotated multi-dimensional array",
+                    sourceType =
+                        "test.pkg.@test.pkg.A Foo @test.pkg.B [] @test.pkg.C [] @test.pkg.D ...",
+                    configs =
+                        listOf(
+                            ConfigurationTestCase(
+                                name = "default",
+                                configuration = TypeStringConfiguration(),
+                                expectedTypeString = "test.pkg.Foo[][]..."
+                            ),
+                            ConfigurationTestCase(
+                                name = "annotated",
+                                configuration = TypeStringConfiguration(annotations = true),
+                                expectedTypeString =
+                                    "test.pkg.@test.pkg.A Foo @test.pkg.B [] @test.pkg.C [] @test.pkg.D ..."
+                            )
+                        )
                 )
-            } else {
-                assertSame(fooMethod, foundMethod)
-            }
-        }
     }
 }

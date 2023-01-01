@@ -807,11 +807,13 @@ class ApiLintTest : DriverTest() {
                         public @Nullable ListenableFuture<String> okAsync() { return null; }
                         public void ok2(@Nullable ListenableFuture<String> param) { }
 
-                        public interface BadFuture<T> extends Future<T> {
+                        public interface BadFuture<T> extends AnotherInterface, Future<T> {
                         }
                         public static abstract class BadFutureClass<T> implements Future<T> {
                         }
                         public class BadCompletableFuture<T> extends CompletableFuture<T> {
+                        }
+                        public interface AnotherInterface {
                         }
                     }
                     """
@@ -1141,6 +1143,8 @@ class ApiLintTest : DriverTest() {
                 src/android/pkg/Bad.java:51: warning: android.pkg.Bad.NoBuildMethodBuilder does not declare a `build()` method, but builder classes are expected to [MissingBuildMethod]
                 src/android/pkg/TopLevelBuilder.java:3: warning: Builder should be defined as inner class: android.pkg.TopLevelBuilder [TopLevelBuilder]
                 src/android/pkg/TopLevelBuilder.java:3: warning: android.pkg.TopLevelBuilder does not declare a `build()` method, but builder classes are expected to [MissingBuildMethod]
+                src/test/pkg/BadClass.java:4: warning: Builder must be final: test.pkg.BadClass.Builder [StaticFinalBuilder]
+                src/test/pkg/BadInterface.java:4: warning: Builder must be final: test.pkg.BadInterface.Builder [StaticFinalBuilder]
                 """,
             sourceFiles =
                 arrayOf(
@@ -1319,6 +1323,59 @@ class ApiLintTest : DriverTest() {
                         }
                     }
                     """
+                    ),
+                    java(
+                        """
+                    package test.pkg;
+
+                    public class GoodInterface {
+                        public interface Builder extends java.lang.Runnable {
+                            @NonNull
+                            GoodInterface build();
+                        }
+                    }
+                        """
+                            .trimIndent()
+                    ),
+                    java(
+                        """
+                    package test.pkg;
+
+                    public class GoodClass {
+                        public static abstract class Builder extends Base {
+                            @NonNull
+                            public abstract GoodClass build();
+                        }
+                        public class Base {}
+                    }
+                        """
+                            .trimIndent()
+                    ),
+                    java(
+                        """
+                    package test.pkg;
+
+                    public class BadInterface {
+                        public interface Builder {
+                            @NonNull
+                            BadInterface build();
+                        }
+                    }
+                        """
+                            .trimIndent()
+                    ),
+                    java(
+                        """
+                    package test.pkg;
+
+                    public class BadClass {
+                        public static abstract class Builder {
+                            @NonNull
+                            public abstract BadClass build();
+                        }
+                    }
+                        """
+                            .trimIndent()
                     ),
                     androidxNonNullSource,
                     androidxNullableSource

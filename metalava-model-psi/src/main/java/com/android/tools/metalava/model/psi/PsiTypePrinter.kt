@@ -19,7 +19,6 @@ package com.android.tools.metalava.model.psi
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.JAVA_LANG_OBJECT
-import com.android.tools.metalava.model.SUPPORT_TYPE_USE_ANNOTATIONS
 import com.android.tools.metalava.model.isNonNullAnnotation
 import com.android.tools.metalava.model.isNullableAnnotation
 import com.intellij.openapi.util.text.StringUtil
@@ -71,7 +70,7 @@ internal class PsiTypePrinter(
     private val filter: Predicate<Item>?,
     private val mapAnnotations: Boolean,
     private val kotlinStyleNulls: Boolean,
-    private val supportTypeUseAnnotations: Boolean = SUPPORT_TYPE_USE_ANNOTATIONS
+    private val supportTypeUseAnnotations: Boolean
 ) {
     // This class inlines a lot of methods from IntelliJ, but with (a) annotated=true, (b) calling
     // local

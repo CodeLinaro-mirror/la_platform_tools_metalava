@@ -81,6 +81,9 @@ internal constructor(
             if (flag and TurbineFlag.ACC_SEALED != 0) {
                 result = result or SEALED
             }
+            if (flag and TurbineFlag.ACC_VARARGS != 0) {
+                result = result or VARARG
+            }
 
             // Visibility Modifiers
             if (flag and TurbineFlag.ACC_PUBLIC != 0) {

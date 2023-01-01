@@ -19,7 +19,6 @@ package com.android.tools.metalava.model.testsuite.typeitem
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.testsuite.BaseModelTest
-import com.android.tools.metalava.model.testsuite.TestParameters
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import com.google.common.truth.Truth.assertThat
@@ -28,7 +27,7 @@ import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 
 @RunWith(Parameterized::class)
-class CommonTypeParameterItemTest(parameters: TestParameters) : BaseModelTest(parameters) {
+class CommonTypeParameterItemTest : BaseModelTest() {
     @Test
     fun `Test typeBounds no extends`() {
         runCodebaseTest(
@@ -112,7 +111,7 @@ class CommonTypeParameterItemTest(parameters: TestParameters) : BaseModelTest(pa
             kotlin(
                 """
                     package test.pkg
-                    class Foo<T: Object & Comparable<T>>
+                    class Foo<T> where T : Object, T : Comparable<T>
                 """
             ),
             signature(

@@ -196,56 +196,37 @@ class ApiFromTextTest : DriverTest() {
     }
 
     @Test
-    fun `Type use annotations`() {
+    fun `Type use annotations are not printed in formats that shouldn't include them`() {
         check(
             format = FileFormat.V2,
             signatureSource =
                 """
+                // Signature format: 5.0
+                // - kotlin-name-type-order=yes
+                // - include-type-use-annotations=yes
+                // - kotlin-style-nulls=no
                 package test.pkg {
                   public class MyTest {
-                    method public static int codePointAt(char @NonNull [], int);
-                    method @NonNull public java.util.Set<java.util.Map.@NonNull Entry<K,V>> entrySet();
-                    method @NonNull public java.lang.annotation.@NonNull Annotation @NonNull [] getAnnotations();
-                    method @NonNull public abstract java.lang.annotation.@NonNull Annotation @NonNull [] @NonNull [] getParameterAnnotations();
-                    method @NonNull public @NonNull String @NonNull [] split(@NonNull String, int);
-                    method public static char @NonNull [] toChars(int);
+                    method public static codePointAt(_: char @NonNull [], _: int): int;
+                    method @NonNull public <K,V> entrySet(): java.util.Set<java.util.Map.@NonNull Entry<K,V>>;
+                    method @NonNull public getAnnotations(): java.lang.annotation.@NonNull Annotation @NonNull [];
+                    method @NonNull public abstract getParameterAnnotations(): java.lang.annotation.@NonNull Annotation @NonNull [] @NonNull [];
+                    method @NonNull public split(@NonNull _: String, _: int): @NonNull String @NonNull [];
+                    method public static toChars(_: int): char @NonNull [];
                   }
                 }
                 """,
+            // Type use annotations are removed, method and parameter annotations remain
             api =
                 """
                 package test.pkg {
                   public class MyTest {
-                    method public static int codePointAt(char @NonNull [], int);
-                    method @NonNull public java.util.Set<java.util.Map.@NonNull Entry<K,V>> entrySet();
-                    method @NonNull public java.lang.annotation.Annotation @NonNull [] getAnnotations();
-                    method @NonNull public abstract java.lang.annotation.Annotation @NonNull [] @NonNull [] getParameterAnnotations();
-                    method @NonNull public String @NonNull [] split(@NonNull String, int);
-                    method public static char @NonNull [] toChars(int);
-                  }
-                }
-            """
-        )
-    }
-
-    @Test
-    fun `Type use annotations and Kotlin nullability`() {
-        check(
-            format = FileFormat.V4,
-            signatureSource =
-                """
-                // Signature format: 4.0
-                package test.pkg {
-                  public class MyTest {
-                    method public abstract java.lang.annotation.Annotation? @A [] @B []! getParameterAnnotations();
-                  }
-                }
-                """,
-            api =
-                """
-                package test.pkg {
-                  public class MyTest {
-                    method public abstract java.lang.annotation.Annotation? @A [] @B []! getParameterAnnotations();
+                    method public static int codePointAt(char[], int);
+                    method @NonNull public <K,V> java.util.Set<java.util.Map.Entry<K,V>> entrySet();
+                    method @NonNull public java.lang.annotation.Annotation[] getAnnotations();
+                    method @NonNull public abstract java.lang.annotation.Annotation[][] getParameterAnnotations();
+                    method @NonNull public String[] split(@NonNull String, int);
+                    method public static char[] toChars(int);
                   }
                 }
             """

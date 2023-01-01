@@ -111,8 +111,6 @@ class ApiAnalyzer(
             return
         }
 
-        // Apply options for packages that should be hidden
-        hidePackages()
         skipEmitPackages()
         // Suppress kotlin file facade classes with no public api
         hideEmptyKotlinFileFacadeClasses()
@@ -552,14 +550,6 @@ class ApiAnalyzer(
         }
     }
 
-    /** Hide packages explicitly listed in [Options.hidePackages] */
-    private fun hidePackages() {
-        for (pkgName in config.hidePackages) {
-            val pkg = codebase.findPackage(pkgName) ?: continue
-            pkg.hidden = true
-        }
-    }
-
     /** Apply emit filters listed in [Options.skipEmitPackages] */
     private fun skipEmitPackages() {
         for (pkgName in config.skipEmitPackages) {
@@ -622,8 +612,13 @@ class ApiAnalyzer(
                 override fun visitPackage(pkg: PackageItem) {
                     when {
                         config.hidePackages.contains(pkg.qualifiedName()) -> pkg.hidden = true
-                        pkg.hasShowAnnotation() -> pkg.hidden = false
-                        pkg.hasHideAnnotation() -> pkg.hidden = true
+                        else -> {
+                            val showability = pkg.showability
+                            when {
+                                showability.show() -> pkg.hidden = false
+                                showability.hide() -> pkg.hidden = true
+                            }
+                        }
                     }
                     val containingPackage = pkg.containingPackage()
                     if (containingPackage != null) {
@@ -638,15 +633,16 @@ class ApiAnalyzer(
 
                 override fun visitClass(cls: ClassItem) {
                     val containingClass = cls.containingClass()
-                    if (cls.hasShowAnnotation()) {
+                    val showability = cls.showability
+                    if (showability.show()) {
                         cls.hidden = false
                         // Make containing package non-hidden if it contains a show-annotation
                         // class. Doclava does this in PackageInfo.isHidden().
                         cls.containingPackage().hidden = false
-                        if (cls.containingClass() != null) {
+                        if (containingClass != null) {
                             ensureParentVisible(cls)
                         }
-                    } else if (cls.hasHideAnnotation()) {
+                    } else if (showability.hide()) {
                         cls.hidden = true
                     } else if (containingClass != null) {
                         if (containingClass.hidden) {
@@ -677,17 +673,18 @@ class ApiAnalyzer(
                         if (containingPackage.docOnly && !containingPackage.isDefault) {
                             cls.docOnly = true
                         }
-                        if (containingPackage.removed && !cls.hasShowAnnotation()) {
+                        if (containingPackage.removed && !showability.show()) {
                             cls.removed = true
                         }
                     }
                 }
 
                 override fun visitMethod(method: MethodItem) {
-                    if (method.hasShowAnnotation()) {
+                    val showability = method.showability
+                    if (showability.show()) {
                         method.hidden = false
                         ensureParentVisible(method)
-                    } else if (method.hasHideAnnotation()) {
+                    } else if (showability.hide()) {
                         method.hidden = true
                     } else {
                         val containingClass = method.containingClass()
@@ -712,10 +709,11 @@ class ApiAnalyzer(
                 }
 
                 override fun visitField(field: FieldItem) {
-                    if (field.hasShowAnnotation()) {
+                    val showability = field.showability
+                    if (showability.show()) {
                         field.hidden = false
                         ensureParentVisible(field)
-                    } else if (field.hasHideAnnotation()) {
+                    } else if (showability.hide()) {
                         field.hidden = true
                     } else {
                         val containingClass = field.containingClass()

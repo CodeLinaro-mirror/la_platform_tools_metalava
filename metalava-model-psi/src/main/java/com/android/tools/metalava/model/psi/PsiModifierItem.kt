@@ -93,6 +93,22 @@ internal constructor(
         }
 
         private fun isDeprecatedFromSourcePsi(element: PsiModifierListOwner): Boolean {
+            if (element is UMethod) {
+                // NB: we can't use sourcePsi.annotationEntries directly due to
+                // annotation use-site targets. The given `javaPsi` as a light element,
+                // which spans regular functions, property accessors, etc., is already
+                // built with targeted annotations. Even KotlinUMethod is using LC annotations.
+                //
+                // BUT!
+                // ```
+                //   return element.javaPsi.isDeprecated
+                // ```
+                // is redundant, since we already check:
+                // ```
+                //   (element as? PsiDocCommentOwner)?.isDeprecated == true
+                // ```
+                return false
+            }
             return ((element as? UElement)?.sourcePsi as? KtAnnotated)?.annotationEntries?.any {
                 it.shortName?.toString() == "Deprecated"
             }

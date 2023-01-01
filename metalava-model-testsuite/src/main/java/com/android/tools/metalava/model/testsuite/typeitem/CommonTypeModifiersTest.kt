@@ -21,10 +21,10 @@ import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.TypeModifiers
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.isNullnessAnnotation
 import com.android.tools.metalava.model.testsuite.BaseModelTest
-import com.android.tools.metalava.model.testsuite.TestParameters
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import com.google.common.truth.Truth.assertThat
@@ -33,7 +33,7 @@ import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 
 @RunWith(Parameterized::class)
-class CommonTypeModifiersTest(parameters: TestParameters) : BaseModelTest(parameters) {
+class CommonTypeModifiersTest : BaseModelTest() {
 
     private fun TypeItem.annotationNames(): List<String?> {
         return modifiers.annotations().map { it.qualifiedName }
@@ -387,6 +387,43 @@ class CommonTypeModifiersTest(parameters: TestParameters) : BaseModelTest(parame
     }
 
     @Test
+    fun `Test leading annotation on array type`() {
+        runCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+                    public class Foo {
+                        public <T> @test.pkg.A T[] foo() {}
+                    }
+                """
+            ),
+            signature(
+                """
+                    // Signature format: 5.0
+                    // - kotlin-name-type-order=yes
+                    // - include-type-use-annotations=yes
+                    package test.pkg {
+                      public class Foo {
+                        method public <T> foo(): @test.pkg.A T[];
+                      }
+                    }
+                """
+                    .trimIndent()
+            )
+        ) { codebase ->
+            val method = codebase.assertClass("test.pkg.Foo").methods().single()
+            val methodTypeParam = method.typeParameterList().typeParameters().single()
+            val arrayType = method.returnType()
+            assertThat(arrayType).isInstanceOf(ArrayTypeItem::class.java)
+            val componentType = (arrayType as ArrayTypeItem).componentType
+            assertThat(componentType).isInstanceOf(VariableTypeItem::class.java)
+            assertThat((componentType as VariableTypeItem).asTypeParameter)
+                .isEqualTo(methodTypeParam)
+            assertThat(componentType.annotationNames()).containsExactly("test.pkg.A")
+        }
+    }
+
+    @Test
     fun `Test annotations on multidimensional array`() {
         runCodebaseTest(
             java(
@@ -587,6 +624,8 @@ class CommonTypeModifiersTest(parameters: TestParameters) : BaseModelTest(parame
                 """
                     package test.pkg;
                     public class Foo extends test.pkg.@test.pkg.A Bar {}
+                    class Bar {}
+                    @interface A {}
                 """
             ),
             signature(
@@ -594,6 +633,10 @@ class CommonTypeModifiersTest(parameters: TestParameters) : BaseModelTest(parame
                     // Signature format: 4.0
                     package test.pkg {
                       public class Foo extends test.pkg.@test.pkg.A Bar {
+                      }
+                      public class Bar {
+                      }
+                      public @interface A {
                       }
                     }
                 """
@@ -630,17 +673,17 @@ class CommonTypeModifiersTest(parameters: TestParameters) : BaseModelTest(parame
             )
         ) { codebase ->
             val foo = codebase.assertClass("test.pkg.Foo")
+            assertThat(foo.superClassType()).isNull()
 
-            val bar = foo.superClassType()
-            assertThat(bar).isNotNull()
+            val interfaces = foo.interfaceTypes()
+            assertThat(interfaces).hasSize(3)
+
+            val bar = interfaces[0]
             assertThat(bar).isInstanceOf(ClassTypeItem::class.java)
             assertThat((bar as ClassTypeItem).qualifiedName).isEqualTo("test.pkg.Bar")
             assertThat(bar.annotationNames()).containsExactly("test.pkg.A")
 
-            val interfaces = foo.interfaceTypes()
-            assertThat(interfaces).hasSize(2)
-
-            val baz = interfaces[0]
+            val baz = interfaces[1]
             assertThat(baz).isInstanceOf(ClassTypeItem::class.java)
             assertThat((baz as ClassTypeItem).qualifiedName).isEqualTo("test.pkg.Baz")
             assertThat(baz.parameters).hasSize(1)
@@ -650,7 +693,7 @@ class CommonTypeModifiersTest(parameters: TestParameters) : BaseModelTest(parame
             assertThat(bazParam.isString()).isTrue()
             assertThat(bazParam.annotationNames()).containsExactly("test.pkg.C")
 
-            val biz = interfaces[1]
+            val biz = interfaces[2]
             assertThat(biz).isInstanceOf(ClassTypeItem::class.java)
             assertThat((biz as ClassTypeItem).qualifiedName).isEqualTo("test.pkg.Biz")
             assertThat(biz.annotationNames()).isEmpty()
@@ -704,6 +747,63 @@ class CommonTypeModifiersTest(parameters: TestParameters) : BaseModelTest(parame
             if (propertyType != null) {
                 assertThat(returnType).isEqualTo(propertyType)
             }
+        }
+    }
+
+    @Test
+    fun `Test annotations with spaces in the annotation string`() {
+        runCodebaseTest(
+            signature(
+                """
+                    // Signature format: 5.0
+                    // - include-type-use-annotations=yes
+                    // - kotlin-name-type-order=yes
+                    package test.pkg {
+                      public class Foo extends test.pkg.@test.pkg.A(a=1, b=2, c=3) Bar implements test.pkg.@test.pkg.A(a=1, b=2, c=3) Baz test.pkg.@test.pkg.A(a=1, b=2, c=3) Biz {
+                        method public <T> foo(_: @test.pkg.A(a=1, b=2, c=3) T @test.pkg.A(a=1, b=2, c=3) []): java.util.@test.pkg.A(a=1, b=2, c=3) List<java.lang.@test.pkg.A(a=1, b=2, c=3) String>;
+                      }
+                    }
+                """
+                    .trimIndent()
+            )
+        ) { codebase ->
+            // Check the modifiers contain one annotation, `@test.pkg.A(a=1, b=2, c=3)`
+            val testModifiers = { modifiers: TypeModifiers ->
+                assertThat(modifiers.annotations()).hasSize(1)
+                val annotation = modifiers.annotations().single()
+                assertThat(annotation.qualifiedName).isEqualTo("test.pkg.A")
+                val attributes = annotation.attributes
+                assertThat(attributes.toString()).isEqualTo("[a=1, b=2, c=3]")
+            }
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+
+            val superClass = fooClass.superClassType()
+            assertThat((superClass as ClassTypeItem).qualifiedName).isEqualTo("test.pkg.Bar")
+            testModifiers(superClass.modifiers)
+
+            val interfaces = fooClass.interfaceTypes()
+            val bazInterface = interfaces[0]
+            assertThat((bazInterface as ClassTypeItem).qualifiedName).isEqualTo("test.pkg.Baz")
+            testModifiers(bazInterface.modifiers)
+            val bizInterface = interfaces[1]
+            assertThat((bizInterface as ClassTypeItem).qualifiedName).isEqualTo("test.pkg.Biz")
+            testModifiers(bizInterface.modifiers)
+
+            val fooMethod = fooClass.methods().single()
+            val typeParam = fooMethod.typeParameterList().typeParameters().single()
+
+            val typeVarArray = fooMethod.parameters().single().type()
+            testModifiers(typeVarArray.modifiers)
+            val typeVar = (typeVarArray as ArrayTypeItem).componentType
+            assertThat((typeVar as VariableTypeItem).asTypeParameter).isEqualTo(typeParam)
+            testModifiers(typeVar.modifiers)
+
+            val stringList = fooMethod.returnType()
+            assertThat((stringList as ClassTypeItem).qualifiedName).isEqualTo("java.util.List")
+            testModifiers(stringList.modifiers)
+            val string = stringList.parameters.single()
+            assertThat(string.isString()).isTrue()
+            testModifiers(string.modifiers)
         }
     }
 }

@@ -18,18 +18,26 @@ package com.android.tools.metalava.cli.common
 
 import com.android.tools.metalava.ExecutionEnvironment
 import com.android.tools.metalava.ProgressTracker
+import com.android.tools.metalava.testing.TemporaryFolderOwner
 import com.github.ajalt.clikt.core.CliktCommand
-import com.github.ajalt.clikt.core.context
 import com.github.ajalt.clikt.core.subcommands
-import org.junit.Assert
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertThrows
 import org.junit.Assert.fail
+import org.junit.Rule
 import org.junit.Test
+import org.junit.rules.TemporaryFolder
 
-class MetalavaCommandTest {
+class MetalavaCommandTest : TemporaryFolderOwner {
+
+    @get:Rule override val temporaryFolder = TemporaryFolder()
 
     /**
      * Ensure that the [CommonOptions.terminal] can be accessed before the options has been
      * initialized.
+     *
+     * This uses the fact that argument files are expanded before options are initialized. So, a
+     * missing argument file will report an error before any options have been processed.
      */
     @Test
     fun `Test error handling when invalid command line`() {
@@ -37,14 +45,18 @@ class MetalavaCommandTest {
 
         val (executionEnvironment, stdout, stderr) = ExecutionEnvironment.forTest()
 
-        val command = TestCommand(executionEnvironment)
+        val command =
+            MetalavaCommand(
+                executionEnvironment = executionEnvironment,
+                progressTracker = ProgressTracker(),
+            )
 
         try {
             command.processThrowCliException(args.toTypedArray())
         } catch (e: MetalavaCliException) {
-            Assert.assertEquals(
+            assertEquals(
                 """
-                Usage: test [options] [flags]...
+                Usage: metalava [options] [flags]...
 
                 Error: invalid.file not found
             """
@@ -53,31 +65,59 @@ class MetalavaCommandTest {
             )
         }
 
-        Assert.assertEquals("", stderr.toString())
-        Assert.assertEquals("", stdout.toString())
+        assertEquals("", stderr.toString())
+        assertEquals("", stdout.toString())
 
         // Make sure that the unsafeTerminal property has not been initialized as otherwise this is
         // not testing what how the error handling works in that case.
         val thrown =
-            Assert.assertThrows(IllegalStateException::class.java) { command.common.unsafeTerminal }
-        Assert.assertEquals(
-            "Cannot read from option delegate before parsing command line",
-            thrown.message
-        )
+            assertThrows(IllegalStateException::class.java) { command.common.unsafeTerminal }
+        assertEquals("Cannot read from option delegate before parsing command line", thrown.message)
     }
 
     /**
-     * A special [MetalavaCommand] which enables @argfiles so that it can supply an invalid argument
-     * which will cause Clikt to fail in such a way as to generate some help before initializing the
+     * Ensure that the [CommonOptions.terminal] can be accessed before the options has been
+     * initialized.
      */
-    private class TestCommand(executionEnvironment: ExecutionEnvironment) :
-        MetalavaCommand(
-            executionEnvironment = executionEnvironment,
-            progressTracker = ProgressTracker(),
-        ) {
-        init {
-            context { expandArgumentFiles = true }
+    @Test
+    fun `Test error handling when invalid option in an argument file`() {
+        val file = temporaryFolder.newFile("invalid-argument")
+        file.writeText("--invalid-argument")
+
+        val args = listOf(ARG_NO_COLOR, "@${file.path}")
+
+        val (executionEnvironment, stdout, stderr) = ExecutionEnvironment.forTest()
+
+        val subCommand =
+            object : CliktCommand(name = "sub") {
+                override fun run() {
+                    TODO("Not yet implemented")
+                }
+            }
+        val command =
+            MetalavaCommand(
+                executionEnvironment = executionEnvironment,
+                progressTracker = ProgressTracker(),
+                defaultCommandName = subCommand.commandName,
+            )
+        command.subcommands(subCommand)
+
+        try {
+            command.processThrowCliException(args.toTypedArray())
+        } catch (e: MetalavaCliException) {
+            assertEquals(
+                """
+                Usage: metalava sub
+
+                Error: Got unexpected extra argument (--invalid-argument)
+            """
+                    .trimIndent(),
+                e.message
+            )
         }
+
+        assertEquals("", stderr.toString())
+        assertEquals("", stdout.toString())
     }
 
     @Test

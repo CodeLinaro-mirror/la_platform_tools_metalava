@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.testsuite
 
+import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.testing.java
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
@@ -26,7 +27,7 @@ import org.junit.runners.Parameterized
 
 /** Common tests for implementations of [ClassItem]. */
 @RunWith(Parameterized::class)
-class CommonClassItemTest(parameters: TestParameters) : BaseModelTest(parameters) {
+class CommonClassItemTest : BaseModelTest() {
 
     @Test
     fun `empty class`() {
@@ -99,6 +100,250 @@ class CommonClassItemTest(parameters: TestParameters) : BaseModelTest(parameters
 
             // This should find the method.
             assertSame(fooMethod, fooClass.findMethod("foo", "java.util.Map"))
+        }
+    }
+
+    @Test
+    fun `Test interface no extends list`() {
+        runCodebaseTest(
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public interface Foo {
+                      }
+                    }
+                """
+            ),
+            java(
+                """
+                    package test.pkg;
+
+                    public interface Foo {}
+                """
+            ),
+        ) { codebase ->
+            val fooInterface = codebase.assertClass("test.pkg.Foo")
+
+            assertNull(fooInterface.superClassType())
+            assertNull(fooInterface.superClass())
+
+            val interfaceList = fooInterface.interfaceTypes().map { it.asClass() }
+            assertEquals(emptyList(), interfaceList)
+
+            val allInterfaces = fooInterface.allInterfaces().toList()
+            assertEquals(listOf(fooInterface), allInterfaces)
+        }
+    }
+
+    @Test
+    fun `Test interface extends list`() {
+        runCodebaseTest(
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public interface A {
+                      }
+                      public interface B {
+                      }
+                      public interface C {
+                      }
+                      public interface Foo extends test.pkg.A, test.pkg.B, test.pkg.C {
+                      }
+                    }
+                """
+            ),
+            java(
+                """
+                    package test.pkg;
+
+                    public interface A {}
+                    public interface B {}
+                    public interface C {}
+                    public interface Foo extends A, B, C {}
+                """
+            ),
+        ) { codebase ->
+            val interfaceA = codebase.assertClass("test.pkg.A")
+            val interfaceB = codebase.assertClass("test.pkg.B")
+            val interfaceC = codebase.assertClass("test.pkg.C")
+            val fooInterface = codebase.assertClass("test.pkg.Foo")
+
+            assertNull(fooInterface.superClassType()?.asClass())
+            assertNull(fooInterface.superClass())
+
+            val interfaceList = fooInterface.interfaceTypes().map { it.asClass() }
+            assertEquals(listOf(interfaceA, interfaceB, interfaceC), interfaceList)
+
+            val allInterfaces = fooInterface.allInterfaces().toList()
+            assertEquals(listOf(fooInterface, interfaceA, interfaceB, interfaceC), allInterfaces)
+        }
+    }
+
+    @Test
+    fun `Test class no super class or implements lists`() {
+        runCodebaseTest(
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public class Foo {
+                      }
+                    }
+                """
+            ),
+            java(
+                """
+                    package test.pkg;
+
+                    public class Foo {}
+                """
+            ),
+        ) { codebase ->
+            val objectClass = codebase.assertClass("java.lang.Object")
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+
+            assertSame(objectClass, fooClass.superClassType()?.asClass())
+            assertSame(objectClass, fooClass.superClass())
+
+            val interfaceList = fooClass.interfaceTypes().map { it.asClass() }
+            assertEquals(emptyList(), interfaceList)
+
+            val allInterfaces = fooClass.allInterfaces().toList()
+            assertEquals(emptyList(), allInterfaces)
+        }
+    }
+
+    @Test
+    fun `Test class super class no implements lists`() {
+        runCodebaseTest(
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public class Bar {
+                      }
+                      public class Foo extends test.pkg.Bar {
+                      }
+                    }
+                """
+            ),
+            java(
+                """
+                    package test.pkg;
+
+                    public class Bar {}
+                    public class Foo extends Bar {}
+                """
+            ),
+        ) { codebase ->
+            val barClass = codebase.assertClass("test.pkg.Bar")
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+
+            assertSame(barClass, fooClass.superClassType()?.asClass())
+            assertSame(barClass, fooClass.superClass())
+
+            val interfaceList = fooClass.interfaceTypes().map { it.asClass() }
+            assertEquals(emptyList(), interfaceList)
+
+            val allInterfaces = fooClass.allInterfaces().toList()
+            assertEquals(emptyList(), allInterfaces)
+        }
+    }
+
+    @Test
+    fun `Test class no super class but implements lists`() {
+        runCodebaseTest(
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public interface A {
+                      }
+                      public interface B {
+                      }
+                      public interface C {
+                      }
+                      public class Foo implements test.pkg.A, test.pkg.B, test.pkg.C {
+                      }
+                    }
+                """
+            ),
+            java(
+                """
+                    package test.pkg;
+
+                    public interface A {}
+                    public interface B {}
+                    public interface C {}
+                    public class Foo implements A, B, C {}
+                """
+            ),
+        ) { codebase ->
+            val interfaceA = codebase.assertClass("test.pkg.A")
+            val interfaceB = codebase.assertClass("test.pkg.B")
+            val interfaceC = codebase.assertClass("test.pkg.C")
+            val objectClass = codebase.assertClass("java.lang.Object")
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+
+            assertSame(objectClass, fooClass.superClassType()?.asClass())
+            assertSame(objectClass, fooClass.superClass())
+
+            val interfaceList = fooClass.interfaceTypes().map { it.asClass() }
+            assertEquals(listOf(interfaceA, interfaceB, interfaceC), interfaceList)
+
+            val allInterfaces = fooClass.allInterfaces().toList()
+            assertEquals(listOf(interfaceA, interfaceB, interfaceC), allInterfaces)
+        }
+    }
+
+    @Test
+    fun `Test class super class and implements lists`() {
+        runCodebaseTest(
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public class Bar {
+                      }
+                      public interface A {
+                      }
+                      public interface B {
+                      }
+                      public interface C {
+                      }
+                      public class Foo extends test.pkg.Bar implements test.pkg.A, test.pkg.B, test.pkg.C {
+                      }
+                    }
+                """
+            ),
+            java(
+                """
+                    package test.pkg;
+
+                    public class Bar {}
+                    public interface A {}
+                    public interface B {}
+                    public interface C {}
+                    public class Foo extends Bar implements A, B, C {}
+                """
+            ),
+        ) { codebase ->
+            val barClass = codebase.assertClass("test.pkg.Bar")
+            val interfaceA = codebase.assertClass("test.pkg.A")
+            val interfaceB = codebase.assertClass("test.pkg.B")
+            val interfaceC = codebase.assertClass("test.pkg.C")
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+
+            assertSame(barClass, fooClass.superClassType()?.asClass())
+            assertSame(barClass, fooClass.superClass())
+
+            val interfaceList = fooClass.interfaceTypes().map { it.asClass() }
+            assertEquals(listOf(interfaceA, interfaceB, interfaceC), interfaceList)
+
+            val allInterfaces = fooClass.allInterfaces().toList()
+            assertEquals(listOf(interfaceA, interfaceB, interfaceC), allInterfaces)
         }
     }
 }
