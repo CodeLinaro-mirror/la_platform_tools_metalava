@@ -346,33 +346,33 @@ class ApiToExtensionsMapTest {
         val filter = ApiToExtensionsMap.fromXml("mod", xml)
 
         Assert.assertEquals(
-            "",
-            filter.calculateSdksAttr(null, listOf(), 4)
+            "0:34",
+            filter.calculateSdksAttr(34, 34, listOf(), ApiElement.NEVER)
         )
 
         Assert.assertEquals(
             "30:4",
-            filter.calculateSdksAttr(null, listOf("R"), 4)
+            filter.calculateSdksAttr(34, 34, listOf("R"), 4)
         )
 
         Assert.assertEquals(
             "30:4,31:4",
-            filter.calculateSdksAttr(null, listOf("R", "S"), 4)
+            filter.calculateSdksAttr(34, 34, listOf("R", "S"), 4)
         )
 
         Assert.assertEquals(
             "30:4,31:4,0:33",
-            filter.calculateSdksAttr(33, listOf("R", "S"), 4)
+            filter.calculateSdksAttr(33, 34, listOf("R", "S"), 4)
         )
 
         Assert.assertEquals(
             "30:4,31:4,1000:4,0:33",
-            filter.calculateSdksAttr(33, listOf("R", "S", "FOO"), 4)
+            filter.calculateSdksAttr(33, 34, listOf("R", "S", "FOO"), 4)
         )
 
         Assert.assertEquals(
             "30:4,31:4,1000:4,1001:4,0:33",
-            filter.calculateSdksAttr(33, listOf("R", "S", "FOO", "BAR"), 4)
+            filter.calculateSdksAttr(33, 34, listOf("R", "S", "FOO", "BAR"), 4)
         )
     }
 }

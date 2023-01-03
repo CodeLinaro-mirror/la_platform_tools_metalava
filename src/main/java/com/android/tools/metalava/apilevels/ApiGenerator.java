@@ -106,20 +106,18 @@ public class ApiGenerator {
                 JarReaderUtilsKt.readExtensionJar(api, f.version, mainlineModule, f.path, apiLevelNotInAndroidSdk);
             }
         }
-        Function<ApiElement, Integer> getSince =
-            e -> e.getSince() != apiLevelNotInAndroidSdk ? e.getSince() : null;
         for (ApiClass clazz : api.getClasses()) {
             String module = clazz.getMainlineModule();
             if (module == null) continue;
             ApiToExtensionsMap extensionsMap = moduleMaps.get(module);
-            String sdks = extensionsMap.calculateSdksAttr(getSince.apply(clazz),
+            String sdks = extensionsMap.calculateSdksAttr(clazz.getSince(), apiLevelNotInAndroidSdk,
                 extensionsMap.getExtensions(clazz), clazz.getSinceExtension());
             clazz.updateSdks(sdks);
 
             Iterator<ApiElement> iter = clazz.getFieldIterator();
             while (iter.hasNext()) {
                 ApiElement field = iter.next();
-                sdks = extensionsMap.calculateSdksAttr(getSince.apply(field),
+                sdks = extensionsMap.calculateSdksAttr(field.getSince(), apiLevelNotInAndroidSdk,
                     extensionsMap.getExtensions(clazz, field), field.getSinceExtension());
                 field.updateSdks(sdks);
             }
@@ -127,7 +125,7 @@ public class ApiGenerator {
             iter = clazz.getMethodIterator();
             while (iter.hasNext()) {
                 ApiElement method = iter.next();
-                sdks = extensionsMap.calculateSdksAttr(getSince.apply(method),
+                sdks = extensionsMap.calculateSdksAttr(method.getSince(), apiLevelNotInAndroidSdk,
                     extensionsMap.getExtensions(clazz, method), method.getSinceExtension());
                 method.updateSdks(sdks);
             }

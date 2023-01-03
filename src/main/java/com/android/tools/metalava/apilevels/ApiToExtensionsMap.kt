@@ -86,28 +86,53 @@ class ApiToExtensionsMap private constructor(
      *
      * where <ext> is the numerical ID of the SDK, and <version> is the version in which the API was introduced.
      *
+     * The returned string is guaranteed to be one of
+     *
+     * - list of (extensions,finalized_version) pairs + ANDROID_SDK:finalized_dessert
+     * - list of (extensions,finalized_version) pairs
+     * - ANDROID_SDK:finalized_dessert
+     * - ANDROID_SDK:next_dessert_int (for symbols not finalized anywhere)
+     *
      * See go/mainline-sdk-api-versions-xml for more information.
      *
-     * @param androidSince the version of the Android platform in which this API was introduced, or null if it is not part of the Android platform
-     * @param extensions names of the extension SDKs in which this API exists
-     * @param extensionsSince the version of the extension SDKs in which this API was initially introduced (same value for all extensions)
-     * @return a `sdks` value suitable for including verbatim in XML
+     * @param androidSince Android dessert version in which this symbol was finalized, or notFinalizedValue
+     *                     if this symbol has not been finalized in an Android dessert
+     * @param notFinalizedValue value used together with the Android SDK ID to indicate that this symbol
+     *                          has not been finalized at all
+     * @param extensions names of the SDK extensions in which this symbol has been finalized (may be non-empty
+     *                   even if extensionsSince is ApiElement.NEVER)
+     * @param extensionsSince the version of the SDK extensions in which this API was initially introduced
+     *                        (same value for all SDK extensions), or ApiElement.NEVER if this symbol
+     *                        has not been finalized in any SDK extension (regardless of the extensions argument)
+     * @return an `sdks` value suitable for including verbatim in XML
      */
     fun calculateSdksAttr(
-        androidSince: Int?,
+        androidSince: Int,
+        notFinalizedValue: Int,
         extensions: List<String>,
         extensionsSince: Int
     ): String {
-        val versions = mutableSetOf<String>()
-        for (ext in extensions) {
-            val ident = sdkIdentifiers.find {
-                it.shortname == ext
-            } ?: throw IllegalStateException("unknown extension SDK \"$ext\"")
-            assert(ident.id != ANDROID_PLATFORM_SDK_ID) // invariant
-            versions.add("${ident.id}:$extensionsSince")
+        // Special case: symbol not finalized anywhere -> "ANDROID_SDK:next_dessert_int"
+        if (androidSince == notFinalizedValue && extensionsSince == ApiElement.NEVER) {
+            return "$ANDROID_PLATFORM_SDK_ID:$notFinalizedValue"
         }
-        // Only populate "sdks" if it's different from "since" (i.e. has extension info).
-        if (!extensions.isEmpty() && androidSince != null) {
+
+        val versions = mutableSetOf<String>()
+        // Only include SDK extensions if the symbol has been finalized in at least one
+        if (extensionsSince != ApiElement.NEVER) {
+            for (ext in extensions) {
+                val ident = sdkIdentifiers.find {
+                    it.shortname == ext
+                } ?: throw IllegalStateException("unknown extension SDK \"$ext\"")
+                assert(ident.id != ANDROID_PLATFORM_SDK_ID) // invariant
+                versions.add("${ident.id}:$extensionsSince")
+            }
+        }
+
+        // Only include the Android SDK in `sdks` if
+        // - the symbol has been finalized in an Android dessert, and
+        // - the symbol has been finalized in at least one SDK extension
+        if (androidSince != notFinalizedValue && versions.isNotEmpty()) {
             versions.add("$ANDROID_PLATFORM_SDK_ID:$androidSince")
         }
         return versions.joinToString(",")
@@ -119,7 +144,6 @@ class ApiToExtensionsMap private constructor(
         const val ANDROID_PLATFORM_SDK_ID = 0
 
         private val REGEX_DELIMITERS = Regex("[.#$]")
-        private val REGEX_WHITESPACE = Regex("\\s+")
 
         /*
          * Create an ApiToExtensionsMap from a list of text based rules.
