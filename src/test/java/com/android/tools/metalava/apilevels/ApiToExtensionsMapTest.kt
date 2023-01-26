@@ -29,9 +29,9 @@ class ApiToExtensionsMapTest {
             <?xml version="1.0" encoding="utf-8"?>
             <!-- No rules is a valid (albeit weird). -->
             <sdk-extensions-info>
-                <sdk name="R-ext" id="30" reference="android/os/Build${'$'}VERSION_CODES${'$'}R" />
-                <sdk name="S-ext" id="31" reference="android/os/Build${'$'}VERSION_CODES${'$'}S" />
-                <sdk name="T-ext" id="33" reference="android/os/Build${'$'}VERSION_CODES${'$'}T" />
+                <sdk shortname="R-ext" name="R Extensions" id="30" reference="android/os/Build${'$'}VERSION_CODES${'$'}R" />
+                <sdk shortname="S-ext" name="S Extensions" id="31" reference="android/os/Build${'$'}VERSION_CODES${'$'}S" />
+                <sdk shortname="T-ext" name="T Extensions" id="33" reference="android/os/Build${'$'}VERSION_CODES${'$'}T" />
             </sdk-extensions-info>
         """.trimIndent()
         val map = ApiToExtensionsMap.fromXml("no-module", xml)
@@ -45,7 +45,7 @@ class ApiToExtensionsMapTest {
             <?xml version="1.0" encoding="utf-8"?>
             <!-- All APIs will default to extension SDK A. -->
             <sdk-extensions-info>
-                <sdk name="A" id="1" reference="android/os/Build${'$'}VERSION_CODES${'$'}A" />
+                <sdk shortname="A" name="A Extensions" id="1" reference="android/os/Build${'$'}VERSION_CODES${'$'}A" />
                 <symbol jar="mod" pattern="*" sdks="A" />
             </sdk-extensions-info>
         """.trimIndent()
@@ -62,7 +62,7 @@ class ApiToExtensionsMapTest {
             <!-- A single class. The class, any internal classes, and any methods are allowed;
                  everything else is denied -->
             <sdk-extensions-info>
-                <sdk name="A" id="1" reference="android/os/Build${'$'}VERSION_CODES${'$'}A" />
+                <sdk shortname="A" name="A Extensions" id="1" reference="android/os/Build${'$'}VERSION_CODES${'$'}A" />
                 <symbol jar="mod" pattern="com.foo.Bar" sdks="A" />
             </sdk-extensions-info>
         """.trimIndent()
@@ -88,10 +88,10 @@ class ApiToExtensionsMapTest {
             <?xml version="1.0" encoding="utf-8"?>
             <!-- Any number of white space separated extension SDKs may be listed. -->
             <sdk-extensions-info>
-                <sdk name="A" id="1" reference="android/os/Build${'$'}VERSION_CODES${'$'}A" />
-                <sdk name="B" id="2" reference="android/os/Build${'$'}VERSION_CODES${'$'}B" />
-                <sdk name="FOO" id="10" reference="android/os/Build${'$'}VERSION_CODES${'$'}FOO" />
-                <sdk name="BAR" id="11" reference="android/os/Build${'$'}VERSION_CODES${'$'}BAR" />
+                <sdk shortname="A" name="A Extensions" id="1" reference="android/os/Build${'$'}VERSION_CODES${'$'}A" />
+                <sdk shortname="B" name="B Extensions" id="2" reference="android/os/Build${'$'}VERSION_CODES${'$'}B" />
+                <sdk shortname="FOO" name="FOO Extensions" id="10" reference="android/os/Build${'$'}VERSION_CODES${'$'}FOO" />
+                <sdk shortname="BAR" name="BAR Extensions" id="11" reference="android/os/Build${'$'}VERSION_CODES${'$'}BAR" />
                 <symbol jar="mod" pattern="*" sdks="A,B,FOO,BAR" />
             </sdk-extensions-info>
         """.trimIndent()
@@ -106,10 +106,10 @@ class ApiToExtensionsMapTest {
             <?xml version="1.0" encoding="utf-8"?>
             <!-- Multiple classes, and multiple rules with different precedence. -->
             <sdk-extensions-info>
-                <sdk name="A" id="1" reference="android/os/Build${'$'}VERSION_CODES${'$'}A" />
-                <sdk name="B" id="2" reference="android/os/Build${'$'}VERSION_CODES${'$'}B" />
-                <sdk name="C" id="3" reference="android/os/Build${'$'}VERSION_CODES${'$'}C" />
-                <sdk name="D" id="4" reference="android/os/Build${'$'}VERSION_CODES${'$'}D" />
+                <sdk shortname="A" name="A Extensions" id="1" reference="android/os/Build${'$'}VERSION_CODES${'$'}A" />
+                <sdk shortname="B" name="B Extensions" id="2" reference="android/os/Build${'$'}VERSION_CODES${'$'}B" />
+                <sdk shortname="C" name="C Extensions" id="3" reference="android/os/Build${'$'}VERSION_CODES${'$'}C" />
+                <sdk shortname="D" name="D Extensions" id="4" reference="android/os/Build${'$'}VERSION_CODES${'$'}D" />
                 <symbol jar="mod" pattern="*" sdks="A" />
                 <symbol jar="mod" pattern="com.foo.Bar" sdks="B" />
                 <symbol jar="mod" pattern="com.foo.Bar${'$'}Inner#method" sdks="C" />
@@ -136,8 +136,8 @@ class ApiToExtensionsMapTest {
             <?xml version="1.0" encoding="utf-8"?>
             <!-- The allow list will only consider patterns that are marked with the given mainline module -->
             <sdk-extensions-info>
-                <sdk name="A" id="1" reference="android/os/Build${'$'}VERSION_CODES${'$'}A" />
-                <sdk name="B" id="2" reference="android/os/Build${'$'}VERSION_CODES${'$'}B" />
+                <sdk shortname="A" name="A Extensions" id="1" reference="android/os/Build${'$'}VERSION_CODES${'$'}A" />
+                <sdk shortname="B" name="B Extensions" id="2" reference="android/os/Build${'$'}VERSION_CODES${'$'}B" />
                 <symbol jar="foo" pattern="*" sdks="A" />
                 <symbol jar="bar" pattern="*" sdks="B" />
             </sdk-extensions-info>
@@ -157,9 +157,9 @@ class ApiToExtensionsMapTest {
             <?xml version="1.0" encoding="utf-8"?>
             <!-- SDK declarations and rule lines can be mixed in any order -->
             <sdk-extensions-info>
-                <sdk name="A" id="1" reference="android/os/Build${'$'}VERSION_CODES${'$'}A" />
+                <sdk shortname="A" name="A Extensions" id="1" reference="android/os/Build${'$'}VERSION_CODES${'$'}A" />
                 <symbol jar="foo" pattern="*" sdks="A,B" />
-                <sdk name="B" id="2" reference="android/os/Build${'$'}VERSION_CODES${'$'}B" />
+                <sdk shortname="B" name="B Extensions" id="2" reference="android/os/Build${'$'}VERSION_CODES${'$'}B" />
             </sdk-extensions-info>
         """.trimIndent()
         val map = ApiToExtensionsMap.fromXml("foo", xml)
@@ -175,7 +175,7 @@ class ApiToExtensionsMapTest {
                 """
                     <?xml version="1.0" encoding="utf-8"?>
                     <!-- Missing root element -->
-                    <sdk name="A" id="1" reference="android/os/Build${'$'}VERSION_CODES${'$'}A" />
+                    <sdk shortname="A" name="A Extensions" id="1" reference="android/os/Build${'$'}VERSION_CODES${'$'}A" />
                     <symbol jar="mod" pattern="com.foo.Bar" sdks="A" />
                 """.trimIndent()
             )
@@ -189,7 +189,7 @@ class ApiToExtensionsMapTest {
                     <!-- <sdk> tag at unexpected depth  -->
                     <sdk-extensions-info version="2">
                         <foo>
-                            <sdk name="A" id="1" reference="android/os/Build${'$'}VERSION_CODES${'$'}A" >
+                            <sdk shortname="A" name="A Extensions" id="1" reference="android/os/Build${'$'}VERSION_CODES${'$'}A" >
                         </foo>
                         <symbol jar="mod" pattern="com.foo.Bar" sdks="A" />
                     </sdk-extensions-info>
@@ -204,7 +204,7 @@ class ApiToExtensionsMapTest {
                     <?xml version="1.0" encoding="utf-8"?>
                     <!-- using 0 (reserved for the Android platform SDK) as ID -->
                     <sdk-extensions-info>
-                        <sdk name="A" id="0" reference="android/os/Build${'$'}VERSION_CODES${'$'}A" />
+                        <sdk shortname="A" name="A Extensions" id="0" reference="android/os/Build${'$'}VERSION_CODES${'$'}A" />
                         <symbol jar="mod" pattern="com.foo.Bar" sdks="A" />
                     </sdk-extensions-info>
                 """.trimIndent()
@@ -218,7 +218,7 @@ class ApiToExtensionsMapTest {
                     <?xml version="1.0" encoding="utf-8"?>
                     <!-- missing module attribute -->
                     <sdk-extensions-info>
-                        <sdk name="A" id="1" reference="android/os/Build${'$'}VERSION_CODES${'$'}A" />
+                        <sdk shortname="A" name="A Extensions" id="1" reference="android/os/Build${'$'}VERSION_CODES${'$'}A" />
                         <symbol pattern="com.foo.Bar" sdks="A" />
                     </sdk-extensions-info>
                 """.trimIndent()
@@ -232,7 +232,7 @@ class ApiToExtensionsMapTest {
                     <?xml version="1.0" encoding="utf-8"?>
                     <!-- duplicate module+pattern pairs -->
                     <sdk-extensions-info>
-                        <sdk name="A" id="1" reference="android/os/Build${'$'}VERSION_CODES${'$'}A" />
+                        <sdk shortname="A" name="A Extensions" id="1" reference="android/os/Build${'$'}VERSION_CODES${'$'}A" />
                         <symbol jar="mod" pattern="com.foo.Bar" sdks="A" />
                         <symbol jar="mod" pattern="com.foo.Bar" sdks="B" />
                     </sdk-extensions-info>
@@ -247,7 +247,7 @@ class ApiToExtensionsMapTest {
                     <?xml version="1.0" encoding="utf-8"?>
                     <!-- sdks attribute refer to non-declared SDK -->
                     <sdk-extensions-info>
-                        <sdk name="B" id="2" reference="android/os/Build${'$'}VERSION_CODES${'$'}A" />
+                        <sdk shortname="B" name="A Extensions" id="2" reference="android/os/Build${'$'}VERSION_CODES${'$'}A" />
                         <symbol jar="mod" pattern="com.foo.Bar" sdks="A" />
                     </sdk-extensions-info>
                 """.trimIndent()
@@ -261,8 +261,8 @@ class ApiToExtensionsMapTest {
                     <?xml version="1.0" encoding="utf-8"?>
                     <!-- duplicate numerical ID -->
                     <sdk-extensions-info>
-                        <sdk name="A" id="1" reference="android/os/Build${'$'}VERSION_CODES${'$'}A" />
-                        <sdk name="B" id="1" reference="android/os/Build${'$'}VERSION_CODES${'$'}B" />
+                        <sdk shortname="A" name="A Extensions" id="1" reference="android/os/Build${'$'}VERSION_CODES${'$'}A" />
+                        <sdk shortname="B" name="B Extensions" id="1" reference="android/os/Build${'$'}VERSION_CODES${'$'}B" />
                         <symbol jar="mod" pattern="com.foo.Bar" sdks="A" />
                     </sdk-extensions-info>
                 """.trimIndent()
@@ -274,10 +274,25 @@ class ApiToExtensionsMapTest {
                 "mod",
                 """
                     <?xml version="1.0" encoding="utf-8"?>
-                    <!-- duplicate SDK name -->
+                    <!-- duplicate short SDK name -->
                     <sdk-extensions-info>
-                        <sdk name="A" id="1" reference="android/os/Build${'$'}VERSION_CODES${'$'}A" />
-                        <sdk name="A" id="2" reference="android/os/Build${'$'}VERSION_CODES${'$'}B" />
+                        <sdk shortname="A" name="A Extensions" id="1" reference="android/os/Build${'$'}VERSION_CODES${'$'}A" />
+                        <sdk shortname="A" name="B Extensions" id="2" reference="android/os/Build${'$'}VERSION_CODES${'$'}B" />
+                        <symbol jar="mod" pattern="com.foo.Bar" sdks="A" />
+                    </sdk-extensions-info>
+                """.trimIndent()
+            )
+        }
+
+        assertFailsWith<IllegalArgumentException> {
+            ApiToExtensionsMap.fromXml(
+                "mod",
+                """
+                    <?xml version="1.0" encoding="utf-8"?>
+                    <!-- duplicate long SDK name -->
+                    <sdk-extensions-info>
+                        <sdk shortname="A" name="A Extensions" id="1" reference="android/os/Build${'$'}VERSION_CODES${'$'}A" />
+                        <sdk shortname="B" name="A Extensions" id="2" reference="android/os/Build${'$'}VERSION_CODES${'$'}B" />
                         <symbol jar="mod" pattern="com.foo.Bar" sdks="A" />
                     </sdk-extensions-info>
                 """.trimIndent()
@@ -291,8 +306,8 @@ class ApiToExtensionsMapTest {
                     <?xml version="1.0" encoding="utf-8"?>
                     <!-- duplicate SDK reference -->
                     <sdk-extensions-info version="1">
-                        <sdk name="A" id="1" reference="android/os/Build${'$'}VERSION_CODES${'$'}A" />
-                        <sdk name="B" id="2" reference="android/os/Build${'$'}VERSION_CODES${'$'}A" />
+                        <sdk shortname="A" name="A Extensions" id="1" reference="android/os/Build${'$'}VERSION_CODES${'$'}A" />
+                        <sdk shortname="B" name="B Extensions" id="2" reference="android/os/Build${'$'}VERSION_CODES${'$'}A" />
                         <symbol jar="mod" pattern="com.foo.Bar" sdks="A" />
                     </sdk-extensions-info>
                 """.trimIndent()
@@ -306,8 +321,8 @@ class ApiToExtensionsMapTest {
                     <?xml version="1.0" encoding="utf-8"?>
                     <!-- duplicate SDK for same symbol -->
                     <sdk-extensions-info>
-                        <sdk name="A" id="1" reference="android/os/Build${'$'}VERSION_CODES${'$'}A" />
-                        <sdk name="B" id="1" reference="android/os/Build${'$'}VERSION_CODES${'$'}B" />
+                        <sdk shortname="A" name="A Extensions" id="1" reference="android/os/Build${'$'}VERSION_CODES${'$'}A" />
+                        <sdk shortname="B" name="B Extensions" id="1" reference="android/os/Build${'$'}VERSION_CODES${'$'}B" />
                         <symbol jar="mod" pattern="com.foo.Bar" sdks="A,B,A" />
                     </sdk-extensions-info>
                 """.trimIndent()
@@ -321,11 +336,11 @@ class ApiToExtensionsMapTest {
             <?xml version="1.0" encoding="utf-8"?>
             <!-- Verify the calculateSdksAttr method -->
             <sdk-extensions-info>
-                <sdk name="R" id="30" reference="android/os/Build${'$'}VERSION_CODES${'$'}R" />
-                <sdk name="S" id="31" reference="android/os/Build${'$'}VERSION_CODES${'$'}S" />
-                <sdk name="T" id="33" reference="android/os/Build${'$'}VERSION_CODES${'$'}T" />
-                <sdk name="FOO" id="1000" reference="android/os/Build${'$'}VERSION_CODES${'$'}FOO" />
-                <sdk name="BAR" id="1001" reference="android/os/Build${'$'}VERSION_CODES${'$'}BAR" />
+                <sdk shortname="R" name="R Extensions" id="30" reference="android/os/Build${'$'}VERSION_CODES${'$'}R" />
+                <sdk shortname="S" name="S Extensions" id="31" reference="android/os/Build${'$'}VERSION_CODES${'$'}S" />
+                <sdk shortname="T" name="T Extensions" id="33" reference="android/os/Build${'$'}VERSION_CODES${'$'}T" />
+                <sdk shortname="FOO" name="FOO Extensions" id="1000" reference="android/os/Build${'$'}VERSION_CODES${'$'}FOO" />
+                <sdk shortname="BAR" name="BAR Extensions" id="1001" reference="android/os/Build${'$'}VERSION_CODES${'$'}BAR" />
             </sdk-extensions-info>
         """.trimIndent()
         val filter = ApiToExtensionsMap.fromXml("mod", xml)
