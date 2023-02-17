@@ -54,6 +54,12 @@ class ApiToExtensionsMap private constructor(
         getExtensions(clazz.name.toDotNotation() + "#" + member.name.toDotNotation())
 
     fun getExtensions(what: String): List<String> {
+        // Special case: getExtensionVersion is not part of an extension
+        val sdkExtensions = "android.os.ext.SdkExtensions"
+        if (what == sdkExtensions || what == "$sdkExtensions#getExtensionVersion") {
+            return listOf()
+        }
+
         val parts = what.split(REGEX_DELIMITERS)
 
         var lastSeenExtensions = root.extensions

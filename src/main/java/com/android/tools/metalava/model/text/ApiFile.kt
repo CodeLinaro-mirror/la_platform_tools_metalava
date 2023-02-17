@@ -47,11 +47,7 @@ object ApiFile {
      * Even if false, we'll allow them if the file format supports them/
      */
     @Throws(ApiParseException::class)
-    fun parseApi(@Nonnull file: File, kotlinStyleNulls: Boolean): TextCodebase {
-        val files: MutableList<File> = ArrayList(1)
-        files.add(file)
-        return parseApi(files, kotlinStyleNulls)
-    }
+    fun parseApi(@Nonnull file: File, kotlinStyleNulls: Boolean) = parseApi(listOf(file), kotlinStyleNulls)
 
     /**
      * Read API signature files into a [TextCodebase].

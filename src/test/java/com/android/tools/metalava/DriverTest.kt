@@ -347,11 +347,6 @@ abstract class DriverTest {
         /** Enable nullability validation for the listed classes */
         validateNullabilityFromList: String? = null,
         /**
-         * Whether to include source retention annotations in the stubs (in that case they do not
-         * go into the extracted annotations zip file)
-         */
-        includeSourceRetentionAnnotations: Boolean = true,
-        /**
          * Whether to include the signature version in signatures
          */
         includeSignatureVersion: Boolean = false,
@@ -703,13 +698,6 @@ abstract class DriverTest {
                 emptyArray()
             }
 
-        val includeSourceRetentionAnnotationArgs =
-            if (includeSourceRetentionAnnotations) {
-                arrayOf(ARG_INCLUDE_SOURCE_RETENTION)
-            } else {
-                emptyArray()
-            }
-
         var removedApiFile: File? = null
         val removedArgs = if (removedApi != null) {
             removedApiFile = temporaryFolder.newFile("removed.txt")
@@ -1007,7 +995,6 @@ abstract class DriverTest {
             *hideMetaAnnotationArguments,
             *showForStubPurposesAnnotationArguments,
             *showUnannotatedArgs,
-            *includeSourceRetentionAnnotationArgs,
             *apiLintArgs,
             *sdkFilesArgs,
             *importedPackageArgs.toTypedArray(),

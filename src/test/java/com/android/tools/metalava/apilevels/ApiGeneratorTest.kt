@@ -21,13 +21,16 @@ import com.android.tools.metalava.ARG_CURRENT_CODENAME
 import com.android.tools.metalava.ARG_CURRENT_VERSION
 import com.android.tools.metalava.ARG_FIRST_VERSION
 import com.android.tools.metalava.ARG_GENERATE_API_LEVELS
+import com.android.tools.metalava.ARG_REMOVE_MISSING_CLASS_REFERENCES_IN_API_LEVELS
 import com.android.tools.metalava.ARG_SDK_INFO_FILE
 import com.android.tools.metalava.ARG_SDK_JAR_ROOT
 import com.android.tools.metalava.DriverTest
 import com.android.tools.metalava.getApiLookup
 import com.android.tools.metalava.java
+import com.google.common.truth.Truth.assertThat
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
 import org.junit.Test
@@ -106,11 +109,6 @@ class ApiGeneratorTest : DriverTest() {
 
         val methodVersion = apiLookup.getMethodVersion("android/icu/util/CopticCalendar", "computeTime", "()")
         assertEquals(24, methodVersion)
-
-        // Verify historical backfill
-        assertEquals(30, apiLookup.getClassVersion("android/os/ext/SdkExtensions"))
-        assertEquals(30, apiLookup.getMethodVersion("android/os/ext/SdkExtensions", "getExtensionVersion", "(I)I"))
-        assertEquals(31, apiLookup.getMethodVersion("android/os/ext/SdkExtensions", "getAllExtensionVersions", "()Ljava/util/Map;"))
     }
 
     @Test
@@ -240,6 +238,15 @@ class ApiGeneratorTest : DriverTest() {
         assertTrue(xml.contains("<class name=\"android/net/eap/EapAkaInfo\" module=\"android.net.ipsec.ike\" since=\"33\" sdks=\"30:3,31:3,33:3,0:33\">"))
         // android.net.eap.EapInfo       T S R -> 0,33,31,30
         assertTrue(xml.contains("<class name=\"android/net/eap/EapInfo\" module=\"android.net.ipsec.ike\" since=\"33\" sdks=\"33:3,31:3,30:3,0:33\">"))
+
+        // Verify historical backfill
+        assertEquals(30, apiLookup.getClassVersion("android/os/ext/SdkExtensions"))
+        assertEquals(30, apiLookup.getMethodVersion("android/os/ext/SdkExtensions", "getExtensionVersion", "(I)I"))
+        assertEquals(31, apiLookup.getMethodVersion("android/os/ext/SdkExtensions", "getAllExtensionVersions", "()Ljava/util/Map;"))
+
+        // Verify there's no extension versions listed for SdkExtensions
+        val sdkExtClassLine = xml.lines().first { it.contains("<class name=\"android/os/ext/SdkExtensions\"") }
+        assertFalse(sdkExtClassLine.contains("sdks="))
     }
 
     @Test
@@ -431,6 +438,9 @@ class ApiGeneratorTest : DriverTest() {
                     <method name="methodAddedInExt3()V"/>
                     <field name="FIELD_ADDED_IN_EXT_3"/>
                 </class>
+                <class name="java/lang/Object" since="30">
+                    <method name="&lt;init>()V"/>
+                </class>
             </api>
         """
 
@@ -442,5 +452,101 @@ class ApiGeneratorTest : DriverTest() {
             }.joinToString("\n")
 
         assertEquals(expected.trimEachLine(), xml.trimEachLine())
+    }
+
+    @Test
+    fun `Generate API while removing missing class references`() {
+        val api_versions_xml = File.createTempFile("api-versions", "xml")
+        api_versions_xml.deleteOnExit()
+
+        check(
+            extraArguments = arrayOf(
+                ARG_GENERATE_API_LEVELS,
+                api_versions_xml.path,
+                ARG_REMOVE_MISSING_CLASS_REFERENCES_IN_API_LEVELS,
+                ARG_FIRST_VERSION,
+                "30",
+                ARG_CURRENT_VERSION,
+                "32",
+                ARG_CURRENT_CODENAME,
+                "Foo"
+            ),
+            sourceFiles = arrayOf(
+                java(
+                    """
+                    package android.test;
+                    public class ClassThatImplementsMethodFromApex implements ClassFromApex {
+                    }
+                    """
+                )
+            )
+        )
+
+        assertTrue(api_versions_xml.isFile)
+        val xml = api_versions_xml.readText(UTF_8)
+
+        val expected = """
+            <?xml version="1.0" encoding="utf-8"?>
+            <api version="3" min="30">
+                <class name="android/test/ClassThatImplementsMethodFromApex" since="33">
+                    <method name="&lt;init>()V"/>
+                </class>
+            </api>
+        """
+
+        fun String.trimEachLine(): String =
+            lines().map {
+                it.trim()
+            }.filter {
+                it.isNotEmpty()
+            }.joinToString("\n")
+
+        assertEquals(expected.trimEachLine(), xml.trimEachLine())
+    }
+
+    @Test
+    fun `Generate API finds missing class references`() {
+        var testPrebuiltsRoot = File(System.getenv("METALAVA_TEST_PREBUILTS_SDK_ROOT"))
+        if (!testPrebuiltsRoot.isDirectory) {
+            fail("test prebuilts not found: $testPrebuiltsRoot")
+        }
+
+        val api_versions_xml = File.createTempFile("api-versions", "xml")
+        api_versions_xml.deleteOnExit()
+
+        var exception: IllegalStateException? = null
+        try {
+            check(
+                extraArguments = arrayOf(
+                    ARG_GENERATE_API_LEVELS,
+                    api_versions_xml.path,
+                    ARG_FIRST_VERSION,
+                    "30",
+                    ARG_CURRENT_VERSION,
+                    "32",
+                    ARG_CURRENT_CODENAME,
+                    "Foo"
+                ),
+                sourceFiles = arrayOf(
+                    java(
+                        """
+                        package android.test;
+                        // Really this class should implement some interface that doesn't exist,
+                        // but that's hard to set up in the test harness, so just verify that
+                        // metalava complains about java/lang/Object not existing because we didn't
+                        // include the testdata prebuilt jars.
+                        public class ClassThatImplementsMethodFromApex {
+                        }
+                        """
+                    )
+                )
+            )
+        } catch (e: IllegalStateException) {
+            exception = e
+        }
+
+        assertNotNull(exception)
+        assertThat(exception?.message ?: "").contains("There are classes in this API that reference other classes that do not exist in this API.")
+        assertThat(exception?.message ?: "").contains("java/lang/Object referenced by:\n    android/test/ClassThatImplementsMethodFromApex")
     }
 }
