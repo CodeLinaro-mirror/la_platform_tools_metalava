@@ -30,12 +30,10 @@ import java.util.Set;
 public class Api extends ApiElement {
     private final Map<String, ApiClass> mClasses = new HashMap<>();
     private final int mMin;
-    private final int mMax;
 
-    public Api(int min, int max) {
+    public Api(int min) {
         super("Android API");
         mMin = min;
-        mMax = max;
     }
 
     /**

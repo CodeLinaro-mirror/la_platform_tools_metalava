@@ -250,7 +250,6 @@ private fun processFlags() {
         } else {
             return
         }
-    codebase.apiLevel = options.currentApiLevel + if (options.isDeveloperPreviewBuild()) 1 else 0
     options.manifest?.let { codebase.manifest = it }
 
     if (options.verbose) {
@@ -265,20 +264,12 @@ private fun processFlags() {
     val androidApiLevelXml = options.generateApiLevelXml
     val apiLevelJars = options.apiLevelJars
     if (androidApiLevelXml != null && apiLevelJars != null) {
-        assert(codebase.apiLevel != -1)
-        val suffix = "${codebase.apiLevel}/public/android.jar"
-        val isCurrentApiFinalized = apiLevelJars.any {
-            it.endsWith(suffix)
-        }
+        assert(options.currentApiLevel != -1)
 
         progress("Generating API levels XML descriptor file, ${androidApiLevelXml.name}: ")
         ApiGenerator.generate(
-            apiLevelJars, options.firstApiLevel, options.currentApiLevel, androidApiLevelXml,
-            // codebase represents the files in the Android source tree (as opposed to the snapshots
-            // in prebuilts/sdk): do not include codebase if building api-versions.xml for a
-            // finalized SDK
-            if (isCurrentApiFinalized) null else codebase,
-            options.sdkJarRoot, options.sdkInfoFile
+            apiLevelJars, options.firstApiLevel, options.currentApiLevel, options.isDeveloperPreviewBuild(),
+            androidApiLevelXml, codebase, options.sdkJarRoot, options.sdkInfoFile
         )
     }
 

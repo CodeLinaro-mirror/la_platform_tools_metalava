@@ -42,7 +42,6 @@ import com.intellij.psi.PsiModifierListOwner
 import com.intellij.psi.PsiReference
 import org.jetbrains.kotlin.psi.KtObjectDeclaration
 import org.jetbrains.uast.UElement
-import java.util.function.Predicate
 
 fun isNullableAnnotation(qualifiedName: String): Boolean {
     return qualifiedName.endsWith("Nullable")
@@ -175,18 +174,20 @@ interface AnnotationItem {
          * Annotations that should not be exported are mapped to null.
          */
         fun mapName(
-            codebase: Codebase,
             qualifiedName: String?,
-            filter: Predicate<Item>? = null,
             target: AnnotationTarget = AnnotationTarget.SIGNATURE_FILE
         ): String? {
             qualifiedName ?: return null
-            if (options.passThroughAnnotations.contains(qualifiedName)) {
+            if (options.passThroughAnnotations.contains(qualifiedName) ||
+                options.showAnnotations.matches(qualifiedName) ||
+                options.hideAnnotations.matches(qualifiedName)
+            ) {
                 return qualifiedName
             }
             if (options.excludeAnnotations.contains(qualifiedName)) {
                 return null
             }
+
             when (qualifiedName) {
                 // Resource annotations
                 "android.annotation.AnimRes" -> return "androidx.annotation.AnimRes"
@@ -282,21 +283,7 @@ interface AnnotationItem {
                 "android.annotation.Condemned",
                 "android.annotation.Hide",
 
-                "android.annotation.Widget" -> {
-                    // Remove, unless (a) public or (b) specifically included in --showAnnotations
-                    return if (options.showAnnotations.matches(qualifiedName)) {
-                        qualifiedName
-                    } else if (filter != null) {
-                        val cls = codebase.findClass(qualifiedName)
-                        if (cls != null && filter.test(cls)) {
-                            qualifiedName
-                        } else {
-                            null
-                        }
-                    } else {
-                        qualifiedName
-                    }
-                }
+                "android.annotation.Widget" -> return qualifiedName
 
                 // Included for analysis, but should not be exported:
                 "android.annotation.BroadcastBehavior",
@@ -325,29 +312,10 @@ interface AnnotationItem {
 
                         // Unknown Android platform annotations
                         qualifiedName.startsWith("android.annotation.") -> {
-                            // Remove, unless specifically included in --showAnnotations
-                            return if (options.showAnnotations.matches(qualifiedName)) {
-                                qualifiedName
-                            } else {
-                                null
-                            }
+                            return null
                         }
 
-                        else -> {
-                            // Remove, unless (a) public or (b) specifically included in --showAnnotations
-                            return if (options.showAnnotations.matches(qualifiedName)) {
-                                qualifiedName
-                            } else if (filter != null) {
-                                val cls = codebase.findClass(qualifiedName)
-                                if (cls != null && filter.test(cls)) {
-                                    qualifiedName
-                                } else {
-                                    null
-                                }
-                            } else {
-                                qualifiedName
-                            }
-                        }
+                        else -> qualifiedName
                     }
                 }
             }
