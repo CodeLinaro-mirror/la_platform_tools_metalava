@@ -442,12 +442,17 @@ object ApiFile {
     ) {
         var token = startingToken
         val method: TextConstructorItem
+        var typeParameterList = NONE
 
         // Metalava: including annotations in file now
         val annotations: List<String> = getAnnotations(tokenizer, token)
         token = tokenizer.current
         val modifiers = parseModifiers(api, tokenizer, token, annotations)
         token = tokenizer.current
+        if ("<" == token) {
+            typeParameterList = parseTypeParameterList(api, tokenizer)
+            token = tokenizer.requireToken()
+        }
         assertIdent(tokenizer, token)
         val name: String = token.substring(token.lastIndexOf('.') + 1) // For inner classes, strip outer classes from name
         token = tokenizer.requireToken()
@@ -457,6 +462,10 @@ object ApiFile {
         method = TextConstructorItem(api, name, cl, modifiers, cl.asTypeInfo(), tokenizer.pos())
         method.deprecated = modifiers.isDeprecated()
         parseParameterList(api, tokenizer, method)
+        method.setTypeParameterList(typeParameterList)
+        if (typeParameterList is TextTypeParameterList) {
+            typeParameterList.owner = method
+        }
         token = tokenizer.requireToken()
         if ("throws" == token) {
             token = parseThrows(tokenizer, method)
