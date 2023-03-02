@@ -77,7 +77,7 @@ abstract class DriverTest {
     }
 
     protected fun createProject(vararg files: TestFile): File {
-        val dir = temporaryFolder.newFolder("project")
+        val dir = newFolder("project")
 
         files
             .map { it.createFile(dir) }
@@ -86,9 +86,31 @@ abstract class DriverTest {
         return dir
     }
 
+    private fun newFolder(children: String = ""): File {
+        var dir = File(temporaryFolder.root.path, children)
+        return if (dir.exists()) {
+            dir
+        } else {
+            temporaryFolder.newFolder(children)
+        }
+    }
+
+    private fun newFile(children: String = ""): File {
+        var dir = File(temporaryFolder.root.path, children)
+        return if (dir.exists()) {
+            dir
+        } else {
+            temporaryFolder.newFile(children)
+        }
+    }
+
     // Makes a note to fail the test, but still allows the test to complete before failing
     protected fun addError(error: String) {
         errorCollector.addError(Throwable(error))
+    }
+
+    protected fun getApiFile(): File {
+        return File(temporaryFolder.root.path, "public-api.txt")
     }
 
     protected fun runDriver(vararg args: String, expectedFail: String = ""): String {
@@ -706,13 +728,9 @@ abstract class DriverTest {
             emptyArray()
         }
 
-        var apiFile: File? = null
-        val apiArgs = if (api != null) {
-            apiFile = temporaryFolder.newFile("public-api.txt")
-            arrayOf(ARG_API, apiFile.path)
-        } else {
-            emptyArray()
-        }
+        // Always pass apiArgs and generate API text file in runDriver
+        var apiFile: File = newFile("public-api.txt")
+        val apiArgs = arrayOf(ARG_API, apiFile.path)
 
         var apiXmlFile: File? = null
         val apiXmlArgs = if (apiXml != null) {
@@ -784,7 +802,7 @@ abstract class DriverTest {
 
         var stubsDir: File? = null
         val stubsArgs = if (stubFiles.isNotEmpty()) {
-            stubsDir = temporaryFolder.newFolder("stubs")
+            stubsDir = newFolder("stubs")
             if (docStubs) {
                 arrayOf(ARG_DOC_STUBS, stubsDir.path)
             } else {
@@ -951,7 +969,7 @@ abstract class DriverTest {
             // test root folder such that we clean up the output strings referencing
             // paths to the temp folder
             "--temp-folder",
-            temporaryFolder.newFolder("temp").path,
+            newFolder("temp").path,
 
             // Annotation generation temporarily turned off by default while integrating with
             // SDK builds; tests need these
@@ -1028,7 +1046,7 @@ abstract class DriverTest {
             assertEquals(expectedOutput.trimIndent().trim(), actualOutput.trim())
         }
 
-        if (api != null && apiFile != null) {
+        if (api != null) {
             assertTrue("${apiFile.path} does not exist even though --api was used", apiFile.exists())
             val actualText = readFile(apiFile, stripBlankLines, trim)
             assertEquals(prepareExpectedApi(api, format), actualText)
@@ -1179,15 +1197,21 @@ abstract class DriverTest {
         if (stubFiles.isNotEmpty()) {
             for (expected in stubFiles) {
                 val actual = File(stubsDir!!, expected.targetRelativePath)
-                if (actual.exists()) {
-                    val actualContents = readFile(actual, stripBlankLines, trim)
-                    assertEquals(expected.contents, actualContents)
-                } else {
-                    val existing = stubsDir.walkTopDown().filter { it.isFile }.map { it.path }.joinToString("\n  ")
+                if (!actual.exists()) {
+                    val existing = stubsDir.walkTopDown()
+                        .filter { it.isFile }
+                        .map { it.path }
+                        .joinToString("\n  ")
                     throw FileNotFoundException(
-                        "Could not find a generated stub for ${expected.targetRelativePath}. Found these files: \n  $existing"
+                        "Could not find a generated stub for ${expected.targetRelativePath}. " +
+                            "Found these files: \n  $existing"
                     )
                 }
+                val actualContents = readFile(actual, stripBlankLines, trim)
+                val stubSource = if (sourceFiles.isEmpty()) "text" else "source"
+                val message =
+                    "Generated from-$stubSource stub contents does not match expected contents"
+                assertEquals(message, expected.contents, actualContents)
             }
         }
 
@@ -1351,7 +1375,8 @@ abstract class DriverTest {
             }
         }
 
-        private fun readFile(file: File, stripBlankLines: Boolean = false, trim: Boolean = false): String {
+        @JvmStatic
+        protected fun readFile(file: File, stripBlankLines: Boolean = false, trim: Boolean = false): String {
             var apiLines: List<String> = Files.asCharSource(file, UTF_8).readLines()
             if (stripBlankLines) {
                 apiLines = apiLines.asSequence().filter { it.isNotBlank() }.toList()

@@ -784,8 +784,15 @@ private fun extractAnnotations(codebase: Codebase, file: File) {
 }
 
 private fun createStubFiles(stubDir: File, codebase: Codebase, docStubs: Boolean, writeStubList: Boolean) {
-    // Generating stubs from a sig-file-based codebase is problematic
-    assert(codebase.supportsDocumentation())
+    if (codebase is TextCodebase) {
+        if (options.verbose) {
+            options.stdout.println(
+                "Generating stubs from text based codebase is an experimental feature. " +
+                    "It is not guaranteed that stubs generated from text based codebase are " +
+                    "class level equivalent to the stubs generated from source files. "
+            )
+        }
+    }
 
     // Temporary bug workaround for org.chromium.arc
     if (options.sourcePath.firstOrNull()?.path?.endsWith("org.chromium.arc") == true) {
