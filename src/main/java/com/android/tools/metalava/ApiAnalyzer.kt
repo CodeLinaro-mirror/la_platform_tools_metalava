@@ -189,18 +189,17 @@ class ApiAnalyzer(
         }
 
         // Find default constructor, if one doesn't exist
-        val allConstructors = cls.constructors()
-        if (allConstructors.isNotEmpty()) {
+        val constructors = cls.filteredConstructors(filter).toList()
+        if (constructors.isNotEmpty()) {
+            // Try to pick the constructor, select first by fewest throwables,
+            // then fewest parameters, then based on order in listFilter.test(cls)
+            cls.stubConstructor = constructors.reduce { first, second -> pickBest(first, second) }
+            return
+        }
 
-            // Try and use a publicly accessible constructor first.
-            val constructors = cls.filteredConstructors(filter).toList()
-            if (constructors.isNotEmpty()) {
-                // Try to pick the constructor, select first by fewest throwables, then fewest parameters,
-                // then based on order in listFilter.test(cls)
-                cls.stubConstructor = constructors.reduce { first, second -> pickBest(first, second) }
-                return
-            }
-
+        // For text based codebase, stub constructor needs to be generated even if
+        // cls.constructors() is empty, so that public default constructor is not created.
+        if (cls.constructors().isNotEmpty() || cls.codebase.preFiltered) {
             // No accessible constructors are available so a package private constructor is created.
             // Technically, the stub now has a constructor that isn't available at runtime,
             // but apps creating subclasses inside the android.* package is not supported.
