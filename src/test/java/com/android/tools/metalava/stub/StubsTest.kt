@@ -20,6 +20,7 @@ package com.android.tools.metalava.stub
 
 import com.android.tools.lint.checks.infrastructure.LintDetectorTest.source
 import com.android.tools.lint.checks.infrastructure.TestFile
+import com.android.tools.metalava.ANDROIDX_NONNULL
 import com.android.tools.metalava.ARG_CHECK_API
 import com.android.tools.metalava.ARG_EXCLUDE_ALL_ANNOTATIONS
 import com.android.tools.metalava.ARG_EXCLUDE_ANNOTATION
@@ -34,14 +35,11 @@ import com.android.tools.metalava.androidxNullableSource
 import com.android.tools.metalava.deprecatedForSdkSource
 import com.android.tools.metalava.extractRoots
 import com.android.tools.metalava.gatherSources
-import com.android.tools.metalava.intDefAnnotationSource
-import com.android.tools.metalava.intRangeAnnotationSource
 import com.android.tools.metalava.java
 import com.android.tools.metalava.kotlin
 import com.android.tools.metalava.libcoreNonNullSource
 import com.android.tools.metalava.model.SUPPORT_TYPE_USE_ANNOTATIONS
 import com.android.tools.metalava.requiresApiSource
-import com.android.tools.metalava.requiresPermissionSource
 import com.android.tools.metalava.restrictToSource
 import com.android.tools.metalava.supportParameterName
 import com.android.tools.metalava.systemApiSource
@@ -58,30 +56,59 @@ class StubsTest : DriverTest() {
     // TODO: test @DocOnly handling
 
     private fun checkStubs(
-        @Language("JAVA") source: String,
+        // source is a wrapper for stubFiles. When passing multiple stub Java files to test,
+        // use stubFiles.
+        @Language("JAVA") source: String = "",
+        stubFiles: Array<TestFile> = emptyArray(),
         warnings: String? = "",
         api: String? = null,
         extraArguments: Array<String> = emptyArray(),
         docStubs: Boolean = false,
         showAnnotations: Array<String> = emptyArray(),
-        includeSourceRetentionAnnotations: Boolean = true,
         skipEmitPackages: List<String> = listOf("java.lang", "java.util", "java.io"),
         format: FileFormat = FileFormat.latest,
-        sourceFiles: Array<TestFile>
+        sourceFiles: Array<TestFile> = emptyArray(),
+        signatureSources: Array<String> = emptyArray(),
+        checkTextStubEquivalence: Boolean = false
     ) {
+        val stubFilesArr = if (source.isNotEmpty()) arrayOf(java(source)) else stubFiles
         check(
             sourceFiles = sourceFiles,
+            signatureSources = signatureSources,
             showAnnotations = showAnnotations,
-            stubFiles = arrayOf(java(source)),
+            stubFiles = stubFilesArr,
             expectedIssues = warnings,
             checkCompilation = true,
             api = api,
             extraArguments = extraArguments,
             docStubs = docStubs,
-            includeSourceRetentionAnnotations = includeSourceRetentionAnnotations,
             skipEmitPackages = skipEmitPackages,
             format = format
         )
+        if (checkTextStubEquivalence) {
+            if (stubFilesArr.isEmpty()) {
+                addError("Stub files may not be empty when checkTextStubEquivalence is set to true.")
+                return
+            }
+            if (docStubs) {
+                addError("From-text stub generation is not supported for documentation stub.")
+                return
+            }
+            if (stubFilesArr.any { it !is TestFile.JavaTestFile }) {
+                addError("From-text stub generation is only supported for Java stubs.")
+                return
+            }
+            check(
+                signatureSources = arrayOf(readFile(getApiFile())),
+                showAnnotations = showAnnotations,
+                stubFiles = stubFilesArr,
+                expectedIssues = warnings,
+                checkCompilation = true,
+                extraArguments = arrayOf(*extraArguments, ARG_EXCLUDE_ANNOTATION, ANDROIDX_NONNULL),
+                skipEmitPackages = skipEmitPackages,
+                format = format
+            )
+        }
     }
 
     @Test
@@ -292,7 +319,8 @@ class StubsTest : DriverTest() {
                 public interface Foo {
                 public void foo();
                 }
-                """
+                """,
+            checkTextStubEquivalence = true
         )
     }
 
@@ -446,7 +474,8 @@ class StubsTest : DriverTest() {
                 public static final double field10 = (0.0/0.0);
                 public static final double field11 = (1.0/0.0);
                 }
-                """
+                """,
+            checkTextStubEquivalence = true
         )
     }
 
@@ -688,7 +717,7 @@ class StubsTest : DriverTest() {
 
                     @SuppressWarnings("ALL")
                     public class MoreAsserts {
-                        public static void assertEquals(String arg0, Set<? extends Object> arg1, Set<? extends Object> arg2) { }
+                        public static void assertEquals(String arg1, Set<? extends Object> arg2, Set<? extends Object> arg3) { }
                         public static void assertEquals(Set<? extends Object> arg1, Set<? extends Object> arg2) { }
                     }
                     """
@@ -700,10 +729,11 @@ class StubsTest : DriverTest() {
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                 public class MoreAsserts {
                 public MoreAsserts() { throw new RuntimeException("Stub!"); }
-                public static void assertEquals(java.lang.String arg0, java.util.Set<?> arg1, java.util.Set<?> arg2) { throw new RuntimeException("Stub!"); }
+                public static void assertEquals(java.lang.String arg1, java.util.Set<?> arg2, java.util.Set<?> arg3) { throw new RuntimeException("Stub!"); }
                 public static void assertEquals(java.util.Set<?> arg1, java.util.Set<?> arg2) { throw new RuntimeException("Stub!"); }
                 }
-                """
+                """,
+            checkTextStubEquivalence = true
         )
     }
 
@@ -866,7 +896,8 @@ class StubsTest : DriverTest() {
                     public void method2() { throw new RuntimeException("Stub!"); }
                     public static final java.lang.String CONSTANT = "MyConstant";
                     }
-                """
+                """,
+            checkTextStubEquivalence = true
         )
     }
 
@@ -914,7 +945,8 @@ class StubsTest : DriverTest() {
                 public void other() { throw new RuntimeException("Stub!"); }
                 public static final java.lang.String CONSTANT = "MyConstant";
                 }
-                """
+                """,
+            checkTextStubEquivalence = true
         )
     }
 
@@ -944,7 +976,8 @@ class StubsTest : DriverTest() {
                 protected void finalize1() throws java.lang.Throwable { throw new RuntimeException("Stub!"); }
                 protected void finalize2() throws java.io.IOException, java.lang.IllegalArgumentException { throw new RuntimeException("Stub!"); }
                 }
-                """
+                """,
+            checkTextStubEquivalence = true
         )
     }
 
@@ -974,7 +1007,8 @@ class StubsTest : DriverTest() {
                 public static final int CONSTANT3 = 0; // 0x0
                 public static final java.lang.String CONSTANT4 = null;
                 }
-                """
+                """,
+            checkTextStubEquivalence = true
         )
     }
 
@@ -1111,61 +1145,6 @@ class StubsTest : DriverTest() {
     }
 
     @Test
-    fun `Check generating annotation source`() {
-        checkStubs(
-            sourceFiles = arrayOf(
-                java(
-                    """
-                    package android.view.View;
-                    import android.annotation.IntDef;
-                    import android.annotation.IntRange;
-                    import java.lang.annotation.Retention;
-                    import java.lang.annotation.RetentionPolicy;
-                    public class View {
-                        @SuppressWarnings("all")
-                        public static class MeasureSpec {
-                            private static final int MODE_SHIFT = 30;
-                            private static final int MODE_MASK  = 0x3 << MODE_SHIFT;
-                            /** @hide */
-                            @SuppressWarnings("all")
-                            @IntDef({UNSPECIFIED, EXACTLY, AT_MOST})
-                            @Retention(RetentionPolicy.SOURCE)
-                            public @interface MeasureSpecMode {}
-                            public static final int UNSPECIFIED = 0 << MODE_SHIFT;
-                            public static final int EXACTLY     = 1 << MODE_SHIFT;
-                            public static final int AT_MOST     = 2 << MODE_SHIFT;
-
-                            public static int makeMeasureSpec(@IntRange(from = 0, to = (1 << MeasureSpec.MODE_SHIFT) - 1) int size,
-                                                              @MeasureSpecMode int mode) {
-                                return 0;
-                            }
-                        }
-                    }
-                    """
-                ),
-                intDefAnnotationSource,
-                intRangeAnnotationSource
-            ),
-            warnings = "",
-            source = """
-                    package android.view.View;
-                    @SuppressWarnings({"unchecked", "deprecation", "all"})
-                    public class View {
-                    public View() { throw new RuntimeException("Stub!"); }
-                    @SuppressWarnings({"unchecked", "deprecation", "all"})
-                    public static class MeasureSpec {
-                    public MeasureSpec() { throw new RuntimeException("Stub!"); }
-                    public static int makeMeasureSpec(@androidx.annotation.IntRange(from=0, to=0x40000000 - 1) int size, int mode) { throw new RuntimeException("Stub!"); }
-                    public static final int AT_MOST = -2147483648; // 0x80000000
-                    public static final int EXACTLY = 1073741824; // 0x40000000
-                    public static final int UNSPECIFIED = 0; // 0x0
-                    }
-                    }
-                """
-        )
-    }
-
-    @Test
     fun `Check generating classes with generics`() {
         checkStubs(
             sourceFiles = arrayOf(
@@ -1186,58 +1165,6 @@ class StubsTest : DriverTest() {
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class Generics {
                     public <T> Generics(int surfaceSize, java.lang.Class<T> klass) { throw new RuntimeException("Stub!"); }
-                    }
-                """
-        )
-    }
-
-    @Test
-    fun `Check generating annotation for hidden constants`() {
-        checkStubs(
-            sourceFiles = arrayOf(
-                java(
-                    """
-                    package test.pkg;
-
-                    import android.content.Intent;
-                    import android.annotation.RequiresPermission;
-
-                    public abstract class HiddenPermission {
-                        @RequiresPermission(allOf = {
-                                android.Manifest.permission.INTERACT_ACROSS_USERS,
-                                android.Manifest.permission.BROADCAST_STICKY
-                        })
-                        public abstract void removeStickyBroadcast(@RequiresPermission Object intent);
-                    }
-                    """
-                ),
-                java(
-                    """
-                    package android;
-
-                    public final class Manifest {
-                        @SuppressWarnings("JavaDoc")
-                        public static final class permission {
-                            public static final String BROADCAST_STICKY = "android.permission.BROADCAST_STICKY";
-                            /** @SystemApi @hide Allows an application to call APIs that allow it to do interactions
-                             across the users on the device, using singleton services and
-                             user-targeted broadcasts.  This permission is not available to
-                             third party applications. */
-                            public static final String INTERACT_ACROSS_USERS = "android.permission.INTERACT_ACROSS_USERS";
-                        }
-                    }
-                    """
-                ),
-                requiresPermissionSource
-            ),
-            warnings = "",
-            source = """
-                    package test.pkg;
-                    @SuppressWarnings({"unchecked", "deprecation", "all"})
-                    public abstract class HiddenPermission {
-                    public HiddenPermission() { throw new RuntimeException("Stub!"); }
-                    @androidx.annotation.RequiresPermission(allOf={"android.permission.INTERACT_ACROSS_USERS", android.Manifest.permission.BROADCAST_STICKY})
-                    public abstract void removeStickyBroadcast(@androidx.annotation.RequiresPermission java.lang.Object intent);
                     }
                 """
         )
@@ -2595,7 +2522,8 @@ class StubsTest : DriverTest() {
                     public static interface TypeEvaluator<T> {
                     }
                     }
-                    """
+                    """,
+            checkTextStubEquivalence = true
         )
     }
 
@@ -3354,7 +3282,6 @@ class StubsTest : DriverTest() {
     @Test
     fun `Annotation metadata in stubs`() {
         checkStubs(
-            includeSourceRetentionAnnotations = false,
             skipEmitPackages = emptyList(),
             sourceFiles = arrayOf(
                 java(
@@ -3406,7 +3333,8 @@ class StubsTest : DriverTest() {
                 public interface MyInterface {
                 public void run();
                 }
-                """
+                """,
+            checkTextStubEquivalence = true
         )
     }
 
@@ -3520,7 +3448,6 @@ class StubsTest : DriverTest() {
             stubFiles = arrayOf(
                 java(
                     """
-                    @androidx.annotation.RestrictTo(androidx.annotation.RestrictTo.Scope.SUBCLASSES)
                     package test.pkg;
                     """
                 ),

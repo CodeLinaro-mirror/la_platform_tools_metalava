@@ -47,7 +47,8 @@ public class ApiGenerator {
                                    @NotNull File outputFile,
                                    @NotNull Codebase codebase,
                                    @Nullable File sdkJarRoot,
-                                   @Nullable File sdkFilterFile) throws IOException, IllegalArgumentException {
+                                   @Nullable File sdkFilterFile,
+                                   boolean removeMissingClasses) throws IOException, IllegalArgumentException {
         if ((sdkJarRoot == null) != (sdkFilterFile == null)) {
             throw new IllegalArgumentException("sdkJarRoot and sdkFilterFile must both be null, or non-null");
         }
@@ -69,6 +70,11 @@ public class ApiGenerator {
         api.removeImplicitInterfaces();
         api.removeOverridingMethods();
         api.prunePackagePrivateClasses();
+        if (removeMissingClasses) {
+            api.removeMissingClasses();
+        } else {
+            api.verifyNoMissingClasses();
+        }
         return createApiFile(outputFile, api, sdkIdentifiers);
     }
 

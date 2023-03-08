@@ -163,7 +163,10 @@ class StubWriter(
         assert(classItem.containingClass() == null) { "Should only be called on top level classes" }
         val packageDir = getPackageDir(classItem.containingPackage())
 
-        return if (classItem.isKotlin() && options.kotlinStubs) {
+        // Kotlin From-text stub generation is not supported.
+        // This method will raise an error if
+        // options.kotlinStubs == true and classItem is TextClassItem.
+        return if (options.kotlinStubs && classItem.isKotlin()) {
             File(packageDir, "${classItem.simpleName()}.kt")
         } else {
             File(packageDir, "${classItem.simpleName()}.java")

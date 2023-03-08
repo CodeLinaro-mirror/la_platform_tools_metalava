@@ -269,7 +269,7 @@ private fun processFlags() {
         progress("Generating API levels XML descriptor file, ${androidApiLevelXml.name}: ")
         ApiGenerator.generate(
             apiLevelJars, options.firstApiLevel, options.currentApiLevel, options.isDeveloperPreviewBuild(),
-            androidApiLevelXml, codebase, options.sdkJarRoot, options.sdkInfoFile
+            androidApiLevelXml, codebase, options.sdkJarRoot, options.sdkInfoFile, options.removeMissingClassesInApiLevels
         )
     }
 
@@ -388,16 +388,6 @@ private fun processFlags() {
             it, codebase, docStubs = false,
             writeStubList = options.stubsSourceList != null
         )
-
-        val stubAnnotations = options.copyStubAnnotationsFrom
-        if (stubAnnotations != null) {
-            // Support pointing to both stub-annotations and stub-annotations/src/main/java
-            val src = File(stubAnnotations, "src${File.separator}main${File.separator}java")
-            val source = if (src.isDirectory) src else stubAnnotations
-            source.listFiles()?.forEach { file ->
-                RewriteAnnotations().copyAnnotations(codebase, file, File(it, file.name))
-            }
-        }
     }
 
     if (options.docStubsDir == null && options.stubsDir == null) {
@@ -457,9 +447,6 @@ fun processNonCodebaseFlags() {
             rewrite.modifyAnnotationSources(null, file, File(privateAnnotationsTarget, file.name))
         }
     }
-
-    // --rewrite-annotations?
-    options.rewriteAnnotations?.let { RewriteAnnotations().rewriteAnnotations(it) }
 
     // Convert android.jar files?
     options.androidJarSignatureFiles?.let { root ->
@@ -797,8 +784,15 @@ private fun extractAnnotations(codebase: Codebase, file: File) {
 }
 
 private fun createStubFiles(stubDir: File, codebase: Codebase, docStubs: Boolean, writeStubList: Boolean) {
-    // Generating stubs from a sig-file-based codebase is problematic
-    assert(codebase.supportsDocumentation())
+    if (codebase is TextCodebase) {
+        if (options.verbose) {
+            options.stdout.println(
+                "Generating stubs from text based codebase is an experimental feature. " +
+                    "It is not guaranteed that stubs generated from text based codebase are " +
+                    "class level equivalent to the stubs generated from source files. "
+            )
+        }
+    }
 
     // Temporary bug workaround for org.chromium.arc
     if (options.sourcePath.firstOrNull()?.path?.endsWith("org.chromium.arc") == true) {
