@@ -107,6 +107,7 @@ const val ARG_LINT = "--lint"
 const val ARG_HIDE = "--hide"
 const val ARG_APPLY_API_LEVELS = "--apply-api-levels"
 const val ARG_GENERATE_API_LEVELS = "--generate-api-levels"
+const val ARG_REMOVE_MISSING_CLASS_REFERENCES_IN_API_LEVELS = "--remove-missing-class-references-in-api-levels"
 const val ARG_ANDROID_JAR_PATTERN = "--android-jar-pattern"
 const val ARG_CURRENT_VERSION = "--current-version"
 const val ARG_FIRST_VERSION = "--first-version"
@@ -126,8 +127,6 @@ const val ARG_JDK_HOME = "--jdk-home"
 const val ARG_COMPILE_SDK_VERSION = "--compile-sdk-version"
 const val ARG_INCLUDE_ANNOTATIONS = "--include-annotations"
 const val ARG_COPY_ANNOTATIONS = "--copy-annotations"
-const val ARG_INCLUDE_ANNOTATION_CLASSES = "--include-annotation-classes"
-const val ARG_REWRITE_ANNOTATIONS = "--rewrite-annotations"
 const val ARG_INCLUDE_SOURCE_RETENTION = "--include-source-retention"
 const val ARG_PASS_THROUGH_ANNOTATION = "--pass-through-annotation"
 const val ARG_EXCLUDE_ANNOTATION = "--exclude-annotation"
@@ -417,22 +416,6 @@ class Options(
     /** For [ARG_COPY_ANNOTATIONS], the target directory to write converted stub annotations from */
     var privateAnnotationsTarget: File? = null
 
-    /**
-     * For [ARG_INCLUDE_ANNOTATION_CLASSES], the directory to copy stub annotation source files into the
-     * stubs folder from
-     */
-    var copyStubAnnotationsFrom: File? = null
-
-    /**
-     * For [ARG_INCLUDE_SOURCE_RETENTION], true if we want to include source-retention annotations
-     * both in the set of files emitted by [ARG_INCLUDE_ANNOTATION_CLASSES] and into the stubs
-     * themselves
-     */
-    var includeSourceRetentionAnnotations = false
-
-    /** For [ARG_REWRITE_ANNOTATIONS], the jar or bytecode folder to rewrite annotations in */
-    var rewriteAnnotations: List<File>? = null
-
     /** A manifest file to read to for example look up available permissions */
     var manifest: File? = null
 
@@ -507,6 +490,9 @@ class Options(
 
     /** API level XML file to generate */
     var generateApiLevelXml: File? = null
+
+    /** Whether references to missing classes should be removed from the api levels file. */
+    var removeMissingClassesInApiLevels: Boolean = false
 
     /** Reads API XML file to apply into documentation */
     var applyApiLevelsXml: File? = null
@@ -989,9 +975,6 @@ class Options(
                     privateAnnotationsSource = stringToExistingDir(getValue(args, ++index))
                     privateAnnotationsTarget = stringToNewDir(getValue(args, ++index))
                 }
-                ARG_REWRITE_ANNOTATIONS -> rewriteAnnotations = stringToExistingDirsOrJars(getValue(args, ++index))
-                ARG_INCLUDE_ANNOTATION_CLASSES -> copyStubAnnotationsFrom = stringToExistingDir(getValue(args, ++index))
-                ARG_INCLUDE_SOURCE_RETENTION -> includeSourceRetentionAnnotations = true
 
                 "--previous-api" -> {
                     migrateNullsFrom = stringToExistingFile(getValue(args, ++index))
@@ -1121,6 +1104,7 @@ class Options(
                         stringToExistingFile(getValue(args, ++index))
                     }
                 }
+                ARG_REMOVE_MISSING_CLASS_REFERENCES_IN_API_LEVELS -> removeMissingClassesInApiLevels = true
 
                 ARG_UPDATE_API, "--update-api" -> onlyUpdateApi = true
                 ARG_CHECK_API -> onlyCheckApi = true
@@ -2207,12 +2191,6 @@ class Options(
             "$ARG_EXTRACT_ANNOTATIONS <zipfile>",
             "Extracts source annotations from the source files and writes " +
                 "them into the given zip file",
-            "$ARG_INCLUDE_ANNOTATION_CLASSES <dir>",
-            "Copies the given stub annotation source files into the " +
-                "generated stub sources; <dir> is typically $PROGRAM_NAME/stub-annotations/src/main/java/.",
-            "$ARG_REWRITE_ANNOTATIONS <dir/jar>",
-            "For a bytecode folder or output jar, rewrites the " +
-                "androidx annotations to be package private",
             "$ARG_FORCE_CONVERT_TO_WARNING_NULLABILITY_ANNOTATIONS <package1:-package2:...>",
             "On every API declared " +
                 "in a class referenced by the given filter, makes nullability issues appear to callers as warnings " +
@@ -2234,6 +2212,11 @@ class Options(
             "$ARG_GENERATE_API_LEVELS <xmlfile>",
             "Reads android.jar SDK files and generates an XML file recording " +
                 "the API level for each class, method and field",
+            "$ARG_REMOVE_MISSING_CLASS_REFERENCES_IN_API_LEVELS",
+            "Removes references to missing classes when generating the API levels XML file. " +
+                "This can happen when generating the XML file for the non-updatable portions of " +
+                "the module-lib sdk, as those non-updatable portions can reference classes that are " +
+                "part of an updatable apex.",
             "$ARG_ANDROID_JAR_PATTERN <pattern>",
             "Patterns to use to locate Android JAR files. The default " +
                 "is \$ANDROID_HOME/platforms/android-%/android.jar.",

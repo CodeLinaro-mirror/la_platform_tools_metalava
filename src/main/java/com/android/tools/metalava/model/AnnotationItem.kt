@@ -450,10 +450,6 @@ interface AnnotationItem {
             // habit of loading all annotation classes it encounters.)
 
             if (qualifiedName.startsWith("androidx.annotation.")) {
-                if (options.includeSourceRetentionAnnotations) {
-                    return ANNOTATION_IN_ALL_STUBS
-                }
-
                 if (qualifiedName == ANDROIDX_NULLABLE || qualifiedName == ANDROIDX_NONNULL) {
                     // Right now, nullness annotations (other than @RecentlyNullable and @RecentlyNonNull)
                     // have to go in external annotations since they aren't in the class path for

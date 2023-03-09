@@ -23,10 +23,12 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.ListIterator;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -313,6 +315,48 @@ public class ApiClass extends ApiElement {
                 break;
             }
         }
+    }
+
+    // Ensure this class doesn't extend/implement any other classes/interfaces that are
+    // not in the provided api. This can happen when a class in an android.jar file
+    // encodes the inheritance, but the class that is inherited is not present in any
+    // android.jar file. The class would instead be present in an apex's stub jar file.
+    // An example of this is the QosSessionAttributes interface being provided by the
+    // Connectivity apex, but being implemented by NrQosSessionAttributes from
+    // frameworks/base/telephony.
+    public void removeMissingClasses(Map<String, ApiClass> api) {
+        Iterator<ApiElement> superClassIter = mSuperClasses.iterator();
+        while (superClassIter.hasNext()) {
+            ApiElement scls = superClassIter.next();
+            if (!api.containsKey(scls.getName())) {
+                superClassIter.remove();
+            }
+        }
+
+        Iterator<ApiElement> interfacesIter = mInterfaces.iterator();
+        while (interfacesIter.hasNext()) {
+            ApiElement intf = interfacesIter.next();
+            if (!api.containsKey(intf.getName())) {
+                interfacesIter.remove();
+            }
+        }
+    }
+
+    // Returns the set of superclasses or interfaces are not present in the provided api map
+    public Set<ApiElement> findMissingClasses(Map<String, ApiClass> api) {
+        Set<ApiElement> result = new HashSet<>();
+        for (ApiElement scls : mSuperClasses) {
+            if (!api.containsKey(scls.getName())) {
+                result.add(scls);
+            }
+        }
+
+        for (ApiElement intf : mInterfaces) {
+            if (!api.containsKey(intf.getName())) {
+                result.add(intf);
+            }
+        }
+        return result;
     }
 
     public Iterator<ApiElement> getFieldIterator() {

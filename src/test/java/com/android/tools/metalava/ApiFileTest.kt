@@ -2287,6 +2287,33 @@ class ApiFileTest : DriverTest() {
     }
 
     @Test
+    fun `Check generic type signature insertion`() {
+        check(
+            format = FileFormat.V2,
+            sourceFiles = arrayOf(
+                java(
+                    """
+                    package test.pkg;
+                    public class MyClass {
+                        public <T> MyClass(Class<T> klass) { }
+                        public <U> void method1(Function<U> func) { }
+                    }
+                    """
+                )
+            ),
+            expectedIssues = "",
+            api = """
+                    package test.pkg {
+                      public class MyClass {
+                        ctor public <T> MyClass(Class<T>);
+                        method public <U> void method1(Function<U>);
+                      }
+                    }
+            """
+        )
+    }
+
+    @Test
     fun `When implementing rather than extending package private class, inline members instead`() {
         // If you implement a package private interface, we just remove it and inline the members into
         // the subclass
