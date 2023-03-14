@@ -106,11 +106,6 @@ class ApiGeneratorTest : DriverTest() {
 
         val methodVersion = apiLookup.getMethodVersion("android/icu/util/CopticCalendar", "computeTime", "()")
         assertEquals(24, methodVersion)
-
-        // Verify historical backfill
-        assertEquals(30, apiLookup.getClassVersion("android/os/ext/SdkExtensions"))
-        assertEquals(30, apiLookup.getMethodVersion("android/os/ext/SdkExtensions", "getExtensionVersion", "(I)I"))
-        assertEquals(31, apiLookup.getMethodVersion("android/os/ext/SdkExtensions", "getAllExtensionVersions", "()Ljava/util/Map;"))
     }
 
     @Test
@@ -240,6 +235,15 @@ class ApiGeneratorTest : DriverTest() {
         assertTrue(xml.contains("<class name=\"android/net/eap/EapAkaInfo\" module=\"android.net.ipsec.ike\" since=\"33\" sdks=\"30:3,31:3,33:3,0:33\">"))
         // android.net.eap.EapInfo       T S R -> 0,33,31,30
         assertTrue(xml.contains("<class name=\"android/net/eap/EapInfo\" module=\"android.net.ipsec.ike\" since=\"33\" sdks=\"33:3,31:3,30:3,0:33\">"))
+
+        // Verify historical backfill
+        assertEquals(30, apiLookup.getClassVersion("android/os/ext/SdkExtensions"))
+        assertEquals(30, apiLookup.getMethodVersion("android/os/ext/SdkExtensions", "getExtensionVersion", "(I)I"))
+        assertEquals(31, apiLookup.getMethodVersion("android/os/ext/SdkExtensions", "getAllExtensionVersions", "()Ljava/util/Map;"))
+
+        // Verify there's no extension versions listed for SdkExtensions
+        val sdkExtClassLine = xml.lines().first { it.contains("<class name=\"android/os/ext/SdkExtensions\"") }
+        assertFalse(sdkExtClassLine.contains("sdks="))
     }
 
     @Test
