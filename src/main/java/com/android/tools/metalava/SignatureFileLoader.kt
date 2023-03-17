@@ -36,7 +36,13 @@ object SignatureFileLoader {
         require(files.isNotEmpty()) { "files must not be empty" }
 
         try {
-            return ApiFile.parseApi(files, kotlinStyleNulls)
+            val codebase = ApiFile.parseApi(files, kotlinStyleNulls)
+
+            // Unlike loadFromSources, analyzer methods are not required for text based codebase
+            // because all methods in the API text file belong to an API surface.
+            val analyzer = ApiAnalyzer(codebase)
+            analyzer.addConstructors { _ -> true }
+            return codebase
         } catch (ex: ApiParseException) {
             throw DriverException("Unable to parse signature file: ${ex.message}")
         }

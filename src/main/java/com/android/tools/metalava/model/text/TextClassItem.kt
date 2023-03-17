@@ -260,6 +260,10 @@ open class TextClassItem(
         return emptyMap()
     }
 
+    override fun createDefaultConstructor(): ConstructorItem {
+        return TextConstructorItem.createDefaultConstructor(codebase, this, position)
+    }
+
     companion object {
         fun createClassStub(codebase: TextCodebase, name: String): TextClassItem =
             createStub(codebase, name, isInterface = false)

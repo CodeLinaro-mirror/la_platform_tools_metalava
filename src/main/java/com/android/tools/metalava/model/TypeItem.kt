@@ -127,13 +127,10 @@ interface TypeItem {
     fun defaultValue(): Any? {
         return when (toTypeString()) {
             "boolean" -> false
+            "char", "int", "float", "double" -> 0
             "byte" -> 0.toByte()
-            "char" -> '\u0000'
             "short" -> 0.toShort()
-            "int" -> 0
             "long" -> 0L
-            "float" -> 0f
-            "double" -> 0.0
             else -> null
         }
     }
