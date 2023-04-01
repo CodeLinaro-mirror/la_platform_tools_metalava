@@ -23,6 +23,8 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeMap;
+import java.util.TreeSet;
 
 /**
  * Represents the whole Android API.
@@ -150,6 +152,42 @@ public class Api extends ApiElement {
     public void prunePackagePrivateClasses() {
         for (ApiClass cls : mClasses.values()) {
             cls.removeHiddenSuperClasses(mClasses);
+        }
+    }
+
+    public void removeMissingClasses() {
+        for (ApiClass cls : mClasses.values()) {
+            cls.removeMissingClasses(mClasses);
+        }
+    }
+
+    public void verifyNoMissingClasses() {
+        Map<String, Set<String>> results = new TreeMap<>();
+        for (ApiClass cls : mClasses.values()) {
+            Set<ApiElement> missing = cls.findMissingClasses(mClasses);
+            // Have the missing classes as keys, and the referencing classes as values.
+            for (ApiElement missingClass : missing) {
+                String missingName = missingClass.getName();
+                if (!results.containsKey(missingName)) {
+                    results.put(missingName, new TreeSet<>());
+                }
+                results.get(missingName).add(cls.getName());
+            }
+        }
+        if (!results.isEmpty()) {
+            String message = "";
+            for (Map.Entry<String, Set<String>> entry : results.entrySet()) {
+                message += "\n  " + entry.getKey() + " referenced by:";
+                for (String referencer : entry.getValue()) {
+                    message += "\n    " + referencer;
+                }
+            }
+            throw new IllegalStateException("There are classes in this API that reference other "+
+                "classes that do not exist in this API. "+
+                "This can happen when an api is provided by an apex, but referenced "+
+                "from non-updatable platform code. Use --remove-missing-classes-in-api-levels to "+
+                "make metalava remove these references instead of erroring out."+
+                message);
         }
     }
 }

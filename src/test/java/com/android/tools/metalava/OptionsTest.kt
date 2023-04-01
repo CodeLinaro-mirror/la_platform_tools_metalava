@@ -327,12 +327,6 @@ Extracting Annotations:
 --extract-annotations <zipfile>
                                              Extracts source annotations from the source files and writes them into the
                                              given zip file
---include-annotation-classes <dir>
-                                             Copies the given stub annotation source files into the generated stub
-                                             sources; <dir> is typically metalava/stub-annotations/src/main/java/.
---rewrite-annotations <dir/jar>
-                                             For a bytecode folder or output jar, rewrites the androidx annotations to
-                                             be package private
 --force-convert-to-warning-nullability-annotations <package1:-package2:...>
                                              On every API declared in a class referenced by the given filter, makes
                                              nullability issues appear to callers as warnings rather than errors by
@@ -357,6 +351,11 @@ Extracting API Levels:
 --generate-api-levels <xmlfile>
                                              Reads android.jar SDK files and generates an XML file recording the API
                                              level for each class, method and field
+--remove-missing-class-references-in-api-levels
+                                             Removes references to missing classes when generating the API levels XML
+                                             file. This can happen when generating the XML file for the non-updatable
+                                             portions of the module-lib sdk, as those non-updatable portions can
+                                             reference classes that are part of an updatable apex.
 --android-jar-pattern <pattern>
                                              Patterns to use to locate Android JAR files. The default is
                                              ${"$"}ANDROID_HOME/platforms/android-%/android.jar.
