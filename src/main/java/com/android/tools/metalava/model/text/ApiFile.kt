@@ -276,9 +276,6 @@ object ApiFile {
         assertIdent(tokenizer, token)
         val name: String = token
         qualifiedName = qualifiedName(pkg.name(), name)
-        if (api.findClass(qualifiedName) != null) {
-            throw ApiParseException("Duplicate class found: $qualifiedName", tokenizer)
-        }
         val typeInfo = api.obtainTypeFromString(qualifiedName)
         // Simple type info excludes the package name (but includes enclosing class names)
         var rawName = name
@@ -287,11 +284,22 @@ object ApiFile {
             rawName = rawName.substring(0, variableIndex)
         }
         token = tokenizer.requireToken()
-        cl = TextClassItem(
+        val cls = TextClassItem(
             api, tokenizer.pos(), modifiers, isInterface, isEnum, isAnnotation,
             typeInfo.toErasedTypeString(null), typeInfo.qualifiedTypeName(),
             rawName, annotations
         )
+        cl = when (val foundClass = api.findClass(qualifiedName)) {
+            null -> cls
+            else -> {
+                if (!foundClass.isCompatible(cls)) {
+                    throw ApiParseException("Incompatible $foundClass definitions")
+                } else {
+                    foundClass
+                }
+            }
+        }
+
         cl.setContainingPackage(pkg)
         cl.setTypeInfo(typeInfo)
         cl.deprecated = modifiers.isDeprecated()
@@ -556,7 +564,9 @@ object ApiFile {
         if (";" != token) {
             throw ApiParseException("expected ; found $token", tokenizer)
         }
-        cl.addMethod(method)
+        if (!cl.methods().contains(method)) {
+            cl.addMethod(method)
+        }
     }
 
     private fun mergeAnnotations(
