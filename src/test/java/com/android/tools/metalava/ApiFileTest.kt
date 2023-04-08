@@ -3802,7 +3802,7 @@ class ApiFileTest : DriverTest() {
     }
 
     @Test
-    fun `Test cannot merging API signature files with duplicate class`() {
+    fun `Test can merge API signature files with duplicate class`() {
         val source1 = """
             package Test.pkg {
               public final class Class1 {
@@ -3817,9 +3817,38 @@ class ApiFileTest : DriverTest() {
               }
             }
                     """
+        val expected = """
+            package Test.pkg {
+              public final class Class1 {
+                method public void method1();
+              }
+            }
+                    """
         check(
             signatureSources = arrayOf(source1, source2),
-            expectedFail = "Aborting: Unable to parse signature file: TESTROOT/project/load-api2.txt:2: Duplicate class found: Test.pkg.Class1"
+            api = expected
+        )
+    }
+
+    @Test
+    fun `Test cannot merge API signature files with incompatible class definitions`() {
+        val source1 = """
+            package Test.pkg {
+              public class Class1 {
+                method public void method2();
+              }
+            }
+                    """
+        val source2 = """
+            package Test.pkg {
+              public final class Class1 {
+                method public void method1();
+              }
+            }
+                    """
+        check(
+            signatureSources = arrayOf(source1, source2),
+            expectedFail = "Aborting: Unable to parse signature file: Incompatible class Test.pkg.Class1 definitions"
         )
     }
 
