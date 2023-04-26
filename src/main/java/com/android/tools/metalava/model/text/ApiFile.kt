@@ -238,9 +238,7 @@ object ApiFile {
         var isInterface = false
         var isAnnotation = false
         var isEnum = false
-        val qualifiedName: String
         var ext: String? = null
-        val cl: TextClassItem
 
         // Metalava: including annotations in file now
         val annotations: List<String> = getAnnotations(tokenizer, token)
@@ -275,7 +273,7 @@ object ApiFile {
         }
         assertIdent(tokenizer, token)
         val name: String = token
-        qualifiedName = qualifiedName(pkg.name(), name)
+        val qualifiedName = qualifiedName(pkg.name(), name)
         val typeInfo = api.obtainTypeFromString(qualifiedName)
         // Simple type info excludes the package name (but includes enclosing class names)
         var rawName = name
@@ -284,15 +282,15 @@ object ApiFile {
             rawName = rawName.substring(0, variableIndex)
         }
         token = tokenizer.requireToken()
-        val cls = TextClassItem(
+        val maybeExistingClass = TextClassItem(
             api, tokenizer.pos(), modifiers, isInterface, isEnum, isAnnotation,
             typeInfo.toErasedTypeString(null), typeInfo.qualifiedTypeName(),
             rawName, annotations
         )
-        cl = when (val foundClass = api.findClass(qualifiedName)) {
-            null -> cls
+        val cl = when (val foundClass = api.findClass(maybeExistingClass.qualifiedName())) {
+            null -> maybeExistingClass
             else -> {
-                if (!foundClass.isCompatible(cls)) {
+                if (!foundClass.isCompatible(maybeExistingClass)) {
                     throw ApiParseException("Incompatible $foundClass definitions")
                 } else {
                     foundClass
