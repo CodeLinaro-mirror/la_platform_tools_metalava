@@ -455,8 +455,8 @@ class ExtractAnnotations(
 
                 if (isConstructor()) {
                     sb.append(escapeXml(containingClass().simpleName()))
-                } else if (returnType() != null) {
-                    sb.append(escapeXml(returnType()!!.toTypeString()))
+                } else {
+                    sb.append(escapeXml(returnType().toTypeString()))
                     sb.append(' ')
                     sb.append(escapeXml(name()))
                 }
