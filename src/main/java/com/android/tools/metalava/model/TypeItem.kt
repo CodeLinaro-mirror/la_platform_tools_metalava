@@ -101,7 +101,7 @@ interface TypeItem {
      * returns the original type string.
      */
     fun toElementType(): String {
-        return toErasedTypeString().replace("...", "").replace("[]", "")
+        return toTypeString().replace("...", "").replace("[]", "")
     }
 
     val primitive: Boolean
@@ -159,7 +159,7 @@ interface TypeItem {
             return emptyList()
         }
         val typeString = toTypeString()
-        val bracketRemovedTypeString = toTypeString().indexOf('<')
+        val bracketRemovedTypeString = typeString.indexOf('<')
             .let { typeString.substring(it + 1, typeString.length - 1) }
         val typeArguments = mutableListOf<String>()
         var builder = StringBuilder()

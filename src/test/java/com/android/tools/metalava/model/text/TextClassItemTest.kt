@@ -101,12 +101,15 @@ class TextClassItemTest {
         val next2 = codebase.getOrCreateClass("java.util.Iterator<E>").findMethod("next", "")!!
         val changeParameterType1 = codebase.getOrCreateClass("java.lang.invoke.MethodType").findMethod("changeParameterType", "int, java.lang.Class")!!
         val changeParameterType2 = codebase.getOrCreateClass("java.lang.invoke.TypeDescriptor.OfMethod").findMethod("changeParameterType", "int, java.lang.invoke.TypeDescriptor.OfField")!!
+        val parameterArray1 = codebase.getOrCreateClass("java.lang.invoke.MethodType").findMethod("parameterArray", "")!!
+        val parameterArray2 = codebase.getOrCreateClass("java.lang.invoke.TypeDescriptor.OfMethod").findMethod("parameterArray", "")!!
 
         assertTrue(TextClassItem.hasEqualReturnType(toLocalDate1, toLocalDate2))
         assertTrue(TextClassItem.hasEqualReturnType(evaluate1, evaluate2))
         assertTrue(TextClassItem.hasEqualReturnType(loadInBackground1, loadInBackground2))
         assertTrue(TextClassItem.hasEqualReturnType(next1, next2))
         assertTrue(TextClassItem.hasEqualReturnType(changeParameterType1, changeParameterType2))
+        assertTrue(TextClassItem.hasEqualReturnType(parameterArray1, parameterArray2))
     }
 
     @Test
@@ -130,5 +133,32 @@ class TextClassItemTest {
         val getAnnotation2 = codebase.getOrCreateClass("java.lang.AnnotatedElement").findMethod("getAnnotation", "java.lang.Class")!!
 
         assertTrue(TextClassItem.hasEqualReturnType(getAnnotation1, getAnnotation2))
+    }
+
+    @Test
+    fun `test hasEqualReturnType() with covariant return types`() {
+        val codebase = ApiFile.parseApi(
+            "test",
+            """
+            package android.widget {
+              public abstract class AdapterView<T extends android.widget.Adapter> extends android.view.ViewGroup {
+                method public abstract T getAdapter();
+              }
+              public abstract class AbsListView extends android.widget.AdapterView<android.widget.ListAdapter> implements android.widget.Filter.FilterListener android.text.TextWatcher android.view.ViewTreeObserver.OnGlobalLayoutListener android.view.ViewTreeObserver.OnTouchModeChangeListener {
+              }
+              public interface ListAdapter extends android.widget.Adapter {
+              }
+              @android.widget.RemoteViews.RemoteView public class ListView extends android.widget.AbsListView {
+                method public android.widget.ListAdapter getAdapter();
+              }
+            }
+            """.trimIndent(),
+            false
+        )
+
+        val getAdapter1 = codebase.getOrCreateClass("android.widget.AdapterView<T extends android.widget.Adapter>").findMethod("getAdapter", "")!!
+        val getAdapter2 = codebase.getOrCreateClass("android.widget.ListView").findMethod("getAdapter", "")!!
+
+        assertTrue(TextClassItem.hasEqualReturnType(getAdapter1, getAdapter2))
     }
 }

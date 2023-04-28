@@ -280,6 +280,60 @@ open class TextClassItem(
         return TextConstructorItem.createDefaultConstructor(codebase, this, position)
     }
 
+    fun getParentAndInterfaces(): List<TextClassItem> {
+        val classes = interfaceTypes().map { it.asClass() as TextClassItem }.toMutableList()
+        superClass()?.let { classes.add(0, it as TextClassItem) }
+        return classes
+    }
+
+    private var allSuperClassesAndInterfaces: List<TextClassItem>? = null
+
+    // Returns all super classes and interfaces in the class hierarchy the class item inherits.
+    // The returned list is sorted by the proximity of the classes to the class item in the hierarchy chain.
+    // If an interface appears multiple time in the hierarchy chain,
+    // it is ordered based on the furthest distance to the class item.
+    fun getAllSuperClassesAndInterfaces(): List<TextClassItem> {
+        allSuperClassesAndInterfaces?.let { return it }
+
+        val classLevelMap = mutableMapOf<TextClassItem, Int>()
+
+        // Stores the parent class and interfaces to be iterated.
+        // Since a class can inherit multiple class and interfaces, queue is two-dimensional.
+        // Each inner lists represents all super class and interfaces in the same hierarchy level.
+        val queue = ArrayDeque<List<TextClassItem>>()
+        queue.add(getParentAndInterfaces())
+
+        // We need to visit the hierarchy starting from the greatest ancestor,
+        // but we cannot naively reverse-iterate based on the order the hierarchy is discovered
+        // because a class/interface can appear multiple times in the hierarchy graph
+        // (i.e. a vertex can have multiple outgoing edges).
+        // Thus, we keep track of the furthest distances from each hierarchy vertices to the
+        // destination vertex (cl) and reverse iterate from the vertices that are
+        // farthest from the destination.
+        var hierarchyLevel = 1
+        while (queue.isNotEmpty()) {
+            val superClasses = queue.removeFirst()
+            val parentClasses = ArrayList<TextClassItem>()
+            for (superClass in superClasses) {
+                // Every class extends java.lang.Object and thus not need to be
+                // included in the hierarchy
+                if (!superClass.isJavaLangObject()) {
+                    classLevelMap[superClass] = hierarchyLevel
+                    parentClasses.addAll(superClass.getParentAndInterfaces())
+                }
+            }
+            if (parentClasses.isNotEmpty()) {
+                queue.add(parentClasses)
+            }
+            hierarchyLevel += 1
+        }
+
+        allSuperClassesAndInterfaces =
+            classLevelMap.toList().sortedWith(compareBy { it.second }).map { it.first }
+
+        return allSuperClassesAndInterfaces!!
+    }
+
     companion object {
         fun createClassStub(codebase: TextCodebase, name: String): TextClassItem =
             createStub(codebase, name, isInterface = false)
@@ -323,6 +377,38 @@ open class TextClassItem(
             }
 
             return qualifiedName.substring(qualifiedName.lastIndexOf('.') + 1)
+        }
+
+        /**
+         * Determines whether if [thisClassType] is covariant type with [otherClassType].
+         * If [thisClassType] does not belong to this class, return false.
+         *
+         * @param thisClass [ClassItem] that [thisClassType] belongs to
+         * @param thisClassType [TypeItem] that belongs to this class
+         * @param otherClassType [TypeItem] that belongs to other class
+         * @return Boolean that indicates whether if the two types are covariant
+         */
+        private fun isCovariantType(
+            thisClass: ClassItem,
+            thisClassType: TypeItem,
+            otherClassType: TypeItem
+        ): Boolean {
+            val otherSuperClassNames = (otherClassType.asClass() as? TextClassItem)
+                ?.getAllSuperClassesAndInterfaces()?.map { it.qualifiedName() } ?: emptyList()
+
+            val thisClassTypeErased = thisClassType.toErasedTypeString()
+            val typeArgIndex = thisClass.toType().typeArguments(simplified = true).indexOf(thisClassTypeErased)
+
+            // thisClassSuperType is the super type of thisClassType retrieved from the type arguments.
+            // e.g. when type arguments are <K, V extends some.arbitrary.Class>,
+            // thisClassSuperType will be "some.arbitrary.Class" when the thisClassType is "V"
+            // If thisClassType is not included in the type arguments or
+            // if thisClassType does not have a super type specified in the type argument,
+            // thisClassSuperType will be thisClassType.
+            val thisClassSuperType = if (typeArgIndex == -1) thisClassTypeErased else
+                thisClass.toType().typeArguments()[typeArgIndex].substringAfterLast(" extends ")
+
+            return thisClassSuperType in otherSuperClassNames
         }
 
         private fun hasEqualTypeVar(
@@ -400,6 +486,37 @@ open class TextClassItem(
                 getTypeBounds(returnType1, method1) == getTypeBounds(returnType2, method2)
         }
 
+        private fun hasCovariantTypes(
+            type1: TypeItem,
+            class1: ClassItem,
+            type2: TypeItem,
+            class2: ClassItem
+        ): Boolean {
+            val types = listOf(type1, type2)
+
+            val type1Erased = type1.toErasedTypeString()
+            val type2Erased = type2.toErasedTypeString()
+
+            // The return type of the following two methods are considered equal:
+            // when SomeReturnSubClass extends SomeReturnClass:
+            // method SomeReturnClass foo() and method SomeReturnSubClass foo()
+            // Likewise, the return type of the two methods are also considered equal:
+            // method T foo() in SomeClass<T extends SomeReturnClass> and
+            // method SomeReturnSubClass foo() in SomeOtherClass
+            // This can be verified by checking if a method's return type exists in
+            // another method return type's super classes
+            // Since this method is only used to compare methods with same name and parameters count
+            // within same hierarchy tree, it is unlikely that
+            // two methods have same generic return type.
+            // However, not comparing erased type strings may lead to false negatives
+            // (e.g. comparing java.util.Iterator<E> and java.util.Iterator<T>)
+            // Thus erased type strings equivalence must be evaluated.
+            return type1Erased == type2Erased ||
+                isCovariantType(class1, type1, type2) ||
+                isCovariantType(class2, type2, type1) ||
+                types.any { it.isJavaLangObject() }
+        }
+
         /**
          * Compares two [MethodItem]s and determines if the two methods have equal return types.
          * The two methods' return types are considered equal even if the two are not identical,
@@ -421,6 +538,8 @@ open class TextClassItem(
             if (hasEqualTypeVar(returnType1, class1, returnType2, class2)) return true
 
             if (hasEqualTypeBounds(method1, method2)) return true
+
+            if (hasCovariantTypes(returnType1, class1, returnType2, class2)) return true
 
             return false
         }
