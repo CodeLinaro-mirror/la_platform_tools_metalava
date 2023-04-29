@@ -393,8 +393,12 @@ open class TextClassItem(
             thisClassType: TypeItem,
             otherClassType: TypeItem
         ): Boolean {
-            val otherSuperClassNames = (otherClassType.asClass() as? TextClassItem)
-                ?.getAllSuperClassesAndInterfaces()?.map { it.qualifiedName() } ?: emptyList()
+            // TypeItem.asClass() returns null for primitive types.
+            // Since primitive types are not covariant with anything, return false
+            val otherClass = otherClassType.asClass() ?: return false
+
+            val otherSuperClassNames = (otherClass as TextClassItem)
+                .getAllSuperClassesAndInterfaces().map { it.qualifiedName() }
 
             val thisClassTypeErased = thisClassType.toErasedTypeString()
             val typeArgIndex = thisClass.toType().typeArguments(simplified = true).indexOf(thisClassTypeErased)
