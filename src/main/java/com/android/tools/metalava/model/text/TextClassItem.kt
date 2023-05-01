@@ -225,6 +225,22 @@ open class TextClassItem(
         innerClasses.add(cls)
     }
 
+    fun isCompatible(cls: TextClassItem): Boolean {
+        if (this === cls) {
+            return true
+        }
+        if (fullName != cls.fullName) {
+            return false
+        }
+
+        return modifiers.toString() == cls.modifiers.toString() &&
+            isInterface == cls.isInterface &&
+            isEnum == cls.isEnum &&
+            isAnnotation == cls.isAnnotation &&
+            superClass == cls.superClass &&
+            allInterfaces().toSet() == cls.allInterfaces().toSet()
+    }
+
     override fun filteredSuperClassType(predicate: Predicate<Item>): TypeItem? {
         // No filtering in signature files: we assume signature APIs
         // have already been filtered and all items should match.

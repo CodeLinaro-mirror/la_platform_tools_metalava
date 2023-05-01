@@ -3355,7 +3355,7 @@ CompatibilityCheckTest : DriverTest() {
         // Regression test for 130567941
         check(
             expectedIssues = """
-            TESTROOT/load-api.txt:7: error: Method test.pkg.sample.SampleClass.convert has changed return type from Number to java.lang.Number [ChangedType]
+            TESTROOT/load-api.txt:7: error: Method test.pkg.sample.SampleClass.convert1 has changed return type from Number to java.lang.Number [ChangedType]
             """,
             inputKotlinStyleNulls = true,
             outputKotlinStyleNulls = true,
@@ -3364,7 +3364,7 @@ CompatibilityCheckTest : DriverTest() {
                 package test.pkg.sample {
                   public abstract class SampleClass {
                     method public <Number> Number! convert(Number);
-                    method public <Number> Number! convert(Number);
+                    method public <Number> Number! convert1(Number);
                   }
                 }
                 """,
@@ -3375,7 +3375,7 @@ CompatibilityCheckTest : DriverTest() {
                     // Here the generic type parameter applies to both the function argument and the function return type
                     method public <Number> Number! convert(Number);
                     // Here the generic type parameter applies to the function argument but not the function return type
-                    method public <Number> java.lang.Number! convert(Number);
+                    method public <Number> java.lang.Number! convert1(Number);
                   }
                 }
             """
