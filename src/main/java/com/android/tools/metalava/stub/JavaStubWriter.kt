@@ -353,7 +353,7 @@ class JavaStubWriter(
 
         val returnType = method.returnType()
         writer.print(
-            returnType?.toTypeString(
+            returnType.toTypeString(
                 outerAnnotations = false,
                 innerAnnotations = generateAnnotations,
                 filter = filterReference
