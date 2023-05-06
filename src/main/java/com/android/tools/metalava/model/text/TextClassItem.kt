@@ -24,6 +24,7 @@ import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
+import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterItem
@@ -546,6 +547,47 @@ open class TextClassItem(
             if (hasCovariantTypes(returnType1, class1, returnType2, class2)) return true
 
             return false
+        }
+
+        /**
+         * Compares two [MethodItem] and determines if the two are considered equal based on
+         * the context of the containing classes of the methods. To be specific, for the two methods
+         * in which the coexistence in a class would lead to a
+         * method already defined compiler error, this method returns true.
+         *
+         * @param method1 first [MethodItem] to compare
+         * @param method2 second [MethodItem] to compare
+         * @return a [Boolean] value representing if the two methods are equal or not
+         * with respect to the classes contexts.
+         */
+        fun equalMethodInClassContext(method1: MethodItem, method2: MethodItem): Boolean {
+            if (method1 == method2) return true
+
+            if (method1.name() != method2.name()) return false
+            if (method1.parameters().size != method2.parameters().size) return false
+
+            val hasEqualParams = method1.parameters().zip(method2.parameters()).all {
+                (param1, param2): Pair<ParameterItem, ParameterItem> ->
+                val type1 = param1.type()
+                val type2 = param2.type()
+                val class1 = method1.containingClass()
+                val class2 = method2.containingClass()
+
+                // At this point, two methods' return types equivalence would have been checked.
+                // i.e. If hasEqualReturnType(method1, method2) is true,
+                // we know that the two methods return types are equal.
+                // In other words, if the two compared param types are both method return types,
+                // we transitively know that the two param types are equal as well.
+                val bothAreMethodReturnType =
+                    type1 == method1.returnType() && type2 == method2.returnType()
+
+                type1 == type2 ||
+                    bothAreMethodReturnType ||
+                    hasEqualTypeVar(type1, class1, type2, class2) ||
+                    hasCovariantTypes(type1, class1, type2, class2)
+            }
+
+            return hasEqualReturnType(method1, method2) && hasEqualParams
         }
     }
 }

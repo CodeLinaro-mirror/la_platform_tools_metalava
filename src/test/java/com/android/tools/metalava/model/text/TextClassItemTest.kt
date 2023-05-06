@@ -161,4 +161,54 @@ class TextClassItemTest {
 
         assertTrue(TextClassItem.hasEqualReturnType(getAdapter1, getAdapter2))
     }
+
+    @Test
+    fun `test equalMethodInClassContext()`() {
+        val codebase = ApiFile.parseApi(
+            "test",
+            """
+            package java.lang {
+              public interface Comparable<T> {
+                method public int compareTo(T);
+              }
+              public final class String implements java.lang.CharSequence java.lang.Comparable<java.lang.String> java.io.Serializable {
+                method public int compareTo(@NonNull String);
+              }
+            }
+            package java.lang.invoke {
+              public final class MethodType implements java.io.Serializable java.lang.invoke.TypeDescriptor.OfMethod<java.lang.Class<?>,java.lang.invoke.MethodType> {
+                method public java.lang.invoke.MethodType insertParameterTypes(int, Class<?>...);
+              }
+              public static interface TypeDescriptor.OfMethod<F extends java.lang.invoke.TypeDescriptor.OfField<F>, M extends java.lang.invoke.TypeDescriptor.OfMethod<F, M>> extends java.lang.invoke.TypeDescriptor {
+                method public M insertParameterTypes(int, F...);
+              }
+            }
+            package android.animation {
+              public interface TypeEvaluator<T> {
+                method public T evaluate(float, T, T);
+              }
+              public class ArgbEvaluator implements android.animation.TypeEvaluator {
+                method public Object evaluate(float, Object, Object);
+              }
+              public class FloatArrayEvaluator implements android.animation.TypeEvaluator<float[]> {
+                method public float[] evaluate(float, float[], float[]);
+              }
+            }
+            """.trimIndent(),
+            false
+        )
+
+        val compareTo1 = codebase.getOrCreateClass("java.lang.Comparable").findMethod("compareTo", "T")!!
+        val compareTo2 = codebase.getOrCreateClass("java.lang.String").findMethod("compareTo", "java.lang.String")!!
+        val insertParameterTypes1 = codebase.getOrCreateClass("java.lang.invoke.MethodType").findMethod("insertParameterTypes", "int, java.lang.Class...")!!
+        val insertParameterTypes2 = codebase.getOrCreateClass("java.lang.invoke.TypeDescriptor.OfMethod").findMethod("insertParameterTypes", "int, F...")!!
+        val evaluate1 = codebase.getOrCreateClass("android.animation.TypeEvaluator<T>").findMethod("evaluate", "float, T, T")!!
+        val evaluate2 = codebase.getOrCreateClass("android.animation.ArgbEvaluator").findMethod("evaluate", "float, java.lang.Object, java.lang.Object")!!
+        val evaluate3 = codebase.getOrCreateClass("android.animation.FloatArrayEvaluator").findMethod("evaluate", "float, float[], float[]")!!
+
+        assertTrue(TextClassItem.equalMethodInClassContext(compareTo1, compareTo2))
+        assertTrue(TextClassItem.equalMethodInClassContext(insertParameterTypes1, insertParameterTypes2))
+        assertTrue(TextClassItem.equalMethodInClassContext(evaluate1, evaluate2))
+        assertTrue(TextClassItem.equalMethodInClassContext(evaluate1, evaluate3))
+    }
 }
