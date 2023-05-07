@@ -106,6 +106,7 @@ fun registerTestPrebuiltsSdkTasks(sourceDir: String, destJar: String): String {
     val jarTaskName = "$basename.jar"
 
     project.tasks.register(javaCompileTaskName, JavaCompile::class) {
+        options.compilerArgs = listOf("--patch-module", "java.base=" + file(sourceDir))
         source = fileTree(sourceDir)
         classpath = project.files()
         destinationDirectory.set(File(getBuildDirectory(), javaCompileTaskName))
