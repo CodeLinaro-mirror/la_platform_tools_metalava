@@ -281,6 +281,10 @@ open class TextClassItem(
         return TextConstructorItem.createDefaultConstructor(codebase, this, position)
     }
 
+    fun containsMethodInClassContext(method: MethodItem): Boolean {
+        return methods.any { equalMethodInClassContext(it, method) }
+    }
+
     fun getParentAndInterfaces(): List<TextClassItem> {
         val classes = interfaceTypes().map { it.asClass() as TextClassItem }.toMutableList()
         superClass()?.let { classes.add(0, it as TextClassItem) }
@@ -289,10 +293,11 @@ open class TextClassItem(
 
     private var allSuperClassesAndInterfaces: List<TextClassItem>? = null
 
-    // Returns all super classes and interfaces in the class hierarchy the class item inherits.
-    // The returned list is sorted by the proximity of the classes to the class item in the hierarchy chain.
-    // If an interface appears multiple time in the hierarchy chain,
-    // it is ordered based on the furthest distance to the class item.
+    /** Returns all super classes and interfaces in the class hierarchy the class item inherits.
+     * The returned list is sorted by the proximity of the classes to the class item in the hierarchy chain.
+     * If an interface appears multiple time in the hierarchy chain,
+     * it is ordered based on the furthest distance to the class item.
+     */
     fun getAllSuperClassesAndInterfaces(): List<TextClassItem> {
         allSuperClassesAndInterfaces?.let { return it }
 

@@ -1170,6 +1170,88 @@ class StubsTest : DriverTest() {
     }
 
     @Test
+    fun `Check overridden method added for complex hierarchy`() {
+        checkStubs(
+            sourceFiles = arrayOf(
+                java(
+                    """
+                package test.pkg;
+                public final class A extends C implements B<String> {
+                    @Override public void method2() { }
+                }
+                """
+                ),
+                java(
+                    """
+                package test.pkg;
+                public interface B<T> {
+                    void method1(T arg1);
+                }
+                """
+                ),
+                java(
+                    """
+                package test.pkg;
+                public abstract class C extends D {
+                    public abstract void method2();
+                }
+                """
+                ),
+                java(
+                    """
+                package test.pkg;
+                public abstract class D implements B<String> {
+                    @Override public void method1(String arg1) { }
+                }
+                """
+                )
+            ),
+            stubFiles = arrayOf(
+                java(
+                    """
+                package test.pkg;
+                @SuppressWarnings({"unchecked", "deprecation", "all"})
+                public final class A extends test.pkg.C implements test.pkg.B<java.lang.String> {
+                public A() { throw new RuntimeException("Stub!"); }
+                public void method2() { throw new RuntimeException("Stub!"); }
+                }
+                """
+                ),
+                java(
+                    """
+                package test.pkg;
+                @SuppressWarnings({"unchecked", "deprecation", "all"})
+                public interface B<T> {
+                public void method1(T arg1);
+                }
+                """
+                ),
+                java(
+                    """
+                package test.pkg;
+                @SuppressWarnings({"unchecked", "deprecation", "all"})
+                public abstract class C extends test.pkg.D {
+                public C() { throw new RuntimeException("Stub!"); }
+                public abstract void method2();
+                }
+                """
+                ),
+                java(
+                    """
+                package test.pkg;
+                @SuppressWarnings({"unchecked", "deprecation", "all"})
+                public abstract class D implements test.pkg.B<java.lang.String> {
+                public D() { throw new RuntimeException("Stub!"); }
+                public void method1(java.lang.String arg1) { throw new RuntimeException("Stub!"); }
+                }
+                """
+                )
+            ),
+            checkTextStubEquivalence = true
+        )
+    }
+
+    @Test
     fun `Check generating classes with generics`() {
         checkStubs(
             sourceFiles = arrayOf(
@@ -1811,6 +1893,53 @@ class StubsTest : DriverTest() {
                 public static final int MY_CONSTANT = 5; // 0x5
                 }
                 """
+        )
+    }
+
+    @Test
+    fun `Check resolving override equivalent signatures`() {
+        // getAttributeNamespace in XmlResourceParser does not exist in the intermediate text file created.
+        checkStubs(
+            sourceFiles = arrayOf(
+                java(
+                    """
+                    package test.pkg;
+                    public interface XmlResourceParser extends test.pkg.XmlPullParser, test.pkg.AttributeSet {
+                        public void close();
+                        String getAttributeNamespace (int arg1);
+                    }
+                    """
+                ),
+                java(
+                    """
+                    package test.pkg;
+                    public interface XmlPullParser {
+                        String getAttributeNamespace (int arg1);
+                    }
+                    """
+                ),
+                java(
+                    """
+                    package test.pkg;
+                    public interface AttributeSet {
+                        default String getAttributeNamespace (int arg1) { }
+                    }
+                    """
+                )
+            ),
+            stubFiles = arrayOf(
+                java(
+                    """
+                    package test.pkg;
+                    @SuppressWarnings({"unchecked", "deprecation", "all"})
+                    public interface XmlResourceParser extends test.pkg.XmlPullParser,  test.pkg.AttributeSet {
+                    public void close();
+                    public java.lang.String getAttributeNamespace(int arg1);
+                    }
+                    """
+                )
+            ),
+            checkTextStubEquivalence = true
         )
     }
 
