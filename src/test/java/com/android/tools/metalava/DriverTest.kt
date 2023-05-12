@@ -114,7 +114,6 @@ abstract class DriverTest {
     }
 
     protected fun runDriver(vararg args: String, expectedFail: String = ""): String {
-
         resetTicker()
 
         // Capture the actual input and output from System.out/err and compare it

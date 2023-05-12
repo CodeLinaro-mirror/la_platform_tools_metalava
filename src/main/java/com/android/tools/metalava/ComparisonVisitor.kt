@@ -270,7 +270,6 @@ class CodebaseComparator {
         newParent: Item?,
         filter: Predicate<Item>?
     ) {
-
         // If it's a method, we may not have removed the method, we may have simply
         // removed an override and are now inheriting the method from a superclass.
         // Alternatively, it may have always truly been an inherited method, but if the base

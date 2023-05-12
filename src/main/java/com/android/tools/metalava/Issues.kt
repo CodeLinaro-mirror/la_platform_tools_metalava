@@ -227,6 +227,7 @@ object Issues {
     val NULLABLE_COLLECTION = Issue(Severity.WARNING, Category.API_LINT, "methods-prefer-non-null-collections")
     val ASYNC_SUFFIX_FUTURE = Issue(Severity.ERROR, Category.API_LINT)
     val GENERIC_CALLBACKS = Issue(Severity.ERROR, Category.API_LINT, "callbacks-sam")
+    val KOTLIN_DEFAULT_PARAMETER_ORDER = Issue(Severity.ERROR, Category.API_LINT_ANDROIDX_MISC, "kotlin-params-order")
 
     fun findIssueById(id: String?): Issue? {
         return nameToIssue[id]
@@ -288,6 +289,8 @@ object Issues {
         COMPATIBILITY("Compatibility", null),
         DOCUMENTATION("Documentation", null),
         API_LINT("API Lint", "https://s.android.com/api-guidelines#"),
+        // AndroidX API guidelines are split across multiple files, so add a category per-file
+        API_LINT_ANDROIDX_MISC("API Lint", "https://android.googlesource.com/platform/frameworks/support/+/androidx-main/docs/api_guidelines/misc.md#"),
         UNKNOWN("Default", null)
     }
 

@@ -311,7 +311,6 @@ class ApiAnalyzer(
         filterEmit: Predicate<Item>,
         filterReference: Predicate<Item>
     ) {
-
         // Also generate stubs for any methods we would have inherited from abstract parents
         // All methods from super classes that (1) aren't overridden in this class already, and
         // (2) are overriding some method that is in a public interface accessible from this class.
@@ -354,7 +353,6 @@ class ApiAnalyzer(
 
         // Also add in any concrete public methods from hidden super classes
         for (superClass in hiddenSuperClasses) {
-
             // Determine if there is a non-hidden class between the superClass and this class.
             // If non hidden classes are found, don't include the methods for this hiddenSuperClass,
             // as it will already have been included in a previous super class

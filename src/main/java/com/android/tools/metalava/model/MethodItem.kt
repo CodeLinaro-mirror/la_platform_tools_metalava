@@ -120,7 +120,6 @@ interface MethodItem : MemberItem {
         predicate: Predicate<Item>,
         classes: LinkedHashSet<ClassItem>
     ): LinkedHashSet<ClassItem> {
-
         for (cls in throwsTypes()) {
             if (predicate.test(cls) || cls.isTypeParameter) {
                 classes.add(cls)

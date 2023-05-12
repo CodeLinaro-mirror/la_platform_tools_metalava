@@ -166,9 +166,9 @@ class ApiFileTest : DriverTest() {
                             str: String = "hello " + "world",
                             vararg args: String) { }
 
-                        fun method2(myInt: Int, myInt2: Int = (2*int) * SIZE) { }
+                        fun method2(myInt: Int, myInt2: Int = (2*myInt) * SIZE) { }
 
-                        fun method3(str: String, myInt: Int, myInt2: Int = double(int) + str.length) { }
+                        fun method3(str: String, myInt: Int, myInt2: Int = double(myInt) + str.length) { }
 
                         fun emptyLambda(sizeOf: () -> Unit = {  }) {}
 
@@ -200,8 +200,8 @@ class ApiFileTest : DriverTest() {
                     method public android.graphics.Bitmap? drawToBitmap(android.view.View, android.graphics.Bitmap.Config config = android.graphics.Bitmap.Config.ARGB_8888);
                     method public void emptyLambda(kotlin.jvm.functions.Function0<kotlin.Unit> sizeOf = {});
                     method public void method1(int myInt = 42, Integer? myInt2 = null, int myByte = 42, String str = "hello world", java.lang.String... args);
-                    method public void method2(int myInt, int myInt2 = (2 * int) * some.other.pkg.Constants.Misc.SIZE);
-                    method public void method3(String str, int myInt, int myInt2 = double(int) + str.length);
+                    method public void method2(int myInt, int myInt2 = (2 * myInt) * some.other.pkg.Constants.Misc.SIZE);
+                    method public void method3(String str, int myInt, int myInt2 = double(myInt) + str.length);
                     field public static final test.pkg.Foo.Companion Companion;
                   }
                   public static final class Foo.Companion {
@@ -951,6 +951,8 @@ class ApiFileTest : DriverTest() {
                     method public test.pkg.Issue create(String id, String briefDescription, String explanation);
                   }
                   public enum Language {
+                    method public static test.pkg.Language valueOf(String name) throws java.lang.IllegalArgumentException;
+                    method public static test.pkg.Language[] values();
                     enum_constant public static final test.pkg.Language JAVA;
                     enum_constant public static final test.pkg.Language KOTLIN;
                   }
@@ -4267,9 +4269,9 @@ class ApiFileTest : DriverTest() {
                             str: String = "hello " + "world",
                             vararg args: String) { }
 
-                        fun method2(myInt: Int, myInt2: Int = (2*int) * SIZE) { }
+                        fun method2(myInt: Int, myInt2: Int = (2*myInt) * SIZE) { }
 
-                        fun method3(str: String, myInt: Int, myInt2: Int = double(int) + str.length) { }
+                        fun method3(str: String, myInt: Int, myInt2: Int = double(myInt) + str.length) { }
 
                         fun emptyLambda(sizeOf: () -> Unit = {  }) {}
 
@@ -4648,6 +4650,7 @@ class ApiFileTest : DriverTest() {
                 kotlin(
                     """
                         package test.pkg
+                        import androidx.annotation.IntRange
                         @Deprecated(
                             message = "So much regret",
                             level = DeprecationLevel.HIDDEN
@@ -4655,13 +4658,15 @@ class ApiFileTest : DriverTest() {
                         @IntRange(from=0)
                         fun myMethod() { TODO() }
                     """
-                )
+                ),
+                androidxIntRangeSource
             ),
+            extraArguments = arrayOf(ARG_HIDE_PACKAGE, "androidx.annotation"),
             api = """
                 // Signature format: 3.0
                 package test.pkg {
                   public final class TestKt {
-                    method @Deprecated @kotlin.ranges.IntRange public static void myMethod();
+                    method @Deprecated @IntRange(from=0L) public static void myMethod();
                   }
                 }
             """

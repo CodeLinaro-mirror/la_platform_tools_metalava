@@ -469,10 +469,20 @@ open class PsiClassItem(
                 !hasExplicitRetention(modifiers, psiClass, isKotlin)
             ) {
                 // By policy, include explicit retention policy annotation if missing
+                val defaultRetentionPolicy = AnnotationRetention.getDefault(isKotlin)
                 modifiers.addAnnotation(
                     codebase.createAnnotation(
-                        "@java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS)",
-                        item, false
+                        buildString {
+                            append('@')
+                            append(java.lang.annotation.Retention::class.qualifiedName)
+                            append('(')
+                            append(java.lang.annotation.RetentionPolicy::class.qualifiedName)
+                            append('.')
+                            append(defaultRetentionPolicy.name)
+                            append(')')
+                        },
+                        item,
+                        false
                     )
                 )
             }

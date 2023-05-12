@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava
 
-import com.android.SdkConstants
 import com.android.tools.metalava.model.AnnotationAttributeValue
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
@@ -265,9 +264,7 @@ class AndroidApiChecks {
             for (annotation in item.modifiers.annotations()) {
                 val cls = annotation.resolve() ?: continue
                 val modifiers = cls.modifiers
-                if (modifiers.findAnnotation(SdkConstants.INT_DEF_ANNOTATION.oldName()) != null ||
-                    modifiers.findAnnotation(SdkConstants.INT_DEF_ANNOTATION.newName()) != null
-                ) {
+                if (modifiers.findAnnotation(ANDROIDX_INT_DEF) != null) {
                     // TODO: Check that all the constants listed in the documentation are included in the
                     // annotation?
                     foundTypeDef = true

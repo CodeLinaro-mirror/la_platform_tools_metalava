@@ -21,12 +21,17 @@ import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.psi.CodePrinter.Companion.constantToSource
+import com.intellij.psi.LambdaUtil
 import com.intellij.psi.PsiParameter
+import org.jetbrains.kotlin.builtins.isFunctionOrKFunctionTypeWithAnySuspendability
+import org.jetbrains.kotlin.load.java.sam.JavaSingleAbstractMethodUtils
 import org.jetbrains.kotlin.psi.KtConstantExpression
 import org.jetbrains.kotlin.psi.KtFunction
 import org.jetbrains.kotlin.psi.KtParameter
+import org.jetbrains.kotlin.resolve.typeBinding.createTypeBindingForReturnType
 import org.jetbrains.uast.UExpression
 import org.jetbrains.uast.UMethod
+import org.jetbrains.uast.UParameter
 import org.jetbrains.uast.UastFacade
 
 class PsiParameterItem(
@@ -200,6 +205,55 @@ class PsiParameterItem(
 
     override fun isVarArgs(): Boolean {
         return psiParameter.isVarArgs || modifiers.isVarArg()
+    }
+
+    /**
+     * Returns whether this parameter is SAM convertible or a Kotlin lambda. If this parameter is
+     * the last parameter, it also means that it could be called in Kotlin using the trailing lambda
+     * syntax.
+     *
+     * Specifically this will attempt to handle the follow cases:
+     *
+     * - Java SAM interface = true
+     * - Kotlin SAM interface = false // Kotlin (non-fun) interfaces are not SAM convertible
+     * - Kotlin fun interface = true
+     * - Kotlin lambda = true
+     * - Any other type = false
+     */
+    fun isSamCompatibleOrKotlinLambda(): Boolean {
+        // Method is defined in Java source
+        if (isJava()) {
+            // Check the parameter type to see if it is defined in Kotlin or not.
+            // Interfaces defined in Kotlin do not support SAM conversion, but `fun` interfaces do.
+            // This is a best-effort check, since external dependencies (bytecode) won't appear to
+            // be Kotlin, and won't have a `fun` modifier visible. To resolve this, we could parse
+            // the kotlin.metadata annotation on the bytecode declaration (and special case
+            // kotlin.jvm.functions.Function* since the actual Kotlin lambda type can always be used
+            // with trailing lambda syntax), but in reality the amount of Java methods with a Kotlin
+            // interface with a single abstract method from an external dependency should be
+            // minimal, so just checking source will make this easier to maintain in the future.
+            val cls = type.asClass()
+            if (cls != null && cls.isKotlin()) {
+                return cls.isInterface() && cls.modifiers.isFunctional()
+            }
+            // Note: this will return `true` if the interface is defined in Kotlin, hence why we
+            // need the prior check as well
+            return LambdaUtil.isFunctionalType(type.psiType)
+            // Method is defined in Kotlin source
+        } else {
+            // For Kotlin declarations we can re-use the existing utilities for calculating whether
+            // a type is SAM convertible or not, which should handle external dependencies better
+            // and avoid any divergence from the actual compiler behaviour, if there are changes.
+            val parameter = (psi() as? UParameter)?.sourcePsi as? KtParameter ?: return false
+            val bindingContext = codebase.bindingContext(parameter)
+            val type =
+                parameter.createTypeBindingForReturnType(bindingContext)?.type ?: return false
+            // True if the type is a SAM type, or a fun interface
+            val isSamType = JavaSingleAbstractMethodUtils.isSamType(type)
+            // True if the type is a Kotlin lambda (suspend or not)
+            val isFunctionalType = type.isFunctionOrKFunctionTypeWithAnySuspendability
+            return isSamType || isFunctionalType
+        }
     }
 
     companion object {

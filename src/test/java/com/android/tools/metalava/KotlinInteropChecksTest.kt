@@ -58,7 +58,9 @@ class KotlinInteropChecksTest : DriverTest() {
             expectedIssues = """
                 src/test/pkg/Test.java:20: warning: SAM-compatible parameters (such as parameter 1, "run", in test.pkg.Test.error1) should be last to improve Kotlin interoperability; see https://kotlinlang.org/docs/reference/java-interop.html#sam-conversions [SamShouldBeLast] [See https://s.android.com/api-guidelines#placement-of-sam-parameters]
                 src/test/pkg/Test.java:23: warning: SAM-compatible parameters (such as parameter 2, "callback", in test.pkg.Test.error2) should be last to improve Kotlin interoperability; see https://kotlinlang.org/docs/reference/java-interop.html#sam-conversions [SamShouldBeLast] [See https://s.android.com/api-guidelines#placement-of-sam-parameters]
-                src/test/pkg/test.kt:7: warning: lambda parameters (such as parameter 1, "bar", in test.pkg.TestKt.error) should be last to improve Kotlin interoperability; see https://kotlinlang.org/docs/reference/java-interop.html#sam-conversions [SamShouldBeLast] [See https://s.android.com/api-guidelines#placement-of-sam-parameters]
+                src/test/pkg/Test.java:30: warning: SAM-compatible parameters (such as parameter 1, "lambda", in test.pkg.Test.error3) should be last to improve Kotlin interoperability; see https://kotlinlang.org/docs/reference/java-interop.html#sam-conversions [SamShouldBeLast] [See https://s.android.com/api-guidelines#placement-of-sam-parameters]
+                src/test/pkg/Test.java:31: warning: SAM-compatible parameters (such as parameter 1, "lambda", in test.pkg.Test.error4) should be last to improve Kotlin interoperability; see https://kotlinlang.org/docs/reference/java-interop.html#sam-conversions [SamShouldBeLast] [See https://s.android.com/api-guidelines#placement-of-sam-parameters]
+                src/test/pkg/Test.java:35: warning: SAM-compatible parameters (such as parameter 1, "kotlinFunInterface", in test.pkg.Test.error5) should be last to improve Kotlin interoperability; see https://kotlinlang.org/docs/reference/java-interop.html#sam-conversions [SamShouldBeLast] [See https://s.android.com/api-guidelines#placement-of-sam-parameters]
                 """,
             sourceFiles = arrayOf(
                 java(
@@ -90,6 +92,15 @@ class KotlinInteropChecksTest : DriverTest() {
                         // Iterables, while they have a single method are not considered to be SAM that we want to be
                         // the last argument
                         public void ok8(@Nullable Iterable<String> iterable, int x) { }
+                        // Kotlin lambdas
+                        public void ok9(int x, @NonNull kotlin.jvm.functions.Function0<Boolean> lambda) {}
+                        public void error3(@NonNull kotlin.jvm.functions.Function0<Boolean> lambda, int x) {}
+                        public void error4(@NonNull kotlin.jvm.functions.Function1<Boolean, Boolean> lambda, int x) {}
+                        // Kotlin interface
+                        public void ok10(@NonNull KotlinInterface kotlinInterface, int x) {}
+                        // Kotlin fun interface
+                        public void error5(@NonNull KotlinFunInterface kotlinFunInterface, int x) {}
+                        public void ok11(int x, @NonNull KotlinFunInterface kotlinFunInterface) {}
                     }
                     """
                 ),
@@ -97,11 +108,16 @@ class KotlinInteropChecksTest : DriverTest() {
                     """
                     package test.pkg
 
-                    fun ok1(bar: (Int) -> Int) { }
-                    fun ok2(foo: Int) { }
-                    fun ok3(foo: Int, bar: (Int) -> Int) { }
-                    fun ok4(foo: Int, bar: (Int) -> Int, baz: (Int) -> Int) { }
-                    fun error(bar: (Int) -> Int, foo: Int) { }
+                    interface KotlinInterface {
+                        fun foo()
+                    }
+
+                    fun interface KotlinFunInterface {
+                        fun foo()
+                    }
+
+                    // Check only runs on Java source
+                    fun ok(bar: () -> Int, foo: Int) { }
                 """
                 ),
                 androidxNullableSource,
@@ -194,8 +210,12 @@ class KotlinInteropChecksTest : DriverTest() {
                 kotlin(
                     """
                         package test.pkg
+
+                        interface Bar
+                        interface Baz
+
                         @JvmSynthetic
-                        fun foo(bar: Bar, baz: Baz = null) {
+                        fun foo(bar: Bar, baz: Baz? = null) {
                         }
                     """
                 )

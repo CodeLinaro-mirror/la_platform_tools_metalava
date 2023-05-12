@@ -122,7 +122,6 @@ interface ModifierList {
      * via [Options.showSingleAnnotations]
      */
     fun hasShowSingleAnnotation(): Boolean {
-
         if (options.showSingleAnnotations.isEmpty()) {
             return false
         }
@@ -278,7 +277,6 @@ interface ModifierList {
             separateLines: Boolean = false,
             language: Language = Language.JAVA
         ) {
-
             val list = if (removeAbstract || removeFinal || addPublic) {
                 class AbstractFiltering : ModifierList by modifiers {
                     override fun isAbstract(): Boolean {

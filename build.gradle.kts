@@ -15,7 +15,8 @@ defaultTasks = mutableListOf(
     "test",
     CREATE_ARCHIVE_TASK,
     CREATE_BUILD_INFO_TASK,
-    "ktlint"
+    "ktlint",
+    "lint"
 )
 
 repositories {
@@ -32,6 +33,7 @@ repositories {
 
 plugins {
     alias(libs.plugins.kotlinJvm)
+    id("com.android.lint") version "7.4.0-alpha05"
     id("application")
     id("java")
     id("maven-publish")
@@ -46,16 +48,13 @@ application {
 }
 
 java {
-    sourceCompatibility = JavaVersion.VERSION_1_8
-    targetCompatibility = JavaVersion.VERSION_1_8
+    sourceCompatibility = JavaVersion.VERSION_11
+    targetCompatibility = JavaVersion.VERSION_11
 }
 
 tasks.withType(KotlinCompile::class.java) {
-    sourceCompatibility = "1.8"
-    targetCompatibility = "1.8"
-
     kotlinOptions {
-        jvmTarget = "1.8"
+        jvmTarget = "11"
         apiVersion = "1.6"
         languageVersion = "1.6"
         allWarningsAsErrors = true
@@ -67,7 +66,7 @@ val studioVersion: String = if (customLintVersion != null) {
     logger.warn("Building using custom $customLintVersion version of Android Lint")
     customLintVersion
 } else {
-    "30.3.0-alpha08"
+    "30.4.0-alpha08"
 }
 
 dependencies {
@@ -222,7 +221,7 @@ fun getBuildId(): String {
 
 fun Project.getKtlintConfiguration(): Configuration {
     return configurations.findByName("ktlint") ?: configurations.create("ktlint") {
-        val dependency = project.dependencies.create("com.pinterest:ktlint:0.41.0")
+        val dependency = project.dependencies.create("com.pinterest:ktlint:0.47.1")
         dependencies.add(dependency)
     }
 }

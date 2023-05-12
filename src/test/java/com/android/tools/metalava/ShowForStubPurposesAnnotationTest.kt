@@ -625,7 +625,6 @@ class ShowForStubPurposesAnnotationTest : DriverTest() {
 
     @Test
     fun `Hierarchy test - Module API only`() {
-
         check(
             extraArguments = EXTRA_ARGS,
             format = FileFormat.V2,

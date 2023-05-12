@@ -427,7 +427,6 @@ open class TextClassItem(
             type2: TypeItem,
             class2: ClassItem
         ): Boolean {
-
             // Given a type and its containing class,
             // find the interface types that contains the type.
             // For instance, for a method that looks like:
@@ -436,7 +435,7 @@ open class TextClassItem(
             // this function will return [InterfaceA, InterfaceB] when Type and SomeClass
             // are passed as inputs.
             val typeContainingInterfaces = {
-                t: TypeItem, cl: ClassItem ->
+                    t: TypeItem, cl: ClassItem ->
                 val interfaceTypes = cl.interfaceTypes()
                     .plus(cl.toType())
                     .plus(cl.superClassType())
@@ -457,7 +456,7 @@ open class TextClassItem(
             }
 
             val interfaceTypesAreCovariant = {
-                t1: TypeItem, t2: TypeItem ->
+                    t1: TypeItem, t2: TypeItem ->
                 t1.toErasedTypeString() == t2.toErasedTypeString() ||
                     t1.asClass()?.superClass()?.qualifiedName() == t2.asClass()?.qualifiedName() ||
                     t2.asClass()?.superClass()?.qualifiedName() == t1.asClass()?.qualifiedName()
@@ -465,9 +464,9 @@ open class TextClassItem(
 
             // Check if the return type containing interfaces of the two methods have an intersection.
             return typeContainingInterfaces1.any {
-                typeInterface1 ->
+                    typeInterface1 ->
                 typeContainingInterfaces2.any {
-                    typeInterface2 ->
+                        typeInterface2 ->
                     interfaceTypesAreCovariant(typeInterface1, typeInterface2)
                 }
             }
@@ -475,12 +474,12 @@ open class TextClassItem(
 
         private fun hasEqualTypeBounds(method1: MethodItem, method2: MethodItem): Boolean {
             val typeInTypeParams = {
-                t: TypeItem, m: MethodItem ->
+                    t: TypeItem, m: MethodItem ->
                 t in m.typeParameterList().typeParameters().map { it.toType() }
             }
 
             val getTypeBounds = {
-                t: TypeItem, m: MethodItem ->
+                    t: TypeItem, m: MethodItem ->
                 m.typeParameterList().typeParameters().single { it.toType() == t }.typeBounds().toSet()
             }
 
@@ -572,7 +571,7 @@ open class TextClassItem(
             if (method1.parameters().size != method2.parameters().size) return false
 
             val hasEqualParams = method1.parameters().zip(method2.parameters()).all {
-                (param1, param2): Pair<ParameterItem, ParameterItem> ->
+                    (param1, param2): Pair<ParameterItem, ParameterItem> ->
                 val type1 = param1.type()
                 val type2 = param2.type()
                 val class1 = method1.containingClass()

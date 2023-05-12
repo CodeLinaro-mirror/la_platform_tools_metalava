@@ -318,7 +318,6 @@ interface ClassItem : Item {
     }
 
     fun accept(visitor: ApiVisitor) {
-
         if (!visitor.include(this)) {
             return
         }
@@ -378,10 +377,11 @@ interface ClassItem : Item {
             val value = annotation?.findAttribute(SdkConstants.ATTR_VALUE)
             val source = value?.value?.toSource()
             return when {
-                source == null -> AnnotationRetention.CLASS // default
+                source == null -> AnnotationRetention.getDefault(cls)
+                source.contains("CLASS") -> AnnotationRetention.CLASS
                 source.contains("RUNTIME") -> AnnotationRetention.RUNTIME
                 source.contains("SOURCE") -> AnnotationRetention.SOURCE
-                else -> AnnotationRetention.CLASS // default
+                else -> AnnotationRetention.getDefault(cls)
             }
         }
 

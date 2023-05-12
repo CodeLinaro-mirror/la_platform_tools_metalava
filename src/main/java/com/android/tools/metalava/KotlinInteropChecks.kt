@@ -22,7 +22,7 @@ import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ParameterItem
-import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.psi.PsiParameterItem
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.intellij.lang.java.lexer.JavaLexer
 import org.jetbrains.kotlin.lexer.KtTokens
@@ -38,7 +38,6 @@ import org.jetbrains.uast.UField
 // Also potentially makes other API suggestions.
 class KotlinInteropChecks(val reporter: Reporter) {
     fun check(codebase: Codebase) {
-
         codebase.accept(object : ApiVisitor(
             // Sort by source order such that warnings follow source line number order
             methodComparator = MethodItem.sourceOrderComparator,
@@ -78,8 +77,8 @@ class KotlinInteropChecks(val reporter: Reporter) {
             } else {
                 ensureMethodNameNotKeyword(method)
                 ensureParameterNamesNotKeywords(method)
+                ensureLambdaLastParameter(method)
             }
-            ensureLambdaLastParameter(method)
         }
     }
 
@@ -196,10 +195,10 @@ class KotlinInteropChecks(val reporter: Reporter) {
                     val parameter = parameters[i]
                     if (isSamCompatible(parameter)) {
                         val message =
-                            "${if (isKotlinLambda(parameter.type())) "lambda" else "SAM-compatible"
-                            } parameters (such as parameter ${i + 1}, \"${parameter.name()}\", in ${
-                            method.containingClass().qualifiedName()}.${method.name()
-                            }) should be last to improve Kotlin interoperability; see " +
+                            "SAM-compatible parameters (such as parameter ${i + 1}, " +
+                                "\"${parameter.name()}\", in ${
+                                method.containingClass().qualifiedName()}.${method.name()
+                                }) should be last to improve Kotlin interoperability; see " +
                                 "https://kotlinlang.org/docs/reference/java-interop.html#sam-conversions"
                         reporter.report(Issues.SAM_SHOULD_BE_LAST, method, message)
                         break
@@ -328,41 +327,23 @@ class KotlinInteropChecks(val reporter: Reporter) {
         }
     }
 
+    /**
+     * @return whether [parameter] can be invoked by Kotlin callers using SAM conversion. This does
+     * not check TextParameterItem, as there is missing metadata (such as whether the type is
+     * defined in Kotlin source or not, which can affect SAM conversion).
+     */
     private fun isSamCompatible(parameter: ParameterItem): Boolean {
-        val type = parameter.type()
-        if (type.primitive) {
-            return false
-        }
-
-        if (isKotlinLambda(type)) {
-            return true
-        }
-
-        val cls = type.asClass() ?: return false
-        if (!cls.isInterface()) {
-            return false
-        }
-
-        if (cls.methods().filter { !it.modifiers.isDefault() }.size != 1) {
-            return false
-        }
-
-        if (cls.superClass()?.isInterface() == true) {
-            return false
-        }
-
+        val cls = parameter.type().asClass()
         // Some interfaces, while they have a single method are not considered to be SAM that we
         // want to be the last argument because often it leads to unexpected behavior of the
         // trailing lambda.
-        when (cls.qualifiedName()) {
+        when (cls?.qualifiedName()) {
             "java.util.concurrent.Executor",
             "java.lang.Iterable" -> return false
         }
-        return true
-    }
 
-    private fun isKotlinLambda(type: TypeItem) =
-        type.toErasedTypeString() == "kotlin.jvm.functions.Function1"
+        return parameter is PsiParameterItem && parameter.isSamCompatibleOrKotlinLambda()
+    }
 
     private fun isKotlinHardKeyword(keyword: String): Boolean {
         // From https://github.com/JetBrains/kotlin/blob/master/core/descriptors/src/org/jetbrains/kotlin/renderer/KeywordStringsGenerated.java

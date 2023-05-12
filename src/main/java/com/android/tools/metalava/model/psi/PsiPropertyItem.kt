@@ -22,8 +22,11 @@ import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.TypeItem
 import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiMethod
+import org.jetbrains.kotlin.descriptors.annotations.AnnotationUseSiteTarget
 import org.jetbrains.kotlin.psi.KtPropertyAccessor
+import org.jetbrains.uast.UAnnotation
 import org.jetbrains.uast.UClass
+import org.jetbrains.uast.toUElementOfType
 
 class PsiPropertyItem private constructor(
     override val codebase: PsiBasedCodebase,
@@ -111,6 +114,25 @@ class PsiPropertyItem private constructor(
                 else -> javadoc(sourcePsi ?: psiMethod)
             }
             val modifiers = modifiers(codebase, psiMethod, documentation)
+            // Alas, annotations whose target is property won't be bound to anywhere in LC/UAST,
+            // if the property doesn't need a backing field. Same for unspecified use-site target.
+            // To preserve such annotations, our last resort is to examine source PSI directly.
+            if (backingField == null) {
+                val ktProperty = (getter.sourcePsi as? KtPropertyAccessor)?.property
+                val annotations = ktProperty?.annotationEntries?.mapNotNull {
+                    val useSiteTarget = it.useSiteTarget?.getAnnotationUseSiteTarget()
+                    if (useSiteTarget == null ||
+                        useSiteTarget == AnnotationUseSiteTarget.PROPERTY
+                    ) {
+                        it.toUElementOfType<UAnnotation>()
+                    } else null
+                }
+                annotations?.forEach {
+                    modifiers.addAnnotation(
+                        UAnnotationItem.create(codebase, it)
+                    )
+                }
+            }
             val property = PsiPropertyItem(
                 codebase = codebase,
                 psiMethod = psiMethod,

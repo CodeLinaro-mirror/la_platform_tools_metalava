@@ -3604,7 +3604,6 @@ class ApiLintTest : DriverTest() {
 
     @Test
     fun `Override enforcement on kotlin sourced child class`() {
-
         check(
             expectedIssues = """
                 src/test/pkg/Bar.kt:5: error: Invalid nullability on parameter `baz` in method `bar`. Parameters of overrides cannot be NonNull if the super parameter is unannotated. [InvalidNullabilityOverride] [See https://s.android.com/api-guidelines#annotations-nullability-overrides]
@@ -3896,7 +3895,221 @@ class ApiLintTest : DriverTest() {
                                 return super.get((K) key);
                             }
                         }
-                        
+                    """
+                )
+            )
+        )
+    }
+
+    @Test
+    fun `Kotlin required parameters must come before optional parameters`() {
+        check(
+            apiLint = "", // enabled
+            extraArguments = arrayOf(
+                // JvmOverloads warning, not what we want to test here
+                ARG_HIDE, "MissingJvmstatic"
+            ),
+            expectedIssues = """
+src/android/pkg/Interface.kt:104: error: Parameter `default` has a default value and should come after all parameters without default values (except for a trailing lambda parameter) [KotlinDefaultParameterOrder] [See https://android.googlesource.com/platform/frameworks/support/+/androidx-main/docs/api_guidelines/misc.md#kotlin-params-order]
+src/android/pkg/Interface.kt:114: error: Parameter `default` has a default value and should come after all parameters without default values (except for a trailing lambda parameter) [KotlinDefaultParameterOrder] [See https://android.googlesource.com/platform/frameworks/support/+/androidx-main/docs/api_guidelines/misc.md#kotlin-params-order]
+src/android/pkg/Interface.kt:125: error: Parameter `default` has a default value and should come after all parameters without default values (except for a trailing lambda parameter) [KotlinDefaultParameterOrder] [See https://android.googlesource.com/platform/frameworks/support/+/androidx-main/docs/api_guidelines/misc.md#kotlin-params-order]
+src/android/pkg/Interface.kt:136: error: Parameter `default` has a default value and should come after all parameters without default values (except for a trailing lambda parameter) [KotlinDefaultParameterOrder] [See https://android.googlesource.com/platform/frameworks/support/+/androidx-main/docs/api_guidelines/misc.md#kotlin-params-order]
+src/android/pkg/Interface.kt:142: error: Parameter `default` has a default value and should come after all parameters without default values (except for a trailing lambda parameter) [KotlinDefaultParameterOrder] [See https://android.googlesource.com/platform/frameworks/support/+/androidx-main/docs/api_guidelines/misc.md#kotlin-params-order]
+src/android/pkg/Interface.kt:152: error: Parameter `default` has a default value and should come after all parameters without default values (except for a trailing lambda parameter) [KotlinDefaultParameterOrder] [See https://android.googlesource.com/platform/frameworks/support/+/androidx-main/docs/api_guidelines/misc.md#kotlin-params-order]
+src/android/pkg/Interface.kt:158: error: Parameter `default` has a default value and should come after all parameters without default values (except for a trailing lambda parameter) [KotlinDefaultParameterOrder] [See https://android.googlesource.com/platform/frameworks/support/+/androidx-main/docs/api_guidelines/misc.md#kotlin-params-order]
+src/android/pkg/Interface.kt:18: error: Parameter `default` has a default value and should come after all parameters without default values (except for a trailing lambda parameter) [KotlinDefaultParameterOrder] [See https://android.googlesource.com/platform/frameworks/support/+/androidx-main/docs/api_guidelines/misc.md#kotlin-params-order]
+src/android/pkg/Interface.kt:28: error: Parameter `default` has a default value and should come after all parameters without default values (except for a trailing lambda parameter) [KotlinDefaultParameterOrder] [See https://android.googlesource.com/platform/frameworks/support/+/androidx-main/docs/api_guidelines/misc.md#kotlin-params-order]
+src/android/pkg/Interface.kt:39: error: Parameter `default` has a default value and should come after all parameters without default values (except for a trailing lambda parameter) [KotlinDefaultParameterOrder] [See https://android.googlesource.com/platform/frameworks/support/+/androidx-main/docs/api_guidelines/misc.md#kotlin-params-order]
+src/android/pkg/Interface.kt:50: error: Parameter `default` has a default value and should come after all parameters without default values (except for a trailing lambda parameter) [KotlinDefaultParameterOrder] [See https://android.googlesource.com/platform/frameworks/support/+/androidx-main/docs/api_guidelines/misc.md#kotlin-params-order]
+src/android/pkg/Interface.kt:56: error: Parameter `default` has a default value and should come after all parameters without default values (except for a trailing lambda parameter) [KotlinDefaultParameterOrder] [See https://android.googlesource.com/platform/frameworks/support/+/androidx-main/docs/api_guidelines/misc.md#kotlin-params-order]
+src/android/pkg/Interface.kt:66: error: Parameter `default` has a default value and should come after all parameters without default values (except for a trailing lambda parameter) [KotlinDefaultParameterOrder] [See https://android.googlesource.com/platform/frameworks/support/+/androidx-main/docs/api_guidelines/misc.md#kotlin-params-order]
+src/android/pkg/Interface.kt:72: error: Parameter `default` has a default value and should come after all parameters without default values (except for a trailing lambda parameter) [KotlinDefaultParameterOrder] [See https://android.googlesource.com/platform/frameworks/support/+/androidx-main/docs/api_guidelines/misc.md#kotlin-params-order]
+src/android/pkg/Interface.kt:82: error: Parameter `default` has a default value and should come after all parameters without default values (except for a trailing lambda parameter) [KotlinDefaultParameterOrder] [See https://android.googlesource.com/platform/frameworks/support/+/androidx-main/docs/api_guidelines/misc.md#kotlin-params-order]
+src/android/pkg/Interface.kt:92: error: Parameter `default` has a default value and should come after all parameters without default values (except for a trailing lambda parameter) [KotlinDefaultParameterOrder] [See https://android.googlesource.com/platform/frameworks/support/+/androidx-main/docs/api_guidelines/misc.md#kotlin-params-order]
+            """.trimIndent(),
+            expectedFail = DefaultLintErrorMessage,
+            sourceFiles = arrayOf(
+                java(
+                    """
+                        package android.pkg;
+
+                        public interface JavaInterface {
+                            void doSomething();
+                            void doSomethingElse();
+                        }
+                    """.trimIndent()
+                ),
+                java(
+                    """
+                        package android.pkg;
+
+                        public interface JavaSamInterface {
+                            void doSomething();
+                        }
+                    """.trimIndent()
+                ),
+                kotlin(
+                    """
+                        package android.pkg
+
+                        interface Interface {
+                            fun foo()
+                        }
+
+                        fun interface FunInterface {
+                            fun foo()
+                        }
+
+                        // Functions
+                        fun ok1(
+                            required: Boolean,
+                            default: Int = 0,
+                        ) {}
+
+                        fun error1(
+                            default: Int = 0,
+                            required: Boolean,
+                        ) {}
+
+                        fun ok2(
+                            default: Int = 0,
+                            trailing: () -> Unit
+                        ) {}
+
+                        fun error2(
+                            default: Int = 0,
+                            required: () -> Unit,
+                            default2: Int = 0,
+                        ) {}
+
+                        fun ok3(
+                            default: Int = 0,
+                            trailing: suspend () -> Unit
+                        ) {}
+
+                        fun error3(
+                            default: Int = 0,
+                            required: suspend () -> Unit,
+                            default2: Int = 0,
+                        ) {}
+
+                        fun ok4(
+                            default: Int = 0,
+                            trailing: FunInterface
+                        ) {}
+
+                        fun error4(
+                            default: Int = 0,
+                            required: FunInterface,
+                            default2: Int = 0,
+                        ) {}
+
+                        fun error5(
+                            default: Int = 0,
+                            trailing: Interface
+                        ) {}
+
+                        fun ok6(
+                            default: Int = 0,
+                            trailing: JavaSamInterface
+                        ) {}
+
+                        fun error6(
+                            default: Int = 0,
+                            required: JavaSamInterface,
+                            default2: Int = 0,
+                        ) {}
+
+                        fun error7(
+                            default: Int = 0,
+                            trailing: JavaInterface
+                        ) {}
+
+                        suspend fun ok8(
+                            required: Boolean,
+                            default: Int = 0,
+                        ) {}
+
+                        suspend fun error8(
+                            default: Int = 0,
+                            required: Boolean,
+                        ) {}
+
+                        suspend fun ok9(
+                            default: Int = 0,
+                            trailing: () -> Unit
+                        ) {}
+
+                        suspend fun error9(
+                            default: Int = 0,
+                            required: () -> Unit,
+                            default2: Int = 0,
+                        ) {}
+
+                        // Class constructors
+                        class Ok1(
+                            required: Boolean,
+                            default: Int = 0,
+                        )
+
+                        class Error1(
+                            default: Int = 0,
+                            required: Boolean,
+                        )
+
+                        class Ok2(
+                            default: Int = 0,
+                            trailing: () -> Unit
+                        )
+
+                        class Error2(
+                            default: Int = 0,
+                            required: () -> Unit,
+                            default2: Int = 0,
+                        )
+
+                        class Ok3(
+                            default: Int = 0,
+                            trailing: suspend () -> Unit
+                        )
+
+                        class Error3(
+                            default: Int = 0,
+                            required: suspend () -> Unit,
+                            default2: Int = 0,
+                        )
+
+                        class Ok4(
+                            default: Int = 0,
+                            trailing: FunInterface
+                        )
+
+                        class Error4(
+                            default: Int = 0,
+                            required: FunInterface,
+                            default2: Int = 0,
+                        )
+
+                        class Error5(
+                            default: Int = 0,
+                            trailing: Interface
+                        )
+
+                        class Ok6(
+                            default: Int = 0,
+                            trailing: JavaSamInterface
+                        )
+
+                        class Error6(
+                            default: Int = 0,
+                            required: JavaSamInterface,
+                            default2: Int = 0,
+                        )
+
+                        class Error7(
+                            default: Int = 0,
+                            trailing: JavaInterface
+                        )
                     """
                 )
             )

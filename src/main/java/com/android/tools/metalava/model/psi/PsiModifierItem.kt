@@ -25,6 +25,7 @@ import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.ModifierList
 import com.android.tools.metalava.model.MutableModifierList
+import com.android.tools.metalava.model.isNullnessAnnotation
 import com.android.tools.metalava.options
 import com.intellij.psi.PsiDocCommentOwner
 import com.intellij.psi.PsiModifier
@@ -35,8 +36,7 @@ import com.intellij.psi.PsiReferenceExpression
 import com.intellij.psi.impl.light.LightModifierList
 import org.jetbrains.annotations.NotNull
 import org.jetbrains.annotations.Nullable
-import org.jetbrains.kotlin.asJava.elements.KtLightModifierList
-import org.jetbrains.kotlin.asJava.elements.KtLightNullabilityAnnotation
+import org.jetbrains.kotlin.asJava.elements.KtLightElement
 import org.jetbrains.kotlin.descriptors.DeclarationDescriptorWithVisibility
 import org.jetbrains.kotlin.descriptors.EffectiveVisibility
 import org.jetbrains.kotlin.descriptors.effectiveVisibility
@@ -128,11 +128,14 @@ class PsiModifierItem(
             // Look for special Kotlin keywords
             var ktModifierList: KtModifierList? = null
             val sourcePsi = (element as? UElement)?.sourcePsi
-            if (modifierList is KtLightModifierList<*>) {
-                ktModifierList = modifierList.kotlinOrigin
-            } else if (modifierList is LightModifierList && element is UMethod) {
-                if (sourcePsi is KtModifierListOwner) {
-                    ktModifierList = sourcePsi.modifierList
+            when (modifierList) {
+                is KtLightElement<*, *> -> {
+                    ktModifierList = modifierList.kotlinOrigin as? KtModifierList
+                }
+                is LightModifierList -> {
+                    if (element is UMethod && sourcePsi is KtModifierListOwner) {
+                        ktModifierList = sourcePsi.modifierList
+                    }
                 }
             }
             var visibilityFlags = when {
@@ -193,7 +196,7 @@ class PsiModifierItem(
                     // Workaround for b/117565118:
                     val func = sourcePsi as? KtNamedFunction
                     if (func != null &&
-                        (func.typeParameterList?.text ?: "").contains("reified") &&
+                        (func.typeParameterList?.text ?: "").contains(KtTokens.REIFIED_KEYWORD.value) &&
                         !ktModifierList.hasModifier(KtTokens.PRIVATE_KEYWORD) &&
                         !ktModifierList.hasModifier(KtTokens.INTERNAL_KEYWORD)
                     ) {
@@ -295,7 +298,6 @@ class PsiModifierItem(
                             !it.isKotlinNullabilityAnnotation
                     }
                     .map {
-
                         val qualifiedName = it.qualifiedName
                         if (qualifiedName == ANDROIDX_VISIBLE_FOR_TESTING) {
                             val otherwise = it.findAttributeValue(ATTR_OTHERWISE)
@@ -313,7 +315,9 @@ class PsiModifierItem(
                 if (!isPrimitiveVariable) {
                     val psiAnnotations = modifierList.annotations
                     if (psiAnnotations.isNotEmpty() && annotations.none { it.isNullnessAnnotation() }) {
-                        val ktNullAnnotation = psiAnnotations.firstOrNull { it is KtLightNullabilityAnnotation<*> }
+                        val ktNullAnnotation = psiAnnotations.firstOrNull { psiAnnotation ->
+                            psiAnnotation.qualifiedName?.let { isNullnessAnnotation(it) } == true
+                        }
                         ktNullAnnotation?.let {
                             annotations.add(PsiAnnotationItem.create(codebase, it))
                         }

@@ -218,14 +218,12 @@ class TextCodebase(location: File) : DefaultCodebase(location) {
      */
     private fun resolveAbstractMethods(allClasses: List<TextClassItem>) {
         for (cl in allClasses) {
-
             // If class is interface, naively iterate through all parent class and interfaces
             // and resolve inheritance of override equivalent signatures
             // Find intersection of super class/interface default methods
             // Resolve conflict by adding signature
             // https://docs.oracle.com/javase/specs/jls/se8/html/jls-9.html#jls-9.4.1.3
             if (cl.isInterface()) {
-
                 // We only need to track one method item(value) with the signature(key),
                 // since the containing class does not matter if a method to be added is found
                 // as method.duplicate(cl) sets containing class to cl.

@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.kotlin
+import com.android.tools.metalava.model.AnnotationItem
 import kotlin.test.Test
 import kotlin.test.assertContains
 import kotlin.test.assertEquals
@@ -131,6 +132,78 @@ class PsiPropertyItemTest {
             assertNotNull(withField.backingField)
             assertEquals("withField", withField.backingField?.name())
             assertSame(withField, withField.backingField?.property)
+        }
+    }
+
+    @Test
+    fun `annotation on properties`() {
+        fun List<AnnotationItem>.exceptNullness() = filterNot { it.isNullnessAnnotation() }
+
+        testCodebase(
+            kotlin(
+                """
+                    annotation class ExperimentalFooApi
+
+                    class Foo {
+                        @ExperimentalFooApi
+                        var withField: String
+                            get() { return filed }
+                            set(value) { field = "v=" + value }
+
+                        @ExperimentalFooApi
+                        val withoutField: String
+                            get() = ""
+
+                        @get:ExperimentalFooApi
+                        val withoutFieldOnGetter: String
+                            get() = ""
+
+                        @property:ExperimentalFooApi
+                        val withoutFieldOnProperty: String
+                            get() = ""
+                    }
+                """
+            )
+        ) { codebase ->
+            val properties = codebase.assertClass("Foo").properties()
+            val withField = properties.single { it.name() == "withField" }
+            val withoutField = properties.single { it.name() == "withoutField" }
+            val withoutFieldOnGetter = properties.single { it.name() == "withoutFieldOnGetter" }
+            val withoutFieldOnProperty = properties.single { it.name() == "withoutFieldOnProperty" }
+
+            val withFieldBackingField = withField.backingField
+            assertNotNull(withFieldBackingField)
+            assertNull(withoutField.backingField)
+            assertNull(withoutFieldOnGetter.backingField)
+            assertNull(withoutFieldOnProperty.backingField)
+
+            val annotationsOnWithFieldBackingField =
+                withFieldBackingField.modifiers.annotations().exceptNullness()
+            assertEquals(1, annotationsOnWithFieldBackingField.size)
+            assertEquals(
+                "ExperimentalFooApi",
+                annotationsOnWithFieldBackingField.single().qualifiedName
+            )
+            val annotationsOnWithoutField = withoutField.modifiers.annotations().exceptNullness()
+            assertEquals(1, annotationsOnWithoutField.size)
+            assertEquals(
+                "ExperimentalFooApi",
+                annotationsOnWithoutField.single().qualifiedName
+            )
+            val annotationsOnWithoutFieldOnGetter =
+                withoutFieldOnGetter.modifiers.annotations().exceptNullness()
+            assertEquals(1, annotationsOnWithoutFieldOnGetter.size)
+            assertEquals(
+                "ExperimentalFooApi",
+                annotationsOnWithoutFieldOnGetter.single().qualifiedName
+            )
+            val annotationsOnWithoutFieldOnProperty =
+                withoutFieldOnProperty.modifiers.annotations().exceptNullness()
+            assertEquals(1, annotationsOnWithoutFieldOnProperty.size)
+            assertEquals(
+                "ExperimentalFooApi",
+                annotationsOnWithoutFieldOnProperty.single().qualifiedName
+            )
         }
     }
 
