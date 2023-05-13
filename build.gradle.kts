@@ -150,6 +150,7 @@ val testTask = tasks.named("test", Test::class.java)
 testTask.configure {
     dependsOn("test-prebuilts-sdk")
     setEnvironment("METALAVA_TEST_PREBUILTS_SDK_ROOT" to getBuildDirectory().path + "/prebuilts/sdk")
+    jvmArgs = listOf("--add-opens=java.base/java.lang=ALL-UNNAMED")
     maxParallelForks = (Runtime.getRuntime().availableProcessors() / 2).takeIf { it > 0 } ?: 1
     testLogging.events = hashSetOf(
         TestLogEvent.FAILED,
