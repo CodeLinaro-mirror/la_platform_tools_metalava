@@ -24,7 +24,7 @@ class TextConstructorItem(
     name: String,
     containingClass: TextClassItem,
     modifiers: TextModifiers,
-    returnType: TextTypeItem?,
+    returnType: TextTypeItem,
     position: SourcePositionInfo
 ) : TextMethodItem(codebase, name, containingClass, modifiers, returnType, position),
     ConstructorItem {

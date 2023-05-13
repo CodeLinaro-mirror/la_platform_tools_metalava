@@ -354,7 +354,7 @@ class CompatibilityCheck(
 
         val oldReturnType = old.returnType()
         val newReturnType = new.returnType()
-        if (!new.isConstructor() && oldReturnType != null && newReturnType != null) {
+        if (!new.isConstructor()) {
             val oldTypeParameter = oldReturnType.asTypeParameter(old)
             val newTypeParameter = newReturnType.asTypeParameter(new)
             var compatible = true
