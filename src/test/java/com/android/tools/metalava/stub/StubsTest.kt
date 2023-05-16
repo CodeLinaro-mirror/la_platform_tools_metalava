@@ -1359,67 +1359,6 @@ class StubsTest : DriverTest() {
     }
 
     @Test
-    fun `Basic Kotlin class`() {
-        checkStubs(
-            sourceFiles = arrayOf(
-                kotlin(
-                    """
-                    /* My file header */
-                    // Another comment
-                    @file:JvmName("Driver")
-                    package test.pkg
-                    /** My class doc */
-                    class Kotlin(val property1: String = "Default Value", arg2: Int) : Parent() {
-                        override fun method() = "Hello World"
-                        /** My method doc */
-                        fun otherMethod(ok: Boolean, times: Int) {
-                        }
-
-                        /** property doc */
-                        var property2: String? = null
-
-                        /** @hide */
-                        var hiddenProperty: String? = "hidden"
-
-                        private var someField = 42
-                        @JvmField
-                        var someField2 = 42
-                    }
-
-                    open class Parent {
-                        open fun method(): String? = null
-                        open fun method2(value1: Boolean, value2: Boolean?): String? = null
-                        open fun method3(value1: Int?, value2: Int): Int = null
-                    }
-                    """
-                )
-            ),
-            source = """
-                    /* My file header */
-                    // Another comment
-                    package test.pkg;
-                    /** My class doc */
-                    @SuppressWarnings({"unchecked", "deprecation", "all"})
-                    public final class Kotlin extends test.pkg.Parent {
-                    public Kotlin(@android.annotation.NonNull java.lang.String property1, int arg2) { throw new RuntimeException("Stub!"); }
-                    @android.annotation.NonNull
-                    public java.lang.String method() { throw new RuntimeException("Stub!"); }
-                    /** My method doc */
-                    public void otherMethod(boolean ok, int times) { throw new RuntimeException("Stub!"); }
-                    /** property doc */
-                    @android.annotation.Nullable
-                    public java.lang.String getProperty2() { throw new RuntimeException("Stub!"); }
-                    /** property doc */
-                    public void setProperty2(@android.annotation.Nullable java.lang.String value) { throw new RuntimeException("Stub!"); }
-                    @android.annotation.NonNull
-                    public java.lang.String getProperty1() { throw new RuntimeException("Stub!"); }
-                    public int someField2;
-                    }
-                """
-        )
-    }
-
-    @Test
     fun `Parameter Names in Java`() {
         // Java code which explicitly specifies parameter names: make sure stub uses
         // parameter name

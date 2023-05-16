@@ -952,7 +952,7 @@ class ApiAnalyzer(
         // be written, e.g. hidden things
         for (cl in notStrippable) {
             if (!cl.isHiddenOrRemoved()) {
-                val publiclyConstructable =
+                val publiclyConstructable = !cl.modifiers.isSealed() &&
                     cl.constructors().any { it.checkLevel() }
                 for (m in cl.methods()) {
                     if (!m.checkLevel()) {

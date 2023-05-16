@@ -54,6 +54,7 @@
          <trusted-key id="40a3c4432bd7308c" group="com.googlecode.juniversalchardet"/>
          <trusted-key id="44fbdbbc1a00fe414f1c1873586654072ead6677" group="org.sonatype.oss"/>
          <trusted-key id="476634a4694e716a" group="com.googlecode.java-diff-utils"/>
+         <trusted-key id="4b1e11d5a4b91e89" group="com.google.protobuf"/>
          <trusted-key id="4db1a49729b053caf015cee9a6adfc93ef34893e" group="org.hamcrest"/>
          <trusted-key id="4f7e32d440ef90a83011a8fc6425559c47cc79c4">
             <trusting group="com.sun.activation"/>
@@ -158,6 +159,7 @@
             <trusting group="org.apache"/>
             <trusting group="org.codehaus.mojo"/>
          </trusted-key>
+         <trusted-key id="f3d1600878e85a3d" group="io.netty"/>
          <trusted-key id="f42e87f9665015c9" group="org.jsoup"/>
          <trusted-key id="fa77dcfef2ee6eb2debedd2c012579464d01c06a" group="org.apache"/>
          <trusted-key id="fa7929f83ad44c4590f6cc6815c71c0a4e0b8edd" group="net.java.dev.jna"/>
