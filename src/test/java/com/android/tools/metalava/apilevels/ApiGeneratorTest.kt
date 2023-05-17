@@ -102,11 +102,15 @@ class ApiGeneratorTest : DriverTest() {
 
         // Make sure we're really using the correct database, not the SDK one. (This placeholder
         // class is provided as a source file above.)
+        @Suppress("DEPRECATION")
         assertEquals(90, apiLookup.getClassVersion("android.pkg.MyTest"))
 
+        @Suppress("DEPRECATION")
         apiLookup.getClassVersion("android.v")
+        @Suppress("DEPRECATION")
         assertEquals(5, apiLookup.getFieldVersion("android.Manifest\$permission", "AUTHENTICATE_ACCOUNTS"))
 
+        @Suppress("DEPRECATION")
         val methodVersion = apiLookup.getMethodVersion("android/icu/util/CopticCalendar", "computeTime", "()")
         assertEquals(24, methodVersion)
     }
@@ -214,11 +218,14 @@ class ApiGeneratorTest : DriverTest() {
         assertTrue(xml.contains("<method name=\"canManageMedia(Landroid/content/Context;)Z\" since=\"31\" sdks=\"33:1,0:31\"/>"))
 
         val apiLookup = getApiLookup(output)
+        @Suppress("DEPRECATION")
         apiLookup.getClassVersion("android.v")
         // This field was added in API level 5, but when we're starting the count higher
         // (as in the system API), the first introduced API level is the one we use
+        @Suppress("DEPRECATION")
         assertEquals(21, apiLookup.getFieldVersion("android.Manifest\$permission", "AUTHENTICATE_ACCOUNTS"))
 
+        @Suppress("DEPRECATION")
         val methodVersion = apiLookup.getMethodVersion("android/icu/util/CopticCalendar", "computeTime", "()")
         assertEquals(24, methodVersion)
 
@@ -301,6 +308,7 @@ class ApiGeneratorTest : DriverTest() {
         val xml = output.readText(UTF_8)
         assertTrue(xml.contains("<class name=\"android/pkg/MyTest\" since=\"89\""))
         val apiLookup = getApiLookup(output, temporaryFolder.newFolder())
+        @Suppress("DEPRECATION")
         assertEquals(89, apiLookup.getClassVersion("android.pkg.MyTest"))
     }
 
@@ -356,6 +364,7 @@ class ApiGeneratorTest : DriverTest() {
         val xml = output.readText(UTF_8)
         assertTrue(xml.contains("<class name=\"android/pkg/MyTest\" since=\"90\""))
         val apiLookup = getApiLookup(output, temporaryFolder.newFolder())
+        @Suppress("DEPRECATION")
         assertEquals(90, apiLookup.getClassVersion("android.pkg.MyTest"))
     }
 
