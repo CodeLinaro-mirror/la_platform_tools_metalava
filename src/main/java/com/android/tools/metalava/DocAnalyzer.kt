@@ -4,6 +4,7 @@ import com.android.SdkConstants.ATTR_VALUE
 import com.android.sdklib.SdkVersionInfo
 import com.android.tools.lint.LintCliClient
 import com.android.tools.lint.checks.ApiLookup
+import com.android.tools.lint.detector.api.ApiConstraint
 import com.android.tools.lint.detector.api.editDistance
 import com.android.tools.lint.helpers.DefaultJavaEvaluator
 import com.android.tools.metalava.apilevels.ApiToExtensionsMap
@@ -812,15 +813,35 @@ class DocAnalyzer(
     }
 }
 
-@Suppress("DEPRECATION") // replace with getClassVersions(...).min() when Lint is upgraded
+/**
+ * A constraint that will only match for Android Platform SDKs.
+ */
+val androidSdkConstraint = ApiConstraint.get(1)
+
+/**
+ * Get the min API level, i.e. the lowest version of the Android Platform SDK.
+ *
+ * TODO(b/282932318): Replace with call to ApiConstraint.min() when bug is fixed.
+ */
+fun ApiConstraint.minApiLevel(): Int {
+    return getConstraints()
+        .filter { it != ApiConstraint.UNKNOWN }
+        // Remove any constraints that are not for the Android Platform SDK.
+        .filter { it.isAtLeast(androidSdkConstraint) }
+        // Get the lowest API level from that constraint.
+        .map { it.fromInclusive() }
+        // Get the minimum of all the lowest API levels, or -1 if there are no API levels in the
+        // constraints.
+        .minOrNull() ?: -1
+}
+
 fun ApiLookup.getClassVersion(cls: PsiClass): Int {
     val owner = cls.qualifiedName ?: return -1
-    return getClassVersion(owner)
+    return getClassVersions(owner).minApiLevel()
 }
 
 val defaultEvaluator = DefaultJavaEvaluator(null, null)
 
-@Suppress("DEPRECATION") // replace with getMethonVersions(...).min() when Lint is upgraded
 fun ApiLookup.getMethodVersion(method: PsiMethod): Int {
     val containingClass = method.containingClass ?: return -1
     val owner = containingClass.qualifiedName ?: return -1
@@ -829,14 +850,14 @@ fun ApiLookup.getMethodVersion(method: PsiMethod): Int {
         includeName = false,
         includeReturn = false
     )
-    return getMethodVersion(owner, if (method.isConstructor) "<init>" else method.name, desc)
+    return getMethodVersions(owner, if (method.isConstructor) "<init>" else method.name, desc)
+        .minApiLevel()
 }
 
-@Suppress("DEPRECATION") // replace with getFieldVersions(...).min() when Lint is upgraded
 fun ApiLookup.getFieldVersion(field: PsiField): Int {
     val containingClass = field.containingClass ?: return -1
     val owner = containingClass.qualifiedName ?: return -1
-    return getFieldVersion(owner, field.name)
+    return getFieldVersions(owner, field.name).minApiLevel()
 }
 
 @Suppress("DEPRECATION")

@@ -681,8 +681,8 @@ class ShowAnnotationTest : DriverTest() {
 
     @Test
     fun `Methods inherit showAnnotations but fields and classes don't`() {
-        // "ShowAnnotations" are implicitly inheritted between functions, but but between
-        // fields or clases. In this test:
+        // "ShowAnnotations" are implicitly inherited between functions, but between
+        // fields or classes. In this test:
         // - Class2.member() is implicitly a @SystemApi, so the stub class includes it.
         // (Though it's not included in the API file because it's redundant.)
         // - However, there's no inheritance for fields, so Class2.FIELD is *not* in the stub class,

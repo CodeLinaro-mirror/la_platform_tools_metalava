@@ -50,6 +50,7 @@ interface Item {
     /** Whether this element has been hidden with @hide/@Hide (or after propagation, in some containing class/pkg) */
     var hidden: Boolean
 
+    /** Whether this element will be printed in the signature file */
     var emit: Boolean
 
     fun parent(): Item?

@@ -1956,7 +1956,13 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
             return
         }
 
-        val parameters = method.parameters()
+        // Suspend functions add a synthetic `Continuation` parameter at the end - this is invisible
+        // to Kotlin callers so just ignore it.
+        val parameters = if (method.modifiers.isSuspend()) {
+            method.parameters().dropLast(1)
+        } else {
+            method.parameters()
+        }
         if (parameters.size > 1) {
             var found = false
             for (parameter in parameters) {

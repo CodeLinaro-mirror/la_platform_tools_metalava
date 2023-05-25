@@ -1280,9 +1280,8 @@ CompatibilityCheckTest : DriverTest() {
         )
     }
 
-    @Ignore("TODO(aurimas) reenable once this is default on")
     @Test
-    fun `Incompatible method change -- throws list`() {
+    fun `Incompatible method change -- throws list -- java`() {
         check(
             expectedIssues = """
                 src/test/pkg/MyClass.java:7: error: Method test.pkg.MyClass.method1 added thrown exception java.io.IOException [ChangedThrows]
@@ -1314,6 +1313,53 @@ CompatibilityCheckTest : DriverTest() {
                         public void method2() {}
                         public void method3() throws java.lang.UnsupportedOperationException {}
                     }
+                    """
+                )
+            )
+        )
+    }
+
+    @Test
+    fun `Incompatible method change -- throws list -- kt`() {
+        check(
+            expectedIssues = """
+                src/test/pkg/MyClass.kt:4: error: Constructor test.pkg.MyClass added thrown exception test.pkg.MyException [ChangedThrows]
+                src/test/pkg/MyClass.kt:12: error: Method test.pkg.MyClass.getProperty1 added thrown exception test.pkg.MyException [ChangedThrows]
+                src/test/pkg/MyClass.kt:15: error: Method test.pkg.MyClass.getProperty2 added thrown exception test.pkg.MyException [ChangedThrows]
+                src/test/pkg/MyClass.kt:9: error: Method test.pkg.MyClass.method1 added thrown exception test.pkg.MyException [ChangedThrows]
+            """,
+            checkCompatibilityApiReleased = """
+                package test.pkg {
+                  public final class MyClass {
+                    ctor public MyClass(int);
+                    method public final void method1();
+                    method public final String getProperty1();
+                    method public final String getProperty2();
+                  }
+                }
+            """,
+            sourceFiles = arrayOf(
+                kotlin(
+                    """
+                        package test.pkg
+
+                        class MyClass
+                        @Throws(MyException::class)
+                        constructor(
+                            val p: Int
+                        ) {
+                            @Throws(MyException::class)
+                            fun method1() {}
+
+                            @get:Throws(MyException::class)
+                            val property1 : String = "42"
+
+                            val property2 : String = "42"
+                                @Throws(MyException::class)
+                                get
+                        }
+
+                        class MyException : Exception()
                     """
                 )
             )

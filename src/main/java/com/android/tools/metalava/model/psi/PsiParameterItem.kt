@@ -22,17 +22,24 @@ import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.psi.CodePrinter.Companion.constantToSource
 import com.intellij.psi.LambdaUtil
+import com.intellij.psi.PsiArrayType
+import com.intellij.psi.PsiEllipsisType
+import com.intellij.psi.PsiModifierListOwner
 import com.intellij.psi.PsiParameter
+import com.intellij.psi.PsiPrimitiveType
+import org.jetbrains.kotlin.analysis.api.analyze
 import org.jetbrains.kotlin.builtins.isFunctionOrKFunctionTypeWithAnySuspendability
 import org.jetbrains.kotlin.load.java.sam.JavaSingleAbstractMethodUtils
 import org.jetbrains.kotlin.psi.KtConstantExpression
 import org.jetbrains.kotlin.psi.KtFunction
 import org.jetbrains.kotlin.psi.KtParameter
 import org.jetbrains.kotlin.resolve.typeBinding.createTypeBindingForReturnType
+import org.jetbrains.kotlin.types.typeUtil.TypeNullability
 import org.jetbrains.uast.UExpression
 import org.jetbrains.uast.UMethod
 import org.jetbrains.uast.UParameter
 import org.jetbrains.uast.UastFacade
+import org.jetbrains.uast.kotlin.psi.UastKotlinPsiParameter
 
 class PsiParameterItem(
     override val codebase: PsiBasedCodebase,
@@ -246,13 +253,24 @@ class PsiParameterItem(
             // and avoid any divergence from the actual compiler behaviour, if there are changes.
             val parameter = (psi() as? UParameter)?.sourcePsi as? KtParameter ?: return false
             val bindingContext = codebase.bindingContext(parameter)
-            val type =
-                parameter.createTypeBindingForReturnType(bindingContext)?.type ?: return false
-            // True if the type is a SAM type, or a fun interface
-            val isSamType = JavaSingleAbstractMethodUtils.isSamType(type)
-            // True if the type is a Kotlin lambda (suspend or not)
-            val isFunctionalType = type.isFunctionOrKFunctionTypeWithAnySuspendability
-            return isSamType || isFunctionalType
+            if (bindingContext != null) { // FE 1.0
+                val type =
+                    parameter.createTypeBindingForReturnType(bindingContext)?.type ?: return false
+                // True if the type is a SAM type, or a fun interface
+                val isSamType = JavaSingleAbstractMethodUtils.isSamType(type)
+                // True if the type is a Kotlin lambda (suspend or not)
+                val isFunctionalType = type.isFunctionOrKFunctionTypeWithAnySuspendability
+                return isSamType || isFunctionalType
+            } else { // Analysis API
+                analyze(parameter) {
+                    val ktType = parameter.getParameterSymbol().returnType
+                    val isSamType = ktType.isFunctionalInterfaceType
+                    val isFunctionalType =
+                        ktType.isFunctionType || ktType.isSuspendFunctionType ||
+                            ktType.isKFunctionType || ktType.isKSuspendFunctionType
+                    return isSamType || isFunctionalType
+                }
+            }
         }
     }
 
@@ -265,7 +283,55 @@ class PsiParameterItem(
             val name = psiParameter.name
             val commentText = "" // no javadocs on individual parameters
             val modifiers = createParameterModifiers(codebase, psiParameter, commentText)
-            val type = codebase.getType(psiParameter.type)
+            // UAST workaround: nullability/type of parameter for UMethod with fake LC PSI
+            // See https://youtrack.jetbrains.com/issue/KTIJ-23837
+            // We will be informed when the fix is ready, since use of [TypeNullability] will break
+            // as per https://youtrack.jetbrains.com/issue/KTIJ-23603
+            val workaroundPsiType =
+                if (psiParameter is UParameter &&
+                    psiParameter.sourcePsi is KtParameter &&
+                    psiParameter.javaPsi is UastKotlinPsiParameter
+                ) {
+                    val ktParameter = psiParameter.sourcePsi as KtParameter
+                    val nullability = codebase.uastResolveService?.nullability(ktParameter)
+                    val psiType = codebase.uastResolveService
+                        ?.getType(ktParameter, psiParameter.uastParent as? PsiModifierListOwner)
+                        ?.let { psiType ->
+                            // UAST workaround: retrieval of boxed primitive type, if nullable
+                            // See https://youtrack.jetbrains.com/issue/KTIJ-23837
+                            if (nullability == TypeNullability.NULLABLE &&
+                                psiType is PsiPrimitiveType
+                            ) {
+                                psiType.getBoxedType(psiParameter)
+                            } else {
+                                psiType
+                            }
+                        }
+                        ?: psiParameter.type
+                    val annotationProvider =
+                        when (nullability) {
+                            TypeNullability.NOT_NULL -> codebase.getNonNullAnnotationProvider()
+                            TypeNullability.NULLABLE -> codebase.getNullableAnnotationProvider()
+                            else -> null
+                        }
+                    if (ktParameter.isVarArg && psiType is PsiArrayType) {
+                        val annotatedType = if (annotationProvider != null) {
+                            psiType.componentType.annotate(annotationProvider)
+                        } else {
+                            psiType.componentType
+                        }
+                        PsiEllipsisType(annotatedType, annotatedType.annotationProvider)
+                    } else {
+                        if (annotationProvider != null) {
+                            psiType.annotate(annotationProvider)
+                        } else {
+                            psiType
+                        }
+                    }
+                } else {
+                    psiParameter.type
+                }
+            val type = codebase.getType(workaroundPsiType)
             val parameter = PsiParameterItem(
                 codebase = codebase,
                 psiParameter = psiParameter,

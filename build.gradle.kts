@@ -33,7 +33,7 @@ repositories {
 
 plugins {
     alias(libs.plugins.kotlinJvm)
-    id("com.android.lint") version "8.0.0-alpha05"
+    id("com.android.lint") version "8.1.0-alpha02"
     id("application")
     id("java")
     id("maven-publish")
@@ -48,13 +48,13 @@ application {
 }
 
 java {
-    sourceCompatibility = JavaVersion.VERSION_11
-    targetCompatibility = JavaVersion.VERSION_11
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
 }
 
 tasks.withType(KotlinCompile::class.java) {
     kotlinOptions {
-        jvmTarget = "11"
+        jvmTarget = "17"
         apiVersion = "1.7"
         languageVersion = "1.7"
         allWarningsAsErrors = true
@@ -66,7 +66,7 @@ val studioVersion: String = if (customLintVersion != null) {
     logger.warn("Building using custom $customLintVersion version of Android Lint")
     customLintVersion
 } else {
-    "31.0.0-alpha05"
+    "31.1.0-alpha02"
 }
 
 dependencies {

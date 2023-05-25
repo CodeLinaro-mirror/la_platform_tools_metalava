@@ -37,9 +37,9 @@ class ApiFileTest : DriverTest() {
    - BluetoothGattCharacteristic.java#describeContents: Was marked @hide,
      but is unhidden because it extends a public interface method
    - package javadoc (also make sure merging both!, e.g. try having @hide in each)
-   - StopWatchMap -- inner class with @hide marks allh top levels!
+   - StopWatchMap -- inner class with @hide marks all top levels!
    - Test field inlining: should I include fields from an interface, if that
-     inteface was implemented by the parent class (and therefore appears there too?)
+     interface was implemented by the parent class (and therefore appears there too?)
      What if the superclass is abstract?
    - Exposing package private classes. Test that I only do this for package private
      classes, NOT Those marked @hide (is that, having @hide on a used type, illegal?)
@@ -3919,7 +3919,9 @@ class ApiFileTest : DriverTest() {
         check(
             format = FileFormat.V3,
             classpath = arrayOf(
-                /* The following source file, compiled, and root folder jar'ed and stored as base64 gzip:
+                /* The following source file, compiled, then ran
+                assertEquals("", toBase64gzip(File("path/to/test.jar")))
+
                     package test.pkg
                     @MustBeDocumented
                     @Retention(AnnotationRetention.BINARY)
@@ -3935,28 +3937,25 @@ class ApiFileTest : DriverTest() {
                 base64gzip(
                     "test.jar",
                     "" +
-                        "UEsDBAoAAAgIAKx6s1AAAAAAAgAAAAAAAAAJAAAATUVUQS1JTkYvAwBQSwMECgAACAgAZ3qzULJ/" +
-                        "Au4bAAAAGQAAABQAAABNRVRBLUlORi9NQU5JRkVTVC5NRvNNzMtMSy0u0Q1LLSrOzM+zUjDUM+Dl" +
-                        "4uUCAFBLAwQKAAAICABnerNQDArdZgwAAAAQAAAAGwAAAE1FVEEtSU5GL3RlbXAua290bGluX21v" +
-                        "ZHVsZWNgYGBmYGBghGIBAFBLAwQKAAAICABnerNQAAAAAAIAAAAAAAAABQAAAHRlc3QvAwBQSwME" +
-                        "CgAACAgAZ3qzUAAAAAACAAAAAAAAAAkAAAB0ZXN0L3BrZy8DAFBLAwQKAAAICABnerNQbrgjGPQB" +
-                        "AACVAwAAGQAAAHRlc3QvcGtnL0NvbXBvc2FibGUuY2xhc3OFUk1v2kAQfWtioG6TkKRpSdI0H01I" +
-                        "P6S65doTEEdF4kvGrRRxqBZYIQdjo+xClRu3Xvsz+ht6qFCO/VFVZ4kCVLJU2Xo7O/PGM/M8v//8" +
-                        "/AUgjzcMW0pIZQ/7PbsUDYaR5O1ApMAYMld8zO2Ahz273r4SHZVCguFg4eVhGCmu/Ci0C3MzBZPh" +
-                        "pNKPVOCHy5TqSKqiOI86o4EIleh+YNiPoblCUZgsiptjHowEw1kMb1FxOSNZLNcK7iXDbkyKx697" +
-                        "QhFrjQdB9FV07xwyvt9FgXmeWaoUmk2G9MWnWskr12sMK95lw6Ev6uNLo+AWqo7nuERpuPWG43rU" +
-                        "ylElVrJ/lDiM5yyPlvsPpREFfudmpmoscT7FcXzcCYRux7sZCi0kzfGxfs6wcS9NVSje5YpT0BiM" +
-                        "E7Q+TEOGru3ZFRpoQ1ifXN33NNR0YllG1rCMzJ41naRvvxnZ6SRvvGPF6eT2R9LQvDzDdiVmBakM" +
-                        "SF4lBkOG1YX/bV8xWM1odN0RF35A27HjjkiAgfjsS58Ii/8mc1QAK/SZpG6P7FczfInXdH5Hih4g" +
-                        "TfEHAhYe4hGZqy2YAmtY15DRsKFhU8MWHlPC9l3CE6zjqTZbMASympbFDnZhYq+FRBnPZu8+nt/f" +
-                        "Dso4xBGZOG6BSbzACYUkTiVyEmd/AVBLAQIUAwoAAAgIAKx6s1AAAAAAAgAAAAAAAAAJAAAAAAAA" +
-                        "AAAAEADtQQAAAABNRVRBLUlORi9QSwECFAMKAAAICABnerNQsn8C7hsAAAAZAAAAFAAAAAAAAAAA" +
-                        "AAAApIEpAAAATUVUQS1JTkYvTUFOSUZFU1QuTUZQSwECFAMKAAAICABnerNQDArdZgwAAAAQAAAA" +
-                        "GwAAAAAAAAAAAAAAoIF2AAAATUVUQS1JTkYvdGVtcC5rb3RsaW5fbW9kdWxlUEsBAhQDCgAACAgA" +
-                        "Z3qzUAAAAAACAAAAAAAAAAUAAAAAAAAAAAAQAOhBuwAAAHRlc3QvUEsBAhQDCgAACAgAZ3qzUAAA" +
-                        "AAACAAAAAAAAAAkAAAAAAAAAAAAQAOhB4AAAAHRlc3QvcGtnL1BLAQIUAwoAAAgIAGd6s1BuuCMY" +
-                        "9AEAAJUDAAAZAAAAAAAAAAAAAACggQkBAAB0ZXN0L3BrZy9Db21wb3NhYmxlLmNsYXNzUEsFBgAA" +
-                        "AAAGAAYAcwEAADQDAAAAAA=="
+                        "H4sIAAAAAAAAAAvwZmbhYmDg4GBw7DIMYwACJgYI4ARiX9cQR11PPzd9ZoYA" +
+                        "uEKDDsOwTfVM76SBCiSBWARZoa+jn6eba3CInq/bZ98zp328dfUu8nrrap07" +
+                        "c35zkMEV4wdPHz1lQjJsQieqraxAXJJaXIJiIzangRUVZKdjKFxiZ7vqLyMD" +
+                        "wwJmiPPgCp3zcwvyixOTclL1knMSi4tbg07nXQ4QsL1eaSFxa5lu65alXxw9" +
+                        "Kz2WhLyJsMzUUnqaaKkXNJV1l+86JfM+2avXG99tSj4b/4FXJ+CKqnzrjNld" +
+                        "Fh7TNiwtPm6c/u6M5Pn19+3rmCrar/O8DmrZZCL1xXtqggWXU91LTtkexfqj" +
+                        "x/c8KdwfnxUb17nuysSkG71773xnPrlU+odqcd6rEwYy19gbv8TUT7zU4RQp" +
+                        "ttzRXIorvuteddtcllm6Kq0nF1WkndnrYSCj+uFRV7fkzaK1mbfEeaI5Nfn2" +
+                        "v+P2XJP6rvJg+sXdxS0n/x5jfVY50+tuznbJovTnZ7uCs00lL51rDV0qffXj" +
+                        "SaPczYGlq8wCdXanhua2R91cr973Zr7nG9VisaWi/503Mp1/e+/Mslkec1Zb" +
+                        "ePSF2y68VZjn5sQ7qaQmY+6kCTM3fTbrjPlrvbRtwp7jqurzzGSWZ0yewTS3" +
+                        "kffE16Oh8cdTvt6btOXlEYMtTWkZP3OTrU7erbvKdflkZ9mZU5dPvv2+ZlmF" +
+                        "Oo/01xbXJVwL5JSCNGwvJkd0JeezTTqYwX6xNHzOTrm3J5et7XD+eJE3VulI" +
+                        "vYFOkOCSl6t0rix++JQn/oHo3PsLLnM/0ajzP3Cg1kaheGVzzwGjMJEnomu0" +
+                        "IoI39LVP2VA4/QOHdsWaM3yXmFhdtROCD85q0s1RblaXXZJ1Y+VDTcUy0TdX" +
+                        "N/Q380V0pFssqeh4rtil2PcPLc2wWSkGCAPTigQQyyMn59K8ksySnNQUvez8" +
+                        "kpzMvPjc/JTSnNTkhISENCBmSSrTOLvgyIKjDEDzGJlEmHEnVwgQYHjryIBs" +
+                        "PrI2bPkKBpY0auLIZcgmYMtMMItfOJbBMgOxbn3hOBs5/6BrQ89oMLCg8Qi+" +
+                        "bIduDHrYI4z5wUQwJgK8WdlAitmAsBzoFg9mEA8ANX1OW9UEAAA="
                 )
             ),
             sourceFiles = arrayOf(
@@ -3993,8 +3992,8 @@ class ApiFileTest : DriverTest() {
         check(
             format = FileFormat.V3,
             classpath = arrayOf(
-                /* The following source file, compiled, and root folder jar'ed and stored as base64 gzip
-                   Encoded using openssl base64 < test.jar | tr -d '\n'
+                /* The following source file, compiled, then ran
+                assertEquals("", toBase64gzip(File("path/to/test.jar")))
 
                     package test.pkg
                     @RequiresOptIn
@@ -4003,28 +4002,22 @@ class ApiFileTest : DriverTest() {
                 base64gzip(
                     "test.jar",
                     "" +
-                        "UEsDBAoAAAgIADt2U1IAAAAAAgAAAAAAAAAJAAAATUVUQS1JTkYvAwBQSwMECgAACAgAFXZ" +
-                        "TUrJ/Au4bAAAAGQAAABQAAABNRVRBLUlORi9NQU5JRkVTVC5NRvNNzMtMSy0u0Q1LLSrOzM" +
-                        "+zUjDUM+Dl4uUCAFBLAwQKAAAICAA7dlNSDWpm1BUAAAAYAAAAGwAAAE1FVEEtSU5GL3Rlc" +
-                        "3Qua290bGluX21vZHVsZWNgYGBmYGBgBGIWIGYCYgYlBi0GAFBLAwQKAAAICAA7dlNSAAAA" +
-                        "AAIAAAAAAAAABQAAAHRlc3QvAwBQSwMECgAACAgAO3ZTUgAAAAACAAAAAAAAAAkAAAB0ZXN" +
-                        "0L3BrZy8DAFBLAwQKAAAICAA7dlNSPYCyXGwBAABkAgAALQAAAHRlc3QvcGtnL0V4dGVybm" +
-                        "FsRXhwZXJpbWVudGFsQW5ub3RhdGlvbi5jbGFzc41Qy04CQRCsWZ6uL/CBICp6wXhxlasnT" +
-                        "TBuAmLwceE0wIQsLLPIzhK87c1f8Rs8GMLRjzL2qoiJRr309HRVdXf188vjE4ACcgy7SrjK" +
-                        "6HVaRnGoRF9yuzjsib7VFVJx+1hKR3FlOTIGxpBo8wE3bC5bRqXeFg0VQ4ghN63yT77xVRp" +
-                        "hSJU6jrItaVTFrWf1hVvpKVMeMWyXfpRXhaINKCNKZMBtTzDk/6BeOLbVuCNBrHp9fmWWiw" +
-                        "zJydiyULzJFSdU6w5CZJ8FIRwEjWr1txqCQJZYh0rNQ9pu5Ou6ltZ0LZHVR358fK+lR35BO" +
-                        "2AnI3/8EA2kzQLDXumfd6T5YAgHbIad37n7HeLol47Xb4hTy6YLZKoeOe2KG8u16raYUl2G" +
-                        "7AdmysE3NE9rIkyDo3h3uRHYRhab9J5RFidsRkDHLOYQwXwNIRMLJhZNJJCc/JZMLGOFUqz" +
-                        "WwFyksEaQi7SLjIt1bFG3KHWKAa9QSwECFAMKAAAICAA7dlNSAAAAAAIAAAAAAAAACQAAAA" +
-                        "AAAAAAABAA7UEAAAAATUVUQS1JTkYvUEsBAhQDCgAACAgAFXZTUrJ/Au4bAAAAGQAAABQAA" +
-                        "AAAAAAAAAAAAKSBKQAAAE1FVEEtSU5GL01BTklGRVNULk1GUEsBAhQDCgAACAgAO3ZTUg1q" +
-                        "ZtQVAAAAGAAAABsAAAAAAAAAAAAAAKCBdgAAAE1FVEEtSU5GL3Rlc3Qua290bGluX21vZHV" +
-                        "sZVBLAQIUAwoAAAgIADt2U1IAAAAAAgAAAAAAAAAFAAAAAAAAAAAAEADoQcQAAAB0ZXN0L1" +
-                        "BLAQIUAwoAAAgIADt2U1IAAAAAAgAAAAAAAAAJAAAAAAAAAAAAEADoQekAAAB0ZXN0L3BrZ" +
-                        "y9QSwECFAMKAAAICAA7dlNSPYCyXGwBAABkAgAALQAAAAAAAAAAAAAAoIESAQAAdGVzdC9w" +
-                        "a2cvRXh0ZXJuYWxFeHBlcmltZW50YWxBbm5vdGF0aW9uLmNsYXNzUEsFBgAAAAAGAAYAhwE" +
-                        "AAMkCAAAAAA=="
+                        "H4sIAAAAAAAAAAvwZmbhYmDg4GCY0GkYxgAETAwQwAnEvq4hjrqefm76zAwB" +
+                        "cIUGHYZhm+qZ3kkDFUgCsQiyQl9HP0831+AQPV+3z75nTvt46+pd5PXW1Tp3" +
+                        "5vzmIIMrxg+ePnrKhGQYuq2sQFySWlyCYiM2p4EVFWSnYyjcr3nzUgYjA0Mo" +
+                        "ULUuskLXipLUorzEHNeKgtSizNzUvJLEHMe8vPySxJLM/Dy95JzE4uLegN1+" +
+                        "TI4ituWCYtfF9zmaZC3eWHj1RqSEr8FNliMPFm+USkxya4tMYW+Snbv/kXmE" +
+                        "RNJLd8n3alpqUqVdxuXvLJ/bPXv69SPnAb1pHK/D3K7lX1v/1+n6qWmCuy7k" +
+                        "npqW5ZHcamegtuXQqgs7FJyeuZW0rG/d+e10uPmmrFgVjtPNa35c+R2/1vNQ" +
+                        "zEa5qLU98RO3516dFLgzk3mze4Tmv4z1HqeFC45MSnF/sU1lzV9FW86tq+5t" +
+                        "PLh2jvx81qVMiZ8W53pGBQqHGbw2seKMm59UwBnyPCT86HrdvqzbNsH7n1f6" +
+                        "Xfs4x+fe6++Xzn/323b/duG2FxvuV9d5WG7Ma98Q+Of5+8JwgUu5cpezIpXX" +
+                        "/Ft3f010U7nUtujQyiUm7+etPvKsbU/AxF2XihR6OX6W6xnMzX8j1d+lmDfP" +
+                        "qUYoIqFkgvO897V9l87weldIHNSYJLHbRelARQOnW0rSDB6D1pfeAS2SZ4zk" +
+                        "E/UO1bToiO306OLecUAaNcrYrBQDhIFRJQHE8sipqTSvJLMkJzVFLzu/JCcz" +
+                        "Lz43P6U0JzU5ISEhDYhZkso0zi44suAoAzAJMDKJMONOLRAgwPDWkQHZfGRt" +
+                        "2JI1DCxp1MSRyPFZzIpk8QvHMlhaJNatLxxnIydfdG3o6RwGFjQeITXVoxuN" +
+                        "Hh8Io8uZCMZOgDcrG0gxGxB2A913HOw3ALXssnFoBAAA"
                 )
             ),
             sourceFiles = arrayOf(
@@ -4405,7 +4398,7 @@ class ApiFileTest : DriverTest() {
                   }
 
                 }
-"""
+                """
             ),
             dexApi = """
             Landroid/widget/ListView;
@@ -4495,11 +4488,14 @@ class ApiFileTest : DriverTest() {
                         inline operator fun plus(other: Dp) = Dp(value = this.value + other.value)
                         inline operator fun minus(other: Dp) = Dp(value = this.value - other.value)
                         val someBits
-                            get() = value && 0x00ff
+                            get() = value.toInt() and 0x00ff
                         fun doSomething() {}
+                        override fun compareTo(other: Dp): Int = value.compareTo(other.value)
                     }
 
-                    fun box(val p : Dp) {}
+                    fun box(p : Dp) {
+                        println(p)
+                    }
                 """
                 )
             ),
@@ -4508,12 +4504,13 @@ class ApiFileTest : DriverTest() {
                 package test.pkg {
                   @kotlin.jvm.JvmInline public final value class Dp implements java.lang.Comparable<test.pkg.Dp> {
                     ctor public Dp(float value);
+                    method public int compareTo(float other);
                     method public void doSomething();
-                    method public boolean getSomeBits();
+                    method public int getSomeBits();
                     method public float getValue();
                     method public inline operator float minus(float other);
                     method public inline operator float plus(float other);
-                    property public final boolean someBits;
+                    property public final int someBits;
                     property public final float value;
                   }
                   public final class DpKt {
@@ -4650,7 +4647,7 @@ class ApiFileTest : DriverTest() {
     @Test
     fun `Annotations aren't dropped when DeprecationLevel is HIDDEN`() {
         check(
-            format = FileFormat.V3,
+            format = FileFormat.V2,
             sourceFiles = arrayOf(
                 kotlin(
                     """
@@ -4662,16 +4659,30 @@ class ApiFileTest : DriverTest() {
                         )
                         @IntRange(from=0)
                         fun myMethod() { TODO() }
+
+                        @Deprecated(
+                            message = "Not supported anymore",
+                            level = DeprecationLevel.HIDDEN
+                        )
+                        fun returnsNonNull(): String = "42"
+
+                        @Deprecated(
+                            message = "Not supported anymore",
+                            level = DeprecationLevel.HIDDEN
+                        )
+                        fun returnsNonNullImplicitly() = "42"
                     """
                 ),
                 androidxIntRangeSource
             ),
             extraArguments = arrayOf(ARG_HIDE_PACKAGE, "androidx.annotation"),
             api = """
-                // Signature format: 3.0
+                // Signature format: 2.0
                 package test.pkg {
                   public final class TestKt {
                     method @Deprecated @IntRange(from=0L) public static void myMethod();
+                    method @Deprecated @NonNull public static String returnsNonNull();
+                    method @Deprecated public static String returnsNonNullImplicitly();
                   }
                 }
             """
@@ -4681,7 +4692,6 @@ class ApiFileTest : DriverTest() {
     @Test
     fun `Constants in a file scope annotation`() {
         check(
-            format = FileFormat.V4,
             sourceFiles = arrayOf(
                 kotlin(
                     """
@@ -4689,6 +4699,8 @@ class ApiFileTest : DriverTest() {
                     package test.pkg
                     import androidx.annotation.RestrictTo
                     private fun veryFun(): Boolean = true
+                    const val CONST = "Hello"
+                    fun bar()
                 """
                 ),
                 restrictToSource
@@ -4698,6 +4710,8 @@ class ApiFileTest : DriverTest() {
                 // Signature format: 4.0
                 package test.pkg {
                   @RestrictTo({androidx.annotation.RestrictTo.Scope.LIBRARY}) public final class TestKt {
+                    method public static void bar();
+                    field public static final String CONST = "Hello";
                   }
                 }
             """
@@ -4801,6 +4815,323 @@ class ApiFileTest : DriverTest() {
                   public final class MyList implements kotlin.jvm.internal.markers.KMappedMarker java.util.List<java.lang.String> {
                     ctor public MyList();
                     method public operator String get(int index);
+                  }
+                }
+            """
+        )
+    }
+
+    @Test
+    fun `companion object in annotation`() {
+        check(
+            sourceFiles = arrayOf(
+                kotlin(
+                    """
+                        package test.pkg
+                        annotation class Dimension(val unit: Int = PX) {
+                            companion object {
+                                const val DP: Int = 0
+                                const val PX: Int = 1
+                                const val SP: Int = 2
+                            }
+                        }
+                    """
+                )
+            ),
+            api = """
+                package test.pkg {
+                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) public @interface Dimension {
+                    method public abstract int unit() default test.pkg.Dimension.PX;
+                    property public abstract int unit;
+                    field public static final test.pkg.Dimension.Companion Companion;
+                    field public static final int DP = 0; // 0x0
+                    field public static final int PX = 1; // 0x1
+                    field public static final int SP = 2; // 0x2
+                  }
+                  public static final class Dimension.Companion {
+                    field public static final int DP = 0; // 0x0
+                    field public static final int PX = 1; // 0x1
+                    field public static final int SP = 2; // 0x2
+                  }
+                }
+            """
+        )
+    }
+
+    @Test
+    fun `APIs before and after @Deprecated(HIDDEN)`() {
+        check(
+            sourceFiles = arrayOf(
+                kotlin(
+                    """
+                        package test.pkg
+                        interface State<out T> {
+                            val value: T
+                        }
+
+                        @Deprecated(level = DeprecationLevel.HIDDEN, message="no longer supported")
+                        fun before(
+                            i : Int?,
+                            s : String?,
+                            vararg vs : Any,
+                        ): State<String> {
+                            return object : State<String> {
+                                override val value: String = i?.toString() ?: s ?: "42"
+                            }
+                        }
+
+                        fun after(
+                            i : Int?,
+                            s : String?,
+                            vararg vs : Any,
+                        ): State<String> {
+                            return object : State<String> {
+                                override val value: String = i?.toString() ?: s ?: "42"
+                            }
+                        }
+                    """
+                )
+            ),
+            api = """
+                package test.pkg {
+                  public interface State<T> {
+                    method public T! getValue();
+                    property public abstract T! value;
+                  }
+                  public final class StateKt {
+                    method public static test.pkg.State<java.lang.String> after(Integer? i, String? s, java.lang.Object... vs);
+                    method @Deprecated public static test.pkg.State<? extends java.lang.String> before(Integer? i, String? s, java.lang.Object... vs);
+                  }
+                }
+            """
+        )
+    }
+
+    @Test
+    fun `APIs before and after @Deprecated(HIDDEN) on constructors`() {
+        check(
+            sourceFiles = arrayOf(
+                kotlin(
+                    """
+                        package test.pkg
+                        interface State<out T> {
+                            val value: T
+                        }
+
+                        class AsyncPagingDataDiffer<T : Any>
+                        @JvmOverloads
+                        constructor(
+                            private val initState: State<T>,
+                            private val nextState: State<T>,
+                            private val updateCallback: Runnable,
+                        ) {
+                            @Deprecated(level = DeprecationLevel.HIDDEN, message="no longer supported")
+                            constructor(
+                                state: State<T>,
+                            ) : this(
+                                initState = state,
+                                nextState = state,
+                                updateCallback = { }
+                            )
+
+                            constructor(
+                                initState: State<T>,
+                                nextState: State<T>,
+                            ) : this(
+                                initState = initState,
+                                nextState = nextState,
+                                updateCallback = { }
+                            )
+                        }
+                    """
+                )
+            ),
+            api = """
+                package test.pkg {
+                  public final class AsyncPagingDataDiffer<T> {
+                    ctor public AsyncPagingDataDiffer(test.pkg.State<? extends T> initState, test.pkg.State<? extends T> nextState, Runnable updateCallback);
+                    ctor public AsyncPagingDataDiffer(test.pkg.State<? extends T> initState, test.pkg.State<? extends T> nextState);
+                    ctor @Deprecated public AsyncPagingDataDiffer(test.pkg.State<? extends T> state);
+                  }
+                  public interface State<T> {
+                    method public T! getValue();
+                    property public abstract T! value;
+                  }
+                }
+            """
+        )
+    }
+
+    @Test
+    fun `@Repeatable annotation`() {
+        check(
+            sourceFiles = arrayOf(
+                kotlin(
+                    """
+                    package test.pkg
+
+                    import androidx.annotation.IntRange
+
+                    @Repeatable
+                    annotation class RequiresExtension(
+                        @IntRange(from = 1) val extension: Int,
+                        @IntRange(from = 1) val version: Int
+                    )
+                    """
+                ),
+                androidxIntRangeSource
+            ),
+            extraArguments = arrayOf(ARG_HIDE_PACKAGE, "androidx.annotation"),
+            api = """
+                package test.pkg {
+                  @kotlin.annotation.Repeatable public @interface RequiresExtension {
+                    method public abstract int extension();
+                    method public abstract int version();
+                    property public abstract int extension;
+                    property public abstract int version;
+                  }
+                  @kotlin.annotation.Repeatable public static @interface RequiresExtension.Container {
+                    method public abstract test.pkg.RequiresExtension[] value();
+                  }
+                }
+            """
+        )
+    }
+
+    @Test
+    fun `Don't print empty facade classes`() {
+        check(
+            sourceFiles = arrayOf(
+                kotlin(
+                    "test/pkg/Toast.kt",
+                    """
+                        package test.pkg
+                        internal fun bar() {}
+
+                        private val baz
+
+                        class Toast {
+                            val foo: Int
+                        }
+                    """
+                ),
+                kotlin(
+                    "test/pkg/Bar.kt",
+                    """
+                        package test.pkg
+                        class Bar
+                    """
+                ),
+                kotlin(
+                    "test/pkg/test.kt",
+                    """
+                        package test.pkg
+
+                        /**
+                         * @suppress
+                         */
+                        @PublishedApi
+                        internal fun internalYetPublished() {}
+
+                        private val buzz
+                    """
+                ),
+                kotlin(
+                    "test/pkg/ConfigurationError.kt",
+                    """
+                        package test.pkg
+                        import androidx.annotation.RestrictTo
+
+                        /**
+                         * @hide
+                         */
+                        @RestrictTo(RestrictTo.Scope.LIBRARY_GROUP)
+                        data class ConfigurationError(val id: String)
+
+                        /**
+                         * @hide
+                         */
+                        @RestrictTo(RestrictTo.Scope.LIBRARY_GROUP)
+                        fun conditionalError(): ConfigurationError? = null
+                    """
+                ),
+                kotlin(
+                    "test/pkg/test2.kt",
+                    """
+                        package test.pkg
+                        import androidx.annotation.VisibleForTesting
+
+                        @VisibleForTesting(otherwise = VisibleForTesting.PACKAGE_PRIVATE)
+                        fun shouldBePackagePrivate() {}
+
+                        private fun shouldBePrivate() {}
+                    """
+                ),
+                restrictToSource,
+                visibleForTestingSource,
+            ),
+            extraArguments = arrayOf(
+                ARG_SHOW_UNANNOTATED,
+                ARG_SHOW_ANNOTATION, "kotlin.PublishedApi",
+                ARG_HIDE_ANNOTATION, "androidx.annotation.RestrictTo(androidx.annotation.RestrictTo.Scope.LIBRARY_GROUP)",
+                ARG_HIDE_PACKAGE, "androidx.annotation"
+            ),
+            api = """
+                // Signature format: 4.0
+                package test.pkg {
+                  public final class Bar {
+                    ctor public Bar();
+                  }
+                  public final class TestKt {
+                    method @kotlin.PublishedApi internal static void internalYetPublished();
+                  }
+                  public final class Toast {
+                    ctor public Toast();
+                    method public int getFoo();
+                    property public final int foo;
+                  }
+                }
+            """
+        )
+    }
+
+    @Test
+    fun `renamed via @JvmName`() {
+        check(
+            sourceFiles = arrayOf(
+                kotlin(
+                    """
+                        package test.pkg
+
+                        class ColorRamp(
+                            val colors: IntArray,
+                            @get:JvmName("isInterpolated")
+                            val interpolated: Boolean,
+                        ) {
+                            @get:JvmName("isInitiallyEnabled")
+                            val initiallyEnabled: Boolean
+
+                            @set:JvmName("updateOtherColors")
+                            var otherColors: IntArray
+                        }
+                    """
+                )
+            ),
+            // TODO(b/257444932): s/getInterpolated/isInterpolated/g
+            api = """
+                // Signature format: 4.0
+                package test.pkg {
+                  public final class ColorRamp {
+                    ctor public ColorRamp(int[] colors, boolean interpolated);
+                    method public int[] getColors();
+                    method public boolean getInterpolated();
+                    method public int[] getOtherColors();
+                    method public boolean isInitiallyEnabled();
+                    method public void updateOtherColors(int[]);
+                    property public final int[] colors;
+                    property public final boolean initiallyEnabled;
+                    property public final boolean interpolated;
+                    property public final int[] otherColors;
                   }
                 }
             """

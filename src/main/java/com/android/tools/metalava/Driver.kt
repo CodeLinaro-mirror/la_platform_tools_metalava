@@ -643,6 +643,8 @@ private fun loadFromSources(): Codebase {
  * Returns a codebase initialized from the given Java or Kotlin source files, with the given
  * description. The codebase will use a project environment initialized according to the current
  * [options].
+ *
+ * All supplied [File] objects will be mapped to [File.getAbsoluteFile].
  */
 internal fun parseSources(
     sources: List<File>,
@@ -653,18 +655,39 @@ internal fun parseSources(
     kotlinLanguageLevel: LanguageVersionSettings = options.kotlinLanguageLevel,
     manifest: File? = options.manifest
 ): PsiBasedCodebase {
-    val sourceRoots = mutableListOf<File>()
-    sourcePath.filterTo(sourceRoots) { it.path.isNotBlank() }
+    val absoluteSources = sources.map { it.absoluteFile }
+
+    val absoluteSourceRoots = sourcePath.filter { it.path.isNotBlank() }.map { it.absoluteFile }.toMutableList()
     // Add in source roots implied by the source files
     if (options.allowImplicitRoot) {
-        extractRoots(sources, sourceRoots)
+        extractRoots(sources, absoluteSourceRoots)
     }
 
+    val absoluteClasspath = classpath.map { it.absoluteFile }
+
+    return parseAbsoluteSources(
+        absoluteSources, description, absoluteSourceRoots,
+        absoluteClasspath, javaLanguageLevel, kotlinLanguageLevel, manifest
+    )
+}
+
+/**
+ * Returns a codebase initialized from the given set of absolute files.
+ */
+private fun parseAbsoluteSources(
+    sources: List<File>,
+    description: String,
+    sourceRoots: List<File>,
+    classpath: List<File>,
+    javaLanguageLevel: LanguageLevel,
+    kotlinLanguageLevel: LanguageVersionSettings,
+    manifest: File?
+): PsiBasedCodebase {
     val config = UastEnvironment.Configuration.create()
     config.javaLanguageLevel = javaLanguageLevel
     config.kotlinLanguageLevel = kotlinLanguageLevel
-    config.addSourceRoots(sourceRoots.map { it.absoluteFile })
-    config.addClasspathRoots(classpath.map { it.absoluteFile })
+    config.addSourceRoots(sourceRoots)
+    config.addClasspathRoots(classpath)
     options.jdkHome?.let {
         if (options.isJdkModular(it)) {
             config.kotlinCompilerConfig.put(JVMConfigurationKeys.JDK_HOME, it)
@@ -677,7 +700,7 @@ internal fun parseSources(
     val kotlinFiles = sources.filter { it.path.endsWith(DOT_KT) }
     environment.analyzeFiles(kotlinFiles)
 
-    val rootDir = sourceRoots.firstOrNull() ?: sourcePath.firstOrNull() ?: File("").canonicalFile
+    val rootDir = sourceRoots.firstOrNull() ?: File("").canonicalFile
 
     val units = Extractor.createUnitsForFiles(environment.ideaProject, sources)
     val packageDocs = gatherPackageJavadoc(sources, sourceRoots)

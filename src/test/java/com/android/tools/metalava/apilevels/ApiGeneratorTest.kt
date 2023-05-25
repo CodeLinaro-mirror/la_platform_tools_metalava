@@ -16,6 +16,8 @@
 
 package com.android.tools.metalava.apilevels
 
+import com.android.sdklib.SdkVersionInfo
+import com.android.tools.lint.detector.api.ApiConstraint
 import com.android.tools.metalava.ARG_ANDROID_JAR_PATTERN
 import com.android.tools.metalava.ARG_CURRENT_CODENAME
 import com.android.tools.metalava.ARG_CURRENT_VERSION
@@ -27,17 +29,35 @@ import com.android.tools.metalava.ARG_SDK_JAR_ROOT
 import com.android.tools.metalava.DriverTest
 import com.android.tools.metalava.getApiLookup
 import com.android.tools.metalava.java
+import com.android.tools.metalava.minApiLevel
 import com.google.common.truth.Truth.assertThat
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
+import org.junit.BeforeClass
 import org.junit.Test
 import java.io.File
 import kotlin.text.Charsets.UTF_8
 
 class ApiGeneratorTest : DriverTest() {
+    companion object {
+        // As per ApiConstraint that uses a bit vector, API has to be between 1..61.
+        private const val MAGIC_VERSION_INT = 57 // [SdkVersionInfo.MAX_LEVEL] - 4
+        private const val MAGIC_VERSION_STR = MAGIC_VERSION_INT.toString()
+
+        @JvmStatic
+        @BeforeClass
+        fun beforeClass() {
+            assert(MAGIC_VERSION_INT > SdkVersionInfo.HIGHEST_KNOWN_API)
+            // Trigger <clinit> of [SdkApiConstraint] to call `isValidApiLevel` in its companion
+            ApiConstraint.UNKNOWN
+            // This checks if MAGIC_VERSION_INT is not bigger than [SdkVersionInfo.MAX_LEVEL]
+            assert(ApiConstraint.SdkApiConstraint.isValidApiLevel(MAGIC_VERSION_INT))
+        }
+    }
+
     @Test
     fun `Extract API levels`() {
         var oldSdkJars = File("prebuilts/tools/common/api-versions")
@@ -72,7 +92,7 @@ class ApiGeneratorTest : DriverTest() {
                 ARG_CURRENT_CODENAME,
                 "Z",
                 ARG_CURRENT_VERSION,
-                "89" // not real api level of Z
+                MAGIC_VERSION_STR // not real api level of Z
             ),
             sourceFiles = arrayOf(
                 java(
@@ -88,9 +108,10 @@ class ApiGeneratorTest : DriverTest() {
         assertTrue(output.isFile)
 
         val xml = output.readText(UTF_8)
+        val nextVersion = MAGIC_VERSION_INT + 1
         assertTrue(xml.contains("<class name=\"android/Manifest\$permission\" since=\"1\">"))
         assertTrue(xml.contains("<field name=\"BIND_CARRIER_MESSAGING_SERVICE\" since=\"22\" deprecated=\"23\"/>"))
-        assertTrue(xml.contains("<class name=\"android/pkg/MyTest\" since=\"90\""))
+        assertTrue(xml.contains("<class name=\"android/pkg/MyTest\" since=\"$nextVersion\""))
         assertFalse(xml.contains("<implements name=\"java/lang/annotation/Annotation\" removed=\""))
         assertFalse(xml.contains("<extends name=\"java/lang/Enum\" removed=\""))
         assertFalse(xml.contains("<method name=\"append(C)Ljava/lang/AbstractStringBuilder;\""))
@@ -103,7 +124,7 @@ class ApiGeneratorTest : DriverTest() {
         // Make sure we're really using the correct database, not the SDK one. (This placeholder
         // class is provided as a source file above.)
         @Suppress("DEPRECATION")
-        assertEquals(90, apiLookup.getClassVersion("android.pkg.MyTest"))
+        assertEquals(nextVersion, apiLookup.getClassVersion("android.pkg.MyTest"))
 
         @Suppress("DEPRECATION")
         apiLookup.getClassVersion("android.v")
@@ -247,9 +268,9 @@ class ApiGeneratorTest : DriverTest() {
         assertTrue(xml.contains("<class name=\"android/net/eap/EapInfo\" module=\"android.net.ipsec.ike\" since=\"33\" sdks=\"33:3,31:3,30:3,0:33\">"))
 
         // Verify historical backfill
-        assertEquals(30, apiLookup.getClassVersion("android/os/ext/SdkExtensions"))
-        assertEquals(30, apiLookup.getMethodVersion("android/os/ext/SdkExtensions", "getExtensionVersion", "(I)I"))
-        assertEquals(31, apiLookup.getMethodVersion("android/os/ext/SdkExtensions", "getAllExtensionVersions", "()Ljava/util/Map;"))
+        assertEquals(30, apiLookup.getClassVersions("android/os/ext/SdkExtensions").minApiLevel())
+        assertEquals(30, apiLookup.getMethodVersions("android/os/ext/SdkExtensions", "getExtensionVersion", "(I)I").minApiLevel())
+        assertEquals(31, apiLookup.getMethodVersions("android/os/ext/SdkExtensions", "getAllExtensionVersions", "()Ljava/util/Map;").minApiLevel())
 
         // Verify there's no extension versions listed for SdkExtensions
         val sdkExtClassLine = xml.lines().first { it.contains("<class name=\"android/os/ext/SdkExtensions\"") }
@@ -290,7 +311,7 @@ class ApiGeneratorTest : DriverTest() {
                 ARG_CURRENT_CODENAME,
                 "REL",
                 ARG_CURRENT_VERSION,
-                "89" // not real api level
+                MAGIC_VERSION_STR // not real api level
             ),
             sourceFiles = arrayOf(
                 java(
@@ -306,10 +327,10 @@ class ApiGeneratorTest : DriverTest() {
         assertTrue(output.isFile)
         // Anything with a REL codename is in the current API level
         val xml = output.readText(UTF_8)
-        assertTrue(xml.contains("<class name=\"android/pkg/MyTest\" since=\"89\""))
+        assertTrue(xml.contains("<class name=\"android/pkg/MyTest\" since=\"$MAGIC_VERSION_STR\""))
         val apiLookup = getApiLookup(output, temporaryFolder.newFolder())
         @Suppress("DEPRECATION")
-        assertEquals(89, apiLookup.getClassVersion("android.pkg.MyTest"))
+        assertEquals(MAGIC_VERSION_INT, apiLookup.getClassVersion("android.pkg.MyTest"))
     }
 
     @Test
@@ -346,7 +367,7 @@ class ApiGeneratorTest : DriverTest() {
                 ARG_CURRENT_CODENAME,
                 "ZZZ", // not just Z, but very ZZZ
                 ARG_CURRENT_VERSION,
-                "89" // not real api level
+                MAGIC_VERSION_STR // not real api level
             ),
             sourceFiles = arrayOf(
                 java(
@@ -361,11 +382,12 @@ class ApiGeneratorTest : DriverTest() {
 
         assertTrue(output.isFile)
         // Metalava should understand that a codename means "current api + 1"
+        val nextVersion = MAGIC_VERSION_INT + 1
         val xml = output.readText(UTF_8)
-        assertTrue(xml.contains("<class name=\"android/pkg/MyTest\" since=\"90\""))
+        assertTrue(xml.contains("<class name=\"android/pkg/MyTest\" since=\"$nextVersion\""))
         val apiLookup = getApiLookup(output, temporaryFolder.newFolder())
         @Suppress("DEPRECATION")
-        assertEquals(90, apiLookup.getClassVersion("android.pkg.MyTest"))
+        assertEquals(nextVersion, apiLookup.getClassVersion("android.pkg.MyTest"))
     }
 
     @Test

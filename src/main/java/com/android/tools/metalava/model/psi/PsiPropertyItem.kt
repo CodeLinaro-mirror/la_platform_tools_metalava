@@ -127,10 +127,11 @@ class PsiPropertyItem private constructor(
                         it.toUElementOfType<UAnnotation>()
                     } else null
                 }
-                annotations?.forEach {
-                    modifiers.addAnnotation(
-                        UAnnotationItem.create(codebase, it)
-                    )
+                annotations?.forEach { uAnnotation ->
+                    val annotationItem = UAnnotationItem.create(codebase, uAnnotation)
+                    if (annotationItem !in modifiers.annotations()) {
+                        modifiers.addAnnotation(annotationItem)
+                    }
                 }
             }
             val property = PsiPropertyItem(
