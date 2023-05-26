@@ -58,8 +58,12 @@ import com.intellij.psi.javadoc.PsiDocComment
 import com.intellij.psi.javadoc.PsiDocTag
 import com.intellij.psi.search.GlobalSearchScope
 import com.intellij.psi.util.PsiTreeUtil
+import org.jetbrains.kotlin.asJava.classes.KtLightClassForFacade
+import org.jetbrains.kotlin.fileClasses.isJvmMultifileClassFile
+import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.psi.KtElement
 import org.jetbrains.kotlin.resolve.BindingContext
+import org.jetbrains.uast.UClass
 import org.jetbrains.uast.UFile
 import org.jetbrains.uast.UastFacade
 import org.jetbrains.uast.kotlin.BaseKotlinUastResolveProviderService
@@ -168,6 +172,9 @@ open class PsiBasedCodebase(
         this.methodMap = HashMap(METHOD_ESTIMATE)
         topLevelClassesFromSource = ArrayList(CLASS_ESTIMATE)
 
+        // A set to track @JvmMultifileClasses that have already been added to [topLevelClassesFromSource]
+        val multifileClassNames = HashSet<FqName>()
+
         // Make sure we only process the files once; sometimes there's overlap in the source lists
         for (psiFile in psiFiles.asSequence().distinct()) {
             tick() // show progress
@@ -233,16 +240,25 @@ open class PsiBasedCodebase(
                                 )
                             }
 
-                            override fun visitCodeBlock(block: PsiCodeBlock?) {
+                            override fun visitCodeBlock(block: PsiCodeBlock) {
                                 // Ignore to avoid eagerly parsing all method bodies.
                             }
 
-                            override fun visitDocComment(comment: PsiDocComment?) {
+                            override fun visitDocComment(comment: PsiDocComment) {
                                 // Ignore to avoid eagerly parsing all doc comments.
                                 // Doc comments cannot contain error elements.
                             }
                         })
 
+                        // Multifile classes appear identically from each file they're defined in, don't add duplicates
+                        val ktLightClass = (psiClass as? UClass)?.javaPsi as? KtLightClassForFacade
+                        if (ktLightClass?.multiFileClass == true) {
+                            if (multifileClassNames.contains(ktLightClass.facadeClassFqName)) {
+                                continue
+                            } else {
+                                multifileClassNames.add(ktLightClass.facadeClassFqName)
+                            }
+                        }
                         topLevelClassesFromSource += createClass(psiClass)
                     }
                 }
@@ -288,6 +304,10 @@ open class PsiBasedCodebase(
 
         packageClasses.clear() // Not used after this point
     }
+
+    // TODO(jsjeon): remove this when the upstream has this commonized property (ETA: 1.9)
+    private val KtLightClassForFacade.multiFileClass: Boolean
+        get() = files.size > 1 && files.first().isJvmMultifileClassFile
 
     override fun dispose() {
         uastEnvironment.dispose()

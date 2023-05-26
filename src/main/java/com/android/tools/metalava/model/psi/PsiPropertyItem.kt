@@ -26,7 +26,7 @@ import org.jetbrains.kotlin.descriptors.annotations.AnnotationUseSiteTarget
 import org.jetbrains.kotlin.psi.KtPropertyAccessor
 import org.jetbrains.uast.UAnnotation
 import org.jetbrains.uast.UClass
-import org.jetbrains.uast.toUElementOfType
+import org.jetbrains.uast.toUElement
 
 class PsiPropertyItem private constructor(
     override val codebase: PsiBasedCodebase,
@@ -82,7 +82,7 @@ class PsiPropertyItem private constructor(
         /**
          * Creates a new property item, given a [name], [type] and relationships to other items.
          *
-         * Kotlin properties consist of up to four other declarations: Their accessor functions,
+         * Kotlin's properties consist of up to four other declarations: Their accessor functions,
          * primary constructor parameter, and a backing field. These relationships are useful for
          * resolving documentation and exposing the model correctly in Kotlin stubs.
          *
@@ -124,7 +124,7 @@ class PsiPropertyItem private constructor(
                     if (useSiteTarget == null ||
                         useSiteTarget == AnnotationUseSiteTarget.PROPERTY
                     ) {
-                        it.toUElementOfType<UAnnotation>()
+                        it.toUElement() as? UAnnotation
                     } else null
                 }
                 annotations?.forEach { uAnnotation ->

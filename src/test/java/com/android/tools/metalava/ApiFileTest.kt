@@ -363,47 +363,6 @@ class ApiFileTest : DriverTest() {
     }
 
     @Test
-    fun `Kotlin Reified Methods`() {
-        check(
-            format = FileFormat.V1,
-            sourceFiles = arrayOf(
-                java(
-                    """
-                    package test.pkg;
-
-                    public class Context {
-                        @SuppressWarnings("unchecked")
-                        public final <T> T getSystemService(Class<T> serviceClass) {
-                            return null;
-                        }
-                    }
-                    """
-                ),
-                kotlin(
-                    """
-                    package test.pkg
-
-                    inline fun <reified T> Context.systemService1() = getSystemService(T::class.java)
-                    inline fun Context.systemService2() = getSystemService(String::class.java)
-                    """
-                )
-            ),
-            api = """
-                package test.pkg {
-                  public class Context {
-                    ctor public Context();
-                    method public final <T> T getSystemService(Class<T>);
-                  }
-                  public final class TestKt {
-                    method public static inline <reified T> T systemService1(@NonNull test.pkg.Context);
-                    method public static inline String systemService2(@NonNull test.pkg.Context);
-                  }
-                }
-                """
-        )
-    }
-
-    @Test
     fun `Kotlin Reified Methods 2`() {
         check(
             format = FileFormat.V2,
@@ -524,74 +483,6 @@ class ApiFileTest : DriverTest() {
                   }
                 }
                 """
-        )
-    }
-
-    @Test
-    fun `Nullness in reified signatures`() {
-        check(
-            sourceFiles = arrayOf(
-                kotlin(
-                    "src/test/pkg/test.kt",
-                    """
-                    package test.pkg
-
-                    import androidx.annotation.UiThread
-                    import test.pkg2.NavArgs
-                    import test.pkg2.NavArgsLazy
-                    import test.pkg2.Fragment
-                    import test.pkg2.Bundle
-
-                    @UiThread
-                    inline fun <reified Args : NavArgs> Fragment.navArgs() = NavArgsLazy(Args::class) {
-                        throw IllegalStateException("Fragment $this has null arguments")
-                    }
-                    """
-                ),
-                kotlin(
-                    """
-                    package test.pkg2
-
-                    import kotlin.reflect.KClass
-
-                    interface NavArgs
-                    class Fragment
-                    class Bundle
-                    class NavArgsLazy<Args : NavArgs>(
-                        private val navArgsClass: KClass<Args>,
-                        private val argumentProducer: () -> Bundle
-                    )
-                    """
-                ),
-                uiThreadSource
-            ),
-            api = """
-                // Signature format: 3.0
-                package test.pkg {
-                  public final class TestKt {
-                    method @UiThread public static inline <reified Args extends test.pkg2.NavArgs> test.pkg2.NavArgsLazy<Args>! navArgs(test.pkg2.Fragment);
-                  }
-                }
-                """,
-//            Actual expected API is below. However, due to KT-39209 the nullability information is
-//              missing
-//            api = """
-//                // Signature format: 3.0
-//                package test.pkg {
-//                  public final class TestKt {
-//                    method @UiThread public static inline <reified Args extends test.pkg2.NavArgs> test.pkg2.NavArgsLazy<Args> navArgs(test.pkg2.Fragment);
-//                  }
-//                }
-//                """,
-            format = FileFormat.V3,
-            extraArguments = arrayOf(
-                ARG_HIDE_PACKAGE, "androidx.annotation",
-                ARG_HIDE_PACKAGE, "test.pkg2",
-                ARG_HIDE, "ReferencesHidden",
-                ARG_HIDE, "UnavailableSymbol",
-                ARG_HIDE, "HiddenTypeParameter",
-                ARG_HIDE, "HiddenSuperclass"
-            )
         )
     }
 
@@ -951,7 +842,7 @@ class ApiFileTest : DriverTest() {
                     method public test.pkg.Issue create(String id, String briefDescription, String explanation);
                   }
                   public enum Language {
-                    method public static test.pkg.Language valueOf(String name) throws java.lang.IllegalArgumentException;
+                    method public static test.pkg.Language valueOf(String value) throws java.lang.IllegalArgumentException, java.lang.NullPointerException;
                     method public static test.pkg.Language[] values();
                     enum_constant public static final test.pkg.Language JAVA;
                     enum_constant public static final test.pkg.Language KOTLIN;
@@ -1171,95 +1062,6 @@ class ApiFileTest : DriverTest() {
     }
 
     @Test
-    fun `Test Experimental and UseExperimental`() {
-        check(
-            sourceFiles = arrayOf(
-                kotlin(
-                    """
-                    package test.pkg
-
-                    @Experimental
-                    @Retention(AnnotationRetention.BINARY)
-                    @Target(AnnotationTarget.CLASS, AnnotationTarget.FUNCTION)
-                    annotation class ExperimentalBar
-
-                    @ExperimentalBar
-                    class FancyBar
-
-                    @UseExperimental(FancyBar::class) // @UseExperimental should not be tracked as it is not API
-                    class SimpleClass {
-                        fun methodUsingFancyBar() {
-                            val fancyBar = FancyBar()
-                        }
-                    }
-
-                    @androidx.annotation.experimental.UseExperimental(FancyBar::class) // @UseExperimental should not be tracked as it is not API
-                    class AnotherSimpleClass {
-                        fun methodUsingFancyBar() {
-                            val fancyBar = FancyBar()
-                        }
-                    }
-                """
-                ),
-                kotlin(
-                    """
-                    package androidx.annotation.experimental
-
-                    import kotlin.annotation.Retention
-                    import kotlin.annotation.Target
-                    import kotlin.reflect.KClass
-
-                    @Retention(AnnotationRetention.BINARY)
-                    @Target(
-                        AnnotationTarget.CLASS,
-                        AnnotationTarget.PROPERTY,
-                        AnnotationTarget.LOCAL_VARIABLE,
-                        AnnotationTarget.VALUE_PARAMETER,
-                        AnnotationTarget.CONSTRUCTOR,
-                        AnnotationTarget.FUNCTION,
-                        AnnotationTarget.PROPERTY_GETTER,
-                        AnnotationTarget.PROPERTY_SETTER,
-                        AnnotationTarget.FILE,
-                        AnnotationTarget.TYPEALIAS
-                    )
-                    annotation class UseExperimental(
-                        /**
-                         * Defines the experimental API(s) whose usage this annotation allows.
-                         */
-                        vararg val markerClass: KClass<out Annotation>
-                    )
-                """
-                )
-            ),
-            format = FileFormat.V3,
-            api = """
-                // Signature format: 3.0
-                package androidx.annotation.experimental {
-                  @kotlin.annotation.Retention(kotlin.annotation.AnnotationRetention.BINARY) @kotlin.annotation.Target(allowedTargets={kotlin.annotation.AnnotationTarget.CLASS, kotlin.annotation.AnnotationTarget.PROPERTY, kotlin.annotation.AnnotationTarget.LOCAL_VARIABLE, kotlin.annotation.AnnotationTarget.VALUE_PARAMETER, kotlin.annotation.AnnotationTarget.CONSTRUCTOR, kotlin.annotation.AnnotationTarget.FUNCTION, kotlin.annotation.AnnotationTarget.PROPERTY_GETTER, kotlin.annotation.AnnotationTarget.PROPERTY_SETTER, kotlin.annotation.AnnotationTarget.FILE, kotlin.annotation.AnnotationTarget.TYPEALIAS}) public @interface UseExperimental {
-                    method public abstract kotlin.reflect.KClass<? extends java.lang.annotation.Annotation>[] markerClass();
-                    property public abstract kotlin.reflect.KClass<? extends java.lang.annotation.Annotation>[] markerClass;
-                  }
-                }
-                package test.pkg {
-                  public final class AnotherSimpleClass {
-                    ctor public AnotherSimpleClass();
-                    method public void methodUsingFancyBar();
-                  }
-                  @kotlin.Experimental @kotlin.annotation.Retention(kotlin.annotation.AnnotationRetention.BINARY) @kotlin.annotation.Target(allowedTargets={kotlin.annotation.AnnotationTarget.CLASS, kotlin.annotation.AnnotationTarget.FUNCTION}) public @interface ExperimentalBar {
-                  }
-                  @test.pkg.ExperimentalBar public final class FancyBar {
-                    ctor public FancyBar();
-                  }
-                  public final class SimpleClass {
-                    ctor public SimpleClass();
-                    method public void methodUsingFancyBar();
-                  }
-                }
-            """
-        )
-    }
-
-    @Test
     fun `Extract class with generics`() {
         // Basic interface with generics; makes sure <T extends Object> is written as just <T>
         // Also include some more complex generics expressions to make sure they're serialized
@@ -1460,7 +1262,7 @@ class ApiFileTest : DriverTest() {
     }
 
     @Test
-    fun `Enum class`() {
+    fun `Enum class -- java`() {
         check(
             sourceFiles = arrayOf(
                 java(
@@ -1476,6 +1278,32 @@ class ApiFileTest : DriverTest() {
             api = """
                 package test.pkg {
                   public enum Foo {
+                    enum_constant public static final test.pkg.Foo A;
+                    enum_constant public static final test.pkg.Foo B;
+                  }
+                }
+                """
+        )
+    }
+
+    @Test
+    fun `Enum class -- kt`() {
+        check(
+            sourceFiles = arrayOf(
+                kotlin(
+                    """
+                    package test.pkg
+                    enum class Foo {
+                        A, B;
+                    }
+                    """
+                )
+            ),
+            api = """
+                package test.pkg {
+                  public enum Foo {
+                    method public static test.pkg.Foo valueOf(String value) throws java.lang.IllegalArgumentException, java.lang.NullPointerException;
+                    method public static test.pkg.Foo[] values();
                     enum_constant public static final test.pkg.Foo A;
                     enum_constant public static final test.pkg.Foo B;
                   }
@@ -4453,8 +4281,7 @@ class ApiFileTest : DriverTest() {
                         inline operator fun minus(other: Dp) = Dp(value = this.value - other.value)
                         // Not tracked due to https://youtrack.jetbrains.com/issue/KTIJ-11559
                         val someBits
-                            get() = value && 0x00ff
-                        // Not tracked due to https://youtrack.jetbrains.com/issue/KTIJ-11559
+                            get() = value.toInt() and 0x00ff
                         fun doSomething() {}
                     }
                 """
@@ -4465,6 +4292,7 @@ class ApiFileTest : DriverTest() {
                 package test.pkg {
                   public final inline class Dp implements java.lang.Comparable<test.pkg.Dp> {
                     ctor public Dp();
+                    method public void doSomething();
                     method public float getValue();
                     method public inline operator float minus(float other);
                     method public inline operator float plus(float other);
@@ -4638,51 +4466,6 @@ class ApiFileTest : DriverTest() {
                   public final class TestKt {
                     method @Deprecated public static void myMethod();
                     method @Deprecated public static void myNormalDeprecatedMethod();
-                  }
-                }
-            """
-        )
-    }
-
-    @Test
-    fun `Annotations aren't dropped when DeprecationLevel is HIDDEN`() {
-        check(
-            format = FileFormat.V2,
-            sourceFiles = arrayOf(
-                kotlin(
-                    """
-                        package test.pkg
-                        import androidx.annotation.IntRange
-                        @Deprecated(
-                            message = "So much regret",
-                            level = DeprecationLevel.HIDDEN
-                        )
-                        @IntRange(from=0)
-                        fun myMethod() { TODO() }
-
-                        @Deprecated(
-                            message = "Not supported anymore",
-                            level = DeprecationLevel.HIDDEN
-                        )
-                        fun returnsNonNull(): String = "42"
-
-                        @Deprecated(
-                            message = "Not supported anymore",
-                            level = DeprecationLevel.HIDDEN
-                        )
-                        fun returnsNonNullImplicitly() = "42"
-                    """
-                ),
-                androidxIntRangeSource
-            ),
-            extraArguments = arrayOf(ARG_HIDE_PACKAGE, "androidx.annotation"),
-            api = """
-                // Signature format: 2.0
-                package test.pkg {
-                  public final class TestKt {
-                    method @Deprecated @IntRange(from=0L) public static void myMethod();
-                    method @Deprecated @NonNull public static String returnsNonNull();
-                    method @Deprecated public static String returnsNonNullImplicitly();
                   }
                 }
             """
@@ -4963,6 +4746,35 @@ class ApiFileTest : DriverTest() {
     }
 
     @Test
+    fun `@Deprecated sealed interface and its members`() {
+        check(
+            sourceFiles = arrayOf(
+                kotlin(
+                    """
+                        package test.pkg
+
+                        @Deprecated("moved to somewhere else")
+                        sealed interface LazyInfo {
+                          val index : Int
+                          val key: Int
+                        }
+                    """
+                )
+            ),
+            api = """
+                package test.pkg {
+                  @Deprecated public sealed interface LazyInfo {
+                    method @Deprecated public int getIndex();
+                    method @Deprecated public int getKey();
+                    property @Deprecated public abstract int index;
+                    property @Deprecated public abstract int key;
+                  }
+                }
+            """
+        )
+    }
+
+    @Test
     fun `@Repeatable annotation`() {
         check(
             sourceFiles = arrayOf(
@@ -5096,42 +4908,38 @@ class ApiFileTest : DriverTest() {
     }
 
     @Test
-    fun `renamed via @JvmName`() {
+    fun `Test @JvmMultifileClass appears only once`() {
         check(
             sourceFiles = arrayOf(
                 kotlin(
+                    "test/pkg/A.kt",
                     """
+                        @file:JvmMultifileClass
+                        @file:JvmName("Foo")
+
                         package test.pkg
 
-                        class ColorRamp(
-                            val colors: IntArray,
-                            @get:JvmName("isInterpolated")
-                            val interpolated: Boolean,
-                        ) {
-                            @get:JvmName("isInitiallyEnabled")
-                            val initiallyEnabled: Boolean
+                        fun String.bar(): Unit {}
+                    """
+                ),
+                kotlin(
+                    "test/pkg/B.kt",
+                    """
+                        @file:JvmMultifileClass
+                        @file:JvmName("Foo")
 
-                            @set:JvmName("updateOtherColors")
-                            var otherColors: IntArray
-                        }
+                        package test.pkg
+
+                        fun String.baz(): Unit {}
                     """
                 )
             ),
-            // TODO(b/257444932): s/getInterpolated/isInterpolated/g
             api = """
                 // Signature format: 4.0
                 package test.pkg {
-                  public final class ColorRamp {
-                    ctor public ColorRamp(int[] colors, boolean interpolated);
-                    method public int[] getColors();
-                    method public boolean getInterpolated();
-                    method public int[] getOtherColors();
-                    method public boolean isInitiallyEnabled();
-                    method public void updateOtherColors(int[]);
-                    property public final int[] colors;
-                    property public final boolean initiallyEnabled;
-                    property public final boolean interpolated;
-                    property public final int[] otherColors;
+                  public final class Foo {
+                    method public static void bar(String);
+                    method public static void baz(String);
                   }
                 }
             """

@@ -683,7 +683,7 @@ private fun parseAbsoluteSources(
     kotlinLanguageLevel: LanguageVersionSettings,
     manifest: File?
 ): PsiBasedCodebase {
-    val config = UastEnvironment.Configuration.create()
+    val config = UastEnvironment.Configuration.create(useFirUast = options.useK2Uast)
     config.javaLanguageLevel = javaLanguageLevel
     config.kotlinLanguageLevel = kotlinLanguageLevel
     config.addSourceRoots(sourceRoots)
@@ -714,7 +714,7 @@ private fun parseAbsoluteSources(
 fun loadFromJarFile(apiJar: File, manifest: File? = null, preFiltered: Boolean = false): Codebase {
     progress("Processing jar file: ")
 
-    val config = UastEnvironment.Configuration.create()
+    val config = UastEnvironment.Configuration.create(useFirUast = options.useK2Uast)
     config.addClasspathRoots(listOf(apiJar))
 
     val environment = createProjectEnvironment(config)

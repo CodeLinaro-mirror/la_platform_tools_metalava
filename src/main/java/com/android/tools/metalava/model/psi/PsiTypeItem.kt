@@ -526,10 +526,19 @@ class PsiTypeItem private constructor(
          * annotation properties or accessors.
          */
         private fun Item.impliesNonNullArrayComponents(): Boolean {
-            return when (this) {
-                is MemberItem -> containingClass().isAnnotationType() && !modifiers.isStatic()
-                is MethodItem -> containingClass().isEnum() && modifiers.isStatic() &&
+            fun MemberItem.isAnnotationPropertiesOrAccessors(): Boolean =
+                containingClass().isAnnotationType() && !modifiers.isStatic()
+
+            // TODO: K2 UAST regression, KTIJ-24754
+            fun MethodItem.isEnumValues(): Boolean =
+                containingClass().isEnum() && modifiers.isStatic() &&
                     name() == "values" && parameters().isEmpty()
+
+            return when (this) {
+                is MemberItem -> {
+                    isAnnotationPropertiesOrAccessors() ||
+                        (this is MethodItem && isEnumValues())
+                }
                 else -> false
             }
         }

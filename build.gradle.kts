@@ -33,7 +33,7 @@ repositories {
 
 plugins {
     alias(libs.plugins.kotlinJvm)
-    id("com.android.lint") version "8.1.0-alpha02"
+    id("com.android.lint") version "8.1.0-alpha07"
     id("application")
     id("java")
     id("maven-publish")
@@ -66,7 +66,7 @@ val studioVersion: String = if (customLintVersion != null) {
     logger.warn("Building using custom $customLintVersion version of Android Lint")
     customLintVersion
 } else {
-    "31.1.0-alpha02"
+    "31.1.0-alpha07"
 }
 
 dependencies {
@@ -171,14 +171,8 @@ fun getMetalavaVersion(): Any {
     if (versionPropertyFile.canRead()) {
         val versionProps = Properties()
         versionProps.load(FileInputStream(versionPropertyFile))
-        val metalavaVersion = versionProps["metalavaVersion"]
+        return versionProps["metalavaVersion"]
             ?: throw IllegalStateException("metalava version was not set in ${versionPropertyFile.absolutePath}")
-        return if (isBuildingOnServer()) {
-            metalavaVersion
-        } else {
-            // Local builds are not public release candidates.
-            "$metalavaVersion-SNAPSHOT"
-        }
     } else {
         throw FileNotFoundException("Could not read ${versionPropertyFile.absolutePath}")
     }
@@ -275,6 +269,34 @@ publishing {
             name = repositoryName
             url = uri("file://${getDistributionDirectory().canonicalPath}/repo/m2repository")
         }
+    }
+}
+
+lint {
+    fatal.add("UastImplementation")
+    disable.add("UseTomlInstead") // not useful for this project
+    disable.add("GradleDependency") // not useful for this project
+    abortOnError = true
+    baseline = File("lint-baseline.xml")
+}
+
+// Add a buildId into Gradle Metadata file so we can tell which build it is from.
+tasks.withType(GenerateModuleMetadata::class.java).configureEach {
+    val outDirProvider = project.providers.environmentVariable("DIST_DIR")
+    inputs.property("buildOutputDirectory", outDirProvider).optional(true)
+    doLast {
+        val metadata = outputFile.asFile.get()
+        val text = metadata.readText()
+        val buildId = outDirProvider.orNull?.let { File(it).name } ?: "0"
+        metadata.writeText(
+            text.replace(
+                """"createdBy": {
+    "gradle": {""",
+                """"createdBy": {
+    "gradle": {
+      "buildId:": "$buildId",""",
+            )
+        )
     }
 }
 

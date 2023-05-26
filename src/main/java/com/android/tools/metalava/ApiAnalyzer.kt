@@ -27,13 +27,14 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PackageList
 import com.android.tools.metalava.model.ParameterItem
+import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.VisibilityLevel
+import com.android.tools.metalava.model.psi.PsiItem.Companion.isKotlin
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.model.visitors.ItemVisitor
 import org.jetbrains.kotlin.asJava.classes.KtLightClassForFacade
 import org.jetbrains.uast.UClass
-import org.jetbrains.uast.kotlin.isKotlin
 import java.util.Locale
 import java.util.function.Predicate
 
@@ -511,7 +512,8 @@ class ApiAnalyzer(
     private fun hideEmptyKotlinFileFacadeClasses() {
         codebase.getPackages().allClasses().forEach { cls ->
             val psi = cls.psi()
-            if (isKotlin(psi) &&
+            if (psi != null &&
+                isKotlin(psi) &&
                 psi is UClass &&
                 psi.javaPsi is KtLightClassForFacade &&
                 // a facade class needs to be emitted if it has any top-level fun/prop to emit
@@ -874,6 +876,15 @@ class ApiAnalyzer(
                 }
 
                 checkTypeReferencesHidden(field, field.type())
+            }
+
+            override fun visitProperty(property: PropertyItem) {
+                val containingClass = property.containingClass()
+                if (containingClass.deprecated) {
+                    property.deprecated = true
+                }
+
+                checkTypeReferencesHidden(property, property.type())
             }
 
             override fun visitMethod(method: MethodItem) {
