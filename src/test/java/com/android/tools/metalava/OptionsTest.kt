@@ -122,6 +122,9 @@ API sources:
 --hide-meta-annotation <meta-annotation class>
                                              Treat as hidden any elements annotated with an annotation which is itself
                                              annotated with the given meta-annotation
+--suppress-compatibility-meta-annotation <meta-annotation class>
+                                             Suppress compatibility checks for any elements within the scope of an
+                                             annotation which is itself annotated with the given meta-annotation
 --show-unannotated
                                              Include un-annotated public APIs in the signature file as well
 --java-source <level>

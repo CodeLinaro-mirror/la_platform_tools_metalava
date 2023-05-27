@@ -8,8 +8,19 @@
         errorLine2="~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/java/com/android/tools/metalava/model/psi/PsiMethodItem.kt"
-            line="45"
+            line="46"
             column="1"/>
+    </issue>
+
+    <issue
+        id="UastImplementation"
+        message="org.jetbrains.uast.kotlin.KotlinUMethodWithFakeLightDelegate is UAST implementation. Consider using one of its corresponding UAST interfaces: `UMethod`, `UDeclaration`, `UAnnotated`, `UAnchorOwner`"
+        errorLine1="            val name = if (psiMethod is KotlinUMethodWithFakeLightDelegate) {"
+        errorLine2="                                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/android/tools/metalava/model/psi/PsiMethodItem.kt"
+            line="383"
+            column="41"/>
     </issue>
 
     <issue
@@ -19,7 +30,7 @@
         errorLine2="                             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/java/com/android/tools/metalava/model/psi/PsiMethodItem.kt"
-            line="408"
+            line="428"
             column="30"/>
     </issue>
 

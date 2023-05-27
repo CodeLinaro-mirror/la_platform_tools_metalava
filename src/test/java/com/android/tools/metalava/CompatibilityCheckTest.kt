@@ -4012,6 +4012,132 @@ CompatibilityCheckTest : DriverTest() {
         )
     }
 
+    @Test
+    fun `adding a method to an abstract class with hidden constructor`() {
+        check(
+            checkCompatibilityApiReleased = """
+                package test.pkg {
+                    public abstract class Foo {
+                    }
+                }
+            """,
+            sourceFiles = arrayOf(
+                java(
+                    """
+                    package test.pkg;
+                    public abstract class Foo {
+                        /**
+                        * @hide
+                        */
+                        public Foo() {}
+                        public abstract void newAbstractMethod();
+                    }
+                    """
+                ),
+            )
+        )
+    }
+
+    @Test
+    fun `Allow incompatible changes to unchecked APIs`() {
+        check(
+            checkCompatibilityApiReleased = """
+                package test.pkg {
+                  @test.pkg.MetaAnnotatedDoNotCheckCompat
+                  public class MyTest1 {
+                    method public Double method(Float);
+                    field public Double field;
+                  }
+                  @test.pkg.MetaAnnotatedDoNotCheckCompat
+                  public class MyTest2 {
+                  }
+                  @test.pkg.MetaDoNotCheckCompat public @interface MetaAnnotatedDoNotCheckCompat {
+                  }
+                  @test.pkg.MetaDoNotCheckCompat public @interface MetaDoNotCheckCompat {
+                  }
+                }
+                """,
+            signatureSource = """
+                package test.pkg {
+                  public class MyTest1 {
+                  }
+                }
+                """,
+            suppressCompatibilityMetaAnnotations = arrayOf("test.pkg.MetaDoNotCheckCompat")
+        )
+    }
+
+    @Test
+    fun `Allow changing API from unchecked to checked`() {
+        check(
+            checkCompatibilityApiReleased = """
+                package test.pkg {
+                  @test.pkg.MetaAnnotatedDoNotCheckCompat
+                  public class MyTest1 {
+                  }
+                  @test.pkg.MetaAnnotatedDoNotCheckCompat
+                  public class MyTest2 {
+                  }
+                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS) @test.pkg.MetaDoNotCheckCompat public @interface MetaAnnotatedDoNotCheckCompat {
+                  }
+                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS) @test.pkg.MetaDoNotCheckCompat public @interface MetaDoNotCheckCompat {
+                  }
+                }
+                """,
+            signatureSource = """
+                package test.pkg {
+                  public class MyTest1 {
+                  }
+                  @test.pkg.MetaAnnotatedDoNotCheckCompat
+                  public class MyTest2 {
+                  }
+                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS) @test.pkg.MetaDoNotCheckCompat public @interface MetaAnnotatedDoNotCheckCompat {
+                  }
+                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS) @test.pkg.MetaDoNotCheckCompat public @interface MetaDoNotCheckCompat {
+                  }
+                }
+                """,
+            suppressCompatibilityMetaAnnotations = arrayOf("test.pkg.MetaDoNotCheckCompat")
+        )
+    }
+
+    @Test
+    fun `Fail when changing API from checked to unchecked`() {
+        check(
+            expectedIssues = """
+                TESTROOT/released-api.txt:2: error: Removed class test.pkg.MyTest1 from compatibility checked API surface [BecameUnchecked]
+            """,
+            checkCompatibilityApiReleased = """
+                package test.pkg {
+                  public class MyTest1 {
+                  }
+                  @test.pkg.MetaAnnotatedDoNotCheckCompat
+                  public class MyTest2 {
+                  }
+                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS) @test.pkg.MetaDoNotCheckCompat public @interface MetaAnnotatedDoNotCheckCompat {
+                  }
+                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS) @test.pkg.MetaDoNotCheckCompat public @interface MetaDoNotCheckCompat {
+                  }
+                }
+                """,
+            signatureSource = """
+                package test.pkg {
+                  @test.pkg.MetaAnnotatedDoNotCheckCompat
+                  public class MyTest1 {
+                  }
+                  @test.pkg.MetaAnnotatedDoNotCheckCompat
+                  public class MyTest2 {
+                  }
+                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS) @test.pkg.MetaDoNotCheckCompat public @interface MetaAnnotatedDoNotCheckCompat {
+                  }
+                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS) @test.pkg.MetaDoNotCheckCompat public @interface MetaDoNotCheckCompat {
+                  }
+                }
+                """,
+            suppressCompatibilityMetaAnnotations = arrayOf("test.pkg.MetaDoNotCheckCompat")
+        )
+    }
+
     // TODO: Check method signatures changing incompatibly (look especially out for adding new overloaded
     // methods and comparator getting confused!)
     //   ..equals on the method items should actually be very useful!

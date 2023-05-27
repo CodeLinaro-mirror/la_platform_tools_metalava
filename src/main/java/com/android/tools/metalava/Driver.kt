@@ -660,7 +660,7 @@ internal fun parseSources(
     val absoluteSourceRoots = sourcePath.filter { it.path.isNotBlank() }.map { it.absoluteFile }.toMutableList()
     // Add in source roots implied by the source files
     if (options.allowImplicitRoot) {
-        extractRoots(sources, absoluteSourceRoots)
+        extractRoots(absoluteSources, absoluteSourceRoots)
     }
 
     val absoluteClasspath = classpath.map { it.absoluteFile }

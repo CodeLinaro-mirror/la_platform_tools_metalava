@@ -753,7 +753,7 @@ abstract class UastTestBase : DriverTest() {
                 package test.pkg {
                   public abstract class ActivityResultContract<I, O> {
                     ctor public ActivityResultContract();
-                    method public abstract O! parseResult(int resultCode, test.pkg.Intent? intent);
+                    method public abstract O parseResult(int resultCode, test.pkg.Intent? intent);
                   }
                   public interface Intent {
                   }

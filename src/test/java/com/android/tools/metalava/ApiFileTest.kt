@@ -385,10 +385,10 @@ class ApiFileTest : DriverTest() {
             api = """
                 package test.pkg {
                   public final class TestKt {
-                    method public static inline <T> void a(@Nullable T t);
-                    method public static inline <reified T> void b(@Nullable T t);
-                    method public static inline <reified T> void e(@Nullable T t);
-                    method public static inline <reified T> void f(@Nullable T, @Nullable T t);
+                    method public static inline <T> void a(T t);
+                    method public static inline <reified T> void b(T t);
+                    method public static inline <reified T> void e(T t);
+                    method public static inline <reified T> void f(T, T t);
                   }
                 }
                 """
@@ -577,6 +577,132 @@ class ApiFileTest : DriverTest() {
                 ARG_HIDE, "UnavailableSymbol",
                 ARG_HIDE, "HiddenTypeParameter"
             )
+        )
+    }
+
+    @Test
+    fun `Nullness in type parameters`() {
+        check(
+            sourceFiles = arrayOf(
+                kotlin(
+                    """
+                    package test.pkg
+                    class NonNullUpperBound<T : Any>(ctorParam: T) {
+                        fun explicitNullable(e: T?): T? = e
+                        fun inheritedNullability(i: T): T = i
+                    }
+
+                    class NullableUpperBound<T : Any?>(ctorParam: T) {
+                        fun explicitNullable(e: T?): T? = e
+                        fun inheritedNullability(i: T): T = i
+                    }
+
+                    class UnspecifiedUpperBound<T>(ctorParam: T) {
+                        fun explicitNullable(e: T?): T? = e
+                        fun inheritedNullability(i: T): T = i
+                    }
+
+                    fun <T : Any> topLevelNonNullUpperBoundExplicitNullable(t: T?) = t
+                    fun <T : Any> topLevelNonNullUpperBoundInherited(t: T) = t
+
+                    fun <T : Any?> topLevelNullableUpperBoundExplicitNullable(t: T?) = t
+                    fun <T : Any?> topLevelNullableUpperBoundInherited(t: T) = t
+
+                    fun <T> topLevelUnspecifiedUpperBoundExplicitNullable(t: T?) = t
+                    fun <T> topLevelUnspecifiedUpperBoundInherited(t: T) = t
+                    """
+                )
+            ),
+            api = """
+                package test.pkg {
+                  public final class NonNullUpperBound<T> {
+                    ctor public NonNullUpperBound(T ctorParam);
+                    method public T? explicitNullable(T? e);
+                    method public T inheritedNullability(T i);
+                  }
+                  public final class NonNullUpperBoundKt {
+                    method public static <T> T? topLevelNonNullUpperBoundExplicitNullable(T? t);
+                    method public static <T> T topLevelNonNullUpperBoundInherited(T t);
+                    method public static <T> T? topLevelNullableUpperBoundExplicitNullable(T? t);
+                    method public static <T> T topLevelNullableUpperBoundInherited(T t);
+                    method public static <T> T? topLevelUnspecifiedUpperBoundExplicitNullable(T? t);
+                    method public static <T> T topLevelUnspecifiedUpperBoundInherited(T t);
+                  }
+                  public final class NullableUpperBound<T> {
+                    ctor public NullableUpperBound(T ctorParam);
+                    method public T? explicitNullable(T? e);
+                    method public T inheritedNullability(T i);
+                  }
+                  public final class UnspecifiedUpperBound<T> {
+                    ctor public UnspecifiedUpperBound(T ctorParam);
+                    method public T? explicitNullable(T? e);
+                    method public T inheritedNullability(T i);
+                  }
+                }
+            """
+        )
+    }
+
+    @Test
+    fun `Nullness in type parameter -- suspend fun`() {
+        check(
+            sourceFiles = arrayOf(
+                java(
+                    """
+                        package test.util.concurrent;
+
+                        public interface MyFuture<V extends @Nullable Object> {
+                        }
+                    """
+                ),
+                kotlin(
+                    """
+                        package test.pkg
+
+                        import test.util.concurrent.MyFuture
+
+                        suspend fun <T> MyFuture<T>.await(t: T): T = TODO()
+                    """
+                )
+            ),
+            api = """
+                package test.pkg {
+                  public final class TestKt {
+                    method public static suspend <T> Object? await(test.util.concurrent.MyFuture<T>, T t, kotlin.coroutines.Continuation<? super T>);
+                  }
+                }
+                package test.util.concurrent {
+                  public interface MyFuture<V> {
+                  }
+                }
+            """
+        )
+    }
+
+    @Test
+    fun `Nullness in type parameter -- property and accessor`() {
+        check(
+            sourceFiles = arrayOf(
+                kotlin(
+                    """
+                        package test.pkg
+
+                        class CircularArray<E> {
+                            val first: E
+                                get() = TODO()
+                        }
+                    """
+                )
+            ),
+            api = """
+                package test.pkg {
+                  public final class CircularArray<E> {
+                    ctor public CircularArray();
+                    method public E getFirst();
+                    property public final E first;
+                  }
+                }
+            """
         )
     }
 
@@ -4678,8 +4804,8 @@ class ApiFileTest : DriverTest() {
             api = """
                 package test.pkg {
                   public interface State<T> {
-                    method public T! getValue();
-                    property public abstract T! value;
+                    method public T getValue();
+                    property public abstract T value;
                   }
                   public final class StateKt {
                     method public static test.pkg.State<java.lang.String> after(Integer? i, String? s, java.lang.Object... vs);
@@ -4737,8 +4863,8 @@ class ApiFileTest : DriverTest() {
                     ctor @Deprecated public AsyncPagingDataDiffer(test.pkg.State<? extends T> state);
                   }
                   public interface State<T> {
-                    method public T! getValue();
-                    property public abstract T! value;
+                    method public T getValue();
+                    property public abstract T value;
                   }
                 }
             """
@@ -4942,6 +5068,45 @@ class ApiFileTest : DriverTest() {
                     method public static void baz(String);
                   }
                 }
+            """
+        )
+    }
+
+    @Test
+    fun `@JvmName on @Deprecated hidden`() {
+        check(
+            sourceFiles = arrayOf(
+                kotlin(
+                    """
+                        package test.pkg
+                        class Foo {
+                          @JvmName("newNameForRenamed")
+                          fun renamed() = Unit
+
+                          @Deprecated(level = DeprecationLevel.HIDDEN)
+                          fun deprecatedHidden() = Unit
+
+                          @JvmName("newNameForRenamedAndDeprecatedError")
+                          @Deprecated(level = DeprecationLevel.ERROR)
+                          fun renamedAndDeprecatedError() = Unit
+
+                          @JvmName("newNameForRenamedAndDeprecatedHidden")
+                          @Deprecated(level = DeprecationLevel.HIDDEN)
+                          fun renamedAndDeprecatedHidden() = Unit
+                        }
+                    """
+                )
+            ),
+            api = """
+               package test.pkg {
+                 public final class Foo {
+                   ctor public Foo();
+                   method @Deprecated public void deprecatedHidden();
+                   method public void newNameForRenamed();
+                   method @Deprecated public void newNameForRenamedAndDeprecatedError();
+                   method @Deprecated public void newNameForRenamedAndDeprecatedHidden();
+                 }
+               }
             """
         )
     }

@@ -166,10 +166,10 @@ interface ModifierList {
      * Returns true if this modifier list contains any meta-annotations explicitly passed in
      * via [Options.hideMetaAnnotations].
      *
-     * Hidden meta-annotations allow Metalava to handle concepts like Kotlin's [Experimental],
+     * Hidden meta-annotations allow Metalava to handle concepts like Kotlin's [RequiresOptIn],
      * which allows developers to create annotations that describe experimental features -- sets
      * of distinct and potentially overlapping unstable API surfaces. Libraries may wish to exclude
-     * such sets of APIs from tracking and stub JAR generation by passing [Experimental] as a
+     * such sets of APIs from tracking and stub JAR generation by passing [RequiresOptIn] as a
      * hidden meta-annotation.
      */
     fun hasHideMetaAnnotations(): Boolean {
@@ -178,6 +178,28 @@ interface ModifierList {
         }
         return annotations().any { annotation ->
             options.hideMetaAnnotations.contains(annotation.qualifiedName)
+        }
+    }
+
+    /**
+     * Returns true if this modifier list contains any meta-annotations explicitly passed in via
+     * [Options.suppressCompatibilityMetaAnnotations].
+     *
+     * Metalava will suppress compatibility checks for APIs which are within the scope of a
+     * "suppress compatibility" meta-annotation, but they may still be written to API files or stub
+     * JARs.
+     *
+     * "Suppress compatibility" meta-annotations allow Metalava to handle concepts like Jetpack
+     * experimental APIs, where developers can use the [RequiresOptIn] meta-annotation to mark
+     * feature sets with unstable APIs.
+     */
+    fun hasSuppressCompatibilityMetaAnnotations(): Boolean {
+        if (options.suppressCompatibilityMetaAnnotations.isEmpty()) {
+            return false
+        }
+        return annotations().any { annotation ->
+            options.suppressCompatibilityMetaAnnotations.contains(annotation.qualifiedName) ||
+                annotation.resolve()?.hasSuppressCompatibilityMetaAnnotation() ?: false
         }
     }
 

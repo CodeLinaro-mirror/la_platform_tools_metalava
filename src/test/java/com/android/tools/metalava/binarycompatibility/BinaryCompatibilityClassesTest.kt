@@ -120,22 +120,26 @@ class BinaryCompatibilityClassesTest : DriverTest() {
     fun `Move API method up type hierarchy, if method in supertype must be reimplemented by client (Incompatible)`() {
         check(
             expectedIssues = """
-                TESTROOT/load-api.txt:3: error: Added method test.pkg.Upper.foo() [AddedAbstractMethod]
+                TESTROOT/load-api.txt:4: error: Added method test.pkg.Upper.foo() [AddedAbstractMethod]
             """,
             signatureSource = """
                 package test.pkg {
                     public abstract class Upper {
+                        ctor public Upper();
                         method public abstract void foo();
                     }
                     public abstract class Lower extends test.pkg.Upper {
+                        ctor public Lower();
                     }
                 }
             """,
             checkCompatibilityApiReleased = """
                 package test.pkg {
                     public abstract class Upper {
+                        ctor public Upper();
                     }
                     public abstract class Lower extends test.pkg.Upper {
+                        ctor public Lower();
                         method public abstract void foo();
                     }
                 }

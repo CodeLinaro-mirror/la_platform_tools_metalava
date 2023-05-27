@@ -60,6 +60,15 @@ interface Item {
         return hidden || parent()?.hidden() ?: false
     }
 
+    /**
+     * Recursive check to see if compatibility checks should be suppressed for this item or any of
+     * its parents (containing class, containing package).
+     */
+    fun isCompatibilitySuppressed(): Boolean {
+        return hasSuppressCompatibilityMetaAnnotation() ||
+            parent()?.isCompatibilitySuppressed() ?: false
+    }
+
     /** Whether this element has been removed with @removed/@Remove (or after propagation, in some containing class) */
     var removed: Boolean
 
@@ -154,6 +163,12 @@ interface Item {
     fun hasNullnessInfo(): Boolean = false
 
     /**
+     * Returns true if this item has generic type
+     * whose nullability is determined at subclass declaration site.
+     */
+    fun hasInheritedGenericType(): Boolean = false
+
+    /**
      * Whether this item was loaded from the classpath (e.g. jar dependencies)
      * rather than be declared as source
      */
@@ -169,6 +184,7 @@ interface Item {
     fun onlyShowForStubPurposes(): Boolean = modifiers.onlyShowForStubPurposes()
     fun hasHideAnnotation(): Boolean = modifiers.hasHideAnnotations()
     fun hasHideMetaAnnotation(): Boolean = modifiers.hasHideMetaAnnotations()
+    fun hasSuppressCompatibilityMetaAnnotation(): Boolean = modifiers.hasSuppressCompatibilityMetaAnnotations()
 
     /**
      * Same as [hasShowAnnotation], except if it's a method, take into account super methods'

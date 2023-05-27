@@ -45,6 +45,15 @@ open class DefaultModifierList(
 
     fun setOwner(owner: Item) {
         this.owner = owner
+
+        if (owner.hasInheritedGenericType()) {
+            // https://youtrack.jetbrains.com/issue/KTIJ-19087
+            // Incorrect nullness annotation was added to generic parameter
+            // whose nullability is determined at subclass declaration site.
+            annotations?.removeIf {
+                it.isNullnessAnnotation()
+            }
+        }
     }
 
     override fun getVisibilityLevel(): VisibilityLevel {

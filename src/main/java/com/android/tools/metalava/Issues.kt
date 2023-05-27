@@ -89,6 +89,7 @@ object Issues {
     val VARARG_REMOVAL = Issue(Severity.ERROR, Category.COMPATIBILITY)
     val ADD_SEALED = Issue(Severity.ERROR, Category.COMPATIBILITY)
     val FUN_REMOVAL = Issue(Severity.ERROR, Category.COMPATIBILITY)
+    val BECAME_UNCHECKED = Issue(Severity.ERROR, Category.COMPATIBILITY)
     val ANNOTATION_EXTRACTION = Issue(Severity.ERROR)
     val SUPERFLUOUS_PREFIX = Issue(Severity.WARNING)
     val HIDDEN_TYPEDEF_CONSTANT = Issue(Severity.ERROR)

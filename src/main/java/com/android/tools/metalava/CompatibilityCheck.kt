@@ -169,6 +169,14 @@ class CompatibilityCheck(
             )
         }
 
+        if (!old.isCompatibilitySuppressed() && new.isCompatibilitySuppressed()) {
+            report(
+                Issues.BECAME_UNCHECKED,
+                old,
+                "Removed ${describe(old)} from compatibility checked API surface"
+            )
+        }
+
         compareNullability(old, new)
     }
 
@@ -838,6 +846,14 @@ class CompatibilityCheck(
             return
         }
 
+        // It is ok to add a new abstract method to a class that has no public constructors
+        if (new.containingClass().isClass() &&
+            !new.containingClass().constructors().any { it.isPublic && !it.hidden } &&
+            new.modifiers.isAbstract()
+        ) {
+            return
+        }
+
         if (inherited == null || inherited == new || !inherited.modifiers.isAbstract()) {
             val error = when {
                 new.modifiers.isAbstract() -> Issues.ADDED_ABSTRACT_METHOD
@@ -920,6 +936,12 @@ class CompatibilityCheck(
         item: Item,
         message: String
     ) {
+        if (item.isCompatibilitySuppressed()) {
+            // Long-term, we should consider allowing meta-annotations to specify a different
+            // `configuration` so it can use a separate set of severities. For now, though, we'll
+            // treat all issues for all unchecked items as `Severity.IGNORE`.
+            return
+        }
         if (reporter.report(issue, item, message) && configuration.getSeverity(issue) == Severity.ERROR) {
             foundProblems = true
         }
