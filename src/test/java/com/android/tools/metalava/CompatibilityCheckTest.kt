@@ -4138,6 +4138,232 @@ CompatibilityCheckTest : DriverTest() {
         )
     }
 
+    @Test
+    fun `Conversion from AutoCloseable to Closeable is not API-breaking`() {
+        // Closeable implements AutoCloseable
+        check(
+            apiClassResolution = Options.ApiClassResolution.API_CLASSPATH,
+            expectedIssues = "",
+            checkCompatibilityApiReleased = """
+                // Signature format: 4.0
+                package test.pkg {
+                  public class Foo implements java.lang.AutoCloseable {
+                    method public void close();
+                  }
+                }
+            """,
+            signatureSource = """
+                // Signature format: 4.0
+                package test.pkg {
+                  public class Foo implements java.io.Closeable {
+                    method public void close();
+                  }
+                }
+            """
+        )
+    }
+
+    @Test
+    fun `Conversion from Closeable to AutoCloseable is API-breaking`() {
+        // AutoCloseable does not implement Closeable
+        check(
+            expectedIssues = """
+                TESTROOT/load-api.txt:3: error: Class test.pkg.Foo no longer implements java.io.Closeable [RemovedInterface]
+            """.trimIndent(),
+            checkCompatibilityApiReleased = """
+                // Signature format: 4.0
+                package test.pkg {
+                  public class Foo implements java.io.Closeable {
+                    method public void close();
+                  }
+                }
+            """,
+            signatureSource = """
+                // Signature format: 4.0
+                package test.pkg {
+                  public class Foo implements java.lang.AutoCloseable {
+                    method public void close();
+                  }
+                }
+            """
+        )
+    }
+
+    @Test
+    fun `Conversion from MutableCollection to AbstractMutableCollection is not API-breaking`() {
+        check(
+            apiClassResolution = Options.ApiClassResolution.API_CLASSPATH,
+            expectedIssues = "",
+            checkCompatibilityApiReleased = """
+                // Signature format: 4.0
+                package test.pkg {
+                  public class MyCollection<E> implements java.util.Collection<E> {
+                    ctor public MyCollection();
+                    method public boolean add(E! e);
+                    method public boolean addAll(java.util.Collection<? extends E> c);
+                    method public void clear();
+                    method public boolean contains(Object! o);
+                    method public boolean containsAll(java.util.Collection<?> c);
+                    method public boolean isEmpty();
+                    method public java.util.Iterator<E> iterator();
+                    method public boolean remove(Object! o);
+                    method public boolean removeAll(java.util.Collection<?> c);
+                    method public boolean retainAll(java.util.Collection<?> c);
+                    method public int size();
+                    method public Object![] toArray();
+                    method public <T> T![] toArray(T[] a);
+                  }
+                }
+            """,
+            signatureSource = """
+                // Signature format: 4.0
+                package test.pkg {
+                  public class MyCollection<E> extends java.util.AbstractCollection<E> {
+                    ctor public MyCollection();
+                    method public java.util.Iterator<E> iterator();
+                    method public int size();
+                  }
+                }
+            """
+        )
+    }
+
+    @Test
+    fun `Expected API changes converting collections to Kotlin`() {
+        check(
+            apiClassResolution = Options.ApiClassResolution.API_CLASSPATH,
+            // The parameter names are different between java.util.Collection and kotlin.collections.Collection
+            // Methods not defined in kotlin.collections.Collection appear abstract as they are not listed in the API file
+            expectedIssues = """
+                error: Method test.pkg.MyCollection.add has changed 'abstract' qualifier [ChangedAbstract]
+                error: Attempted to change parameter name from e to p in method test.pkg.MyCollection.add [ParameterNameChange]
+                error: Method test.pkg.MyCollection.addAll has changed 'abstract' qualifier [ChangedAbstract]
+                error: Attempted to change parameter name from c to p in method test.pkg.MyCollection.addAll [ParameterNameChange]
+                error: Method test.pkg.MyCollection.clear has changed 'abstract' qualifier [ChangedAbstract]
+                TESTROOT/load-api.txt:5: error: Attempted to change parameter name from o to element in method test.pkg.MyCollection.contains [ParameterNameChange]
+                TESTROOT/load-api.txt:6: error: Attempted to change parameter name from c to elements in method test.pkg.MyCollection.containsAll [ParameterNameChange]
+                TESTROOT/load-api.txt:6: error: Attempted to change parameter name from c to elements in method test.pkg.MyCollection.containsAll [ParameterNameChange]
+                error: Method test.pkg.MyCollection.remove has changed 'abstract' qualifier [ChangedAbstract]
+                error: Attempted to change parameter name from o to p in method test.pkg.MyCollection.remove [ParameterNameChange]
+                error: Method test.pkg.MyCollection.removeAll has changed 'abstract' qualifier [ChangedAbstract]
+                error: Attempted to change parameter name from c to p in method test.pkg.MyCollection.removeAll [ParameterNameChange]
+                error: Method test.pkg.MyCollection.retainAll has changed 'abstract' qualifier [ChangedAbstract]
+                error: Attempted to change parameter name from c to p in method test.pkg.MyCollection.retainAll [ParameterNameChange]
+                error: Method test.pkg.MyCollection.size has changed 'abstract' qualifier [ChangedAbstract]
+                error: Method test.pkg.MyCollection.toArray has changed 'abstract' qualifier [ChangedAbstract]
+                error: Method test.pkg.MyCollection.toArray has changed 'abstract' qualifier [ChangedAbstract]
+                error: Attempted to change parameter name from a to p in method test.pkg.MyCollection.toArray [ParameterNameChange]
+            """,
+            checkCompatibilityApiReleased = """
+                // Signature format: 4.0
+                package test.pkg {
+                  public class MyCollection<E> implements java.util.Collection<E> {
+                    ctor public MyCollection();
+                    method public boolean add(E! e);
+                    method public boolean addAll(java.util.Collection<? extends E> c);
+                    method public void clear();
+                    method public boolean contains(Object! o);
+                    method public boolean containsAll(java.util.Collection<?> c);
+                    method public boolean isEmpty();
+                    method public java.util.Iterator<E> iterator();
+                    method public boolean remove(Object! o);
+                    method public boolean removeAll(java.util.Collection<?> c);
+                    method public boolean retainAll(java.util.Collection<?> c);
+                    method public int size();
+                    method public Object![] toArray();
+                    method public <T> T![] toArray(T[] a);
+                  }
+                }
+            """,
+            signatureSource = """
+                // Signature format: 4.0
+                package test.pkg {
+                  public class MyCollection<E> implements java.util.Collection<E> kotlin.jvm.internal.markers.KMappedMarker {
+                    ctor public MyCollection();
+                    method public boolean contains(E element);
+                    method public boolean containsAll(java.util.Collection<E!> elements);
+                    method public int getSize();
+                    method public boolean isEmpty();
+                    method public java.util.Iterator<E> iterator();
+                    property public int size;
+                  }
+                }
+            """
+        )
+    }
+
+    @Test
+    fun `Flag renaming a parameter from the classpath`() {
+        check(
+            apiClassResolution = Options.ApiClassResolution.API_CLASSPATH,
+            expectedIssues = """
+                error: Attempted to change parameter name from prefix to suffix in method test.pkg.MyString.endsWith [ParameterNameChange]
+                TESTROOT/load-api.txt:4: error: Attempted to change parameter name from prefix to suffix in method test.pkg.MyString.startsWith [ParameterNameChange]
+            """.trimIndent(),
+            checkCompatibilityApiReleased = """
+                // Signature format: 4.0
+                package test.pkg {
+                    public class MyString extends java.lang.String {
+                        method public boolean endsWith(String prefix);
+                    }
+                }
+            """,
+            signatureSource = """
+                // Signature format: 4.0
+                package test.pkg {
+                    public class MyString extends java.lang.String {
+                        method public boolean startsWith(String suffix);
+                    }
+                }
+            """
+        )
+    }
+
+    @Test
+    fun `No issues using the same classpath class twice`() {
+        check(
+            apiClassResolution = Options.ApiClassResolution.API_CLASSPATH,
+            expectedIssues = "",
+            checkCompatibilityApiReleased = """
+                // Signature format: 4.0
+                package test.pkg {
+                    public class String1 extends java.lang.String {
+                        method public boolean isEmpty();
+                    }
+                    public class String2 extends java.lang.String {
+                        method public boolean isEmpty();
+                    }
+                }
+            """,
+            signatureSource = """
+                // Signature format: 4.0
+                package test.pkg {
+                    public class String1 extends java.lang.String {}
+                    public class String2 extends java.lang.String {}
+                }
+            """
+        )
+    }
+
+    @Test
+    fun `Avoid stack overflow for self-referential and cyclical annotation usage`() {
+        val signature = """
+            package test.pkg {
+              @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS) @test.pkg.SelfReferenceAnnotation public @interface SelfReferenceAnnotation {}
+              @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS) @test.pkg.CyclicalReferenceAnnotationB public @interface CyclicalReferenceAnnotationA {}
+              @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS) @test.pkg.CyclicalReferenceAnnotationA public @interface CyclicalReferenceAnnotationB {}
+              @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS) public @interface MetaSuppressCompatibility {}
+              @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS) public @interface MetaHide {}
+            }
+            """
+        check(
+            checkCompatibilityApiReleased = signature,
+            signatureSource = signature,
+            suppressCompatibilityMetaAnnotations = arrayOf("test.pkg.MetaSuppressCompatibility"),
+            hideMetaAnnotations = arrayOf("test.pkg.MetaHide")
+        )
+    }
+
     // TODO: Check method signatures changing incompatibly (look especially out for adding new overloaded
     // methods and comparator getting confused!)
     //   ..equals on the method items should actually be very useful!

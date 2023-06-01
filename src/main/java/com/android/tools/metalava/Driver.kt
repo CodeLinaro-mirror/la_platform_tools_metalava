@@ -34,6 +34,7 @@ import com.android.tools.metalava.model.PackageDocs
 import com.android.tools.metalava.model.psi.PsiBasedCodebase
 import com.android.tools.metalava.model.psi.packageHtmlToJavadoc
 import com.android.tools.metalava.model.text.TextCodebase
+import com.android.tools.metalava.model.text.classpath.TextCodebaseWithClasspath
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.stub.StubWriter
 import com.google.common.base.Stopwatch
@@ -240,7 +241,9 @@ private fun processFlags() {
             sources.firstOrNull { !it.path.endsWith(DOT_TXT) }?. let {
                 throw DriverException("Inconsistent input file types: The first file is of $DOT_TXT, but detected different extension in ${it.path}")
             }
-            SignatureFileLoader.loadFiles(sources, options.inputKotlinStyleNulls)
+            mergeClasspathIntoTextCodebase(
+                SignatureFileLoader.loadFiles(sources, options.inputKotlinStyleNulls)
+            )
         } else if (options.apiJar != null) {
             loadFromJarFile(options.apiJar!!)
         } else if (sources.size == 1 && sources[0].path.endsWith(DOT_JAR)) {
@@ -484,6 +487,13 @@ fun processNonCodebaseFlags() {
             JDiffXmlWriter(printWriter, apiEmit, apiReference, signatureApi.preFiltered && !strip, apiName)
         }
     }
+
+    val apiVersionsJson = options.generateApiVersionsJson
+    val apiVersionFiles = options.apiVersionSignatureFiles
+    if (apiVersionsJson != null && apiVersionFiles != null) {
+        progress("Generating API version history JSON file, ${apiVersionsJson.name}: ")
+        ApiGenerator.generate(apiVersionFiles, apiVersionsJson)
+    }
 }
 
 /**
@@ -501,14 +511,17 @@ fun checkCompatibility(
         if (signatureFile.path.endsWith(DOT_JAR)) {
             loadFromJarFile(signatureFile)
         } else {
-            SignatureFileLoader.load(
-                file = signatureFile,
-                kotlinStyleNulls = options.inputKotlinStyleNulls
+            mergeClasspathIntoTextCodebase(
+                SignatureFileLoader.load(
+                    file = signatureFile,
+                    kotlinStyleNulls = options.inputKotlinStyleNulls
+                )
             )
         }
 
-    if (oldCodebase is TextCodebase && oldCodebase.format > FileFormat.V1 && options.outputFormat == FileFormat.V1) {
-        throw DriverException("Cannot perform compatibility check of signature file $signatureFile in format ${oldCodebase.format} without analyzing current codebase with $ARG_FORMAT=${oldCodebase.format}")
+    val oldFormat = (oldCodebase as? TextCodebase)?.format ?: (oldCodebase as? TextCodebaseWithClasspath)?.format
+    if (oldFormat != null && oldFormat > FileFormat.V1 && options.outputFormat == FileFormat.V1) {
+        throw DriverException("Cannot perform compatibility check of signature file $signatureFile in format $oldFormat without analyzing current codebase with $ARG_FORMAT=$oldFormat")
     }
 
     var baseApi: Codebase? = null
@@ -711,15 +724,35 @@ private fun parseAbsoluteSources(
     return codebase
 }
 
-fun loadFromJarFile(apiJar: File, manifest: File? = null, preFiltered: Boolean = false): Codebase {
-    progress("Processing jar file: ")
+/**
+ * If classpath jars are present, merges classes loaded from the jars into the [textCodebase].
+ */
+fun mergeClasspathIntoTextCodebase(textCodebase: TextCodebase): Codebase {
+    return if (options.apiClassResolution == Options.ApiClassResolution.API_CLASSPATH && options.classpath.isNotEmpty()) {
+        progress("Processing classpath: ")
+        val uastEnvironment = loadUastFromJars(options.classpath)
+        TextCodebaseWithClasspath(textCodebase, uastEnvironment)
+    } else {
+        textCodebase
+    }
+}
 
+/**
+ * Initializes a UAST environment using the [apiJars] as classpath roots.
+ */
+fun loadUastFromJars(apiJars: List<File>): UastEnvironment {
     val config = UastEnvironment.Configuration.create(useFirUast = options.useK2Uast)
-    config.addClasspathRoots(listOf(apiJar))
+    config.addClasspathRoots(apiJars)
 
     val environment = createProjectEnvironment(config)
     environment.analyzeFiles(emptyList()) // Initializes PSI machinery.
+    return environment
+}
 
+fun loadFromJarFile(apiJar: File, manifest: File? = null, preFiltered: Boolean = false): Codebase {
+    progress("Processing jar file: ")
+
+    val environment = loadUastFromJars(listOf(apiJar))
     val codebase = PsiBasedCodebase(apiJar, "Codebase loaded from $apiJar")
     codebase.initialize(environment, apiJar, preFiltered)
     if (manifest != null) {

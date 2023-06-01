@@ -75,8 +75,23 @@ public class ApiGenerator {
         } else {
             api.verifyNoMissingClasses();
         }
-        return createApiFile(outputFile, api, sdkIdentifiers);
+        return createApiLevelsXml(outputFile, api, sdkIdentifiers);
     }
+
+    /**
+     * Generates an API version history file based on the API surfaces of the versions provided.
+     *
+     * @param apiVersions A list of API signature files, ordered from oldest API version to newest.
+     * @param outputFile Path of the JSON file to write output to.
+     */
+    public static void generate(@NotNull List<File> apiVersions,
+                                @NotNull File outputFile) {
+        AndroidSignatureReader reader = new AndroidSignatureReader(apiVersions);
+        Api api = reader.getApi();
+        ApiJsonPrinter printer = new ApiJsonPrinter();
+        printer.print(api, outputFile);
+    }
+
 
     private static Api readAndroidJars(File[] apiLevels, int firstApiLevel) {
         Api api = new Api(firstApiLevel);
@@ -161,7 +176,7 @@ public class ApiGenerator {
      * @param api            the api to write
      * @param sdkIdentifiers SDKs referenced by the api
      */
-    private static boolean createApiFile(@NotNull File outFile, @NotNull Api api, @NotNull Set<SdkIdentifier> sdkIdentifiers) {
+    private static boolean createApiLevelsXml(@NotNull File outFile, @NotNull Api api, @NotNull Set<SdkIdentifier> sdkIdentifiers) {
         File parentFile = outFile.getParentFile();
         if (!parentFile.exists()) {
             boolean ok = parentFile.mkdirs();

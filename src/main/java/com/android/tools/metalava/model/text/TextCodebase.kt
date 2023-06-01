@@ -24,6 +24,7 @@ import com.android.tools.metalava.JAVA_LANG_ANNOTATION
 import com.android.tools.metalava.JAVA_LANG_ENUM
 import com.android.tools.metalava.JAVA_LANG_OBJECT
 import com.android.tools.metalava.JAVA_LANG_THROWABLE
+import com.android.tools.metalava.Options
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
@@ -37,6 +38,7 @@ import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PackageList
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.TypeParameterList
+import com.android.tools.metalava.model.text.classpath.WrappedClassItem
 import com.android.tools.metalava.model.visitors.ItemVisitor
 import com.android.tools.metalava.model.visitors.TypeVisitor
 import com.android.tools.metalava.options
@@ -59,6 +61,15 @@ class TextCodebase(location: File) : DefaultCodebase(location) {
     private val mAllClasses = HashMap<String, TextClassItem>(30000)
     private val mClassToSuper = HashMap<TextClassItem, String>(30000)
     private val mClassToInterface = HashMap<TextClassItem, ArrayList<String>>(10000)
+
+    // Classes which are not part of the API surface but are referenced by other classes.
+    // These are initialized as wrapped empty stubs, but may be switched out for PSI classes.
+    val wrappedStubClasses = HashMap<String, WrappedClassItem>()
+
+    /**
+     * True if [getOrCreateClass] should add [WrapperClassItem]s around unknown classes.
+     */
+    val addWrappersForUnknownClasses = options.apiClassResolution == Options.ApiClassResolution.API_CLASSPATH
 
     override var description = "Codebase"
     override var preFiltered: Boolean = true
@@ -163,9 +174,9 @@ class TextCodebase(location: File) : DefaultCodebase(location) {
         val methodInfo = methodItem as TextMethodItem
         val names = methodInfo.throwsTypeNames()
         if (names.isNotEmpty()) {
-            val result = ArrayList<TextClassItem>()
+            val result = ArrayList<ClassItem>()
             for (exception in names) {
-                var exceptionClass: TextClassItem? = mAllClasses[exception]
+                var exceptionClass: ClassItem? = mAllClasses[exception]
                 if (exceptionClass == null) {
                     // Exception not provided by this codebase. Inject a stub.
                     exceptionClass = getOrCreateClass(exception)
@@ -188,6 +199,8 @@ class TextCodebase(location: File) : DefaultCodebase(location) {
             // make copy: we'll be removing non-top level classes during iteration
             val classes = ArrayList(pkg.classList())
             for (cls in classes) {
+                // WrappedClassItems which are inner classes are resolved when they're created
+                if (cls is WrappedClassItem) continue
                 val cl = cls as TextClassItem
                 val name = cl.name
                 var index = name.lastIndexOf('.')
@@ -197,7 +210,10 @@ class TextCodebase(location: File) : DefaultCodebase(location) {
                     index = qualifiedName.lastIndexOf('.')
                     assert(index != -1) { qualifiedName }
                     val outerClassName = qualifiedName.substring(0, index)
-                    val outerClass = getOrCreateClass(outerClassName)
+                    // If the outer class doesn't exist in the text codebase, it should not be resolved
+                    // through the classpath--if it did exist there, this inner class would be overridden
+                    // by the version from the classpath.
+                    val outerClass = getOrCreateClass(outerClassName, canBeFromClasspath = false)
                     cl.containingClass = outerClass
                     outerClass.addInnerClass(cl)
                 }
@@ -294,18 +310,40 @@ class TextCodebase(location: File) : DefaultCodebase(location) {
         mAllClasses[cls.qualifiedName] = cls
     }
 
-    fun getOrCreateClass(name: String, isInterface: Boolean = false): TextClassItem {
+    /**
+     * Tries to find [name] in [mAllClasses]. If not found, creates an empty stub class (or interface,
+     * if [isInterface] is true). If [canBeFromClasspath] is true, creates a [WrappedClassItem] with
+     * the stub class inside, which might later be switched out for a PSI class. Otherwise, just
+     * uses the stub class.
+     *
+     * Initializes outer classes and packages for the created class as needed.
+     */
+    fun getOrCreateClass(
+        name: String,
+        isInterface: Boolean = false,
+        canBeFromClasspath: Boolean = addWrappersForUnknownClasses,
+    ): ClassItem {
         val erased = TextTypeItem.eraseTypeArguments(name)
-        val cls = mAllClasses[erased]
+        val cls = mAllClasses[erased] ?: wrappedStubClasses[erased]
         if (cls != null) {
             return cls
         }
-        val newClass = if (isInterface) {
+
+        val stubClass = if (isInterface) {
             TextClassItem.createInterfaceStub(this, name)
         } else {
             TextClassItem.createClassStub(this, name)
         }
-        mAllClasses[erased] = newClass
+
+        // If needed, wrap the class. Add the new class to the appropriate set
+        val newClass = if (canBeFromClasspath) {
+            val wrappedClass = WrappedClassItem(stubClass)
+            wrappedStubClasses[erased] = wrappedClass
+            wrappedClass
+        } else {
+            mAllClasses[erased] = stubClass
+            stubClass
+        }
         newClass.emit = false
 
         val fullName = newClass.fullName()
@@ -313,8 +351,8 @@ class TextCodebase(location: File) : DefaultCodebase(location) {
             // We created a new inner class stub. We need to fully initialize it with outer classes, themselves
             // possibly stubs
             val outerName = erased.substring(0, erased.lastIndexOf('.'))
-            val outerClass = getOrCreateClass(outerName, false)
-            newClass.containingClass = outerClass
+            val outerClass = getOrCreateClass(outerName, isInterface = false, canBeFromClasspath = canBeFromClasspath)
+            stubClass.containingClass = outerClass
             outerClass.addInnerClass(newClass)
         } else {
             // Add to package
@@ -331,7 +369,7 @@ class TextCodebase(location: File) : DefaultCodebase(location) {
                 newPkg.emit = false
                 newPkg
             }
-            newClass.setContainingPackage(pkg)
+            stubClass.setContainingPackage(pkg)
             pkg.addClass(newClass)
         }
 
@@ -347,8 +385,9 @@ class TextCodebase(location: File) : DefaultCodebase(location) {
         resolveInnerClasses(packages)
 
         // Add overridden methods to the codebase only when the codebase is generated
-        // from text file passed via --source-files
-        if (this.location in options.sources) {
+        // from text file passed via --source-files and it does not fallback to loading classes from
+        // the classpath.
+        if (options.apiClassResolution == Options.ApiClassResolution.API && this.location in options.sources) {
             resolveAbstractMethods(classes)
         }
     }

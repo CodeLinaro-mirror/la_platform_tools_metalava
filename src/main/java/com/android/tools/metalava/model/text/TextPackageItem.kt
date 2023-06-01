@@ -29,13 +29,13 @@ class TextPackageItem(
         modifiers.setOwner(this)
     }
 
-    private val classes = ArrayList<TextClassItem>(100)
+    private val classes = ArrayList<ClassItem>(100)
 
     private val classesNames = HashSet<String>(100)
 
     fun name() = name
 
-    fun addClass(classInfo: TextClassItem) {
+    fun addClass(classInfo: ClassItem) {
         val classFullName = classInfo.fullName()
         if (classFullName in classesNames) {
             return

@@ -83,9 +83,12 @@ const val METHOD_ESTIMATE = 1000
  * and class items along with their members. This process is broken into two phases:
  *
  * First, [initializing] is set to true, and class items are created from the supplied sources.
- * These are main classes of the codebase and have [ClassItem.emit] set to true and
- * [ClassItem.isFromClassPath] set to false. While creating these, package names are reserved and
- * associated with their classes in [packageClasses].
+ * If [fromClasspath] is false, these are main classes of the codebase and have [ClassItem.emit] set
+ * to true and [ClassItem.isFromClassPath] set to false. While creating these, package names are
+ * reserved and associated with their classes in [packageClasses].
+ *
+ * If [fromClasspath] is true, all classes are assumed to be from the classpath, so [ClassItem.emit]
+ * is set to false and [ClassItem.isFromClassPath] is set to true for all classes created.
  *
  * Next, package items are created for source classes based on the contents of [packageClasses]
  * with [PackageItem.emit] set to true.
@@ -98,7 +101,8 @@ const val METHOD_ESTIMATE = 1000
  */
 open class PsiBasedCodebase(
     location: File,
-    override var description: String = "Unknown"
+    override var description: String = "Unknown",
+    val fromClasspath: Boolean = false
 ) : DefaultCodebase(location) {
     lateinit var uastEnvironment: UastEnvironment
     val project: Project
@@ -366,8 +370,8 @@ open class PsiBasedCodebase(
         pkgName: String
     ): PsiPackageItem {
         val packageItem = PsiPackageItem
-            .create(this, psiPackage, packageHtml, fromClassPath = !initializing)
-        packageItem.emit = initializing
+            .create(this, psiPackage, packageHtml, fromClassPath = fromClasspath || !initializing)
+        packageItem.emit = !packageItem.isFromClassPath()
 
         packageMap[pkgName] = packageItem
         if (isPackageHidden(pkgName)) {
@@ -526,9 +530,9 @@ open class PsiBasedCodebase(
 
     private fun createClass(clz: PsiClass): PsiClassItem {
         // If initializing is true, this class is from source
-        val classItem = PsiClassItem.create(this, clz, fromClassPath = !initializing)
+        val classItem = PsiClassItem.create(this, clz, fromClassPath = fromClasspath || !initializing)
         // Set emit to true for source classes but false for classpath classes
-        classItem.emit = initializing
+        classItem.emit = !classItem.isFromClassPath()
 
         if (!initializing) {
             // Workaround: we're pulling in .aidl files from .jar files. These are

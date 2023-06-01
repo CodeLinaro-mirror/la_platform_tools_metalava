@@ -173,6 +173,13 @@ public class ApiElement implements Comparable<ApiElement> {
     }
 
     /**
+     * The API level this element was deprecated in, should only be used if [isDeprecated] is true.
+     */
+    public final int getDeprecatedIn() {
+        return mDeprecatedIn;
+    }
+
+    /**
      * Prints an XML representation of the element to a stream terminated by a line break.
      * Attributes with values matching the parent API element are omitted.
      *

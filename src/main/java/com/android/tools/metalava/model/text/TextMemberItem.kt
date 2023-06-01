@@ -22,7 +22,7 @@ import com.android.tools.metalava.model.MemberItem
 abstract class TextMemberItem(
     codebase: TextCodebase,
     private val name: String,
-    private val containingClass: TextClassItem,
+    private val containingClass: ClassItem,
     position: SourcePositionInfo,
     override var modifiers: TextModifiers
 ) : TextItem(codebase, position = position, modifiers = modifiers), MemberItem {

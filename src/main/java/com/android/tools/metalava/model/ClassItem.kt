@@ -793,6 +793,8 @@ interface ClassItem : Item {
     fun createMethod(template: MethodItem): MethodItem = codebase.unsupported()
 
     fun addMethod(method: MethodItem): Unit = codebase.unsupported()
+
+    fun addInnerClass(cls: ClassItem): Unit = codebase.unsupported()
 }
 
 class VisitCandidate(val cls: ClassItem, private val visitor: ApiVisitor) {

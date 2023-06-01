@@ -92,7 +92,7 @@ open class TextClassItem(
     override fun isAnnotationType(): Boolean = isAnnotation
     override fun isEnum(): Boolean = isEnum
 
-    var containingClass: TextClassItem? = null
+    var containingClass: ClassItem? = null
     override fun containingClass(): ClassItem? = containingClass
 
     private var containingPackage: PackageItem? = null
@@ -144,7 +144,7 @@ open class TextClassItem(
     }
 
     override fun typeParameterListOwnerParent(): TypeParameterListOwner? {
-        return containingClass
+        return containingClass as? TypeParameterListOwner
     }
 
     override fun resolveParameter(variable: String): TypeParameterItem? {
@@ -222,7 +222,7 @@ open class TextClassItem(
         fields += field
     }
 
-    fun addInnerClass(cls: TextClassItem) {
+    override fun addInnerClass(cls: ClassItem) {
         innerClasses.add(cls)
     }
 

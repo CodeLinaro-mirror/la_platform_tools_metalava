@@ -51,7 +51,7 @@ import java.io.StringWriter
 open class PsiMethodItem(
     override val codebase: PsiBasedCodebase,
     val psiMethod: PsiMethod,
-    private val containingClass: PsiClassItem,
+    private val containingClass: ClassItem,
     private val name: String,
     modifiers: PsiModifierItem,
     documentation: String,
@@ -87,7 +87,7 @@ open class PsiMethodItem(
     override var property: PsiPropertyItem? = null
 
     override fun name(): String = name
-    override fun containingClass(): PsiClassItem = containingClass
+    override fun containingClass(): ClassItem = containingClass
 
     override fun equals(other: Any?): Boolean {
         // TODO: Allow mix and matching with other MethodItems?
@@ -259,7 +259,7 @@ open class PsiMethodItem(
     }
 
     override fun duplicate(targetContainingClass: ClassItem): PsiMethodItem {
-        val duplicated = create(codebase, targetContainingClass as PsiClassItem, psiMethod)
+        val duplicated = create(codebase, targetContainingClass, psiMethod)
 
         duplicated.inheritedFrom = containingClass
 
@@ -374,7 +374,7 @@ open class PsiMethodItem(
     companion object {
         fun create(
             codebase: PsiBasedCodebase,
-            containingClass: PsiClassItem,
+            containingClass: ClassItem,
             psiMethod: PsiMethod
         ): PsiMethodItem {
             assert(!psiMethod.isConstructor)

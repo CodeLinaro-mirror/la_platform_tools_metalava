@@ -95,7 +95,7 @@ abstract class PsiItem(
     override fun psi(): PsiElement? = element
 
     override fun isFromClassPath(): Boolean {
-        return containingClass()?.isFromClassPath() ?: false
+        return codebase.fromClasspath || containingClass()?.isFromClassPath() ?: false
     }
 
     override fun isCloned(): Boolean = false

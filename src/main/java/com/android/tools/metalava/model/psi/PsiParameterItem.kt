@@ -97,6 +97,11 @@ class PsiParameterItem(
             if (annotation != null) {
                 return annotation.attributes.firstOrNull()?.value?.value()?.toString()
             }
+
+            // Parameter names from classpath jars are not present as annotations
+            if (isFromClassPath()) {
+                return name()
+            }
         }
 
         return null

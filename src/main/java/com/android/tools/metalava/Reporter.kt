@@ -254,7 +254,11 @@ class Reporter(
         element ?: return null
         val psiFile = element.containingFile ?: return null
         val virtualFile = psiFile.virtualFile ?: return null
-        val virtualFileAbsolutePath = virtualFile.toNioPath().toAbsolutePath()
+        val virtualFileAbsolutePath = try {
+            virtualFile.toNioPath().toAbsolutePath()
+        } catch (e: UnsupportedOperationException) {
+            return null
+        }
 
         // b/255575766: Note that [relativize] requires two paths to compare to have same types:
         // either both of them are absolute paths or both of them are not absolute paths.

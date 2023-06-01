@@ -290,6 +290,7 @@ abstract class DriverTest {
         /** Optional API signature files content to load **instead** of Java/Kotlin source files */
         @Language("TEXT")
         signatureSources: Array<String> = emptyArray(),
+        apiClassResolution: Options.ApiClassResolution = Options.ApiClassResolution.API,
         /**
          * An optional API signature file content to load **instead** of Java/Kotlin source files.
          * This is added to [signatureSources]. This argument exists for backward compatibility.
@@ -455,6 +456,10 @@ abstract class DriverTest {
         if (sourceFiles.any { it.targetPath.startsWith("src2") }) {
             sourcePath = sourcePath + File.pathSeparator + sourcePath + "2"
         }
+
+        val apiClassResolutionArgs = arrayOf(
+            ARG_API_CLASS_RESOLUTION, apiClassResolution.optionValue
+        )
 
         val sourceList =
             if (signatureSources.isNotEmpty() || signatureSource != null) {
@@ -1035,6 +1040,7 @@ abstract class DriverTest {
             *validateNullabilityArgs,
             *validateNullabilityFromListArgs,
             format.outputFlag(),
+            *apiClassResolutionArgs,
             *sourceList,
             *extraArguments,
             *errorMessageApiLintArgs,

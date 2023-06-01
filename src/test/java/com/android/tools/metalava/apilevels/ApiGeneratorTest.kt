@@ -19,10 +19,12 @@ package com.android.tools.metalava.apilevels
 import com.android.sdklib.SdkVersionInfo
 import com.android.tools.lint.detector.api.ApiConstraint
 import com.android.tools.metalava.ARG_ANDROID_JAR_PATTERN
+import com.android.tools.metalava.ARG_API_VERSION_SIGNATURE_FILES
 import com.android.tools.metalava.ARG_CURRENT_CODENAME
 import com.android.tools.metalava.ARG_CURRENT_VERSION
 import com.android.tools.metalava.ARG_FIRST_VERSION
 import com.android.tools.metalava.ARG_GENERATE_API_LEVELS
+import com.android.tools.metalava.ARG_GENERATE_API_VERSION_HISTORY
 import com.android.tools.metalava.ARG_REMOVE_MISSING_CLASS_REFERENCES_IN_API_LEVELS
 import com.android.tools.metalava.ARG_SDK_INFO_FILE
 import com.android.tools.metalava.ARG_SDK_JAR_ROOT
@@ -31,6 +33,8 @@ import com.android.tools.metalava.getApiLookup
 import com.android.tools.metalava.java
 import com.android.tools.metalava.minApiLevel
 import com.google.common.truth.Truth.assertThat
+import com.google.gson.GsonBuilder
+import com.google.gson.JsonElement
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
@@ -579,5 +583,125 @@ class ApiGeneratorTest : DriverTest() {
         assertNotNull(exception)
         assertThat(exception?.message ?: "").contains("There are classes in this API that reference other classes that do not exist in this API.")
         assertThat(exception?.message ?: "").contains("java/lang/Object referenced by:\n    android/test/ClassThatImplementsMethodFromApex")
+    }
+
+    @Test
+    fun `Create API levels from signature files`() {
+        val output = File.createTempFile("api-info", ".json")
+        output.deleteOnExit()
+        val outputPath = output.path
+
+        val versions = listOf(
+            createTextFile(
+                "1.1.0",
+                """
+                    package test.pkg {
+                      public class Foo {
+                        method public void methodV1();
+                        field public int fieldV1;
+                      }
+                      public class Foo.Bar {
+                      }
+                    }
+                """.trimIndent()
+            ),
+            createTextFile(
+                "1.2.0",
+                """
+                    package test.pkg {
+                      public class Foo {
+                        method public void methodV1();
+                        method @Deprecated public void methodV2();
+                        field public int fieldV1;
+                        field public int fieldV2;
+                      }
+                      public class Foo.Bar {
+                      }
+                    }
+                """.trimIndent()
+            ),
+            createTextFile(
+                "1.3.0",
+                """
+                    package test.pkg {
+                      public class Foo {
+                        method @Deprecated public void methodV1();
+                        method public void methodV3();
+                        field public int fieldV1;
+                        field public int fieldV2;
+                      }
+                      @Deprecated public class Foo.Bar {
+                      }
+                    }
+                """.trimIndent()
+            )
+        )
+
+        check(
+            extraArguments = arrayOf(
+                ARG_GENERATE_API_VERSION_HISTORY,
+                outputPath,
+                ARG_API_VERSION_SIGNATURE_FILES,
+                versions.joinToString(":") { it.absolutePath }
+            )
+        )
+
+        assertTrue(output.isFile)
+
+        // Read output and reprint with pretty printing enabled to make test failures easier to read
+        val gson = GsonBuilder().setPrettyPrinting().create()
+        val outputJson = gson.fromJson(output.readText(), JsonElement::class.java)
+        val prettyOutput = gson.toJson(outputJson)
+        assertEquals(
+            """
+                [
+                  {
+                    "class": "test/pkg/Foo",
+                    "addedIn": "1",
+                    "methods": [
+                      {
+                        "method": "methodV3()V",
+                        "addedIn": "3"
+                      },
+                      {
+                        "method": "methodV1()V",
+                        "addedIn": "1",
+                        "deprecatedIn": "3"
+                      },
+                      {
+                        "method": "methodV2()V",
+                        "addedIn": "2",
+                        "deprecatedIn": "2"
+                      }
+                    ],
+                    "fields": [
+                      {
+                        "field": "fieldV2",
+                        "addedIn": "2"
+                      },
+                      {
+                        "field": "fieldV1",
+                        "addedIn": "1"
+                      }
+                    ]
+                  },
+                  {
+                    "class": "test/pkg/Foo${"$"}Bar",
+                    "addedIn": "1",
+                    "deprecatedIn": "3",
+                    "methods": [],
+                    "fields": []
+                  }
+                ]
+            """.trimIndent(),
+            prettyOutput
+        )
+    }
+
+    private fun createTextFile(name: String, contents: String): File {
+        val file = File.createTempFile(name, ".txt")
+        file.deleteOnExit()
+        file.writeText(contents)
+        return file
     }
 }
