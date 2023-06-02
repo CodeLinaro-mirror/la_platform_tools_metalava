@@ -306,7 +306,10 @@ private fun processFlags() {
         val apiReference = apiType.getReferenceFilter()
 
         createReportFile(codebase, apiFile, "API") { printWriter ->
-            SignatureWriter(printWriter, apiEmit, apiReference, codebase.preFiltered)
+            SignatureWriter(
+                printWriter, apiEmit, apiReference, codebase.preFiltered,
+                methodComparator = options.apiOverloadedMethodOrder.comparator
+            )
         }
     }
 
@@ -328,7 +331,11 @@ private fun processFlags() {
         val removedReference = apiType.getReferenceFilter()
 
         createReportFile(unfiltered, apiFile, "removed API", options.deleteEmptyRemovedSignatures) { printWriter ->
-            SignatureWriter(printWriter, removedEmit, removedReference, codebase.original != null, options.includeSignatureFormatVersionRemoved)
+            SignatureWriter(
+                printWriter, removedEmit, removedReference, codebase.original != null,
+                options.includeSignatureFormatVersionRemoved,
+                options.apiOverloadedMethodOrder.comparator
+            )
         }
     }
 
@@ -490,9 +497,10 @@ fun processNonCodebaseFlags() {
 
     val apiVersionsJson = options.generateApiVersionsJson
     val apiVersionFiles = options.apiVersionSignatureFiles
-    if (apiVersionsJson != null && apiVersionFiles != null) {
+    val apiVersionNames = options.apiVersionNames
+    if (apiVersionsJson != null && apiVersionFiles != null && apiVersionNames != null) {
         progress("Generating API version history JSON file, ${apiVersionsJson.name}: ")
-        ApiGenerator.generate(apiVersionFiles, apiVersionsJson)
+        ApiGenerator.generate(apiVersionFiles, apiVersionsJson, apiVersionNames, options.inputKotlinStyleNulls)
     }
 }
 
@@ -699,7 +707,9 @@ private fun parseAbsoluteSources(
     val config = UastEnvironment.Configuration.create(useFirUast = options.useK2Uast)
     config.javaLanguageLevel = javaLanguageLevel
     config.kotlinLanguageLevel = kotlinLanguageLevel
+    @Suppress("DEPRECATION")
     config.addSourceRoots(sourceRoots)
+    @Suppress("DEPRECATION")
     config.addClasspathRoots(classpath)
     options.jdkHome?.let {
         if (options.isJdkModular(it)) {
@@ -742,6 +752,7 @@ fun mergeClasspathIntoTextCodebase(textCodebase: TextCodebase): Codebase {
  */
 fun loadUastFromJars(apiJars: List<File>): UastEnvironment {
     val config = UastEnvironment.Configuration.create(useFirUast = options.useK2Uast)
+    @Suppress("DEPRECATION")
     config.addClasspathRoots(apiJars)
 
     val environment = createProjectEnvironment(config)

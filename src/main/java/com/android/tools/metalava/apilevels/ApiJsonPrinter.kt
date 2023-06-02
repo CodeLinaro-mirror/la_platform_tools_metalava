@@ -23,14 +23,16 @@ import java.io.PrintStream
 /**
  * Handles converting an [Api] to a JSON version history file.
  *
- * Note: this currently doesn't need to be a class, but will have state added in the following CL.
+ * @param apiVersionNames The names of the API versions, ordered starting from version 1.
  */
-internal class ApiJsonPrinter {
+internal class ApiJsonPrinter(
+    private val apiVersionNames: List<String>
+) {
     /**
      * Writes the [api] as JSON to the [outputFile]
      */
     fun print(api: Api, outputFile: File) {
-        val gson = GsonBuilder().create()
+        val gson = GsonBuilder().disableHtmlEscaping().create()
         val json = api.toJson()
         val printStream = PrintStream(outputFile)
         gson.toJson(json, printStream)
@@ -48,11 +50,14 @@ internal class ApiJsonPrinter {
     private fun ApiElement.toJson(elementType: String) =
         mapOf(
             elementType to name,
-            "addedIn" to since.toString(),
+            "addedIn" to nameForVersion(since),
             "deprecatedIn" to if (isDeprecated) {
-                deprecatedIn.toString()
+                nameForVersion(deprecatedIn)
             } else {
                 null
             }
         )
+
+    // Indexing is offset by 1 because 0 is not a valid API level
+    private fun nameForVersion(level: Int) = apiVersionNames[level - 1]
 }

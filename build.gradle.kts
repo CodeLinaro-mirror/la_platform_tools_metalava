@@ -33,7 +33,7 @@ repositories {
 
 plugins {
     alias(libs.plugins.kotlinJvm)
-    id("com.android.lint") version "8.1.0-alpha07"
+    id("com.android.lint") version "8.2.0-alpha03"
     id("application")
     id("java")
     id("maven-publish")
@@ -66,7 +66,7 @@ val studioVersion: String = if (customLintVersion != null) {
     logger.warn("Building using custom $customLintVersion version of Android Lint")
     customLintVersion
 } else {
-    "31.1.0-alpha07"
+    "31.2.0-alpha03"
 }
 
 dependencies {
@@ -85,7 +85,7 @@ dependencies {
     implementation("org.ow2.asm:asm:8.0")
     implementation("org.ow2.asm:asm-tree:8.0")
     implementation("com.google.guava:guava:31.0.1-jre")
-    implementation("com.google.code.gson:gson:2.6.2")
+    implementation("com.google.code.gson:gson:2.8.9")
     testImplementation("com.android.tools.lint:lint-tests:$studioVersion")
     testImplementation("junit:junit:4.13.2")
     testImplementation("com.google.truth:truth:1.1.3")

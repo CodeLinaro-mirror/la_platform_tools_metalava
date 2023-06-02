@@ -61,13 +61,10 @@ import com.intellij.psi.util.PsiTreeUtil
 import org.jetbrains.kotlin.asJava.classes.KtLightClassForFacade
 import org.jetbrains.kotlin.fileClasses.isJvmMultifileClassFile
 import org.jetbrains.kotlin.name.FqName
-import org.jetbrains.kotlin.psi.KtElement
-import org.jetbrains.kotlin.resolve.BindingContext
 import org.jetbrains.uast.UClass
 import org.jetbrains.uast.UFile
 import org.jetbrains.uast.UastFacade
 import org.jetbrains.uast.kotlin.BaseKotlinUastResolveProviderService
-import org.jetbrains.uast.kotlin.KotlinUastResolveProviderService
 import java.io.File
 import java.io.IOException
 import java.util.zip.ZipFile
@@ -808,15 +805,6 @@ open class PsiBasedCodebase(
     /** Add a class to the codebase. Called from [createClass] and [PsiClassItem.create]. */
     internal fun registerClass(cls: PsiClassItem) {
         classMap[cls.qualifiedName()] = cls
-    }
-
-    /** Get a Kotlin [BindingContext] at [element]
-     *
-     * Do not cache returned binding context for longer than the lifetime of this codebase
-     */
-    internal fun bindingContext(element: KtElement): BindingContext? {
-        return project.getService(KotlinUastResolveProviderService::class.java)
-            ?.getBindingContext(element)
     }
 
     internal val uastResolveService: BaseKotlinUastResolveProviderService? by lazy {

@@ -58,7 +58,7 @@ public class ApiGenerator {
         if (isDeveloperPreviewBuild || apiLevels.length - 1 < currentApiLevel) {
             // Only include codebase if we don't have a prebuilt, finalized jar for it.
             int apiLevel = isDeveloperPreviewBuild ? notFinalizedApiLevel : currentApiLevel;
-            AddApisFromCodebaseKt.addApisFromCodebase(api, apiLevel, codebase);
+            AddApisFromCodebaseKt.addApisFromCodebase(api, apiLevel, codebase, true);
         }
         api.backfillHistoricalFixes();
 
@@ -83,12 +83,16 @@ public class ApiGenerator {
      *
      * @param apiVersions A list of API signature files, ordered from oldest API version to newest.
      * @param outputFile Path of the JSON file to write output to.
+     * @param apiVersionNames The names of the API versions, ordered starting from version 1.
+     * @param inputKotlinStyleNulls Whether to assume the signature files are formatted as Kotlin-style nulls.
      */
     public static void generate(@NotNull List<File> apiVersions,
-                                @NotNull File outputFile) {
-        AndroidSignatureReader reader = new AndroidSignatureReader(apiVersions);
+                                @NotNull File outputFile,
+                                @NotNull List<String> apiVersionNames,
+                                boolean inputKotlinStyleNulls) {
+        AndroidSignatureReader reader = new AndroidSignatureReader(apiVersions, inputKotlinStyleNulls);
         Api api = reader.getApi();
-        ApiJsonPrinter printer = new ApiJsonPrinter();
+        ApiJsonPrinter printer = new ApiJsonPrinter(apiVersionNames);
         printer.print(api, outputFile);
     }
 

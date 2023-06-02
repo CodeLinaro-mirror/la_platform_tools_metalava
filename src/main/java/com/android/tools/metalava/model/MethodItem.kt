@@ -232,13 +232,15 @@ interface MethodItem : MemberItem {
     }
 
     companion object {
-        private fun compareMethods(o1: MethodItem, o2: MethodItem): Int {
+        private fun compareMethods(o1: MethodItem, o2: MethodItem, overloadsInSourceOrder: Boolean): Int {
             val name1 = o1.name()
             val name2 = o2.name()
             if (name1 == name2) {
-                val rankDelta = o1.sortingRank - o2.sortingRank
-                if (rankDelta != 0) {
-                    return rankDelta
+                if (overloadsInSourceOrder) {
+                    val rankDelta = o1.sortingRank - o2.sortingRank
+                    if (rankDelta != 0) {
+                        return rankDelta
+                    }
                 }
 
                 // Compare by the rest of the signature to ensure stable output (we don't need to sort
@@ -263,7 +265,7 @@ interface MethodItem : MemberItem {
             return name1.compareTo(name2)
         }
 
-        val comparator: Comparator<MethodItem> = Comparator { o1, o2 -> compareMethods(o1, o2) }
+        val comparator: Comparator<MethodItem> = Comparator { o1, o2 -> compareMethods(o1, o2, false) }
         val sourceOrderComparator: Comparator<MethodItem> = Comparator { o1, o2 ->
             val delta = o1.sortingRank - o2.sortingRank
             if (delta == 0) {
@@ -275,6 +277,7 @@ interface MethodItem : MemberItem {
                 delta
             }
         }
+        val sourceOrderForOverloadedMethodsComparator: Comparator<MethodItem> = Comparator { o1, o2 -> compareMethods(o1, o2, true) }
 
         fun sameSignature(method: MethodItem, superMethod: MethodItem, compareRawTypes: Boolean = false): Boolean {
             // If the return types differ, override it (e.g. parent implements clone(),

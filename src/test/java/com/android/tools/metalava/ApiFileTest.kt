@@ -487,6 +487,64 @@ class ApiFileTest : DriverTest() {
     }
 
     @Test
+    fun `Nullness in reified signatures`() {
+        check(
+            sourceFiles = arrayOf(
+                kotlin(
+                    "src/test/pkg/test.kt",
+                    """
+                    package test.pkg
+
+                    import androidx.annotation.UiThread
+                    import test.pkg2.NavArgs
+                    import test.pkg2.NavArgsLazy
+                    import test.pkg2.Fragment
+                    import test.pkg2.Bundle
+
+                    @UiThread
+                    inline fun <reified Args : NavArgs> Fragment.navArgs() = NavArgsLazy(Args::class) {
+                        throw IllegalStateException("Fragment $this has null arguments")
+                    }
+                    """
+                ),
+                kotlin(
+                    """
+                    package test.pkg2
+
+                    import kotlin.reflect.KClass
+
+                    interface NavArgs
+                    class Fragment
+                    class Bundle
+                    class NavArgsLazy<Args : NavArgs>(
+                        private val navArgsClass: KClass<Args>,
+                        private val argumentProducer: () -> Bundle
+                    )
+                    """
+                ),
+                uiThreadSource
+            ),
+            api = """
+                // Signature format: 3.0
+                package test.pkg {
+                  public final class TestKt {
+                    method @UiThread public static inline <reified Args extends test.pkg2.NavArgs> test.pkg2.NavArgsLazy<Args> navArgs(test.pkg2.Fragment);
+                  }
+                }
+                """,
+            format = FileFormat.V3,
+            extraArguments = arrayOf(
+                ARG_HIDE_PACKAGE, "androidx.annotation",
+                ARG_HIDE_PACKAGE, "test.pkg2",
+                ARG_HIDE, "ReferencesHidden",
+                ARG_HIDE, "UnavailableSymbol",
+                ARG_HIDE, "HiddenTypeParameter",
+                ARG_HIDE, "HiddenSuperclass"
+            )
+        )
+    }
+
+    @Test
     fun `Nullness in varargs`() {
         check(
             sourceFiles = arrayOf(
@@ -1027,10 +1085,10 @@ class ApiFileTest : DriverTest() {
                 // Signature format: 3.0
                 package androidx.content {
                   public final class TestKt {
-                    method public static void blahblahblah(String, String firstArg = "hello", int secondArg = 42, String thirdArg = "world");
-                    method public static void blahblahblah(String, String firstArg = "hello", int secondArg = 42);
-                    method public static void blahblahblah(String, String firstArg = "hello");
                     method public static void blahblahblah(String);
+                    method public static void blahblahblah(String, String firstArg = "hello");
+                    method public static void blahblahblah(String, String firstArg = "hello", int secondArg = 42);
+                    method public static void blahblahblah(String, String firstArg = "hello", int secondArg = 42, String thirdArg = "world");
                     method public static inline void edit(android.content.SharedPreferences, boolean commit = false, kotlin.jvm.functions.Function1<? super android.content.SharedPreferences.Editor,kotlin.Unit> action);
                     method public static inline void edit(android.content.SharedPreferences, kotlin.jvm.functions.Function1<? super android.content.SharedPreferences.Editor,kotlin.Unit> action);
                   }
@@ -3823,6 +3881,8 @@ class ApiFileTest : DriverTest() {
         check(
             signatureSources = arrayOf(source1, source2),
             api = expected,
+            // Use the default overloaded method order when no command line option is supplied.
+            overloadedMethodOrder = null,
             format = FileFormat.V2,
         )
     }
@@ -4536,16 +4596,16 @@ class ApiFileTest : DriverTest() {
                 // Signature format: 4.0
                 package test.pkg {
                   public final class AllOptionalJvmOverloads {
-                    ctor public AllOptionalJvmOverloads(optional int foo, optional int bar);
-                    ctor public AllOptionalJvmOverloads(optional int foo);
                     ctor public AllOptionalJvmOverloads();
+                    ctor public AllOptionalJvmOverloads(optional int foo);
+                    ctor public AllOptionalJvmOverloads(optional int foo, optional int bar);
                   }
                   public final class AllOptionalNoJvmOverloads {
                     ctor public AllOptionalNoJvmOverloads(optional int foo, optional int bar);
                   }
                   public final class SomeOptionalJvmOverloads {
-                    ctor public SomeOptionalJvmOverloads(int foo, optional int bar);
                     ctor public SomeOptionalJvmOverloads(int foo);
+                    ctor public SomeOptionalJvmOverloads(int foo, optional int bar);
                   }
                   public final class SomeOptionalNoJvmOverloads {
                     ctor public SomeOptionalNoJvmOverloads(int foo, optional int bar);
@@ -4592,6 +4652,52 @@ class ApiFileTest : DriverTest() {
                   public final class TestKt {
                     method @Deprecated public static void myMethod();
                     method @Deprecated public static void myNormalDeprecatedMethod();
+                  }
+                }
+            """
+        )
+    }
+
+    @Test
+    fun `Annotations aren't dropped when DeprecationLevel is HIDDEN`() {
+        // Regression test for http://b/219792969
+        check(
+            format = FileFormat.V2,
+            sourceFiles = arrayOf(
+                kotlin(
+                    """
+                        package test.pkg
+                        import androidx.annotation.IntRange
+                        @Deprecated(
+                            message = "So much regret",
+                            level = DeprecationLevel.HIDDEN
+                        )
+                        @IntRange(from=0)
+                        fun myMethod() { TODO() }
+
+                        @Deprecated(
+                            message = "Not supported anymore",
+                            level = DeprecationLevel.HIDDEN
+                        )
+                        fun returnsNonNull(): String = "42"
+
+                        @Deprecated(
+                            message = "Not supported anymore",
+                            level = DeprecationLevel.HIDDEN
+                        )
+                        fun returnsNonNullImplicitly() = "42"
+                    """
+                ),
+                androidxIntRangeSource
+            ),
+            extraArguments = arrayOf(ARG_HIDE_PACKAGE, "androidx.annotation"),
+            api = """
+                // Signature format: 2.0
+                package test.pkg {
+                  public final class TestKt {
+                    method @Deprecated @IntRange(from=0L) public static void myMethod();
+                    method @Deprecated @NonNull public static String returnsNonNull();
+                    method @Deprecated @NonNull public static String returnsNonNullImplicitly();
                   }
                 }
             """
@@ -4769,6 +4875,8 @@ class ApiFileTest : DriverTest() {
 
     @Test
     fun `APIs before and after @Deprecated(HIDDEN)`() {
+        val sameModifiersAndReturnType = "public static test.pkg.State<java.lang.String>"
+        val sameParameters = "(Integer? i, String? s, java.lang.Object... vs);"
         check(
             sourceFiles = arrayOf(
                 kotlin(
@@ -4808,8 +4916,8 @@ class ApiFileTest : DriverTest() {
                     property public abstract T value;
                   }
                   public final class StateKt {
-                    method public static test.pkg.State<java.lang.String> after(Integer? i, String? s, java.lang.Object... vs);
-                    method @Deprecated public static test.pkg.State<? extends java.lang.String> before(Integer? i, String? s, java.lang.Object... vs);
+                    method $sameModifiersAndReturnType after$sameParameters
+                    method @Deprecated $sameModifiersAndReturnType before$sameParameters
                   }
                 }
             """
@@ -4858,9 +4966,9 @@ class ApiFileTest : DriverTest() {
             api = """
                 package test.pkg {
                   public final class AsyncPagingDataDiffer<T> {
-                    ctor public AsyncPagingDataDiffer(test.pkg.State<? extends T> initState, test.pkg.State<? extends T> nextState, Runnable updateCallback);
-                    ctor public AsyncPagingDataDiffer(test.pkg.State<? extends T> initState, test.pkg.State<? extends T> nextState);
                     ctor @Deprecated public AsyncPagingDataDiffer(test.pkg.State<? extends T> state);
+                    ctor public AsyncPagingDataDiffer(test.pkg.State<? extends T> initState, test.pkg.State<? extends T> nextState);
+                    ctor public AsyncPagingDataDiffer(test.pkg.State<? extends T> initState, test.pkg.State<? extends T> nextState, Runnable updateCallback);
                   }
                   public interface State<T> {
                     method public T getValue();
@@ -5107,6 +5215,43 @@ class ApiFileTest : DriverTest() {
                    method @Deprecated public void newNameForRenamedAndDeprecatedHidden();
                  }
                }
+            """
+        )
+    }
+
+    @Test
+    fun `Ordering of methods`() {
+        check(
+            sourceFiles = arrayOf(
+                kotlin(
+                    """
+                        package test.pkg
+
+                        class Foo {
+                            fun foo(s: String) {}
+                            fun foo(i: Int) {}
+                        }
+
+                        class Bar {
+                            fun bar(i: Int) {}
+                            fun bar(s: String) {}
+                        }
+                    """
+                )
+            ),
+            api = """
+                package test.pkg {
+                  public final class Bar {
+                    ctor public Bar();
+                    method public void bar(int i);
+                    method public void bar(String s);
+                  }
+                  public final class Foo {
+                    ctor public Foo();
+                    method public void foo(int i);
+                    method public void foo(String s);
+                  }
+                }
             """
         )
     }

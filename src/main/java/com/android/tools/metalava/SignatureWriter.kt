@@ -36,12 +36,13 @@ class SignatureWriter(
     filterEmit: Predicate<Item>,
     filterReference: Predicate<Item>,
     private val preFiltered: Boolean,
-    var emitHeader: EmitFileHeader = options.includeSignatureFormatVersionNonRemoved
+    var emitHeader: EmitFileHeader = options.includeSignatureFormatVersionNonRemoved,
+    methodComparator: Comparator<MethodItem> = MethodItem.comparator,
 ) : ApiVisitor(
     visitConstructorsAsMethods = false,
     nestInnerClasses = false,
     inlineInheritedFields = true,
-    methodComparator = MethodItem.comparator,
+    methodComparator = methodComparator,
     fieldComparator = FieldItem.comparator,
     filterEmit = filterEmit,
     filterReference = filterReference,

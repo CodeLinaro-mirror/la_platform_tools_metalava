@@ -73,6 +73,14 @@ Then run it with:
 
 (*output truncated*)
 
+### Maven artifacts
+
+To build Metalava's Maven artifacts including `.pom` and `.module` metadata, run:
+
+    $ ./gradlew createArchive
+
+Then locate the artifacts under `../../out/dist/repo/m2repository`.
+
 ## Features
 
 * Ability to read in an existing android.jar file instead of from source, which

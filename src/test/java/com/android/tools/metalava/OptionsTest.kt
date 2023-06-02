@@ -77,10 +77,11 @@ API sources:
                                              should be on the classpath when parsing the source files
 --api-class-resolution <api|api:classpath>
                                              Determines how class resolution is performed when loading API signature
-                                             files (default `api`). `--api-class-resolution api` will only look for
-                                             classes in the API signature files. `--api-class-resolution api:classpath`
-                                             will look for classes in the API signature files first and then in the
-                                             classpath. Any classes that cannot be found will be treated as empty.
+                                             files (default `api:classpath`). `--api-class-resolution api` will only
+                                             look for classes in the API signature files. `--api-class-resolution
+                                             api:classpath` will look for classes in the API signature files first and
+                                             then in the classpath. Any classes that cannot be found will be treated as
+                                             empty.
 --merge-qualifier-annotations <file>
                                              An external annotations file to merge and overlay the sources, or a
                                              directory of such files. Should be used for annotations intended for
@@ -185,6 +186,13 @@ Extracting Signature Files:
                                              Generate a DEX signature descriptor file listing the APIs
 --removed-api <file>
                                              Generate a signature descriptor file for APIs that have been removed
+--api-overloaded-method-order <source|signature>
+                                             Specifies the order of overloaded methods in signature files (default
+                                             `source`). Applies to the contents of the files specified on --api and
+                                             --removed-api. `--api-overloaded-method-order source` will preserve the
+                                             order in which they appear in the source files.
+                                             `--api-overloaded-method-order signature` will sort them based on their
+                                             signature.
 --format=<v1,v2,v3,...>
                                              Sets the output signature file format to be the given version.
 --output-kotlin-nulls[=yes|no]
@@ -281,9 +289,17 @@ Diffs and Checks:
                                              Report issues of the given id as having lint-severity
 --hide <id>
                                              Hide/skip issues of the given id
+--error-category <name>
+                                             Report all issues in the given category as errors
+--warning-category <name>
+                                             Report all issues in the given category as warnings
+--lint-category <name>
+                                             Report all issues in the given category as having lint-severity
+--hide-category <name>
+                                             Hide/skip all issues in the given category
 --report-even-if-suppressed <file>
                                              Write all issues into the given file, even if suppressed (via annotation or
-                                             baseline) but not if hidden (by '--hide')
+                                             baseline) but not if hidden (by '--hide' or '--hide-category')
 --baseline <file>
                                              Filter out any errors already reported in the given baseline file, or
                                              create if it does not already exist
@@ -407,6 +423,9 @@ Generating API version history:
 --api-version-signature-files <files>
                                              An ordered list of text API signature files. The oldest API version should
                                              be first, the newest last. Required to generate API version JSON.
+--api-version-names <strings>
+                                             An ordered list of strings with the names to use for the API versions from
+                                             --api-version-signature-files. Required to generate API version JSON.
 
 
 Sandboxing:

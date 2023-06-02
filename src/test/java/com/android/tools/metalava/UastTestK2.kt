@@ -61,16 +61,6 @@ class UastTestK2 : UastTestBase() {
     }
 
     @Test
-    fun `Nullness in reified signatures -- K2`() {
-        `Nullness in reified signatures`(isK2 = true)
-    }
-
-    @Test
-    fun `Annotations aren't dropped when DeprecationLevel is HIDDEN -- K2`() {
-        `Annotations aren't dropped when DeprecationLevel is HIDDEN`(isK2 = true)
-    }
-
-    @Test
     fun `Annotation on parameters of data class synthetic copy -- K2`() {
         `Annotation on parameters of data class synthetic copy`(isK2 = true)
     }

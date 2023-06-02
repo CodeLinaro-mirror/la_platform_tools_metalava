@@ -4364,6 +4364,27 @@ CompatibilityCheckTest : DriverTest() {
         )
     }
 
+    @Test
+    fun `Set all issues in the Compatibility category to error-level`() {
+        check(
+            expectedIssues = """
+                TESTROOT/load-api.txt:2: error: Added package test.pkg [AddedPackage]
+            """.trimIndent(),
+            checkCompatibilityApiReleased = """
+                // Signature format: 4.0
+            """,
+            signatureSource = """
+                // Signature format: 4.0
+                package test.pkg {
+                    public class String1 extends java.lang.String {}
+                }
+            """,
+            extraArguments = arrayOf(
+                ARG_ERROR_CATEGORY, "Compatibility"
+            )
+        )
+    }
+
     // TODO: Check method signatures changing incompatibly (look especially out for adding new overloaded
     // methods and comparator getting confused!)
     //   ..equals on the method items should actually be very useful!

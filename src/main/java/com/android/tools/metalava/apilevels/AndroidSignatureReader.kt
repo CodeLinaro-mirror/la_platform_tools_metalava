@@ -25,18 +25,20 @@ import java.io.File
  *
  * @param previousApiFiles A list of API signature files, one for each version of the API, in order
  * from oldest to newest API version.
+ * @param kotlinStyleNulls Whether to assume the inputs are formatted as Kotlin-style nulls.
  */
 class AndroidSignatureReader(
-    previousApiFiles: List<File>
+    previousApiFiles: List<File>,
+    kotlinStyleNulls: Boolean
 ) {
     val api: Api
 
     init {
         api = Api(1)
         previousApiFiles.forEachIndexed { index, apiFile ->
-            val codebase = SignatureFileLoader.load(apiFile)
+            val codebase = SignatureFileLoader.load(apiFile, kotlinStyleNulls)
             // Uses index + 1 as the apiLevel because 0 is not a valid API level
-            addApisFromCodebase(api, index + 1, codebase)
+            addApisFromCodebase(api, index + 1, codebase, useInternalNames = false)
         }
         api.clean()
     }

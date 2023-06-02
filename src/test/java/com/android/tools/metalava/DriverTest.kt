@@ -252,6 +252,8 @@ abstract class DriverTest {
         dexApi: String? = null,
         /** The removed API (corresponds to --removed-api) */
         removedApi: String? = null,
+        /** The overloaded method order, defaults to signature. */
+        overloadedMethodOrder: Options.OverloadedMethodOrder? = Options.OverloadedMethodOrder.SIGNATURE,
         /** The subtract api signature content (corresponds to --subtract-api) */
         @Language("TEXT")
         subtractApi: String? = null,
@@ -750,6 +752,12 @@ abstract class DriverTest {
         var apiFile: File = newFile("public-api.txt")
         val apiArgs = arrayOf(ARG_API, apiFile.path)
 
+        val overloadedMethodArgs = if (overloadedMethodOrder == null) {
+            emptyArray()
+        } else {
+            arrayOf(ARG_API_OVERLOADED_METHOD_ORDER, overloadedMethodOrder.name.lowercase())
+        }
+
         var apiXmlFile: File? = null
         val apiXmlArgs = if (apiXml != null) {
             apiXmlFile = temporaryFolder.newFile("public-api-xml.txt")
@@ -1001,6 +1009,7 @@ abstract class DriverTest {
             *kotlinPathArgs,
             *removedArgs,
             *apiArgs,
+            *overloadedMethodArgs,
             *apiXmlArgs,
             *dexApiArgs,
             *subtractApiArgs,
