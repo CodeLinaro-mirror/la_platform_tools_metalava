@@ -3881,8 +3881,7 @@ class ApiFileTest : DriverTest() {
         check(
             signatureSources = arrayOf(source1, source2),
             api = expected,
-            // Use the default overloaded method order when no command line option is supplied.
-            overloadedMethodOrder = null,
+            overloadedMethodOrder = Options.OverloadedMethodOrder.SOURCE,
             format = FileFormat.V2,
         )
     }

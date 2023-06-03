@@ -445,7 +445,7 @@ class Options(
      * Determines how overloaded methods, i.e. methods with the same name, are ordered in signature
      * files.
      */
-    var apiOverloadedMethodOrder: OverloadedMethodOrder = OverloadedMethodOrder.SOURCE
+    var apiOverloadedMethodOrder: OverloadedMethodOrder = OverloadedMethodOrder.SIGNATURE
 
     /** Like [apiFile], but with JDiff xml format. */
     var apiXmlFile: File? = null
@@ -2192,7 +2192,7 @@ class Options(
             "$ARG_DEX_API <file>", "Generate a DEX signature descriptor file listing the APIs",
             "$ARG_REMOVED_API <file>", "Generate a signature descriptor file for APIs that have been removed",
             "$ARG_API_OVERLOADED_METHOD_ORDER <source|signature>",
-            "Specifies the order of overloaded methods in signature files (default `source`). " +
+            "Specifies the order of overloaded methods in signature files (default `signature`). " +
                 "Applies to the contents of the files specified on $ARG_API and $ARG_REMOVED_API. " +
                 "`$ARG_API_OVERLOADED_METHOD_ORDER source` will preserve the order in which they appear in the source files. " +
                 "`$ARG_API_OVERLOADED_METHOD_ORDER signature` will sort them based on their signature.",
