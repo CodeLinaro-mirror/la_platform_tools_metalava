@@ -387,8 +387,8 @@ class Options(
 
     /**
      * Annotations that defines APIs that are implicitly included in the API surface. These APIs
-     * will be included in certain kinds of output such as stubs, but others (e.g. API lint and the
-     * API signature file) ignore them.
+     * will be included in certain kinds of output such as stubs, but others (e.g.
+     * API lint and the API signature file) ignore them.
      */
     var showForStubPurposesAnnotations: AnnotationFilter = mutableShowForStubPurposesAnnotation
 
@@ -396,7 +396,7 @@ class Options(
      * classpath. Defaults to true for backwards compatibility but is set to false if any API signatures are imported
      * as they must provide a complete set of all classes required but not provided by the generated API.
      *
-     * Once all APIs are either self contained or imported all the required references this will be removed and no
+     * Once all APIs are either self-contained or imported all the required references this will be removed and no
      * classes will be allowed from the classpath JARs. */
     var allowClassesFromClasspath = true
 
