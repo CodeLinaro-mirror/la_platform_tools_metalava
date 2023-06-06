@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<issues format="6" by="lint 8.1.0-alpha07" type="baseline" client="gradle" dependencies="false" name="AGP (8.1.0-alpha07)" variant="all" version="8.1.0-alpha07">
+
+    <issue
+        id="UastImplementation"
+        message="org.jetbrains.uast.kotlin.KotlinUMethodWithFakeLightDelegate is UAST implementation. Consider using one of its corresponding UAST interfaces: `UMethod`, `UDeclaration`, `UAnnotated`, `UAnchorOwner`"
+        errorLine1="import org.jetbrains.uast.kotlin.KotlinUMethodWithFakeLightDelegate"
+        errorLine2="~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/android/tools/metalava/model/psi/PsiMethodItem.kt"
+            line="46"
+            column="1"/>
+    </issue>
+
+    <issue
+        id="UastImplementation"
+        message="org.jetbrains.uast.kotlin.KotlinUMethodWithFakeLightDelegate is UAST implementation. Consider using one of its corresponding UAST interfaces: `UMethod`, `UDeclaration`, `UAnnotated`, `UAnchorOwner`"
+        errorLine1="            val name = if (psiMethod is KotlinUMethodWithFakeLightDelegate) {"
+        errorLine2="                                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/android/tools/metalava/model/psi/PsiMethodItem.kt"
+            line="383"
+            column="41"/>
+    </issue>
+
+    <issue
+        id="UastImplementation"
+        message="org.jetbrains.uast.kotlin.KotlinUMethodWithFakeLightDelegate is UAST implementation. Consider using one of its corresponding UAST interfaces: `UMethod`, `UDeclaration`, `UAnnotated`, `UAnchorOwner`"
+        errorLine1="            if (psiMethod is KotlinUMethodWithFakeLightDelegate) {"
+        errorLine2="                             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/android/tools/metalava/model/psi/PsiMethodItem.kt"
+            line="428"
+            column="30"/>
+    </issue>
+
+    <issue
+        id="UastImplementation"
+        message="org.jetbrains.uast.kotlin.KotlinUMethodWithFakeLightDelegate is UAST implementation. Consider using one of its corresponding UAST interfaces: `UMethod`, `UDeclaration`, `UAnnotated`, `UAnchorOwner`"
+        errorLine1="import org.jetbrains.uast.kotlin.KotlinUMethodWithFakeLightDelegate"
+        errorLine2="~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/android/tools/metalava/model/psi/PsiModifierItem.kt"
+            line="62"
+            column="1"/>
+    </issue>
+
+    <issue
+        id="UastImplementation"
+        message="org.jetbrains.uast.kotlin.KotlinUMethodWithFakeLightDelegate is UAST implementation. Consider using one of its corresponding UAST interfaces: `UMethod`, `UDeclaration`, `UAnnotated`, `UAnchorOwner`"
+        errorLine1="                element is KotlinUMethodWithFakeLightDelegate -> when {"
+        errorLine2="                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/android/tools/metalava/model/psi/PsiModifierItem.kt"
+            line="158"
+            column="28"/>
+    </issue>
+
+    <issue
+        id="UastImplementation"
+        message="org.jetbrains.uast.kotlin.psi.UastKotlinPsiParameter is UAST implementation. Consider using one of its corresponding UAST interfaces."
+        errorLine1="import org.jetbrains.uast.kotlin.psi.UastKotlinPsiParameter"
+        errorLine2="~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/android/tools/metalava/model/psi/PsiParameterItem.kt"
+            line="43"
+            column="1"/>
+    </issue>
+
+    <issue
+        id="UastImplementation"
+        message="org.jetbrains.uast.kotlin.psi.UastKotlinPsiParameter is UAST implementation. Consider using one of its corresponding UAST interfaces."
+        errorLine1="                    psiParameter.javaPsi is UastKotlinPsiParameter"
+        errorLine2="                                            ~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/android/tools/metalava/model/psi/PsiParameterItem.kt"
+            line="299"
+            column="45"/>
+    </issue>
+
+</issues>

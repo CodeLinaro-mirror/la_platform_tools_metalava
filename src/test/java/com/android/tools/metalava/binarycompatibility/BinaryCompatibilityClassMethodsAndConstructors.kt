@@ -42,8 +42,8 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
             """
         )
     }
-    @Test
     // Note: This is reversed from the eclipse wiki because of kotlin named parameters
+    @Test
     fun `Change formal parameter name (Incompatible)`() {
         check(
             expectedIssues = """
@@ -194,11 +194,11 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
             """
         )
     }
-    @Test
     /*
     Decrease access; that is, from protected access to default or private access,
     or from public access to protected, default, or private access
      */
+    @Test
     fun `Decrease access(Incompatible)`() {
         check(
             expectedIssues = """

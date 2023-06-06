@@ -15,7 +15,8 @@ defaultTasks = mutableListOf(
     "test",
     CREATE_ARCHIVE_TASK,
     CREATE_BUILD_INFO_TASK,
-    "ktlint"
+    "ktlint",
+    "lint"
 )
 
 repositories {
@@ -32,6 +33,7 @@ repositories {
 
 plugins {
     alias(libs.plugins.kotlinJvm)
+    id("com.android.lint") version "8.1.0-alpha07"
     id("application")
     id("java")
     id("maven-publish")
@@ -46,18 +48,15 @@ application {
 }
 
 java {
-    sourceCompatibility = JavaVersion.VERSION_1_8
-    targetCompatibility = JavaVersion.VERSION_1_8
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
 }
 
 tasks.withType(KotlinCompile::class.java) {
-    sourceCompatibility = "1.8"
-    targetCompatibility = "1.8"
-
     kotlinOptions {
-        jvmTarget = "1.8"
-        apiVersion = "1.6"
-        languageVersion = "1.6"
+        jvmTarget = "17"
+        apiVersion = "1.7"
+        languageVersion = "1.7"
         allWarningsAsErrors = true
     }
 }
@@ -67,7 +66,7 @@ val studioVersion: String = if (customLintVersion != null) {
     logger.warn("Building using custom $customLintVersion version of Android Lint")
     customLintVersion
 } else {
-    "30.3.0-alpha08"
+    "31.1.0-alpha07"
 }
 
 dependencies {
@@ -85,7 +84,8 @@ dependencies {
     implementation(libs.kotlinReflect)
     implementation("org.ow2.asm:asm:8.0")
     implementation("org.ow2.asm:asm-tree:8.0")
-    implementation("com.google.guava:guava:30.1.1-jre")
+    implementation("com.google.guava:guava:31.0.1-jre")
+    implementation("com.google.code.gson:gson:2.6.2")
     testImplementation("com.android.tools.lint:lint-tests:$studioVersion")
     testImplementation("junit:junit:4.13.2")
     testImplementation("com.google.truth:truth:1.1.3")
@@ -106,6 +106,7 @@ fun registerTestPrebuiltsSdkTasks(sourceDir: String, destJar: String): String {
     val jarTaskName = "$basename.jar"
 
     project.tasks.register(javaCompileTaskName, JavaCompile::class) {
+        options.compilerArgs = listOf("--patch-module", "java.base=" + file(sourceDir))
         source = fileTree(sourceDir)
         classpath = project.files()
         destinationDirectory.set(File(getBuildDirectory(), javaCompileTaskName))
@@ -150,6 +151,7 @@ val testTask = tasks.named("test", Test::class.java)
 testTask.configure {
     dependsOn("test-prebuilts-sdk")
     setEnvironment("METALAVA_TEST_PREBUILTS_SDK_ROOT" to getBuildDirectory().path + "/prebuilts/sdk")
+    jvmArgs = listOf("--add-opens=java.base/java.lang=ALL-UNNAMED")
     maxParallelForks = (Runtime.getRuntime().availableProcessors() / 2).takeIf { it > 0 } ?: 1
     testLogging.events = hashSetOf(
         TestLogEvent.FAILED,
@@ -170,14 +172,8 @@ fun getMetalavaVersion(): Any {
     if (versionPropertyFile.canRead()) {
         val versionProps = Properties()
         versionProps.load(FileInputStream(versionPropertyFile))
-        val metalavaVersion = versionProps["metalavaVersion"]
+        return versionProps["metalavaVersion"]
             ?: throw IllegalStateException("metalava version was not set in ${versionPropertyFile.absolutePath}")
-        return if (isBuildingOnServer()) {
-            metalavaVersion
-        } else {
-            // Local builds are not public release candidates.
-            "$metalavaVersion-SNAPSHOT"
-        }
     } else {
         throw FileNotFoundException("Could not read ${versionPropertyFile.absolutePath}")
     }
@@ -221,7 +217,7 @@ fun getBuildId(): String {
 
 fun Project.getKtlintConfiguration(): Configuration {
     return configurations.findByName("ktlint") ?: configurations.create("ktlint") {
-        val dependency = project.dependencies.create("com.pinterest:ktlint:0.41.0")
+        val dependency = project.dependencies.create("com.pinterest:ktlint:0.47.1")
         dependencies.add(dependency)
     }
 }
@@ -277,7 +273,15 @@ publishing {
     }
 }
 
-// Workaround for https://github.com/gradle/gradle/issues/11717
+lint {
+    fatal.add("UastImplementation")
+    disable.add("UseTomlInstead") // not useful for this project
+    disable.add("GradleDependency") // not useful for this project
+    abortOnError = true
+    baseline = File("lint-baseline.xml")
+}
+
+// Add a buildId into Gradle Metadata file so we can tell which build it is from.
 tasks.withType(GenerateModuleMetadata::class.java).configureEach {
     val outDirProvider = project.providers.environmentVariable("DIST_DIR")
     inputs.property("buildOutputDirectory", outDirProvider).optional(true)
@@ -287,8 +291,11 @@ tasks.withType(GenerateModuleMetadata::class.java).configureEach {
         val buildId = outDirProvider.orNull?.let { File(it).name } ?: "0"
         metadata.writeText(
             text.replace(
-                "\"buildId\": .*".toRegex(),
-                "\"buildId:\": \"${buildId}\""
+                """"createdBy": {
+    "gradle": {""",
+                """"createdBy": {
+    "gradle": {
+      "buildId:": "$buildId",""",
             )
         )
     }

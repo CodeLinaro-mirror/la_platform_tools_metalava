@@ -55,6 +55,7 @@ const val ARG_SOURCE_PATH = "--source-path"
 const val ARG_SOURCE_FILES = "--source-files"
 const val ARG_API = "--api"
 const val ARG_XML_API = "--api-xml"
+const val ARG_API_CLASS_RESOLUTION = "--api-class-resolution"
 const val ARG_CONVERT_TO_JDIFF = "--convert-to-jdiff"
 const val ARG_CONVERT_NEW_TO_JDIFF = "--convert-new-to-jdiff"
 const val ARG_DEX_API = "--dex-api"
@@ -96,6 +97,7 @@ const val ARG_SHOW_ANNOTATION = "--show-annotation"
 const val ARG_SHOW_SINGLE_ANNOTATION = "--show-single-annotation"
 const val ARG_HIDE_ANNOTATION = "--hide-annotation"
 const val ARG_HIDE_META_ANNOTATION = "--hide-meta-annotation"
+const val ARG_SUPPRESS_COMPATIBILITY_META_ANNOTATION = "--suppress-compatibility-meta-annotation"
 const val ARG_SHOW_FOR_STUB_PURPOSES_ANNOTATION = "--show-for-stub-purposes-annotation"
 const val ARG_SHOW_UNANNOTATED = "--show-unannotated"
 const val ARG_COLOR = "--color"
@@ -113,6 +115,8 @@ const val ARG_CURRENT_VERSION = "--current-version"
 const val ARG_FIRST_VERSION = "--first-version"
 const val ARG_CURRENT_CODENAME = "--current-codename"
 const val ARG_CURRENT_JAR = "--current-jar"
+const val ARG_GENERATE_API_VERSION_HISTORY = "--generate-api-version-history"
+const val ARG_API_VERSION_SIGNATURE_FILES = "--api-version-signature-files"
 const val ARG_API_LINT = "--api-lint"
 const val ARG_API_LINT_IGNORE_PREFIX = "--api-lint-ignore-prefix"
 const val ARG_PUBLIC = "--public"
@@ -160,6 +164,7 @@ const val ARG_STRICT_INPUT_FILES_EXEMPT = "--strict-input-files-exempt"
 const val ARG_REPEAT_ERRORS_MAX = "--repeat-errors-max"
 const val ARG_SDK_JAR_ROOT = "--sdk-extensions-root"
 const val ARG_SDK_INFO_FILE = "--sdk-extensions-info"
+const val ARG_USE_K2_UAST = "--Xuse-k2-uast"
 
 class Options(
     private val args: Array<String>,
@@ -183,6 +188,8 @@ class Options(
     private val mutableHideAnnotations = MutableAnnotationFilter()
     /** Internal list backing [hideMetaAnnotations] */
     private val mutableHideMetaAnnotations: MutableList<String> = mutableListOf()
+    /** Internal list backing [suppressCompatibilityMetaAnnotations] */
+    private val mutableNoCompatCheckMetaAnnotations: MutableSet<String> = mutableSetOf()
     /** Internal list backing [showForStubPurposesAnnotations] */
     private val mutableShowForStubPurposesAnnotation = MutableAnnotationFilter()
     /** Internal list backing [stubImportPackages] */
@@ -306,6 +313,20 @@ class Options(
     /** All source files to parse */
     var sources: List<File> = mutableSources
 
+    enum class ApiClassResolution(val optionValue: String) {
+        /**
+         * Only look for classes in the API signature text files.
+         */
+        API("api"),
+
+        /**
+         * Look for classes in the API signature text files first, then the classpath.
+         */
+        API_CLASSPATH("api:classpath")
+    }
+
+    var apiClassResolution: ApiClassResolution = ApiClassResolution.API
+
     /**
      * Whether to include APIs with annotations (intended for documentation purposes).
      * This includes [ARG_SHOW_ANNOTATION], [ARG_SHOW_SINGLE_ANNOTATION] and
@@ -353,6 +374,9 @@ class Options(
 
     /** Meta-annotations to hide */
     var hideMetaAnnotations = mutableHideMetaAnnotations
+
+    /** Meta-annotations for which annotated APIs should not be checked for compatibility. */
+    var suppressCompatibilityMetaAnnotations = mutableNoCompatCheckMetaAnnotations
 
     /**
      * Annotations that defines APIs that are implicitly included in the API surface. These APIs
@@ -505,6 +529,12 @@ class Options(
      * the APIs that are kept
      */
     var sdkInfoFile: File? = null
+
+    /** API version history JSON file to generate */
+    var generateApiVersionsJson: File? = null
+
+    /** Ordered list of signatures for each API version, if generating an API version JSON */
+    var apiVersionSignatureFiles: List<File>? = null
 
     /** Level to include for javadoc */
     var docLevel = DocLevel.PROTECTED
@@ -685,6 +715,8 @@ class Options(
     /** When non-0, metalava repeats all the errors at the end of the run, at most this many. */
     var repeatErrorsMax = 0
 
+    var useK2Uast = false
+
     init {
         // Pre-check whether --color/--no-color is present and use that to decide how
         // to emit the banner even before we emit errors
@@ -774,6 +806,14 @@ class Options(
                     }
                 }
 
+                ARG_API_CLASS_RESOLUTION -> {
+                    val resolution = getValue(args, ++index)
+                    val resolutions = ApiClassResolution.values()
+                    apiClassResolution = resolutions.find { resolution == it.optionValue } ?: throw DriverException(
+                        stderr = "$ARG_API_CLASS_RESOLUTION must be one of ${resolutions.joinToString { it.optionValue }}; was $resolution"
+                    )
+                }
+
                 ARG_SUBTRACT_API -> {
                     if (subtractApi != null) {
                         throw DriverException(stderr = "Only one $ARG_SUBTRACT_API can be supplied")
@@ -850,6 +890,9 @@ class Options(
                     mutableHideAnnotations.add(getValue(args, ++index))
                 ARG_HIDE_META_ANNOTATION, "--hideMetaAnnotations", "-hideMetaAnnotation" ->
                     mutableHideMetaAnnotations.add(getValue(args, ++index))
+
+                ARG_SUPPRESS_COMPATIBILITY_META_ANNOTATION ->
+                    mutableNoCompatCheckMetaAnnotations.add(getValue(args, ++index))
 
                 ARG_STUBS, "-stubs" -> stubsDir = stringToNewDir(getValue(args, ++index))
                 ARG_DOC_STUBS -> docStubsDir = stringToNewDir(getValue(args, ++index))
@@ -1106,6 +1149,13 @@ class Options(
                 }
                 ARG_REMOVE_MISSING_CLASS_REFERENCES_IN_API_LEVELS -> removeMissingClassesInApiLevels = true
 
+                ARG_GENERATE_API_VERSION_HISTORY -> {
+                    generateApiVersionsJson = stringToNewFile(getValue(args, ++index))
+                }
+                ARG_API_VERSION_SIGNATURE_FILES -> {
+                    apiVersionSignatureFiles = stringToExistingFiles(getValue(args, ++index))
+                }
+
                 ARG_UPDATE_API, "--update-api" -> onlyUpdateApi = true
                 ARG_CHECK_API -> onlyCheckApi = true
 
@@ -1203,6 +1253,8 @@ class Options(
                 ARG_REPEAT_ERRORS_MAX -> {
                     repeatErrorsMax = Integer.parseInt(getValue(args, ++index))
                 }
+
+                ARG_USE_K2_UAST -> useK2Uast = true
 
                 ARG_SDK_JAR_ROOT -> {
                     sdkJarRoot = stringToExistingDir(getValue(args, ++index))
@@ -1971,6 +2023,12 @@ class Options(
                 "`${File.pathSeparator}`) containing classes that should be on the classpath when parsing the " +
                 "source files",
 
+            "$ARG_API_CLASS_RESOLUTION <api|api:classpath> ",
+            "Determines how class resolution is performed when loading API signature files (default `api`). " +
+                "`$ARG_API_CLASS_RESOLUTION api` will only look for classes in the API signature files. " +
+                "`$ARG_API_CLASS_RESOLUTION api:classpath` will look for classes in the API signature files " +
+                "first and then in the classpath. Any classes that cannot be found will be treated as empty.",
+
             "$ARG_MERGE_QUALIFIER_ANNOTATIONS <file>",
             "An external annotations file to merge and overlay " +
                 "the sources, or a directory of such files. Should be used for annotations intended for " +
@@ -2025,6 +2083,9 @@ class Options(
             "$ARG_HIDE_META_ANNOTATION <meta-annotation class>",
             "Treat as hidden any elements annotated with an " +
                 "annotation which is itself annotated with the given meta-annotation",
+            "$ARG_SUPPRESS_COMPATIBILITY_META_ANNOTATION <meta-annotation class>",
+            "Suppress compatibility checks for any elements within the scope of an annotation " +
+                "which is itself annotated with the given meta-annotation",
             ARG_SHOW_UNANNOTATED, "Include un-annotated public APIs in the signature file as well",
             "$ARG_JAVA_SOURCE <level>", "Sets the source level for Java source files; default is 1.8.",
             "$ARG_KOTLIN_SOURCE <level>", "Sets the source level for Kotlin source files; default is ${LanguageVersionSettingsImpl.DEFAULT.languageVersion}.",
@@ -2246,6 +2307,15 @@ class Options(
                 "A mainline module may be listed multiple times. " +
                 "The special pattern \"*\" refers to all APIs in the given mainline module. " +
                 "Lines beginning with # are comments.",
+
+            "", "\nGenerating API version history:",
+            "$ARG_GENERATE_API_VERSION_HISTORY <jsonfile>",
+            "Reads API signature files and generates a JSON file recording the API version each " +
+                "class, method, and field was added in and (if applicable) deprecated in. " +
+                "Required to generate API version JSON.",
+            "$ARG_API_VERSION_SIGNATURE_FILES <files>",
+            "An ordered list of text API signature files. The oldest API version should be " +
+                "first, the newest last. Required to generate API version JSON.",
 
             "", "\nSandboxing:",
             ARG_NO_IMPLICIT_ROOT,

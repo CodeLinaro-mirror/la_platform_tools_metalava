@@ -20,7 +20,9 @@ import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.psi.ClassType.TYPE_PARAMETER
 import com.intellij.psi.PsiTypeParameter
 import org.jetbrains.kotlin.asJava.elements.KotlinLightTypeParameterBuilder
-import org.jetbrains.kotlin.asJava.elements.KtLightTypeParameter
+import org.jetbrains.kotlin.asJava.elements.KtLightDeclaration
+import org.jetbrains.kotlin.lexer.KtTokens
+import org.jetbrains.kotlin.psi.KtTypeParameter
 
 class PsiTypeParameterItem(
     codebase: PsiBasedCodebase,
@@ -80,14 +82,16 @@ class PsiTypeParameterItem(
 
         fun isReified(element: PsiTypeParameter?): Boolean {
             element ?: return false
-            if (element is KtLightTypeParameter &&
-                element.kotlinOrigin.text.startsWith("reified")
+            // TODO(jsjeon): Handle PsiElementWithOrigin<*> when available
+            if (element is KtLightDeclaration<*, *> &&
+                element.kotlinOrigin is KtTypeParameter &&
+                element.kotlinOrigin?.text?.startsWith(KtTokens.REIFIED_KEYWORD.value) == true
             ) {
                 return true
-            } else if (element is KotlinLightTypeParameterBuilder) {
-                if (element.origin.text.startsWith("reified")) {
-                    return true
-                }
+            } else if (element is KotlinLightTypeParameterBuilder &&
+                element.origin.text.startsWith(KtTokens.REIFIED_KEYWORD.value)
+            ) {
+                return true
             }
             return false
         }

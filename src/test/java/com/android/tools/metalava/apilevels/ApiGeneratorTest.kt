@@ -16,28 +16,52 @@
 
 package com.android.tools.metalava.apilevels
 
+import com.android.sdklib.SdkVersionInfo
+import com.android.tools.lint.detector.api.ApiConstraint
 import com.android.tools.metalava.ARG_ANDROID_JAR_PATTERN
+import com.android.tools.metalava.ARG_API_VERSION_SIGNATURE_FILES
 import com.android.tools.metalava.ARG_CURRENT_CODENAME
 import com.android.tools.metalava.ARG_CURRENT_VERSION
 import com.android.tools.metalava.ARG_FIRST_VERSION
 import com.android.tools.metalava.ARG_GENERATE_API_LEVELS
+import com.android.tools.metalava.ARG_GENERATE_API_VERSION_HISTORY
 import com.android.tools.metalava.ARG_REMOVE_MISSING_CLASS_REFERENCES_IN_API_LEVELS
 import com.android.tools.metalava.ARG_SDK_INFO_FILE
 import com.android.tools.metalava.ARG_SDK_JAR_ROOT
 import com.android.tools.metalava.DriverTest
 import com.android.tools.metalava.getApiLookup
 import com.android.tools.metalava.java
+import com.android.tools.metalava.minApiLevel
 import com.google.common.truth.Truth.assertThat
+import com.google.gson.GsonBuilder
+import com.google.gson.JsonElement
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
+import org.junit.BeforeClass
 import org.junit.Test
 import java.io.File
 import kotlin.text.Charsets.UTF_8
 
 class ApiGeneratorTest : DriverTest() {
+    companion object {
+        // As per ApiConstraint that uses a bit vector, API has to be between 1..61.
+        private const val MAGIC_VERSION_INT = 57 // [SdkVersionInfo.MAX_LEVEL] - 4
+        private const val MAGIC_VERSION_STR = MAGIC_VERSION_INT.toString()
+
+        @JvmStatic
+        @BeforeClass
+        fun beforeClass() {
+            assert(MAGIC_VERSION_INT > SdkVersionInfo.HIGHEST_KNOWN_API)
+            // Trigger <clinit> of [SdkApiConstraint] to call `isValidApiLevel` in its companion
+            ApiConstraint.UNKNOWN
+            // This checks if MAGIC_VERSION_INT is not bigger than [SdkVersionInfo.MAX_LEVEL]
+            assert(ApiConstraint.SdkApiConstraint.isValidApiLevel(MAGIC_VERSION_INT))
+        }
+    }
+
     @Test
     fun `Extract API levels`() {
         var oldSdkJars = File("prebuilts/tools/common/api-versions")
@@ -72,7 +96,7 @@ class ApiGeneratorTest : DriverTest() {
                 ARG_CURRENT_CODENAME,
                 "Z",
                 ARG_CURRENT_VERSION,
-                "89" // not real api level of Z
+                MAGIC_VERSION_STR // not real api level of Z
             ),
             sourceFiles = arrayOf(
                 java(
@@ -88,9 +112,10 @@ class ApiGeneratorTest : DriverTest() {
         assertTrue(output.isFile)
 
         val xml = output.readText(UTF_8)
+        val nextVersion = MAGIC_VERSION_INT + 1
         assertTrue(xml.contains("<class name=\"android/Manifest\$permission\" since=\"1\">"))
         assertTrue(xml.contains("<field name=\"BIND_CARRIER_MESSAGING_SERVICE\" since=\"22\" deprecated=\"23\"/>"))
-        assertTrue(xml.contains("<class name=\"android/pkg/MyTest\" since=\"90\""))
+        assertTrue(xml.contains("<class name=\"android/pkg/MyTest\" since=\"$nextVersion\""))
         assertFalse(xml.contains("<implements name=\"java/lang/annotation/Annotation\" removed=\""))
         assertFalse(xml.contains("<extends name=\"java/lang/Enum\" removed=\""))
         assertFalse(xml.contains("<method name=\"append(C)Ljava/lang/AbstractStringBuilder;\""))
@@ -102,11 +127,15 @@ class ApiGeneratorTest : DriverTest() {
 
         // Make sure we're really using the correct database, not the SDK one. (This placeholder
         // class is provided as a source file above.)
-        assertEquals(90, apiLookup.getClassVersion("android.pkg.MyTest"))
+        @Suppress("DEPRECATION")
+        assertEquals(nextVersion, apiLookup.getClassVersion("android.pkg.MyTest"))
 
+        @Suppress("DEPRECATION")
         apiLookup.getClassVersion("android.v")
+        @Suppress("DEPRECATION")
         assertEquals(5, apiLookup.getFieldVersion("android.Manifest\$permission", "AUTHENTICATE_ACCOUNTS"))
 
+        @Suppress("DEPRECATION")
         val methodVersion = apiLookup.getMethodVersion("android/icu/util/CopticCalendar", "computeTime", "()")
         assertEquals(24, methodVersion)
     }
@@ -214,11 +243,14 @@ class ApiGeneratorTest : DriverTest() {
         assertTrue(xml.contains("<method name=\"canManageMedia(Landroid/content/Context;)Z\" since=\"31\" sdks=\"33:1,0:31\"/>"))
 
         val apiLookup = getApiLookup(output)
+        @Suppress("DEPRECATION")
         apiLookup.getClassVersion("android.v")
         // This field was added in API level 5, but when we're starting the count higher
         // (as in the system API), the first introduced API level is the one we use
+        @Suppress("DEPRECATION")
         assertEquals(21, apiLookup.getFieldVersion("android.Manifest\$permission", "AUTHENTICATE_ACCOUNTS"))
 
+        @Suppress("DEPRECATION")
         val methodVersion = apiLookup.getMethodVersion("android/icu/util/CopticCalendar", "computeTime", "()")
         assertEquals(24, methodVersion)
 
@@ -240,9 +272,9 @@ class ApiGeneratorTest : DriverTest() {
         assertTrue(xml.contains("<class name=\"android/net/eap/EapInfo\" module=\"android.net.ipsec.ike\" since=\"33\" sdks=\"33:3,31:3,30:3,0:33\">"))
 
         // Verify historical backfill
-        assertEquals(30, apiLookup.getClassVersion("android/os/ext/SdkExtensions"))
-        assertEquals(30, apiLookup.getMethodVersion("android/os/ext/SdkExtensions", "getExtensionVersion", "(I)I"))
-        assertEquals(31, apiLookup.getMethodVersion("android/os/ext/SdkExtensions", "getAllExtensionVersions", "()Ljava/util/Map;"))
+        assertEquals(30, apiLookup.getClassVersions("android/os/ext/SdkExtensions").minApiLevel())
+        assertEquals(30, apiLookup.getMethodVersions("android/os/ext/SdkExtensions", "getExtensionVersion", "(I)I").minApiLevel())
+        assertEquals(31, apiLookup.getMethodVersions("android/os/ext/SdkExtensions", "getAllExtensionVersions", "()Ljava/util/Map;").minApiLevel())
 
         // Verify there's no extension versions listed for SdkExtensions
         val sdkExtClassLine = xml.lines().first { it.contains("<class name=\"android/os/ext/SdkExtensions\"") }
@@ -283,7 +315,7 @@ class ApiGeneratorTest : DriverTest() {
                 ARG_CURRENT_CODENAME,
                 "REL",
                 ARG_CURRENT_VERSION,
-                "89" // not real api level
+                MAGIC_VERSION_STR // not real api level
             ),
             sourceFiles = arrayOf(
                 java(
@@ -299,9 +331,10 @@ class ApiGeneratorTest : DriverTest() {
         assertTrue(output.isFile)
         // Anything with a REL codename is in the current API level
         val xml = output.readText(UTF_8)
-        assertTrue(xml.contains("<class name=\"android/pkg/MyTest\" since=\"89\""))
+        assertTrue(xml.contains("<class name=\"android/pkg/MyTest\" since=\"$MAGIC_VERSION_STR\""))
         val apiLookup = getApiLookup(output, temporaryFolder.newFolder())
-        assertEquals(89, apiLookup.getClassVersion("android.pkg.MyTest"))
+        @Suppress("DEPRECATION")
+        assertEquals(MAGIC_VERSION_INT, apiLookup.getClassVersion("android.pkg.MyTest"))
     }
 
     @Test
@@ -338,7 +371,7 @@ class ApiGeneratorTest : DriverTest() {
                 ARG_CURRENT_CODENAME,
                 "ZZZ", // not just Z, but very ZZZ
                 ARG_CURRENT_VERSION,
-                "89" // not real api level
+                MAGIC_VERSION_STR // not real api level
             ),
             sourceFiles = arrayOf(
                 java(
@@ -353,10 +386,12 @@ class ApiGeneratorTest : DriverTest() {
 
         assertTrue(output.isFile)
         // Metalava should understand that a codename means "current api + 1"
+        val nextVersion = MAGIC_VERSION_INT + 1
         val xml = output.readText(UTF_8)
-        assertTrue(xml.contains("<class name=\"android/pkg/MyTest\" since=\"90\""))
+        assertTrue(xml.contains("<class name=\"android/pkg/MyTest\" since=\"$nextVersion\""))
         val apiLookup = getApiLookup(output, temporaryFolder.newFolder())
-        assertEquals(90, apiLookup.getClassVersion("android.pkg.MyTest"))
+        @Suppress("DEPRECATION")
+        assertEquals(nextVersion, apiLookup.getClassVersion("android.pkg.MyTest"))
     }
 
     @Test
@@ -548,5 +583,125 @@ class ApiGeneratorTest : DriverTest() {
         assertNotNull(exception)
         assertThat(exception?.message ?: "").contains("There are classes in this API that reference other classes that do not exist in this API.")
         assertThat(exception?.message ?: "").contains("java/lang/Object referenced by:\n    android/test/ClassThatImplementsMethodFromApex")
+    }
+
+    @Test
+    fun `Create API levels from signature files`() {
+        val output = File.createTempFile("api-info", ".json")
+        output.deleteOnExit()
+        val outputPath = output.path
+
+        val versions = listOf(
+            createTextFile(
+                "1.1.0",
+                """
+                    package test.pkg {
+                      public class Foo {
+                        method public void methodV1();
+                        field public int fieldV1;
+                      }
+                      public class Foo.Bar {
+                      }
+                    }
+                """.trimIndent()
+            ),
+            createTextFile(
+                "1.2.0",
+                """
+                    package test.pkg {
+                      public class Foo {
+                        method public void methodV1();
+                        method @Deprecated public void methodV2();
+                        field public int fieldV1;
+                        field public int fieldV2;
+                      }
+                      public class Foo.Bar {
+                      }
+                    }
+                """.trimIndent()
+            ),
+            createTextFile(
+                "1.3.0",
+                """
+                    package test.pkg {
+                      public class Foo {
+                        method @Deprecated public void methodV1();
+                        method public void methodV3();
+                        field public int fieldV1;
+                        field public int fieldV2;
+                      }
+                      @Deprecated public class Foo.Bar {
+                      }
+                    }
+                """.trimIndent()
+            )
+        )
+
+        check(
+            extraArguments = arrayOf(
+                ARG_GENERATE_API_VERSION_HISTORY,
+                outputPath,
+                ARG_API_VERSION_SIGNATURE_FILES,
+                versions.joinToString(":") { it.absolutePath }
+            )
+        )
+
+        assertTrue(output.isFile)
+
+        // Read output and reprint with pretty printing enabled to make test failures easier to read
+        val gson = GsonBuilder().setPrettyPrinting().create()
+        val outputJson = gson.fromJson(output.readText(), JsonElement::class.java)
+        val prettyOutput = gson.toJson(outputJson)
+        assertEquals(
+            """
+                [
+                  {
+                    "class": "test/pkg/Foo",
+                    "addedIn": "1",
+                    "methods": [
+                      {
+                        "method": "methodV3()V",
+                        "addedIn": "3"
+                      },
+                      {
+                        "method": "methodV1()V",
+                        "addedIn": "1",
+                        "deprecatedIn": "3"
+                      },
+                      {
+                        "method": "methodV2()V",
+                        "addedIn": "2",
+                        "deprecatedIn": "2"
+                      }
+                    ],
+                    "fields": [
+                      {
+                        "field": "fieldV2",
+                        "addedIn": "2"
+                      },
+                      {
+                        "field": "fieldV1",
+                        "addedIn": "1"
+                      }
+                    ]
+                  },
+                  {
+                    "class": "test/pkg/Foo${"$"}Bar",
+                    "addedIn": "1",
+                    "deprecatedIn": "3",
+                    "methods": [],
+                    "fields": []
+                  }
+                ]
+            """.trimIndent(),
+            prettyOutput
+        )
+    }
+
+    private fun createTextFile(name: String, contents: String): File {
+        val file = File.createTempFile(name, ".txt")
+        file.deleteOnExit()
+        file.writeText(contents)
+        return file
     }
 }

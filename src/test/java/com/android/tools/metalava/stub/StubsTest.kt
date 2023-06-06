@@ -1170,6 +1170,88 @@ class StubsTest : DriverTest() {
     }
 
     @Test
+    fun `Check overridden method added for complex hierarchy`() {
+        checkStubs(
+            sourceFiles = arrayOf(
+                java(
+                    """
+                package test.pkg;
+                public final class A extends C implements B<String> {
+                    @Override public void method2() { }
+                }
+                """
+                ),
+                java(
+                    """
+                package test.pkg;
+                public interface B<T> {
+                    void method1(T arg1);
+                }
+                """
+                ),
+                java(
+                    """
+                package test.pkg;
+                public abstract class C extends D {
+                    public abstract void method2();
+                }
+                """
+                ),
+                java(
+                    """
+                package test.pkg;
+                public abstract class D implements B<String> {
+                    @Override public void method1(String arg1) { }
+                }
+                """
+                )
+            ),
+            stubFiles = arrayOf(
+                java(
+                    """
+                package test.pkg;
+                @SuppressWarnings({"unchecked", "deprecation", "all"})
+                public final class A extends test.pkg.C implements test.pkg.B<java.lang.String> {
+                public A() { throw new RuntimeException("Stub!"); }
+                public void method2() { throw new RuntimeException("Stub!"); }
+                }
+                """
+                ),
+                java(
+                    """
+                package test.pkg;
+                @SuppressWarnings({"unchecked", "deprecation", "all"})
+                public interface B<T> {
+                public void method1(T arg1);
+                }
+                """
+                ),
+                java(
+                    """
+                package test.pkg;
+                @SuppressWarnings({"unchecked", "deprecation", "all"})
+                public abstract class C extends test.pkg.D {
+                public C() { throw new RuntimeException("Stub!"); }
+                public abstract void method2();
+                }
+                """
+                ),
+                java(
+                    """
+                package test.pkg;
+                @SuppressWarnings({"unchecked", "deprecation", "all"})
+                public abstract class D implements test.pkg.B<java.lang.String> {
+                public D() { throw new RuntimeException("Stub!"); }
+                public void method1(java.lang.String arg1) { throw new RuntimeException("Stub!"); }
+                }
+                """
+                )
+            ),
+            checkTextStubEquivalence = true
+        )
+    }
+
+    @Test
     fun `Check generating classes with generics`() {
         checkStubs(
             sourceFiles = arrayOf(
@@ -1273,67 +1355,6 @@ class StubsTest : DriverTest() {
                     public HeaderComments() { throw new RuntimeException("Stub!"); }
                     }
                     """
-        )
-    }
-
-    @Test
-    fun `Basic Kotlin class`() {
-        checkStubs(
-            sourceFiles = arrayOf(
-                kotlin(
-                    """
-                    /* My file header */
-                    // Another comment
-                    @file:JvmName("Driver")
-                    package test.pkg
-                    /** My class doc */
-                    class Kotlin(val property1: String = "Default Value", arg2: Int) : Parent() {
-                        override fun method() = "Hello World"
-                        /** My method doc */
-                        fun otherMethod(ok: Boolean, times: Int) {
-                        }
-
-                        /** property doc */
-                        var property2: String? = null
-
-                        /** @hide */
-                        var hiddenProperty: String? = "hidden"
-
-                        private var someField = 42
-                        @JvmField
-                        var someField2 = 42
-                    }
-
-                    open class Parent {
-                        open fun method(): String? = null
-                        open fun method2(value1: Boolean, value2: Boolean?): String? = null
-                        open fun method3(value1: Int?, value2: Int): Int = null
-                    }
-                    """
-                )
-            ),
-            source = """
-                    /* My file header */
-                    // Another comment
-                    package test.pkg;
-                    /** My class doc */
-                    @SuppressWarnings({"unchecked", "deprecation", "all"})
-                    public final class Kotlin extends test.pkg.Parent {
-                    public Kotlin(@android.annotation.NonNull java.lang.String property1, int arg2) { throw new RuntimeException("Stub!"); }
-                    @android.annotation.NonNull
-                    public java.lang.String method() { throw new RuntimeException("Stub!"); }
-                    /** My method doc */
-                    public void otherMethod(boolean ok, int times) { throw new RuntimeException("Stub!"); }
-                    /** property doc */
-                    @android.annotation.Nullable
-                    public java.lang.String getProperty2() { throw new RuntimeException("Stub!"); }
-                    /** property doc */
-                    public void setProperty2(@android.annotation.Nullable java.lang.String value) { throw new RuntimeException("Stub!"); }
-                    @android.annotation.NonNull
-                    public java.lang.String getProperty1() { throw new RuntimeException("Stub!"); }
-                    public int someField2;
-                    }
-                """
         )
     }
 
@@ -1811,6 +1832,53 @@ class StubsTest : DriverTest() {
                 public static final int MY_CONSTANT = 5; // 0x5
                 }
                 """
+        )
+    }
+
+    @Test
+    fun `Check resolving override equivalent signatures`() {
+        // getAttributeNamespace in XmlResourceParser does not exist in the intermediate text file created.
+        checkStubs(
+            sourceFiles = arrayOf(
+                java(
+                    """
+                    package test.pkg;
+                    public interface XmlResourceParser extends test.pkg.XmlPullParser, test.pkg.AttributeSet {
+                        public void close();
+                        String getAttributeNamespace (int arg1);
+                    }
+                    """
+                ),
+                java(
+                    """
+                    package test.pkg;
+                    public interface XmlPullParser {
+                        String getAttributeNamespace (int arg1);
+                    }
+                    """
+                ),
+                java(
+                    """
+                    package test.pkg;
+                    public interface AttributeSet {
+                        default String getAttributeNamespace (int arg1) { }
+                    }
+                    """
+                )
+            ),
+            stubFiles = arrayOf(
+                java(
+                    """
+                    package test.pkg;
+                    @SuppressWarnings({"unchecked", "deprecation", "all"})
+                    public interface XmlResourceParser extends test.pkg.XmlPullParser,  test.pkg.AttributeSet {
+                    public void close();
+                    public java.lang.String getAttributeNamespace(int arg1);
+                    }
+                    """
+                )
+            ),
+            checkTextStubEquivalence = true
         )
     }
 

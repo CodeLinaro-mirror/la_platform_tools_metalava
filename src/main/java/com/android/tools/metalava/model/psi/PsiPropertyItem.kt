@@ -22,8 +22,11 @@ import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.TypeItem
 import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiMethod
+import org.jetbrains.kotlin.descriptors.annotations.AnnotationUseSiteTarget
 import org.jetbrains.kotlin.psi.KtPropertyAccessor
+import org.jetbrains.uast.UAnnotation
 import org.jetbrains.uast.UClass
+import org.jetbrains.uast.toUElement
 
 class PsiPropertyItem private constructor(
     override val codebase: PsiBasedCodebase,
@@ -79,7 +82,7 @@ class PsiPropertyItem private constructor(
         /**
          * Creates a new property item, given a [name], [type] and relationships to other items.
          *
-         * Kotlin properties consist of up to four other declarations: Their accessor functions,
+         * Kotlin's properties consist of up to four other declarations: Their accessor functions,
          * primary constructor parameter, and a backing field. These relationships are useful for
          * resolving documentation and exposing the model correctly in Kotlin stubs.
          *
@@ -111,6 +114,26 @@ class PsiPropertyItem private constructor(
                 else -> javadoc(sourcePsi ?: psiMethod)
             }
             val modifiers = modifiers(codebase, psiMethod, documentation)
+            // Alas, annotations whose target is property won't be bound to anywhere in LC/UAST,
+            // if the property doesn't need a backing field. Same for unspecified use-site target.
+            // To preserve such annotations, our last resort is to examine source PSI directly.
+            if (backingField == null) {
+                val ktProperty = (getter.sourcePsi as? KtPropertyAccessor)?.property
+                val annotations = ktProperty?.annotationEntries?.mapNotNull {
+                    val useSiteTarget = it.useSiteTarget?.getAnnotationUseSiteTarget()
+                    if (useSiteTarget == null ||
+                        useSiteTarget == AnnotationUseSiteTarget.PROPERTY
+                    ) {
+                        it.toUElement() as? UAnnotation
+                    } else null
+                }
+                annotations?.forEach { uAnnotation ->
+                    val annotationItem = UAnnotationItem.create(codebase, uAnnotation)
+                    if (annotationItem !in modifiers.annotations()) {
+                        modifiers.addAnnotation(annotationItem)
+                    }
+                }
+            }
             val property = PsiPropertyItem(
                 codebase = codebase,
                 psiMethod = psiMethod,

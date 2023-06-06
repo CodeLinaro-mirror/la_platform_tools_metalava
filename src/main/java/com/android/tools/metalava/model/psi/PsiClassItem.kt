@@ -469,10 +469,20 @@ open class PsiClassItem(
                 !hasExplicitRetention(modifiers, psiClass, isKotlin)
             ) {
                 // By policy, include explicit retention policy annotation if missing
+                val defaultRetentionPolicy = AnnotationRetention.getDefault(isKotlin)
                 modifiers.addAnnotation(
                     codebase.createAnnotation(
-                        "@java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS)",
-                        item, false
+                        buildString {
+                            append('@')
+                            append(java.lang.annotation.Retention::class.qualifiedName)
+                            append('(')
+                            append(java.lang.annotation.RetentionPolicy::class.qualifiedName)
+                            append('.')
+                            append(defaultRetentionPolicy.name)
+                            append(')')
+                        },
+                        item,
+                        false
                     )
                 )
             }
@@ -484,6 +494,18 @@ open class PsiClassItem(
             for (psiMethod in psiMethods) {
                 if (psiMethod.isConstructor) {
                     val constructor = PsiConstructorItem.create(codebase, item, psiMethod)
+                    // After KT-13495, "all constructors of `sealed` classes now have `protected`
+                    // visibility by default," and (S|U)LC follows that (hence the same in UAST).
+                    // However, that change was made to allow more flexible class hierarchy and
+                    // nesting. If they're compiled to JVM bytecode, sealed class's ctor is still
+                    // technically `private` to block instantiation from outside class hierarchy.
+                    // Another synthetic constructor, along with an internal ctor marker, is added
+                    // for subclasses of a sealed class. Therefore, from Metalava's perspective,
+                    // it is not necessary to track such semantically protected ctor. Here we force
+                    // set the visibility to `private` back to ignore it during signature writing.
+                    if (item.modifiers.isSealed()) {
+                        constructor.modifiers.setVisibilityLevel(VisibilityLevel.PRIVATE)
+                    }
                     if (constructor.areAllParametersOptional()) {
                         if (constructor.parameters().count() > 0) {
                             constructors.add(constructor)

@@ -16,15 +16,15 @@
 
 package com.android.tools.metalava
 
-import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.text.ApiFile
 import com.android.tools.metalava.model.text.ApiParseException
+import com.android.tools.metalava.model.text.TextCodebase
 import java.io.File
 
 object SignatureFileLoader {
-    private val map = mutableMapOf<File, Codebase>()
+    private val map = mutableMapOf<File, TextCodebase>()
 
-    fun load(file: File, kotlinStyleNulls: Boolean = false): Codebase {
+    fun load(file: File, kotlinStyleNulls: Boolean = false): TextCodebase {
         return map[file] ?: run {
             val loaded = loadFiles(listOf(file), kotlinStyleNulls)
             map[file] = loaded
@@ -32,16 +32,21 @@ object SignatureFileLoader {
         }
     }
 
-    fun loadFiles(files: List<File>, kotlinStyleNulls: Boolean = false): Codebase {
+    fun loadFiles(files: List<File>, kotlinStyleNulls: Boolean = false): TextCodebase {
         require(files.isNotEmpty()) { "files must not be empty" }
 
         try {
             val codebase = ApiFile.parseApi(files, kotlinStyleNulls)
 
-            // Unlike loadFromSources, analyzer methods are not required for text based codebase
-            // because all methods in the API text file belong to an API surface.
-            val analyzer = ApiAnalyzer(codebase)
-            analyzer.addConstructors { _ -> true }
+            // Only add constructors if the codebase does not fall back to loading classes from the
+            // classpath. This is needed because only the TextCodebase supports adding constructors
+            // in this way.
+            if (options.apiClassResolution == Options.ApiClassResolution.API) {
+                // Unlike loadFromSources, analyzer methods are not required for text based codebase
+                // because all methods in the API text file belong to an API surface.
+                val analyzer = ApiAnalyzer(codebase)
+                analyzer.addConstructors { _ -> true }
+            }
             return codebase
         } catch (ex: ApiParseException) {
             throw DriverException("Unable to parse signature file: ${ex.message}")

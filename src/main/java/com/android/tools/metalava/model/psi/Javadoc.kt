@@ -93,7 +93,6 @@ fun mergeDocumentation(
     tagSection: String?,
     append: Boolean
 ): String {
-
     if (existingDoc.isBlank()) {
         // There's no existing comment: Create a new one. This is easy.
         val content = when {

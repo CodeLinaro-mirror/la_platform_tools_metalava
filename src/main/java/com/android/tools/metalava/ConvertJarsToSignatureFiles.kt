@@ -157,9 +157,7 @@ class ConvertJarsToSignatureFiles {
                             try {
                                 jar.getInputStream(entry).use { `is` ->
                                     val bytes = ByteStreams.toByteArray(`is`)
-                                    if (bytes != null) {
-                                        markDeprecated(codebase, bytes, path + ":" + entry.name)
-                                    }
+                                    markDeprecated(codebase, bytes, path + ":" + entry.name)
                                 }
                             } catch (e: Exception) {
                                 options.stdout.println("Could not read jar file entry ${entry.name} from $file: $e")

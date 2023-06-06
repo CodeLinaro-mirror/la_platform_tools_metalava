@@ -33,6 +33,7 @@ import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.configuration
 import com.android.tools.metalava.model.psi.PsiItem
 import com.android.tools.metalava.model.text.TextCodebase
+import com.android.tools.metalava.model.text.classpath.TextCodebaseWithClasspath
 import com.intellij.psi.PsiField
 import java.io.File
 import java.util.function.Predicate
@@ -67,6 +68,7 @@ class CompatibilityCheck(
         }
     }
 
+    val oldFormat = (oldCodebase as? TextCodebase)?.format ?: (oldCodebase as? TextCodebaseWithClasspath)?.format
     /** In old signature files, methods inherited from hidden super classes
      * are not included. An example of this is StringBuilder.setLength.
      * More details about this are listed in Compatibility.skipInheritedMethods.
@@ -74,7 +76,7 @@ class CompatibilityCheck(
      * so in these cases we want to ignore certain changes such as considering
      * StringBuilder.setLength a newly added method.
      */
-    private val comparingWithPartialSignatures = oldCodebase is TextCodebase && oldCodebase.format == FileFormat.V1
+    private val comparingWithPartialSignatures = oldFormat == FileFormat.V1
 
     var foundProblems = false
 
@@ -166,6 +168,14 @@ class CompatibilityCheck(
                 Issues.INFIX_REMOVAL,
                 new,
                 "Cannot remove `infix` modifier from ${describe(new)}: Incompatible change"
+            )
+        }
+
+        if (!old.isCompatibilitySuppressed() && new.isCompatibilitySuppressed()) {
+            report(
+                Issues.BECAME_UNCHECKED,
+                old,
+                "Removed ${describe(old)} from compatibility checked API surface"
             )
         }
 
@@ -825,7 +835,7 @@ class CompatibilityCheck(
         }
 
         // In old signature files, annotation methods are missing! This will show up as an added method.
-        if (new.containingClass().isAnnotationType() && oldCodebase is TextCodebase && oldCodebase.format == FileFormat.V1) {
+        if (new.containingClass().isAnnotationType() && comparingWithPartialSignatures) {
             return
         }
 
@@ -835,6 +845,14 @@ class CompatibilityCheck(
         // Annotation types cannot implement other interfaces, however, so it is permitted to add
         // add new default methods to annotation types.
         if (new.containingClass().isAnnotationType() && new.hasDefaultValue()) {
+            return
+        }
+
+        // It is ok to add a new abstract method to a class that has no public constructors
+        if (new.containingClass().isClass() &&
+            !new.containingClass().constructors().any { it.isPublic && !it.hidden } &&
+            new.modifiers.isAbstract()
+        ) {
             return
         }
 
@@ -920,6 +938,12 @@ class CompatibilityCheck(
         item: Item,
         message: String
     ) {
+        if (item.isCompatibilitySuppressed()) {
+            // Long-term, we should consider allowing meta-annotations to specify a different
+            // `configuration` so it can use a separate set of severities. For now, though, we'll
+            // treat all issues for all unchecked items as `Severity.IGNORE`.
+            return
+        }
         if (reporter.report(issue, item, message) && configuration.getSeverity(issue) == Severity.ERROR) {
             foundProblems = true
         }

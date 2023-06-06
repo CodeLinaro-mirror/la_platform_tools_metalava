@@ -83,6 +83,16 @@ public class Api extends ApiElement {
         return mClasses.get(name);
     }
 
+    /**
+     * Cleans up the API surface for printing after all elements have been added.
+     */
+    public void clean() {
+        inlineFromHiddenSuperClasses();
+        removeImplicitInterfaces();
+        removeOverridingMethods();
+        prunePackagePrivateClasses();
+    }
+
     public Collection<ApiClass> getClasses() {
         return Collections.unmodifiableCollection(mClasses.values());
     }

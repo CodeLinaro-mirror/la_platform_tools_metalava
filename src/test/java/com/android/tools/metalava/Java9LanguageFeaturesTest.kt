@@ -53,47 +53,6 @@ class Java9LanguageFeaturesTest : DriverTest() {
     }
 
     @Test
-    fun `Kotlin language level`() {
-        // See https://kotlinlang.org/docs/reference/whatsnew13.html
-        check(
-            format = FileFormat.V1,
-            sourceFiles = arrayOf(
-                kotlin(
-                    """
-                    package test.pkg
-                    interface Foo {
-                        companion object {
-                            @JvmField
-                            const val answer: Int = 42
-                            @JvmStatic
-                            fun sayHello() {
-                                println("Hello, world!")
-                            }
-                        }
-                    }
-                    """
-                )
-            ),
-            api =
-            """
-                package test.pkg {
-                  public interface Foo {
-                    method public default static void sayHello();
-                    field @NonNull public static final test.pkg.Foo.Companion Companion;
-                    field public static final int answer = 42; // 0x2a
-                  }
-                  public static final class Foo.Companion {
-                    method public void sayHello();
-                  }
-                }
-                """,
-            // The above source uses 1.3 features, though UAST currently
-            // seems to still treat it as 1.3 despite being passed 1.2
-            extraArguments = arrayOf(ARG_KOTLIN_SOURCE, "1.2")
-        )
-    }
-
-    @Test
     fun `Basic class signature extraction`() {
         // Basic class; also checks that default constructor is made explicit
         check(

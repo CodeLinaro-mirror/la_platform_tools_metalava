@@ -45,6 +45,7 @@ import com.intellij.psi.PsiWildcardType.EXTENDS_PREFIX
 import com.intellij.psi.PsiWildcardType.SUPER_PREFIX
 import com.intellij.psi.impl.PsiImplUtil
 import com.intellij.psi.impl.compiled.ClsJavaCodeReferenceElementImpl
+import com.intellij.psi.impl.light.LightClassReference
 import com.intellij.psi.impl.source.PsiClassReferenceType
 import com.intellij.psi.impl.source.PsiImmediateClassType
 import com.intellij.psi.impl.source.PsiJavaCodeReferenceElementImpl
@@ -97,9 +98,8 @@ class PsiTypePrinter(
         list: List<PsiAnnotation>?,
         buffer: StringBuilder,
         elementAnnotations: List<AnnotationItem>?
-
     ) {
-        val nullable: Boolean? = getNullable(list, elementAnnotations)
+        val nullable = getNullable(list, elementAnnotations)
         appendNullnessSuffix(nullable, buffer) // else: not null: no suffix
     }
 
@@ -284,7 +284,16 @@ class PsiTypePrinter(
                     kotlinStyleNulls
                 )
                 else -> // Unexpected implementation: fallback
-                    return reference.getCanonicalText(true, if (annotations.isEmpty()) null else annotations)
+                    return reference.getCanonicalText(true, annotations.takeIf { it.isNotEmpty() })
+            }
+        }
+        // [PsiType] created with an irregular owner, e.g., a fake LC in UAST, may end up with
+        // a raw format of class reference like [LightClassReference].
+        // But, only if we have an extra nullability hint.
+        if (elementAnnotations != null && reference is LightClassReference) {
+            return buildString {
+                append(reference.canonicalText)
+                appendNullnessSuffix(getNullable(emptyList(), elementAnnotations), this)
             }
         }
         return reference.canonicalText

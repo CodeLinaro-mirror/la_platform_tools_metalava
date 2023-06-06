@@ -1525,7 +1525,12 @@ class DocAnalyzerTest : DriverTest() {
                         <method name="&lt;init>()V"/>
                         <field name="UNIT_TEST_1"/>
                         <field name="UNIT_TEST_2" since="2" sdks="1000000:3,31:3,33:3,0:2"/>
-                        <field name="UNIT_TEST_3" since="31" sdks="1000000:4"/>
+                        <!--
+                         ! TODO(b/283062196) - This relies on an api-versions.xml structure that is
+                         !     not yet created. If the resolution of this bug is to not support this
+                         !     structure then this test will need updating.
+                         !-->
+                        <field name="UNIT_TEST_3" since="31" sdks="1000000:4,0:31"/>
                     </class>
                     <class name="android/pkg/Test${'$'}Inner" since="1" sdks="0:1,30:2,31:2,33:2">
                         <method name="&lt;init>()V"/>

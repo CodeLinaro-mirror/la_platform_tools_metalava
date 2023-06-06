@@ -22,16 +22,20 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ModifierList
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
+import com.android.tools.metalava.model.psi.PsiModifierItem.Companion.NOT_NULL
+import com.android.tools.metalava.model.psi.PsiModifierItem.Companion.NULLABLE
 import com.intellij.psi.PsiAnnotationMethod
-import com.intellij.psi.PsiArrayType
 import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiMethod
+import com.intellij.psi.PsiType
 import com.intellij.psi.util.PsiTypesUtil
 import org.intellij.lang.annotations.Language
 import org.jetbrains.kotlin.psi.KtNamedFunction
 import org.jetbrains.kotlin.psi.KtParameter
 import org.jetbrains.kotlin.psi.KtProperty
 import org.jetbrains.kotlin.psi.KtPropertyAccessor
+import org.jetbrains.kotlin.types.typeUtil.TypeNullability
+import org.jetbrains.uast.UAnnotation
 import org.jetbrains.uast.UAnnotationMethod
 import org.jetbrains.uast.UClass
 import org.jetbrains.uast.UElement
@@ -39,13 +43,15 @@ import org.jetbrains.uast.UMethod
 import org.jetbrains.uast.UThrowExpression
 import org.jetbrains.uast.UTryExpression
 import org.jetbrains.uast.getParentOfType
+import org.jetbrains.uast.kotlin.KotlinUMethodWithFakeLightDelegate
+import org.jetbrains.uast.toUElement
 import org.jetbrains.uast.visitor.AbstractUastVisitor
 import java.io.StringWriter
 
 open class PsiMethodItem(
     override val codebase: PsiBasedCodebase,
     val psiMethod: PsiMethod,
-    private val containingClass: PsiClassItem,
+    private val containingClass: ClassItem,
     private val name: String,
     modifiers: PsiModifierItem,
     documentation: String,
@@ -81,7 +87,7 @@ open class PsiMethodItem(
     override var property: PsiPropertyItem? = null
 
     override fun name(): String = name
-    override fun containingClass(): PsiClassItem = containingClass
+    override fun containingClass(): ClassItem = containingClass
 
     override fun equals(other: Any?): Boolean {
         // TODO: Allow mix and matching with other MethodItems?
@@ -253,7 +259,7 @@ open class PsiMethodItem(
     }
 
     override fun duplicate(targetContainingClass: ClassItem): PsiMethodItem {
-        val duplicated = create(codebase, targetContainingClass as PsiClassItem, psiMethod)
+        val duplicated = create(codebase, targetContainingClass, psiMethod)
 
         duplicated.inheritedFrom = containingClass
 
@@ -368,11 +374,29 @@ open class PsiMethodItem(
     companion object {
         fun create(
             codebase: PsiBasedCodebase,
-            containingClass: PsiClassItem,
+            containingClass: ClassItem,
             psiMethod: PsiMethod
         ): PsiMethodItem {
             assert(!psiMethod.isConstructor)
-            val name = psiMethod.name
+            // UAST workaround: @JvmName for UMethod with fake LC PSI
+            // TODO: https://youtrack.jetbrains.com/issue/KTIJ-25133
+            val name = if (psiMethod is KotlinUMethodWithFakeLightDelegate) {
+                psiMethod.sourcePsi?.annotationEntries?.find { annoEntry ->
+                    val text = annoEntry.typeReference?.text ?: return@find false
+                    JvmName::class.qualifiedName?.contains(text) == true
+                }?.toUElement(UAnnotation::class.java)
+                    ?.takeIf {
+                        // Above `find` deliberately avoids resolution and uses verbatim text.
+                        // Below, we need annotation value anyway, but just double-check
+                        // if the converted annotation is indeed the resolved @JvmName
+                        it.qualifiedName == JvmName::class.qualifiedName
+                    }
+                    ?.findAttributeValue("name")
+                    ?.evaluate() as? String
+                    ?: psiMethod.name
+            } else {
+                psiMethod.name
+            }
             val commentText = javadoc(psiMethod)
             val modifiers = modifiers(codebase, psiMethod, commentText)
             if (modifiers.isFinal() && containingClass.modifiers.isFinal()) {
@@ -383,18 +407,7 @@ open class PsiMethodItem(
                 modifiers.setFinal(false)
             }
             val parameters = parameterList(codebase, psiMethod)
-            var psiReturnType = psiMethod.returnType
-
-            // UAST workaround: the enum synthetic methods are sometimes missing return types,
-            // see https://youtrack.jetbrains.com/issue/KT-39560
-            if (psiReturnType == null && containingClass.isEnum()) {
-                if (name == "valueOf") {
-                    psiReturnType = codebase.getClassType(containingClass.psiClass)
-                } else if (name == "values") {
-                    psiReturnType = PsiArrayType(codebase.getClassType(containingClass.psiClass))
-                }
-            }
-
+            val psiReturnType = psiMethod.returnType
             val returnType = codebase.getType(psiReturnType!!)
             val method = PsiMethodItem(
                 codebase = codebase,
@@ -407,6 +420,31 @@ open class PsiMethodItem(
                 parameters = parameters
             )
             method.modifiers.setOwner(method)
+
+            // UAST workaround: nullability annotation for UMethod with fake LC PSI
+            // See https://youtrack.jetbrains.com/issue/KTIJ-23807
+            // We will be informed when the fix is ready, since use of [TypeNullability] will break
+            // as per https://youtrack.jetbrains.com/issue/KTIJ-23603
+            if (psiMethod is KotlinUMethodWithFakeLightDelegate) {
+                val isUnitFunction = psiMethod.returnType == PsiType.VOID
+                if (!isUnitFunction) {
+                    // Alas, this [nullability] misses the nullability for an implicit return type.
+                    // Fixed together with KTIJ-23603, but no easy workaround for now.
+                    when (psiMethod.baseResolveProviderService.nullability(psiMethod.original)) {
+                        TypeNullability.NOT_NULL -> {
+                            modifiers.addAnnotation(
+                                codebase.createAnnotation("@$NOT_NULL", method, mapName = false)
+                            )
+                        }
+                        TypeNullability.NULLABLE -> {
+                            modifiers.addAnnotation(
+                                codebase.createAnnotation("@$NULLABLE", method, mapName = false)
+                            )
+                        }
+                        else -> {}
+                    }
+                }
+            }
             return method
         }
 

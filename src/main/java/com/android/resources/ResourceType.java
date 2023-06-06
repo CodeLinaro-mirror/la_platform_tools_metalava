@@ -78,6 +78,13 @@ public enum ResourceType {
     AAPT("_aapt", "Aapt Attribute", Kind.SYNTHETIC),
 
     /**
+     * This tag is used for marking a resource overlayable, i.e. that it can be overlaid at runtime
+     * by RROs (Runtime Resource Overlays). This is a new feature supported starting Android 10.
+     * This tag (and the content following it in that node) does not define a resource.
+     */
+    OVERLAYABLE("overlayable", "Overlayable tag", Kind.SYNTHETIC),
+
+    /**
      * Represents item tags inside a style definition.
      */
     STYLE_ITEM("item", "Style Item", Kind.SYNTHETIC),
@@ -87,6 +94,13 @@ public enum ResourceType {
      * namespace
      */
     SAMPLE_DATA("sample", "Sample data", Kind.SYNTHETIC),
+
+    /**
+     * Not a real resource, but a way of defining a resource reference that will be replaced with
+     * its actual value during linking. Does not exist at runtime, nor does it appear in the R
+     * class. Only present in raw and flat resources.
+     */
+    MACRO("macro", "Macro resource replacement", Kind.SYNTHETIC),
     ;
 
     private enum Kind {
@@ -144,6 +158,8 @@ public enum ResourceType {
         ImmutableMap.Builder<String, ResourceType> tagNames = ImmutableMap.builder();
         tagNames.put(SdkConstants.TAG_DECLARE_STYLEABLE, STYLEABLE);
         tagNames.put(SdkConstants.TAG_PUBLIC, PUBLIC);
+        tagNames.put(OVERLAYABLE.getName(), OVERLAYABLE);
+        tagNames.put(MACRO.getName(), MACRO);
 
         ImmutableMap.Builder<String, ResourceType> classNames = ImmutableMap.builder();
         classNames.put(STYLEABLE.mName, STYLEABLE);
@@ -229,6 +245,13 @@ public enum ResourceType {
             return SAMPLE_DATA;
         }
 
+        if (xmlValue.equals(OVERLAYABLE.mName)) {
+            return OVERLAYABLE;
+        }
+
+        if (xmlValue.equals(MACRO.mName)) {
+            return MACRO;
+        }
         return CLASS_NAMES.get(xmlValue);
     }
 

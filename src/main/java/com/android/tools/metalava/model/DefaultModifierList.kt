@@ -23,6 +23,8 @@ open class DefaultModifierList(
 ) : MutableModifierList {
     private lateinit var owner: Item
 
+    private var isComputingSuppressCompatibilityMetaAnnotations: Boolean = false
+
     private operator fun set(mask: Int, set: Boolean) {
         flags = if (set) {
             flags or mask
@@ -45,6 +47,15 @@ open class DefaultModifierList(
 
     fun setOwner(owner: Item) {
         this.owner = owner
+
+        if (owner.hasInheritedGenericType()) {
+            // https://youtrack.jetbrains.com/issue/KTIJ-19087
+            // Incorrect nullness annotation was added to generic parameter
+            // whose nullability is determined at subclass declaration site.
+            annotations?.removeIf {
+                it.isNullnessAnnotation()
+            }
+        }
     }
 
     override fun getVisibilityLevel(): VisibilityLevel {
@@ -251,6 +262,20 @@ open class DefaultModifierList(
 
     override fun clearAnnotations(annotation: AnnotationItem) {
         annotations?.clear()
+    }
+
+    override fun hasSuppressCompatibilityMetaAnnotations(): Boolean {
+        if (isComputingSuppressCompatibilityMetaAnnotations) {
+            // Re-entrant call, abort.
+            return false
+        }
+        val result = try {
+            isComputingSuppressCompatibilityMetaAnnotations = true
+            super.hasSuppressCompatibilityMetaAnnotations()
+        } finally {
+            isComputingSuppressCompatibilityMetaAnnotations = false
+        }
+        return result
     }
 
     override fun isEmpty(): Boolean {

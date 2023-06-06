@@ -21,8 +21,8 @@ import org.junit.Test
 
 class BinaryCompatibilityInterfaceMethodsTest : DriverTest() {
 
-    @Test
     // Note: This is reversed from the eclipse wiki because of kotlin named parameters
+    @Test
     fun `Change formal parameter name (Incompatible)`() {
         check(
             expectedIssues = """
@@ -479,11 +479,11 @@ class BinaryCompatibilityInterfaceMethodsTest : DriverTest() {
         )
     }
 
-    @Test
     /**
      * Note: While this is technically binary compatible, it's bad API design to allow.
      * Thus, we continue to flag this as an error.
      */
+    @Test
     fun `Change default clause on annotation type element (Incompatible)`() {
         check(
             expectedIssues = """

@@ -24,6 +24,7 @@ import com.android.tools.metalava.JAVA_LANG_ANNOTATION
 import com.android.tools.metalava.JAVA_LANG_ENUM
 import com.android.tools.metalava.JAVA_LANG_OBJECT
 import com.android.tools.metalava.JAVA_LANG_THROWABLE
+import com.android.tools.metalava.Options
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
@@ -37,8 +38,10 @@ import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PackageList
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.TypeParameterList
+import com.android.tools.metalava.model.text.classpath.WrappedClassItem
 import com.android.tools.metalava.model.visitors.ItemVisitor
 import com.android.tools.metalava.model.visitors.TypeVisitor
+import com.android.tools.metalava.options
 import java.io.File
 import java.util.ArrayList
 import java.util.HashMap
@@ -58,6 +61,15 @@ class TextCodebase(location: File) : DefaultCodebase(location) {
     private val mAllClasses = HashMap<String, TextClassItem>(30000)
     private val mClassToSuper = HashMap<TextClassItem, String>(30000)
     private val mClassToInterface = HashMap<TextClassItem, ArrayList<String>>(10000)
+
+    // Classes which are not part of the API surface but are referenced by other classes.
+    // These are initialized as wrapped empty stubs, but may be switched out for PSI classes.
+    val wrappedStubClasses = HashMap<String, WrappedClassItem>()
+
+    /**
+     * True if [getOrCreateClass] should add [WrapperClassItem]s around unknown classes.
+     */
+    val addWrappersForUnknownClasses = options.apiClassResolution == Options.ApiClassResolution.API_CLASSPATH
 
     override var description = "Codebase"
     override var preFiltered: Boolean = true
@@ -162,9 +174,9 @@ class TextCodebase(location: File) : DefaultCodebase(location) {
         val methodInfo = methodItem as TextMethodItem
         val names = methodInfo.throwsTypeNames()
         if (names.isNotEmpty()) {
-            val result = ArrayList<TextClassItem>()
+            val result = ArrayList<ClassItem>()
             for (exception in names) {
-                var exceptionClass: TextClassItem? = mAllClasses[exception]
+                var exceptionClass: ClassItem? = mAllClasses[exception]
                 if (exceptionClass == null) {
                     // Exception not provided by this codebase. Inject a stub.
                     exceptionClass = getOrCreateClass(exception)
@@ -187,6 +199,8 @@ class TextCodebase(location: File) : DefaultCodebase(location) {
             // make copy: we'll be removing non-top level classes during iteration
             val classes = ArrayList(pkg.classList())
             for (cls in classes) {
+                // WrappedClassItems which are inner classes are resolved when they're created
+                if (cls is WrappedClassItem) continue
                 val cl = cls as TextClassItem
                 val name = cl.name
                 var index = name.lastIndexOf('.')
@@ -196,7 +210,10 @@ class TextCodebase(location: File) : DefaultCodebase(location) {
                     index = qualifiedName.lastIndexOf('.')
                     assert(index != -1) { qualifiedName }
                     val outerClassName = qualifiedName.substring(0, index)
-                    val outerClass = getOrCreateClass(outerClassName)
+                    // If the outer class doesn't exist in the text codebase, it should not be resolved
+                    // through the classpath--if it did exist there, this inner class would be overridden
+                    // by the version from the classpath.
+                    val outerClass = getOrCreateClass(outerClassName, canBeFromClasspath = false)
                     cl.containingClass = outerClass
                     outerClass.addInnerClass(cl)
                 }
@@ -208,22 +225,125 @@ class TextCodebase(location: File) : DefaultCodebase(location) {
         }
     }
 
+    /**
+     * Add abstract superclass abstract methods to non-abstract class
+     * when generating from-text stubs.
+     * Iterate through the hierarchy and collect all super abstract methods that need to be added.
+     * These are not included in the signature files but omitting these methods
+     * will lead to compile error.
+     */
+    private fun resolveAbstractMethods(allClasses: List<TextClassItem>) {
+        for (cl in allClasses) {
+            // If class is interface, naively iterate through all parent class and interfaces
+            // and resolve inheritance of override equivalent signatures
+            // Find intersection of super class/interface default methods
+            // Resolve conflict by adding signature
+            // https://docs.oracle.com/javase/specs/jls/se8/html/jls-9.html#jls-9.4.1.3
+            if (cl.isInterface()) {
+                // We only need to track one method item(value) with the signature(key),
+                // since the containing class does not matter if a method to be added is found
+                // as method.duplicate(cl) sets containing class to cl.
+                // Therefore, the value of methodMap can be overwritten.
+                val methodMap = mutableMapOf<String, TextMethodItem>()
+                val methodCount = mutableMapOf<String, Int>()
+                val hasDefault = mutableMapOf<String, Boolean>()
+                for (superInterfaceOrClass in cl.getParentAndInterfaces()) {
+                    val methods = superInterfaceOrClass.methods().map { it as TextMethodItem }
+                    for (method in methods) {
+                        val signature = method.toSignatureString()
+                        val isDefault = method.modifiers.isDefault()
+                        val newCount = methodCount.getOrDefault(signature, 0) + 1
+                        val newHasDefault = hasDefault.getOrDefault(signature, false) || isDefault
+
+                        methodMap[signature] = method
+                        methodCount[signature] = newCount
+                        hasDefault[signature] = newHasDefault
+
+                        // If the method has appeared more than once, there may be a potential conflict
+                        // thus add the method to the interface
+                        if (newHasDefault && newCount == 2 &&
+                            !cl.containsMethodInClassContext(method)
+                        ) {
+                            val m = method.duplicate(cl) as TextMethodItem
+                            m.modifiers.setAbstract(true)
+                            m.modifiers.setDefault(false)
+                            cl.addMethod(m)
+                        }
+                    }
+                }
+            }
+
+            // If class is a concrete class, iterate through all hierarchy and
+            // find all missing abstract methods.
+            // Only add methods that are not implemented in the hierarchy and not included
+            else if (!cl.isAbstractClass() && !cl.isEnum()) {
+                val superMethodsToBeOverridden = mutableListOf<TextMethodItem>()
+                val hierarchyClassesList = cl.getAllSuperClassesAndInterfaces().toMutableList()
+                while (hierarchyClassesList.isNotEmpty()) {
+                    val ancestorClass = hierarchyClassesList.removeLast()
+                    val abstractMethods = ancestorClass.methods().filter { it.modifiers.isAbstract() }
+                    for (method in abstractMethods) {
+                        // We do not compare this against all ancestors of cl,
+                        // because an abstract method cannot be overridden at its ancestor class.
+                        // Thus, we compare against hierarchyClassesList.
+                        if (hierarchyClassesList.all { !it.containsMethodInClassContext(method) } &&
+                            !cl.containsMethodInClassContext(method)
+                        ) {
+                            superMethodsToBeOverridden.add(method as TextMethodItem)
+                        }
+                    }
+                }
+                for (superMethod in superMethodsToBeOverridden) {
+                    // MethodItem.duplicate() sets the containing class of
+                    // the duplicated method item as the input parameter.
+                    // Thus, the method items to be overridden are duplicated here after the
+                    // ancestor classes iteration so that the method items are correctly compared.
+                    val m = superMethod.duplicate(cl) as TextMethodItem
+                    m.modifiers.setAbstract(false)
+                    cl.addMethod(m)
+                }
+            }
+        }
+    }
+
     fun registerClass(cls: TextClassItem) {
         mAllClasses[cls.qualifiedName] = cls
     }
 
-    fun getOrCreateClass(name: String, isInterface: Boolean = false): TextClassItem {
+    /**
+     * Tries to find [name] in [mAllClasses]. If not found, creates an empty stub class (or interface,
+     * if [isInterface] is true). If [canBeFromClasspath] is true, creates a [WrappedClassItem] with
+     * the stub class inside, which might later be switched out for a PSI class. Otherwise, just
+     * uses the stub class.
+     *
+     * Initializes outer classes and packages for the created class as needed.
+     */
+    fun getOrCreateClass(
+        name: String,
+        isInterface: Boolean = false,
+        canBeFromClasspath: Boolean = addWrappersForUnknownClasses,
+    ): ClassItem {
         val erased = TextTypeItem.eraseTypeArguments(name)
-        val cls = mAllClasses[erased]
+        val cls = mAllClasses[erased] ?: wrappedStubClasses[erased]
         if (cls != null) {
             return cls
         }
-        val newClass = if (isInterface) {
+
+        val stubClass = if (isInterface) {
             TextClassItem.createInterfaceStub(this, name)
         } else {
             TextClassItem.createClassStub(this, name)
         }
-        mAllClasses[erased] = newClass
+
+        // If needed, wrap the class. Add the new class to the appropriate set
+        val newClass = if (canBeFromClasspath) {
+            val wrappedClass = WrappedClassItem(stubClass)
+            wrappedStubClasses[erased] = wrappedClass
+            wrappedClass
+        } else {
+            mAllClasses[erased] = stubClass
+            stubClass
+        }
         newClass.emit = false
 
         val fullName = newClass.fullName()
@@ -231,8 +351,8 @@ class TextCodebase(location: File) : DefaultCodebase(location) {
             // We created a new inner class stub. We need to fully initialize it with outer classes, themselves
             // possibly stubs
             val outerName = erased.substring(0, erased.lastIndexOf('.'))
-            val outerClass = getOrCreateClass(outerName, false)
-            newClass.containingClass = outerClass
+            val outerClass = getOrCreateClass(outerName, isInterface = false, canBeFromClasspath = canBeFromClasspath)
+            stubClass.containingClass = outerClass
             outerClass.addInnerClass(newClass)
         } else {
             // Add to package
@@ -249,7 +369,7 @@ class TextCodebase(location: File) : DefaultCodebase(location) {
                 newPkg.emit = false
                 newPkg
             }
-            newClass.setContainingPackage(pkg)
+            stubClass.setContainingPackage(pkg)
             pkg.addClass(newClass)
         }
 
@@ -263,6 +383,13 @@ class TextCodebase(location: File) : DefaultCodebase(location) {
         resolveInterfaces(classes)
         resolveThrowsClasses(classes)
         resolveInnerClasses(packages)
+
+        // Add overridden methods to the codebase only when the codebase is generated
+        // from text file passed via --source-files and it does not fallback to loading classes from
+        // the classpath.
+        if (options.apiClassResolution == Options.ApiClassResolution.API && this.location in options.sources) {
+            resolveAbstractMethods(classes)
+        }
     }
 
     override fun findPackage(pkgName: String): TextPackageItem? {

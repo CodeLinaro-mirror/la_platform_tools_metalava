@@ -114,7 +114,6 @@ abstract class DriverTest {
     }
 
     protected fun runDriver(vararg args: String, expectedFail: String = ""): String {
-
         resetTicker()
 
         // Capture the actual input and output from System.out/err and compare it
@@ -291,6 +290,7 @@ abstract class DriverTest {
         /** Optional API signature files content to load **instead** of Java/Kotlin source files */
         @Language("TEXT")
         signatureSources: Array<String> = emptyArray(),
+        apiClassResolution: Options.ApiClassResolution = Options.ApiClassResolution.API,
         /**
          * An optional API signature file content to load **instead** of Java/Kotlin source files.
          * This is added to [signatureSources]. This argument exists for backward compatibility.
@@ -321,6 +321,8 @@ abstract class DriverTest {
         hideAnnotations: Array<String> = emptyArray(),
         /** Hide meta-annotations (--hide-meta-annotation arguments) */
         hideMetaAnnotations: Array<String> = emptyArray(),
+        /** No compat check meta-annotations (--no-compat-check-meta-annotation arguments) */
+        suppressCompatibilityMetaAnnotations: Array<String> = emptyArray(),
         /** If using [showAnnotations], whether to include unannotated */
         showUnannotated: Boolean = false,
         /** Additional arguments to supply */
@@ -454,6 +456,10 @@ abstract class DriverTest {
         if (sourceFiles.any { it.targetPath.startsWith("src2") }) {
             sourcePath = sourcePath + File.pathSeparator + sourcePath + "2"
         }
+
+        val apiClassResolutionArgs = arrayOf(
+            ARG_API_CLASS_RESOLUTION, apiClassResolution.optionValue
+        )
 
         val sourceList =
             if (signatureSources.isNotEmpty() || signatureSource != null) {
@@ -712,6 +718,18 @@ abstract class DriverTest {
         } else {
             emptyArray()
         }
+
+        val suppressCompatMetaAnnotationArguments =
+            if (suppressCompatibilityMetaAnnotations.isNotEmpty()) {
+                val args = mutableListOf<String>()
+                for (annotation in suppressCompatibilityMetaAnnotations) {
+                    args.add(ARG_SUPPRESS_COMPATIBILITY_META_ANNOTATION)
+                    args.add(annotation)
+                }
+                args.toTypedArray()
+            } else {
+                emptyArray()
+            }
 
         val showUnannotatedArgs =
             if (showUnannotated) {
@@ -1011,6 +1029,7 @@ abstract class DriverTest {
             *showAnnotationArguments,
             *hideAnnotationArguments,
             *hideMetaAnnotationArguments,
+            *suppressCompatMetaAnnotationArguments,
             *showForStubPurposesAnnotationArguments,
             *showUnannotatedArgs,
             *apiLintArgs,
@@ -1021,6 +1040,7 @@ abstract class DriverTest {
             *validateNullabilityArgs,
             *validateNullabilityFromListArgs,
             format.outputFlag(),
+            *apiClassResolutionArgs,
             *sourceList,
             *extraArguments,
             *errorMessageApiLintArgs,

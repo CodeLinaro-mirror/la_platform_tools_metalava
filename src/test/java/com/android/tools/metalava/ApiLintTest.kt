@@ -1469,6 +1469,141 @@ class ApiLintTest : DriverTest() {
     }
 
     @Test
+    fun `Check boolean property accessor naming patterns in Kotlin`() {
+        check(
+            apiLint = "", // enabled
+            expectedIssues = """
+                    src/android/pkg/MyClass.kt:19: error: Invalid name for boolean property `visibleBad`. Should start with one of `has`, `can`, `should`, `is`. [GetterSetterNames]
+                    src/android/pkg/MyClass.kt:22: error: Invalid name for boolean property setter `setIsVisibleBad`, should be `setVisibleSetterBad`. [GetterSetterNames]
+                    src/android/pkg/MyClass.kt:25: error: Invalid name for boolean property `transientStateBad`. Should start with one of `has`, `can`, `should`, `is`. [GetterSetterNames]
+                    src/android/pkg/MyClass.kt:27: error: Invalid prefix `isHas` for boolean property `isHasTransientStateAlsoBad`. [GetterSetterNames]
+                    src/android/pkg/MyClass.kt:29: error: Invalid prefix `isCan` for boolean property `isCanRecordBad`. [GetterSetterNames]
+                    src/android/pkg/MyClass.kt:31: error: Invalid prefix `isShould` for boolean property `isShouldFitWidthBad`. [GetterSetterNames]
+                    src/android/pkg/MyClass.kt:33: error: Invalid name for boolean property `wiFiRoamingSettingEnabledBad`. Should start with one of `has`, `can`, `should`, `is`. [GetterSetterNames]
+                    src/android/pkg/MyClass.kt:35: error: Invalid name for boolean property `enabledBad`. Should start with one of `has`, `can`, `should`, `is`. [GetterSetterNames]
+                    src/android/pkg/MyClass.kt:37: error: Getter for boolean property `hasTransientStateGetterBad` is named `getHasTransientStateGetterBad` but should match the property name. Use `@get:JvmName` to rename. [GetterSetterNames]
+                    src/android/pkg/MyClass.kt:39: error: Getter for boolean property `canRecordGetterBad` is named `getCanRecordGetterBad` but should match the property name. Use `@get:JvmName` to rename. [GetterSetterNames]
+                    src/android/pkg/MyClass.kt:41: error: Getter for boolean property `shouldFitWidthGetterBad` is named `getShouldFitWidthGetterBad` but should match the property name. Use `@get:JvmName` to rename. [GetterSetterNames]
+            """,
+            expectedFail = DefaultLintErrorMessage,
+            sourceFiles = arrayOf(
+                kotlin(
+                    """
+                    package android.pkg
+
+                    class MyClass {
+                        // Correct
+                        var isVisible: Boolean = false
+
+                        @get:JvmName("hasTransientState")
+                        var hasTransientState: Boolean = false
+
+                        @get:JvmName("canRecord")
+                        var canRecord: Boolean = false
+
+                        @get:JvmName("shouldFitWidth")
+                        var shouldFitWidth: Boolean = false
+
+                        var isWiFiRoamingSettingEnabled: Boolean = false
+
+                        // Bad
+                        var visibleBad: Boolean = false
+
+                        @set:JvmName("setIsVisibleBad")
+                        var isVisibleSetterBad: Boolean = false
+
+                        @get:JvmName("hasTransientStateBad")
+                        var transientStateBad: Boolean = false
+
+                        var isHasTransientStateAlsoBad: Boolean = false
+
+                        var isCanRecordBad: Boolean = false
+
+                        var isShouldFitWidthBad: Boolean = false
+
+                        var wiFiRoamingSettingEnabledBad: Boolean = false
+
+                        var enabledBad: Boolean = false
+
+                        var hasTransientStateGetterBad: Boolean = false
+
+                        var canRecordGetterBad: Boolean = false
+
+                        var shouldFitWidthGetterBad: Boolean = false
+                    }
+                    """
+                )
+            )
+        )
+    }
+
+    @Test
+    fun `Check boolean constructor parameter accessor naming patterns in Kotlin`() {
+        check(
+            apiLint = "", // enabled
+            // TODO (b/278505954): missing errors for `isVisibleSetterBad`, `hasTransientStateGetterBad`, `canRecordGetterBad`, `shouldFitWidthGetterBad`
+            expectedIssues = """
+                src/android/pkg/MyClass.kt:19: error: Invalid name for boolean property `visibleBad`. Should start with one of `has`, `can`, `should`, `is`. [GetterSetterNames]
+                src/android/pkg/MyClass.kt:25: error: Invalid name for boolean property `transientStateBad`. Should start with one of `has`, `can`, `should`, `is`. [GetterSetterNames]
+                src/android/pkg/MyClass.kt:27: error: Invalid prefix `isHas` for boolean property `isHasTransientStateAlsoBad`. [GetterSetterNames]
+                src/android/pkg/MyClass.kt:29: error: Invalid prefix `isCan` for boolean property `isCanRecordBad`. [GetterSetterNames]
+                src/android/pkg/MyClass.kt:31: error: Invalid prefix `isShould` for boolean property `isShouldFitWidthBad`. [GetterSetterNames]
+                src/android/pkg/MyClass.kt:33: error: Invalid name for boolean property `wiFiRoamingSettingEnabledBad`. Should start with one of `has`, `can`, `should`, `is`. [GetterSetterNames]
+                src/android/pkg/MyClass.kt:35: error: Invalid name for boolean property `enabledBad`. Should start with one of `has`, `can`, `should`, `is`. [GetterSetterNames]
+                              """,
+            expectedFail = DefaultLintErrorMessage,
+            sourceFiles = arrayOf(
+                kotlin(
+                    """
+                    package android.pkg
+
+                    class MyClass(
+                        // Correct
+                        var isVisible: Boolean,
+
+                        @get:JvmName("hasTransientState")
+                        var hasTransientState: Boolean,
+
+                        @get:JvmName("canRecord")
+                        var canRecord: Boolean,
+
+                        @get:JvmName("shouldFitWidth")
+                        var shouldFitWidth: Boolean,
+
+                        var isWiFiRoamingSettingEnabled: Boolean,
+
+                        // Bad
+                        var visibleBad: Boolean,
+
+                        @set:JvmName("setIsVisibleBad")
+                        var isVisibleSetterBad: Boolean,
+
+                        @get:JvmName("hasTransientStateBad")
+                        var transientStateBad: Boolean,
+
+                        var isHasTransientStateAlsoBad: Boolean,
+
+                        var isCanRecordBad: Boolean,
+
+                        var isShouldFitWidthBad: Boolean,
+
+                        var wiFiRoamingSettingEnabledBad: Boolean,
+
+                        var enabledBad: Boolean,
+
+                        var hasTransientStateGetterBad: Boolean,
+
+                        var canRecordGetterBad: Boolean,
+
+                        var shouldFitWidthGetterBad: Boolean
+                    )
+                    """
+                )
+            )
+        )
+    }
+
+    @Test
     fun `Check banned collections`() {
         check(
             apiLint = "", // enabled
@@ -1942,6 +2077,38 @@ class ApiLintTest : DriverTest() {
                     """
                 ),
                 androidxNullableSource
+            )
+        )
+    }
+
+    @Test
+    fun `Check listener last for suspend functions`() {
+        check(
+            extraArguments = arrayOf(ARG_API_LINT, ARG_HIDE, "ExecutorRegistration"),
+            expectedIssues = """
+                src/android/pkg/MyClass.kt:6: warning: Listeners should always be at end of argument list (method `wrong`) [ListenerLast] [See https://s.android.com/api-guidelines#placement-of-sam-parameters]
+            """,
+            sourceFiles = arrayOf(
+                java(
+                    """
+                    package android.pkg;
+
+                    @SuppressWarnings("WeakerAccess")
+                    public abstract class MyCallback {
+                    }
+                    """
+                ),
+                kotlin(
+                    """
+                    package android.pkg
+                    import android.pkg.MyCallback
+
+                    class MyClass {
+                        suspend fun ok(i: Int, callback: MyCallback) {}
+                        suspend fun wrong(callback: MyCallback, i: Int) {}
+                    }
+                    """
+                )
             )
         )
     }
@@ -3604,7 +3771,6 @@ class ApiLintTest : DriverTest() {
 
     @Test
     fun `Override enforcement on kotlin sourced child class`() {
-
         check(
             expectedIssues = """
                 src/test/pkg/Bar.kt:5: error: Invalid nullability on parameter `baz` in method `bar`. Parameters of overrides cannot be NonNull if the super parameter is unannotated. [InvalidNullabilityOverride] [See https://s.android.com/api-guidelines#annotations-nullability-overrides]
@@ -3896,7 +4062,262 @@ class ApiLintTest : DriverTest() {
                                 return super.get((K) key);
                             }
                         }
-                        
+                    """
+                )
+            )
+        )
+    }
+
+    @Test
+    fun `Kotlin required parameters must come before optional parameters`() {
+        check(
+            apiLint = "", // enabled
+            extraArguments = arrayOf(
+                // JvmOverloads warning, not what we want to test here
+                ARG_HIDE, "MissingJvmstatic"
+            ),
+            expectedIssues = """
+src/android/pkg/Interface.kt:104: error: Parameter `default` has a default value and should come after all parameters without default values (except for a trailing lambda parameter) [KotlinDefaultParameterOrder] [See https://android.googlesource.com/platform/frameworks/support/+/androidx-main/docs/api_guidelines/misc.md#kotlin-params-order]
+src/android/pkg/Interface.kt:114: error: Parameter `default` has a default value and should come after all parameters without default values (except for a trailing lambda parameter) [KotlinDefaultParameterOrder] [See https://android.googlesource.com/platform/frameworks/support/+/androidx-main/docs/api_guidelines/misc.md#kotlin-params-order]
+src/android/pkg/Interface.kt:125: error: Parameter `default` has a default value and should come after all parameters without default values (except for a trailing lambda parameter) [KotlinDefaultParameterOrder] [See https://android.googlesource.com/platform/frameworks/support/+/androidx-main/docs/api_guidelines/misc.md#kotlin-params-order]
+src/android/pkg/Interface.kt:136: error: Parameter `default` has a default value and should come after all parameters without default values (except for a trailing lambda parameter) [KotlinDefaultParameterOrder] [See https://android.googlesource.com/platform/frameworks/support/+/androidx-main/docs/api_guidelines/misc.md#kotlin-params-order]
+src/android/pkg/Interface.kt:142: error: Parameter `default` has a default value and should come after all parameters without default values (except for a trailing lambda parameter) [KotlinDefaultParameterOrder] [See https://android.googlesource.com/platform/frameworks/support/+/androidx-main/docs/api_guidelines/misc.md#kotlin-params-order]
+src/android/pkg/Interface.kt:152: error: Parameter `default` has a default value and should come after all parameters without default values (except for a trailing lambda parameter) [KotlinDefaultParameterOrder] [See https://android.googlesource.com/platform/frameworks/support/+/androidx-main/docs/api_guidelines/misc.md#kotlin-params-order]
+src/android/pkg/Interface.kt:158: error: Parameter `default` has a default value and should come after all parameters without default values (except for a trailing lambda parameter) [KotlinDefaultParameterOrder] [See https://android.googlesource.com/platform/frameworks/support/+/androidx-main/docs/api_guidelines/misc.md#kotlin-params-order]
+src/android/pkg/Interface.kt:18: error: Parameter `default` has a default value and should come after all parameters without default values (except for a trailing lambda parameter) [KotlinDefaultParameterOrder] [See https://android.googlesource.com/platform/frameworks/support/+/androidx-main/docs/api_guidelines/misc.md#kotlin-params-order]
+src/android/pkg/Interface.kt:28: error: Parameter `default` has a default value and should come after all parameters without default values (except for a trailing lambda parameter) [KotlinDefaultParameterOrder] [See https://android.googlesource.com/platform/frameworks/support/+/androidx-main/docs/api_guidelines/misc.md#kotlin-params-order]
+src/android/pkg/Interface.kt:39: error: Parameter `default` has a default value and should come after all parameters without default values (except for a trailing lambda parameter) [KotlinDefaultParameterOrder] [See https://android.googlesource.com/platform/frameworks/support/+/androidx-main/docs/api_guidelines/misc.md#kotlin-params-order]
+src/android/pkg/Interface.kt:50: error: Parameter `default` has a default value and should come after all parameters without default values (except for a trailing lambda parameter) [KotlinDefaultParameterOrder] [See https://android.googlesource.com/platform/frameworks/support/+/androidx-main/docs/api_guidelines/misc.md#kotlin-params-order]
+src/android/pkg/Interface.kt:56: error: Parameter `default` has a default value and should come after all parameters without default values (except for a trailing lambda parameter) [KotlinDefaultParameterOrder] [See https://android.googlesource.com/platform/frameworks/support/+/androidx-main/docs/api_guidelines/misc.md#kotlin-params-order]
+src/android/pkg/Interface.kt:66: error: Parameter `default` has a default value and should come after all parameters without default values (except for a trailing lambda parameter) [KotlinDefaultParameterOrder] [See https://android.googlesource.com/platform/frameworks/support/+/androidx-main/docs/api_guidelines/misc.md#kotlin-params-order]
+src/android/pkg/Interface.kt:72: error: Parameter `default` has a default value and should come after all parameters without default values (except for a trailing lambda parameter) [KotlinDefaultParameterOrder] [See https://android.googlesource.com/platform/frameworks/support/+/androidx-main/docs/api_guidelines/misc.md#kotlin-params-order]
+src/android/pkg/Interface.kt:82: error: Parameter `default` has a default value and should come after all parameters without default values (except for a trailing lambda parameter) [KotlinDefaultParameterOrder] [See https://android.googlesource.com/platform/frameworks/support/+/androidx-main/docs/api_guidelines/misc.md#kotlin-params-order]
+src/android/pkg/Interface.kt:92: error: Parameter `default` has a default value and should come after all parameters without default values (except for a trailing lambda parameter) [KotlinDefaultParameterOrder] [See https://android.googlesource.com/platform/frameworks/support/+/androidx-main/docs/api_guidelines/misc.md#kotlin-params-order]
+            """.trimIndent(),
+            expectedFail = DefaultLintErrorMessage,
+            sourceFiles = arrayOf(
+                java(
+                    """
+                        package android.pkg;
+
+                        public interface JavaInterface {
+                            void doSomething();
+                            void doSomethingElse();
+                        }
+                    """.trimIndent()
+                ),
+                java(
+                    """
+                        package android.pkg;
+
+                        public interface JavaSamInterface {
+                            void doSomething();
+                        }
+                    """.trimIndent()
+                ),
+                kotlin(
+                    """
+                        package android.pkg
+
+                        interface Interface {
+                            fun foo()
+                        }
+
+                        fun interface FunInterface {
+                            fun foo()
+                        }
+
+                        // Functions
+                        fun ok1(
+                            required: Boolean,
+                            default: Int = 0,
+                        ) {}
+
+                        fun error1(
+                            default: Int = 0,
+                            required: Boolean,
+                        ) {}
+
+                        fun ok2(
+                            default: Int = 0,
+                            trailing: () -> Unit
+                        ) {}
+
+                        fun error2(
+                            default: Int = 0,
+                            required: () -> Unit,
+                            default2: Int = 0,
+                        ) {}
+
+                        fun ok3(
+                            default: Int = 0,
+                            trailing: suspend () -> Unit
+                        ) {}
+
+                        fun error3(
+                            default: Int = 0,
+                            required: suspend () -> Unit,
+                            default2: Int = 0,
+                        ) {}
+
+                        fun ok4(
+                            default: Int = 0,
+                            trailing: FunInterface
+                        ) {}
+
+                        fun error4(
+                            default: Int = 0,
+                            required: FunInterface,
+                            default2: Int = 0,
+                        ) {}
+
+                        fun error5(
+                            default: Int = 0,
+                            trailing: Interface
+                        ) {}
+
+                        fun ok6(
+                            default: Int = 0,
+                            trailing: JavaSamInterface
+                        ) {}
+
+                        fun error6(
+                            default: Int = 0,
+                            required: JavaSamInterface,
+                            default2: Int = 0,
+                        ) {}
+
+                        fun error7(
+                            default: Int = 0,
+                            trailing: JavaInterface
+                        ) {}
+
+                        suspend fun ok8(
+                            required: Boolean,
+                            default: Int = 0,
+                        ) {}
+
+                        suspend fun error8(
+                            default: Int = 0,
+                            required: Boolean,
+                        ) {}
+
+                        suspend fun ok9(
+                            default: Int = 0,
+                            trailing: () -> Unit
+                        ) {}
+
+                        suspend fun error9(
+                            default: Int = 0,
+                            required: () -> Unit,
+                            default2: Int = 0,
+                        ) {}
+
+                        // Class constructors
+                        class Ok1(
+                            required: Boolean,
+                            default: Int = 0,
+                        )
+
+                        class Error1(
+                            default: Int = 0,
+                            required: Boolean,
+                        )
+
+                        class Ok2(
+                            default: Int = 0,
+                            trailing: () -> Unit
+                        )
+
+                        class Error2(
+                            default: Int = 0,
+                            required: () -> Unit,
+                            default2: Int = 0,
+                        )
+
+                        class Ok3(
+                            default: Int = 0,
+                            trailing: suspend () -> Unit
+                        )
+
+                        class Error3(
+                            default: Int = 0,
+                            required: suspend () -> Unit,
+                            default2: Int = 0,
+                        )
+
+                        class Ok4(
+                            default: Int = 0,
+                            trailing: FunInterface
+                        )
+
+                        class Error4(
+                            default: Int = 0,
+                            required: FunInterface,
+                            default2: Int = 0,
+                        )
+
+                        class Error5(
+                            default: Int = 0,
+                            trailing: Interface
+                        )
+
+                        class Ok6(
+                            default: Int = 0,
+                            trailing: JavaSamInterface
+                        )
+
+                        class Error6(
+                            default: Int = 0,
+                            required: JavaSamInterface,
+                            default2: Int = 0,
+                        )
+
+                        class Error7(
+                            default: Int = 0,
+                            trailing: JavaInterface
+                        )
+                    """
+                )
+            )
+        )
+    }
+
+    @Test
+    fun `No parameter ordering for sealed class constructor`() {
+        check(
+            expectedIssues = "",
+            apiLint = "",
+            sourceFiles = arrayOf(
+                kotlin(
+                    """
+                    package test.pkg
+
+                    sealed class Foo(
+                        default: Int = 0,
+                        required: () -> Unit,
+                    )
+                    """
+                )
+            )
+        )
+    }
+
+    @Test
+    fun `members in sealed class are not hidden abstract`() {
+        check(
+            expectedIssues = "",
+            apiLint = "",
+            sourceFiles = arrayOf(
+                kotlin(
+                    """
+                        package test.pkg
+
+                        sealed class ModifierLocalMap() {
+                            internal abstract operator fun <T> set(key: ModifierLocal<T>, value: T)
+                            internal abstract operator fun <T> get(key: ModifierLocal<T>): T?
+                            internal abstract operator fun contains(key: ModifierLocal<*>): Boolean
+                        }
                     """
                 )
             )

@@ -283,7 +283,7 @@ class SignatureWriter(
             outerAnnotations = false,
             innerAnnotations = true,
             erased = false,
-            kotlinStyleNulls = outputKotlinStyleNulls,
+            kotlinStyleNulls = outputKotlinStyleNulls && !item.hasInheritedGenericType(),
             context = item,
             filter = filterReference
         )

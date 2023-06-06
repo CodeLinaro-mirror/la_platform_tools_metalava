@@ -268,6 +268,11 @@ class UAnnotationAttribute(
     override val value: AnnotationAttributeValue = UAnnotationValue.create(
         codebase, psiValue
     )
+
+    override fun equals(other: Any?): Boolean {
+        if (other !is AnnotationAttribute) return false
+        return name == other.name && value == other.value
+    }
 }
 
 abstract class UAnnotationValue : AnnotationAttributeValue {
@@ -334,15 +339,27 @@ class UAnnotationSingleAttributeValue(
         }
         return null
     }
+
+    override fun equals(other: Any?): Boolean {
+        if (other !is AnnotationSingleAttributeValue) return false
+        return value == other.value
+    }
 }
 
-class UAnnotationArrayAttributeValue(codebase: PsiBasedCodebase, private val value: UCallExpression) :
-    UAnnotationValue(), AnnotationArrayAttributeValue {
+class UAnnotationArrayAttributeValue(
+    codebase: PsiBasedCodebase,
+    private val value: UCallExpression
+) : UAnnotationValue(), AnnotationArrayAttributeValue {
     override val values = value.valueArguments.map {
         create(codebase, it)
     }.toList()
 
     override fun toSource(): String = getText(value)
+
+    override fun equals(other: Any?): Boolean {
+        if (other !is AnnotationArrayAttributeValue) return false
+        return values.containsAll(other.values)
+    }
 }
 
 private fun getText(element: UElement): String {

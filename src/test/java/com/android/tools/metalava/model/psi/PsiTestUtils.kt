@@ -62,6 +62,7 @@ fun createTestCodebase(
     return parseSources(
         sources = sources.map { it.createFile(directory) },
         description = "Test Codebase",
+        sourcePath = listOf(directory),
     )
 }
 
