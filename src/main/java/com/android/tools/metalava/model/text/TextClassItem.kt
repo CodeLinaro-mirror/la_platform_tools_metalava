@@ -226,6 +226,16 @@ open class TextClassItem(
         innerClasses.add(cls)
     }
 
+    /**
+     * Checks if the [cls] from different signature file can be merged with this [TextClassItem].
+     * For instance, `current.txt` and `system-current.txt` may contain equal
+     * class definitions with different class methods.
+     * This method is used to determine if the two [TextClassItem]s can be safely
+     * merged in such scenarios.
+     *
+     * @param cls [TextClassItem] to be checked if it is compatible with [this] and can be merged
+     * @return a Boolean value representing if [cls] is compatible with [this]
+     */
     fun isCompatible(cls: TextClassItem): Boolean {
         if (this === cls) {
             return true

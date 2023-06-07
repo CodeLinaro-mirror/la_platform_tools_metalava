@@ -523,7 +523,7 @@ class CompatibilityCheck(
                     // It doesn't break compatibility in the strict sense, but does make it very
                     // difficult to extend this method in practice.
                     report(
-                        Issues.REMOVED_FINAL,
+                        Issues.REMOVED_FINAL_STRICT,
                         new,
                         "${describe(new, capitalize = true)} has removed 'final' qualifier"
                     )

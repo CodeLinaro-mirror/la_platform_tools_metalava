@@ -284,7 +284,7 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
     fun `Change final to non-final (Compatible but Disallowed)`() {
         check(
             expectedIssues = """
-               TESTROOT/load-api.txt:3: error: Method test.pkg.Foo.bar has removed 'final' qualifier [RemovedFinal]
+               TESTROOT/load-api.txt:3: error: Method test.pkg.Foo.bar has removed 'final' qualifier [RemovedFinalStrict]
             """,
             signatureSource = """
                 package test.pkg {

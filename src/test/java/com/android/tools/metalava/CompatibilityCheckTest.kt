@@ -1200,7 +1200,7 @@ CompatibilityCheckTest : DriverTest() {
         check(
             expectedIssues = """
                 src/test/pkg/Outer.java:7: error: Method test.pkg.Outer.Class1.method1 has added 'final' qualifier [AddedFinal]
-                src/test/pkg/Outer.java:19: error: Method test.pkg.Outer.Class4.method4 has removed 'final' qualifier [RemovedFinal]
+                src/test/pkg/Outer.java:19: error: Method test.pkg.Outer.Class4.method4 has removed 'final' qualifier [RemovedFinalStrict]
                 """,
             checkCompatibilityApiReleased = """
                 package test.pkg {
@@ -1829,7 +1829,7 @@ CompatibilityCheckTest : DriverTest() {
         check(
             includeSystemApiAnnotations = true,
             expectedIssues = """
-                src/android/rolecontrollerservice/RoleControllerService.java:8: error: Method android.rolecontrollerservice.RoleControllerService.sendNetworkScore has removed 'final' qualifier [RemovedFinal]
+                src/android/rolecontrollerservice/RoleControllerService.java:8: error: Method android.rolecontrollerservice.RoleControllerService.sendNetworkScore has removed 'final' qualifier [RemovedFinalStrict]
                 src/android/rolecontrollerservice/RoleControllerService.java:9: error: Field android.rolecontrollerservice.RoleControllerService.APP_RETURN_UNWANTED has changed value from 1 to 0 [ChangedValue]
                 """,
             sourceFiles = arrayOf(
