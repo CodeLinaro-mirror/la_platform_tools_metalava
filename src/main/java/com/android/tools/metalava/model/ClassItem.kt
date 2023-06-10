@@ -231,7 +231,7 @@ interface ClassItem : Item {
     }
 
     fun isAbstractClass(): Boolean {
-        return this.modifiers.isAbstract()
+        return modifiers.isAbstract()
     }
 
     // Mutation APIs: Used to "fix up" the API hierarchy (in [ApiAnalyzer]) to only expose

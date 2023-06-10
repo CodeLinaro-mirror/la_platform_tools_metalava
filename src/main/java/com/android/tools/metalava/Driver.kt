@@ -271,7 +271,7 @@ private fun processFlags() {
         assert(options.currentApiLevel != -1)
 
         progress("Generating API levels XML descriptor file, ${androidApiLevelXml.name}: ")
-        ApiGenerator.generate(
+        ApiGenerator.generateXml(
             apiLevelJars, options.firstApiLevel, options.currentApiLevel, options.isDeveloperPreviewBuild(),
             androidApiLevelXml, codebase, options.sdkJarRoot, options.sdkInfoFile, options.removeMissingClassesInApiLevels
         )
@@ -501,7 +501,7 @@ fun processNonCodebaseFlags() {
     val apiVersionNames = options.apiVersionNames
     if (apiVersionsJson != null && apiVersionFiles != null && apiVersionNames != null) {
         progress("Generating API version history JSON file, ${apiVersionsJson.name}: ")
-        ApiGenerator.generate(apiVersionFiles, apiVersionsJson, apiVersionNames, options.inputKotlinStyleNulls)
+        ApiGenerator.generateJson(apiVersionFiles, apiVersionsJson, apiVersionNames, options.inputKotlinStyleNulls)
     }
 }
 

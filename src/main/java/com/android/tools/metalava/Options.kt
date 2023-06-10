@@ -142,8 +142,6 @@ const val ARG_INCLUDE_SOURCE_RETENTION = "--include-source-retention"
 const val ARG_PASS_THROUGH_ANNOTATION = "--pass-through-annotation"
 const val ARG_EXCLUDE_ANNOTATION = "--exclude-annotation"
 const val ARG_INCLUDE_SIG_VERSION = "--include-signature-version"
-const val ARG_UPDATE_API = "--only-update-api"
-const val ARG_CHECK_API = "--only-check-api"
 const val ARG_PASS_BASELINE_UPDATES = "--pass-baseline-updates"
 const val ARG_BASELINE = "--baseline"
 const val ARG_BASELINE_API_LINT = "--baseline:api-lint"
@@ -205,8 +203,6 @@ class Options(
     private val mutableMergeQualifierAnnotations: MutableList<File> = mutableListOf()
     /** Internal list backing [mergeInclusionAnnotations] */
     private val mutableMergeInclusionAnnotations: MutableList<File> = mutableListOf()
-    /** Internal list backing [annotationCoverageOf] */
-    private val mutableAnnotationCoverageOf: MutableList<File> = mutableListOf()
     /** Internal list backing [hidePackages] */
     private val mutableHidePackages: MutableList<String> = mutableListOf()
     /** Internal list backing [skipEmitPackages] */
@@ -217,8 +213,6 @@ class Options(
     private val mutablePassThroughAnnotations: MutableSet<String> = mutableSetOf()
     /** Internal list backing [excludeAnnotations] */
     private val mutableExcludeAnnotations: MutableSet<String> = mutableSetOf()
-    /** Ignored flags we've already warned about - store here such that we don't keep reporting them */
-    private val alreadyWarned: MutableSet<String> = mutableSetOf()
 
     /** API to subtract from signature and stub generation. Corresponds to [ARG_SUBTRACT_API]. */
     var subtractApi: File? = null
@@ -263,30 +257,6 @@ class Options(
      * source annotations present in the code. This is implied by --doc-stubs.
      */
     var enhanceDocumentation = false
-
-    /**
-     * Whether metalava is invoked as part of updating the API files. When this is true, metalava
-     * should *cancel* various other flags that are also being passed in, such as --check-compatibility:*.
-     * This is there to ease integration in the build system: for a given target, the build system will
-     * pass all the applicable flags (--stubs, --api, --check-compatibility:*, --generate-documentation, etc),
-     * and this integration is re-used for the update-api facility where we *only* want to generate the
-     * signature files. This avoids having duplicate metalava invocation logic where potentially newly
-     * added flags are missing in one of the invocations etc.
-     */
-    var onlyUpdateApi = false
-
-    /**
-     * Whether metalava is invoked as part of running the checkapi target. When this is true, metalava
-     * should *cancel* various other flags that are also being passed in, such as updating signature
-     * files.
-     *
-     * This is there to ease integration in the build system: for a given target, the build system will
-     * pass all the applicable flags (--stubs, --api, --check-compatibility:*, --generate-documentation, etc),
-     * and this integration is re-used for the checkapi facility where we *only* want to run compatibility
-     * checks. This avoids having duplicate metalava invocation logic where potentially newly
-     * added flags are missing in one of the invocations etc.
-     */
-    var onlyCheckApi = false
 
     /** Whether nullness annotations should be displayed as ?/!/empty instead of with @NonNull/@Nullable. */
     var outputKotlinStyleNulls = false // requires v3
@@ -373,8 +343,6 @@ class Options(
 
     /** Packages that we should skip generating even if not hidden; typically only used by tests */
     var skipEmitPackages: List<String> = mutableSkipEmitPackages
-
-    var showAnnotationOverridesVisibility: Boolean = false
 
     /** Annotations to hide */
     var hideAnnotations: AnnotationFilter = mutableHideAnnotations
@@ -472,7 +440,7 @@ class Options(
     var removedApiFile: File? = null
 
     /** Whether output should be colorized */
-    var color = System.getenv("TERM")?.startsWith("xterm") ?: System.getenv("COLORTERM") != null ?: false
+    var color = System.getenv("TERM")?.startsWith("xterm") ?: (System.getenv("COLORTERM") != null)
 
     /** Whether to generate annotations into the stubs */
     var generateAnnotations = false
@@ -594,24 +562,24 @@ class Options(
     var baseline: Baseline? = null
 
     /** A baseline to check against, specifically used for "API lint" (i.e. [ARG_API_LINT]) */
-    var baselineApiLint: Baseline? = null
+    private var baselineApiLint: Baseline? = null
 
     /**
      * A baseline to check against, specifically used for "check-compatibility:*:released"
      * (i.e. [ARG_CHECK_COMPATIBILITY_API_RELEASED] and [ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED])
      */
-    var baselineCompatibilityReleased: Baseline? = null
+    private var baselineCompatibilityReleased: Baseline? = null
 
     var allBaselines: List<Baseline>
 
     /** If set, metalava will show this error message when "API lint" (i.e. [ARG_API_LINT]) fails. */
-    var errorMessageApiLint: String = DefaultLintErrorMessage
+    private var errorMessageApiLint: String = DefaultLintErrorMessage
 
     /**
      * If set, metalava will show this error message when "check-compatibility:*:released" fails.
      * (i.e. [ARG_CHECK_COMPATIBILITY_API_RELEASED] and [ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED])
      */
-    var errorMessageCompatibilityReleased: String? = null
+    private var errorMessageCompatibilityReleased: String? = null
 
     /** [Reporter] for "api-lint" */
     var reporterApiLint: Reporter
@@ -637,7 +605,7 @@ class Options(
     var baselineErrorsOnly = false
 
     /** Writes a list of all errors, even if they were suppressed in baseline or via annotation. */
-    var reportEvenIfSuppressed: File? = null
+    private var reportEvenIfSuppressed: File? = null
     var reportEvenIfSuppressedWriter: PrintWriter? = null
 
     /**
@@ -672,13 +640,13 @@ class Options(
      * the platform's android.jar file to the classpath if it does not already
      * find the android.jar file in the classpath.
      */
-    var sdkHome: File? = null
+    private var sdkHome: File? = null
 
     /**
      * The compileSdkVersion, set by [ARG_COMPILE_SDK_VERSION]. For example,
      * for R it would be "29". For R preview, if would be "R".
      */
-    var compileSdkVersion: String? = null
+    private var compileSdkVersion: String? = null
 
     /** List of signature files to export as JDiff files */
     val convertToXmlFiles: List<ConvertFile> = mutableConvertToXmlFiles
@@ -770,7 +738,6 @@ class Options(
 
         var androidJarPatterns: MutableList<String>? = null
         var currentJar: File? = null
-        var skipGenerateAnnotations = false
         reporter = Reporter(null, null)
 
         val baselineBuilder = Baseline.Builder().apply { description = "base" }
@@ -916,11 +883,6 @@ class Options(
                 }
 
                 ARG_SHOW_UNANNOTATED, "-showUnannotated" -> showUnannotated = true
-
-                "--showAnnotationOverridesVisibility" -> {
-                    unimplemented(arg)
-                    showAnnotationOverridesVisibility = true
-                }
 
                 ARG_HIDE_ANNOTATION, "--hideAnnotations", "-hideAnnotation" ->
                     mutableHideAnnotations.add(getValue(args, ++index))
@@ -1216,9 +1178,6 @@ class Options(
                     apiVersionNames = getValue(args, ++index).split(' ')
                 }
 
-                ARG_UPDATE_API, "--update-api" -> onlyUpdateApi = true
-                ARG_CHECK_API -> onlyCheckApi = true
-
                 ARG_CONVERT_TO_JDIFF,
                 // doclava compatibility:
                 "-convert2xml",
@@ -1335,115 +1294,8 @@ class Options(
                     System.setProperty("user.dir", pwd.path)
                 }
 
-                "--noop", "--no-op" -> {
-                }
-
-                // Doclava1 flag: Already the behavior in metalava
-                "-keepstubcomments" -> {
-                }
-
-                // Unimplemented doclava1 flags (no arguments)
-                "-quiet",
-                "-yamlV2" -> {
-                    unimplemented(arg)
-                }
-
-                "-android" -> { // partially implemented: Pick up the color hint, but there may be other implications
-                    color = true
-                    unimplemented(arg)
-                }
-
-                "-stubsourceonly" -> {
-                    /* noop */
-                }
-
-                // Unimplemented doclava1 flags (1 argument)
-                "-d" -> {
-                    unimplemented(arg)
-                    index++
-                }
-
-                // Unimplemented doclava1 flags (2 arguments)
-                "-since" -> {
-                    unimplemented(arg)
-                    index += 2
-                }
-
-                // doclava1 doc-related flags: only supported here to make this command a drop-in
-                // replacement
-                "-referenceonly",
-                "-devsite",
-                "-ignoreJdLinks",
-                "-nodefaultassets",
-                "-parsecomments",
-                "-offlinemode",
-                "-gcmref",
-                "-metadataDebug",
-                "-includePreview",
-                "-staticonly",
-                "-navtreeonly",
-                "-atLinksNavtree" -> {
-                    javadoc(arg)
-                }
-
-                // doclava1 flags with 1 argument
-                "-doclet",
-                "-docletpath",
-                "-templatedir",
-                "-htmldir",
-                "-knowntags",
-                "-resourcesdir",
-                "-resourcesoutdir",
-                "-yaml",
-                "-apidocsdir",
-                "-toroot",
-                "-samplegroup",
-                "-samplesdir",
-                "-dac_libraryroot",
-                "-dac_dataname",
-                "-title",
-                "-proofread",
-                "-todo",
-                "-overview" -> {
-                    javadoc(arg)
-                    index++
-                }
-
-                // doclava1 flags with two arguments
-                "-federate",
-                "-federationapi",
-                "-htmldir2" -> {
-                    javadoc(arg)
-                    index += 2
-                }
-
-                // doclava1 flags with three arguments
-                "-samplecode" -> {
-                    javadoc(arg)
-                    index += 3
-                }
-
-                // doclava1 flag with variable number of arguments; skip everything until next arg
-                "-hdf" -> {
-                    javadoc(arg)
-                    index++
-                    while (index < args.size) {
-                        if (args[index].startsWith("-")) {
-                            break
-                        }
-                        index++
-                    }
-                    index--
-                }
-
                 else -> {
-                    if (arg.startsWith("-J-") || arg.startsWith("-XD")) {
-                        // -J: mechanism to pass extra flags to javadoc, e.g.
-                        //    -J-XX:-OmitStackTraceInFastThrow
-                        // -XD: mechanism to set properties, e.g.
-                        //    -XDignore.symbol.file
-                        javadoc(arg)
-                    } else if (arg.startsWith(ARG_OUTPUT_KOTLIN_NULLS)) {
+                    if (arg.startsWith(ARG_OUTPUT_KOTLIN_NULLS)) {
                         outputKotlinStyleNulls = if (arg == ARG_OUTPUT_KOTLIN_NULLS) {
                             true
                         } else {
@@ -1483,12 +1335,6 @@ class Options(
                     } else {
                         // All args that don't start with "-" are taken to be filenames
                         mutableSources.addAll(stringToExistingFiles(arg))
-
-                        // Temporary workaround for
-                        // aosp/I73ff403bfc3d9dfec71789a3e90f9f4ea95eabe3
-                        if (arg.endsWith("hwbinder-stubs-docs-stubs.srcjar.rsp")) {
-                            skipGenerateAnnotations = true
-                        }
                     }
                 }
             }
@@ -1542,64 +1388,6 @@ class Options(
             showUnannotated = true
         }
 
-        if (skipGenerateAnnotations) {
-            generateAnnotations = false
-        }
-
-        if (onlyUpdateApi) {
-            if (onlyCheckApi) {
-                throw DriverException(stderr = "Cannot supply both $ARG_UPDATE_API and $ARG_CHECK_API at the same time")
-            }
-            // We're running in update API mode: cancel other "action" flags; only signature file generation
-            // flags count
-            apiLevelJars = null
-            generateApiLevelXml = null
-            sdkJarRoot = null
-            sdkInfoFile = null
-            applyApiLevelsXml = null
-            androidJarSignatureFiles = null
-            stubsDir = null
-            docStubsDir = null
-            stubsSourceList = null
-            docStubsSourceList = null
-            sdkValueDir = null
-            externalAnnotations = null
-            proguard = null
-            mutableCompatibilityChecks.clear()
-            mutableAnnotationCoverageOf.clear()
-            mutableConvertToXmlFiles.clear()
-            nullabilityAnnotationsValidator = null
-            nullabilityWarningsTxt = null
-            validateNullabilityFromMergedStubs = false
-            validateNullabilityFromMergedStubs = false
-            validateNullabilityFromList = null
-        } else if (onlyCheckApi) {
-            apiLevelJars = null
-            generateApiLevelXml = null
-            sdkJarRoot = null
-            sdkInfoFile = null
-            applyApiLevelsXml = null
-            androidJarSignatureFiles = null
-            stubsDir = null
-            docStubsDir = null
-            stubsSourceList = null
-            docStubsSourceList = null
-            sdkValueDir = null
-            externalAnnotations = null
-            proguard = null
-            mutableAnnotationCoverageOf.clear()
-            mutableConvertToXmlFiles.clear()
-            nullabilityAnnotationsValidator = null
-            nullabilityWarningsTxt = null
-            validateNullabilityFromMergedStubs = false
-            validateNullabilityFromMergedStubs = false
-            validateNullabilityFromList = null
-            apiFile = null
-            apiXmlFile = null
-            dexApiFile = null
-            removedApiFile = null
-        }
-
         // Fix up [Baseline] files and [Reporter]s.
 
         val baselineHeaderComment = if (isBuildingAndroid())
@@ -1647,7 +1435,7 @@ class Options(
         checkFlagConsistency()
     }
 
-    public fun isDeveloperPreviewBuild(): Boolean = currentCodeName != null
+    fun isDeveloperPreviewBuild(): Boolean = currentCodeName != null
 
     /** Update the classpath to insert android.jar or JDK classpath elements if necessary */
     private fun updateClassPath() {
@@ -1672,8 +1460,7 @@ class Options(
             }
         } else if (jdkHome != null) {
             val isJre = !isJdkFolder(jdkHome)
-            @Suppress("DEPRECATION")
-            val roots = JavaSdkUtil.getJdkClassesRoots(jdkHome, isJre)
+            val roots = JavaSdkUtil.getJdkClassesRoots(jdkHome.toPath(), isJre).map { it.toFile() }
             mutableClassPath.addAll(roots)
         }
     }
@@ -1799,33 +1586,6 @@ class Options(
     private fun checkFlagConsistency() {
         if (apiJar != null && sources.isNotEmpty()) {
             throw DriverException(stderr = "Specify either $ARG_SOURCE_FILES or $ARG_INPUT_API_JAR, not both")
-        }
-    }
-
-    private fun javadoc(arg: String) {
-        if (!alreadyWarned.add(arg)) {
-            return
-        }
-        if (!options.quiet) {
-            reporter.report(
-                Severity.WARNING, null as String?, "Ignoring javadoc-related doclava1 flag $arg",
-                color = color
-            )
-        }
-    }
-
-    private fun unimplemented(arg: String) {
-        if (!alreadyWarned.add(arg)) {
-            return
-        }
-        if (!options.quiet) {
-            val message = "Ignoring unimplemented doclava1 flag $arg" +
-                when (arg) {
-                    "-encoding" -> " (UTF-8 assumed)"
-                    "-source" -> "  (1.8 assumed)"
-                    else -> ""
-                }
-            reporter.report(Severity.WARNING, null as String?, message, color = color)
         }
     }
 
@@ -2064,12 +1824,6 @@ class Options(
             ARG_VERBOSE, "Include extra diagnostic output",
             ARG_COLOR, "Attempt to colorize the output (defaults to true if \$TERM is xterm)",
             ARG_NO_COLOR, "Do not attempt to colorize the output",
-            ARG_UPDATE_API,
-            "Cancel any other \"action\" flags other than generating signature files. This is here " +
-                "to make it easier customize build system tasks, particularly for the \"make update-api\" task.",
-            ARG_CHECK_API,
-            "Cancel any other \"action\" flags other than checking signature files. This is here " +
-                "to make it easier customize build system tasks, particularly for the \"make checkapi\" task.",
             "$ARG_REPEAT_ERRORS_MAX <N>", "When specified, repeat at most N errors before finishing.",
 
             "", "\nAPI sources:",
@@ -2348,7 +2102,7 @@ class Options(
             "$ARG_GENERATE_API_LEVELS <xmlfile>",
             "Reads android.jar SDK files and generates an XML file recording " +
                 "the API level for each class, method and field",
-            "$ARG_REMOVE_MISSING_CLASS_REFERENCES_IN_API_LEVELS",
+            ARG_REMOVE_MISSING_CLASS_REFERENCES_IN_API_LEVELS,
             "Removes references to missing classes when generating the API levels XML file. " +
                 "This can happen when generating the XML file for the non-updatable portions of " +
                 "the module-lib sdk, as those non-updatable portions can reference classes that are " +

@@ -49,14 +49,6 @@ General:
                                              Attempt to colorize the output (defaults to true if ${"$"}TERM is xterm)
 --no-color
                                              Do not attempt to colorize the output
---only-update-api
-                                             Cancel any other "action" flags other than generating signature files. This
-                                             is here to make it easier customize build system tasks, particularly for
-                                             the "make update-api" task.
---only-check-api
-                                             Cancel any other "action" flags other than checking signature files. This
-                                             is here to make it easier customize build system tasks, particularly for
-                                             the "make checkapi" task.
 --repeat-errors-max <N>
                                              When specified, repeat at most N errors before finishing.
 

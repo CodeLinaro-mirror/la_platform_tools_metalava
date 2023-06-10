@@ -18,17 +18,14 @@
 
 package com.android.tools.metalava.stub
 
-import com.android.tools.lint.checks.infrastructure.LintDetectorTest.source
 import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.metalava.ANDROIDX_NONNULL
-import com.android.tools.metalava.ARG_CHECK_API
 import com.android.tools.metalava.ARG_EXCLUDE_ALL_ANNOTATIONS
 import com.android.tools.metalava.ARG_EXCLUDE_ANNOTATION
 import com.android.tools.metalava.ARG_EXCLUDE_DOCUMENTATION_FROM_STUBS
 import com.android.tools.metalava.ARG_HIDE_PACKAGE
 import com.android.tools.metalava.ARG_KOTLIN_STUBS
 import com.android.tools.metalava.ARG_PASS_THROUGH_ANNOTATION
-import com.android.tools.metalava.ARG_UPDATE_API
 import com.android.tools.metalava.DriverTest
 import com.android.tools.metalava.FileFormat
 import com.android.tools.metalava.androidxNullableSource
@@ -47,7 +44,6 @@ import com.android.tools.metalava.testApiSource
 import org.intellij.lang.annotations.Language
 import org.junit.Test
 import java.io.File
-import java.io.FileNotFoundException
 import kotlin.test.assertEquals
 
 @SuppressWarnings("ALL")
@@ -3907,81 +3903,6 @@ class StubsTest : DriverTest() {
                 @test.pkg.ViewDebug.ExportedProperty(category="layout", mapping={@test.pkg.ViewDebug.IntToString(from=0xffffffff, to="NONE"), @test.pkg.ViewDebug.IntToString(from=android.view.Gravity.NO_GRAVITY, to="NONE"), @test.pkg.ViewDebug.IntToString(from=android.view.Gravity.TOP, to="TOP"), @test.pkg.ViewDebug.IntToString(from=android.view.Gravity.BOTTOM, to="BOTTOM")}) public int gravity = 0; // 0x0
                 }
                 """
-        )
-    }
-
-    @Test(expected = FileNotFoundException::class)
-    fun `Test update-api should not generate stubs`() {
-        check(
-            format = FileFormat.V2,
-            extraArguments = arrayOf(
-                ARG_UPDATE_API,
-                ARG_EXCLUDE_ALL_ANNOTATIONS
-            ),
-            sourceFiles = arrayOf(
-                java(
-                    """
-                    package test.pkg;
-                    public class Foo {
-                        /**
-                         * @deprecated Use checkPermission instead.
-                         */
-                        @Deprecated
-                        protected boolean inClass(String name) {
-                            return false;
-                        }
-                    }
-                    """
-                )
-            ),
-            api = """
-            package test.pkg {
-              public class Foo {
-                ctor public Foo();
-                method @Deprecated protected boolean inClass(String);
-              }
-            }
-            """,
-            stubFiles = arrayOf(
-                source(
-                    "test/pkg/Foo.java",
-                    "This file should not be generated since --update-api is supplied."
-                )
-            )
-        )
-    }
-
-    @Test(expected = AssertionError::class)
-    fun `Test check-api should not generate stubs or API files`() {
-        check(
-            extraArguments = arrayOf(
-                ARG_CHECK_API,
-                ARG_EXCLUDE_ALL_ANNOTATIONS
-            ),
-            sourceFiles = arrayOf(
-                java(
-                    """
-                    package test.pkg;
-                    public class Foo {
-                        /**
-                         * @deprecated Use checkPermission instead.
-                         */
-                        @Deprecated
-                        protected boolean inClass(String name) {
-                            return false;
-                        }
-                    }
-                    """
-                )
-            ),
-            api = """
-            package test.pkg {
-              public class Foo {
-                ctor public Foo();
-                method @Deprecated protected boolean inClass(String);
-              }
-            }
-            """
         )
     }
 

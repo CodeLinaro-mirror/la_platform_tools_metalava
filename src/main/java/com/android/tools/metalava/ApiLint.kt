@@ -1985,8 +1985,14 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
 
     private fun checkContextFirst(method: MethodItem) {
         val parameters = method.parameters()
-        if (parameters.size > 1 && parameters[0].type().toTypeString() != "android.content.Context") {
-            for (i in 1 until parameters.size) {
+        // The first parameter for a Kotlin extension method is the receiver
+        val effectivelyFirstParameterPosition = if (method.isExtensionMethod()) 1 else 0
+        val effectivelySecondParameterPosition = effectivelyFirstParameterPosition + 1
+        if (parameters.size <= effectivelySecondParameterPosition) return
+        val firstParameterTypeString =
+            parameters[effectivelyFirstParameterPosition].type().toTypeString()
+        if (firstParameterTypeString != "android.content.Context") {
+            for (i in effectivelySecondParameterPosition until parameters.size) {
                 val p = parameters[i]
                 if (p.type().toTypeString() == "android.content.Context") {
                     report(
@@ -1996,8 +2002,8 @@ class ApiLint(private val codebase: Codebase, private val oldCodebase: Codebase?
                 }
             }
         }
-        if (parameters.size > 1 && parameters[0].type().toTypeString() != "android.content.ContentResolver") {
-            for (i in 1 until parameters.size) {
+        if (firstParameterTypeString != "android.content.ContentResolver") {
+            for (i in effectivelySecondParameterPosition until parameters.size) {
                 val p = parameters[i]
                 if (p.type().toTypeString() == "android.content.ContentResolver") {
                     report(
