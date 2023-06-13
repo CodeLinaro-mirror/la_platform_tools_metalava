@@ -298,6 +298,8 @@ interface AnnotationItem {
                 "android.annotation.TargetApi",
                 "android.annotation.SuppressLint" -> return qualifiedName
 
+                "android.annotation.FlaggedApi" -> return qualifiedName
+
                 else -> {
                     // Some new annotations added to the platform: assume they are support annotations?
                     return when {
@@ -366,6 +368,8 @@ interface AnnotationItem {
                 // from those. This is useful for modularizing the main SDK stubs without having to
                 // add a separate module SDK artifact for sdk constants.
                 "android.annotation.SdkConstant" -> return ANNOTATION_SDK_STUBS_ONLY
+
+                "android.annotation.FlaggedApi" -> return ANNOTATION_SIGNATURE_ONLY
 
                 // Skip known annotations that we (a) never want in external annotations and (b) we are
                 // specially overwriting anyway in the stubs (and which are (c) not API significant)

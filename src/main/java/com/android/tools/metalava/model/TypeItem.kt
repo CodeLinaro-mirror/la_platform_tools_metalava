@@ -136,15 +136,24 @@ interface TypeItem {
     fun defaultValue(): Any? {
         return when (toTypeString()) {
             "boolean" -> false
-            "char", "int", "float", "double" -> 0
             "byte" -> 0.toByte()
-            "short" -> 0.toShort()
+            "char" -> 0.toChar()
+            "double" -> 0.0
+            "float" -> 0F
+            "int" -> 0
             "long" -> 0L
+            "short" -> 0.toShort()
             else -> null
         }
     }
 
-    fun defaultValueString(): String = defaultValue()?.toString() ?: "null"
+    fun defaultValueString(): String {
+        return when (toTypeString()) {
+            "boolean" -> "false"
+            "byte", "char", "double", "float", "int", "long", "short" -> "0"
+            else -> "null"
+        }
+    }
 
     fun hasTypeArguments(): Boolean = toTypeString().contains("<")
 

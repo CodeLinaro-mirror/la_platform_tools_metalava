@@ -230,14 +230,6 @@ class PsiTypeItem private constructor(
     override val primitive: Boolean
         get() = psiType is PsiPrimitiveType
 
-    override fun defaultValue(): Any? {
-        return PsiTypesUtil.getDefaultValue(psiType)
-    }
-
-    override fun defaultValueString(): String {
-        return PsiTypesUtil.getDefaultValueOfType(psiType)
-    }
-
     override fun typeArgumentClasses(): List<ClassItem> {
         if (primitive) {
             return emptyList()
