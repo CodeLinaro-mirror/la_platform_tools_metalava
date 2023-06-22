@@ -26,15 +26,15 @@ import org.junit.Test
 import org.junit.rules.TemporaryFolder
 
 class PsiTypeItemAssignabilityTest {
-    @get:Rule
-    val tmpFolder = TemporaryFolder()
+    @get:Rule val tmpFolder = TemporaryFolder()
 
     @Test
     fun `Assignability in PSI`() {
-        val sourceFiles = arrayOf(
-            // pass in the same class structure in kotlin and java.
-            java(
-                """
+        val sourceFiles =
+            arrayOf(
+                // pass in the same class structure in kotlin and java.
+                java(
+                    """
                 package test.foo;
                 import java.util.*;
                 public class JavaSubject {
@@ -49,9 +49,9 @@ class PsiTypeItemAssignabilityTest {
                     public Map<Number, String> mapOfNumberToString;
                 }
                 """
-            ),
-            kotlin(
-                """
+                ),
+                kotlin(
+                    """
                 package test.foo;
                 class KotlinSubject {
                     @JvmField
@@ -74,34 +74,29 @@ class PsiTypeItemAssignabilityTest {
                     var mapOfNumberToString: MutableMap<Number, String>? = null
                 }
                 """
+                )
             )
-        )
 
-        testCodebase(
-            sources = sourceFiles
-        ) { codebase ->
-            val javaSubject = codebase.findClass("test.foo.JavaSubject")
-                ?: error("Cannot find java subject")
-            val kotlinSubject = codebase.findClass("test.foo.KotlinSubject")
-                ?: error("Cannot find subject")
+        testCodebase(sources = sourceFiles) { codebase ->
+            val javaSubject =
+                codebase.findClass("test.foo.JavaSubject") ?: error("Cannot find java subject")
+            val kotlinSubject =
+                codebase.findClass("test.foo.KotlinSubject") ?: error("Cannot find subject")
             val testSubjects = listOf(javaSubject, kotlinSubject)
             // helper method to check assignability between fields
-            fun String.isAssignableFromWithoutUnboxing(
-                otherField: String
-            ): Boolean {
-                val results = testSubjects.map { subject ->
-                    val field1Type = checkNotNull(
-                        subject.findField(this)?.type() as? PsiTypeItem
-                    ) {
-                        "cannot find $this in $subject"
+            fun String.isAssignableFromWithoutUnboxing(otherField: String): Boolean {
+                val results =
+                    testSubjects.map { subject ->
+                        val field1Type =
+                            checkNotNull(subject.findField(this)?.type() as? PsiTypeItem) {
+                                "cannot find $this in $subject"
+                            }
+                        val field2Type =
+                            checkNotNull(subject.findField(otherField)?.type() as? PsiTypeItem) {
+                                "cannot find $otherField in $subject"
+                            }
+                        field1Type.isAssignableFromWithoutUnboxing(field2Type)
                     }
-                    val field2Type = checkNotNull(
-                        subject.findField(otherField)?.type() as? PsiTypeItem
-                    ) {
-                        "cannot find $otherField in $subject"
-                    }
-                    field1Type.isAssignableFromWithoutUnboxing(field2Type)
-                }
                 check(results.toSet().size == 1) {
                     "isAssignable check for $this to $otherField returned inconsistent results " +
                         "between kotlin and java: $results"
@@ -109,51 +104,24 @@ class PsiTypeItemAssignabilityTest {
                 return results.first()
             }
 
-            assertThat(
-                "string".isAssignableFromWithoutUnboxing("string")
-            ).isTrue()
-            assertThat(
-                "obj".isAssignableFromWithoutUnboxing("string")
-            ).isTrue()
-            assertThat(
-                "string".isAssignableFromWithoutUnboxing("obj")
-            ).isFalse()
-            assertThat(
-                "primitiveInt".isAssignableFromWithoutUnboxing("number")
-            ).isFalse()
-            assertThat(
-                "number".isAssignableFromWithoutUnboxing("primitiveInt")
-            ).isTrue()
-            assertThat(
-                "boxedInt".isAssignableFromWithoutUnboxing("primitiveInt")
-            ).isTrue()
-            assertThat(
-                "primitiveInt".isAssignableFromWithoutUnboxing("boxedInt")
-            ).isFalse()
-            assertThat(
-                "number".isAssignableFromWithoutUnboxing("boxedInt")
-            ).isTrue()
-            assertThat(
-                "boxedInt".isAssignableFromWithoutUnboxing("number")
-            ).isFalse()
-            assertThat(
-                "listOfInt".isAssignableFromWithoutUnboxing("listOfInt")
-            ).isTrue()
-            assertThat(
-                "listOfInt".isAssignableFromWithoutUnboxing("listOfNumber")
-            ).isFalse()
-            assertThat(
-                "listOfNumber".isAssignableFromWithoutUnboxing("listOfInt")
-            ).isFalse()
-            assertThat(
-                "mapOfNumberToString".isAssignableFromWithoutUnboxing("mapOfNumberToString")
-            ).isTrue()
-            assertThat(
-                "mapOfNumberToString".isAssignableFromWithoutUnboxing("mapOfIntToString")
-            ).isFalse()
-            assertThat(
-                "mapOfIntToString".isAssignableFromWithoutUnboxing("mapOfNumberToString")
-            ).isFalse()
+            assertThat("string".isAssignableFromWithoutUnboxing("string")).isTrue()
+            assertThat("obj".isAssignableFromWithoutUnboxing("string")).isTrue()
+            assertThat("string".isAssignableFromWithoutUnboxing("obj")).isFalse()
+            assertThat("primitiveInt".isAssignableFromWithoutUnboxing("number")).isFalse()
+            assertThat("number".isAssignableFromWithoutUnboxing("primitiveInt")).isTrue()
+            assertThat("boxedInt".isAssignableFromWithoutUnboxing("primitiveInt")).isTrue()
+            assertThat("primitiveInt".isAssignableFromWithoutUnboxing("boxedInt")).isFalse()
+            assertThat("number".isAssignableFromWithoutUnboxing("boxedInt")).isTrue()
+            assertThat("boxedInt".isAssignableFromWithoutUnboxing("number")).isFalse()
+            assertThat("listOfInt".isAssignableFromWithoutUnboxing("listOfInt")).isTrue()
+            assertThat("listOfInt".isAssignableFromWithoutUnboxing("listOfNumber")).isFalse()
+            assertThat("listOfNumber".isAssignableFromWithoutUnboxing("listOfInt")).isFalse()
+            assertThat("mapOfNumberToString".isAssignableFromWithoutUnboxing("mapOfNumberToString"))
+                .isTrue()
+            assertThat("mapOfNumberToString".isAssignableFromWithoutUnboxing("mapOfIntToString"))
+                .isFalse()
+            assertThat("mapOfIntToString".isAssignableFromWithoutUnboxing("mapOfNumberToString"))
+                .isFalse()
         }
     }
 }

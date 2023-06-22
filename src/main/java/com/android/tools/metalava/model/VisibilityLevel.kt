@@ -18,27 +18,19 @@ package com.android.tools.metalava.model
 /**
  * The visibility levels for classes and class members.
  *
- * <p>The order is significant. It is from least visible to most visible, where visibility is in terms of whether it
- * is viewable in the final generated API.
+ * <p>The order is significant. It is from least visible to most visible, where visibility is in
+ * terms of whether it is viewable in the final generated API.
  */
 enum class VisibilityLevel(
-    /**
-     * String representation in source code.
-     */
+    /** String representation in source code. */
     val javaSourceCodeModifier: String,
 
-    /**
-     * String representation in Kotlin source code.
-     */
+    /** String representation in Kotlin source code. */
     val kotlinSourceCodeModifier: String,
 
-    /**
-     * String representation in user visible messages.
-     */
+    /** String representation in user visible messages. */
     val userVisibleDescription: String,
-    /**
-     * Representation in the internal flags.
-     */
+    /** Representation in the internal flags. */
     val visibilityFlagValue: Int
 ) {
     PRIVATE("private", "private", "private", DefaultModifierList.PRIVATE),

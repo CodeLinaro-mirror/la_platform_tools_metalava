@@ -10,10 +10,12 @@ class ShowAnnotationTest : DriverTest() {
     fun `Basic showAnnotation test`() {
         check(
             includeSystemApiAnnotations = true,
-            expectedIssues = "src/test/pkg/Foo.java:18: error: @SystemApi APIs must also be marked @hide: method test.pkg.Foo.method4() [UnhiddenSystemApi]",
-            sourceFiles = arrayOf(
-                java(
-                    """
+            expectedIssues =
+                "src/test/pkg/Foo.java:18: error: @SystemApi APIs must also be marked @hide: method test.pkg.Foo.method4() [UnhiddenSystemApi]",
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
                     import android.annotation.SystemApi;
                     public class Foo {
@@ -35,22 +37,23 @@ class ShowAnnotationTest : DriverTest() {
 
                     }
                     """
-                ),
-                java(
-                    """
+                    ),
+                    java(
+                        """
                     package foo.bar;
                     public class Bar {
                     }
                 """
+                    ),
+                    systemApiSource
                 ),
-                systemApiSource
-            ),
-
-            extraArguments = arrayOf(
-                ARG_HIDE_PACKAGE, "android.annotation",
-            ),
-
-            api = """
+            extraArguments =
+                arrayOf(
+                    ARG_HIDE_PACKAGE,
+                    "android.annotation",
+                ),
+            api =
+                """
                 package test.pkg {
                   public class Foo {
                     method public void method2();
@@ -66,10 +69,12 @@ class ShowAnnotationTest : DriverTest() {
         check(
             includeSystemApiAnnotations = true,
             showUnannotated = true,
-            expectedIssues = "src/test/pkg/Foo.java:18: error: @SystemApi APIs must also be marked @hide: method test.pkg.Foo.method4() [UnhiddenSystemApi]",
-            sourceFiles = arrayOf(
-                java(
-                    """
+            expectedIssues =
+                "src/test/pkg/Foo.java:18: error: @SystemApi APIs must also be marked @hide: method test.pkg.Foo.method4() [UnhiddenSystemApi]",
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
                     import android.annotation.SystemApi;
                     public class Foo {
@@ -91,22 +96,23 @@ class ShowAnnotationTest : DriverTest() {
 
                     }
                     """
-                ),
-                java(
-                    """
+                    ),
+                    java(
+                        """
                     package foo.bar;
                     public class Bar {
                     }
                 """
+                    ),
+                    systemApiSource
                 ),
-                systemApiSource
-            ),
-
-            extraArguments = arrayOf(
-                ARG_HIDE_PACKAGE, "android.annotation",
-            ),
-
-            api = """
+            extraArguments =
+                arrayOf(
+                    ARG_HIDE_PACKAGE,
+                    "android.annotation",
+                ),
+            api =
+                """
                 package foo.bar {
                   public class Bar {
                     ctor public Bar();
@@ -128,9 +134,10 @@ class ShowAnnotationTest : DriverTest() {
     fun `Check @TestApi handling`() {
         check(
             includeSystemApiAnnotations = true,
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
                     import android.annotation.TestApi;
 
@@ -144,28 +151,32 @@ class ShowAnnotationTest : DriverTest() {
                         }
                     }
                     """
-                ),
+                    ),
 
-                // This isn't necessary for this test, but doclava will ignore @hide classes marked
-                // with an annotation unless there is a public reference it to it from elsewhere.
-                // Include this here such that the checkDoclava1=true step produces any output.
-                java(
-                    """
+                    // This isn't necessary for this test, but doclava will ignore @hide classes
+                    // marked
+                    // with an annotation unless there is a public reference it to it from
+                    // elsewhere.
+                    // Include this here such that the checkDoclava1=true step produces any output.
+                    java(
+                        """
                     package test.pkg;
                     public class Usage {
                         public Bar bar;
                     }
                     """
+                    ),
+                    testApiSource
                 ),
-                testApiSource
-            ),
-
-            extraArguments = arrayOf(
-                ARG_SHOW_ANNOTATION, "android.annotation.TestApi",
-                ARG_HIDE_PACKAGE, "android.annotation",
-            ),
-
-            api = """
+            extraArguments =
+                arrayOf(
+                    ARG_SHOW_ANNOTATION,
+                    "android.annotation.TestApi",
+                    ARG_HIDE_PACKAGE,
+                    "android.annotation",
+                ),
+            api =
+                """
                 package test.pkg {
                   public class Bar {
                     ctor public Bar();
@@ -184,27 +195,28 @@ class ShowAnnotationTest : DriverTest() {
         // and the additional API made visible with annotations. However,
         // in the *stubs*, we have to include everything.
         check(
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg2;
 
                     import test.pkg1.MyParent;
                     public class MyChild extends MyParent {
                     }
                     """
-                ),
-                java(
-                    """
+                    ),
+                    java(
+                        """
                     package test.pkg1;
                     import java.io.Closeable;
                     @SuppressWarnings("WeakerAccess")
                     public class MyParent implements MyConstants, Closeable {
                     }
                     """
-                ),
-                java(
-                    """
+                    ),
+                    java(
+                        """
                     package test.pkg1;
                     interface MyConstants {
                         long CONSTANT1 = 12345;
@@ -212,11 +224,12 @@ class ShowAnnotationTest : DriverTest() {
                         long CONSTANT3 = 42;
                     }
                     """
-                )
-            ),
-            stubFiles = arrayOf(
-                java(
-                    """
+                    )
+                ),
+            stubFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg2;
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class MyChild extends test.pkg1.MyParent {
@@ -226,9 +239,9 @@ class ShowAnnotationTest : DriverTest() {
                     public static final long CONSTANT3 = 42L; // 0x2aL
                     }
                     """
-                ),
-                java(
-                    """
+                    ),
+                    java(
+                        """
                     package test.pkg1;
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class MyParent implements java.io.Closeable {
@@ -238,16 +251,21 @@ class ShowAnnotationTest : DriverTest() {
                     public static final long CONSTANT3 = 42L; // 0x2aL
                     }
                     """
-                )
-            ),
+                    )
+                ),
             // Empty API: showUnannotated=false
-            api = """
-            """.trimIndent(),
+            api =
+                """
+            """
+                    .trimIndent(),
             includeSystemApiAnnotations = true,
-            extraArguments = arrayOf(
-                ARG_SHOW_ANNOTATION, "android.annotation.TestApi",
-                ARG_HIDE_PACKAGE, "android.annotation",
-            )
+            extraArguments =
+                arrayOf(
+                    ARG_SHOW_ANNOTATION,
+                    "android.annotation.TestApi",
+                    ARG_HIDE_PACKAGE,
+                    "android.annotation",
+                )
         )
     }
 
@@ -255,9 +273,10 @@ class ShowAnnotationTest : DriverTest() {
     fun `No UnhiddenSystemApi warning for --show-single-annotations`() {
         check(
             expectedIssues = "",
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
                     import android.annotation.SystemApi;
                     public class Foo {
@@ -279,23 +298,25 @@ class ShowAnnotationTest : DriverTest() {
 
                     }
                     """
-                ),
-                java(
-                    """
+                    ),
+                    java(
+                        """
                     package foo.bar;
                     public class Bar {
                     }
                 """
+                    ),
+                    systemApiSource
                 ),
-                systemApiSource
-            ),
-
-            extraArguments = arrayOf(
-                ARG_SHOW_SINGLE_ANNOTATION, "android.annotation.SystemApi",
-                ARG_HIDE_PACKAGE, "android.annotation",
-            ),
-
-            api = """
+            extraArguments =
+                arrayOf(
+                    ARG_SHOW_SINGLE_ANNOTATION,
+                    "android.annotation.SystemApi",
+                    ARG_HIDE_PACKAGE,
+                    "android.annotation",
+                ),
+            api =
+                """
                 package test.pkg {
                   public class Foo {
                     method public void method2();
@@ -309,9 +330,10 @@ class ShowAnnotationTest : DriverTest() {
     @Test
     fun `Can't expose item from a hidden parent `() {
         check(
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
                     import android.annotation.SystemApi;
 
@@ -327,9 +349,9 @@ class ShowAnnotationTest : DriverTest() {
                         }
                     }
                     """
-                ),
-                java(
-                    """
+                    ),
+                    java(
+                        """
                     package test.pkg;
                     import android.annotation.SystemApi;
 
@@ -344,11 +366,12 @@ class ShowAnnotationTest : DriverTest() {
                         }
                     }
                     """
+                    ),
+                    systemApiSource
                 ),
-                systemApiSource
-            ),
             showAnnotations = arrayOf("android.annotation.SystemApi"),
-            expectedIssues = """
+            expectedIssues =
+                """
                 src/test/pkg/Class1.java:8: error: Attempting to unhide method test.pkg.Class1.method1(), but surrounding class test.pkg.Class1 is hidden and should also be annotated with @android.annotation.SystemApi [ShowingMemberInHiddenClass]
                 src/test/pkg/Class1.java:12: error: Attempting to unhide class test.pkg.Class1.InnerClass1, but surrounding class test.pkg.Class1 is hidden and should also be annotated with @android.annotation.SystemApi [ShowingMemberInHiddenClass]
                 src/test/pkg/Class2.java:11: error: Attempting to unhide method test.pkg.Class2.InnerClass2.method2(), but surrounding class test.pkg.Class2.InnerClass2 is hidden and should also be annotated with @android.annotation.SystemApi [ShowingMemberInHiddenClass]
@@ -360,9 +383,10 @@ class ShowAnnotationTest : DriverTest() {
     fun `showAnnotation with parameters`() {
         check(
             format = FileFormat.V1,
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
                     import androidx.annotation.RestrictTo;
                     import static androidx.annotation.RestrictTo.Scope.LIBRARY;
@@ -386,17 +410,19 @@ class ShowAnnotationTest : DriverTest() {
                         public void method4() { }
                     }
                     """
+                    ),
+                    restrictToSource
                 ),
-                restrictToSource
-            ),
-
-            extraArguments = arrayOf(
-                ARG_SHOW_UNANNOTATED,
-                ARG_SHOW_ANNOTATION, "androidx.annotation.RestrictTo(androidx.annotation.RestrictTo.Scope.LIBRARY_GROUP)",
-                ARG_HIDE_PACKAGE, "androidx.annotation"
-            ),
-
-            api = """
+            extraArguments =
+                arrayOf(
+                    ARG_SHOW_UNANNOTATED,
+                    ARG_SHOW_ANNOTATION,
+                    "androidx.annotation.RestrictTo(androidx.annotation.RestrictTo.Scope.LIBRARY_GROUP)",
+                    ARG_HIDE_PACKAGE,
+                    "androidx.annotation"
+                ),
+            api =
+                """
                 package test.pkg {
                   public class Foo {
                     ctor public Foo();
@@ -412,9 +438,10 @@ class ShowAnnotationTest : DriverTest() {
     @Test
     fun `showAnnotation with default parameters`() {
         check(
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
                     import test.annotation.Api;
                     import static test.annotation.Api.Type.A;
@@ -436,25 +463,27 @@ class ShowAnnotationTest : DriverTest() {
                         public void method4() { }
                     }
                     """
-                ),
-                java(
-                    """
+                    ),
+                    java(
+                        """
                     package test.annotation;
                     public @interface Api {
                         enum Type {A, B}
                         Type type() default Type.A;
                     }
                     """
-                )
-            ),
-
-            extraArguments = arrayOf(
-                ARG_SHOW_UNANNOTATED,
-                ARG_SHOW_ANNOTATION, "test.annotation.Api(type=test.annotation.Api.Type.A)",
-                ARG_HIDE_PACKAGE, "test.annotation"
-            ),
-
-            api = """
+                    )
+                ),
+            extraArguments =
+                arrayOf(
+                    ARG_SHOW_UNANNOTATED,
+                    ARG_SHOW_ANNOTATION,
+                    "test.annotation.Api(type=test.annotation.Api.Type.A)",
+                    ARG_HIDE_PACKAGE,
+                    "test.annotation"
+                ),
+            api =
+                """
                 package test.pkg {
                   public class Foo {
                     ctor public Foo();
@@ -471,9 +500,10 @@ class ShowAnnotationTest : DriverTest() {
     fun `Testing parsing an annotation whose attribute references the annotated class`() {
         check(
             format = FileFormat.V3,
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package androidx.room;
 
                     import androidx.annotation.IntDef;
@@ -483,12 +513,14 @@ class ShowAnnotationTest : DriverTest() {
                         int REPLACE = 1;
                     }
                     """
-                )
-            ),
-            expectedIssues = """
+                    )
+                ),
+            expectedIssues =
+                """
                 src/androidx/room/OnConflictStrategy.java:3: info: Unresolved import: `androidx.annotation.IntDef` [UnresolvedImport]
                 """,
-            api = """
+            api =
+                """
                 // Signature format: 3.0
                 package androidx.room {
                   @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS) public @interface OnConflictStrategy {
@@ -496,10 +528,7 @@ class ShowAnnotationTest : DriverTest() {
                   }
                 }
                 """,
-
-            extraArguments = arrayOf(
-                ARG_HIDE_ANNOTATION, "androidx.annotation.IntDef"
-            )
+            extraArguments = arrayOf(ARG_HIDE_ANNOTATION, "androidx.annotation.IntDef")
         )
     }
 
@@ -507,9 +536,10 @@ class ShowAnnotationTest : DriverTest() {
     fun `Testing that file order does not affect output`() {
         check(
             format = FileFormat.V3,
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package a;
 
                     import androidx.annotation.RestrictTo;
@@ -524,19 +554,17 @@ class ShowAnnotationTest : DriverTest() {
                         }
                     }
                     """
-                ),
-
-                java(
-                    """
+                    ),
+                    java(
+                        """
                     /**
                      * @hide
                      */
                     package a;
                     """
-                ),
-
-                java(
-                    """
+                    ),
+                    java(
+                        """
                     package a;
 
                     import androidx.annotation.RestrictTo;
@@ -551,11 +579,12 @@ class ShowAnnotationTest : DriverTest() {
                         }
                     }
                     """
+                    ),
+                    restrictToSource
                 ),
-                restrictToSource
-            ),
             expectedIssues = null,
-            api = """
+            api =
+                """
                 // Signature format: 3.0
                 package a {
                   @RestrictTo(androidx.annotation.RestrictTo.Scope.LIBRARY_GROUP) public class Example1<T> {
@@ -572,20 +601,24 @@ class ShowAnnotationTest : DriverTest() {
                   }
                 }
                 """,
-            extraArguments = arrayOf(
-                ARG_SHOW_ANNOTATION, "androidx.annotation.RestrictTo",
-                ARG_HIDE_PACKAGE, "androidx.annotation",
-                ARG_SHOW_UNANNOTATED
-            )
+            extraArguments =
+                arrayOf(
+                    ARG_SHOW_ANNOTATION,
+                    "androidx.annotation.RestrictTo",
+                    ARG_HIDE_PACKAGE,
+                    "androidx.annotation",
+                    ARG_SHOW_UNANNOTATED
+                )
         )
     }
 
     @Test
     fun `new class in the same package while parsing a class`() {
         check(
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
                     import static test.pkg.AClass.SOME_VALUE;
                     import test.annotation.Api;
@@ -595,48 +628,53 @@ class ShowAnnotationTest : DriverTest() {
                         public void foo() {}
                     }
                     """
-                ),
-                java(
-                    """
+                    ),
+                    java(
+                        """
                     package test.annotation;
 
                     public @interface Api {
                         String value();
                     }
                     """
-                )
-            ),
-            classpath = arrayOf(
-                /* The following source file, compiled, and root folder jar'ed and stored as base64 gzip:
-                    package test.pkg;
-                    public class AClass {
-                        public static final String SOME_VALUE = "some_value";
-                    }
-                 */
-                base64gzip(
-                    "test.jar",
-                    "" +
-                        "H4sICDVE/F0AA3Rlc3QuamFyAAvwZmYRYeDg4GB4kDrFnwEJcDKwMPi6hjjq" +
-                        "evq56f87xcDAzBDgzc4BkmKCKgnAqVkEiOGafR39PN1cg0P0fN0++5457eOt" +
-                        "q3eR11tX69yZ85uDDK4YP3hapOflq+Ppe7F0FQtnxAvJI9JREq+WPX++/PmS" +
-                        "V9NmamfsaJ7JNa/yZNWsPTF7YsCuaPPd8c8FaIcH1BVcDAxAl91AcwUrEJek" +
-                        "Fpfo41bCCVNSkJ2uj/APujJRZGWOzjmJxcV6ySDS1W9j0CEHkTviCgcZmkpE" +
-                        "xMqyEqWsZdNn8IQEchnoFh+cfSZxh8VO7v+pR3ta5R+4G+7pZj377nbt57L7" +
-                        "9z8+Fz+gfEwxagePAY+BUsvpo69z5vpN/i6ZOCfnaJxL64XKLVumXvopnCgw" +
-                        "/VbEwlytrqiyQtcP86eGfWu9sGuvN+fbHX8mtCQu2lKzunzmmjAl7SXc+q+z" +
-                        "lJ+f6rxnotdiyL9uUb+e3o9DXsmL15+3+XVf0O05u9jNsDyd9hlF6terw/uk" +
-                        "K/7YOMxY0Mu3+fwp5wPCO32OTZj72o157m/mF7stXxj+6n1p+E1abg44tP1r" +
-                        "E34/BIUCIyi0GZlEGFBjnQkemCwMqAAlAaFrRY5EERRttjiSD8gELgbckY0A" +
-                        "hxFRj1sLJ4qWZ6hJAeFWkDbkIBBF0cbLiCNpBHizskEcxsqgBVRkCA4mAAHr" +
-                        "K7BxAwAA"
-                )
-            ),
-            extraArguments = arrayOf(
-                ARG_SHOW_UNANNOTATED,
-                ARG_SHOW_ANNOTATION, "test.annotation.Api",
-                ARG_HIDE_PACKAGE, "test.annotation"
-            ),
-            api = """
+                    )
+                ),
+            classpath =
+                arrayOf(
+                    /* The following source file, compiled, and root folder jar'ed and stored as base64 gzip:
+                       package test.pkg;
+                       public class AClass {
+                           public static final String SOME_VALUE = "some_value";
+                       }
+                    */
+                    base64gzip(
+                        "test.jar",
+                        "" +
+                            "H4sICDVE/F0AA3Rlc3QuamFyAAvwZmYRYeDg4GB4kDrFnwEJcDKwMPi6hjjq" +
+                            "evq56f87xcDAzBDgzc4BkmKCKgnAqVkEiOGafR39PN1cg0P0fN0++5457eOt" +
+                            "q3eR11tX69yZ85uDDK4YP3hapOflq+Ppe7F0FQtnxAvJI9JREq+WPX++/PmS" +
+                            "V9NmamfsaJ7JNa/yZNWsPTF7YsCuaPPd8c8FaIcH1BVcDAxAl91AcwUrEJek" +
+                            "Fpfo41bCCVNSkJ2uj/APujJRZGWOzjmJxcV6ySDS1W9j0CEHkTviCgcZmkpE" +
+                            "xMqyEqWsZdNn8IQEchnoFh+cfSZxh8VO7v+pR3ta5R+4G+7pZj377nbt57L7" +
+                            "9z8+Fz+gfEwxagePAY+BUsvpo69z5vpN/i6ZOCfnaJxL64XKLVumXvopnCgw" +
+                            "/VbEwlytrqiyQtcP86eGfWu9sGuvN+fbHX8mtCQu2lKzunzmmjAl7SXc+q+z" +
+                            "lJ+f6rxnotdiyL9uUb+e3o9DXsmL15+3+XVf0O05u9jNsDyd9hlF6terw/uk" +
+                            "K/7YOMxY0Mu3+fwp5wPCO32OTZj72o157m/mF7stXxj+6n1p+E1abg44tP1r" +
+                            "E34/BIUCIyi0GZlEGFBjnQkemCwMqAAlAaFrRY5EERRttjiSD8gELgbckY0A" +
+                            "hxFRj1sLJ4qWZ6hJAeFWkDbkIBBF0cbLiCNpBHizskEcxsqgBVRkCA4mAAHr" +
+                            "K7BxAwAA"
+                    )
+                ),
+            extraArguments =
+                arrayOf(
+                    ARG_SHOW_UNANNOTATED,
+                    ARG_SHOW_ANNOTATION,
+                    "test.annotation.Api",
+                    ARG_HIDE_PACKAGE,
+                    "test.annotation"
+                ),
+            api =
+                """
                 package test.pkg {
                   public class Foo {
                     ctor public Foo();
@@ -651,9 +689,10 @@ class ShowAnnotationTest : DriverTest() {
     fun `Check @PublishedApi handling`() {
         check(
             format = FileFormat.V3,
-            sourceFiles = arrayOf(
-                kotlin(
-                    """
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
                     package test.pkg
                     /**
                     * @suppress
@@ -661,14 +700,12 @@ class ShowAnnotationTest : DriverTest() {
                     @PublishedApi
                     internal class WeAreSoCool()
                     """
+                    ),
+                    publishedApiSource
                 ),
-                publishedApiSource
-            ),
-
-            extraArguments = arrayOf(
-                ARG_SHOW_ANNOTATION, "kotlin.PublishedApi"
-            ),
-            api = """
+            extraArguments = arrayOf(ARG_SHOW_ANNOTATION, "kotlin.PublishedApi"),
+            api =
+                """
                 // Signature format: 3.0
                 package test.pkg {
                   @kotlin.PublishedApi internal final class WeAreSoCool {
@@ -690,9 +727,10 @@ class ShowAnnotationTest : DriverTest() {
         // - Class3 is (very naturally) hidden even though the super class is visible.
         check(
             format = FileFormat.V1,
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
                     import android.annotation.SystemApi;
 
@@ -708,9 +746,9 @@ class ShowAnnotationTest : DriverTest() {
                         public void member() {}
                     }
                     """
-                ),
-                java(
-                    """
+                    ),
+                    java(
+                        """
                     package test.pkg;
                     import android.annotation.SystemApi;
 
@@ -724,9 +762,9 @@ class ShowAnnotationTest : DriverTest() {
                         public void member() {}
                     }
                     """
-                ),
-                java(
-                    """
+                    ),
+                    java(
+                        """
                     package test.pkg;
                     import android.annotation.SystemApi;
 
@@ -734,13 +772,14 @@ class ShowAnnotationTest : DriverTest() {
                     public class Class3 extends Class1 {
                     }
                     """
+                    ),
+                    systemApiSource
                 ),
-                systemApiSource
-            ),
             showAnnotations = arrayOf("android.annotation.SystemApi"),
             expectedIssues = """
                 """,
-            api = """
+            api =
+                """
                 package test.pkg {
                   public class Class1 {
                     ctor public Class1();
@@ -752,9 +791,10 @@ class ShowAnnotationTest : DriverTest() {
                   }
                 }
                 """,
-            stubFiles = arrayOf(
-                java(
-                    """
+            stubFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
                     /** @hide */
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
@@ -766,9 +806,9 @@ class ShowAnnotationTest : DriverTest() {
                     public static final java.lang.String FIELD = "Class1.FIELD";
                     }
                     """
-                ),
-                java(
-                    """
+                    ),
+                    java(
+                        """
                     package test.pkg;
                     /** @hide */
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
@@ -778,8 +818,8 @@ class ShowAnnotationTest : DriverTest() {
                     public void member() { throw new RuntimeException("Stub!"); }
                     }
                     """
+                    )
                 )
-            )
         )
     }
 }

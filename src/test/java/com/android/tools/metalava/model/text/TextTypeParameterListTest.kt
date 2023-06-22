@@ -22,12 +22,21 @@ import org.junit.Test
 class TextTypeParameterListTest {
     @Test
     fun testTypeParameterStrings() {
-        Truth.assertThat(TextTypeParameterList.typeParameterStrings(null).toString()).isEqualTo("[]")
+        Truth.assertThat(TextTypeParameterList.typeParameterStrings(null).toString())
+            .isEqualTo("[]")
         Truth.assertThat(TextTypeParameterList.typeParameterStrings("").toString()).isEqualTo("[]")
-        Truth.assertThat(TextTypeParameterList.typeParameterStrings("<X>").toString()).isEqualTo("[X]")
-        Truth.assertThat(TextTypeParameterList.typeParameterStrings("<ABC,DEF extends T>").toString())
+        Truth.assertThat(TextTypeParameterList.typeParameterStrings("<X>").toString())
+            .isEqualTo("[X]")
+        Truth.assertThat(
+                TextTypeParameterList.typeParameterStrings("<ABC,DEF extends T>").toString()
+            )
             .isEqualTo("[ABC, DEF extends T]")
-        Truth.assertThat(TextTypeParameterList.typeParameterStrings("<T extends java.lang.Comparable<? super T>>").toString())
+        Truth.assertThat(
+                TextTypeParameterList.typeParameterStrings(
+                        "<T extends java.lang.Comparable<? super T>>"
+                    )
+                    .toString()
+            )
             .isEqualTo("[T extends java.lang.Comparable<? super T>]")
     }
 }

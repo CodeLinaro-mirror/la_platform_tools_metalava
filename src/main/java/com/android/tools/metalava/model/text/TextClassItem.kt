@@ -43,17 +43,13 @@ open class TextClassItem(
     private val qualifiedTypeName: String = qualifiedName,
     var name: String = qualifiedName.substring(qualifiedName.lastIndexOf('.') + 1),
     val annotations: List<String>? = null
-) : TextItem(
-    codebase = codebase,
-    position = position,
-    modifiers = modifiers
-),
+) :
+    TextItem(codebase = codebase, position = position, modifiers = modifiers),
     ClassItem,
     TypeParameterListOwner {
 
     init {
-        @Suppress("LeakingThis")
-        modifiers.setOwner(this)
+        @Suppress("LeakingThis") modifiers.setOwner(this)
     }
 
     override val isTypeParameter: Boolean = false
@@ -133,11 +129,12 @@ open class TextClassItem(
             val s = typeInfo.toString()
             // TODO: No, handle List<String>[]  (though it's not likely for type parameters)
             val index = s.indexOf('<')
-            typeParameterList = if (index != -1) {
-                TextTypeParameterList.create(codebase, this, s.substring(index))
-            } else {
-                TypeParameterList.NONE
-            }
+            typeParameterList =
+                if (index != -1) {
+                    TextTypeParameterList.create(codebase, this, s.substring(index))
+                } else {
+                    TypeParameterList.NONE
+                }
         }
 
         return typeParameterList!!
@@ -228,10 +225,9 @@ open class TextClassItem(
 
     /**
      * Checks if the [cls] from different signature file can be merged with this [TextClassItem].
-     * For instance, `current.txt` and `system-current.txt` may contain equal
-     * class definitions with different class methods.
-     * This method is used to determine if the two [TextClassItem]s can be safely
-     * merged in such scenarios.
+     * For instance, `current.txt` and `system-current.txt` may contain equal class definitions with
+     * different class methods. This method is used to determine if the two [TextClassItem]s can be
+     * safely merged in such scenarios.
      *
      * @param cls [TextClassItem] to be checked if it is compatible with [this] and can be merged
      * @return a Boolean value representing if [cls] is compatible with [this]
@@ -263,7 +259,9 @@ open class TextClassItem(
     private var retention: AnnotationRetention? = null
 
     override fun getRetention(): AnnotationRetention {
-        retention?.let { return it }
+        retention?.let {
+            return it
+        }
 
         if (!isAnnotationType()) {
             error("getRetention() should only be called on annotation classes")
@@ -303,13 +301,16 @@ open class TextClassItem(
 
     private var allSuperClassesAndInterfaces: List<TextClassItem>? = null
 
-    /** Returns all super classes and interfaces in the class hierarchy the class item inherits.
-     * The returned list is sorted by the proximity of the classes to the class item in the hierarchy chain.
-     * If an interface appears multiple time in the hierarchy chain,
-     * it is ordered based on the furthest distance to the class item.
+    /**
+     * Returns all super classes and interfaces in the class hierarchy the class item inherits. The
+     * returned list is sorted by the proximity of the classes to the class item in the hierarchy
+     * chain. If an interface appears multiple time in the hierarchy chain, it is ordered based on
+     * the furthest distance to the class item.
      */
     fun getAllSuperClassesAndInterfaces(): List<TextClassItem> {
-        allSuperClassesAndInterfaces?.let { return it }
+        allSuperClassesAndInterfaces?.let {
+            return it
+        }
 
         val classLevelMap = mutableMapOf<TextClassItem, Int>()
 
@@ -357,21 +358,27 @@ open class TextClassItem(
         fun createInterfaceStub(codebase: TextCodebase, name: String): TextClassItem =
             createStub(codebase, name, isInterface = true)
 
-        private fun createStub(codebase: TextCodebase, name: String, isInterface: Boolean): TextClassItem {
+        private fun createStub(
+            codebase: TextCodebase,
+            name: String,
+            isInterface: Boolean
+        ): TextClassItem {
             val index = if (name.endsWith(">")) name.indexOf('<') else -1
             val qualifiedName = if (index == -1) name else name.substring(0, index)
             val fullName = getFullName(qualifiedName)
-            val cls = TextClassItem(
-                codebase = codebase,
-                name = fullName,
-                qualifiedName = qualifiedName,
-                isInterface = isInterface,
-                modifiers = TextModifiers(codebase, DefaultModifierList.PUBLIC)
-            )
+            val cls =
+                TextClassItem(
+                    codebase = codebase,
+                    name = fullName,
+                    qualifiedName = qualifiedName,
+                    isInterface = isInterface,
+                    modifiers = TextModifiers(codebase, DefaultModifierList.PUBLIC)
+                )
             cls.emit = false // it's a stub
 
             if (index != -1) {
-                cls.typeParameterList = TextTypeParameterList.create(codebase, cls, name.substring(index))
+                cls.typeParameterList =
+                    TextTypeParameterList.create(codebase, cls, name.substring(index))
             }
 
             return cls
@@ -396,8 +403,8 @@ open class TextClassItem(
         }
 
         /**
-         * Determines whether if [thisClassType] is covariant type with [otherClassType].
-         * If [thisClassType] does not belong to this class, return false.
+         * Determines whether if [thisClassType] is covariant type with [otherClassType]. If
+         * [thisClassType] does not belong to this class, return false.
          *
          * @param thisClass [ClassItem] that [thisClassType] belongs to
          * @param thisClassType [TypeItem] that belongs to this class
@@ -413,20 +420,26 @@ open class TextClassItem(
             // Since primitive types are not covariant with anything, return false
             val otherClass = otherClassType.asClass() ?: return false
 
-            val otherSuperClassNames = (otherClass as TextClassItem)
-                .getAllSuperClassesAndInterfaces().map { it.qualifiedName() }
+            val otherSuperClassNames =
+                (otherClass as TextClassItem).getAllSuperClassesAndInterfaces().map {
+                    it.qualifiedName()
+                }
 
             val thisClassTypeErased = thisClassType.toErasedTypeString()
-            val typeArgIndex = thisClass.toType().typeArguments(simplified = true).indexOf(thisClassTypeErased)
+            val typeArgIndex =
+                thisClass.toType().typeArguments(simplified = true).indexOf(thisClassTypeErased)
 
-            // thisClassSuperType is the super type of thisClassType retrieved from the type arguments.
+            // thisClassSuperType is the super type of thisClassType retrieved from the type
+            // arguments.
             // e.g. when type arguments are <K, V extends some.arbitrary.Class>,
             // thisClassSuperType will be "some.arbitrary.Class" when the thisClassType is "V"
             // If thisClassType is not included in the type arguments or
             // if thisClassType does not have a super type specified in the type argument,
             // thisClassSuperType will be thisClassType.
-            val thisClassSuperType = if (typeArgIndex == -1) thisClassTypeErased else
-                thisClass.toType().typeArguments()[typeArgIndex].substringAfterLast(" extends ")
+            val thisClassSuperType =
+                if (typeArgIndex == -1) thisClassTypeErased
+                else
+                    thisClass.toType().typeArguments()[typeArgIndex].substringAfterLast(" extends ")
 
             return thisClassSuperType in otherSuperClassNames
         }
@@ -444,12 +457,9 @@ open class TextClassItem(
             //     Type foo()
             // this function will return [InterfaceA, InterfaceB] when Type and SomeClass
             // are passed as inputs.
-            val typeContainingInterfaces = {
-                    t: TypeItem, cl: ClassItem ->
-                val interfaceTypes = cl.interfaceTypes()
-                    .plus(cl.toType())
-                    .plus(cl.superClassType())
-                    .filterNotNull()
+            val typeContainingInterfaces = { t: TypeItem, cl: ClassItem ->
+                val interfaceTypes =
+                    cl.interfaceTypes().plus(cl.toType()).plus(cl.superClassType()).filterNotNull()
                 interfaceTypes.filter {
                     val typeArgs = it.typeArguments(simplified = true)
                     t.toString() in typeArgs ||
@@ -465,32 +475,32 @@ open class TextClassItem(
                 return false
             }
 
-            val interfaceTypesAreCovariant = {
-                    t1: TypeItem, t2: TypeItem ->
+            val interfaceTypesAreCovariant = { t1: TypeItem, t2: TypeItem ->
                 t1.toErasedTypeString() == t2.toErasedTypeString() ||
                     t1.asClass()?.superClass()?.qualifiedName() == t2.asClass()?.qualifiedName() ||
                     t2.asClass()?.superClass()?.qualifiedName() == t1.asClass()?.qualifiedName()
             }
 
-            // Check if the return type containing interfaces of the two methods have an intersection.
-            return typeContainingInterfaces1.any {
-                    typeInterface1 ->
-                typeContainingInterfaces2.any {
-                        typeInterface2 ->
+            // Check if the return type containing interfaces of the two methods have an
+            // intersection.
+            return typeContainingInterfaces1.any { typeInterface1 ->
+                typeContainingInterfaces2.any { typeInterface2 ->
                     interfaceTypesAreCovariant(typeInterface1, typeInterface2)
                 }
             }
         }
 
         private fun hasEqualTypeBounds(method1: MethodItem, method2: MethodItem): Boolean {
-            val typeInTypeParams = {
-                    t: TypeItem, m: MethodItem ->
+            val typeInTypeParams = { t: TypeItem, m: MethodItem ->
                 t in m.typeParameterList().typeParameters().map { it.toType() }
             }
 
-            val getTypeBounds = {
-                    t: TypeItem, m: MethodItem ->
-                m.typeParameterList().typeParameters().single { it.toType() == t }.typeBounds().toSet()
+            val getTypeBounds = { t: TypeItem, m: MethodItem ->
+                m.typeParameterList()
+                    .typeParameters()
+                    .single { it.toType() == t }
+                    .typeBounds()
+                    .toSet()
             }
 
             val returnType1 = method1.returnType()
@@ -501,7 +511,8 @@ open class TextClassItem(
             // method public <T extends some.package.SomeClass> T foo (Class<T>);
             // This can be verified by converting return types to bounds ([some.package.SomeClass])
             // and compare equivalence.
-            return typeInTypeParams(returnType1, method1) && typeInTypeParams(returnType2, method2) &&
+            return typeInTypeParams(returnType1, method1) &&
+                typeInTypeParams(returnType2, method2) &&
                 getTypeBounds(returnType1, method1) == getTypeBounds(returnType2, method2)
         }
 
@@ -537,10 +548,10 @@ open class TextClassItem(
         }
 
         /**
-         * Compares two [MethodItem]s and determines if the two methods have equal return types.
-         * The two methods' return types are considered equal even if the two are not identical,
-         * but are compatible in compiler level. For instance, return types in a same hierarchy tree
-         * are considered equal.
+         * Compares two [MethodItem]s and determines if the two methods have equal return types. The
+         * two methods' return types are considered equal even if the two are not identical, but are
+         * compatible in compiler level. For instance, return types in a same hierarchy tree are
+         * considered equal.
          *
          * @param method1 first [MethodItem] to compare the return type
          * @param method2 second [MethodItem] to compare the return type
@@ -564,15 +575,15 @@ open class TextClassItem(
         }
 
         /**
-         * Compares two [MethodItem] and determines if the two are considered equal based on
-         * the context of the containing classes of the methods. To be specific, for the two methods
-         * in which the coexistence in a class would lead to a
-         * method already defined compiler error, this method returns true.
+         * Compares two [MethodItem] and determines if the two are considered equal based on the
+         * context of the containing classes of the methods. To be specific, for the two methods in
+         * which the coexistence in a class would lead to a method already defined compiler error,
+         * this method returns true.
          *
          * @param method1 first [MethodItem] to compare
          * @param method2 second [MethodItem] to compare
-         * @return a [Boolean] value representing if the two methods are equal or not
-         * with respect to the classes contexts.
+         * @return a [Boolean] value representing if the two methods are equal or not with respect
+         *   to the classes contexts.
          */
         fun equalMethodInClassContext(method1: MethodItem, method2: MethodItem): Boolean {
             if (method1 == method2) return true
@@ -580,26 +591,27 @@ open class TextClassItem(
             if (method1.name() != method2.name()) return false
             if (method1.parameters().size != method2.parameters().size) return false
 
-            val hasEqualParams = method1.parameters().zip(method2.parameters()).all {
+            val hasEqualParams =
+                method1.parameters().zip(method2.parameters()).all {
                     (param1, param2): Pair<ParameterItem, ParameterItem> ->
-                val type1 = param1.type()
-                val type2 = param2.type()
-                val class1 = method1.containingClass()
-                val class2 = method2.containingClass()
+                    val type1 = param1.type()
+                    val type2 = param2.type()
+                    val class1 = method1.containingClass()
+                    val class2 = method2.containingClass()
 
-                // At this point, two methods' return types equivalence would have been checked.
-                // i.e. If hasEqualReturnType(method1, method2) is true,
-                // we know that the two methods return types are equal.
-                // In other words, if the two compared param types are both method return types,
-                // we transitively know that the two param types are equal as well.
-                val bothAreMethodReturnType =
-                    type1 == method1.returnType() && type2 == method2.returnType()
+                    // At this point, two methods' return types equivalence would have been checked.
+                    // i.e. If hasEqualReturnType(method1, method2) is true,
+                    // we know that the two methods return types are equal.
+                    // In other words, if the two compared param types are both method return types,
+                    // we transitively know that the two param types are equal as well.
+                    val bothAreMethodReturnType =
+                        type1 == method1.returnType() && type2 == method2.returnType()
 
-                type1 == type2 ||
-                    bothAreMethodReturnType ||
-                    hasEqualTypeVar(type1, class1, type2, class2) ||
-                    hasCovariantTypes(type1, class1, type2, class2)
-            }
+                    type1 == type2 ||
+                        bothAreMethodReturnType ||
+                        hasEqualTypeVar(type1, class1, type2, class2) ||
+                        hasCovariantTypes(type1, class1, type2, class2)
+                }
 
             return hasEqualReturnType(method1, method2) && hasEqualParams
         }

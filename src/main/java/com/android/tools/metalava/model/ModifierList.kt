@@ -72,7 +72,9 @@ interface ModifierList {
 
         if (isStatic() != other.isStatic()) return false
         if (isAbstract() != other.isAbstract()) return false
-        if (isFinal() != other.isFinal()) { return false }
+        if (isFinal() != other.isFinal()) {
+            return false
+        }
         if (isTransient() != other.isTransient()) return false
         if (isVolatile() != other.isVolatile()) return false
 
@@ -97,58 +99,52 @@ interface ModifierList {
         return annotations().any { it.isNonNull() }
     }
 
-    /**
-     * Returns true if this modifier list contains the `@JvmSynthetic` annotation
-     */
+    /** Returns true if this modifier list contains the `@JvmSynthetic` annotation */
     fun hasJvmSyntheticAnnotation(): Boolean {
         return annotations().any { it.isJvmSynthetic() }
     }
 
     /**
-     * Returns true if this modifier list contains any annotations explicitly passed in
-     * via [Options.showAnnotations]
+     * Returns true if this modifier list contains any annotations explicitly passed in via
+     * [Options.showAnnotations]
      */
     fun hasShowAnnotation(): Boolean {
         if (options.showAnnotations.isEmpty()) {
             return false
         }
-        return annotations().any {
-            options.showAnnotations.matches(it)
-        }
+        return annotations().any { options.showAnnotations.matches(it) }
     }
 
     /**
-     * Returns true if this modifier list contains any annotations explicitly passed in
-     * via [Options.showSingleAnnotations]
+     * Returns true if this modifier list contains any annotations explicitly passed in via
+     * [Options.showSingleAnnotations]
      */
     fun hasShowSingleAnnotation(): Boolean {
         if (options.showSingleAnnotations.isEmpty()) {
             return false
         }
-        return annotations().any {
-            options.showSingleAnnotations.matches(it)
-        }
+        return annotations().any { options.showSingleAnnotations.matches(it) }
     }
 
     /**
-     * Returns true if this modifier list contains any annotations explicitly passed in
-     * via [Options.showForStubPurposesAnnotations], and this is the only showAnnotation.
+     * Returns true if this modifier list contains any annotations explicitly passed in via
+     * [Options.showForStubPurposesAnnotations], and this is the only showAnnotation.
      */
     fun onlyShowForStubPurposes(): Boolean {
         if (options.showForStubPurposesAnnotations.isEmpty()) {
             return false
         }
-        return annotations().any {
-            options.showForStubPurposesAnnotations.matches(it)
-        } && !annotations().any {
-            options.showAnnotations.matches(it) && !options.showForStubPurposesAnnotations.matches(it)
-        }
+        return annotations().any { options.showForStubPurposesAnnotations.matches(it) } &&
+            !annotations().any {
+                options.showAnnotations.matches(it) &&
+                    !options.showForStubPurposesAnnotations.matches(it)
+            }
     }
 
     /**
-     * Returns true if this modifier list contains any annotations explicitly passed in
-     * via [Options.hideAnnotations] or any annotations which are themselves annotated
-     * with meta-annotations explicitly passed in via [Options.hideMetaAnnotations]
+     * Returns true if this modifier list contains any annotations explicitly passed in via
+     * [Options.hideAnnotations] or any annotations which are themselves annotated with
+     * meta-annotations explicitly passed in via [Options.hideMetaAnnotations]
      *
      * @see hasHideMetaAnnotations
      */
@@ -163,12 +159,12 @@ interface ModifierList {
     }
 
     /**
-     * Returns true if this modifier list contains any meta-annotations explicitly passed in
-     * via [Options.hideMetaAnnotations].
+     * Returns true if this modifier list contains any meta-annotations explicitly passed in via
+     * [Options.hideMetaAnnotations].
      *
      * Hidden meta-annotations allow Metalava to handle concepts like Kotlin's [RequiresOptIn],
-     * which allows developers to create annotations that describe experimental features -- sets
-     * of distinct and potentially overlapping unstable API surfaces. Libraries may wish to exclude
+     * which allows developers to create annotations that describe experimental features -- sets of
+     * distinct and potentially overlapping unstable API surfaces. Libraries may wish to exclude
      * such sets of APIs from tracking and stub JAR generation by passing [RequiresOptIn] as a
      * hidden meta-annotation.
      */
@@ -209,34 +205,30 @@ interface ModifierList {
     }
 
     /**
-     * Returns the annotation of the given qualified name (or equivalent) if found
-     * in this modifier list
+     * Returns the annotation of the given qualified name (or equivalent) if found in this modifier
+     * list
      */
     fun findAnnotation(qualifiedName: String): AnnotationItem? {
         val mappedName = AnnotationItem.mapName(qualifiedName)
-        return annotations().firstOrNull {
-            mappedName == it.qualifiedName
-        }
+        return annotations().firstOrNull { mappedName == it.qualifiedName }
     }
 
     /**
-     * Returns the annotation of the given qualified name if found in this modifier list.
-     * Like [findAnnotation], but where that method translates both the annotations in
-     * the source and the target name to their canonical form (E.g. the androidx name),
-     * this method will look at the original source for the exact name passed in here.
+     * Returns the annotation of the given qualified name if found in this modifier list. Like
+     * [findAnnotation], but where that method translates both the annotations in the source and the
+     * target name to their canonical form (E.g. the androidx name), this method will look at the
+     * original source for the exact name passed in here.
      */
     fun findExactAnnotation(qualifiedName: String): AnnotationItem? {
-        return annotations().firstOrNull {
-            qualifiedName == it.originalName
-        }
+        return annotations().firstOrNull { qualifiedName == it.originalName }
     }
 
     /** Returns true if this modifier list has adequate access */
     fun checkLevel() = checkLevel(options.docLevel)
 
     /**
-     * Returns true if this modifier list has access modifiers that
-     * are adequate for the given documentation level
+     * Returns true if this modifier list has access modifiers that are adequate for the given
+     * documentation level
      */
     fun checkLevel(level: DocLevel): Boolean {
         if (level == HIDDEN) {
@@ -248,18 +240,20 @@ interface ModifierList {
             PUBLIC -> isPublic()
             PROTECTED -> isPublic() || isProtected()
             PACKAGE -> !isPrivate()
-            PRIVATE, HIDDEN -> true
+            PRIVATE,
+            HIDDEN -> true
         }
     }
 
     /**
-     * Returns true if the visibility modifiers in this modifier list is as least as visible
-     * as the ones in the given [other] modifier list
+     * Returns true if the visibility modifiers in this modifier list is as least as visible as the
+     * ones in the given [other] modifier list
      */
     fun asAccessibleAs(other: ModifierList): Boolean {
         val otherLevel = other.getVisibilityLevel()
         val thisLevel = getVisibilityLevel()
-        // Generally the access level enum order determines relative visibility. However, there is an exception because
+        // Generally the access level enum order determines relative visibility. However, there is
+        // an exception because
         // package private and internal are not directly comparable.
         val result = thisLevel >= otherLevel
         return when (otherLevel) {
@@ -275,8 +269,8 @@ interface ModifierList {
     }
 
     /**
-     * Like [getVisibilityString], but package private has no modifiers; this typically corresponds to
-     * the source code for the visibility modifiers in the modifier list
+     * Like [getVisibilityString], but package private has no modifiers; this typically corresponds
+     * to the source code for the visibility modifiers in the modifier list
      */
     fun getVisibilityModifiers(): String {
         return getVisibilityLevel().javaSourceCodeModifier
@@ -299,24 +293,26 @@ interface ModifierList {
             separateLines: Boolean = false,
             language: Language = Language.JAVA
         ) {
-            val list = if (removeAbstract || removeFinal || addPublic) {
-                class AbstractFiltering : ModifierList by modifiers {
-                    override fun isAbstract(): Boolean {
-                        return if (removeAbstract) false else modifiers.isAbstract()
-                    }
+            val list =
+                if (removeAbstract || removeFinal || addPublic) {
+                    class AbstractFiltering : ModifierList by modifiers {
+                        override fun isAbstract(): Boolean {
+                            return if (removeAbstract) false else modifiers.isAbstract()
+                        }
 
-                    override fun isFinal(): Boolean {
-                        return if (removeFinal) false else modifiers.isFinal()
-                    }
+                        override fun isFinal(): Boolean {
+                            return if (removeFinal) false else modifiers.isFinal()
+                        }
 
-                    override fun getVisibilityLevel(): VisibilityLevel {
-                        return if (addPublic) VisibilityLevel.PUBLIC else modifiers.getVisibilityLevel()
+                        override fun getVisibilityLevel(): VisibilityLevel {
+                            return if (addPublic) VisibilityLevel.PUBLIC
+                            else modifiers.getVisibilityLevel()
+                        }
                     }
+                    AbstractFiltering()
+                } else {
+                    modifiers
                 }
-                AbstractFiltering()
-            } else {
-                modifiers
-            }
 
             writeAnnotations(
                 item,
@@ -343,25 +339,27 @@ interface ModifierList {
             val methodItem = item as? MethodItem
 
             val visibilityLevel = list.getVisibilityLevel()
-            val modifier = if (language == Language.JAVA) {
-                visibilityLevel.javaSourceCodeModifier
-            } else {
-                visibilityLevel.kotlinSourceCodeModifier
-            }
+            val modifier =
+                if (language == Language.JAVA) {
+                    visibilityLevel.javaSourceCodeModifier
+                } else {
+                    visibilityLevel.kotlinSourceCodeModifier
+                }
             if (modifier.isNotEmpty()) {
                 writer.write("$modifier ")
             }
 
-            val isInterface = classItem?.isInterface() == true ||
-                (
-                    methodItem?.containingClass()?.isInterface() == true &&
-                        !list.isDefault() && !list.isStatic()
-                    )
+            val isInterface =
+                classItem?.isInterface() == true ||
+                    (methodItem?.containingClass()?.isInterface() == true &&
+                        !list.isDefault() &&
+                        !list.isStatic())
 
-            if (list.isAbstract() &&
-                classItem?.isEnum() != true &&
-                classItem?.isAnnotationType() != true &&
-                !isInterface
+            if (
+                list.isAbstract() &&
+                    classItem?.isEnum() != true &&
+                    classItem?.isAnnotationType() != true &&
+                    !isInterface
             ) {
                 writer.write("abstract ")
             }
@@ -374,11 +372,12 @@ interface ModifierList {
                 writer.write("static ")
             }
 
-            if (list.isFinal() &&
-                language == Language.JAVA &&
-                // Don't show final on parameters: that's an implementation side detail
-                item !is ParameterItem &&
-                classItem?.isEnum() != true
+            if (
+                list.isFinal() &&
+                    language == Language.JAVA &&
+                    // Don't show final on parameters: that's an implementation side detail
+                    item !is ParameterItem &&
+                    classItem?.isEnum() != true
             ) {
                 writer.write("final ")
             } else if (!list.isFinal() && language == Language.KOTLIN) {
@@ -488,7 +487,10 @@ interface ModifierList {
                 for (annotation in annotations) {
                     index++
 
-                    if (runtimeAnnotationsOnly && annotation.retention != AnnotationRetention.RUNTIME) {
+                    if (
+                        runtimeAnnotationsOnly &&
+                            annotation.retention != AnnotationRetention.RUNTIME
+                    ) {
                         continue
                     }
 
@@ -507,13 +509,16 @@ interface ModifierList {
                         if (typedef != null) {
                             printAnnotation = typedef
                         }
-                    } else if (options.typedefMode == Options.TypedefMode.REFERENCE &&
-                        annotation.targets === ANNOTATION_SIGNATURE_ONLY &&
-                        annotation.findTypedefAnnotation() != null
+                    } else if (
+                        options.typedefMode == Options.TypedefMode.REFERENCE &&
+                            annotation.targets === ANNOTATION_SIGNATURE_ONLY &&
+                            annotation.findTypedefAnnotation() != null
                     ) {
                         // For annotation references, only include the simple name
                         writer.write("@")
-                        writer.write(annotation.resolve()?.simpleName() ?: annotation.qualifiedName!!)
+                        writer.write(
+                            annotation.resolve()?.simpleName() ?: annotation.qualifiedName!!
+                        )
                         if (separateLines) {
                             writer.write("\n")
                         } else {

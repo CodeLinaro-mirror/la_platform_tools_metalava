@@ -169,7 +169,6 @@ class PsiModifierItemTest {
                 """
             )
         ) { codebase ->
-
             assertFalse(codebase.assertClass("TopLevel").modifiers.isStatic())
             assertFalse(codebase.assertClass("TopLevel.Inner").modifiers.isStatic())
             assertFalse(codebase.assertClass("Object").modifiers.isStatic())

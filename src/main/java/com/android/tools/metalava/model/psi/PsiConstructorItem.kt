@@ -73,16 +73,19 @@ class PsiConstructorItem(
             psiMethod.findSuperMethods().mapTo(result) { codebase.findMethod(it) }
 
             if (result.isEmpty() && isConstructor() && containingClass().superClass() != null) {
-                // Try a little harder; psi findSuperMethod doesn't seem to find super constructors in
+                // Try a little harder; psi findSuperMethod doesn't seem to find super constructors
+                // in
                 // some cases, but maybe we can find it by resolving actual super() calls!
                 // TODO: Port to UAST
                 var curr: PsiElement? = psiMethod.body?.firstBodyElement
                 while (curr != null && curr is PsiWhiteSpace) {
                     curr = curr.nextSibling
                 }
-                if (curr is PsiExpressionStatement && curr.expression is PsiMethodCallExpression &&
-                    curr.expression.firstChild?.lastChild is PsiKeyword &&
-                    curr.expression.firstChild?.lastChild?.text == "super"
+                if (
+                    curr is PsiExpressionStatement &&
+                        curr.expression is PsiMethodCallExpression &&
+                        curr.expression.firstChild?.lastChild is PsiKeyword &&
+                        curr.expression.firstChild?.lastChild?.text == "super"
                 ) {
                     val resolved = (curr.expression as PsiMethodCallExpression).resolveMethod()
                     if (resolved is PsiMethod) {
@@ -118,18 +121,19 @@ class PsiConstructorItem(
             val commentText = javadoc(psiMethod)
             val modifiers = modifiers(codebase, psiMethod, commentText)
             val parameters = parameterList(codebase, psiMethod)
-            val constructor = PsiConstructorItem(
-                codebase = codebase,
-                psiMethod = psiMethod,
-                containingClass = containingClass,
-                name = name,
-                documentation = commentText,
-                modifiers = modifiers,
-                parameters = parameters,
-                returnType = codebase.getType(containingClass.psiClass),
-                implicitConstructor = false,
-                isPrimary = (psiMethod as? UMethod)?.isPrimaryConstructor ?: false
-            )
+            val constructor =
+                PsiConstructorItem(
+                    codebase = codebase,
+                    psiMethod = psiMethod,
+                    containingClass = containingClass,
+                    name = name,
+                    documentation = commentText,
+                    modifiers = modifiers,
+                    parameters = parameters,
+                    returnType = codebase.getType(containingClass.psiClass),
+                    implicitConstructor = false,
+                    isPrimary = (psiMethod as? UMethod)?.isPrimaryConstructor ?: false
+                )
             constructor.modifiers.setOwner(constructor)
             return constructor
         }
@@ -146,17 +150,18 @@ class PsiConstructorItem(
             val modifiers = PsiModifierItem(codebase, PACKAGE_PRIVATE, null)
             modifiers.setVisibilityLevel(containingClass.modifiers.getVisibilityLevel())
 
-            val item = PsiConstructorItem(
-                codebase = codebase,
-                psiMethod = psiMethod,
-                containingClass = containingClass,
-                name = name,
-                documentation = "",
-                modifiers = modifiers,
-                parameters = emptyList(),
-                returnType = codebase.getType(psiClass),
-                implicitConstructor = true
-            )
+            val item =
+                PsiConstructorItem(
+                    codebase = codebase,
+                    psiMethod = psiMethod,
+                    containingClass = containingClass,
+                    name = name,
+                    documentation = "",
+                    modifiers = modifiers,
+                    parameters = emptyList(),
+                    returnType = codebase.getType(psiClass),
+                    implicitConstructor = true
+                )
             modifiers.setOwner(item)
             return item
         }

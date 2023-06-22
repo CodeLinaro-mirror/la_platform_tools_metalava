@@ -24,50 +24,38 @@ class TextTypeItemTest {
     fun `test typeString()`() {
         val full =
             "@androidx.annotation.Nullable java.util.List<@androidx.annotation.Nullable java.lang.String>"
-        assertThat(TextTypeItem.toTypeString(full, false, false, false)).isEqualTo(
-            "java.util.List<java.lang.String>"
-        )
-        assertThat(TextTypeItem.toTypeString(full, false, true, false)).isEqualTo(
-            "java.util.List<@androidx.annotation.Nullable java.lang.String>"
-        )
-        assertThat(TextTypeItem.toTypeString(full, false, false, true)).isEqualTo(
-            "java.util.List"
-        )
-        assertThat(
-            TextTypeItem.toTypeString(
-                full,
-                true,
-                true,
-                false
+        assertThat(TextTypeItem.toTypeString(full, false, false, false))
+            .isEqualTo("java.util.List<java.lang.String>")
+        assertThat(TextTypeItem.toTypeString(full, false, true, false))
+            .isEqualTo("java.util.List<@androidx.annotation.Nullable java.lang.String>")
+        assertThat(TextTypeItem.toTypeString(full, false, false, true)).isEqualTo("java.util.List")
+        assertThat(TextTypeItem.toTypeString(full, true, true, false))
+            .isEqualTo(
+                "@androidx.annotation.Nullable java.util.List<@androidx.annotation.Nullable java.lang.String>"
             )
-        ).isEqualTo("@androidx.annotation.Nullable java.util.List<@androidx.annotation.Nullable java.lang.String>")
-        assertThat(
-            TextTypeItem.toTypeString(
-                full,
-                true,
-                true,
-                true
-            )
-        ).isEqualTo("@androidx.annotation.Nullable java.util.List")
+        assertThat(TextTypeItem.toTypeString(full, true, true, true))
+            .isEqualTo("@androidx.annotation.Nullable java.util.List")
         assertThat(TextTypeItem.toTypeString("int", false, false, false)).isEqualTo("int")
 
         assertThat(
-            TextTypeItem.toTypeString(
-                "java.util.List<java.util.Number>[]",
-                false,
-                false,
-                erased = true
+                TextTypeItem.toTypeString(
+                    "java.util.List<java.util.Number>[]",
+                    false,
+                    false,
+                    erased = true
+                )
             )
-        ).isEqualTo("java.util.List[]")
+            .isEqualTo("java.util.List[]")
     }
 
     @Test
     fun `check erasure`() {
         // When a type variable is on a member and the type variable is defined on the surrounding
         // class, look up the bound on the class type parameter:
-        val codebase = ApiFile.parseApi(
-            "test",
-            """
+        val codebase =
+            ApiFile.parseApi(
+                "test",
+                """
             package androidx.navigation {
               public final class NavDestination {
                 ctor public NavDestination();
@@ -77,47 +65,40 @@ class TextTypeItemTest {
                 method public D build();
               }
             }
-            """.trimIndent(),
-            false
-        )
+            """
+                    .trimIndent(),
+                false
+            )
         val cls = codebase.findClass("androidx.navigation.NavDestinationBuilder")
         val method = cls?.findMethod("build", "") as TextMethodItem
         assertThat(method).isNotNull()
-        assertThat(
-            TextTypeParameterItem.bounds(
-                "D",
-                method
-            ).toString()
-        ).isEqualTo("[androidx.navigation.NavDestination]")
+        assertThat(TextTypeParameterItem.bounds("D", method).toString())
+            .isEqualTo("[androidx.navigation.NavDestination]")
 
-        assertThat(
-            TextTypeItem.toTypeString(
-                "D[]",
-                false,
-                false,
-                erased = true,
-                context = method
-            )
-        ).isEqualTo("androidx.navigation.NavDestination[]") // it doesn't know any better
+        assertThat(TextTypeItem.toTypeString("D[]", false, false, erased = true, context = method))
+            .isEqualTo("androidx.navigation.NavDestination[]") // it doesn't know any better
 
-        // TODO: Test that in an enum, "T" becomes "java.lang.Enum"; elsewhere it's "java.lang.Object", etc.
+        // TODO: Test that in an enum, "T" becomes "java.lang.Enum"; elsewhere it's
+        // "java.lang.Object", etc.
     }
 
     @Test
     fun `check erasure from object`() {
         // When a type variable is on a member and the type variable is defined on the surrounding
         // class, look up the bound on the class type parameter:
-        val codebase = ApiFile.parseApi(
-            "test",
-            """
+        val codebase =
+            ApiFile.parseApi(
+                "test",
+                """
             package test.pkg {
               public final class TestClass<D> {
                 method public D build();
               }
             }
-            """.trimIndent(),
-            false
-        )
+            """
+                    .trimIndent(),
+                false
+            )
         val cls = codebase.findClass("test.pkg.TestClass")
         val method = cls?.findMethod("build", "") as TextMethodItem
         assertThat(method).isNotNull()
@@ -125,14 +106,9 @@ class TextTypeItemTest {
         @Suppress("ConstantConditionIf")
         if (ASSUME_TYPE_VARS_EXTEND_OBJECT) {
             assertThat(
-                TextTypeItem.toTypeString(
-                    "D[]",
-                    false,
-                    false,
-                    erased = true,
-                    context = method
+                    TextTypeItem.toTypeString("D[]", false, false, erased = true, context = method)
                 )
-            ).isEqualTo("java.lang.Object[]")
+                .isEqualTo("java.lang.Object[]")
         }
     }
 
@@ -140,43 +116,33 @@ class TextTypeItemTest {
     fun `check erasure from enums`() {
         // When a type variable is on a member and the type variable is defined on the surrounding
         // class, look up the bound on the class type parameter:
-        val codebase = ApiFile.parseApi(
-            "test",
-            """
+        val codebase =
+            ApiFile.parseApi(
+                "test",
+                """
             package test.pkg {
               public class EnumMap<K extends java.lang.Enum<K>, V> extends java.util.AbstractMap implements java.lang.Cloneable java.io.Serializable {
                 method public java.util.EnumMap<K, V> clone();
                 method public java.util.Set<java.util.Map.Entry<K, V>> entrySet();
               }
             }
-            """.trimIndent(),
-            false
-        )
+            """
+                    .trimIndent(),
+                false
+            )
         val cls = codebase.findClass("test.pkg.EnumMap")
         val method = cls?.findMethod("clone", "") as TextMethodItem
         assertThat(method).isNotNull()
 
-        assertThat(
-            TextTypeItem.toTypeString(
-                "K",
-                false,
-                false,
-                erased = true,
-                context = method
-            )
-        ).isEqualTo("java.lang.Enum")
+        assertThat(TextTypeItem.toTypeString("K", false, false, erased = true, context = method))
+            .isEqualTo("java.lang.Enum")
 
         @Suppress("ConstantConditionIf")
         if (ASSUME_TYPE_VARS_EXTEND_OBJECT) {
             assertThat(
-                TextTypeItem.toTypeString(
-                    "V",
-                    false,
-                    false,
-                    erased = true,
-                    context = method
+                    TextTypeItem.toTypeString("V", false, false, erased = true, context = method)
                 )
-            ).isEqualTo("java.lang.Object")
+                .isEqualTo("java.lang.Object")
         }
     }
 
@@ -185,7 +151,9 @@ class TextTypeItemTest {
         assertThat(TextTypeItem.stripKotlinNullChars("String?")).isEqualTo("String")
         assertThat(TextTypeItem.stripKotlinNullChars("String!")).isEqualTo("String")
         assertThat(TextTypeItem.stripKotlinNullChars("List<String?>")).isEqualTo("List<String>")
-        assertThat(TextTypeItem.stripKotlinNullChars("Map<? extends K, ? extends V>")).isEqualTo("Map<? extends K, ? extends V>")
-        assertThat(TextTypeItem.stripKotlinNullChars("Map<?extends K,?extends V>")).isEqualTo("Map<?extends K,?extends V>")
+        assertThat(TextTypeItem.stripKotlinNullChars("Map<? extends K, ? extends V>"))
+            .isEqualTo("Map<? extends K, ? extends V>")
+        assertThat(TextTypeItem.stripKotlinNullChars("Map<?extends K,?extends V>"))
+            .isEqualTo("Map<?extends K,?extends V>")
     }
 }

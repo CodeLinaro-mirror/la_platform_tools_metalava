@@ -41,7 +41,8 @@ class PsiPackageItem(
     // Note - top level classes only
     private val classes: MutableList<ClassItem> = mutableListOf()
 
-    override fun topLevelClasses(): Sequence<ClassItem> = classes.toList().asSequence().filter { it.isTopLevelClass() }
+    override fun topLevelClasses(): Sequence<ClassItem> =
+        classes.toList().asSequence().filter { it.isTopLevelClass() }
 
     lateinit var containingPackageField: PsiPackageItem
 
@@ -51,7 +52,8 @@ class PsiPackageItem(
         if (!strict) {
             return this
         }
-        return if (qualifiedName.isEmpty()) null else {
+        return if (qualifiedName.isEmpty()) null
+        else {
             if (!::containingPackageField.isInitialized) {
                 var parentPackage = qualifiedName
                 while (true) {
@@ -68,8 +70,7 @@ class PsiPackageItem(
                     }
                 }
 
-                @Suppress("UNREACHABLE_CODE")
-                null
+                @Suppress("UNREACHABLE_CODE") null
             } else {
                 containingPackageField
             }
@@ -119,7 +120,8 @@ class PsiPackageItem(
     override fun finishInitialization() {
         super.finishInitialization()
         val initialClasses = ArrayList(classes)
-        var original = initialClasses.size // classes added after this point will have indices >= original
+        var original =
+            initialClasses.size // classes added after this point will have indices >= original
         for (cls in initialClasses) {
             if (cls is PsiClassItem) cls.finishInitialization()
         }
@@ -152,27 +154,29 @@ class PsiPackageItem(
             }
             val qualifiedName = psiPackage.qualifiedName
 
-            val pkg = PsiPackageItem(
-                codebase = codebase,
-                psiPackage = psiPackage,
-                qualifiedName = qualifiedName,
-                documentation = commentText,
-                modifiers = modifiers,
-                fromClassPath = fromClassPath
-            )
+            val pkg =
+                PsiPackageItem(
+                    codebase = codebase,
+                    psiPackage = psiPackage,
+                    qualifiedName = qualifiedName,
+                    documentation = commentText,
+                    modifiers = modifiers,
+                    fromClassPath = fromClassPath
+                )
             pkg.modifiers.setOwner(pkg)
             return pkg
         }
 
         fun create(codebase: PsiBasedCodebase, original: PsiPackageItem): PsiPackageItem {
-            val pkg = PsiPackageItem(
-                codebase = codebase,
-                psiPackage = original.psiPackage,
-                qualifiedName = original.qualifiedName,
-                documentation = original.documentation,
-                modifiers = PsiModifierItem.create(codebase, original.modifiers),
-                fromClassPath = original.isFromClassPath()
-            )
+            val pkg =
+                PsiPackageItem(
+                    codebase = codebase,
+                    psiPackage = original.psiPackage,
+                    qualifiedName = original.qualifiedName,
+                    documentation = original.documentation,
+                    modifiers = PsiModifierItem.create(codebase, original.modifiers),
+                    fromClassPath = original.isFromClassPath()
+                )
             pkg.modifiers.setOwner(pkg)
             return pkg
         }

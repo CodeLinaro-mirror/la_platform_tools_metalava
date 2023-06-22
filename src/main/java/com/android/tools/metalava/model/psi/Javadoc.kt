@@ -50,9 +50,9 @@ import org.intellij.lang.annotations.Language
  */
 
 /**
- * If the reference is to a class in the same package, include the package prefix?
- * This should not be necessary, but doclava has problems finding classes without
- * it. Consider turning this off when we switch to Dokka.
+ * If the reference is to a class in the same package, include the package prefix? This should not
+ * be necessary, but doclava has problems finding classes without it. Consider turning this off when
+ * we switch to Dokka.
  */
 const val INCLUDE_SAME_PACKAGE = true
 
@@ -60,31 +60,26 @@ const val INCLUDE_SAME_PACKAGE = true
 const val PREPEND_LOCAL_CLASS = false
 
 /**
- * Whether we should report unresolved symbols. This is typically
- * a bug in the documentation. It looks like there are a LOT
- * of mistakes right now, so I'm worried about turning this on
- * since doclava didn't seem to abort on this.
+ * Whether we should report unresolved symbols. This is typically a bug in the documentation. It
+ * looks like there are a LOT of mistakes right now, so I'm worried about turning this on since
+ * doclava didn't seem to abort on this.
  *
- * Here are some examples I've spot checked:
- * (1) "Unresolved SQLExceptionif": In java.sql.CallableStatement the
- * getBigDecimal method contains this, presumably missing a space
- * before the if suffix: "@exception SQLExceptionif parameterName does not..."
- * (2) In android.nfc.tech.IsoDep there is "@throws TagLostException if ..."
- * but TagLostException is not imported anywhere and is not in the same
- * package (it's in the parent package).
+ * Here are some examples I've spot checked: (1) "Unresolved SQLExceptionif": In
+ * java.sql.CallableStatement the getBigDecimal method contains this, presumably missing a space
+ * before the if suffix: "@exception SQLExceptionif parameterName does not..." (2) In
+ * android.nfc.tech.IsoDep there is "@throws TagLostException if ..." but TagLostException is not
+ * imported anywhere and is not in the same package (it's in the parent package).
  */
 const val REPORT_UNRESOLVED_SYMBOLS = false
 
 /**
- * Merges the given [newText] into the existing documentation block [existingDoc]
- * (which should be a full documentation node, including the surrounding comment
- * start and end tokens.)
+ * Merges the given [newText] into the existing documentation block [existingDoc] (which should be a
+ * full documentation node, including the surrounding comment start and end tokens.)
  *
- * If the [tagSection] is null, add the comment to the initial text block
- * of the description. Otherwise if it is "@return", add the comment
- * to the return value. Otherwise the [tagSection] is taken to be the
- * parameter name, and the comment added as parameter documentation
- * for the given parameter.
+ * If the [tagSection] is null, add the comment to the initial text block of the description.
+ * Otherwise if it is "@return", add the comment to the return value. Otherwise the [tagSection] is
+ * taken to be the parameter name, and the comment added as parameter documentation for the given
+ * parameter.
  */
 fun mergeDocumentation(
     existingDoc: String,
@@ -95,12 +90,13 @@ fun mergeDocumentation(
 ): String {
     if (existingDoc.isBlank()) {
         // There's no existing comment: Create a new one. This is easy.
-        val content = when {
-            tagSection == "@return" -> "@return $newText"
-            tagSection?.startsWith("@") ?: false -> "$tagSection $newText"
-            tagSection != null -> "@param $tagSection $newText"
-            else -> newText
-        }
+        val content =
+            when {
+                tagSection == "@return" -> "@return $newText"
+                tagSection?.startsWith("@") ?: false -> "$tagSection $newText"
+                tagSection != null -> "@param $tagSection $newText"
+                else -> newText
+            }
 
         val inherit =
             when (psiElement) {
@@ -121,8 +117,9 @@ fun mergeDocumentation(
     // to help us scan the tokens in the documentation, such that
     // we don't have to search for raw substrings like "@return" which
     // can incorrectly find matches in escaped code snippets etc.
-    val factory = JavaPsiFacade.getElementFactory(psiElement.project)
-        ?: error("Invalid tool configuration; did not find JavaPsiFacade factory")
+    val factory =
+        JavaPsiFacade.getElementFactory(psiElement.project)
+            ?: error("Invalid tool configuration; did not find JavaPsiFacade factory")
     val docComment = factory.createDocCommentFromText(doc)
 
     if (tagSection == "@return") {
@@ -131,23 +128,24 @@ fun mergeDocumentation(
         if (returnTag == null) {
             // Find last tag
             val lastTag = findLastTag(docComment)
-            val offset = if (lastTag != null) {
-                findTagEnd(lastTag)
-            } else {
-                doc.length - 2
-            }
+            val offset =
+                if (lastTag != null) {
+                    findTagEnd(lastTag)
+                } else {
+                    doc.length - 2
+                }
             return insertInto(doc, "@return $newText", offset)
         } else {
             // Add text to the existing @return tag
-            val offset = if (append)
-                findTagEnd(returnTag)
-            else returnTag.textRange.startOffset + returnTag.name.length + 1
+            val offset =
+                if (append) findTagEnd(returnTag)
+                else returnTag.textRange.startOffset + returnTag.name.length + 1
             return insertInto(doc, newText, offset)
         }
     } else if (tagSection != null) {
-        val parameter = if (tagSection.startsWith("@"))
-            docComment.findTagByName(tagSection.substring(1))
-        else findParamTag(docComment, tagSection)
+        val parameter =
+            if (tagSection.startsWith("@")) docComment.findTagByName(tagSection.substring(1))
+            else findParamTag(docComment, tagSection)
         if (parameter == null) {
             // Add new parameter or tag
             // TODO: Decide whether to place it alphabetically or place it by parameter order
@@ -155,22 +153,24 @@ fun mergeDocumentation(
             // doc, if any
             // For now just appending to the last tag before the return tag (if any).
             // This actually works out well in practice where arguments are generally all documented
-            // or all not documented; when none of the arguments are documented these end up appending
+            // or all not documented; when none of the arguments are documented these end up
+            // appending
             // exactly in the right parameter order!
             val returnTag = docComment.findTagByName("return")
             val anchor = returnTag ?: findLastTag(docComment)
-            val offset = when {
-                returnTag != null -> returnTag.textRange.startOffset
-                anchor != null -> findTagEnd(anchor)
-                else -> doc.length - 2 // "*/
-            }
+            val offset =
+                when {
+                    returnTag != null -> returnTag.textRange.startOffset
+                    anchor != null -> findTagEnd(anchor)
+                    else -> doc.length - 2 // "*/
+                }
             val tagName = if (tagSection.startsWith("@")) tagSection else "@param $tagSection"
             return insertInto(doc, "$tagName $newText", offset)
         } else {
             // Add to existing tag/parameter
-            val offset = if (append)
-                findTagEnd(parameter)
-            else parameter.textRange.startOffset + parameter.name.length + 1
+            val offset =
+                if (append) findTagEnd(parameter)
+                else parameter.textRange.startOffset + parameter.name.length + 1
             return insertInto(doc, newText, offset)
         }
     } else {
@@ -231,31 +231,42 @@ fun trimDocIndent(existingDoc: String): String {
 fun insertInto(existingDoc: String, newText: String, initialOffset: Int): String {
     // TODO: Insert "." between existing documentation and new documentation, if necessary.
 
-    val offset = if (initialOffset > 4 && existingDoc.regionMatches(initialOffset - 4, "\n * ", 0, 4, false)) {
-        initialOffset - 4
-    } else {
-        initialOffset
-    }
+    val offset =
+        if (
+            initialOffset > 4 && existingDoc.regionMatches(initialOffset - 4, "\n * ", 0, 4, false)
+        ) {
+            initialOffset - 4
+        } else {
+            initialOffset
+        }
     val index = existingDoc.indexOf('\n')
-    val prefixWithStar = index == -1 || existingDoc[index + 1] == '*' ||
-        existingDoc[index + 1] == ' ' && existingDoc[index + 2] == '*'
+    val prefixWithStar =
+        index == -1 ||
+            existingDoc[index + 1] == '*' ||
+            existingDoc[index + 1] == ' ' && existingDoc[index + 2] == '*'
 
     val prefix = existingDoc.substring(0, offset)
     val suffix = existingDoc.substring(offset)
     val startSeparator = "\n"
     val endSeparator =
-        if (suffix.startsWith("\n") || suffix.startsWith(" \n")) "" else if (suffix == "*/") "\n" else if (prefixWithStar) "\n * " else "\n"
+        if (suffix.startsWith("\n") || suffix.startsWith(" \n")) ""
+        else if (suffix == "*/") "\n" else if (prefixWithStar) "\n * " else "\n"
 
-    val middle = if (prefixWithStar) {
-        startSeparator + newText.split('\n').joinToString(separator = "\n") { " * $it" } +
-            endSeparator
-    } else {
-        "$startSeparator$newText$endSeparator"
-    }
+    val middle =
+        if (prefixWithStar) {
+            startSeparator +
+                newText.split('\n').joinToString(separator = "\n") { " * $it" } +
+                endSeparator
+        } else {
+            "$startSeparator$newText$endSeparator"
+        }
 
     // Going from single-line to multi-line?
     return if (existingDoc.indexOf('\n') == -1 && existingDoc.startsWith("/** ")) {
-        prefix.substring(0, 3) + "\n *" + prefix.substring(3) + middle +
+        prefix.substring(0, 3) +
+            "\n *" +
+            prefix.substring(3) +
+            middle +
             if (suffix == "*/") " */" else suffix
     } else {
         prefix + middle + suffix
@@ -277,14 +288,12 @@ fun packageHtmlToJavadoc(@Language("HTML") packageHtml: String?): String {
     // Combine into comment lines prefixed by asterisk, ,and make sure we don't
     // have end-comment markers in the HTML that will escape out of the javadoc comment
     val comment = body.lines().joinToString(separator = "\n") { " * $it" }.replace("*/", "&#42;/")
-    @Suppress("DanglingJavadoc")
-    return "/**\n$comment\n */\n"
+    @Suppress("DanglingJavadoc") return "/**\n$comment\n */\n"
 }
 
 /**
- * Returns the body content from the given HTML document.
- * Attempts to tokenize the HTML properly such that it doesn't
- * get confused by comments or text that looks like tags.
+ * Returns the body content from the given HTML document. Attempts to tokenize the HTML properly
+ * such that it doesn't get confused by comments or text that looks like tags.
  */
 @Suppress("LocalVariableName")
 private fun getBodyContents(html: String): String {
@@ -333,7 +342,6 @@ private fun getBodyContents(html: String): String {
                 // Other text is just ignored
                 offset++
             }
-
             STATE_SLASH -> {
                 if (c == '!') {
                     if (html.startsWith("!--", offset)) {
@@ -386,7 +394,6 @@ private fun getBodyContents(html: String): String {
                 state = STATE_IN_TAG
                 tagStart = offset
             }
-
             STATE_CLOSE_TAG -> {
                 if (c == '>') {
                     state = STATE_TEXT
@@ -405,7 +412,6 @@ private fun getBodyContents(html: String): String {
                 }
                 offset++
             }
-
             STATE_IN_TAG -> {
                 val whitespace = Character.isWhitespace(c)
                 if (whitespace || c == '>') {
@@ -426,7 +432,6 @@ private fun getBodyContents(html: String): String {
                 }
                 offset++
             }
-
             STATE_ENDING_TAG -> {
                 if (c == '>') {
                     if (html.startsWith("body", tagEndStart, true)) {
@@ -445,7 +450,6 @@ private fun getBodyContents(html: String): String {
                     state = STATE_TEXT
                 }
             }
-
             STATE_BEFORE_ATTRIBUTE -> {
                 if (c == '>') {
                     state = STATE_TEXT
@@ -461,8 +465,7 @@ private fun getBodyContents(html: String): String {
                     c == '>' -> state = STATE_TEXT
                     c == '=' -> state = STATE_ATTRIBUTE_AFTER_EQUALS
                     Character.isWhitespace(c) -> state = STATE_ATTRIBUTE_BEFORE_EQUALS
-                    c == ':' -> {
-                    }
+                    c == ':' -> {}
                 }
                 offset++
             }
@@ -477,7 +480,6 @@ private fun getBodyContents(html: String): String {
                 }
                 offset++
             }
-
             STATE_ATTRIBUTE_AFTER_EQUALS -> {
                 if (c == '\'') {
                     // a='b'
@@ -491,7 +493,6 @@ private fun getBodyContents(html: String): String {
                 }
                 offset++
             }
-
             STATE_ATTRIBUTE_VALUE_SINGLE -> {
                 if (c == '\'') {
                     state = STATE_BEFORE_ATTRIBUTE
@@ -526,12 +527,13 @@ fun containsLinkTags(documentation: String): Boolean {
         if (index == -1) {
             return false
         }
-        if (!documentation.startsWith("@code", index) &&
-            !documentation.startsWith("@literal", index) &&
-            !documentation.startsWith("@param", index) &&
-            !documentation.startsWith("@deprecated", index) &&
-            !documentation.startsWith("@inheritDoc", index) &&
-            !documentation.startsWith("@return", index)
+        if (
+            !documentation.startsWith("@code", index) &&
+                !documentation.startsWith("@literal", index) &&
+                !documentation.startsWith("@param", index) &&
+                !documentation.startsWith("@deprecated", index) &&
+                !documentation.startsWith("@inheritDoc", index) &&
+                !documentation.startsWith("@return", index)
         ) {
             return true
         }
@@ -557,7 +559,10 @@ fun toFullyQualifiedDocumentation(owner: PsiItem, documentation: String): String
             // TODO: Get rid of line comments as documentation
             // Invalid comment
             if (documentation.startsWith("//") && documentation.contains("/**")) {
-                return toFullyQualifiedDocumentation(owner, documentation.substring(documentation.indexOf("/**")))
+                return toFullyQualifiedDocumentation(
+                    owner,
+                    documentation.substring(documentation.indexOf("/**"))
+                )
             }
             codebase.getComment(documentation, owner.psi())
         }
@@ -579,8 +584,7 @@ private fun reportUnresolvedDocReference(owner: Item, unresolved: String) {
 
     // References are sometimes split across lines and therefore have newlines, leading asterisks
     // etc in the middle: clean this up before emitting reference into error message
-    val cleaned = unresolved.replace("\n", "").replace("*", "")
-        .replace("  ", " ")
+    val cleaned = unresolved.replace("\n", "").replace("*", "").replace("  ", " ")
 
     reporter.report(Issues.UNRESOLVED_LINK, owner, "Unresolved documentation reference: $cleaned")
 }
@@ -621,7 +625,10 @@ private fun expand(owner: PsiItem, element: PsiElement, sb: StringBuilder) {
                     }
                     if (resolved == null) {
                         val methodName = text.substring(1, end)
-                        resolved = (owner.psi() as PsiClass).findMethodsByName(methodName, true).firstOrNull()
+                        resolved =
+                            (owner.psi() as PsiClass)
+                                .findMethodsByName(methodName, true)
+                                .firstOrNull()
                     }
                 }
             }
@@ -637,9 +644,14 @@ private fun expand(owner: PsiItem, element: PsiElement, sb: StringBuilder) {
 
                     var className = containingClass.qualifiedName
 
-                    if (element.firstChildNode.elementType === JavaDocElementType.DOC_REFERENCE_HOLDER) {
+                    if (
+                        element.firstChildNode.elementType ===
+                            JavaDocElementType.DOC_REFERENCE_HOLDER
+                    ) {
                         val firstChildPsi =
-                            SourceTreeToPsiMap.treeElementToPsi(element.firstChildNode.firstChildNode)
+                            SourceTreeToPsiMap.treeElementToPsi(
+                                element.firstChildNode.firstChildNode
+                            )
                         if (firstChildPsi is PsiJavaCodeReferenceElement) {
                             val referenceElement = firstChildPsi as PsiJavaCodeReferenceElement?
                             val referencedElement = referenceElement!!.resolve()
@@ -717,11 +729,7 @@ private fun expand(owner: PsiItem, element: PsiElement, sb: StringBuilder) {
     }
 }
 
-fun handleTag(
-    element: PsiInlineDocTag,
-    owner: PsiItem,
-    sb: StringBuilder
-): Boolean {
+fun handleTag(element: PsiInlineDocTag, owner: PsiItem, sb: StringBuilder): Boolean {
     val name = element.name
     if (name == "code" || name == "literal") {
         // @code: don't attempt to rewrite this
@@ -743,7 +751,8 @@ fun handleTag(
         return true
     }
 
-    // TODO: If referenceText is already absolute, e.g. android.Manifest.permission#BIND_CARRIER_SERVICES,
+    // TODO: If referenceText is already absolute, e.g.
+    // android.Manifest.permission#BIND_CARRIER_SERVICES,
     // try to short circuit this?
 
     val valueElement = element.valueElement
@@ -800,7 +809,8 @@ fun handleTag(
             }
             if (resolved == null) {
                 val methodName = referenceText.substring(1, end)
-                resolved = (owner.psi() as PsiClass).findMethodsByName(methodName, true).firstOrNull()
+                resolved =
+                    (owner.psi() as PsiClass).findMethodsByName(methodName, true).firstOrNull()
             }
         }
     }
@@ -813,45 +823,53 @@ fun handleTag(
                     sb.append(text)
                     return true
                 }
-                val qualifiedName = resolved.qualifiedName ?: run {
-                    sb.append(text)
-                    return true
-                }
+                val qualifiedName =
+                    resolved.qualifiedName
+                        ?: run {
+                            sb.append(text)
+                            return true
+                        }
                 if (referenceText == qualifiedName) {
                     // Already absolute
                     sb.append(text)
                     return true
                 }
-                val append = when {
-                    valueElement != null -> {
-                        val start = valueElement.startOffsetInParent
-                        val end = start + valueElement.textLength
-                        text.substring(0, start) + qualifiedName + text.substring(end)
+                val append =
+                    when {
+                        valueElement != null -> {
+                            val start = valueElement.startOffsetInParent
+                            val end = start + valueElement.textLength
+                            text.substring(0, start) + qualifiedName + text.substring(end)
+                        }
+                        name == "see" -> {
+                            val suffix =
+                                text.substring(text.indexOf(referenceText) + referenceText.length)
+                            "@see $qualifiedName$suffix"
+                        }
+                        text.startsWith("{") -> "{@$name $qualifiedName $displayText}"
+                        else -> "@$name $qualifiedName $displayText"
                     }
-                    name == "see" -> {
-                        val suffix = text.substring(text.indexOf(referenceText) + referenceText.length)
-                        "@see $qualifiedName$suffix"
-                    }
-                    text.startsWith("{") -> "{@$name $qualifiedName $displayText}"
-                    else -> "@$name $qualifiedName $displayText"
-                }
                 sb.append(append)
                 return true
             }
             is PsiMember -> {
                 val text = element.text
-                val containing = resolved.containingClass ?: run {
-                    sb.append(text)
-                    return true
-                }
+                val containing =
+                    resolved.containingClass
+                        ?: run {
+                            sb.append(text)
+                            return true
+                        }
                 if (samePackage(owner, containing)) {
                     sb.append(text)
                     return true
                 }
-                val qualifiedName = containing.qualifiedName ?: run {
-                    sb.append(text)
-                    return true
-                }
+                val qualifiedName =
+                    containing.qualifiedName
+                        ?: run {
+                            sb.append(text)
+                            return true
+                        }
                 if (referenceText.startsWith(qualifiedName)) {
                     // Already absolute
                     sb.append(text)
@@ -907,7 +925,8 @@ fun handleTag(
                         close++
                     }
                     val memberPart = text.substring(nameEnd, close)
-                    val append = "${text.substring(0, start)}$qualifiedName$memberPart $displayText}"
+                    val append =
+                        "${text.substring(0, start)}$qualifiedName$memberPart $displayText}"
                     sb.append(append)
                     return true
                 }
@@ -920,11 +939,7 @@ fun handleTag(
     return false
 }
 
-private fun expandArgumentList(
-    element: PsiInlineDocTag,
-    suffix: String,
-    sb: StringBuilder
-) {
+private fun expandArgumentList(element: PsiInlineDocTag, suffix: String, sb: StringBuilder) {
     val elementFactory = JavaPsiFacade.getElementFactory(element.project)
     // Try to rewrite the types to fully qualified names as well
     val begin = suffix.indexOf('(')
@@ -952,17 +967,18 @@ private fun expandArgumentList(
                 val space = arg.indexOf(' ')
                 // Strip off parameter name (shouldn't be there but happens
                 // in some Android sources sine tools didn't use to complain
-                val typeString = if (space == -1) {
-                    arg
-                } else {
-                    if (space < arg.length - 1 && !arg[space + 1].isJavaIdentifierStart()) {
-                        // Example: "String []"
+                val typeString =
+                    if (space == -1) {
                         arg
                     } else {
-                        // Example "String name"
-                        arg.substring(0, space)
+                        if (space < arg.length - 1 && !arg[space + 1].isJavaIdentifierStart()) {
+                            // Example: "String []"
+                            arg
+                        } else {
+                            // Example "String name"
+                            arg.substring(0, space)
+                        }
                     }
-                }
                 var insert = arg
                 if (typeString[0].isUpperCase()) {
                     try {
@@ -1037,6 +1053,7 @@ private fun extractCustomLinkText(tag: PsiDocTag): PsiDocToken? {
         return null
     }
     val salientElement: PsiElement =
-        dataElements.lastOrNull { it !is PsiWhiteSpace && it !is PsiDocMethodOrFieldRef } ?: return null
+        dataElements.lastOrNull { it !is PsiWhiteSpace && it !is PsiDocMethodOrFieldRef }
+            ?: return null
     return if (salientElement !is PsiDocToken) null else salientElement
 }

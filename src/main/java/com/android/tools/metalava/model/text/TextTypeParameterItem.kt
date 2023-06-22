@@ -39,15 +39,14 @@ class TextTypeParameterItem(
     override fun typeBounds(): List<TypeItem> {
         if (bounds == null) {
             val boundsString = bounds(typeParameterString, owner)
-            bounds = if (boundsString.isEmpty()) {
-                emptyList()
-            } else {
-                boundsString.mapNotNull {
-                    codebase.obtainTypeFromString(it)
-                }.filter {
-                    !it.isJavaLangObject()
+            bounds =
+                if (boundsString.isEmpty()) {
+                    emptyList()
+                } else {
+                    boundsString
+                        .mapNotNull { codebase.obtainTypeFromString(it) }
+                        .filter { !it.isJavaLangObject() }
                 }
-            }
         }
         return bounds!!
     }
@@ -87,11 +86,17 @@ class TextTypeParameterItem(
             val index = s.indexOf("extends ")
             if (index == -1) {
                 // See if this is a type variable that has bounds in the parent
-                val parameters = (owner as? TextMemberItem)?.containingClass()?.typeParameterList()?.typeParameters()
-                    ?: return emptyList()
+                val parameters =
+                    (owner as? TextMemberItem)
+                        ?.containingClass()
+                        ?.typeParameterList()
+                        ?.typeParameters()
+                        ?: return emptyList()
                 for (p in parameters) {
                     if (p.simpleName() == s) {
-                        return p.typeBounds().filter { !it.isJavaLangObject() }.map { it.toTypeString() }
+                        return p.typeBounds()
+                            .filter { !it.isJavaLangObject() }
+                            .map { it.toTypeString() }
                     }
                 }
 

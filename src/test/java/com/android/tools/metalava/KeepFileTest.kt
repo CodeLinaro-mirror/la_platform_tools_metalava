@@ -22,26 +22,27 @@ class KeepFileTest : DriverTest() {
     @Test
     fun `Generate Keep file`() {
         check(
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
                     @SuppressWarnings("ALL")
                     public interface MyInterface<T extends Object>
                             extends MyBaseInterface {
                     }
                     """
-                ),
-                java(
-                    """
+                    ),
+                    java(
+                        """
                     package a.b.c;
                     @SuppressWarnings("ALL")
                     public interface MyStream<T, S extends MyStream<T, S>> extends java.lang.AutoCloseable {
                     }
                     """
-                ),
-                java(
-                    """
+                    ),
+                    java(
+                        """
                     package test.pkg;
                     @SuppressWarnings("ALL")
                     public interface MyInterface2<T extends Number>
@@ -52,17 +53,18 @@ class KeepFileTest : DriverTest() {
                         }
                     }
                     """
-                ),
-                java(
-                    """
+                    ),
+                    java(
+                        """
                     package test.pkg;
                     public interface MyBaseInterface {
                         void fun(int a, String b);
                     }
                     """
-                )
-            ),
-            proguard = """
+                    )
+                ),
+            proguard =
+                """
                 -keep class a.b.c.MyStream {
                 }
                 -keep class test.pkg.MyBaseInterface {
@@ -87,9 +89,10 @@ class KeepFileTest : DriverTest() {
     @Test
     fun `Primitive types`() {
         check(
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
                     public class MyClass {
                         public int testMethodA(int a) {}
@@ -99,9 +102,10 @@ class KeepFileTest : DriverTest() {
                         public byte testMethodE(byte a) {}
                     }
                     """
-                )
-            ),
-            proguard = """
+                    )
+                ),
+            proguard =
+                """
                 -keep class test.pkg.MyClass {
                     <init>();
                     public int testMethodA(int);
@@ -118,9 +122,10 @@ class KeepFileTest : DriverTest() {
     @Test
     fun `Primitive array types`() {
         check(
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
                     public class MyClass {
                         public int[] testMethodA(int[] a) {}
@@ -129,9 +134,10 @@ class KeepFileTest : DriverTest() {
                         public byte testMethodD(byte... a) {}
                     }
                     """
-                )
-            ),
-            proguard = """
+                    )
+                ),
+            proguard =
+                """
                 -keep class test.pkg.MyClass {
                     <init>();
                     public int[] testMethodA(int[]);
@@ -147,9 +153,10 @@ class KeepFileTest : DriverTest() {
     @Test
     fun `Object Array parameters`() {
         check(
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
                     public class MyClass {
                         public void testMethodA(String a) {}
@@ -157,9 +164,10 @@ class KeepFileTest : DriverTest() {
                         public void testMethodC(Integer... a) {}
                     }
                     """
-                )
-            ),
-            proguard = """
+                    )
+                ),
+            proguard =
+                """
                 -keep class test.pkg.MyClass {
                     <init>();
                     public void testMethodA(java.lang.String);
@@ -174,9 +182,10 @@ class KeepFileTest : DriverTest() {
     @Test
     fun `Arrays with Inner class`() {
         check(
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
                     public class MyClass {
                         public void testMethodA(InnerClass a) {}
@@ -185,9 +194,10 @@ class KeepFileTest : DriverTest() {
                         public class InnerClass {}
                     }
                     """
-                )
-            ),
-            proguard = """
+                    )
+                ),
+            proguard =
+                """
                 -keep class test.pkg.MyClass {
                     <init>();
                     public void testMethodA(test.pkg.MyClass${"$"}InnerClass);
@@ -205,15 +215,16 @@ class KeepFileTest : DriverTest() {
     @Test
     fun `Conflicting Class Names in parameters`() {
         check(
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
                     public class String {}
                     """
-                ),
-                java(
-                    """
+                    ),
+                    java(
+                        """
                     package test.pkg;
                     public class MyClass {
                         public void testMethodA(String a, String b) {}
@@ -222,9 +233,9 @@ class KeepFileTest : DriverTest() {
                         public void testMethodD(java.lang.String a, test.pkg.String b) {}
                     }
                     """
-                ),
-                java(
-                    """
+                    ),
+                    java(
+                        """
                     package test.pkg;
                     public class MyClassArrays {
                         public void testMethodA(String[] a, String[] b) {}
@@ -233,9 +244,10 @@ class KeepFileTest : DriverTest() {
                         public void testMethodD(java.lang.String... a, test.pkg.String... b) {}
                     }
                     """
-                )
-            ),
-            proguard = """
+                    )
+                ),
+            proguard =
+                """
                 -keep class test.pkg.MyClass {
                     <init>();
                     public void testMethodA(test.pkg.String, test.pkg.String);
@@ -261,15 +273,16 @@ class KeepFileTest : DriverTest() {
     @Test
     fun `Multi dimensional arrays`() {
         check(
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
                     public class String {}
                     """
-                ),
-                java(
-                    """
+                    ),
+                    java(
+                        """
                     package test.pkg;
                     public class MyClassArrays {
                         public void testMethodA(String[][] a, String[][] b) {}
@@ -279,9 +292,10 @@ class KeepFileTest : DriverTest() {
                         public void testMethodD(InnerClass[][] a) {}
                     }
                     """
-                )
-            ),
-            proguard = """
+                    )
+                ),
+            proguard =
+                """
                 -keep class test.pkg.MyClassArrays {
                     <init>();
                     public void testMethodA(test.pkg.String[][], test.pkg.String[][]);
@@ -303,9 +317,10 @@ class KeepFileTest : DriverTest() {
     @Test
     fun `Methods with arrays as the return type`() {
         check(
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
                     public class MyClass {
                         public String[] testMethodA() {}
@@ -313,9 +328,9 @@ class KeepFileTest : DriverTest() {
                         public String[][][] testMethodC() {}
                     }
                     """
-                ),
-                java(
-                    """
+                    ),
+                    java(
+                        """
                     package test.pkg;
                     public class MyOtherClass {
                         public java.lang.String[] testMethodA() {}
@@ -323,15 +338,16 @@ class KeepFileTest : DriverTest() {
                         public test.pkg.String[][][] testMethodC() {}
                     }
                     """
-                ),
-                java(
-                    """
+                    ),
+                    java(
+                        """
                     package test.pkg;
                     public class String {}
                     """
-                )
-            ),
-            proguard = """
+                    )
+                ),
+            proguard =
+                """
                 -keep class test.pkg.MyClass {
                     <init>();
                     public test.pkg.String[] testMethodA();

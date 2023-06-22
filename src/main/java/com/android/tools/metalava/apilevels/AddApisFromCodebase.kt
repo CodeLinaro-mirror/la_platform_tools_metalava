@@ -25,10 +25,7 @@ import com.android.tools.metalava.model.visitors.ApiVisitor
 /** Visits the API codebase and inserts into the [Api] the classes, methods and fields */
 fun addApisFromCodebase(api: Api, apiLevel: Int, codebase: Codebase, useInternalNames: Boolean) {
     codebase.accept(
-        object : ApiVisitor(
-            visitConstructorsAsMethods = true,
-            nestInnerClasses = false
-        ) {
+        object : ApiVisitor(visitConstructorsAsMethods = true, nestInnerClasses = false) {
 
             var currentClass: ApiClass? = null
 
@@ -54,14 +51,17 @@ fun addApisFromCodebase(api: Api, apiLevel: Int, codebase: Codebase, useInternal
                             // to the real one (that the signature files referenced) instead.
                             val removed = newClass.removeSuperClass(superName)
                             val since = removed?.since ?: apiLevel
-                            val entry = newClass.addSuperClass(filteredSuperClass.nameInApi(), since)
+                            val entry =
+                                newClass.addSuperClass(filteredSuperClass.nameInApi(), since)
                             // Show that it's also seen here
                             entry.update(apiLevel)
 
-                            // Also inherit the interfaces from that API level, unless it was added later
+                            // Also inherit the interfaces from that API level, unless it was added
+                            // later
                             val superClassEntry = api.findClass(superName)
                             if (superClassEntry != null) {
-                                for (interfaceType in superClass!!.filteredInterfaceTypes(filterReference)) {
+                                for (interfaceType in
+                                    superClass!!.filteredInterfaceTypes(filterReference)) {
                                     val interfaceClass = interfaceType.asClass() ?: return
                                     var mergedSince = since
                                     val interfaceName = interfaceClass.nameInApi()
@@ -107,13 +107,17 @@ fun addApisFromCodebase(api: Api, apiLevel: Int, codebase: Codebase, useInternal
                 // Ensure we don't end up with
                 //    -  <extends name="java/lang/Object"/>
                 //    +  <extends name="java/lang/Object" removed="29"/>
-                // which can happen because the bytecode always explicitly contains extends java.lang.Object
-                // but in the source code we don't see it, and the lack of presence of this shouldn't be
-                // taken as a sign that we no longer extend object. But only do this if the class didn't
+                // which can happen because the bytecode always explicitly contains extends
+                // java.lang.Object
+                // but in the source code we don't see it, and the lack of presence of this
+                // shouldn't be
+                // taken as a sign that we no longer extend object. But only do this if the class
+                // didn't
                 // previously extend object and now extends something else.
-                if ((cls.isClass() || cls.isInterface()) &&
-                    newClass.superClasses.size == 1 &&
-                    newClass.superClasses[0].name == objectClass
+                if (
+                    (cls.isClass() || cls.isInterface()) &&
+                        newClass.superClasses.size == 1 &&
+                        newClass.superClasses[0].name == objectClass
                 ) {
                     newClass.addSuperClass(objectClass, apiLevel)
                 }
@@ -139,9 +143,7 @@ fun addApisFromCodebase(api: Api, apiLevel: Int, codebase: Codebase, useInternal
                 currentClass?.addField(field.nameInApi(), apiLevel, field.deprecated)
             }
 
-            /**
-             * The name of the field in this [Api], based on [useInternalNames]
-             */
+            /** The name of the field in this [Api], based on [useInternalNames] */
             fun FieldItem.nameInApi(): String {
                 return if (useInternalNames) {
                     internalName()
@@ -150,13 +152,12 @@ fun addApisFromCodebase(api: Api, apiLevel: Int, codebase: Codebase, useInternal
                 }
             }
 
-            /**
-             * The name of the method in this [Api], based on [useInternalNames]
-             */
+            /** The name of the method in this [Api], based on [useInternalNames] */
             fun MethodItem.nameInApi(): String {
                 return if (useInternalNames) {
                     internalName() +
-                        // Use "V" instead of the type of the constructor for backwards compatibility
+                        // Use "V" instead of the type of the constructor for backwards
+                        // compatibility
                         // with the older bytecode
                         internalDesc(voidConstructorTypes = true)
                 } else {
@@ -165,9 +166,7 @@ fun addApisFromCodebase(api: Api, apiLevel: Int, codebase: Codebase, useInternal
                 }
             }
 
-            /**
-             * The name of the class in this [Api], based on [useInternalNames]
-             */
+            /** The name of the class in this [Api], based on [useInternalNames] */
             fun ClassItem.nameInApi(): String {
                 return if (useInternalNames) {
                     internalName()
@@ -181,28 +180,18 @@ fun addApisFromCodebase(api: Api, apiLevel: Int, codebase: Codebase, useInternal
             val annotationClass = nameForClass("java", "lang", "annotation", "Annotation")
             val enumClass = nameForClass("java", "lang", "Enum")
 
-            /**
-             * Generates a class name from the package and class names in [nameParts]
-             */
+            /** Generates a class name from the package and class names in [nameParts] */
             fun nameForClass(vararg nameParts: String): String {
                 val separator = if (useInternalNames) "/" else "."
                 return nameParts.joinToString(separator)
             }
 
-            /**
-             * The names of the doclava enum methods, based on [useInternalNames]
-             */
+            /** The names of the doclava enum methods, based on [useInternalNames] */
             fun enumMethodNames(className: String): List<String> {
                 return if (useInternalNames) {
-                    listOf(
-                        "valueOf(Ljava/lang/String;)L$className;",
-                        "values()[L$className;"
-                    )
+                    listOf("valueOf(Ljava/lang/String;)L$className;", "values()[L$className;")
                 } else {
-                    listOf(
-                        "valueOf(java.lang.String)",
-                        "values()"
-                    )
+                    listOf("valueOf(java.lang.String)", "values()")
                 }
             }
         }

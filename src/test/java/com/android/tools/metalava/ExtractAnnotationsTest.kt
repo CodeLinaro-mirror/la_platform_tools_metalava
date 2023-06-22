@@ -21,9 +21,10 @@ import org.junit.Test
 @SuppressWarnings("ALL") // Sample code
 class ExtractAnnotationsTest : DriverTest() {
 
-    private val sourceFiles1 = arrayOf(
-        java(
-            """
+    private val sourceFiles1 =
+        arrayOf(
+            java(
+                    """
                     package test.pkg;
 
                     import android.annotation.IntDef;
@@ -66,19 +67,23 @@ class ExtractAnnotationsTest : DriverTest() {
                         }
                     }
                     """
-        ).indented(),
-        intDefAnnotationSource,
-        intRangeAnnotationSource
-    )
+                )
+                .indented(),
+            intDefAnnotationSource,
+            intRangeAnnotationSource
+        )
 
     @Test
     fun `Check java typedef extraction and warning about non-source retention of typedefs`() {
         check(
             format = FileFormat.V2,
             sourceFiles = sourceFiles1,
-            expectedIssues = "src/test/pkg/IntDefTest.java:13: error: This typedef annotation class should have @Retention(RetentionPolicy.SOURCE) [AnnotationExtraction]",
-            extractAnnotations = mapOf(
-                "test.pkg" to """
+            expectedIssues =
+                "src/test/pkg/IntDefTest.java:13: error: This typedef annotation class should have @Retention(RetentionPolicy.SOURCE) [AnnotationExtraction]",
+            extractAnnotations =
+                mapOf(
+                    "test.pkg" to
+                        """
                 <?xml version="1.0" encoding="UTF-8"?>
                 <root>
                   <item name="test.pkg.IntDefTest void setFlags(java.lang.Object, int) 1">
@@ -100,16 +105,17 @@ class ExtractAnnotationsTest : DriverTest() {
                   </item>
                 </root>
                 """
-            )
+                )
         )
     }
 
     @Test
     fun `Check Kotlin and referencing hidden constants from typedef`() {
         check(
-            sourceFiles = arrayOf(
-                kotlin(
-                    """
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                            """
                     @file:Suppress("unused", "UseExpressionBody")
 
                     package test.pkg
@@ -150,12 +156,16 @@ class ExtractAnnotationsTest : DriverTest() {
                             fun isNull(value: String?): Boolean
                         }
                     }"""
-                ).indented(),
-                longDefAnnotationSource
-            ),
-            expectedIssues = "src/test/pkg/LongDefTest.kt:12: error: Typedef class references hidden field field LongDefTestKt.HIDDEN: removed from typedef metadata [HiddenTypedefConstant]",
-            extractAnnotations = mapOf(
-                "test.pkg" to """
+                        )
+                        .indented(),
+                    longDefAnnotationSource
+                ),
+            expectedIssues =
+                "src/test/pkg/LongDefTest.kt:12: error: Typedef class references hidden field field LongDefTestKt.HIDDEN: removed from typedef metadata [HiddenTypedefConstant]",
+            extractAnnotations =
+                mapOf(
+                    "test.pkg" to
+                        """
                     <?xml version="1.0" encoding="UTF-8"?>
                     <root>
                       <item name="test.pkg.LongDefTest void setFlags(java.lang.Object, int) 1">
@@ -177,16 +187,17 @@ class ExtractAnnotationsTest : DriverTest() {
                       </item>
                     </root>
                 """
-            )
+                )
         )
     }
 
     @Test
     fun `Check including only class retention annotations other than typedefs`() {
         check(
-            sourceFiles = arrayOf(
-                kotlin(
-                    """
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                            """
                     @file:Suppress("unused", "UseExpressionBody")
 
                     package test.pkg
@@ -227,12 +238,16 @@ class ExtractAnnotationsTest : DriverTest() {
                             fun isNull(value: String?): Boolean
                         }
                     }"""
-                ).indented(),
-                longDefAnnotationSource
-            ),
-            expectedIssues = "src/test/pkg/LongDefTest.kt:12: error: Typedef class references hidden field field LongDefTestKt.HIDDEN: removed from typedef metadata [HiddenTypedefConstant]",
-            extractAnnotations = mapOf(
-                "test.pkg" to """
+                        )
+                        .indented(),
+                    longDefAnnotationSource
+                ),
+            expectedIssues =
+                "src/test/pkg/LongDefTest.kt:12: error: Typedef class references hidden field field LongDefTestKt.HIDDEN: removed from typedef metadata [HiddenTypedefConstant]",
+            extractAnnotations =
+                mapOf(
+                    "test.pkg" to
+                        """
                     <?xml version="1.0" encoding="UTF-8"?>
                     <root>
                       <item name="test.pkg.LongDefTest void setFlags(java.lang.Object, int) 1">
@@ -254,16 +269,17 @@ class ExtractAnnotationsTest : DriverTest() {
                       </item>
                     </root>
                 """
-            )
+                )
         )
     }
 
     @Test
     fun `Extract permission annotations`() {
         check(
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                            """
                     package test.pkg;
 
                     import android.annotation.RequiresPermission;
@@ -281,9 +297,10 @@ class ExtractAnnotationsTest : DriverTest() {
                         public static final String CONTENT_URI = "";
                     }
                     """
-                ).indented(),
-                java(
-                    """
+                        )
+                        .indented(),
+                    java(
+                            """
                     package test.pkg;
 
                     public class Manifest {
@@ -295,11 +312,14 @@ class ExtractAnnotationsTest : DriverTest() {
                         }
                     }
                     """
-                ).indented(),
-                requiresPermissionSource
-            ),
-            extractAnnotations = mapOf(
-                "test.pkg" to """
+                        )
+                        .indented(),
+                    requiresPermissionSource
+                ),
+            extractAnnotations =
+                mapOf(
+                    "test.pkg" to
+                        """
                 <?xml version="1.0" encoding="UTF-8"?>
                 <root>
                   <item name="test.pkg.PermissionsTest CONTENT_URI">
@@ -322,7 +342,7 @@ class ExtractAnnotationsTest : DriverTest() {
                   </item>
                 </root>
                 """
-            )
+                )
         )
     }
 
@@ -332,17 +352,18 @@ class ExtractAnnotationsTest : DriverTest() {
             outputKotlinStyleNulls = false,
             includeSystemApiAnnotations = false,
             expectedIssues = "error: Unexpected reference to Nonexistent.Field [InternalError]",
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
 
                     public class MyTest {
                         public int test(int arg) { }
                     }"""
-                ),
-                java(
-                    """
+                    ),
+                    java(
+                        """
                         package java.util;
                         public class Calendar {
                             public static final int ERA = 1;
@@ -351,9 +372,10 @@ class ExtractAnnotationsTest : DriverTest() {
                             public static final int WEEK_OF_YEAR = 4;
                         }
                     """
-                )
-            ),
-            mergeXmlAnnotations = """<?xml version="1.0" encoding="UTF-8"?>
+                    )
+                ),
+            mergeXmlAnnotations =
+                """<?xml version="1.0" encoding="UTF-8"?>
                 <root>
                   <item name="test.pkg.MyTest int test(int) 0">
                     <annotation name="org.intellij.lang.annotations.MagicConstant">
@@ -368,8 +390,10 @@ class ExtractAnnotationsTest : DriverTest() {
                   </item>
                 </root>
                 """,
-            extractAnnotations = mapOf(
-                "test.pkg" to """
+            extractAnnotations =
+                mapOf(
+                    "test.pkg" to
+                        """
                 <?xml version="1.0" encoding="UTF-8"?>
                 <root>
                   <item name="test.pkg.MyTest int test(int)">
@@ -385,7 +409,7 @@ class ExtractAnnotationsTest : DriverTest() {
                   </item>
                 </root>
                 """
-            )
+                )
         )
     }
 
@@ -394,9 +418,10 @@ class ExtractAnnotationsTest : DriverTest() {
         check(
             outputKotlinStyleNulls = false,
             includeSystemApiAnnotations = false,
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
                     import android.annotation.IntRange;
                     import androidx.annotation.RecentlyNullable;
@@ -405,13 +430,14 @@ class ExtractAnnotationsTest : DriverTest() {
                         public static String sayHello(@IntRange(from = 10) int value) { return "hello " + value; }
                     }
                     """
+                    ),
+                    intRangeAnnotationSource,
+                    recentlyNullableSource
                 ),
-                intRangeAnnotationSource,
-                recentlyNullableSource
-            ),
-            stubFiles = arrayOf(
-                java(
-                    """
+            stubFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class Test {
@@ -420,10 +446,12 @@ class ExtractAnnotationsTest : DriverTest() {
                     public static java.lang.String sayHello(int value) { throw new RuntimeException("Stub!"); }
                     }
                     """
-                )
-            ),
-            extractAnnotations = mapOf(
-                "test.pkg" to """
+                    )
+                ),
+            extractAnnotations =
+                mapOf(
+                    "test.pkg" to
+                        """
                     <?xml version="1.0" encoding="UTF-8"?>
                     <root>
                       <item name="test.pkg.Test java.lang.String sayHello(int) 0">
@@ -433,17 +461,19 @@ class ExtractAnnotationsTest : DriverTest() {
                       </item>
                     </root>
                 """
-            )
+                )
         )
     }
 
     @Test
     fun `Check warning about unexpected returns from typedef method`() {
         check(
-            expectedIssues = "src/test/pkg/IntDefTest.java:36: warning: Returning unexpected constant UNRELATED; is @DialogStyle missing this constant? Expected one of STYLE_NORMAL, STYLE_NO_TITLE, STYLE_NO_FRAME, STYLE_NO_INPUT [ReturningUnexpectedConstant]",
-            sourceFiles = arrayOf(
-                java(
-                    """
+            expectedIssues =
+                "src/test/pkg/IntDefTest.java:36: warning: Returning unexpected constant UNRELATED; is @DialogStyle missing this constant? Expected one of STYLE_NORMAL, STYLE_NO_TITLE, STYLE_NO_FRAME, STYLE_NO_INPUT [ReturningUnexpectedConstant]",
+            sourceFiles =
+                arrayOf(
+                    java(
+                            """
                     package test.pkg;
 
                     import android.annotation.IntDef;
@@ -489,12 +519,15 @@ class ExtractAnnotationsTest : DriverTest() {
                         }
                     }
                     """
-                ).indented(),
-                intDefAnnotationSource,
-                intRangeAnnotationSource
-            ),
-            extractAnnotations = mapOf(
-                "test.pkg" to """
+                        )
+                        .indented(),
+                    intDefAnnotationSource,
+                    intRangeAnnotationSource
+                ),
+            extractAnnotations =
+                mapOf(
+                    "test.pkg" to
+                        """
                 <?xml version="1.0" encoding="UTF-8"?>
                 <root>
                   <item name="test.pkg.IntDefTest int getStyle1()">
@@ -509,20 +542,19 @@ class ExtractAnnotationsTest : DriverTest() {
                   </item>
                 </root>
                 """
-            )
+                )
         )
     }
 
     @Test
     fun `No typedef signatures in api files`() {
         check(
-            extraArguments = arrayOf(
-                ARG_HIDE_PACKAGE, "android.annotation",
-                ARG_TYPEDEFS_IN_SIGNATURES, "none"
-            ),
+            extraArguments =
+                arrayOf(ARG_HIDE_PACKAGE, "android.annotation", ARG_TYPEDEFS_IN_SIGNATURES, "none"),
             format = FileFormat.V2,
             sourceFiles = sourceFiles1,
-            api = """
+            api =
+                """
                 // Signature format: 2.0
                 package test.pkg {
                   public class IntDefTest {
@@ -551,13 +583,17 @@ class ExtractAnnotationsTest : DriverTest() {
     @Test
     fun `Inlining typedef signatures in api files`() {
         check(
-            extraArguments = arrayOf(
-                ARG_HIDE_PACKAGE, "android.annotation",
-                ARG_TYPEDEFS_IN_SIGNATURES, "inline"
-            ),
+            extraArguments =
+                arrayOf(
+                    ARG_HIDE_PACKAGE,
+                    "android.annotation",
+                    ARG_TYPEDEFS_IN_SIGNATURES,
+                    "inline"
+                ),
             format = FileFormat.V2,
             sourceFiles = sourceFiles1,
-            api = """
+            api =
+                """
                 // Signature format: 2.0
                 package test.pkg {
                   public class IntDefTest {
@@ -586,13 +622,12 @@ class ExtractAnnotationsTest : DriverTest() {
     @Test
     fun `Referencing typedef signatures in api files`() {
         check(
-            extraArguments = arrayOf(
-                ARG_HIDE_PACKAGE, "android.annotation",
-                ARG_TYPEDEFS_IN_SIGNATURES, "ref"
-            ),
+            extraArguments =
+                arrayOf(ARG_HIDE_PACKAGE, "android.annotation", ARG_TYPEDEFS_IN_SIGNATURES, "ref"),
             format = FileFormat.V2,
             sourceFiles = sourceFiles1,
-            api = """
+            api =
+                """
                 // Signature format: 2.0
                 package test.pkg {
                   public class IntDefTest {
@@ -623,9 +658,10 @@ class ExtractAnnotationsTest : DriverTest() {
         check(
             outputKotlinStyleNulls = false,
             includeSystemApiAnnotations = false,
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
 
                     import android.annotation.IntRange;
@@ -633,11 +669,13 @@ class ExtractAnnotationsTest : DriverTest() {
                     public class MyTest {
                         public void test(List<Integer> genericArgument, @IntRange(from = 10) int foo) { }
                     }"""
+                    ),
+                    intRangeAnnotationSource
                 ),
-                intRangeAnnotationSource
-            ),
-            extractAnnotations = mapOf(
-                "test.pkg" to """
+            extractAnnotations =
+                mapOf(
+                    "test.pkg" to
+                        """
                 <?xml version="1.0" encoding="UTF-8"?>
                 <root>
                   <item name="test.pkg.MyTest void test(List&lt;Integer&gt;, int) 1">
@@ -647,7 +685,7 @@ class ExtractAnnotationsTest : DriverTest() {
                   </item>
                 </root>
                 """
-            )
+                )
         )
     }
 }

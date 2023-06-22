@@ -33,22 +33,24 @@ class ExtensionSdkJarReader() {
         /**
          * Find extension SDK jar files in an extension SDK tree.
          *
-         * @return a mapping SDK jar file -> list of VersionAndPath objects, sorted from earliest
-         *         to last version
+         * @return a mapping SDK jar file -> list of VersionAndPath objects, sorted from earliest to
+         *   last version
          */
         fun findExtensionSdkJarFiles(root: File): Map<String, List<VersionAndPath>> {
             val map = mutableMapOf<String, MutableList<VersionAndPath>>()
-            root.walk().maxDepth(3).mapNotNull { file ->
-                REGEX_JAR_PATH.matchEntire(file.path)?.groups?.let { groups ->
-                    Triple(groups[2]!!.value, groups[1]!!.value.toInt(), file)
+            root
+                .walk()
+                .maxDepth(3)
+                .mapNotNull { file ->
+                    REGEX_JAR_PATH.matchEntire(file.path)?.groups?.let { groups ->
+                        Triple(groups[2]!!.value, groups[1]!!.value.toInt(), file)
+                    }
                 }
-            }.sortedBy {
-                it.second
-            }.forEach {
-                map.getOrPut(it.first) {
-                    mutableListOf()
-                }.add(VersionAndPath(it.second, it.third))
-            }
+                .sortedBy { it.second }
+                .forEach {
+                    map.getOrPut(it.first) { mutableListOf() }
+                        .add(VersionAndPath(it.second, it.third))
+                }
             return map
         }
     }

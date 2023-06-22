@@ -29,26 +29,27 @@ import com.android.tools.metalava.model.SourceFileItem
 
 open class ItemVisitor(
     /**
-     * Whether constructors should be visited as part of a [#visitMethod] call
-     * instead of just a [#visitConstructor] call. Helps simplify visitors that
-     * don't care to distinguish between the two cases. Defaults to true.
+     * Whether constructors should be visited as part of a [#visitMethod] call instead of just a
+     * [#visitConstructor] call. Helps simplify visitors that don't care to distinguish between the
+     * two cases. Defaults to true.
      */
     val visitConstructorsAsMethods: Boolean = true,
     /**
-     * Whether inner classes should be visited "inside" a class; when this property
-     * is true, inner classes are visited before the [#afterVisitClass] method is
-     * called; when false, it's done afterwards. Defaults to false.
+     * Whether inner classes should be visited "inside" a class; when this property is true, inner
+     * classes are visited before the [#afterVisitClass] method is called; when false, it's done
+     * afterwards. Defaults to false.
      */
     val nestInnerClasses: Boolean = false,
-    /**
-     * Whether to skip empty packages
-     */
+    /** Whether to skip empty packages */
     val skipEmptyPackages: Boolean = false
 ) {
 
     open fun skip(item: Item): Boolean = false
 
-    /** Visits the item. This is always called before other more specialized visit methods, such as [visitClass]. */
+    /**
+     * Visits the item. This is always called before other more specialized visit methods, such as
+     * [visitClass].
+     */
     open fun visitItem(item: Item) {}
 
     open fun visitCodebase(codebase: Codebase) {}

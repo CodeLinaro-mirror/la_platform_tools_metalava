@@ -30,33 +30,32 @@ interface FieldItem : MemberItem {
     override fun type(): TypeItem
 
     /**
-     * The initial/constant value, if any. If [requireConstant] the initial value will
-     * only be returned if it's constant.
+     * The initial/constant value, if any. If [requireConstant] the initial value will only be
+     * returned if it's constant.
      */
     fun initialValue(requireConstant: Boolean = true): Any?
 
     /**
-     * An enum can contain both enum constants and fields; this method provides a way
-     * to distinguish between them.
+     * An enum can contain both enum constants and fields; this method provides a way to distinguish
+     * between them.
      */
     fun isEnumConstant(): Boolean
 
     /**
-     * If this field is inherited from a hidden super class, this property is set.
-     * This is necessary because these fields should not be listed in signature files,
-     * whereas in stub files it's necessary for them to be included.
+     * If this field is inherited from a hidden super class, this property is set. This is necessary
+     * because these fields should not be listed in signature files, whereas in stub files it's
+     * necessary for them to be included.
      */
     var inheritedField: Boolean
 
     /**
-     * If this field is copied from a super class (typically via [duplicate]) this
-     * field points to the original class it was copied from
+     * If this field is copied from a super class (typically via [duplicate]) this field points to
+     * the original class it was copied from
      */
     var inheritedFrom: ClassItem?
 
     /**
-     * Duplicates this field item. Used when we need to insert inherited fields from
-     * interfaces etc.
+     * Duplicates this field item. Used when we need to insert inherited fields from interfaces etc.
      */
     fun duplicate(targetContainingClass: ClassItem): FieldItem
 
@@ -83,8 +82,8 @@ interface FieldItem : MemberItem {
     }
 
     /**
-     * Check the declared value with a typed comparison, not a string comparison,
-     * to accommodate toolchains with different fp -> string conversions.
+     * Check the declared value with a typed comparison, not a string comparison, to accommodate
+     * toolchains with different fp -> string conversions.
      */
     fun hasSameValue(other: FieldItem): Boolean {
         val thisConstant = initialValue()
@@ -148,12 +147,14 @@ interface FieldItem : MemberItem {
     }
 
     companion object {
-        val comparator: java.util.Comparator<FieldItem> = Comparator { a, b -> a.name().compareTo(b.name()) }
+        val comparator: java.util.Comparator<FieldItem> = Comparator { a, b ->
+            a.name().compareTo(b.name())
+        }
     }
 
     /**
-     * If this field has an initial value, it just writes ";", otherwise it writes
-     * " = value;" with the correct Java syntax for the initial value
+     * If this field has an initial value, it just writes ";", otherwise it writes " = value;" with
+     * the correct Java syntax for the initial value
      */
     fun writeValueWithSemicolon(
         writer: PrintWriter,
@@ -162,7 +163,8 @@ interface FieldItem : MemberItem {
     ) {
         val value =
             initialValue(!allowDefaultValue)
-                ?: if (allowDefaultValue && !containingClass().isClass()) type().defaultValue() else null
+                ?: if (allowDefaultValue && !containingClass().isClass()) type().defaultValue()
+                else null
         if (value != null) {
             when (value) {
                 is Int -> {
@@ -230,10 +232,7 @@ interface FieldItem : MemberItem {
                     writer.print(intValue)
                     writer.print("; // ")
                     writer.print(
-                        String.format(
-                            "0x%04x '%s'", intValue,
-                            javaEscapeString(value.toString())
-                        )
+                        String.format("0x%04x '%s'", intValue, javaEscapeString(value.toString()))
                     )
                 }
                 else -> {
@@ -255,17 +254,18 @@ fun javaEscapeString(str: String): String {
     val n = str.length
     for (i in 0 until n) {
         val c = str[i]
-        result += when (c) {
-            '\\' -> "\\\\"
-            '\t' -> "\\t"
-            '\b' -> "\\b"
-            '\r' -> "\\r"
-            '\n' -> "\\n"
-            '\'' -> "\\'"
-            '\"' -> "\\\""
-            in ' '..'~' -> c
-            else -> String.format("\\u%04x", c.code)
-        }
+        result +=
+            when (c) {
+                '\\' -> "\\\\"
+                '\t' -> "\\t"
+                '\b' -> "\\b"
+                '\r' -> "\\r"
+                '\n' -> "\\n"
+                '\'' -> "\\'"
+                '\"' -> "\\\""
+                in ' '..'~' -> c
+                else -> String.format("\\u%04x", c.code)
+            }
     }
     return result
 }
@@ -299,56 +299,68 @@ fun javaUnescapeString(str: String): String {
     for (i in 0 until n) {
         val c = str[i]
         when (state) {
-            START -> if (c == '\\') {
-                state = ESCAPE
-            } else {
-                buf.append(c)
-            }
-            ESCAPE -> when (c) {
-                '\\' -> {
-                    buf.append('\\')
-                    state = START
+            START ->
+                if (c == '\\') {
+                    state = ESCAPE
+                } else {
+                    buf.append(c)
                 }
-                't' -> {
-                    buf.append('\t')
-                    state = START
+            ESCAPE ->
+                when (c) {
+                    '\\' -> {
+                        buf.append('\\')
+                        state = START
+                    }
+                    't' -> {
+                        buf.append('\t')
+                        state = START
+                    }
+                    'b' -> {
+                        buf.append('\b')
+                        state = START
+                    }
+                    'r' -> {
+                        buf.append('\r')
+                        state = START
+                    }
+                    'n' -> {
+                        buf.append('\n')
+                        state = START
+                    }
+                    '\'' -> {
+                        buf.append('\'')
+                        state = START
+                    }
+                    '\"' -> {
+                        buf.append('\"')
+                        state = START
+                    }
+                    'u' -> {
+                        state = CHAR1
+                        escaped = 0.toChar()
+                    }
                 }
-                'b' -> {
-                    buf.append('\b')
-                    state = START
-                }
-                'r' -> {
-                    buf.append('\r')
-                    state = START
-                }
-                'n' -> {
-                    buf.append('\n')
-                    state = START
-                }
-                '\'' -> {
-                    buf.append('\'')
-                    state = START
-                }
-                '\"' -> {
-                    buf.append('\"')
-                    state = START
-                }
-                'u' -> {
-                    state = CHAR1
-                    escaped = 0.toChar()
-                }
-            }
-            CHAR1, CHAR2, CHAR3, CHAR4 -> {
+            CHAR1,
+            CHAR2,
+            CHAR3,
+            CHAR4 -> {
                 escaped = (escaped.code shl 4).toChar()
-                escaped = when (c) {
-                    in '0'..'9' -> (escaped.code or (c - '0')).toChar()
-                    in 'a'..'f' -> (escaped.code or (10 + (c - 'a'))).toChar()
-                    in 'A'..'F' -> (escaped.code or (10 + (c - 'A'))).toChar()
-                    else -> throw IllegalArgumentException(
-                        "bad escape sequence: '" + c + "' at pos " + i + " in: \"" +
-                            str + "\""
-                    )
-                }
+                escaped =
+                    when (c) {
+                        in '0'..'9' -> (escaped.code or (c - '0')).toChar()
+                        in 'a'..'f' -> (escaped.code or (10 + (c - 'a'))).toChar()
+                        in 'A'..'F' -> (escaped.code or (10 + (c - 'A'))).toChar()
+                        else ->
+                            throw IllegalArgumentException(
+                                "bad escape sequence: '" +
+                                    c +
+                                    "' at pos " +
+                                    i +
+                                    " in: \"" +
+                                    str +
+                                    "\""
+                            )
+                    }
                 if (state == CHAR4) {
                     buf.append(escaped)
                     state = START
@@ -365,9 +377,8 @@ fun javaUnescapeString(str: String): String {
 }
 
 /**
- * Returns a canonical string representation of a floating point
- * number. The representation is suitable for use as Java source
- * code. This method also addresses bug #4428022 in the Sun JDK.
+ * Returns a canonical string representation of a floating point number. The representation is
+ * suitable for use as Java source code. This method also addresses bug #4428022 in the Sun JDK.
  */
 // From doclava1
 fun canonicalizeFloatingPointString(value: String): String {

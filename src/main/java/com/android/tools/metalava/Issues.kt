@@ -213,7 +213,8 @@ object Issues {
     val DOCUMENT_EXCEPTIONS = Issue(Severity.ERROR, Category.API_LINT, "docs-throws")
     val FORBIDDEN_SUPER_CLASS = Issue(Severity.ERROR, Category.API_LINT)
     val MISSING_NULLABILITY = Issue(Severity.ERROR, Category.API_LINT, "annotations")
-    val INVALID_NULLABILITY_OVERRIDE = Issue(Severity.ERROR, Category.API_LINT, "annotations-nullability-overrides")
+    val INVALID_NULLABILITY_OVERRIDE =
+        Issue(Severity.ERROR, Category.API_LINT, "annotations-nullability-overrides")
     val MUTABLE_BARE_FIELD = Issue(Severity.ERROR, Category.API_LINT, "mutable-bare-field")
     val INTERNAL_FIELD = Issue(Severity.ERROR, Category.API_LINT, "internal-fields")
     val PUBLIC_TYPEDEF = Issue(Severity.ERROR, Category.API_LINT, "no-public-typedefs")
@@ -226,10 +227,12 @@ object Issues {
     val OPTIONAL_BUILDER_CONSTRUCTOR_ARGUMENT =
         Issue(Severity.WARNING, Category.API_LINT, "builders-nonnull-constructors")
     val NO_SETTINGS_PROVIDER = Issue(Severity.HIDDEN, Category.API_LINT, "no-settings-provider")
-    val NULLABLE_COLLECTION = Issue(Severity.WARNING, Category.API_LINT, "methods-prefer-non-null-collections")
+    val NULLABLE_COLLECTION =
+        Issue(Severity.WARNING, Category.API_LINT, "methods-prefer-non-null-collections")
     val ASYNC_SUFFIX_FUTURE = Issue(Severity.ERROR, Category.API_LINT)
     val GENERIC_CALLBACKS = Issue(Severity.ERROR, Category.API_LINT, "callbacks-sam")
-    val KOTLIN_DEFAULT_PARAMETER_ORDER = Issue(Severity.ERROR, Category.API_LINT_ANDROIDX_MISC, "kotlin-params-order")
+    val KOTLIN_DEFAULT_PARAMETER_ORDER =
+        Issue(Severity.ERROR, Category.API_LINT_ANDROIDX_MISC, "kotlin-params-order")
 
     fun findIssueById(id: String?): Issue? {
         return nameToIssue[id]
@@ -244,27 +247,25 @@ object Issues {
         return null
     }
 
-    fun findCategoryById(id: String?): Category? =
-        Category.values().find { it.id == id }
+    fun findCategoryById(id: String?): Category? = Category.values().find { it.id == id }
 
     fun findIssuesByCategory(category: Category?): List<Issue> =
         allIssues.filter { it.category == category }
 
-    class Issue private constructor(
+    class Issue
+    private constructor(
         val defaultLevel: Severity,
         /**
-         * When `level` is set to [Severity.INHERIT], this is the parent from
-         * which the issue will inherit its level.
+         * When `level` is set to [Severity.INHERIT], this is the parent from which the issue will
+         * inherit its level.
          */
         val parent: Issue?,
-        /** Applicable category  */
+        /** Applicable category */
         val category: Category,
-        /** Related rule, if any  */
+        /** Related rule, if any */
         val rule: String?
     ) {
-        /**
-         * The name of this issue
-         */
+        /** The name of this issue */
         lateinit var name: String
             internal set
 
@@ -298,12 +299,13 @@ object Issues {
         DOCUMENTATION("Documentation", null),
         API_LINT("API Lint", "https://s.android.com/api-guidelines#"),
         // AndroidX API guidelines are split across multiple files, so add a category per-file
-        API_LINT_ANDROIDX_MISC("API Lint", "https://android.googlesource.com/platform/frameworks/support/+/androidx-main/docs/api_guidelines/misc.md#"),
+        API_LINT_ANDROIDX_MISC(
+            "API Lint",
+            "https://android.googlesource.com/platform/frameworks/support/+/androidx-main/docs/api_guidelines/misc.md#"
+        ),
         UNKNOWN("Default", null);
 
-        /**
-         * Identifier for use in command-line arguments and reporting.
-         */
+        /** Identifier for use in command-line arguments and reporting. */
         val id: String = SdkVersionInfo.underlinesToCamelCase(name.lowercase(Locale.US))
     }
 

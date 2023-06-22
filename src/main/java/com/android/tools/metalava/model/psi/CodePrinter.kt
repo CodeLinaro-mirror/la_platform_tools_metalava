@@ -36,6 +36,7 @@ import com.intellij.psi.PsiLiteral
 import com.intellij.psi.PsiReference
 import com.intellij.psi.PsiTypeCastExpression
 import com.intellij.psi.PsiVariable
+import java.util.function.Predicate
 import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.uast.UAnnotation
@@ -52,16 +53,21 @@ import org.jetbrains.uast.UUnaryExpression
 import org.jetbrains.uast.util.isArrayInitializer
 import org.jetbrains.uast.util.isConstructorCall
 import org.jetbrains.uast.util.isTypeCast
-import java.util.function.Predicate
 
 /** Utility methods */
 open class CodePrinter(
     private val codebase: Codebase,
-    /** Whether we should inline the values of fields, e.g. instead of "Integer.MAX_VALUE" we'd emit "0x7fffffff" */
+    /**
+     * Whether we should inline the values of fields, e.g. instead of "Integer.MAX_VALUE" we'd emit
+     * "0x7fffffff"
+     */
     private val inlineFieldValues: Boolean = true,
     /** Whether we should inline constants when possible, e.g. instead of "2*20+2" we'd emit "42" */
     private val inlineConstants: Boolean = true,
-    /** Whether we should drop unknown AST nodes instead of inserting the corresponding source text strings */
+    /**
+     * Whether we should drop unknown AST nodes instead of inserting the corresponding source text
+     * strings
+     */
     private val skipUnknown: Boolean = false,
     /** An optional filter to use to determine if we should emit a reference to an item */
     private val filterReference: Predicate<Item>? = null
@@ -81,7 +87,11 @@ open class CodePrinter(
         return sb.toString()
     }
 
-    private fun appendSourceExpression(value: PsiAnnotationMemberValue, sb: StringBuilder, owner: Item): Boolean {
+    private fun appendSourceExpression(
+        value: PsiAnnotationMemberValue,
+        sb: StringBuilder,
+        owner: Item
+    ): Boolean {
         if (value is PsiReference) {
             val resolved = value.resolve()
             if (resolved is PsiField) {
@@ -142,18 +152,14 @@ open class CodePrinter(
     fun toSourceString(value: UExpression?): String? {
         value ?: return null
         val sb = StringBuilder()
-        return if (appendExpression(sb, value)
-        ) {
+        return if (appendExpression(sb, value)) {
             sb.toString()
         } else {
             null
         }
     }
 
-    private fun appendExpression(
-        sb: StringBuilder,
-        expression: UExpression
-    ): Boolean {
+    private fun appendExpression(sb: StringBuilder, expression: UExpression): Boolean {
         if (expression.isArrayInitializer()) {
             val call = expression as UCallExpression
             val initializers = call.valueArguments
@@ -182,8 +188,7 @@ open class CodePrinter(
         } else if (expression is UReferenceExpression) {
             when (val resolved = expression.resolve()) {
                 is PsiField -> {
-                    @Suppress("UnnecessaryVariable")
-                    val field = resolved
+                    @Suppress("UnnecessaryVariable") val field = resolved
                     if (!inlineFieldValues) {
                         val value = field.computeConstantValue()
                         if (appendLiteralValue(sb, value)) {
@@ -207,7 +212,8 @@ open class CodePrinter(
                                 // This field is not visible: remove from typedef
                                 if (fld != null) {
                                     reporter.report(
-                                        Issues.HIDDEN_TYPEDEF_CONSTANT, fld,
+                                        Issues.HIDDEN_TYPEDEF_CONSTANT,
+                                        fld,
                                         "Typedef class references hidden field $fld: removed from typedef metadata"
                                     )
                                 }
@@ -368,7 +374,10 @@ open class CodePrinter(
             }
         }
 
-        warning("Unexpected annotation expression of type ${expression.javaClass} and is $expression", expression)
+        warning(
+            "Unexpected annotation expression of type ${expression.javaClass} and is $expression",
+            expression
+        )
 
         return false
     }
@@ -437,13 +446,14 @@ open class CodePrinter(
                 is Char -> {
                     return String.format("'%s'", javaEscapeString(value.toString()))
                 }
-
                 is Pair<*, *> -> {
                     val first = value.first
                     val second = value.second
                     if (first is ClassId) {
-                        val qualifiedName = first.packageFqName.asString() + "." +
-                            first.relativeClassName.asString()
+                        val qualifiedName =
+                            first.packageFqName.asString() +
+                                "." +
+                                first.relativeClassName.asString()
                         return if (second is Name) {
                             qualifiedName + "." + second.asString()
                         } else {
@@ -499,7 +509,10 @@ open class CodePrinter(
                 return true
             }
             when (v) {
-                is Int, is Boolean, is Byte, is Short -> {
+                is Int,
+                is Boolean,
+                is Byte,
+                is Short -> {
                     sb.append(v.toString())
                     return true
                 }
@@ -515,13 +528,16 @@ open class CodePrinter(
                     return when {
                         v == Float.POSITIVE_INFINITY -> {
                             // This convention (displaying fractions) is inherited from doclava
-                            sb.append("(1.0f/0.0f)"); true
+                            sb.append("(1.0f/0.0f)")
+                            true
                         }
                         v == Float.NEGATIVE_INFINITY -> {
-                            sb.append("(-1.0f/0.0f)"); true
+                            sb.append("(-1.0f/0.0f)")
+                            true
                         }
                         java.lang.Float.isNaN(v) -> {
-                            sb.append("(0.0f/0.0f)"); true
+                            sb.append("(0.0f/0.0f)")
+                            true
                         }
                         else -> {
                             sb.append(canonicalizeFloatingPointString(v.toString()) + "f")
@@ -533,13 +549,16 @@ open class CodePrinter(
                     return when {
                         v == Double.POSITIVE_INFINITY -> {
                             // This convention (displaying fractions) is inherited from doclava
-                            sb.append("(1.0/0.0)"); true
+                            sb.append("(1.0/0.0)")
+                            true
                         }
                         v == Double.NEGATIVE_INFINITY -> {
-                            sb.append("(-1.0/0.0)"); true
+                            sb.append("(-1.0/0.0)")
+                            true
                         }
                         java.lang.Double.isNaN(v) -> {
-                            sb.append("(0.0/0.0)"); true
+                            sb.append("(0.0/0.0)")
+                            true
                         }
                         else -> {
                             sb.append(canonicalizeFloatingPointString(v.toString()))

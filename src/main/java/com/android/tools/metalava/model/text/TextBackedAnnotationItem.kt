@@ -23,11 +23,8 @@ import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.DefaultAnnotationAttribute
 import com.android.tools.metalava.model.DefaultAnnotationItem
 
-class TextBackedAnnotationItem(
-    codebase: Codebase,
-    source: String,
-    mapName: Boolean = true
-) : DefaultAnnotationItem(codebase) {
+class TextBackedAnnotationItem(codebase: Codebase, source: String, mapName: Boolean = true) :
+    DefaultAnnotationItem(codebase) {
     override val originalName: String
     override val qualifiedName: String?
     private val full: String
@@ -35,25 +32,27 @@ class TextBackedAnnotationItem(
 
     init {
         val index = source.indexOf("(")
-        val annotationClass = if (index == -1)
-            source.substring(1) // Strip @
-        else source.substring(1, index)
+        val annotationClass =
+            if (index == -1) source.substring(1) // Strip @
+            else source.substring(1, index)
 
         originalName = annotationClass
         qualifiedName = if (mapName) AnnotationItem.mapName(annotationClass) else annotationClass
-        full = when {
-            qualifiedName == null -> ""
-            index == -1 -> "@$qualifiedName"
-            else -> "@" + qualifiedName + source.substring(index)
-        }
+        full =
+            when {
+                qualifiedName == null -> ""
+                index == -1 -> "@$qualifiedName"
+                else -> "@" + qualifiedName + source.substring(index)
+            }
 
-        attributes = if (index == -1) {
-            emptyList()
-        } else {
-            DefaultAnnotationAttribute.createList(
-                source.substring(index + 1, source.lastIndexOf(')'))
-            )
-        }
+        attributes =
+            if (index == -1) {
+                emptyList()
+            } else {
+                DefaultAnnotationAttribute.createList(
+                    source.substring(index + 1, source.lastIndexOf(')'))
+                )
+            }
     }
 
     override fun toSource(target: AnnotationTarget, showDefaultAttrs: Boolean): String = full

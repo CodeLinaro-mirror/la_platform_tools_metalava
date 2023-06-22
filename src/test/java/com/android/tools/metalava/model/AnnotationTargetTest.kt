@@ -17,15 +17,16 @@
 package com.android.tools.metalava.model
 
 import com.android.tools.metalava.model.AnnotationTarget.INTERNAL
+import java.lang.reflect.Modifier
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import java.lang.reflect.Modifier
 
 class AnnotationTargetTest {
     @Test
     fun `All annotation targets contain INTERNAL`() {
         // Kotlin reflection can't list top-level items yet, rely on Java reflection for now.
-        Class.forName("${AnnotationTarget::class.qualifiedName}Kt").constants
+        Class.forName("${AnnotationTarget::class.qualifiedName}Kt")
+            .constants
             .also { assertTrue(it.isNotEmpty()) }
             .forEach { (name, value) ->
                 val targets = value as Collection<*>
@@ -36,8 +37,10 @@ class AnnotationTargetTest {
             }
     }
 
-    private val Class<*>.constants get() = methods
-        .filter { Modifier.isStatic(it.modifiers) }
-        .filter { it.name.startsWith("get") }
-        .map { it.name to it.invoke(null) }
+    private val Class<*>.constants
+        get() =
+            methods
+                .filter { Modifier.isStatic(it.modifiers) }
+                .filter { it.name.startsWith("get") }
+                .map { it.name to it.invoke(null) }
 }

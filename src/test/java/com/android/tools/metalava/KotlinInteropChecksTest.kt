@@ -23,15 +23,17 @@ class KotlinInteropChecksTest : DriverTest() {
     fun `Hard Kotlin keywords`() {
         check(
             apiLint = "",
-            expectedIssues = """
+            expectedIssues =
+                """
                 src/test/pkg/Test.java:7: error: Avoid method names that are Kotlin hard keywords ("fun"); see https://android.github.io/kotlin-guides/interop.html#no-hard-keywords [KotlinKeyword]
                 src/test/pkg/Test.java:8: error: Avoid parameter names that are Kotlin hard keywords ("typealias"); see https://android.github.io/kotlin-guides/interop.html#no-hard-keywords [KotlinKeyword]
                 src/test/pkg/Test.java:10: error: Avoid field names that are Kotlin hard keywords ("object"); see https://android.github.io/kotlin-guides/interop.html#no-hard-keywords [KotlinKeyword]
                 """,
             expectedFail = DefaultLintErrorMessage,
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
 
                     import androidx.annotation.NonNull;
@@ -44,10 +46,10 @@ class KotlinInteropChecksTest : DriverTest() {
                         public final Object object = null;
                     }
                     """
-                ),
-                supportParameterName,
-                androidxNonNullSource
-            )
+                    ),
+                    supportParameterName,
+                    androidxNonNullSource
+                )
         )
     }
 
@@ -55,16 +57,18 @@ class KotlinInteropChecksTest : DriverTest() {
     fun `Sam-compatible parameters should be last`() {
         check(
             apiLint = "",
-            expectedIssues = """
+            expectedIssues =
+                """
                 src/test/pkg/Test.java:20: warning: SAM-compatible parameters (such as parameter 1, "run", in test.pkg.Test.error1) should be last to improve Kotlin interoperability; see https://kotlinlang.org/docs/reference/java-interop.html#sam-conversions [SamShouldBeLast] [See https://s.android.com/api-guidelines#placement-of-sam-parameters]
                 src/test/pkg/Test.java:23: warning: SAM-compatible parameters (such as parameter 2, "callback", in test.pkg.Test.error2) should be last to improve Kotlin interoperability; see https://kotlinlang.org/docs/reference/java-interop.html#sam-conversions [SamShouldBeLast] [See https://s.android.com/api-guidelines#placement-of-sam-parameters]
                 src/test/pkg/Test.java:30: warning: SAM-compatible parameters (such as parameter 1, "lambda", in test.pkg.Test.error3) should be last to improve Kotlin interoperability; see https://kotlinlang.org/docs/reference/java-interop.html#sam-conversions [SamShouldBeLast] [See https://s.android.com/api-guidelines#placement-of-sam-parameters]
                 src/test/pkg/Test.java:31: warning: SAM-compatible parameters (such as parameter 1, "lambda", in test.pkg.Test.error4) should be last to improve Kotlin interoperability; see https://kotlinlang.org/docs/reference/java-interop.html#sam-conversions [SamShouldBeLast] [See https://s.android.com/api-guidelines#placement-of-sam-parameters]
                 src/test/pkg/Test.java:35: warning: SAM-compatible parameters (such as parameter 1, "kotlinFunInterface", in test.pkg.Test.error5) should be last to improve Kotlin interoperability; see https://kotlinlang.org/docs/reference/java-interop.html#sam-conversions [SamShouldBeLast] [See https://s.android.com/api-guidelines#placement-of-sam-parameters]
                 """,
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
 
                     import androidx.annotation.Nullable;
@@ -103,9 +107,9 @@ class KotlinInteropChecksTest : DriverTest() {
                         public void ok11(int x, @NonNull KotlinFunInterface kotlinFunInterface) {}
                     }
                     """
-                ),
-                kotlin(
-                    """
+                    ),
+                    kotlin(
+                        """
                     package test.pkg
 
                     interface KotlinInterface {
@@ -119,10 +123,10 @@ class KotlinInteropChecksTest : DriverTest() {
                     // Check only runs on Java source
                     fun ok(bar: () -> Int, foo: Int) { }
                 """
-                ),
-                androidxNullableSource,
-                androidxNonNullSource
-            )
+                    ),
+                    androidxNullableSource,
+                    androidxNonNullSource
+                )
         )
     }
 
@@ -130,20 +134,26 @@ class KotlinInteropChecksTest : DriverTest() {
     fun `Companion object methods should be marked with JvmStatic`() {
         check(
             apiLint = "",
-            extraArguments = arrayOf(
-                ARG_HIDE, "AllUpper",
-                ARG_HIDE, "AcronymName",
-                ARG_HIDE, "CompileTimeConstant"
-            ),
-            expectedIssues = """
+            extraArguments =
+                arrayOf(
+                    ARG_HIDE,
+                    "AllUpper",
+                    ARG_HIDE,
+                    "AcronymName",
+                    ARG_HIDE,
+                    "CompileTimeConstant"
+                ),
+            expectedIssues =
+                """
                 src/test/pkg/Foo.kt:8: warning: Companion object constants like BIG_INTEGER_ONE should be marked @JvmField for Java interoperability; see https://developer.android.com/kotlin/interop#companion_constants [MissingJvmstatic]
                 src/test/pkg/Foo.kt:11: warning: Companion object constants like WRONG should be using @JvmField, not @JvmStatic; see https://developer.android.com/kotlin/interop#companion_constants [MissingJvmstatic]
                 src/test/pkg/Foo.kt:12: warning: Companion object constants like WRONG2 should be using @JvmField, not @JvmStatic; see https://developer.android.com/kotlin/interop#companion_constants [MissingJvmstatic]
                 src/test/pkg/Foo.kt:15: warning: Companion object methods like missing should be marked @JvmStatic for Java interoperability; see https://developer.android.com/kotlin/interop#companion_functions [MissingJvmstatic]
                 """,
-            sourceFiles = arrayOf(
-                kotlin(
-                    """
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
                     package test.pkg
 
                     @SuppressWarnings("all")
@@ -165,8 +175,8 @@ class KotlinInteropChecksTest : DriverTest() {
                         }
                     }
                     """
+                    )
                 )
-            )
         )
     }
 
@@ -174,12 +184,14 @@ class KotlinInteropChecksTest : DriverTest() {
     fun `Methods with default parameters should specify JvmOverloads`() {
         check(
             apiLint = "",
-            expectedIssues = """
+            expectedIssues =
+                """
                 src/test/pkg/Bar.kt:12: warning: A Kotlin method with default parameter values should be annotated with @JvmOverloads for better Java interoperability; see https://android.github.io/kotlin-guides/interop.html#function-overloads-for-defaults [MissingJvmstatic]
                 """,
-            sourceFiles = arrayOf(
-                kotlin(
-                    """
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
                     package test.pkg
 
                     interface Bar {
@@ -196,8 +208,8 @@ class KotlinInteropChecksTest : DriverTest() {
                         inline fun ok5(int: Int, int2: Int) { }
                     }
                     """
+                    )
                 )
-            )
         )
     }
 
@@ -206,9 +218,10 @@ class KotlinInteropChecksTest : DriverTest() {
         check(
             expectedIssues = "",
             apiLint = "",
-            sourceFiles = arrayOf(
-                kotlin(
-                    """
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
                         package test.pkg
 
                         interface Bar
@@ -218,8 +231,8 @@ class KotlinInteropChecksTest : DriverTest() {
                         fun foo(bar: Bar, baz: Baz? = null) {
                         }
                     """
+                    )
                 )
-            )
         )
     }
 
@@ -228,7 +241,8 @@ class KotlinInteropChecksTest : DriverTest() {
         check(
             apiLint = "",
             extraArguments = arrayOf(ARG_HIDE, "BannedThrow", ARG_HIDE, "GenericException"),
-            expectedIssues = """
+            expectedIssues =
+                """
                 src/test/pkg/Foo.kt:6: error: Method Foo.error_throws_multiple_times appears to be throwing java.io.FileNotFoundException; this should be recorded with a @Throws annotation; see https://android.github.io/kotlin-guides/interop.html#document-exceptions [DocumentExceptions] [See https://s.android.com/api-guidelines#docs-throws]
                 src/test/pkg/Foo.kt:17: error: Method Foo.error_throwsCheckedExceptionWithWrongExceptionClassInThrows appears to be throwing java.io.FileNotFoundException; this should be recorded with a @Throws annotation; see https://android.github.io/kotlin-guides/interop.html#document-exceptions [DocumentExceptions] [See https://s.android.com/api-guidelines#docs-throws]
                 src/test/pkg/Foo.kt:37: error: Method Foo.error_throwsRuntimeExceptionDocsMissing appears to be throwing java.lang.UnsupportedOperationException; this should be listed in the documentation; see https://android.github.io/kotlin-guides/interop.html#document-exceptions [DocumentExceptions] [See https://s.android.com/api-guidelines#docs-throws]
@@ -237,9 +251,10 @@ class KotlinInteropChecksTest : DriverTest() {
                 src/test/pkg/Foo.kt:77: error: Method Foo.setErrorVar appears to be throwing java.lang.UnsupportedOperationException; this should be listed in the documentation; see https://android.github.io/kotlin-guides/interop.html#document-exceptions [DocumentExceptions] [See https://s.android.com/api-guidelines#docs-throws]
                 """,
             expectedFail = DefaultLintErrorMessage,
-            sourceFiles = arrayOf(
-                kotlin(
-                    """
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
                     package test.pkg
                     import java.io.FileNotFoundException
                     import java.lang.UnsupportedOperationException
@@ -336,8 +351,8 @@ class KotlinInteropChecksTest : DriverTest() {
                         // be the case that it can never happen, and this might be an annoying false positive.
                     }
                     """
+                    )
                 )
-            )
         )
     }
 }

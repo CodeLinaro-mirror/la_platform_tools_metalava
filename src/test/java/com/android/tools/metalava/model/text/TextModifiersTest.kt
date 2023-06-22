@@ -17,35 +17,35 @@
 package com.android.tools.metalava.model.text
 
 import com.android.tools.metalava.model.DefaultModifierList
-import org.junit.Test
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
+import org.junit.Test
 
 class TextModifiersTest {
 
     @Test
     fun `test equivalentTo()`() {
-        val codebase = ApiFile.parseApi(
-            "test",
-            """
+        val codebase =
+            ApiFile.parseApi(
+                "test",
+                """
             package androidx.navigation {
               public final class NavDestination {
                 ctor public NavDestination();
               }
             }
-            """.trimIndent(),
-            false
-        )
+            """
+                    .trimIndent(),
+                false
+            )
 
         assertTrue {
-            TextModifiers(codebase, flags = DefaultModifierList.PUBLIC).equivalentTo(
-                TextModifiers(codebase, flags = DefaultModifierList.PUBLIC)
-            )
+            TextModifiers(codebase, flags = DefaultModifierList.PUBLIC)
+                .equivalentTo(TextModifiers(codebase, flags = DefaultModifierList.PUBLIC))
         }
         assertFalse {
-            TextModifiers(codebase, flags = DefaultModifierList.PRIVATE).equivalentTo(
-                TextModifiers(codebase, flags = DefaultModifierList.PUBLIC)
-            )
+            TextModifiers(codebase, flags = DefaultModifierList.PRIVATE)
+                .equivalentTo(TextModifiers(codebase, flags = DefaultModifierList.PUBLIC))
         }
     }
 }
