@@ -32,7 +32,10 @@ import kotlin.math.min
 
 const val ASSUME_TYPE_VARS_EXTEND_OBJECT = false
 
-class TextTypeItem(val codebase: TextCodebase, val type: String) : TypeItem {
+class TextTypeItem(
+    val codebase: TextCodebase,
+    val type: String
+) : TypeItem {
 
     override fun toString(): String = type
 
@@ -71,9 +74,7 @@ class TextTypeItem(val codebase: TextCodebase, val type: String) : TypeItem {
             when (nullable) {
                 null -> return "$typeString!"
                 true -> return "$typeString?"
-                else -> {
-                    /* non-null: nothing to add */
-                }
+                else -> { /* non-null: nothing to add */ }
             }
         }
         return typeString
@@ -111,10 +112,8 @@ class TextTypeItem(val codebase: TextCodebase, val type: String) : TypeItem {
                 if (TypeItem.equalsWithoutSpace(thisString, otherString)) {
                     return true
                 }
-                if (
-                    thisString.startsWith(JAVA_LANG_PREFIX) &&
-                        thisString.endsWith(otherString) &&
-                        thisString.length == otherString.length + JAVA_LANG_PREFIX.length
+                if (thisString.startsWith(JAVA_LANG_PREFIX) && thisString.endsWith(otherString) &&
+                    thisString.length == otherString.length + JAVA_LANG_PREFIX.length
                 ) {
                     // When reading signature files, it's sometimes ambiguous whether a name
                     // references a java.lang. implicit class or a type parameter.
@@ -142,10 +141,7 @@ class TextTypeItem(val codebase: TextCodebase, val type: String) : TypeItem {
         return dimensions
     }
 
-    private fun findTypeVariableBounds(
-        typeParameterList: TypeParameterList,
-        name: String
-    ): List<TypeItem> {
+    private fun findTypeVariableBounds(typeParameterList: TypeParameterList, name: String): List<TypeItem> {
         for (p in typeParameterList.typeParameters()) {
             if (p.simpleName() == name) {
                 val bounds = p.typeBounds()
@@ -175,11 +171,7 @@ class TextTypeItem(val codebase: TextCodebase, val type: String) : TypeItem {
     override fun asTypeParameter(context: MemberItem?): TypeParameterItem? {
         return if (isLikelyTypeParameter(toTypeString())) {
             val typeParameter =
-                TextTypeParameterItem.create(
-                    codebase,
-                    context as? TypeParameterListOwner,
-                    toTypeString()
-                )
+                TextTypeParameterItem.create(codebase, context as? TypeParameterListOwner, toTypeString())
 
             if (context != null && typeParameter.typeBounds().isEmpty()) {
                 val bounds = findTypeVariableBounds(context, typeParameter.simpleName())
@@ -313,9 +305,9 @@ class TextTypeItem(val codebase: TextCodebase, val type: String) : TypeItem {
         }
 
         /**
-         * Given a type possibly using the Kotlin-style null syntax, strip out any Kotlin-style null
-         * syntax characters, e.g. "String?" -> "String", but make sure not to damage types like
-         * "Set<? extends Number>".
+         * Given a type possibly using the Kotlin-style null syntax, strip out any Kotlin-style
+         * null syntax characters, e.g. "String?" -> "String", but make sure not to damage types
+         * like "Set<? extends Number>".
          */
         fun stripKotlinNullChars(s: String): String {
             var found = false
@@ -355,27 +347,26 @@ class TextTypeItem(val codebase: TextCodebase, val type: String) : TypeItem {
 
             // Assumption: top level annotations appear first
             val length = type.length
-            var max =
-                if (!inner) length
-                else {
-                    val space = type.indexOf(' ')
-                    val generics = type.indexOf('<')
-                    val first =
-                        if (space != -1) {
-                            if (generics != -1) {
-                                min(space, generics)
-                            } else {
-                                space
-                            }
-                        } else {
-                            generics
-                        }
-                    if (first != -1) {
-                        first
+            var max = if (!inner)
+                length
+            else {
+                val space = type.indexOf(' ')
+                val generics = type.indexOf('<')
+                val first = if (space != -1) {
+                    if (generics != -1) {
+                        min(space, generics)
                     } else {
-                        length
+                        space
                     }
+                } else {
+                    generics
                 }
+                if (first != -1) {
+                    first
+                } else {
+                    length
+                }
+            }
 
             var s = type
             while (true) {
@@ -394,8 +385,7 @@ class TextTypeItem(val codebase: TextCodebase, val type: String) : TypeItem {
             }
 
             // Sometimes we have a second type after the max, such as
-            // @androidx.annotation.NonNull java.lang.reflect.@androidx.annotation.NonNull
-            // TypeVariable<...>
+            // @androidx.annotation.NonNull java.lang.reflect.@androidx.annotation.NonNull TypeVariable<...>
             for (i in s.indices) {
                 val c = s[i]
                 if (Character.isJavaIdentifierPart(c) || c == '.') {
@@ -430,9 +420,9 @@ class TextTypeItem(val codebase: TextCodebase, val type: String) : TypeItem {
                     if (balance == 0) {
                         return index + 1
                     }
-                } else if (c == '.') {} else if (Character.isJavaIdentifierPart(c)) {} else if (
-                    balance == 0
-                ) {
+                } else if (c == '.') {
+                } else if (Character.isJavaIdentifierPart(c)) {
+                } else if (balance == 0) {
                     break
                 }
                 index++
@@ -442,16 +432,7 @@ class TextTypeItem(val codebase: TextCodebase, val type: String) : TypeItem {
 
         fun isPrimitive(type: String): Boolean {
             return when (type) {
-                "byte",
-                "char",
-                "double",
-                "float",
-                "int",
-                "long",
-                "short",
-                "boolean",
-                "void",
-                "null" -> true
+                "byte", "char", "double", "float", "int", "long", "short", "boolean", "void", "null" -> true
                 else -> false
             }
         }

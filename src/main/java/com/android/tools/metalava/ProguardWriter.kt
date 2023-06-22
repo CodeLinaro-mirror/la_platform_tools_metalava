@@ -32,14 +32,13 @@ class ProguardWriter(
     private val writer: PrintWriter,
     filterEmit: Predicate<Item>,
     filterReference: Predicate<Item>
-) :
-    ApiVisitor(
-        visitConstructorsAsMethods = false,
-        nestInnerClasses = false,
-        inlineInheritedFields = true,
-        filterEmit = filterEmit,
-        filterReference = filterReference
-    ) {
+) : ApiVisitor(
+    visitConstructorsAsMethods = false,
+    nestInnerClasses = false,
+    inlineInheritedFields = true,
+    filterEmit = filterEmit,
+    filterReference = filterReference
+) {
 
     override fun visitClass(cls: ClassItem) {
         writer.print("-keep class ")

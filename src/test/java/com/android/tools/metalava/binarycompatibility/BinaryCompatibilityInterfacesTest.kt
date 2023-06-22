@@ -29,16 +29,14 @@ class BinaryCompatibilityInterfacesTest : DriverTest() {
     @Test
     fun `Add abstract method, if method need not be implemented by client (Compatible)`() {
         check(
-            signatureSource =
-                """
+            signatureSource = """
                 package test.pkg {
                     public sealed interface Foo {
                         method public abstract void bar();
                     }
                 }
             """,
-            checkCompatibilityApiReleased =
-                """
+            checkCompatibilityApiReleased = """
                 package test.pkg {
                     public sealed interface Foo {
                     }
@@ -50,20 +48,17 @@ class BinaryCompatibilityInterfacesTest : DriverTest() {
     @Test
     fun `Add abstract method, if method must be implemented by client (Incompatible)`() {
         check(
-            expectedIssues =
-                """
+            expectedIssues = """
                 TESTROOT/load-api.txt:3: error: Added method test.pkg.Foo.bar() [AddedAbstractMethod]
             """,
-            signatureSource =
-                """
+            signatureSource = """
                 package test.pkg {
                     public interface Foo {
                         method public abstract void bar();
                     }
                 }
             """,
-            checkCompatibilityApiReleased =
-                """
+            checkCompatibilityApiReleased = """
                 package test.pkg {
                     public interface Foo {
                     }
@@ -76,16 +71,14 @@ class BinaryCompatibilityInterfacesTest : DriverTest() {
     @Test
     fun `Add default method, if interface not implementable by clients (Compatible)`() {
         check(
-            signatureSource =
-                """
+            signatureSource = """
                 package test.pkg {
                     public sealed interface Foo {
                         method public default void bar();
                     }
                 }
             """,
-            checkCompatibilityApiReleased =
-                """
+            checkCompatibilityApiReleased = """
                 package test.pkg {
                     public sealed interface Foo {
                     }
@@ -101,16 +94,14 @@ class BinaryCompatibilityInterfacesTest : DriverTest() {
             expectedIssues = """
                 (expected issue for interface Foo)
             """,
-            signatureSource =
-                """
+            signatureSource = """
                 package test.pkg {
                     public interface Foo {
                         method public default void bar();
                     }
                 }
             """,
-            checkCompatibilityApiReleased =
-                """
+            checkCompatibilityApiReleased = """
                 package test.pkg {
                     public interface Foo {
                     }
@@ -122,16 +113,14 @@ class BinaryCompatibilityInterfacesTest : DriverTest() {
     @Test
     fun `Add static method (Compatible)`() {
         check(
-            signatureSource =
-                """
+            signatureSource = """
                 package test.pkg {
                     public interface Foo {
                         method public static void bar();
                     }
                 }
             """,
-            checkCompatibilityApiReleased =
-                """
+            checkCompatibilityApiReleased = """
                 package test.pkg {
                     public interface Foo {
                     }
@@ -143,21 +132,18 @@ class BinaryCompatibilityInterfacesTest : DriverTest() {
     @Test
     fun `Delete API method (Incompatible)`() {
         check(
-            expectedIssues =
-                """
+            expectedIssues = """
                 TESTROOT/released-api.txt:3: error: Removed method test.pkg.Foo.bar() [RemovedMethod]
                 TESTROOT/released-api.txt:5: error: Removed method test.pkg.Foo.bax() [RemovedMethod]
                 TESTROOT/released-api.txt:4: error: Removed method test.pkg.Foo.baz() [RemovedMethod]
             """,
-            signatureSource =
-                """
+            signatureSource = """
                 package test.pkg {
                     public interface Foo {
                     }
                 }
             """,
-            checkCompatibilityApiReleased =
-                """
+            checkCompatibilityApiReleased = """
                 package test.pkg {
                     public interface Foo {
                         method public abstract void bar();
@@ -173,8 +159,7 @@ class BinaryCompatibilityInterfacesTest : DriverTest() {
     @Test
     fun `Move API method up type hierarchy, if method in supertype need not be implemented by client (Compatible)`() {
         check(
-            signatureSource =
-                """
+            signatureSource = """
                 package test.pkg {
                     public sealed interface Upper {
                         method public abstract void bar();
@@ -183,8 +168,7 @@ class BinaryCompatibilityInterfacesTest : DriverTest() {
                     }
                 }
             """,
-            checkCompatibilityApiReleased =
-                """
+            checkCompatibilityApiReleased = """
                 package test.pkg {
                     public sealed interface Upper {
                     }
@@ -199,12 +183,10 @@ class BinaryCompatibilityInterfacesTest : DriverTest() {
     @Test
     fun `Move API method up the type hierarchy, if method in supertype must be implemented by client (Incompatible)`() {
         check(
-            expectedIssues =
-                """
+            expectedIssues = """
                 TESTROOT/load-api.txt:3: error: Added method test.pkg.Upper.bar() [AddedAbstractMethod]
             """,
-            signatureSource =
-                """
+            signatureSource = """
                 package test.pkg {
                     public interface Upper {
                         method public abstract void bar();
@@ -213,8 +195,7 @@ class BinaryCompatibilityInterfacesTest : DriverTest() {
                     }
                 }
             """,
-            checkCompatibilityApiReleased =
-                """
+            checkCompatibilityApiReleased = """
                 package test.pkg {
                     public interface Upper {
                     }
@@ -229,12 +210,10 @@ class BinaryCompatibilityInterfacesTest : DriverTest() {
     @Test
     fun `Move method down type hierarchy (Incompatible)`() {
         check(
-            expectedIssues =
-                """
+            expectedIssues = """
                 TESTROOT/released-api.txt:3: error: Removed method test.pkg.Upper.bar() [RemovedMethod]
             """,
-            signatureSource =
-                """
+            signatureSource = """
                 package test.pkg {
                     public interface Upper {
                     }
@@ -243,8 +222,7 @@ class BinaryCompatibilityInterfacesTest : DriverTest() {
                     }
                 }
             """,
-            checkCompatibilityApiReleased =
-                """
+            checkCompatibilityApiReleased = """
                 package test.pkg {
                     public interface Upper {
                         method public abstract void bar();
@@ -259,16 +237,14 @@ class BinaryCompatibilityInterfacesTest : DriverTest() {
     @Test
     fun `Add API field (Compatible)`() {
         check(
-            signatureSource =
-                """
+            signatureSource = """
                 package test.pkg {
                     public interface Foo {
                         field public static final int BAR;
                     }
                 }
             """,
-            checkCompatibilityApiReleased =
-                """
+            checkCompatibilityApiReleased = """
                 package test.pkg {
                     public interface Foo {
                     }
@@ -280,19 +256,16 @@ class BinaryCompatibilityInterfacesTest : DriverTest() {
     @Test
     fun `Delete API field (Incompatible)`() {
         check(
-            expectedIssues =
-                """
+            expectedIssues = """
                 TESTROOT/released-api.txt:3: error: Removed field test.pkg.Foo.BAR [RemovedField]
             """,
-            signatureSource =
-                """
+            signatureSource = """
                 package test.pkg {
                     public interface Foo {
                     }
                 }
             """,
-            checkCompatibilityApiReleased =
-                """
+            checkCompatibilityApiReleased = """
                 package test.pkg {
                     public interface Foo {
                         field public static final int BAR;
@@ -305,8 +278,7 @@ class BinaryCompatibilityInterfacesTest : DriverTest() {
     @Test
     fun `Expand superinterfaces set (Compatible)`() {
         check(
-            signatureSource =
-                """
+            signatureSource = """
                 package test.pkg {
                     public interface One {
                     }
@@ -316,8 +288,7 @@ class BinaryCompatibilityInterfacesTest : DriverTest() {
                     }
                 }
             """,
-            checkCompatibilityApiReleased =
-                """
+            checkCompatibilityApiReleased = """
                 package test.pkg {
                     public interface One {
                     }
@@ -333,12 +304,10 @@ class BinaryCompatibilityInterfacesTest : DriverTest() {
     @Test
     fun `Contract superinterface set (Incompatible)`() {
         check(
-            expectedIssues =
-                """
+            expectedIssues = """
                 TESTROOT/load-api.txt:6: error: Class test.pkg.Foo no longer implements test.pkg.Two [RemovedInterface]
             """,
-            signatureSource =
-                """
+            signatureSource = """
                 package test.pkg {
                     public interface One {
                     }
@@ -348,8 +317,7 @@ class BinaryCompatibilityInterfacesTest : DriverTest() {
                     }
                 }
             """,
-            checkCompatibilityApiReleased =
-                """
+            checkCompatibilityApiReleased = """
                 package test.pkg {
                     public interface One {
                     }
@@ -365,8 +333,7 @@ class BinaryCompatibilityInterfacesTest : DriverTest() {
     @Test
     fun `Add API type member (Compatible)`() {
         check(
-            signatureSource =
-                """
+            signatureSource = """
                 package test.pkg {
                     public interface Outer {
                     }
@@ -374,8 +341,7 @@ class BinaryCompatibilityInterfacesTest : DriverTest() {
                     }
                 }
             """,
-            checkCompatibilityApiReleased =
-                """
+            checkCompatibilityApiReleased = """
                 package test.pkg {
                     public interface Outer {
                     }
@@ -387,19 +353,16 @@ class BinaryCompatibilityInterfacesTest : DriverTest() {
     @Test
     fun `Delete API type member (Incompatible)`() {
         check(
-            expectedIssues =
-                """
+            expectedIssues = """
                 TESTROOT/released-api.txt:4: error: Removed class test.pkg.Outer.Inner [RemovedInterface]
             """,
-            signatureSource =
-                """
+            signatureSource = """
                 package test.pkg {
                     public interface Outer {
                     }
                 }
             """,
-            checkCompatibilityApiReleased =
-                """
+            checkCompatibilityApiReleased = """
                 package test.pkg {
                     public interface Outer {
                     }
@@ -413,15 +376,13 @@ class BinaryCompatibilityInterfacesTest : DriverTest() {
     @Test
     fun `Add type parameter, if interface has no type parameters (Compatible)`() {
         check(
-            signatureSource =
-                """
+            signatureSource = """
                 package test.pkg {
                     public interface Foo<T> {
                     }
                 }
             """,
-            checkCompatibilityApiReleased =
-                """
+            checkCompatibilityApiReleased = """
                 package test.pkg {
                     public interface Foo {
                     }
@@ -433,19 +394,16 @@ class BinaryCompatibilityInterfacesTest : DriverTest() {
     @Test
     fun `Add type parameter, if interface has type parameters (Incompatible)`() {
         check(
-            expectedIssues =
-                """
+            expectedIssues = """
                 TESTROOT/load-api.txt:2: error: Class test.pkg.Foo changed number of type parameters from 1 to 2 [ChangedType]
             """,
-            signatureSource =
-                """
+            signatureSource = """
                 package test.pkg {
                     public interface Foo<A, B> {
                     }
                 }
             """,
-            checkCompatibilityApiReleased =
-                """
+            checkCompatibilityApiReleased = """
                 package test.pkg {
                     public interface Foo<A> {
                     }
@@ -457,19 +415,16 @@ class BinaryCompatibilityInterfacesTest : DriverTest() {
     @Test
     fun `Delete type parameter (Incompatible)`() {
         check(
-            expectedIssues =
-                """
+            expectedIssues = """
                 TESTROOT/load-api.txt:2: error: Class test.pkg.Foo changed number of type parameters from 1 to 0 [ChangedType]
             """,
-            signatureSource =
-                """
+            signatureSource = """
                 package test.pkg {
                     public interface Foo {
                     }
                 }
             """,
-            checkCompatibilityApiReleased =
-                """
+            checkCompatibilityApiReleased = """
                 package test.pkg {
                     public interface Foo<T> {
                     }
@@ -485,15 +440,13 @@ class BinaryCompatibilityInterfacesTest : DriverTest() {
             expectedIssues = """
                 (expected issue for interface Foo)
             """,
-            signatureSource =
-                """
+            signatureSource = """
                 package test.pkg {
                     public interface Foo<B, A> {
                     }
                 }
             """,
-            checkCompatibilityApiReleased =
-                """
+            checkCompatibilityApiReleased = """
                 package test.pkg {
                     public interface Foo<A, B> {
                     }
@@ -509,15 +462,13 @@ class BinaryCompatibilityInterfacesTest : DriverTest() {
             expectedIssues = """
                 (expected issue for interface Foo)
             """,
-            signatureSource =
-                """
+            signatureSource = """
                 package test.pkg {
                     public interface Foo<B> {
                     }
                 }
             """,
-            checkCompatibilityApiReleased =
-                """
+            checkCompatibilityApiReleased = """
                 package test.pkg {
                     public interface Foo<A> {
                     }
@@ -530,14 +481,12 @@ class BinaryCompatibilityInterfacesTest : DriverTest() {
     @Test
     fun `Add, delete, or change type bounds of type parameter (Incompatible)`() {
         check(
-            expectedIssues =
-                """
+            expectedIssues = """
                 (expected issue for interface Add)
                 (expected issue for interface Change)
                 (expected issue for interface Delete)
             """,
-            signatureSource =
-                """
+            signatureSource = """
                 package test.pkg {
                     public interface Add<T extends java.util.List> {
                     }
@@ -547,8 +496,7 @@ class BinaryCompatibilityInterfacesTest : DriverTest() {
                     }
                 }
             """,
-            checkCompatibilityApiReleased =
-                """
+            checkCompatibilityApiReleased = """
                 package test.pkg {
                     public interface Add<T> {
                     }
@@ -564,16 +512,14 @@ class BinaryCompatibilityInterfacesTest : DriverTest() {
     @Test
     fun `Add element to annotation type, if element has a default value (Compatible)`() {
         check(
-            signatureSource =
-                """
+            signatureSource = """
                 package test.pkg {
                     public @interface Foo {
                         method public abstract int bar() default 0;
                     }
                 }
             """,
-            checkCompatibilityApiReleased =
-                """
+            checkCompatibilityApiReleased = """
                 package test.pkg {
                     public @interface Foo {
                     }
@@ -585,20 +531,17 @@ class BinaryCompatibilityInterfacesTest : DriverTest() {
     @Test
     fun `Add element to annotation type, if element has no default value (Incompatible)`() {
         check(
-            expectedIssues =
-                """
+            expectedIssues = """
                 TESTROOT/load-api.txt:3: error: Added method test.pkg.Foo.bar() [AddedAbstractMethod]
             """,
-            signatureSource =
-                """
+            signatureSource = """
                 package test.pkg {
                     public interface Foo {
                         method public abstract int bar();
                     }
                 }
             """,
-            checkCompatibilityApiReleased =
-                """
+            checkCompatibilityApiReleased = """
                 package test.pkg {
                     public interface Foo {
                     }
@@ -610,20 +553,17 @@ class BinaryCompatibilityInterfacesTest : DriverTest() {
     @Test
     fun `Delete element from annotation type (Incompatible)`() {
         check(
-            expectedIssues =
-                """
+            expectedIssues = """
                 TESTROOT/released-api.txt:3: error: Removed method test.pkg.Foo.bar() [RemovedMethod]
                 TESTROOT/released-api.txt:4: error: Removed method test.pkg.Foo.baz() [RemovedMethod]
             """,
-            signatureSource =
-                """
+            signatureSource = """
                 package test.pkg {
                     public interface Foo {
                     }
                 }
             """,
-            checkCompatibilityApiReleased =
-                """
+            checkCompatibilityApiReleased = """
                 package test.pkg {
                     public interface Foo {
                         method public abstract int bar();

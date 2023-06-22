@@ -17,25 +17,22 @@
 package com.android.tools.metalava
 
 import com.android.tools.metalava.model.defaultConfiguration
-import java.io.File
-import java.io.PrintWriter
-import java.io.StringWriter
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.io.File
+import java.io.PrintWriter
+import java.io.StringWriter
 
 @Suppress("PrivatePropertyName")
 class OptionsTest : DriverTest() {
-    private val DESCRIPTION =
-        """
+    private val DESCRIPTION = """
 $PROGRAM_NAME extracts metadata from source code to generate artifacts such as the signature files, the SDK stub files,
 external annotations etc.
-    """
-            .trimIndent()
+    """.trimIndent()
 
-    private val FLAGS =
-        """
+    private val FLAGS = """
 Usage: metalava <flags>
 
 
@@ -132,7 +129,7 @@ API sources:
 --java-source <level>
                                              Sets the source level for Java source files; default is 1.8.
 --kotlin-source <level>
-                                             Sets the source level for Kotlin source files; default is 1.9.
+                                             Sets the source level for Kotlin source files; default is 1.8.
 --sdk-home <dir>
                                              If set, locate the `android.jar` file from the given Android SDK
 --compile-sdk-version <api>
@@ -417,14 +414,10 @@ Generating API version history:
                                              deprecated in. Required to generate API version JSON.
 --api-version-signature-files <files>
                                              An ordered list of text API signature files. The oldest API version should
-                                             be first, the newest last. This should not include a signature file for the
-                                             current API version, which will be parsed from the provided source files.
-                                             Not required to generate API version JSON if the current version is the
-                                             only version.
+                                             be first, the newest last. Required to generate API version JSON.
 --api-version-names <strings>
                                              An ordered list of strings with the names to use for the API versions from
-                                             --api-version-signature-files, and the name of the current API version.
-                                             Required to generate API version JSON.
+                                             --api-version-signature-files. Required to generate API version JSON.
 
 
 Sandboxing:
@@ -460,8 +453,7 @@ METALAVA_APPEND_ARGS
                                              One or more arguments (concatenated by space) to append to the end of the
                                              command line, after the generate documentation flags.
 
-    """
-            .trimIndent()
+    """.trimIndent()
 
     @Test
     fun `Test invalid arguments`() {
@@ -474,7 +466,7 @@ METALAVA_APPEND_ARGS
             stdout = PrintWriter(stdout),
             stderr = PrintWriter(stderr)
         )
-        assertEquals(BANNER + "\n", stdout.toString())
+        assertEquals(BANNER + "\n\n", stdout.toString())
         assertEquals(
             """
 
@@ -482,31 +474,7 @@ Aborting: Invalid argument --blah-blah-blah
 
 $FLAGS
 
-            """
-                .trimIndent(),
-            stderr.toString()
-        )
-    }
-
-    @Test
-    fun `Test invalid value`() {
-        val args = listOf(ARG_NO_COLOR, "--api-class-resolution", "foo")
-
-        val stdout = StringWriter()
-        val stderr = StringWriter()
-        run(
-            originalArgs = args.toTypedArray(),
-            stdout = PrintWriter(stdout),
-            stderr = PrintWriter(stderr)
-        )
-        assertEquals(BANNER + "\n", stdout.toString())
-        assertEquals(
-            """
-
-Aborting: --api-class-resolution must be one of api, api:classpath; was foo
-
-            """
-                .trimIndent(),
+            """.trimIndent(),
             stderr.toString()
         )
     }
@@ -527,35 +495,12 @@ Aborting: --api-class-resolution must be one of api, api:classpath; was foo
             """
 $BANNER
 
+
 $DESCRIPTION
 
 $FLAGS
 
-            """
-                .trimIndent(),
-            stdout.toString()
-        )
-    }
-
-    @Test
-    fun `Test version`() {
-        val args = listOf(ARG_NO_COLOR, "--version")
-
-        val stdout = StringWriter()
-        val stderr = StringWriter()
-        run(
-            originalArgs = args.toTypedArray(),
-            stdout = PrintWriter(stdout),
-            stderr = PrintWriter(stderr)
-        )
-        assertEquals("", stderr.toString())
-        assertEquals(
-            """
-
-                metalava version: 1.0.0-alpha09
-
-            """
-                .trimIndent(),
+            """.trimIndent(),
             stdout.toString()
         )
     }
@@ -563,17 +508,16 @@ $FLAGS
     @Test
     fun `Test issue severity options`() {
         check(
-            extraArguments =
-                arrayOf(
-                    "--hide",
-                    "StartWithLower",
-                    "--lint",
-                    "EndsWithImpl",
-                    "--warning",
-                    "StartWithUpper",
-                    "--error",
-                    "ArrayReturn"
-                )
+            extraArguments = arrayOf(
+                "--hide",
+                "StartWithLower",
+                "--lint",
+                "EndsWithImpl",
+                "--warning",
+                "StartWithUpper",
+                "--error",
+                "ArrayReturn"
+            )
         )
         assertEquals(Severity.HIDDEN, defaultConfiguration.getSeverity(Issues.START_WITH_LOWER))
         assertEquals(Severity.LINT, defaultConfiguration.getSeverity(Issues.ENDS_WITH_IMPL))
@@ -583,7 +527,9 @@ $FLAGS
 
     @Test
     fun `Test multiple issue severity options`() {
-        check(extraArguments = arrayOf("--hide", "StartWithLower,StartWithUpper,ArrayReturn"))
+        check(
+            extraArguments = arrayOf("--hide", "StartWithLower,StartWithUpper,ArrayReturn")
+        )
         assertEquals(Severity.HIDDEN, defaultConfiguration.getSeverity(Issues.START_WITH_LOWER))
         assertEquals(Severity.HIDDEN, defaultConfiguration.getSeverity(Issues.START_WITH_UPPER))
         assertEquals(Severity.HIDDEN, defaultConfiguration.getSeverity(Issues.ARRAY_RETURN))
@@ -591,20 +537,18 @@ $FLAGS
 
     @Test
     fun `Test issue severity options with inheriting issues`() {
-        check(extraArguments = arrayOf("--error", "RemovedClass"))
-        assertEquals(Severity.ERROR, defaultConfiguration.getSeverity(Issues.REMOVED_CLASS))
-        assertEquals(
-            Severity.ERROR,
-            defaultConfiguration.getSeverity(Issues.REMOVED_DEPRECATED_CLASS)
+        check(
+            extraArguments = arrayOf("--error", "RemovedClass")
         )
+        assertEquals(Severity.ERROR, defaultConfiguration.getSeverity(Issues.REMOVED_CLASS))
+        assertEquals(Severity.ERROR, defaultConfiguration.getSeverity(Issues.REMOVED_DEPRECATED_CLASS))
     }
 
     @Test
     fun `Test issue severity options with case insensitive names`() {
         check(
             extraArguments = arrayOf("--hide", "arrayreturn"),
-            expectedIssues =
-                "warning: Case-insensitive issue matching is deprecated, use --hide ArrayReturn instead of --hide arrayreturn [DeprecatedOption]"
+            expectedIssues = "warning: Case-insensitive issue matching is deprecated, use --hide ArrayReturn instead of --hide arrayreturn [DeprecatedOption]"
         )
         assertEquals(Severity.HIDDEN, defaultConfiguration.getSeverity(Issues.ARRAY_RETURN))
     }
@@ -629,11 +573,10 @@ $FLAGS
 
         try {
             check(
-                extraArguments =
-                    arrayOf(
-                        "--strict-input-files-exempt",
-                        file1.path + File.pathSeparatorChar + dir.path
-                    )
+                extraArguments = arrayOf(
+                    "--strict-input-files-exempt",
+                    file1.path + File.pathSeparatorChar + dir.path
+                )
             )
 
             assertTrue(FileReadSandbox.isAccessAllowed(file1))

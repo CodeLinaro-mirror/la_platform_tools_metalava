@@ -57,16 +57,18 @@ import com.intellij.psi.util.PsiUtilCore
 import java.util.function.Predicate
 
 /**
- * Type printer which can take a [PsiType] and print it to a fully canonical string, in one of two
- * formats:
- * <li>
- *     <li> Kotlin syntax, e.g. java.lang.Object?
- *     <li> Java syntax, e.g. java.lang.@androidx.annotation.Nullable Object </li>
+ * Type printer which can take a [PsiType] and print it to a fully canonical
+ * string, in one of two formats:
+ *  <li>
+ *    <li> Kotlin syntax, e.g. java.lang.Object?
+ *    <li> Java syntax, e.g. java.lang.@androidx.annotation.Nullable Object
+ *  </li>
  *
- * The main features of this class relative to PsiType.getCanonicalText(annotated) is that it can
- * perform filtering (to remove annotations not part of the API) and Kotlin style printing which
- * cannot be done by simple replacements of @Nullable->? etc since the annotations and the suffixes
- * appear in different places.
+ * The main features of this class relative to PsiType.getCanonicalText(annotated)
+ * is that it can perform filtering (to remove annotations not part of the API)
+ * and Kotlin style printing which cannot be done by simple replacements
+ * of @Nullable->? etc since the annotations and the suffixes appear in different
+ * places.
  */
 class PsiTypePrinter(
     private val codebase: Codebase,
@@ -75,16 +77,11 @@ class PsiTypePrinter(
     private val kotlinStyleNulls: Boolean = options.outputKotlinStyleNulls,
     private val supportTypeUseAnnotations: Boolean = SUPPORT_TYPE_USE_ANNOTATIONS
 ) {
-    // This class inlines a lot of methods from IntelliJ, but with (a) annotated=true, (b) calling
-    // local
-    // getCanonicalText methods instead of instance methods, and (c) deferring annotations if
-    // kotlinStyleNulls
+    // This class inlines a lot of methods from IntelliJ, but with (a) annotated=true, (b) calling local
+    // getCanonicalText methods instead of instance methods, and (c) deferring annotations if kotlinStyleNulls
     // is true and instead printing it out as a suffix. Dead code paths are also removed.
 
-    fun getAnnotatedCanonicalText(
-        type: PsiType,
-        elementAnnotations: List<AnnotationItem>? = null
-    ): String {
+    fun getAnnotatedCanonicalText(type: PsiType, elementAnnotations: List<AnnotationItem>? = null): String {
         return getCanonicalText(type, elementAnnotations)
     }
 
@@ -114,20 +111,24 @@ class PsiTypePrinter(
         }
     }
 
-    private fun getCanonicalText(type: PsiType, elementAnnotations: List<AnnotationItem>?): String {
+    private fun getCanonicalText(
+        type: PsiType,
+        elementAnnotations: List<AnnotationItem>?
+    ): String {
         when (type) {
             is PsiClassReferenceType -> return getCanonicalText(type, elementAnnotations)
             is PsiPrimitiveType -> return getCanonicalText(type, elementAnnotations)
             is PsiImmediateClassType -> return getCanonicalText(type, elementAnnotations)
-            is PsiEllipsisType ->
-                return getText(type, getCanonicalText(type.componentType, null), "...")
+            is PsiEllipsisType -> return getText(
+                type,
+                getCanonicalText(type.componentType, null),
+                "..."
+            )
             is PsiArrayType -> return getCanonicalText(type, elementAnnotations)
             is PsiWildcardType -> {
                 val bound = type.bound
                 // Don't include ! in type bounds
-                val suffix =
-                    if (bound == null) null
-                    else getCanonicalText(bound, elementAnnotations).removeSuffix("!")
+                val suffix = if (bound == null) null else getCanonicalText(bound, elementAnnotations).removeSuffix("!")
                 return getText(type, suffix, elementAnnotations)
             }
             is PsiCapturedWildcardType ->
@@ -137,7 +138,12 @@ class PsiTypePrinter(
                 // Based on PsiDisjunctionType.getCanonicalText(true)
                 return StringUtil.join(
                     type.disjunctions,
-                    { psiType -> getCanonicalText(psiType, elementAnnotations) },
+                    { psiType ->
+                        getCanonicalText(
+                            psiType,
+                            elementAnnotations
+                        )
+                    },
                     " | "
                 )
             is PsiIntersectionType -> return getCanonicalText(type.conjuncts[0], elementAnnotations)
@@ -170,7 +176,11 @@ class PsiTypePrinter(
     }
 
     // From PsiEllipsisType.getText, with qualified always true
-    private fun getText(type: PsiEllipsisType, prefix: String, suffix: String): String {
+    private fun getText(
+        type: PsiEllipsisType,
+        prefix: String,
+        suffix: String
+    ): String {
         val sb = StringBuilder(prefix.length + suffix.length)
         sb.append(prefix)
         val annotations = type.annotations
@@ -185,10 +195,7 @@ class PsiTypePrinter(
     }
 
     // From PsiArrayType.getCanonicalText(true))
-    private fun getCanonicalText(
-        type: PsiArrayType,
-        elementAnnotations: List<AnnotationItem>?
-    ): String {
+    private fun getCanonicalText(type: PsiArrayType, elementAnnotations: List<AnnotationItem>?): String {
         return getText(type, getCanonicalText(type.componentType, null), "[]", elementAnnotations)
     }
 
@@ -208,8 +215,7 @@ class PsiTypePrinter(
             sb.append(' ')
             appendAnnotations(sb, annotations, elementAnnotations)
             if (sb.length == originalLength + 1) {
-                // Didn't emit any annotations (e.g. skipped because only null annotations and
-                // replacing with ?)
+                // Didn't emit any annotations (e.g. skipped because only null annotations and replacing with ?)
                 sb.setLength(originalLength)
             }
         }
@@ -223,16 +229,15 @@ class PsiTypePrinter(
     }
 
     // Copied from PsiPrimitiveType.getCanonicalText(true))
-    private fun getCanonicalText(
-        type: PsiPrimitiveType,
-        elementAnnotations: List<AnnotationItem>?
-    ): String {
+    private fun getCanonicalText(type: PsiPrimitiveType, elementAnnotations: List<AnnotationItem>?): String {
         return getText(type, elementAnnotations)
     }
 
-    // Copied from PsiPrimitiveType.getText(boolean, boolean), with annotated = true and qualified =
-    // true
-    private fun getText(type: PsiPrimitiveType, elementAnnotations: List<AnnotationItem>?): String {
+    // Copied from PsiPrimitiveType.getText(boolean, boolean), with annotated = true and qualified = true
+    private fun getText(
+        type: PsiPrimitiveType,
+        elementAnnotations: List<AnnotationItem>?
+    ): String {
         val annotations = type.annotations
         if (annotations.isEmpty()) return type.name
 
@@ -242,18 +247,14 @@ class PsiTypePrinter(
         return sb.toString()
     }
 
-    private fun getCanonicalText(
-        type: PsiClassReferenceType,
-        elementAnnotations: List<AnnotationItem>?
-    ): String {
+    private fun getCanonicalText(type: PsiClassReferenceType, elementAnnotations: List<AnnotationItem>?): String {
         val reference = type.reference
         if (reference is PsiAnnotatedJavaCodeReferenceElement) {
             val annotations = type.annotations
 
             when (reference) {
                 is ClsJavaCodeReferenceElementImpl -> {
-                    // From ClsJavaCodeReferenceElementImpl.getCanonicalText(boolean
-                    // PsiAnnotation[])
+                    // From ClsJavaCodeReferenceElementImpl.getCanonicalText(boolean PsiAnnotation[])
                     val text = reference.getCanonicalText()
 
                     val sb = StringBuilder()
@@ -275,16 +276,15 @@ class PsiTypePrinter(
 
                     return sb.toString()
                 }
-                is PsiJavaCodeReferenceElementImpl ->
-                    return getCanonicalText(
-                        reference,
-                        annotations,
-                        reference.containingFile,
-                        elementAnnotations,
-                        kotlinStyleNulls
-                    )
+                is PsiJavaCodeReferenceElementImpl -> return getCanonicalText(
+                    reference,
+                    annotations,
+                    reference.containingFile,
+                    elementAnnotations,
+                    kotlinStyleNulls
+                )
                 else -> // Unexpected implementation: fallback
-                return reference.getCanonicalText(true, annotations.takeIf { it.isNotEmpty() })
+                    return reference.getCanonicalText(true, annotations.takeIf { it.isNotEmpty() })
             }
         }
         // [PsiType] created with an irregular owner, e.g., a fake LC in UAST, may end up with
@@ -312,22 +312,26 @@ class PsiTypePrinter(
             PsiJavaCodeReferenceElementImpl.Kind.CLASS_NAME_KIND,
             PsiJavaCodeReferenceElementImpl.Kind.CLASS_OR_PACKAGE_NAME_KIND,
             PsiJavaCodeReferenceElementImpl.Kind.CLASS_IN_QUALIFIED_NEW_KIND -> {
-                val results =
-                    PsiImplUtil.multiResolveImpl(
-                        containingFile.project,
-                        containingFile,
-                        reference,
-                        false,
-                        PsiReferenceExpressionImpl.OurGenericsResolver.INSTANCE
-                    )
+                val results = PsiImplUtil.multiResolveImpl(
+                    containingFile.project,
+                    containingFile,
+                    reference,
+                    false,
+                    PsiReferenceExpressionImpl.OurGenericsResolver.INSTANCE
+                )
                 when (val target = if (results.size == 1) results[0].element else null) {
                     is PsiClass -> {
                         val buffer = StringBuilder()
                         val qualifier = reference.qualifier
                         var prefix: String? = null
                         if (qualifier is PsiJavaCodeReferenceElementImpl) {
-                            prefix =
-                                getCanonicalText(qualifier, remaining, containingFile, null, false)
+                            prefix = getCanonicalText(
+                                qualifier,
+                                remaining,
+                                containingFile,
+                                null,
+                                false
+                            )
                             remaining = null
                         } else {
                             val fqn = target.qualifiedName
@@ -341,13 +345,16 @@ class PsiTypePrinter(
                             buffer.append('.')
                         }
 
-                        val list =
-                            if (remaining != null) listOf(*remaining) else getAnnotations(reference)
+                        val list = if (remaining != null) listOf(*remaining) else getAnnotations(reference)
                         appendAnnotations(buffer, list, elementAnnotations)
 
                         buffer.append(target.name)
 
-                        appendTypeArgs(buffer, reference.typeParameters, null)
+                        appendTypeArgs(
+                            buffer,
+                            reference.typeParameters,
+                            null
+                        )
 
                         if (allowKotlinSuffix && kotlinStyleNulls) {
                             appendNullnessSuffix(list, buffer, elementAnnotations)
@@ -359,20 +366,19 @@ class PsiTypePrinter(
                     else -> return JavaSourceUtil.getReferenceText(reference)
                 }
             }
+
             PsiJavaCodeReferenceElementImpl.Kind.PACKAGE_NAME_KIND,
             PsiJavaCodeReferenceElementImpl.Kind.CLASS_FQ_NAME_KIND,
             PsiJavaCodeReferenceElementImpl.Kind.CLASS_FQ_OR_PACKAGE_NAME_KIND ->
                 return JavaSourceUtil.getReferenceText(reference)
+
             else -> {
                 error("Unexpected kind $kind")
             }
         }
     }
 
-    private fun getNullable(
-        list: List<PsiAnnotation>?,
-        elementAnnotations: List<AnnotationItem>?
-    ): Boolean? {
+    private fun getNullable(list: List<PsiAnnotation>?, elementAnnotations: List<AnnotationItem>?): Boolean? {
         if (elementAnnotations != null) {
             for (annotation in elementAnnotations) {
                 if (annotation.isNullable()) {
@@ -397,10 +403,7 @@ class PsiTypePrinter(
         return null
     }
 
-    private fun getNullable(
-        list: Array<PsiAnnotation>?,
-        elementAnnotations: List<AnnotationItem>?
-    ): Boolean? {
+    private fun getNullable(list: Array<PsiAnnotation>?, elementAnnotations: List<AnnotationItem>?): Boolean? {
         if (elementAnnotations != null) {
             for (annotation in elementAnnotations) {
                 if (annotation.isNullable()) {
@@ -485,10 +488,7 @@ class PsiTypePrinter(
 
     private fun mapAnnotation(qualifiedName: String?): String? {
         qualifiedName ?: return null
-        if (
-            kotlinStyleNulls &&
-                (isNullableAnnotation(qualifiedName) || isNonNullAnnotation(qualifiedName))
-        ) {
+        if (kotlinStyleNulls && (isNullableAnnotation(qualifiedName) || isNonNullAnnotation(qualifiedName))) {
             return null
         }
         if (!supportTypeUseAnnotations) {
@@ -542,10 +542,7 @@ class PsiTypePrinter(
 
     // From PsiImmediateClassType
 
-    private fun getCanonicalText(
-        type: PsiImmediateClassType,
-        elementAnnotations: List<AnnotationItem>?
-    ): String {
+    private fun getCanonicalText(type: PsiImmediateClassType, elementAnnotations: List<AnnotationItem>?): String {
         return getText(type, elementAnnotations)
     }
 
@@ -624,9 +621,7 @@ class PsiTypePrinter(
                 }
                 PsiUtil.ensureValidType(substitutionResult)
 
-                buffer.append(
-                    getCanonicalText(substitutionResult, null)
-                ) // not passing in merge annotations here
+                buffer.append(getCanonicalText(substitutionResult, null)) // not passing in merge annotations here
             }
 
             if (pos >= 0) {

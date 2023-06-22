@@ -31,7 +31,10 @@ import com.intellij.openapi.util.Disposer
 import java.io.File
 import kotlin.test.assertNotNull
 
-inline fun testCodebase(vararg sources: TestFile, action: (PsiBasedCodebase) -> Unit) {
+inline fun testCodebase(
+    vararg sources: TestFile,
+    action: (PsiBasedCodebase) -> Unit
+) {
     tempDirectory { tempDirectory ->
         val codebase = createTestCodebase(tempDirectory, *sources)
         try {
@@ -42,14 +45,18 @@ inline fun testCodebase(vararg sources: TestFile, action: (PsiBasedCodebase) -> 
     }
 }
 
-fun createTestCodebase(directory: File, vararg sources: TestFile): PsiBasedCodebase {
+fun createTestCodebase(
+    directory: File,
+    vararg sources: TestFile
+): PsiBasedCodebase {
     System.setProperty(ENV_VAR_METALAVA_TESTS_RUNNING, SdkConstants.VALUE_TRUE)
     Disposer.setDebugMode(true)
 
     val sourcePaths = sources.map { it.targetPath }.toTypedArray()
-    val args =
-        findKotlinStdlibPathArgs(sourcePaths) +
-            arrayOf(ARG_CLASS_PATH, DriverTest.getAndroidJar().path)
+    val args = findKotlinStdlibPathArgs(sourcePaths) + arrayOf(
+        ARG_CLASS_PATH,
+        DriverTest.getAndroidJar().path
+    )
     options = Options(args)
 
     return parseSources(

@@ -24,10 +24,9 @@ class SubtractApiTest : DriverTest() {
     @Test
     fun `Subtract APIs`() {
         check(
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
+            sourceFiles = arrayOf(
+                java(
+                    """
                     package test.pkg;
                     public class OnlyInNew {
                         private OnlyInNew() { }
@@ -36,9 +35,9 @@ class SubtractApiTest : DriverTest() {
                         public void method6() { }
                     }
                     """
-                    ),
-                    java(
-                        """
+                ),
+                java(
+                    """
                     package test.pkg;
                     public class InBoth {
                         private InBoth() { }
@@ -47,10 +46,9 @@ class SubtractApiTest : DriverTest() {
                         public void method9() { }
                     }
                     """
-                    )
-                ),
-            subtractApi =
-                """
+                )
+            ),
+            subtractApi = """
                 package test.pkg {
                   public class InBoth {
                     method public void method1();
@@ -64,8 +62,7 @@ class SubtractApiTest : DriverTest() {
                   }
                 }
                 """,
-            api =
-                """
+            api = """
                 package test.pkg {
                   public class OnlyInNew {
                     method public void method1();
@@ -74,10 +71,9 @@ class SubtractApiTest : DriverTest() {
                   }
                 }
                 """,
-            stubFiles =
-                arrayOf(
-                    java(
-                        """
+            stubFiles = arrayOf(
+                java(
+                    """
                     package test.pkg;
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class OnlyInNew {
@@ -87,10 +83,9 @@ class SubtractApiTest : DriverTest() {
                     public void method6() { throw new RuntimeException("Stub!"); }
                     }
                     """
-                    )
-                ),
-            stubsSourceList =
-                """
+                )
+            ),
+            stubsSourceList = """
                 TESTROOT/stubs/test/pkg/OnlyInNew.java
             """
         )

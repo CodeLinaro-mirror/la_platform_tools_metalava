@@ -5,6 +5,7 @@ import java.io.File
 import java.util.function.Predicate
 
 /**
+ *
  * We permit a number of different styles:
  * - exact match (foo)
  * - prefix match (foo*, probably not intentional)
@@ -13,16 +14,19 @@ import java.util.function.Predicate
  * - explicit addition (+foo.*)
  * - subtraction (+*:-foo.*)
  *
- * Real examples: args: "-stubpackages com.android.test.power ", args: "-stubpackages android.car*
- * ", args: "-stubpackages com.android.ahat:com.android.ahat.*", args:
- * "-force-convert-to-warning-nullability-annotations +*:-android.*:+android.icu.*:-dalvik.*
+ * Real examples:
+ * args: "-stubpackages com.android.test.power ",
+ * args: "-stubpackages android.car* ",
+ * args: "-stubpackages com.android.ahat:com.android.ahat.*",
+ * args: "-force-convert-to-warning-nullability-annotations +*:-android.*:+android.icu.*:-dalvik.*
  *
- * Note that doclava does *not* include subpackages by default: -stubpackage foo will match only
- * foo, not foo.bar. Note also that "foo.*" will not match "foo", so doclava required you to supply
- * both: "foo:foo.*".
+ * Note that doclava does *not* include subpackages by default: -stubpackage foo
+ * will match only foo, not foo.bar. Note also that "foo.*" will not match "foo",
+ * so doclava required you to supply both: "foo:foo.*".
  *
- * In metalava we've changed that: it's not likely that you want to match any subpackage of foo but
- * not foo itself, so foo.* is taken to mean "foo" and "foo.*".
+ * In metalava we've changed that: it's not likely that you want to
+ * match any subpackage of foo but not foo itself, so foo.* is taken
+ * to mean "foo" and "foo.*".
  */
 class PackageFilter {
     val components: MutableList<PackageFilterComponent> = mutableListOf()
@@ -43,10 +47,7 @@ class PackageFilter {
             val index = pkg.indexOf('*')
             if (index != -1) {
                 if (index < pkg.length - 1) {
-                    throw DriverException(
-                        stderr =
-                            "Wildcards in stub packages must be at the end of the package: $pkg)"
-                    )
+                    throw DriverException(stderr = "Wildcards in stub packages must be at the end of the package: $pkg)")
                 }
                 val prefix = pkg.removeSuffix("*")
                 if (prefix.endsWith(".")) {
@@ -91,7 +92,7 @@ class StringEqualsPredicate(val acceptedPackage: String) : Predicate<String> {
 }
 
 /**
- * One element of a PackageFilter. Detects packages and either either includes or excludes them from
- * the filter
+ * One element of a PackageFilter.
+ * Detects packages and either either includes or excludes them from the filter
  */
 class PackageFilterComponent(val filter: Predicate<String>, val treatAsPositiveMatch: Boolean)

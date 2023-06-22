@@ -16,14 +16,14 @@
 package com.android.tools.metalava.apilevels
 
 import com.android.SdkConstants
-import java.io.File
-import java.io.FileInputStream
-import java.util.zip.ZipInputStream
 import org.objectweb.asm.ClassReader
 import org.objectweb.asm.Opcodes
 import org.objectweb.asm.tree.ClassNode
 import org.objectweb.asm.tree.FieldNode
 import org.objectweb.asm.tree.MethodNode
+import java.io.File
+import java.io.FileInputStream
+import java.util.zip.ZipInputStream
 
 fun Api.readAndroidJar(apiLevel: Int, jar: File) {
     update(apiLevel)
@@ -48,16 +48,18 @@ fun Api.readJar(apiLevel: Int, jar: File, extensionVersion: Int? = null, module:
             val classNode = ClassNode(Opcodes.ASM5)
             reader.accept(classNode, 0)
 
-            val theClass =
-                addClass(
-                    classNode.name,
-                    apiLevel,
-                    (classNode.access and Opcodes.ACC_DEPRECATED) != 0
-                )
+            val theClass = addClass(
+                classNode.name,
+                apiLevel,
+                (classNode.access and Opcodes.ACC_DEPRECATED) != 0
+            )
             extensionVersion?.let { theClass.updateExtension(extensionVersion) }
             module?.let { theClass.updateMainlineModule(module) }
 
-            theClass.updateHidden(apiLevel, (classNode.access and Opcodes.ACC_PUBLIC) == 0)
+            theClass.updateHidden(
+                apiLevel,
+                (classNode.access and Opcodes.ACC_PUBLIC) == 0
+            )
 
             // super class
             if (classNode.superName != null) {
@@ -76,12 +78,11 @@ fun Api.readJar(apiLevel: Int, jar: File, extensionVersion: Int? = null, module:
                     continue
                 }
                 if (!fieldNode.name.startsWith("this\$") && fieldNode.name != "\$VALUES") {
-                    val apiField =
-                        theClass.addField(
-                            fieldNode.name,
-                            apiLevel,
-                            (fieldNode.access and Opcodes.ACC_DEPRECATED) != 0
-                        )
+                    val apiField = theClass.addField(
+                        fieldNode.name,
+                        apiLevel,
+                        (fieldNode.access and Opcodes.ACC_DEPRECATED) != 0
+                    )
                     extensionVersion?.let { apiField.updateExtension(extensionVersion) }
                 }
             }
@@ -93,12 +94,10 @@ fun Api.readJar(apiLevel: Int, jar: File, extensionVersion: Int? = null, module:
                     continue
                 }
                 if (methodNode.name != "<clinit>") {
-                    val apiMethod =
-                        theClass.addMethod(
-                            methodNode.name + methodNode.desc,
-                            apiLevel,
-                            (methodNode.access and Opcodes.ACC_DEPRECATED) != 0
-                        )
+                    val apiMethod = theClass.addMethod(
+                        methodNode.name + methodNode.desc, apiLevel,
+                        (methodNode.access and Opcodes.ACC_DEPRECATED) != 0
+                    )
                     extensionVersion?.let { apiMethod.updateExtension(extensionVersion) }
                 }
             }

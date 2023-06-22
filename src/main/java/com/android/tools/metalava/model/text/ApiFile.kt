@@ -43,35 +43,27 @@ object ApiFile {
      * Same as [.parseApi]}, but take a single file for convenience.
      *
      * @param file input signature file
-     * @param kotlinStyleNulls if true, we assume the input has a kotlin style nullability markers
-     *   (e.g. "?"). Even if false, we'll allow them if the file format supports them/
+     * @param kotlinStyleNulls if true, we assume the input has a kotlin style nullability markers (e.g. "?").
+     * Even if false, we'll allow them if the file format supports them/
      */
     @Throws(ApiParseException::class)
-    fun parseApi(
-        @Nonnull file: File,
-        kotlinStyleNulls: Boolean,
-        apiClassResolution: ApiClassResolution = ApiClassResolution.API_CLASSPATH,
-    ) = parseApi(listOf(file), kotlinStyleNulls, apiClassResolution)
+    fun parseApi(@Nonnull file: File, kotlinStyleNulls: Boolean) = parseApi(listOf(file), kotlinStyleNulls)
 
     /**
      * Read API signature files into a [TextCodebase].
      *
      * Note: when reading from them multiple files, [TextCodebase.location] would refer to the first
-     * file specified. each [com.android.tools.metalava.model.text.TextItem.position] would
-     * correctly point out the source file of each item.
+     * file specified. each [com.android.tools.metalava.model.text.TextItem.position] would correctly
+     * point out the source file of each item.
      *
      * @param files input signature files
-     * @param kotlinStyleNulls if true, we assume the input has a kotlin style nullability markers
-     *   (e.g. "?"). Even if false, we'll allow them if the file format supports them/
+     * @param kotlinStyleNulls if true, we assume the input has a kotlin style nullability markers (e.g. "?").
+     * Even if false, we'll allow them if the file format supports them/
      */
     @Throws(ApiParseException::class)
-    fun parseApi(
-        @Nonnull files: List<File>,
-        kotlinStyleNulls: Boolean,
-        apiClassResolution: ApiClassResolution = ApiClassResolution.API_CLASSPATH,
-    ): TextCodebase {
+    fun parseApi(@Nonnull files: List<File>, kotlinStyleNulls: Boolean): TextCodebase {
         require(files.isNotEmpty()) { "files must not be empty" }
-        val api = TextCodebase(files[0], apiClassResolution = apiClassResolution)
+        val api = TextCodebase(files[0])
         val description = StringBuilder("Codebase loaded from ")
         var first = true
         for (file in files) {
@@ -79,12 +71,11 @@ object ApiFile {
                 description.append(", ")
             }
             description.append(file.path)
-            val apiText: String =
-                try {
-                    Files.asCharSource(file, UTF_8).read()
-                } catch (ex: IOException) {
-                    throw ApiParseException("Error reading API file", file.path, ex)
-                }
+            val apiText: String = try {
+                Files.asCharSource(file, UTF_8).read()
+            } catch (ex: IOException) {
+                throw ApiParseException("Error reading API file", file.path, ex)
+            }
             parseApiSingleFile(api, !first, file.path, apiText, kotlinStyleNulls)
             first = false
         }
@@ -93,33 +84,28 @@ object ApiFile {
         return api
     }
 
-    /** <p>DO NOT MODIFY - used by com/android/gts/api/ApprovedApis.java */
     @Deprecated("Exists only for external callers. ")
     @JvmStatic
     @Throws(ApiParseException::class)
     fun parseApi(
         filename: String,
         apiText: String,
-        kotlinStyleNulls: Boolean?,
+        kotlinStyleNulls: Boolean?
     ): TextCodebase {
-        return parseApi(
-            filename,
-            apiText,
-            kotlinStyleNulls != null && kotlinStyleNulls,
-            ApiClassResolution.API_CLASSPATH,
-        )
+        return parseApi(filename, apiText, kotlinStyleNulls != null && kotlinStyleNulls)
     }
 
-    /** Entry point fo test. Take a filename and content separately. */
+    /**
+     * Entry point fo test. Take a filename and content separately.
+     */
     @VisibleForTesting
     @Throws(ApiParseException::class)
     fun parseApi(
         @Nonnull filename: String,
         @Nonnull apiText: String,
-        kotlinStyleNulls: Boolean,
-        apiClassResolution: ApiClassResolution = ApiClassResolution.API_CLASSPATH,
+        kotlinStyleNulls: Boolean
     ): TextCodebase {
-        val api = TextCodebase(File(filename), apiClassResolution)
+        val api = TextCodebase(File(filename))
         api.description = "Codebase loaded from $filename"
         parseApiSingleFile(api, false, filename, apiText, kotlinStyleNulls)
         api.postProcess()
@@ -137,8 +123,7 @@ object ApiFile {
         // Infer the format.
         val format = parseHeader(apiText)
 
-        // If it's the first file, set the format. Otherwise, make sure the format is the same as
-        // the prior files.
+        // If it's the first file, set the format. Otherwise, make sure the format is the same as the prior files.
         if (!appending) {
             // This is the first file to process.
             api.format = format
@@ -148,9 +133,7 @@ object ApiFile {
                 throw ApiParseException(
                     String.format(
                         "Cannot merge different formats of signature files. First file format=%s, current file format=%s: file=%s",
-                        api.format,
-                        format,
-                        filename
+                        api.format, format, filename
                     )
                 )
             }
@@ -175,16 +158,11 @@ object ApiFile {
         }
 
         // Remove the block comments.
-        val strippedApiText =
-            if (apiText.contains("/*")) {
-                stripComments(
-                    apiText,
-                    DOT_TXT,
-                    false
-                ) // line comments are used to stash field constants
-            } else {
-                apiText
-            }
+        val strippedApiText = if (apiText.contains("/*")) {
+            stripComments(apiText, DOT_TXT, false) // line comments are used to stash field constants
+        } else {
+            apiText
+        }
         val tokenizer = Tokenizer(filename, strippedApiText.toCharArray())
         while (true) {
             val token = tokenizer.getToken() ?: break
@@ -211,19 +189,14 @@ object ApiFile {
         val name: String = token
 
         // If the same package showed up multiple times, make sure they have the same modifiers.
-        // (Packages can't have public/private/etc, but they can have annotations, which are part of
-        // ModifierList.)
-        // ModifierList doesn't provide equals(), neither does AnnotationItem which ModifierList
-        // contains,
+        // (Packages can't have public/private/etc, but they can have annotations, which are part of ModifierList.)
+        // ModifierList doesn't provide equals(), neither does AnnotationItem which ModifierList contains,
         // so we just use toString() here for equality comparison.
-        // However, ModifierList.toString() throws if the owner is not yet set, so we have to
-        // instantiate an
+        // However, ModifierList.toString() throws if the owner is not yet set, so we have to instantiate an
         // (owner) TextPackageItem here.
-        // If it's a duplicate package, then we'll replace pkg with the existing one in the
-        // following if block.
+        // If it's a duplicate package, then we'll replace pkg with the existing one in the following if block.
 
-        // TODO: However, currently this parser can't handle annotations on packages, so we will
-        // never hit this case.
+        // TODO: However, currently this parser can't handle annotations on packages, so we will never hit this case.
         // Once the parser supports that, we should add a test case for this too.
         pkg = TextPackageItem(api, name, modifiers, tokenizer.pos())
         val existing = api.findPackage(name)
@@ -232,9 +205,7 @@ object ApiFile {
                 throw ApiParseException(
                     String.format(
                         "Contradicting declaration of package %s. Previously seen with modifiers \"%s\", but now with \"%s\"",
-                        name,
-                        pkg.modifiers,
-                        modifiers
+                        name, pkg.modifiers, modifiers
                     ),
                     tokenizer
                 )
@@ -311,30 +282,21 @@ object ApiFile {
             rawName = rawName.substring(0, variableIndex)
         }
         token = tokenizer.requireToken()
-        val maybeExistingClass =
-            TextClassItem(
-                api,
-                tokenizer.pos(),
-                modifiers,
-                isInterface,
-                isEnum,
-                isAnnotation,
-                typeInfo.toErasedTypeString(null),
-                typeInfo.qualifiedTypeName(),
-                rawName,
-                annotations
-            )
-        val cl =
-            when (val foundClass = api.findClass(maybeExistingClass.qualifiedName())) {
-                null -> maybeExistingClass
-                else -> {
-                    if (!foundClass.isCompatible(maybeExistingClass)) {
-                        throw ApiParseException("Incompatible $foundClass definitions")
-                    } else {
-                        foundClass
-                    }
+        val maybeExistingClass = TextClassItem(
+            api, tokenizer.pos(), modifiers, isInterface, isEnum, isAnnotation,
+            typeInfo.toErasedTypeString(null), typeInfo.qualifiedTypeName(),
+            rawName, annotations
+        )
+        val cl = when (val foundClass = api.findClass(maybeExistingClass.qualifiedName())) {
+            null -> maybeExistingClass
+            else -> {
+                if (!foundClass.isCompatible(maybeExistingClass)) {
+                    throw ApiParseException("Incompatible $foundClass definitions")
+                } else {
+                    foundClass
                 }
             }
+        }
 
         cl.setContainingPackage(pkg)
         cl.setTypeInfo(typeInfo)
@@ -347,11 +309,7 @@ object ApiFile {
         }
         // Resolve superclass after done parsing
         api.mapClassToSuper(cl, ext)
-        if (
-            "implements" == token ||
-                "extends" == token ||
-                isInterface && ext != null && token != "{"
-        ) {
+        if ("implements" == token || "extends" == token || isInterface && ext != null && token != "{") {
             if (token != "implements" && token != "extends") {
                 api.mapClassToInterface(cl, token)
             }
@@ -434,8 +392,7 @@ object ApiFile {
         } else if (type.endsWith("?") || type.endsWith("!")) {
             throw ApiParseException(
                 "Did you forget to supply --input-kotlin-nulls? Found Kotlin-style null type suffix when parser was not configured " +
-                    "to interpret signature file that way: " +
-                    type
+                    "to interpret signature file that way: " + type
             )
         }
         if (varArgs) {
@@ -503,10 +460,7 @@ object ApiFile {
             token = tokenizer.requireToken()
         }
         assertIdent(tokenizer, token)
-        val name: String =
-            token.substring(
-                token.lastIndexOf('.') + 1
-            ) // For inner classes, strip outer classes from name
+        val name: String = token.substring(token.lastIndexOf('.') + 1) // For inner classes, strip outer classes from name
         token = tokenizer.requireToken()
         if ("(" != token) {
             throw ApiParseException("expected (", tokenizer)
@@ -556,25 +510,24 @@ object ApiFile {
         modifiers.addAnnotations(annotations)
         var returnTypeString = token
         token = tokenizer.requireToken()
-        if (
-            returnTypeString.contains("@") &&
-                (returnTypeString.indexOf('<') == -1 ||
-                    returnTypeString.indexOf('@') < returnTypeString.indexOf('<'))
+        if (returnTypeString.contains("@") && (
+            returnTypeString.indexOf('<') == -1 ||
+                returnTypeString.indexOf('@') < returnTypeString.indexOf('<')
+            )
         ) {
             returnTypeString += " $token"
             token = tokenizer.requireToken()
         }
         while (true) {
-            if (
-                token.contains("@") &&
-                    (token.indexOf('<') == -1 || token.indexOf('@') < token.indexOf('<'))
+            if (token.contains("@") && (
+                token.indexOf('<') == -1 ||
+                    token.indexOf('@') < token.indexOf('<')
+                )
             ) {
                 // Type-use annotations in type; keep accumulating
                 returnTypeString += " $token"
                 token = tokenizer.requireToken()
-                if (
-                    token.startsWith("[")
-                ) { // TODO: This isn't general purpose; make requireToken smarter!
+                if (token.startsWith("[")) { // TODO: This isn't general purpose; make requireToken smarter!
                     returnTypeString += " $token"
                     token = tokenizer.requireToken()
                 }
@@ -677,102 +630,101 @@ object ApiFile {
         var token = startingToken
         val modifiers = TextModifiers(api, DefaultModifierList.PACKAGE_PRIVATE, null)
         processModifiers@ while (true) {
-            token =
-                when (token) {
-                    "public" -> {
-                        modifiers.setVisibilityLevel(VisibilityLevel.PUBLIC)
-                        tokenizer.requireToken()
-                    }
-                    "protected" -> {
-                        modifiers.setVisibilityLevel(VisibilityLevel.PROTECTED)
-                        tokenizer.requireToken()
-                    }
-                    "private" -> {
-                        modifiers.setVisibilityLevel(VisibilityLevel.PRIVATE)
-                        tokenizer.requireToken()
-                    }
-                    "internal" -> {
-                        modifiers.setVisibilityLevel(VisibilityLevel.INTERNAL)
-                        tokenizer.requireToken()
-                    }
-                    "static" -> {
-                        modifiers.setStatic(true)
-                        tokenizer.requireToken()
-                    }
-                    "final" -> {
-                        modifiers.setFinal(true)
-                        tokenizer.requireToken()
-                    }
-                    "deprecated" -> {
-                        modifiers.setDeprecated(true)
-                        tokenizer.requireToken()
-                    }
-                    "abstract" -> {
-                        modifiers.setAbstract(true)
-                        tokenizer.requireToken()
-                    }
-                    "transient" -> {
-                        modifiers.setTransient(true)
-                        tokenizer.requireToken()
-                    }
-                    "volatile" -> {
-                        modifiers.setVolatile(true)
-                        tokenizer.requireToken()
-                    }
-                    "sealed" -> {
-                        modifiers.setSealed(true)
-                        tokenizer.requireToken()
-                    }
-                    "default" -> {
-                        modifiers.setDefault(true)
-                        tokenizer.requireToken()
-                    }
-                    "synchronized" -> {
-                        modifiers.setSynchronized(true)
-                        tokenizer.requireToken()
-                    }
-                    "native" -> {
-                        modifiers.setNative(true)
-                        tokenizer.requireToken()
-                    }
-                    "strictfp" -> {
-                        modifiers.setStrictFp(true)
-                        tokenizer.requireToken()
-                    }
-                    "infix" -> {
-                        modifiers.setInfix(true)
-                        tokenizer.requireToken()
-                    }
-                    "operator" -> {
-                        modifiers.setOperator(true)
-                        tokenizer.requireToken()
-                    }
-                    "inline" -> {
-                        modifiers.setInline(true)
-                        tokenizer.requireToken()
-                    }
-                    "value" -> {
-                        modifiers.setValue(true)
-                        tokenizer.requireToken()
-                    }
-                    "suspend" -> {
-                        modifiers.setSuspend(true)
-                        tokenizer.requireToken()
-                    }
-                    "vararg" -> {
-                        modifiers.setVarArg(true)
-                        tokenizer.requireToken()
-                    }
-                    "fun" -> {
-                        modifiers.setFunctional(true)
-                        tokenizer.requireToken()
-                    }
-                    "data" -> {
-                        modifiers.setData(true)
-                        tokenizer.requireToken()
-                    }
-                    else -> break@processModifiers
+            token = when (token) {
+                "public" -> {
+                    modifiers.setVisibilityLevel(VisibilityLevel.PUBLIC)
+                    tokenizer.requireToken()
                 }
+                "protected" -> {
+                    modifiers.setVisibilityLevel(VisibilityLevel.PROTECTED)
+                    tokenizer.requireToken()
+                }
+                "private" -> {
+                    modifiers.setVisibilityLevel(VisibilityLevel.PRIVATE)
+                    tokenizer.requireToken()
+                }
+                "internal" -> {
+                    modifiers.setVisibilityLevel(VisibilityLevel.INTERNAL)
+                    tokenizer.requireToken()
+                }
+                "static" -> {
+                    modifiers.setStatic(true)
+                    tokenizer.requireToken()
+                }
+                "final" -> {
+                    modifiers.setFinal(true)
+                    tokenizer.requireToken()
+                }
+                "deprecated" -> {
+                    modifiers.setDeprecated(true)
+                    tokenizer.requireToken()
+                }
+                "abstract" -> {
+                    modifiers.setAbstract(true)
+                    tokenizer.requireToken()
+                }
+                "transient" -> {
+                    modifiers.setTransient(true)
+                    tokenizer.requireToken()
+                }
+                "volatile" -> {
+                    modifiers.setVolatile(true)
+                    tokenizer.requireToken()
+                }
+                "sealed" -> {
+                    modifiers.setSealed(true)
+                    tokenizer.requireToken()
+                }
+                "default" -> {
+                    modifiers.setDefault(true)
+                    tokenizer.requireToken()
+                }
+                "synchronized" -> {
+                    modifiers.setSynchronized(true)
+                    tokenizer.requireToken()
+                }
+                "native" -> {
+                    modifiers.setNative(true)
+                    tokenizer.requireToken()
+                }
+                "strictfp" -> {
+                    modifiers.setStrictFp(true)
+                    tokenizer.requireToken()
+                }
+                "infix" -> {
+                    modifiers.setInfix(true)
+                    tokenizer.requireToken()
+                }
+                "operator" -> {
+                    modifiers.setOperator(true)
+                    tokenizer.requireToken()
+                }
+                "inline" -> {
+                    modifiers.setInline(true)
+                    tokenizer.requireToken()
+                }
+                "value" -> {
+                    modifiers.setValue(true)
+                    tokenizer.requireToken()
+                }
+                "suspend" -> {
+                    modifiers.setSuspend(true)
+                    tokenizer.requireToken()
+                }
+                "vararg" -> {
+                    modifiers.setVarArg(true)
+                    tokenizer.requireToken()
+                }
+                "fun" -> {
+                    modifiers.setFunctional(true)
+                    tokenizer.requireToken()
+                }
+                "data" -> {
+                    modifiers.setData(true)
+                    tokenizer.requireToken()
+                }
+                else -> break@processModifiers
+            }
         }
         if (annotations != null) {
             modifiers.addAnnotations(annotations)
@@ -783,40 +735,29 @@ object ApiFile {
     private fun parseValue(type: String?, value: String?): Any? {
         return if (value != null) {
             when (type) {
-                "boolean" ->
-                    if ("true" == value) java.lang.Boolean.TRUE else java.lang.Boolean.FALSE
+                "boolean" -> if ("true" == value) java.lang.Boolean.TRUE else java.lang.Boolean.FALSE
                 "byte" -> Integer.valueOf(value)
                 "short" -> Integer.valueOf(value)
                 "int" -> Integer.valueOf(value)
                 "long" -> java.lang.Long.valueOf(value.substring(0, value.length - 1))
-                "float" ->
-                    when (value) {
-                        "(1.0f/0.0f)",
-                        "(1.0f / 0.0f)" -> Float.POSITIVE_INFINITY
-                        "(-1.0f/0.0f)",
-                        "(-1.0f / 0.0f)" -> Float.NEGATIVE_INFINITY
-                        "(0.0f/0.0f)",
-                        "(0.0f / 0.0f)" -> Float.NaN
-                        else -> java.lang.Float.valueOf(value)
-                    }
-                "double" ->
-                    when (value) {
-                        "(1.0/0.0)",
-                        "(1.0 / 0.0)" -> Double.POSITIVE_INFINITY
-                        "(-1.0/0.0)",
-                        "(-1.0 / 0.0)" -> Double.NEGATIVE_INFINITY
-                        "(0.0/0.0)",
-                        "(0.0 / 0.0)" -> Double.NaN
-                        else -> java.lang.Double.valueOf(value)
-                    }
+                "float" -> when (value) {
+                    "(1.0f/0.0f)", "(1.0f / 0.0f)" -> Float.POSITIVE_INFINITY
+                    "(-1.0f/0.0f)", "(-1.0f / 0.0f)" -> Float.NEGATIVE_INFINITY
+                    "(0.0f/0.0f)", "(0.0f / 0.0f)" -> Float.NaN
+                    else -> java.lang.Float.valueOf(value)
+                }
+                "double" -> when (value) {
+                    "(1.0/0.0)", "(1.0 / 0.0)" -> Double.POSITIVE_INFINITY
+                    "(-1.0/0.0)", "(-1.0 / 0.0)" -> Double.NEGATIVE_INFINITY
+                    "(0.0/0.0)", "(0.0 / 0.0)" -> Double.NaN
+                    else -> java.lang.Double.valueOf(value)
+                }
                 "char" -> value.toInt().toChar()
-                JAVA_LANG_STRING,
-                "String" ->
-                    if ("null" == value) {
-                        null
-                    } else {
-                        javaUnescapeString(value.substring(1, value.length - 1))
-                    }
+                JAVA_LANG_STRING, "String" -> if ("null" == value) {
+                    null
+                } else {
+                    javaUnescapeString(value.substring(1, value.length - 1))
+                }
                 "null" -> null
                 else -> value
             }
@@ -894,8 +835,7 @@ object ApiFile {
             }
 
             // Each item can be
-            // optional annotations optional-modifiers type-with-use-annotations-and-generics
-            // optional-name optional-equals-default-value
+            // optional annotations optional-modifiers type-with-use-annotations-and-generics optional-name optional-equals-default-value
 
             // Used to represent the presence of a default value, instead of showing the entire
             // default value
@@ -918,9 +858,7 @@ object ApiFile {
                 // put it back together
                 type += " $token"
                 token = tokenizer.requireToken()
-                if (
-                    token.startsWith("[")
-                ) { // TODO: This isn't general purpose; make requireToken smarter!
+                if (token.startsWith("[")) { // TODO: This isn't general purpose; make requireToken smarter!
                     type += " $token"
                     token = tokenizer.requireToken()
                 }
@@ -931,12 +869,11 @@ object ApiFile {
             if (typeString.endsWith("...")) {
                 modifiers.setVarArg(true)
             }
-            val typeInfo =
-                api.obtainTypeFromString(
-                    typeString,
-                    (method.containingClass() as TextClassItem),
-                    method.typeParameterList()
-                )
+            val typeInfo = api.obtainTypeFromString(
+                typeString,
+                (method.containingClass() as TextClassItem),
+                method.typeParameterList()
+            )
             var name: String
             var publicName: String?
             if (isIdent(token) && token != "=") {
@@ -1003,16 +940,8 @@ object ApiFile {
             }
             method.addParameter(
                 TextParameterItem(
-                    api,
-                    method,
-                    name,
-                    publicName,
-                    hasDefaultValue,
-                    defaultValue,
-                    index,
-                    typeInfo,
-                    modifiers,
-                    tokenizer.pos()
+                    api, method, name, publicName, hasDefaultValue, defaultValue, index,
+                    typeInfo, modifiers, tokenizer.pos()
                 )
             )
             if (modifiers.isVarArg()) {
@@ -1185,14 +1114,13 @@ object ApiFile {
                     }
                     position++
                     when (state) {
-                        STATE_BEGIN ->
-                            when (k) {
-                                '\\' -> state = STATE_ESCAPE
-                                '"' -> {
-                                    current = String(buffer, start, position - start)
-                                    return current
-                                }
+                        STATE_BEGIN -> when (k) {
+                            '\\' -> state = STATE_ESCAPE
+                            '"' -> {
+                                current = String(buffer, start, position - start)
+                                return current
                             }
+                        }
                         STATE_ESCAPE -> state = STATE_BEGIN
                     }
                 }
@@ -1233,10 +1161,13 @@ object ApiFile {
                             position++
                         }
                     }
-                } while (
-                    position < buffer.size &&
-                        (!isSpace(buffer[position]) && !isSeparator(buffer[position], parenIsSep) ||
-                            genericDepth != 0)
+                } while (position < buffer.size &&
+                    (
+                        !isSpace(buffer[position]) && !isSeparator(
+                                buffer[position],
+                                parenIsSep
+                            ) || genericDepth != 0
+                        )
                 )
                 if (position >= buffer.size) {
                     throw ApiParseException("Unexpected end of file for \" starting at $line", this)

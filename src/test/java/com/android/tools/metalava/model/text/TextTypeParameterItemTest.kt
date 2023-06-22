@@ -34,10 +34,9 @@ class TextTypeParameterItemTest {
 
         // When a type variable is on a member and the type variable is defined on the surrounding
         // class, look up the bound on the class type parameter:
-        val codebase =
-            ApiFile.parseApi(
-                "test",
-                """
+        val codebase = ApiFile.parseApi(
+            "test",
+            """
             package androidx.navigation {
               public final class NavDestination {
                 ctor public NavDestination();
@@ -47,10 +46,9 @@ class TextTypeParameterItemTest {
                 method public D build();
               }
             }
-            """
-                    .trimIndent(),
-                false
-            )
+            """.trimIndent(),
+            false
+        )
         val cls = codebase.findClass("androidx.navigation.NavDestinationBuilder")
         val method = cls?.findMethod("build", "") as TextMethodItem
         assertThat(method).isNotNull()

@@ -54,12 +54,11 @@ internal fun preprocessArgv(args: Array<String>): Array<String> {
     modifiedArgs.forEach { arg ->
         when (arg) {
             ARG_QUIET -> {
-                options.quiet = true
-                options.verbose = false
+                options.quiet = true; options.verbose = false
             }
+
             ARG_VERBOSE -> {
-                options.verbose = true
-                options.quiet = false
+                options.verbose = true; options.quiet = false
             }
         }
     }
@@ -68,8 +67,8 @@ internal fun preprocessArgv(args: Array<String>): Array<String> {
 }
 
 /**
- * Given an environment variable name pointing to a shell argument string, returns the parsed
- * argument strings (or empty array if not set)
+ * Given an environment variable name pointing to a shell argument string,
+ * returns the parsed argument strings (or empty array if not set)
  */
 private fun envVarToArgs(varName: String): Array<String> {
     val value = System.getenv(varName) ?: return emptyArray()
@@ -80,7 +79,8 @@ private fun envVarToArgs(varName: String): Array<String> {
  * If the {@link ENV_VAR_METALAVA_DUMP_ARGV} environmental variable is set, dump the passed
  * arguments.
  *
- * If the variable is set to"full", also dump the content of the file specified with "@".
+ * If the variable is set to"full", also dump the content of the file
+ * specified with "@".
  *
  * If the variable is set to "script", it'll generate a "rerun" script instead.
  */
@@ -124,7 +124,9 @@ private fun dumpArgv(
             out.println("    ==FILE CONTENT==")
             try {
                 File(file).bufferedReader().forEachLine { line ->
-                    line.split(sep).forEach { item -> out.println("    | $item") }
+                    line.split(sep).forEach { item ->
+                        out.println("    | $item")
+                    }
                 }
             } catch (e: IOException) {
                 out.println("  " + e.message)
@@ -138,18 +140,20 @@ private fun dumpArgv(
 
 /** Generate a rerun script file name minus the extension. */
 private fun createRerunScriptBaseFilename(): String {
-    val timestamp =
-        LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss.SSS"))
+    val timestamp = LocalDateTime.now().format(
+        DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss.SSS")
+    )
 
     val uniqueInt = Random.nextInt(0, Int.MAX_VALUE)
-    val dir =
-        System.getenv("METALAVA_TEMP") ?: System.getenv("TMP") ?: System.getenv("TEMP") ?: "/tmp"
+    val dir = System.getenv("METALAVA_TEMP") ?: System.getenv("TMP") ?: System.getenv("TEMP") ?: "/tmp"
     val file = "$PROGRAM_NAME-rerun-${timestamp}_$uniqueInt" // no extension
 
     return dir + File.separator + file
 }
 
-/** Generate a rerun script, if specified by the command line arguments. */
+/**
+ * Generate a rerun script, if specified by the command line arguments.
+ */
 private fun generateRerunScript(stdout: PrintWriter, args: Array<String>) {
     val scriptBaseName = createRerunScriptBaseFilename()
 
@@ -185,19 +189,19 @@ private fun generateRerunScript(stdout: PrintWriter, args: Array<String>) {
             |jvm_opts=(${"$"}METALAVA_JVM_OPTS)
             |
             |if [ ${"$"}{#jvm_opts[@]} -eq 0 ] ; then
-            """
-                .trimMargin()
+            """.trimMargin()
         )
 
-        jvmOptions.forEach { out.println("""    jvm_opts+=(${shellEscape(it)})""") }
+        jvmOptions.forEach {
+            out.println("""    jvm_opts+=(${shellEscape(it)})""")
+        }
 
         out.println(
             """
             |fi
             |
             |${"$"}METALAVA_RUN_PREFIX $java "${"$"}{jvm_opts[@]}" \
-            """
-                .trimMargin()
+            """.trimMargin()
         )
         out.println("""    -jar $jar \""")
 

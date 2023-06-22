@@ -27,85 +27,55 @@ enum class TerminalColor(val value: Int) {
     WHITE(7)
 }
 
-val plainTerminal: Terminal = PlainTerminal()
-val stylingTerminal: Terminal = StylingTerminal()
-
-sealed class Terminal {
-    abstract fun attributes(
-        bold: Boolean = false,
-        underline: Boolean = false,
-        reverse: Boolean = false,
-        foreground: TerminalColor? = null,
-        background: TerminalColor? = null
-    ): String
-
-    abstract fun reset(): String
-
-    fun bold(string: String): String {
-        return "${attributes(bold = true)}$string${reset()}"
+fun terminalAttributes(
+    bold: Boolean = false,
+    underline: Boolean = false,
+    reverse: Boolean = false,
+    foreground: TerminalColor? = null,
+    background: TerminalColor? = null
+): String {
+    val sb = StringBuilder()
+    sb.append("\u001B[")
+    if (foreground != null) {
+        sb.append('3').append('0' + foreground.value)
+    }
+    if (background != null) {
+        if (sb.last().isDigit())
+            sb.append(';')
+        sb.append('4').append('0' + background.value)
     }
 
-    fun colorize(string: String, color: TerminalColor): String {
-        return "${attributes(foreground = color)}$string${reset()}"
+    if (bold) {
+        if (sb.last().isDigit())
+            sb.append(';')
+        sb.append('1')
     }
+    if (underline) {
+        if (sb.last().isDigit())
+            sb.append(';')
+        sb.append('4')
+    }
+    if (reverse) {
+        if (sb.last().isDigit())
+            sb.append(';')
+        sb.append('7')
+    }
+    if (sb.last() == '[') {
+        // Nothing: Reset
+        sb.append('0')
+    }
+    sb.append("m")
+    return sb.toString()
 }
 
-@Suppress("CanSealedSubClassBeObject")
-private class PlainTerminal : Terminal() {
-    override fun attributes(
-        bold: Boolean,
-        underline: Boolean,
-        reverse: Boolean,
-        foreground: TerminalColor?,
-        background: TerminalColor?
-    ): String {
-        return ""
-    }
-
-    override fun reset(): String {
-        return ""
-    }
+fun resetTerminal(): String {
+    return "\u001b[0m"
 }
 
-@Suppress("CanSealedSubClassBeObject")
-private class StylingTerminal : Terminal() {
-    override fun attributes(
-        bold: Boolean,
-        underline: Boolean,
-        reverse: Boolean,
-        foreground: TerminalColor?,
-        background: TerminalColor?
-    ): String {
-        val sb = StringBuilder()
-        sb.append("\u001B[")
-        if (foreground != null) {
-            sb.append('3').append('0' + foreground.value)
-        }
-        if (background != null) {
-            if (sb.last().isDigit()) sb.append(';')
-            sb.append('4').append('0' + background.value)
-        }
-        if (bold) {
-            if (sb.last().isDigit()) sb.append(';')
-            sb.append('1')
-        }
-        if (underline) {
-            if (sb.last().isDigit()) sb.append(';')
-            sb.append('4')
-        }
-        if (reverse) {
-            if (sb.last().isDigit()) sb.append(';')
-            sb.append('7')
-        }
-        if (sb.last() == '[') {
-            // Nothing: Reset
-            sb.append('0')
-        }
-        sb.append("m")
-        return sb.toString()
-    }
+fun colorized(string: String, color: TerminalColor): String {
+    return "${terminalAttributes(foreground = color)}$string${resetTerminal()}"
+}
 
-    override fun reset(): String {
-        return "\u001b[0m"
-    }
+fun bold(string: String): String {
+    return "${terminalAttributes(bold = true)}$string${resetTerminal()}"
 }

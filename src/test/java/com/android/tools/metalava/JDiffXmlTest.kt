@@ -24,7 +24,7 @@ class JDiffXmlTest : DriverTest() {
     fun `Loading a signature file and writing the API back out`() {
         check(
             signatureSource =
-                """
+            """
             package test.pkg {
               public deprecated class MyTest {
                 ctor public MyTest();
@@ -36,7 +36,7 @@ class JDiffXmlTest : DriverTest() {
             }
             """,
             apiXml =
-                """
+            """
             <api xmlns:metalava="http://www.android.com/metalava/">
             <package name="test.pkg"
             >
@@ -115,7 +115,7 @@ class JDiffXmlTest : DriverTest() {
         check(
             format = FileFormat.V2,
             signatureSource =
-                """
+            """
             // Signature format: 2.0
             package test.pkg {
               public interface MyBaseInterface {
@@ -124,7 +124,7 @@ class JDiffXmlTest : DriverTest() {
             }
             """,
             apiXml =
-                """
+            """
             <api xmlns:metalava="http://www.android.com/metalava/">
             <package name="test.pkg"
             >
@@ -159,8 +159,7 @@ class JDiffXmlTest : DriverTest() {
 
     @Test
     fun `Test generics, superclasses and interfaces`() {
-        val source =
-            """
+        val source = """
             package a.b.c {
               public abstract interface MyStream<T, S extends a.b.c.MyStream<T, S>> {
               }
@@ -192,7 +191,7 @@ class JDiffXmlTest : DriverTest() {
         check(
             signatureSource = source,
             apiXml =
-                """
+            """
             <api xmlns:metalava="http://www.android.com/metalava/">
             <package name="a.b.c"
             >
@@ -349,8 +348,7 @@ class JDiffXmlTest : DriverTest() {
 
     @Test
     fun `Test enums`() {
-        val source =
-            """
+        val source = """
             package test.pkg {
               public final class Foo extends java.lang.Enum {
                 ctor public Foo(int);
@@ -365,7 +363,7 @@ class JDiffXmlTest : DriverTest() {
         check(
             signatureSource = source,
             apiXml =
-                """
+            """
             <api xmlns:metalava="http://www.android.com/metalava/">
             <package name="test.pkg"
             >
@@ -455,8 +453,7 @@ class JDiffXmlTest : DriverTest() {
     @Test
     fun `Throws Lists`() {
         check(
-            signatureSource =
-                """
+            signatureSource = """
                     package android.accounts {
                       public abstract interface AccountManagerFuture<V> {
                         method public abstract V getResult() throws android.accounts.OperationCanceledException, java.io.IOException, android.accounts.AuthenticatorException;
@@ -465,7 +462,7 @@ class JDiffXmlTest : DriverTest() {
                     }
                     """,
             apiXml =
-                """
+            """
             <api xmlns:metalava="http://www.android.com/metalava/">
             <package name="android.accounts"
             >
@@ -524,15 +521,14 @@ class JDiffXmlTest : DriverTest() {
     @Test
     fun `Generics in interfaces`() {
         check(
-            signatureSource =
-                """
+            signatureSource = """
                     package android.accounts {
                       public class ArgbEvaluator implements android.animation.DefaultEvaluator<D> implements android.animation.TypeEvaluator<V> {
                       }
                     }
                     """,
             apiXml =
-                """
+            """
             <api xmlns:metalava="http://www.android.com/metalava/">
             <package name="android.accounts"
             >
@@ -560,8 +556,7 @@ class JDiffXmlTest : DriverTest() {
     @Test
     fun `Type Parameter Mapping`() {
         check(
-            signatureSource =
-                """
+            signatureSource = """
                 package test.pkg {
                   public interface AbstractList<D,E,F> extends test.pkg.List<A,B,C> {
                   }
@@ -572,7 +567,7 @@ class JDiffXmlTest : DriverTest() {
                 }
                 """,
             apiXml =
-                """
+            """
             <api xmlns:metalava="http://www.android.com/metalava/">
             <package name="test.pkg"
             >
@@ -611,8 +606,7 @@ class JDiffXmlTest : DriverTest() {
     @Test
     fun `Half float short from signature file`() {
         check(
-            signatureSource =
-                """
+            signatureSource = """
                 package test.pkg {
                   public class Test {
                     ctor public Test();
@@ -621,7 +615,7 @@ class JDiffXmlTest : DriverTest() {
                 }
             """,
             apiXml =
-                """
+            """
                 <api xmlns:metalava="http://www.android.com/metalava/">
                 <package name="test.pkg"
                 >
@@ -662,19 +656,18 @@ class JDiffXmlTest : DriverTest() {
     @Test
     fun `Half float short from source`() {
         check(
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
+            sourceFiles = arrayOf(
+                java(
+                    """
                       package test.pkg;
                       public class Test {
                         public static final short LOWEST_VALUE = (short) 0xfbff;
                       }
                       """
-                    )
-                ),
+                )
+            ),
             apiXml =
-                """
+            """
                 <api xmlns:metalava="http://www.android.com/metalava/">
                 <package name="test.pkg"
                 >
@@ -716,8 +709,7 @@ class JDiffXmlTest : DriverTest() {
     fun `Interface extends`() {
         check(
             format = FileFormat.V2,
-            signatureSource =
-                """
+            signatureSource = """
             // Signature format: 2.0
             package android.companion {
               public interface DeviceFilter<D extends android.os.Parcelable> extends android.os.Parcelable {
@@ -725,7 +717,7 @@ class JDiffXmlTest : DriverTest() {
             }
             """,
             apiXml =
-                """
+            """
             <api xmlns:metalava="http://www.android.com/metalava/">
             <package name="android.companion"
             >
@@ -749,8 +741,7 @@ class JDiffXmlTest : DriverTest() {
         // Ensure that we treat not just static but default methods in interfaces as non-abstract
         check(
             format = FileFormat.V1,
-            signatureSource =
-                """
+            signatureSource = """
                 package test.pkg {
                   public abstract interface MethodHandleInfo {
                     method public static boolean refKindIsField(int);
@@ -758,7 +749,7 @@ class JDiffXmlTest : DriverTest() {
                 }
             """,
             apiXml =
-                """
+            """
             <api xmlns:metalava="http://www.android.com/metalava/">
             <package name="test.pkg"
             >
@@ -796,8 +787,7 @@ class JDiffXmlTest : DriverTest() {
         // inner class. See 122926140 for a scenario where this happens.
         check(
             format = FileFormat.V1,
-            signatureSource =
-                """
+            signatureSource = """
             // Signature format: 2.0
             package android {
 
@@ -810,7 +800,7 @@ class JDiffXmlTest : DriverTest() {
             }
             """,
             apiXml =
-                """
+            """
             <api xmlns:metalava="http://www.android.com/metalava/">
             <package name="android"
             >
@@ -879,8 +869,7 @@ class JDiffXmlTest : DriverTest() {
         // Regression test for 123140708
         check(
             format = FileFormat.V2,
-            signatureSource =
-                """
+            signatureSource = """
             // Signature format: 2.0
             package org.apache.http.impl.conn.tsccm {
               @Deprecated public class ConnPoolByRoute extends org.apache.http.impl.conn.tsccm.AbstractConnPool {
@@ -895,7 +884,7 @@ class JDiffXmlTest : DriverTest() {
             }
             """,
             apiXml =
-                """
+            """
             <api xmlns:metalava="http://www.android.com/metalava/">
             <package name="org.apache.http.impl.conn.tsccm"
             >

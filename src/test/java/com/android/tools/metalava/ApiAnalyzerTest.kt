@@ -23,16 +23,14 @@ class ApiAnalyzerTest : DriverTest() {
     fun `Hidden abstract method with show @SystemApi`() {
         check(
             showAnnotations = arrayOf("android.annotation.SystemApi"),
-            expectedIssues =
-                """
+            expectedIssues = """
                 src/test/pkg/SystemApiClass.java:7: error: badAbstractHiddenMethod cannot be hidden and abstract when SystemApiClass has a visible constructor, in case a third-party attempts to subclass it. [HiddenAbstractMethod]
                 src/test/pkg/PublicClass.java:5: error: badAbstractHiddenMethod cannot be hidden and abstract when PublicClass has a visible constructor, in case a third-party attempts to subclass it. [HiddenAbstractMethod]
                 src/test/pkg/PublicClass.java:6: error: badPackagePrivateMethod cannot be hidden and abstract when PublicClass has a visible constructor, in case a third-party attempts to subclass it. [HiddenAbstractMethod]
             """,
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
+            sourceFiles = arrayOf(
+                java(
+                    """
                     package test.pkg;
                     import android.annotation.SystemApi;
                     public abstract class PublicClass {
@@ -48,9 +46,9 @@ class ApiAnalyzerTest : DriverTest() {
                         public abstract boolean goodAbstractSystemHiddenMethod() { return true; }
                     }
                 """
-                    ),
-                    java(
-                        """
+                ),
+                java(
+                    """
                     package test.pkg;
                     import android.annotation.SystemApi;
                     public abstract class PublicClassWithHiddenConstructor {
@@ -59,9 +57,9 @@ class ApiAnalyzerTest : DriverTest() {
                         public abstract boolean goodAbstractHiddenMethod() { return true; }
                     }
                 """
-                    ),
-                    java(
-                        """
+                ),
+                java(
+                    """
                    package test.pkg;
                    import android.annotation.SystemApi;
                    /** @hide */
@@ -78,9 +76,9 @@ class ApiAnalyzerTest : DriverTest() {
                         public abstract boolean goodAbstractPublicMethod() { return true; }
                    }
                """
-                    ),
-                    java(
-                        """
+                ),
+                java(
+                    """
                     package test.pkg;
                     import android.annotation.SystemApi;
                     /** This class is OK because it is all hidden @hide */
@@ -88,25 +86,23 @@ class ApiAnalyzerTest : DriverTest() {
                         public abstract boolean goodAbstractHiddenMethod() { return true; }
                     }
                 """
-                    ),
-                    systemApiSource
-                )
+                ),
+                systemApiSource
+            )
         )
     }
 
     @Test
     fun `Hidden abstract method for public API`() {
         check(
-            expectedIssues =
-                """
+            expectedIssues = """
                 src/test/pkg/PublicClass.java:5: error: badAbstractHiddenMethod cannot be hidden and abstract when PublicClass has a visible constructor, in case a third-party attempts to subclass it. [HiddenAbstractMethod]
                 src/test/pkg/PublicClass.java:6: error: badPackagePrivateMethod cannot be hidden and abstract when PublicClass has a visible constructor, in case a third-party attempts to subclass it. [HiddenAbstractMethod]
                 src/test/pkg/PublicClass.java:9: error: badAbstractSystemHiddenMethod cannot be hidden and abstract when PublicClass has a visible constructor, in case a third-party attempts to subclass it. [HiddenAbstractMethod]
             """,
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
+            sourceFiles = arrayOf(
+                java(
+                    """
                     package test.pkg;
                     import android.annotation.SystemApi;
                     public abstract class PublicClass {
@@ -118,9 +114,9 @@ class ApiAnalyzerTest : DriverTest() {
                         public abstract boolean badAbstractSystemHiddenMethod() { return true; }
                     }
                 """
-                    ),
-                    systemApiSource
-                )
+                ),
+                systemApiSource
+            )
         )
     }
 }

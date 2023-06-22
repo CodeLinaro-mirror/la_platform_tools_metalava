@@ -23,10 +23,11 @@ import java.io.File
 import kotlin.text.Charsets.UTF_8
 
 /**
- * Converts public stub annotation sources into package private annotation sources. This is needed
- * for the stub sources, where we want to reference annotations that aren't public, but (a) they
- * need to be public during compilation, and (b) they need to be package private when compiled and
- * packaged on their own such that annotation processors can find them. See b/110532131 for details.
+ * Converts public stub annotation sources into package private annotation sources.
+ * This is needed for the stub sources, where we want to reference annotations that aren't
+ * public, but (a) they need to be public during compilation, and (b) they need to be
+ * package private when compiled and packaged on their own such that annotation processors
+ * can find them. See b/110532131 for details.
  */
 class RewriteAnnotations {
     /** Modifies annotation source files such that they are package private */
@@ -41,7 +42,12 @@ class RewriteAnnotations {
 
             // Copy and convert
             target.parentFile.mkdirs()
-            target.writeText(source.readText(UTF_8).replace("\npublic @interface", "\n@interface"))
+            target.writeText(
+                source.readText(UTF_8).replace(
+                    "\npublic @interface",
+                    "\n@interface"
+                )
+            )
         } else if (source.isDirectory) {
             val newPackage = if (pkg.isEmpty()) fileName else "$pkg.$fileName"
             source.listFiles()?.forEach {
@@ -50,8 +56,7 @@ class RewriteAnnotations {
         }
     }
 
-    /**
-     * Returns true if the given annotation class name has source retention as far as the stub
+    /** Returns true if the given annotation class name has source retention as far as the stub
      * annotations are concerned.
      */
     private fun hasSourceRetention(codebase: Codebase?, qualifiedName: String): Boolean {
@@ -64,8 +69,7 @@ class RewriteAnnotations {
             qualifiedName.startsWith("androidx.annotation.") -> return true
         }
 
-        // See if the annotation is pointing to an annotation class that is part of the API; if not,
-        // skip it.
+        // See if the annotation is pointing to an annotation class that is part of the API; if not, skip it.
         if (codebase != null) {
             val cls = codebase.findClass(qualifiedName) ?: return true
             return cls.isAnnotationType() && cls.getRetention() == AnnotationRetention.SOURCE

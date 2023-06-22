@@ -51,7 +51,8 @@ fun getNativeDiff(before: File, after: File): String? {
             output.processStandardOutputLines(lineCollector)
 
             return lineCollector.result.joinToString(separator = "\n")
-        } catch (ignore: Throwable) {}
+        } catch (ignore: Throwable) {
+        }
     }
 
     return null
@@ -65,7 +66,11 @@ fun getDiff(before: String, after: String, windowSize: Int): String {
     )
 }
 
-fun getDiff(before: Array<String>, after: Array<String>, windowSize: Int): String {
+fun getDiff(
+    before: Array<String>,
+    after: Array<String>,
+    windowSize: Int
+): String {
     // Based on the LCS section in http://introcs.cs.princeton.edu/java/96optimization/
     val sb = StringBuilder()
     val n = before.size

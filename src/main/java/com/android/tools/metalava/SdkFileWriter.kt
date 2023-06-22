@@ -35,10 +35,8 @@ private const val SDK_CONSTANT_TYPE_BROADCAST_ACTION =
     "android.annotation.SdkConstant.SdkConstantType.BROADCAST_INTENT_ACTION"
 private const val SDK_CONSTANT_TYPE_SERVICE_ACTION =
     "android.annotation.SdkConstant.SdkConstantType.SERVICE_ACTION"
-private const val SDK_CONSTANT_TYPE_CATEGORY =
-    "android.annotation.SdkConstant.SdkConstantType.INTENT_CATEGORY"
-private const val SDK_CONSTANT_TYPE_FEATURE =
-    "android.annotation.SdkConstant.SdkConstantType.FEATURE"
+private const val SDK_CONSTANT_TYPE_CATEGORY = "android.annotation.SdkConstant.SdkConstantType.INTENT_CATEGORY"
+private const val SDK_CONSTANT_TYPE_FEATURE = "android.annotation.SdkConstant.SdkConstantType.FEATURE"
 private const val SDK_WIDGET_ANNOTATION = "android.annotation.Widget"
 private const val SDK_LAYOUT_ANNOTATION = "android.annotation.Layout"
 
@@ -48,11 +46,13 @@ private const val TYPE_LAYOUT = 2
 private const val TYPE_LAYOUT_PARAM = 3
 
 /**
- * Writes various SDK metadata files packaged with the SDK, such as {@code
- * platforms/android-27/data/features.txt}
+ * Writes various SDK metadata files packaged with the SDK, such as
+ * {@code platforms/android-27/data/features.txt}
  */
 class SdkFileWriter(val codebase: Codebase, private val outputDir: File) {
-    /** Collect the values used by the Dev tools and write them in files packaged with the SDK */
+    /**
+     * Collect the values used by the Dev tools and write them in files packaged with the SDK
+     */
     fun generate() {
         val activityActions = mutableListOf<String>()
         val broadcastActions = mutableListOf<String>()
@@ -78,14 +78,11 @@ class SdkFileWriter(val codebase: Codebase, private val outputDir: File) {
                 for (annotation in annotations) {
                     if (ANDROID_SDK_CONSTANT == annotation.qualifiedName) {
                         val resolved =
-                            annotation.findAttribute(null)?.leafValues()?.firstOrNull()?.resolve()
-                                as? FieldItem
+                            annotation.findAttribute(null)?.leafValues()?.firstOrNull()?.resolve() as? FieldItem
                                 ?: continue
                         when (resolved.containingClass().qualifiedName() + "." + resolved.name()) {
-                            SDK_CONSTANT_TYPE_ACTIVITY_ACTION ->
-                                activityActions.add(value.toString())
-                            SDK_CONSTANT_TYPE_BROADCAST_ACTION ->
-                                broadcastActions.add(value.toString())
+                            SDK_CONSTANT_TYPE_ACTIVITY_ACTION -> activityActions.add(value.toString())
+                            SDK_CONSTANT_TYPE_BROADCAST_ACTION -> broadcastActions.add(value.toString())
                             SDK_CONSTANT_TYPE_SERVICE_ACTION -> serviceActions.add(value.toString())
                             SDK_CONSTANT_TYPE_CATEGORY -> categories.add(value.toString())
                             SDK_CONSTANT_TYPE_FEATURE -> features.add(value.toString())
@@ -114,10 +111,7 @@ class SdkFileWriter(val codebase: Codebase, private val outputDir: File) {
                 }
 
                 if (!annotated) {
-                    if (
-                        topLayoutParams == null &&
-                            ANDROID_VIEW_VIEW_GROUP_LAYOUT_PARAMS == clazz.qualifiedName()
-                    ) {
+                    if (topLayoutParams == null && ANDROID_VIEW_VIEW_GROUP_LAYOUT_PARAMS == clazz.qualifiedName()) {
                         topLayoutParams = clazz
                     }
                     // let's check if this is inside android.widget or android.view
@@ -159,8 +153,7 @@ class SdkFileWriter(val codebase: Codebase, private val outputDir: File) {
             var clazz: ClassItem? = layoutParams[i]
             val containingClass = clazz?.containingClass()
             var remove = containingClass == null || layouts.indexOf(containingClass) == -1
-            // Also ensure that super classes of the layout params are in android.widget or
-            // android.view.
+            // Also ensure that super classes of the layout params are in android.widget or android.view.
             while (!remove && clazz != null) {
                 clazz = clazz.superClass() ?: break
                 if (clazz == topLayoutParams) {
@@ -178,7 +171,9 @@ class SdkFileWriter(val codebase: Codebase, private val outputDir: File) {
         writeClasses("widgets.txt", widgets, layouts, layoutParams)
     }
 
-    /** Check if the clazz is in package android.view or android.widget */
+    /**
+     * Check if the clazz is in package android.view or android.widget
+     */
     private fun isIncludedPackage(clazz: ClassItem): Boolean {
         val pkgName = clazz.containingPackage().qualifiedName()
         return "android.widget" == pkgName || "android.view" == pkgName
@@ -249,7 +244,8 @@ class SdkFileWriter(val codebase: Codebase, private val outputDir: File) {
             for (clazz in layouts) {
                 writeClass(bw, clazz, 'L')
             }
-        } catch (ignore: IOException) {} finally {
+        } catch (ignore: IOException) {
+        } finally {
             bw?.close()
             fw?.close()
         }
@@ -276,10 +272,12 @@ class SdkFileWriter(val codebase: Codebase, private val outputDir: File) {
 
     /**
      * Checks the inheritance of [ClassItem] objects. This method return
-     * * [.TYPE_LAYOUT]: if the class extends `android.view.ViewGroup`
-     * * [.TYPE_WIDGET]: if the class extends `android.view.View`
-     * * [.TYPE_LAYOUT_PARAM]: if the class extends `android.view.ViewGroup$LayoutParams`
-     * * [.TYPE_NONE]: in all other cases
+     *
+     *  * [.TYPE_LAYOUT]: if the class extends `android.view.ViewGroup`
+     *  * [.TYPE_WIDGET]: if the class extends `android.view.View`
+     *  * [.TYPE_LAYOUT_PARAM]: if the class extends
+     * `android.view.ViewGroup$LayoutParams`
+     *  * [.TYPE_NONE]: in all other cases
      *
      * @param clazz the [ClassItem] to check.
      */

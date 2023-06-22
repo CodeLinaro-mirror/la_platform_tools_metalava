@@ -233,7 +233,10 @@ class PsiPropertyItemTest {
             val annotationsOnWithFieldBackingField =
                 withFieldBackingField.modifiers.annotations().exceptNullness()
             assertEquals(1, annotationsOnWithFieldBackingField.size)
-            assertEquals(fooApi, annotationsOnWithFieldBackingField.single().qualifiedName)
+            assertEquals(
+                fooApi,
+                annotationsOnWithFieldBackingField.single().qualifiedName
+            )
 
             fun checkSingleAnnotation(
                 propertyItem: PropertyItem,
@@ -259,7 +262,9 @@ class PsiPropertyItemTest {
             ) {
                 val annotations = propertyItem.modifiers.annotations().exceptNullness()
                 assertEquals(expectedAnnotationCounts, annotations.size)
-                annotations.forEach { assertEquals(expectedAnnotationName, it.qualifiedName) }
+                annotations.forEach {
+                    assertEquals(expectedAnnotationName, it.qualifiedName)
+                }
             }
 
             checkAnnotations(withoutFieldOnGetterAndNoUseSiteDiffArg, 2)

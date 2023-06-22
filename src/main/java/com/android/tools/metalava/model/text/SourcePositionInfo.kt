@@ -15,8 +15,10 @@
  */
 package com.android.tools.metalava.model.text
 
-class SourcePositionInfo(private val file: String, private val line: Int) :
-    Comparable<SourcePositionInfo> {
+class SourcePositionInfo(
+    private val file: String,
+    private val line: Int
+) : Comparable<SourcePositionInfo> {
     override fun toString(): String {
         return "$file:$line"
     }
@@ -27,15 +29,22 @@ class SourcePositionInfo(private val file: String, private val line: Int) :
     }
 
     companion object {
-        val UNKNOWN = SourcePositionInfo("(unknown)", 0)
+        val UNKNOWN = SourcePositionInfo(
+            "(unknown)",
+            0
+        )
 
         /**
-         * Given this position and str which occurs at that position, as well as str an index into
-         * str, find the SourcePositionInfo.
+         * Given this position and str which occurs at that position, as well as str an index into str,
+         * find the SourcePositionInfo.
          *
          * @throws StringIndexOutOfBoundsException if index &gt; str.length()
          */
-        fun add(that: SourcePositionInfo?, str: String, index: Int): SourcePositionInfo? {
+        fun add(
+            that: SourcePositionInfo?,
+            str: String,
+            index: Int
+        ): SourcePositionInfo? {
             if (that == null) {
                 return null
             }
@@ -48,7 +57,10 @@ class SourcePositionInfo(private val file: String, private val line: Int) :
                 }
                 prev = c
             }
-            return SourcePositionInfo(that.file, line)
+            return SourcePositionInfo(
+                that.file,
+                line
+            )
         }
     }
 }

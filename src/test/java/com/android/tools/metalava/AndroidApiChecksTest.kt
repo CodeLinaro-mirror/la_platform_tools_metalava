@@ -22,33 +22,31 @@ class AndroidApiChecksTest : DriverTest() {
     @Test
     fun `Flag TODO documentation`() {
         check(
-            expectedIssues =
-                """
+            expectedIssues = """
                 src/android/pkg/Test.java:4: lint: Documentation mentions 'TODO' [Todo]
                 src/android/pkg/Test.java:6: lint: Documentation mentions 'TODO' [Todo]
                 """,
-            sourceFiles =
-                arrayOf(
-                    // Nothing in outside of Android
-                    java(
-                        """
+            sourceFiles = arrayOf(
+                // Nothing in outside of Android
+                java(
+                    """
                     package test.pkg;
                     /** TODO: Some comment here */
                     public class Ignored1 {
                     }
                     """
-                    ),
-                    // Nothing in android.icu
-                    java(
-                        """
+                ),
+                // Nothing in android.icu
+                java(
+                    """
                     package android.icu;
                     /** TODO: Some comment here */
                     public class Ignored2 {
                     }
                     """
-                    ),
-                    java(
-                        """
+                ),
+                java(
+                    """
                     package android.pkg;
 
                     /** TODO: Some comment here */
@@ -59,23 +57,21 @@ class AndroidApiChecksTest : DriverTest() {
                         }
                     }
                     """
-                    )
                 )
+            )
         )
     }
 
     @Test
     fun `Document Permissions`() {
         check(
-            expectedIssues =
-                """
+            expectedIssues = """
                 src/android/pkg/PermissionTest.java:14: lint: Method 'test0' documentation mentions permissions without declaring @RequiresPermission [RequiresPermission]
                 src/android/pkg/PermissionTest.java:21: lint: Method 'test1' documentation mentions permissions already declared by @RequiresPermission [RequiresPermission]
                 """,
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
+            sourceFiles = arrayOf(
+                java(
+                    """
                     package android.pkg;
 
                     import android.Manifest;
@@ -106,9 +102,9 @@ class AndroidApiChecksTest : DriverTest() {
                         }
                     }
                     """
-                    ),
-                    java(
-                        """
+                ),
+                java(
+                    """
                     package android;
 
                     public abstract class Manifest {
@@ -119,25 +115,23 @@ class AndroidApiChecksTest : DriverTest() {
                         }
                     }
                     """
-                    ),
-                    requiresPermissionSource
-                )
+                ),
+                requiresPermissionSource
+            )
         )
     }
 
     @Test
     fun `Document Intent Actions`() {
         check(
-            expectedIssues =
-                """
+            expectedIssues = """
                 src/android/pkg/IntentActionTest.java:30: lint: Field 'BAR_FOO_ERROR_ACTION' is missing @SdkConstant(SdkConstantType.ACTIVITY_INTENT_ACTION) [SdkConstant]
                 src/android/pkg/IntentActionTest.java:19: lint: Field 'FOO_BAR_ERROR_ACTION' is missing @BroadcastBehavior [BroadcastBehavior]
                 src/android/pkg/IntentActionTest.java:19: lint: Field 'FOO_BAR_ERROR_ACTION' is missing @SdkConstant(SdkConstantType.BROADCAST_INTENT_ACTION) [SdkConstant]
                 """,
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
+            sourceFiles = arrayOf(
+                java(
+                    """
                     package android.pkg;
 
                     import android.Manifest;
@@ -170,27 +164,25 @@ class AndroidApiChecksTest : DriverTest() {
                         public static final String BAR_FOO_ERROR_ACTION = "android.something.BAR_FOO";
                     }
                     """
-                    ),
-                    sdkConstantSource,
-                    broadcastBehaviorSource
-                )
+                ),
+                sdkConstantSource,
+                broadcastBehaviorSource
+            )
         )
     }
 
     @Test
     fun `Check Warnings for missing nullness annotations`() {
         check(
-            expectedIssues =
-                """
+            expectedIssues = """
                 src/android/pkg/NullMentions.java:18: warning: Parameter 'param1' of 'method3' documentation mentions 'null' without declaring @NonNull or @Nullable [Nullable]
                 src/android/pkg/NullMentions.java:21: warning: Return value of 'method4' documentation mentions 'null' without declaring @NonNull or @Nullable [Nullable]
                 src/android/pkg/NullMentions.java:9: warning: Field 'field2' documentation mentions 'null' without declaring @NonNull or @Nullable [Nullable]
                 """,
             extraArguments = arrayOf(ARG_WARNING, "Nullable"), // Hidden by default
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
+            sourceFiles = arrayOf(
+                java(
+                    """
                     package android.pkg;
 
                     import android.annotation.Nullable;
@@ -218,24 +210,22 @@ class AndroidApiChecksTest : DriverTest() {
                         public @Nullable Object method5(@Nullable Object param1) { return null; }
                     }
                     """
-                    ),
-                    nullableSource
-                )
+                ),
+                nullableSource
+            )
         )
     }
 
     @Test
     fun `Check IntDef Warnings`() {
         check(
-            expectedIssues =
-                """
+            expectedIssues = """
                 src/android/pkg/NullMentions.java:16: warning: Field 'field1' documentation mentions constants without declaring an @IntDef [IntDef]
                 """,
             extraArguments = arrayOf(ARG_WARNING, "IntDef"), // Hidden by default
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
+            sourceFiles = arrayOf(
+                java(
+                    """
                     package android.pkg;
 
                     import android.annotation.IntDef;
@@ -258,10 +248,10 @@ class AndroidApiChecksTest : DriverTest() {
                         public int field2; // OK
                     }
                     """
-                    ),
-                    intDefAnnotationSource,
-                    nullableSource
-                )
+                ),
+                intDefAnnotationSource,
+                nullableSource
+            )
         )
     }
 }

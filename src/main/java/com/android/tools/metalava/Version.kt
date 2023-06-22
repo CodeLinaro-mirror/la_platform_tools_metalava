@@ -27,8 +27,7 @@ object Version {
 
     init {
         val properties = Properties()
-        val stream =
-            BufferedInputStream(Version::class.java.getResourceAsStream("/version.properties"))
+        val stream = BufferedInputStream(Version::class.java.getResourceAsStream("/version.properties"))
         try {
             properties.load(stream)
             VERSION = properties.getProperty("metalavaVersion")

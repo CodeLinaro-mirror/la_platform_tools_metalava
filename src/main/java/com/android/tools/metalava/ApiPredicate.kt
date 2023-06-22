@@ -23,34 +23,37 @@ import com.android.tools.metalava.model.PackageItem
 import java.util.function.Predicate
 
 /**
- * Predicate that decides if the given member should be considered part of an API surface area. To
- * make the most accurate decision, it searches for signals on the member, all containing classes,
- * and all containing packages.
+ * Predicate that decides if the given member should be considered part of an
+ * API surface area. To make the most accurate decision, it searches for
+ * signals on the member, all containing classes, and all containing packages.
  */
 class ApiPredicate(
     /**
-     * Set if the value of [MemberItem.hasShowAnnotation] should be ignored. That is, this predicate
-     * will assume that all encountered members match the "shown" requirement.
+     * Set if the value of [MemberItem.hasShowAnnotation] should be
+     * ignored. That is, this predicate will assume that all encountered members
+     * match the "shown" requirement.
      *
-     * This is typically useful when generating "current.txt", when no [Options.showAnnotations]
-     * have been defined.
+     * This is typically useful when generating "current.txt", when no
+     * [Options.showAnnotations] have been defined.
      */
     val ignoreShown: Boolean = options.showUnannotated,
 
     /**
-     * Set if the value of [MemberItem.removed] should be ignored. That is, this predicate will
-     * assume that all encountered members match the "removed" requirement.
+     * Set if the value of [MemberItem.removed] should be ignored.
+     * That is, this predicate will assume that all encountered members match
+     * the "removed" requirement.
      *
-     * This is typically useful when generating "removed.txt", when it's okay to reference both
-     * current and removed APIs.
+     * This is typically useful when generating "removed.txt", when it's okay to
+     * reference both current and removed APIs.
      */
     private val ignoreRemoved: Boolean = false,
 
     /**
-     * Set what the value of [MemberItem.removed] must be equal to in order for a member to match.
+     * Set what the value of [MemberItem.removed] must be equal to in
+     * order for a member to match.
      *
-     * This is typically useful when generating "removed.txt", when you only want to match members
-     * that have actually been removed.
+     * This is typically useful when generating "removed.txt", when you only
+     * want to match members that have actually been removed.
      */
     private val matchRemoved: Boolean = false,
 
@@ -74,11 +77,7 @@ class ApiPredicate(
             return false
         }
 
-        var visible =
-            member.isPublic ||
-                member.isProtected ||
-                (member.isInternal &&
-                    member.hasShowAnnotation()) // TODO: Should this use checkLevel instead?
+        var visible = member.isPublic || member.isProtected || (member.isInternal && member.hasShowAnnotation()) // TODO: Should this use checkLevel instead?
         var hidden = member.hidden
         if (!visible || hidden) {
             return false
@@ -91,12 +90,11 @@ class ApiPredicate(
         var docOnly = member.docOnly
         var removed = member.removed
 
-        var clazz: ClassItem? =
-            when (member) {
-                is MemberItem -> member.containingClass()
-                is ClassItem -> member
-                else -> null
-            }
+        var clazz: ClassItem? = when (member) {
+            is MemberItem -> member.containingClass()
+            is ClassItem -> member
+            else -> null
+        }
 
         if (clazz != null) {
             var pkg: PackageItem? = clazz.containingPackage()
@@ -108,11 +106,10 @@ class ApiPredicate(
             }
         }
         while (clazz != null) {
-            visible =
-                visible and
-                    (clazz.isPublic ||
-                        clazz.isProtected ||
-                        (clazz.isInternal && clazz.hasShowAnnotation()))
+            visible = visible and (
+                clazz.isPublic || clazz.isProtected ||
+                    (clazz.isInternal && clazz.hasShowAnnotation())
+                )
             hasShowAnnotation = hasShowAnnotation or (ignoreShown || clazz.hasShowAnnotation())
             hidden = hidden or clazz.hidden
             docOnly = docOnly or clazz.docOnly
@@ -132,9 +129,9 @@ class ApiPredicate(
     }
 
     /**
-     * Returns true, if an item should be included only for "stub" purposes; that is, the item does
-     * *not* have a [Options.showAnnotations] annotation but has a
-     * [Options.showForStubPurposesAnnotations] annotation.
+     * Returns true, if an item should be included only for "stub" purposes; that is,
+     * the item does *not* have a [Options.showAnnotations] annotation but
+     * has a [Options.showForStubPurposesAnnotations] annotation.
      */
     private fun includeOnlyForStubPurposes(item: Item): Boolean {
         if (options.showForStubPurposesAnnotations.isEmpty()) {
