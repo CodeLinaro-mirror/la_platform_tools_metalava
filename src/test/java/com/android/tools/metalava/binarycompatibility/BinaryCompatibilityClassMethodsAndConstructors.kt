@@ -23,17 +23,20 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
     @Test
     fun `Change method name`() {
         check(
-            expectedIssues = """
+            expectedIssues =
+                """
                 TESTROOT/released-api.txt:3: error: Removed method test.pkg.Foo.bar(Int) [RemovedMethod]
             """,
-            signatureSource = """
+            signatureSource =
+                """
                 package test.pkg {
                   class Foo {
                     method public void baz(Int);
                   }
                 }
             """,
-            checkCompatibilityApiReleased = """
+            checkCompatibilityApiReleased =
+                """
                 package test.pkg {
                   class Foo {
                     method public void bar(Int);
@@ -46,17 +49,20 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
     @Test
     fun `Change formal parameter name (Incompatible)`() {
         check(
-            expectedIssues = """
+            expectedIssues =
+                """
                 TESTROOT/load-api.txt:3: error: Attempted to change parameter name from bread to toast in method test.pkg.Foo.bar [ParameterNameChange]
             """,
-            signatureSource = """
+            signatureSource =
+                """
                 package test.pkg {
                   class Foo {
                     method public void bar(Int toast);
                   }
                 }
             """,
-            checkCompatibilityApiReleased = """
+            checkCompatibilityApiReleased =
+                """
                 package test.pkg {
                   class Foo {
                     method public void bar(Int bread);
@@ -65,20 +71,24 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
             """
         )
     }
+
     @Test
     fun `Add or delete formal parameter (Incompatible)`() {
         check(
-            expectedIssues = """
+            expectedIssues =
+                """
                 TESTROOT/released-api.txt:3: error: Removed method test.pkg.Foo.bar(Int) [RemovedMethod]
             """,
-            signatureSource = """
+            signatureSource =
+                """
                 package test.pkg {
                   class Foo {
                     method public void bar();
                   }
                 }
             """,
-            checkCompatibilityApiReleased = """
+            checkCompatibilityApiReleased =
+                """
                 package test.pkg {
                   class Foo {
                     method public void bar(Int);
@@ -87,20 +97,24 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
             """
         )
     }
+
     @Test
     fun `Change type of a formal parameter (Incompatible)`() {
         check(
-            expectedIssues = """
+            expectedIssues =
+                """
                 TESTROOT/released-api.txt:3: error: Removed method test.pkg.Foo.bar(Int) [RemovedMethod]
             """,
-            signatureSource = """
+            signatureSource =
+                """
                 package test.pkg {
                   class Foo {
                     method public void bar(Float);
                   }
                 }
             """,
-            checkCompatibilityApiReleased = """
+            checkCompatibilityApiReleased =
+                """
                 package test.pkg {
                   class Foo {
                     method public void bar(Int);
@@ -109,20 +123,24 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
             """
         )
     }
+
     @Test
     fun `Change result type (including void) (Incompatible)`() {
         check(
-            expectedIssues = """
+            expectedIssues =
+                """
                 TESTROOT/load-api.txt:3: error: Method test.pkg.Foo.bar has changed return type from void to Int [ChangedType]
             """,
-            signatureSource = """
+            signatureSource =
+                """
                 package test.pkg {
                   class Foo {
                     method public Int bar(Int);
                   }
                 }
             """,
-            checkCompatibilityApiReleased = """
+            checkCompatibilityApiReleased =
+                """
                 package test.pkg {
                   class Foo {
                     method public void bar(Int);
@@ -131,20 +149,24 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
             """
         )
     }
+
     @Test
     fun `Add checked exceptions thrown (Incompatible)`() {
         check(
-            expectedIssues = """
+            expectedIssues =
+                """
                 TESTROOT/load-api.txt:3: error: Method test.pkg.Foo.bar added thrown exception java.lang.Throwable [ChangedThrows]
             """,
-            signatureSource = """
+            signatureSource =
+                """
                 package test.pkg {
                   class Foo {
                     method public void bar(Int) throws java.lang.Throwable;
                   }
                 }
             """,
-            checkCompatibilityApiReleased = """
+            checkCompatibilityApiReleased =
+                """
                 package test.pkg {
                   class Foo {
                     method public void bar(Int);
@@ -153,20 +175,24 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
             """
         )
     }
+
     @Test
     fun `Delete checked exceptions thrown (Incompatible)`() {
         check(
-            expectedIssues = """
+            expectedIssues =
+                """
                 TESTROOT/load-api.txt:3: error: Method test.pkg.Foo.bar no longer throws exception java.lang.Throwable [ChangedThrows]
             """,
-            signatureSource = """
+            signatureSource =
+                """
                 package test.pkg {
                   class Foo {
                     method public void bar(Int);
                   }
                 }
             """,
-            checkCompatibilityApiReleased = """
+            checkCompatibilityApiReleased =
+                """
                 package test.pkg {
                   class Foo {
                     method public void bar(Int) throws java.lang.Throwable;
@@ -175,17 +201,20 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
             """
         )
     }
+
     @Test
     fun `Re-order list of exceptions thrown (Compatible)`() {
         check(
-            signatureSource = """
+            signatureSource =
+                """
                 package test.pkg {
                   class Foo {
                     method public void bar(Int) throws java.lang.Exception, java.lang.Throwable;
                   }
                 }
             """,
-            checkCompatibilityApiReleased = """
+            checkCompatibilityApiReleased =
+                """
                 package test.pkg {
                   class Foo {
                     method public void bar(Int) throws java.lang.Throwable, java.lang.Exception;
@@ -201,17 +230,20 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
     @Test
     fun `Decrease access(Incompatible)`() {
         check(
-            expectedIssues = """
+            expectedIssues =
+                """
                TESTROOT/load-api.txt:3: error: Method test.pkg.Foo.bar changed visibility from public to protected [ChangedScope]
             """,
-            signatureSource = """
+            signatureSource =
+                """
                 package test.pkg {
                   class Foo {
                     method protected void bar(Int);
                   }
                 }
             """,
-            checkCompatibilityApiReleased = """
+            checkCompatibilityApiReleased =
+                """
                 package test.pkg {
                   class Foo {
                     method public void bar(Int);
@@ -220,17 +252,20 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
             """
         )
     }
+
     @Test
     fun `Increase access, that is, from protected access to public access (Compatible)`() {
         check(
-            signatureSource = """
+            signatureSource =
+                """
                 package test.pkg {
                   class Foo {
                     method public void bar(Int);
                   }
                 }
             """,
-            checkCompatibilityApiReleased = """
+            checkCompatibilityApiReleased =
+                """
                 package test.pkg {
                   class Foo {
                     method protected void bar(Int);
@@ -239,17 +274,20 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
             """
         )
     }
+
     @Test
     fun `Change abstract to non-abstract (Compatible)`() {
         check(
-            signatureSource = """
+            signatureSource =
+                """
                 package test.pkg {
                   abstract class Foo {
                     method public void bar(Int);
                   }
                 }
             """,
-            checkCompatibilityApiReleased = """
+            checkCompatibilityApiReleased =
+                """
                 package test.pkg {
                   abstract class Foo {
                     method abstract public void bar(Int);
@@ -258,20 +296,24 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
             """
         )
     }
+
     @Test
     fun `Change non-abstract to abstract (Incompatible)`() {
         check(
-            expectedIssues = """
+            expectedIssues =
+                """
                TESTROOT/load-api.txt:3: error: Method test.pkg.Foo.bar has changed 'abstract' qualifier [ChangedAbstract]
             """,
-            signatureSource = """
+            signatureSource =
+                """
                 package test.pkg {
                   abstract class Foo {
                     method abstract public void bar(Int);
                   }
                 }
             """,
-            checkCompatibilityApiReleased = """
+            checkCompatibilityApiReleased =
+                """
                 package test.pkg {
                   abstract class Foo {
                     method public void bar(Int);
@@ -280,20 +322,24 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
             """
         )
     }
+
     @Test
     fun `Change final to non-final (Compatible but Disallowed)`() {
         check(
-            expectedIssues = """
+            expectedIssues =
+                """
                TESTROOT/load-api.txt:3: error: Method test.pkg.Foo.bar has removed 'final' qualifier [RemovedFinalStrict]
             """,
-            signatureSource = """
+            signatureSource =
+                """
                 package test.pkg {
                   class Foo {
                     method public void bar(Int);
                   }
                 }
             """,
-            checkCompatibilityApiReleased = """
+            checkCompatibilityApiReleased =
+                """
                 package test.pkg {
                   class Foo {
                     method final public void bar(Int);
@@ -306,14 +352,16 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
     @Test
     fun `Change non-final to final (method not re-implementable) (Compatible)`() {
         check(
-            signatureSource = """
+            signatureSource =
+                """
                 package test.pkg {
                   sealed class Foo {
                     method final public void bar(Int);
                   }
                 }
             """,
-            checkCompatibilityApiReleased = """
+            checkCompatibilityApiReleased =
+                """
                 package test.pkg {
                   sealed class Foo {
                     method public void bar(Int);
@@ -322,20 +370,24 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
             """
         )
     }
+
     @Test
     fun `Change non-final to final (method re-implementable) (Incompatible)`() {
         check(
-            expectedIssues = """
+            expectedIssues =
+                """
                TESTROOT/load-api.txt:3: error: Method test.pkg.Foo.bar has added 'final' qualifier [AddedFinal]
             """,
-            signatureSource = """
+            signatureSource =
+                """
                 package test.pkg {
                   class Foo {
                     method final public void bar(Int);
                   }
                 }
             """,
-            checkCompatibilityApiReleased = """
+            checkCompatibilityApiReleased =
+                """
                 package test.pkg {
                   class Foo {
                     method public void bar(Int);
@@ -344,20 +396,24 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
             """
         )
     }
+
     @Test
     fun `Change static to non-static (Incompatible)`() {
         check(
-            expectedIssues = """
+            expectedIssues =
+                """
                 TESTROOT/load-api.txt:3: error: Method test.pkg.Foo.bar has changed 'static' qualifier [ChangedStatic]
             """,
-            signatureSource = """
+            signatureSource =
+                """
                 package test.pkg {
                   class Foo {
                     method public void bar(Int);
                   }
                 }
             """,
-            checkCompatibilityApiReleased = """
+            checkCompatibilityApiReleased =
+                """
                 package test.pkg {
                   class Foo {
                     method static public void bar(Int);
@@ -366,20 +422,24 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
             """
         )
     }
+
     @Test
     fun `Change non-static to static (Incompatible)`() {
         check(
-            expectedIssues = """
+            expectedIssues =
+                """
                 TESTROOT/load-api.txt:3: error: Method test.pkg.Foo.bar has changed 'static' qualifier [ChangedStatic]
             """,
-            signatureSource = """
+            signatureSource =
+                """
                 package test.pkg {
                   class Foo {
                     method static public void bar(Int);
                   }
                 }
             """,
-            checkCompatibilityApiReleased = """
+            checkCompatibilityApiReleased =
+                """
                 package test.pkg {
                   class Foo {
                     method public void bar(Int);
@@ -388,17 +448,20 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
             """
         )
     }
+
     @Test
     fun `Change native to non-native (Compatible)`() {
         check(
-            signatureSource = """
+            signatureSource =
+                """
                 package test.pkg {
                   class Foo {
                     method native public void bar(Int);
                   }
                 }
             """,
-            checkCompatibilityApiReleased = """
+            checkCompatibilityApiReleased =
+                """
                 package test.pkg {
                   class Foo {
                     method public void bar(Int);
@@ -407,17 +470,20 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
             """
         )
     }
+
     @Test
     fun `Change non-native to native (Compatible)`() {
         check(
-            signatureSource = """
+            signatureSource =
+                """
                 package test.pkg {
                   class Foo {
                     method public void bar(Int);
                   }
                 }
             """,
-            checkCompatibilityApiReleased = """
+            checkCompatibilityApiReleased =
+                """
                 package test.pkg {
                   class Foo {
                     method native public void bar(Int);
@@ -426,17 +492,20 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
             """
         )
     }
+
     @Test
     fun `Change synchronized to non-synchronized (Compatible)`() {
         check(
-            signatureSource = """
+            signatureSource =
+                """
                 package test.pkg {
                   class Foo {
                     method public void bar(Int);
                   }
                 }
             """,
-            checkCompatibilityApiReleased = """
+            checkCompatibilityApiReleased =
+                """
                 package test.pkg {
                   class Foo {
                     method synchronized public void bar(Int);
@@ -445,17 +514,20 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
             """
         )
     }
+
     @Test
     fun `Change non-synchronized to synchronized (Compatible)`() {
         check(
-            signatureSource = """
+            signatureSource =
+                """
                 package test.pkg {
                   class Foo {
                     method synchronized public void bar(Int);
                   }
                 }
             """,
-            checkCompatibilityApiReleased = """
+            checkCompatibilityApiReleased =
+                """
                 package test.pkg {
                   class Foo {
                     method public void bar(Int);
@@ -587,14 +659,16 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
     @Test
     fun `Change last parameter from array type T(array) to variable arity T(elipse) (Compatible)`() {
         check(
-            signatureSource = """
+            signatureSource =
+                """
                 package test.pkg {
                     class Foo {
                         method public <T> void bar(T...);
                     }
                 }
             """,
-            checkCompatibilityApiReleased = """
+            checkCompatibilityApiReleased =
+                """
                 package test.pkg {
                     class Foo {
                         method public <T> void bar(T[]);
@@ -607,17 +681,20 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
     @Test
     fun `Change last parameter from variable arity T(elipse) to array type T(array) (Incompatible)`() {
         check(
-            expectedIssues = """
+            expectedIssues =
+                """
                 TESTROOT/load-api.txt:3: error: Changing from varargs to array is an incompatible change: parameter arg1 in test.pkg.Foo.bar(T[] arg1) [VarargRemoval]
             """,
-            signatureSource = """
+            signatureSource =
+                """
                 package test.pkg {
                     class Foo {
                         method public <T> void bar(T[]);
                     }
                 }
             """,
-            checkCompatibilityApiReleased = """
+            checkCompatibilityApiReleased =
+                """
                 package test.pkg {
                     class Foo {
                         method public <T> void bar(T...);

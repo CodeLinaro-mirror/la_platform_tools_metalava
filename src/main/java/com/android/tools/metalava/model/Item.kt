@@ -27,14 +27,14 @@ import java.util.concurrent.atomic.AtomicInteger
 /**
  * Represents a code element such as a package, a class, a method, a field, a parameter.
  *
- * This extra abstraction on top of PSI allows us to more model the API (and customize
- * visibility, which cannot always be done by looking at a particular piece of code and examining
- * visibility and @hide/@removed annotations: sometimes package private APIs are unhidden by
- * being used in public APIs for example.
+ * This extra abstraction on top of PSI allows us to more model the API (and customize visibility,
+ * which cannot always be done by looking at a particular piece of code and examining visibility
+ * and @hide/@removed annotations: sometimes package private APIs are unhidden by being used in
+ * public APIs for example.
  *
- * The abstraction also lets us back the model by an alternative implementation read from
- * signature files, to do compatibility checks.
- * */
+ * The abstraction also lets us back the model by an alternative implementation read from signature
+ * files, to do compatibility checks.
+ */
 interface Item {
     val codebase: Codebase
 
@@ -42,12 +42,15 @@ interface Item {
     val modifiers: ModifierList
 
     /**
-     * Whether this element was originally hidden with @hide/@Hide. The [hidden] property
-     * tracks whether it is *actually* hidden, since elements can be unhidden via show annotations, etc.
+     * Whether this element was originally hidden with @hide/@Hide. The [hidden] property tracks
+     * whether it is *actually* hidden, since elements can be unhidden via show annotations, etc.
      */
     var originallyHidden: Boolean
 
-    /** Whether this element has been hidden with @hide/@Hide (or after propagation, in some containing class/pkg) */
+    /**
+     * Whether this element has been hidden with @hide/@Hide (or after propagation, in some
+     * containing class/pkg)
+     */
     var hidden: Boolean
 
     /** Whether this element will be printed in the signature file */
@@ -55,7 +58,10 @@ interface Item {
 
     fun parent(): Item?
 
-    /** Recursive check to see if this item or any of its parents (containing class, containing package) are hidden */
+    /**
+     * Recursive check to see if this item or any of its parents (containing class, containing
+     * package) are hidden
+     */
     fun hidden(): Boolean {
         return hidden || parent()?.hidden() ?: false
     }
@@ -69,7 +75,10 @@ interface Item {
             parent()?.isCompatibilitySuppressed() ?: false
     }
 
-    /** Whether this element has been removed with @removed/@Remove (or after propagation, in some containing class) */
+    /**
+     * Whether this element has been removed with @removed/@Remove (or after propagation, in some
+     * containing class)
+     */
     var removed: Boolean
 
     /** True if this element has been marked deprecated */
@@ -79,8 +88,8 @@ interface Item {
     var docOnly: Boolean
 
     /**
-     * True if this is a synthetic element, such as the generated "value" and "valueOf" methods
-     * in enums
+     * True if this is a synthetic element, such as the generated "value" and "valueOf" methods in
+     * enums
      */
     val synthetic: Boolean
 
@@ -96,40 +105,36 @@ interface Item {
     /** Get a mutable version of modifiers for this item */
     fun mutableModifiers(): MutableModifierList
 
-    /** The javadoc/KDoc comment for this code element, if any. This is
-     * the original content of the documentation, including lexical tokens
-     * to begin, continue and end the comment (such as /+*).
-     * See [fullyQualifiedDocumentation] to look up the documentation with
-     * fully qualified references to classes.
+    /**
+     * The javadoc/KDoc comment for this code element, if any. This is the original content of the
+     * documentation, including lexical tokens to begin, continue and end the comment (such as /+*).
+     * See [fullyQualifiedDocumentation] to look up the documentation with fully qualified
+     * references to classes.
      */
     var documentation: String
 
     /**
-     * Looks up docs for the first instance of a specific javadoc tag having
-     * the (optionally) provided value (e.g. parameter name).
+     * Looks up docs for the first instance of a specific javadoc tag having the (optionally)
+     * provided value (e.g. parameter name).
      */
     fun findTagDocumentation(tag: String, value: String? = null): String?
 
     /**
-     * A rank used for sorting. This allows signature files etc to
-     * sort similar items by a natural order, if non-zero.
-     * (Even though in signature files the elements are normally
-     * sorted first logically (constructors, then methods, then fields)
-     * and then alphabetically, this lets us preserve the source
-     * ordering for example for overloaded methods of the same name,
-     * where it's not clear that an alphabetical order (of each
-     * parameter?) would be preferable.)
+     * A rank used for sorting. This allows signature files etc to sort similar items by a natural
+     * order, if non-zero. (Even though in signature files the elements are normally sorted first
+     * logically (constructors, then methods, then fields) and then alphabetically, this lets us
+     * preserve the source ordering for example for overloaded methods of the same name, where it's
+     * not clear that an alphabetical order (of each parameter?) would be preferable.)
      */
     val sortingRank: Int
 
     /**
      * Add the given text to the documentation.
      *
-     * If the [tagSection] is null, add the comment to the initial text block
-     * of the description. Otherwise if it is "@return", add the comment
-     * to the return value. Otherwise the [tagSection] is taken to be the
-     * parameter name, and the comment added as parameter documentation
-     * for the given parameter.
+     * If the [tagSection] is null, add the comment to the initial text block of the description.
+     * Otherwise if it is "@return", add the comment to the return value. Otherwise the [tagSection]
+     * is taken to be the parameter name, and the comment added as parameter documentation for the
+     * given parameter.
      */
     fun appendDocumentation(comment: String, tagSection: String? = null, append: Boolean = true)
 
@@ -148,29 +153,27 @@ interface Item {
     fun isCloned(): Boolean
 
     /**
-     * Returns true if this item requires nullness information (e.g. for a method
-     * where either the return value or any of the parameters are non-primitives.
-     * Note that it doesn't consider whether it already has nullness annotations;
-     * for that see [hasNullnessInfo].
+     * Returns true if this item requires nullness information (e.g. for a method where either the
+     * return value or any of the parameters are non-primitives. Note that it doesn't consider
+     * whether it already has nullness annotations; for that see [hasNullnessInfo].
      */
     fun requiresNullnessInfo(): Boolean = false
 
     /**
-     * Returns true if this item requires nullness information and supplies it
-     * (for all items, e.g. if a method is partially annotated this method would
-     * still return false)
+     * Returns true if this item requires nullness information and supplies it (for all items, e.g.
+     * if a method is partially annotated this method would still return false)
      */
     fun hasNullnessInfo(): Boolean = false
 
     /**
-     * Returns true if this item has generic type
-     * whose nullability is determined at subclass declaration site.
+     * Returns true if this item has generic type whose nullability is determined at subclass
+     * declaration site.
      */
     fun hasInheritedGenericType(): Boolean = false
 
     /**
-     * Whether this item was loaded from the classpath (e.g. jar dependencies)
-     * rather than be declared as source
+     * Whether this item was loaded from the classpath (e.g. jar dependencies) rather than be
+     * declared as source
      */
     fun isFromClassPath(): Boolean = false
 
@@ -181,28 +184,33 @@ interface Item {
     fun isKotlin() = !isJava()
 
     fun hasShowAnnotation(): Boolean = modifiers.hasShowAnnotation()
+
     fun onlyShowForStubPurposes(): Boolean = modifiers.onlyShowForStubPurposes()
+
     fun hasHideAnnotation(): Boolean = modifiers.hasHideAnnotations()
+
     fun hasHideMetaAnnotation(): Boolean = modifiers.hasHideMetaAnnotations()
-    fun hasSuppressCompatibilityMetaAnnotation(): Boolean = modifiers.hasSuppressCompatibilityMetaAnnotations()
+
+    fun hasSuppressCompatibilityMetaAnnotation(): Boolean =
+        modifiers.hasSuppressCompatibilityMetaAnnotations()
 
     /**
      * Same as [hasShowAnnotation], except if it's a method, take into account super methods'
      * annotations.
      *
-     * Unlike classes or fields, methods implicitly inherits visibility annotations, and for
-     * some visibility calculation we need to take it into account.
-     * (See ShowAnnotationTest.`Methods inherit showAnnotations but fields and classes don't`.)
+     * Unlike classes or fields, methods implicitly inherits visibility annotations, and for some
+     * visibility calculation we need to take it into account. (See ShowAnnotationTest.`Methods
+     * inherit showAnnotations but fields and classes don't`.)
      */
     fun hasShowAnnotationInherited(): Boolean = hasShowAnnotation()
 
     /**
-     * Same as [onlyShowForStubPurposes], except if it's a method,
-     * take into account super methods' annotations.
+     * Same as [onlyShowForStubPurposes], except if it's a method, take into account super methods'
+     * annotations.
      *
-     * Unlike classes or fields, methods implicitly inherits visibility annotations, and for
-     * some visibility calculation we need to take it into account.
-     * (See ShowAnnotationTest.`Methods inherit showAnnotations but fields and classes don't`.)
+     * Unlike classes or fields, methods implicitly inherits visibility annotations, and for some
+     * visibility calculation we need to take it into account. (See ShowAnnotationTest.`Methods
+     * inherit showAnnotations but fields and classes don't`.)
      */
     fun onlyShowForStubPurposesInherited(): Boolean = onlyShowForStubPurposes()
 
@@ -239,33 +247,36 @@ interface Item {
     /** Expands the given documentation comment in the current name context */
     fun fullyQualifiedDocumentation(documentation: String): String = documentation
 
-    /** Produces a user visible description of this item, including a label such as "class" or "field" */
+    /**
+     * Produces a user visible description of this item, including a label such as "class" or
+     * "field"
+     */
     fun describe(capitalize: Boolean = false) = describe(this, capitalize)
 
     /**
-     * Returns the package that contains this item. If [strict] is false, this will return self
-     * if called on a package, otherwise it will return the containing package (e.g. "foo" for "foo.bar").
-     * The parameter is ignored on other item types.
+     * Returns the package that contains this item. If [strict] is false, this will return self if
+     * called on a package, otherwise it will return the containing package (e.g. "foo" for
+     * "foo.bar"). The parameter is ignored on other item types.
      */
     fun containingPackage(strict: Boolean = true): PackageItem?
 
     /**
-     * Returns the class that contains this item. If [strict] is false, this will return self
-     * if called on a class, otherwise it will return the outer class, if any. The parameter is
-     * ignored on other item types.
+     * Returns the class that contains this item. If [strict] is false, this will return self if
+     * called on a class, otherwise it will return the outer class, if any. The parameter is ignored
+     * on other item types.
      */
     fun containingClass(strict: Boolean = true): ClassItem?
 
     /**
-     * Returns the associated type if any. For example, for a field, property or parameter,
-     * this is the type of the variable; for a method, it's the return type.
-     * For packages, classes and files, it's null.
+     * Returns the associated type if any. For example, for a field, property or parameter, this is
+     * the type of the variable; for a method, it's the return type. For packages, classes and
+     * files, it's null.
      */
     fun type(): TypeItem?
 
     /**
-     * Marks the nullability of this Item as Recent.
-     * That is, replaces @Nullable/@NonNull with @RecentlyNullable/@RecentlyNonNull
+     * Marks the nullability of this Item as Recent. That is, replaces @Nullable/@NonNull
+     * with @RecentlyNullable/@RecentlyNonNull
      */
     fun markRecent() {
         val annotation = findNullnessAnnotation(this) ?: return
@@ -276,7 +287,9 @@ interface Item {
         modifiers.removeAnnotation(annotation)
 
         // Don't map annotation names - this would turn newly non null back into non null
-        modifiers.addAnnotation(codebase.createAnnotation("@$annotationClass", this, mapName = false))
+        modifiers.addAnnotation(
+            codebase.createAnnotation("@$annotationClass", this, mapName = false)
+        )
     }
 
     companion object {
@@ -285,18 +298,20 @@ interface Item {
                 is PackageItem -> describe(item, capitalize = capitalize)
                 is ClassItem -> describe(item, capitalize = capitalize)
                 is FieldItem -> describe(item, capitalize = capitalize)
-                is MethodItem -> describe(
-                    item,
-                    includeParameterNames = false,
-                    includeParameterTypes = true,
-                    capitalize = capitalize
-                )
-                is ParameterItem -> describe(
-                    item,
-                    includeParameterNames = true,
-                    includeParameterTypes = true,
-                    capitalize = capitalize
-                )
+                is MethodItem ->
+                    describe(
+                        item,
+                        includeParameterNames = false,
+                        includeParameterTypes = true,
+                        capitalize = capitalize
+                    )
+                is ParameterItem ->
+                    describe(
+                        item,
+                        includeParameterNames = true,
+                        includeParameterTypes = true,
+                        capitalize = capitalize
+                    )
                 else -> item.toString()
             }
         }
@@ -395,12 +410,20 @@ interface Item {
 }
 
 abstract class DefaultItem(override val sortingRank: Int = nextRank.getAndIncrement()) : Item {
-    override val isPublic: Boolean get() = modifiers.isPublic()
-    override val isProtected: Boolean get() = modifiers.isProtected()
+    override val isPublic: Boolean
+        get() = modifiers.isPublic()
+
+    override val isProtected: Boolean
+        get() = modifiers.isProtected()
+
     override val isInternal: Boolean
         get() = modifiers.getVisibilityLevel() == VisibilityLevel.INTERNAL
-    override val isPackagePrivate: Boolean get() = modifiers.isPackagePrivate()
-    override val isPrivate: Boolean get() = modifiers.isPrivate()
+
+    override val isPackagePrivate: Boolean
+        get() = modifiers.isPackagePrivate()
+
+    override val isPrivate: Boolean
+        get() = modifiers.isPrivate()
 
     override var emit = true
     override var tag: Boolean = false

@@ -57,7 +57,6 @@ enum class FileFormat(
             V2 -> 2
             V3 -> 3
             V4 -> 4
-
             BASELINE,
             JDIFF,
             SINCE_XML,
@@ -79,11 +78,9 @@ enum class FileFormat(
             V2,
             V3,
             V4 -> DOT_TXT
-
             BASELINE -> DOT_TXT
-
-            JDIFF, SINCE_XML -> DOT_XML
-
+            JDIFF,
+            SINCE_XML -> DOT_XML
             UNKNOWN -> ""
         }
     }
@@ -96,9 +93,12 @@ enum class FileFormat(
     private fun headerPrefix(): String? {
         return when (this) {
             V1 -> null
-            V2, V3, V4 -> "// Signature format: "
+            V2,
+            V3,
+            V4 -> "// Signature format: "
             BASELINE -> "// Baseline format: "
-            JDIFF, SINCE_XML -> "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n"
+            JDIFF,
+            SINCE_XML -> "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n"
             UNKNOWN -> null
         }
     }
@@ -138,11 +138,13 @@ enum class FileFormat(
                 } else if (header.startsWith(firstLine)) {
                     if (format == JDIFF) {
                         if (!fileContents.contains("<api")) {
-                            // The JDIFF header is the general XML header: don't accept XML documents that
+                            // The JDIFF header is the general XML header: don't accept XML
+                            // documents that
                             // don't contain an empty API definition
                             return UNKNOWN
                         }
-                        // Both JDiff and API-level files use <api> as the root tag (unfortunate but too late to
+                        // Both JDiff and API-level files use <api> as the root tag (unfortunate but
+                        // too late to
                         // change) so distinguish on whether the file contains any since elements
                         if (fileContents.contains("since=")) {
                             return SINCE_XML

@@ -18,9 +18,9 @@ package com.android.tools.metalava
 
 import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.lint.checks.infrastructure.TestFiles
-import org.intellij.lang.annotations.Language
 import java.io.File
 import kotlin.io.path.createTempDirectory
+import org.intellij.lang.annotations.Language
 
 fun java(to: String, @Language("JAVA") source: String): TestFile {
     return TestFiles.java(to, source.trimIndent())

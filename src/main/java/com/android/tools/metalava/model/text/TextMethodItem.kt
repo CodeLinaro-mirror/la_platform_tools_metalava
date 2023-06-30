@@ -33,15 +33,12 @@ open class TextMethodItem(
     modifiers: TextModifiers,
     private val returnType: TextTypeItem,
     position: SourcePositionInfo
-) : TextMemberItem(
-    codebase, name, containingClass, position,
-    modifiers = modifiers
-),
+) :
+    TextMemberItem(codebase, name, containingClass, position, modifiers = modifiers),
     MethodItem,
     TypeParameterListOwner {
     init {
-        @Suppress("LeakingThis")
-        modifiers.setOwner(this)
+        @Suppress("LeakingThis") modifiers.setOwner(this)
     }
 
     override fun equals(other: Any?): Boolean {
@@ -136,10 +133,15 @@ open class TextMethodItem(
     }
 
     override fun duplicate(targetContainingClass: ClassItem): MethodItem {
-        val duplicated = TextMethodItem(
-            codebase, name(), targetContainingClass,
-            modifiers.duplicate(), returnType, position
-        )
+        val duplicated =
+            TextMethodItem(
+                codebase,
+                name(),
+                targetContainingClass,
+                modifiers.duplicate(),
+                returnType,
+                position
+            )
         duplicated.inheritedFrom = containingClass()
 
         // Preserve flags that may have been inherited (propagated) from surrounding packages
@@ -169,7 +171,8 @@ open class TextMethodItem(
         return duplicated
     }
 
-    override val synthetic: Boolean get() = isEnumSyntheticMethod()
+    override val synthetic: Boolean
+        get() = isEnumSyntheticMethod()
 
     private val throwsTypes = mutableListOf<String>()
     private val parameters = mutableListOf<TextParameterItem>()
@@ -179,7 +182,8 @@ open class TextMethodItem(
         return throwsTypes
     }
 
-    override fun throwsTypes(): List<ClassItem> = if (throwsClasses == null) emptyList() else throwsClasses!!
+    override fun throwsTypes(): List<ClassItem> =
+        if (throwsClasses == null) emptyList() else throwsClasses!!
 
     fun setThrowsList(throwsClasses: List<ClassItem>) {
         this.throwsClasses = throwsClasses

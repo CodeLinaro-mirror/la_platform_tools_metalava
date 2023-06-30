@@ -30,11 +30,13 @@ import java.util.regex.Pattern
 /** Misc API suggestions */
 class AndroidApiChecks {
     fun check(codebase: Codebase) {
-        codebase.accept(object : ApiVisitor(
-            // Sort by source order such that warnings follow source line number order
-            methodComparator = MethodItem.sourceOrderComparator,
-            fieldComparator = FieldItem.comparator
-        ) {
+        codebase.accept(
+            object :
+                ApiVisitor(
+                    // Sort by source order such that warnings follow source line number order
+                    methodComparator = MethodItem.sourceOrderComparator,
+                    fieldComparator = FieldItem.comparator
+                ) {
                 override fun skip(item: Item): Boolean {
                     // Limit the checks to the android.* namespace (except for ICU)
                     if (item is ClassItem) {
@@ -51,7 +53,12 @@ class AndroidApiChecks {
                 override fun visitMethod(method: MethodItem) {
                     checkRequiresPermission(method)
                     if (!method.isConstructor()) {
-                        checkVariable(method, "@return", "Return value of '" + method.name() + "'", method.returnType())
+                        checkVariable(
+                            method,
+                            "@return",
+                            "Return value of '" + method.name() + "'",
+                            method.returnType()
+                        )
                     }
                 }
 
@@ -66,11 +73,16 @@ class AndroidApiChecks {
                     checkVariable(
                         parameter,
                         parameter.name(),
-                        "Parameter '" + parameter.name() + "' of '" + parameter.containingMethod().name() + "'",
+                        "Parameter '" +
+                            parameter.name() +
+                            "' of '" +
+                            parameter.containingMethod().name() +
+                            "'",
                         parameter.type()
                     )
                 }
-            })
+            }
+        )
     }
 
     private var cachedDocumentation: String = ""
@@ -147,11 +159,11 @@ class AndroidApiChecks {
         for (i in begin + 1 until doc.length) {
             val c = doc[i]
 
-            if (c == '@' && (
-                isLinePrefix ||
-                    doc.startsWith("@param", i, true) ||
-                    doc.startsWith("@return", i, true)
-                )
+            if (
+                c == '@' &&
+                    (isLinePrefix ||
+                        doc.startsWith("@param", i, true) ||
+                        doc.startsWith("@return", i, true))
             ) {
                 // Found it
                 end = i
@@ -180,7 +192,9 @@ class AndroidApiChecks {
             for (attribute in annotation.attributes) {
                 var values: List<AnnotationAttributeValue>? = null
                 when (attribute.name) {
-                    "value", "allOf", "anyOf" -> {
+                    "value",
+                    "allOf",
+                    "anyOf" -> {
                         values = attribute.leafValues()
                     }
                 }
@@ -196,17 +210,23 @@ class AndroidApiChecks {
                         reporter.report(
                             // Why is that a problem? Sometimes you want to describe
                             // particular use cases.
-                            Issues.REQUIRES_PERMISSION, method,
-                            "Method '" + method.name() +
+                            Issues.REQUIRES_PERMISSION,
+                            method,
+                            "Method '" +
+                                method.name() +
                                 "' documentation mentions permissions already declared by @RequiresPermission"
                         )
                     }
                 }
             }
-        } else if (text.contains("android.Manifest.permission") || text.contains("android.permission.")) {
+        } else if (
+            text.contains("android.Manifest.permission") || text.contains("android.permission.")
+        ) {
             reporter.report(
-                Issues.REQUIRES_PERMISSION, method,
-                "Method '" + method.name() +
+                Issues.REQUIRES_PERMISSION,
+                method,
+                "Method '" +
+                    method.name() +
                     "' documentation mentions permissions without declaring @RequiresPermission"
             )
         }
@@ -218,24 +238,30 @@ class AndroidApiChecks {
             return
         }
 
-        val hasBehavior = field.modifiers.findAnnotation("android.annotation.BroadcastBehavior") != null
-        val hasSdkConstant = field.modifiers.findAnnotation("android.annotation.SdkConstant") != null
+        val hasBehavior =
+            field.modifiers.findAnnotation("android.annotation.BroadcastBehavior") != null
+        val hasSdkConstant =
+            field.modifiers.findAnnotation("android.annotation.SdkConstant") != null
 
         val text = field.documentation
 
-        if (text.contains("Broadcast Action:") ||
-            text.contains("protected intent") && text.contains("system")
+        if (
+            text.contains("Broadcast Action:") ||
+                text.contains("protected intent") && text.contains("system")
         ) {
             if (!hasBehavior) {
                 reporter.report(
-                    Issues.BROADCAST_BEHAVIOR, field,
+                    Issues.BROADCAST_BEHAVIOR,
+                    field,
                     "Field '" + field.name() + "' is missing @BroadcastBehavior"
                 )
             }
             if (!hasSdkConstant) {
                 reporter.report(
-                    Issues.SDK_CONSTANT, field,
-                    "Field '" + field.name() +
+                    Issues.SDK_CONSTANT,
+                    field,
+                    "Field '" +
+                        field.name() +
                         "' is missing @SdkConstant(SdkConstantType.BROADCAST_INTENT_ACTION)"
                 )
             }
@@ -244,28 +270,28 @@ class AndroidApiChecks {
         if (text.contains("Activity Action:")) {
             if (!hasSdkConstant) {
                 reporter.report(
-                    Issues.SDK_CONSTANT, field,
-                    "Field '" + field.name() +
+                    Issues.SDK_CONSTANT,
+                    field,
+                    "Field '" +
+                        field.name() +
                         "' is missing @SdkConstant(SdkConstantType.ACTIVITY_INTENT_ACTION)"
                 )
             }
         }
     }
 
-    private fun checkVariable(
-        item: Item,
-        tag: String?,
-        ident: String,
-        type: TypeItem?
-    ) {
+    private fun checkVariable(item: Item, tag: String?, ident: String, type: TypeItem?) {
         type ?: return
-        if (type.toString() == "int" && constantPattern.matcher(getDocumentation(item, tag)).find()) {
+        if (
+            type.toString() == "int" && constantPattern.matcher(getDocumentation(item, tag)).find()
+        ) {
             var foundTypeDef = false
             for (annotation in item.modifiers.annotations()) {
                 val cls = annotation.resolve() ?: continue
                 val modifiers = cls.modifiers
                 if (modifiers.findAnnotation(ANDROIDX_INT_DEF) != null) {
-                    // TODO: Check that all the constants listed in the documentation are included in the
+                    // TODO: Check that all the constants listed in the documentation are included
+                    // in the
                     // annotation?
                     foundTypeDef = true
                     break
@@ -274,18 +300,18 @@ class AndroidApiChecks {
 
             if (!foundTypeDef) {
                 reporter.report(
-                    Issues.INT_DEF, item,
+                    Issues.INT_DEF,
+                    item,
                     // TODO: Include source code you can paste right into the code?
                     "$ident documentation mentions constants without declaring an @IntDef"
                 )
             }
         }
 
-        if (nullPattern.matcher(getDocumentation(item, tag)).find() &&
-            !item.hasNullnessInfo()
-        ) {
+        if (nullPattern.matcher(getDocumentation(item, tag)).find() && !item.hasNullnessInfo()) {
             reporter.report(
-                Issues.NULLABLE, item,
+                Issues.NULLABLE,
+                item,
                 "$ident documentation mentions 'null' without declaring @NonNull or @Nullable"
             )
         }

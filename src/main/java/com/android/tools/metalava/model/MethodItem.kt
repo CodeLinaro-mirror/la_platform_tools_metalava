@@ -19,8 +19,8 @@ package com.android.tools.metalava.model
 import com.android.tools.metalava.model.text.TextCodebase
 import com.android.tools.metalava.model.visitors.ItemVisitor
 import com.android.tools.metalava.model.visitors.TypeVisitor
-import org.jetbrains.kotlin.builtins.StandardNames
 import java.util.function.Predicate
+import org.jetbrains.kotlin.builtins.StandardNames
 
 interface MethodItem : MemberItem {
     /**
@@ -51,9 +51,9 @@ interface MethodItem : MemberItem {
     fun findMainDocumentation(): String
 
     /**
-     * Like [internalName] but is the desc-portion of the internal signature,
-     * e.g. for the method "void create(int x, int y)" the internal name of
-     * the constructor is "create" and the desc is "(II)V"
+     * Like [internalName] but is the desc-portion of the internal signature, e.g. for the method
+     * "void create(int x, int y)" the internal name of the constructor is "create" and the desc is
+     * "(II)V"
      */
     fun internalDesc(voidConstructorTypes: Boolean = false): String {
         val sb = StringBuilder()
@@ -61,8 +61,10 @@ interface MethodItem : MemberItem {
 
         // Non-static inner classes get an implicit constructor parameter for the
         // outer type
-        if (isConstructor() && containingClass().containingClass() != null &&
-            !containingClass().modifiers.isStatic()
+        if (
+            isConstructor() &&
+                containingClass().containingClass() != null &&
+                !containingClass().modifiers.isStatic()
         ) {
             sb.append(containingClass().containingClass()?.toType()?.internalName() ?: "")
         }
@@ -84,7 +86,10 @@ interface MethodItem : MemberItem {
         }
     }
 
-    /** Any type parameters for the class, if any, as a source string (with fully qualified class names) */
+    /**
+     * Any type parameters for the class, if any, as a source string (with fully qualified class
+     * names)
+     */
     fun typeParameterList(): TypeParameterList
 
     /** Returns the classes that are part of the type parameters of this method, if any */
@@ -125,7 +130,8 @@ interface MethodItem : MemberItem {
             if (predicate.test(cls) || cls.isTypeParameter) {
                 classes.add(cls)
             } else {
-                // Excluded, but it may have super class throwables that are included; if so, include those
+                // Excluded, but it may have super class throwables that are included; if so,
+                // include those
                 var curr = cls.publicSuperClass()
                 while (curr != null) {
                     if (predicate.test(curr)) {
@@ -140,24 +146,22 @@ interface MethodItem : MemberItem {
     }
 
     /**
-     * If this method is inherited from a hidden super class, but implements a method
-     * from a public interface, this property is set. This is necessary because these
-     * methods should not be listed in signature files (at least not in compatibility mode),
-     * whereas in stub files it's necessary for them to be included (otherwise subclasses
-     * may think the method required and not yet implemented, e.g. the class must be
-     * abstract.)
+     * If this method is inherited from a hidden super class, but implements a method from a public
+     * interface, this property is set. This is necessary because these methods should not be listed
+     * in signature files (at least not in compatibility mode), whereas in stub files it's necessary
+     * for them to be included (otherwise subclasses may think the method required and not yet
+     * implemented, e.g. the class must be abstract.)
      */
     var inheritedMethod: Boolean
 
     /**
-     * If this method is inherited from a super class (typically via [duplicate]) this
-     * field points to the original class it was inherited from
+     * If this method is inherited from a super class (typically via [duplicate]) this field points
+     * to the original class it was inherited from
      */
     var inheritedFrom: ClassItem?
 
     /**
-     * Duplicates this field item. Used when we need to insert inherited fields from
-     * interfaces etc.
+     * Duplicates this field item. Used when we need to insert inherited fields from interfaces etc.
      */
     fun duplicate(targetContainingClass: ClassItem): MethodItem
 
@@ -232,7 +236,11 @@ interface MethodItem : MemberItem {
     }
 
     companion object {
-        private fun compareMethods(o1: MethodItem, o2: MethodItem, overloadsInSourceOrder: Boolean): Int {
+        private fun compareMethods(
+            o1: MethodItem,
+            o2: MethodItem,
+            overloadsInSourceOrder: Boolean
+        ): Int {
             val name1 = o1.name()
             val name2 = o2.name()
             if (name1 == name2) {
@@ -243,8 +251,10 @@ interface MethodItem : MemberItem {
                     }
                 }
 
-                // Compare by the rest of the signature to ensure stable output (we don't need to sort
-                // by return value or modifiers or modifiers or throws-lists since methods can't be overloaded
+                // Compare by the rest of the signature to ensure stable output (we don't need to
+                // sort
+                // by return value or modifiers or modifiers or throws-lists since methods can't be
+                // overloaded
                 // by just those attributes
                 val p1 = o1.parameters()
                 val p2 = o2.parameters()
@@ -252,7 +262,9 @@ interface MethodItem : MemberItem {
                 val p2n = p2.size
                 for (i in 0 until minOf(p1n, p2n)) {
                     val compareTypes =
-                        p1[i].type().toTypeString()
+                        p1[i]
+                            .type()
+                            .toTypeString()
                             .compareTo(p2[i].type().toTypeString(), ignoreCase = true)
                     if (compareTypes != 0) {
                         return compareTypes
@@ -265,7 +277,9 @@ interface MethodItem : MemberItem {
             return name1.compareTo(name2)
         }
 
-        val comparator: Comparator<MethodItem> = Comparator { o1, o2 -> compareMethods(o1, o2, false) }
+        val comparator: Comparator<MethodItem> = Comparator { o1, o2 ->
+            compareMethods(o1, o2, false)
+        }
         val sourceOrderComparator: Comparator<MethodItem> = Comparator { o1, o2 ->
             val delta = o1.sortingRank - o2.sortingRank
             if (delta == 0) {
@@ -277,9 +291,16 @@ interface MethodItem : MemberItem {
                 delta
             }
         }
-        val sourceOrderForOverloadedMethodsComparator: Comparator<MethodItem> = Comparator { o1, o2 -> compareMethods(o1, o2, true) }
+        val sourceOrderForOverloadedMethodsComparator: Comparator<MethodItem> =
+            Comparator { o1, o2 ->
+                compareMethods(o1, o2, true)
+            }
 
-        fun sameSignature(method: MethodItem, superMethod: MethodItem, compareRawTypes: Boolean = false): Boolean {
+        fun sameSignature(
+            method: MethodItem,
+            superMethod: MethodItem,
+            compareRawTypes: Boolean = false
+        ): Boolean {
             // If the return types differ, override it (e.g. parent implements clone(),
             // subclass overrides with more specific return type)
             if (method.returnType() != superMethod.returnType()) {
@@ -348,7 +369,8 @@ interface MethodItem : MemberItem {
     }
 
     fun formatParameters(): String? {
-        // TODO: Generalize, allow callers to control whether to include annotations, whether to erase types,
+        // TODO: Generalize, allow callers to control whether to include annotations, whether to
+        // erase types,
         // whether to include names, etc
         if (parameters().isEmpty()) {
             return ""
@@ -399,8 +421,10 @@ interface MethodItem : MemberItem {
         return isConstructor() && modifiers.isPublic() && parameters().isEmpty()
     }
 
-    /** Finds uncaught exceptions actually thrown inside this method (as opposed to ones
-     * declared in the signature) */
+    /**
+     * Finds uncaught exceptions actually thrown inside this method (as opposed to ones declared in
+     * the signature)
+     */
     fun findThrownExceptions(): Set<ClassItem> = codebase.unsupported()
 
     /** If annotation method, returns the default value as a source expression */
@@ -411,9 +435,9 @@ interface MethodItem : MemberItem {
     }
 
     /**
-     * Returns true if this method is a signature match for the given method (e.g. can
-     * be overriding). This checks that the name and parameter lists match, but ignores
-     * differences in parameter names, return value types and throws list types.
+     * Returns true if this method is a signature match for the given method (e.g. can be
+     * overriding). This checks that the name and parameter lists match, but ignores differences in
+     * parameter names, return value types and throws list types.
      */
     fun matches(other: MethodItem): Boolean {
         if (this === other) return true
@@ -442,15 +466,21 @@ interface MethodItem : MemberItem {
 
             if (type1 != type2) {
                 // Workaround for signature-based codebase, where we can't always resolve generic
-                // parameters: if we see a mismatch here which looks like a failure to erase say T into
-                // java.lang.Object, don't treat that as a mismatch. (Similar common case: T[] and Object[])
-                if (typeString1[0].isUpperCase() && typeString1.length == 1 &&
-                    parameter1.codebase is TextCodebase
+                // parameters: if we see a mismatch here which looks like a failure to erase say T
+                // into
+                // java.lang.Object, don't treat that as a mismatch. (Similar common case: T[] and
+                // Object[])
+                if (
+                    typeString1[0].isUpperCase() &&
+                        typeString1.length == 1 &&
+                        parameter1.codebase is TextCodebase
                 ) {
                     continue
                 }
-                if (typeString2.length >= 2 && !typeString2[1].isLetterOrDigit() &&
-                    parameter1.codebase is TextCodebase
+                if (
+                    typeString2.length >= 2 &&
+                        !typeString2[1].isLetterOrDigit() &&
+                        parameter1.codebase is TextCodebase
                 ) {
                     continue
                 }
@@ -460,7 +490,10 @@ interface MethodItem : MemberItem {
         return true
     }
 
-    /** Returns whether this method has any types in its signature that does not match the given filter */
+    /**
+     * Returns whether this method has any types in its signature that does not match the given
+     * filter
+     */
     fun hasHiddenType(filterReference: Predicate<Item>): Boolean {
         for (parameter in parameters()) {
             val type = parameter.type()
@@ -505,26 +538,21 @@ interface MethodItem : MemberItem {
         if (super.hasShowAnnotationInherited()) {
             return true
         }
-        return superMethods().any {
-            it.hasShowAnnotationInherited()
-        }
+        return superMethods().any { it.hasShowAnnotationInherited() }
     }
 
     override fun onlyShowForStubPurposesInherited(): Boolean {
         if (super.onlyShowForStubPurposesInherited()) {
             return true
         }
-        return superMethods().any {
-            it.onlyShowForStubPurposesInherited()
-        }
+        return superMethods().any { it.onlyShowForStubPurposesInherited() }
     }
 
     /** Whether this method is a getter/setter for an underlying Kotlin property (val/var) */
     fun isKotlinProperty(): Boolean = false
 
     /** Returns true if this is a synthetic enum method */
-    fun isEnumSyntheticMethod(): Boolean =
-        isEnumSyntheticValues() || isEnumSyntheticValueOf()
+    fun isEnumSyntheticMethod(): Boolean = isEnumSyntheticValues() || isEnumSyntheticValueOf()
 
     fun isEnumSyntheticValues(): Boolean =
         containingClass().isEnum() &&

@@ -39,35 +39,36 @@ enum class AnnotationTarget {
 val NO_ANNOTATION_TARGETS = setOf(AnnotationTarget.INTERNAL)
 
 /**
- * Annotation is API significant: write it into the signature file and stub source code.
- * This would normally be the case for all (API significant) class-retention annotations,
- * but unfortunately due to apt (the annotation processor) attempting to load all
- * classes for annotation references that it comes across, that means we cannot
- * compile the stubs with the androidx annotations and leave those in the SDK; apt
- * would also need to have androidx on the classpath. So instead we put all these
- * annotations (except for @RecentlyNullable and @RecentlyNonNull, which are not part
- * of androidx, and which we include as package private in the SDK, something we cannot
- * do with the others since their class definitions conflict with the real androidx library
- * when present) into the external annotations file.
+ * Annotation is API significant: write it into the signature file and stub source code. This would
+ * normally be the case for all (API significant) class-retention annotations, but unfortunately due
+ * to apt (the annotation processor) attempting to load all classes for annotation references that
+ * it comes across, that means we cannot compile the stubs with the androidx annotations and leave
+ * those in the SDK; apt would also need to have androidx on the classpath. So instead we put all
+ * these annotations (except for @RecentlyNullable and @RecentlyNonNull, which are not part of
+ * androidx, and which we include as package private in the SDK, something we cannot do with the
+ * others since their class definitions conflict with the real androidx library when present) into
+ * the external annotations file.
  *
  * Also includes documentation stubs.
  */
-val ANNOTATION_IN_ALL_STUBS = setOf(
-    AnnotationTarget.SIGNATURE_FILE,
-    AnnotationTarget.SDK_STUBS_FILE,
-    AnnotationTarget.DOC_STUBS_FILE,
-    AnnotationTarget.INTERNAL
-)
+val ANNOTATION_IN_ALL_STUBS =
+    setOf(
+        AnnotationTarget.SIGNATURE_FILE,
+        AnnotationTarget.SDK_STUBS_FILE,
+        AnnotationTarget.DOC_STUBS_FILE,
+        AnnotationTarget.INTERNAL
+    )
 
 /**
  * Like [ANNOTATION_IN_ALL_STUBS], but limited to SDK stubs, not included in documentation stubs.
  * Example: RecentlyNonNull.
  */
-val ANNOTATION_IN_SDK_STUBS = setOf(
-    AnnotationTarget.SIGNATURE_FILE,
-    AnnotationTarget.SDK_STUBS_FILE,
-    AnnotationTarget.INTERNAL
-)
+val ANNOTATION_IN_SDK_STUBS =
+    setOf(
+        AnnotationTarget.SIGNATURE_FILE,
+        AnnotationTarget.SDK_STUBS_FILE,
+        AnnotationTarget.INTERNAL
+    )
 
 /**
  * Like [ANNOTATION_IN_ALL_STUBS], but limited to documentation stubs, not included in SDK stubs.
@@ -75,41 +76,39 @@ val ANNOTATION_IN_SDK_STUBS = setOf(
  *
  * Example: NonNull.
  */
-val ANNOTATION_IN_DOC_STUBS_AND_EXTERNAL = setOf(
-    AnnotationTarget.SIGNATURE_FILE,
-    AnnotationTarget.DOC_STUBS_FILE,
-    AnnotationTarget.EXTERNAL_ANNOTATIONS_FILE,
-    AnnotationTarget.INTERNAL
-)
+val ANNOTATION_IN_DOC_STUBS_AND_EXTERNAL =
+    setOf(
+        AnnotationTarget.SIGNATURE_FILE,
+        AnnotationTarget.DOC_STUBS_FILE,
+        AnnotationTarget.EXTERNAL_ANNOTATIONS_FILE,
+        AnnotationTarget.INTERNAL
+    )
 
-/** Annotation is API significant: write it into the signature file and into external annotations file. */
-val ANNOTATION_EXTERNAL = setOf(
-    AnnotationTarget.SIGNATURE_FILE,
-    AnnotationTarget.EXTERNAL_ANNOTATIONS_FILE,
-    AnnotationTarget.INTERNAL
-)
+/**
+ * Annotation is API significant: write it into the signature file and into external annotations
+ * file.
+ */
+val ANNOTATION_EXTERNAL =
+    setOf(
+        AnnotationTarget.SIGNATURE_FILE,
+        AnnotationTarget.EXTERNAL_ANNOTATIONS_FILE,
+        AnnotationTarget.INTERNAL
+    )
 
 /** Write it only into the external annotations file, not the signature file */
-val ANNOTATION_EXTERNAL_ONLY = setOf(
-    AnnotationTarget.EXTERNAL_ANNOTATIONS_FILE,
-    AnnotationTarget.INTERNAL
-)
+val ANNOTATION_EXTERNAL_ONLY =
+    setOf(AnnotationTarget.EXTERNAL_ANNOTATIONS_FILE, AnnotationTarget.INTERNAL)
 
 /** Write it only into the signature file */
-val ANNOTATION_SIGNATURE_ONLY = setOf(
-    AnnotationTarget.SIGNATURE_FILE,
-    AnnotationTarget.INTERNAL
-)
+val ANNOTATION_SIGNATURE_ONLY = setOf(AnnotationTarget.SIGNATURE_FILE, AnnotationTarget.INTERNAL)
 
 /** Write it only into the stubs, but don't track it in the signature files. */
-val ANNOTATION_STUBS_ONLY = setOf(
-    AnnotationTarget.SDK_STUBS_FILE,
-    AnnotationTarget.DOC_STUBS_FILE,
-    AnnotationTarget.INTERNAL
-)
+val ANNOTATION_STUBS_ONLY =
+    setOf(
+        AnnotationTarget.SDK_STUBS_FILE,
+        AnnotationTarget.DOC_STUBS_FILE,
+        AnnotationTarget.INTERNAL
+    )
 
 /** Write it only into the SDK stubs, but don't track it in the signature files. */
-val ANNOTATION_SDK_STUBS_ONLY = setOf(
-    AnnotationTarget.SDK_STUBS_FILE,
-    AnnotationTarget.INTERNAL
-)
+val ANNOTATION_SDK_STUBS_ONLY = setOf(AnnotationTarget.SDK_STUBS_FILE, AnnotationTarget.INTERNAL)

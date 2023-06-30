@@ -47,6 +47,7 @@ class PsiFieldItem(
     override var property: PsiPropertyItem? = null
 
     override fun type(): TypeItem = fieldType
+
     override fun initialValue(requireConstant: Boolean): Any? {
         if (initialValue != null) {
             return initialValue
@@ -65,7 +66,9 @@ class PsiFieldItem(
     }
 
     override fun isEnumConstant(): Boolean = isEnumConstant
+
     override fun name(): String = name
+
     override fun containingClass(): ClassItem = containingClass
 
     override fun isCloned(): Boolean {
@@ -106,7 +109,9 @@ class PsiFieldItem(
         if (this === other) {
             return true
         }
-        return other is FieldItem && name == other.name() && containingClass == other.containingClass()
+        return other is FieldItem &&
+            name == other.name() &&
+            containingClass == other.containingClass()
     }
 
     override fun hashCode(): Int {
@@ -116,7 +121,11 @@ class PsiFieldItem(
     override fun toString(): String = "field ${containingClass.fullName()}.${name()}"
 
     companion object {
-        fun create(codebase: PsiBasedCodebase, containingClass: PsiClassItem, psiField: PsiField): PsiFieldItem {
+        fun create(
+            codebase: PsiBasedCodebase,
+            containingClass: PsiClassItem,
+            psiField: PsiField
+        ): PsiFieldItem {
             val name = psiField.name
             val commentText = javadoc(psiField)
             val modifiers = modifiers(codebase, psiField, commentText)
@@ -125,17 +134,18 @@ class PsiFieldItem(
             val isEnumConstant = psiField is PsiEnumConstant
             val initialValue = null // compute lazily
 
-            val field = PsiFieldItem(
-                codebase = codebase,
-                psiField = psiField,
-                containingClass = containingClass,
-                name = name,
-                documentation = commentText,
-                modifiers = modifiers,
-                fieldType = fieldType,
-                isEnumConstant = isEnumConstant,
-                initialValue = initialValue
-            )
+            val field =
+                PsiFieldItem(
+                    codebase = codebase,
+                    psiField = psiField,
+                    containingClass = containingClass,
+                    name = name,
+                    documentation = commentText,
+                    modifiers = modifiers,
+                    fieldType = fieldType,
+                    isEnumConstant = isEnumConstant,
+                    initialValue = initialValue
+                )
             field.modifiers.setOwner(field)
             return field
         }

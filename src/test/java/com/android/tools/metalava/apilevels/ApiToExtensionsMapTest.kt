@@ -16,16 +16,17 @@
 
 package com.android.tools.metalava.apilevels
 
-import org.junit.Assert
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
+import org.junit.Assert
 
 class ApiToExtensionsMapTest {
     @Test
     fun `empty input`() {
-        val xml = """
+        val xml =
+            """
             <?xml version="1.0" encoding="utf-8"?>
             <!-- No rules is a valid (albeit weird). -->
             <sdk-extensions-info>
@@ -33,7 +34,8 @@ class ApiToExtensionsMapTest {
                 <sdk shortname="S-ext" name="S Extensions" id="31" reference="android/os/Build${'$'}VERSION_CODES${'$'}S" />
                 <sdk shortname="T-ext" name="T Extensions" id="33" reference="android/os/Build${'$'}VERSION_CODES${'$'}T" />
             </sdk-extensions-info>
-        """.trimIndent()
+        """
+                .trimIndent()
         val map = ApiToExtensionsMap.fromXml("no-module", xml)
 
         assertTrue(map.getExtensions("com.foo.Bar").isEmpty())
@@ -41,14 +43,16 @@ class ApiToExtensionsMapTest {
 
     @Test
     fun wildcard() {
-        val xml = """
+        val xml =
+            """
             <?xml version="1.0" encoding="utf-8"?>
             <!-- All APIs will default to extension SDK A. -->
             <sdk-extensions-info>
                 <sdk shortname="A" name="A Extensions" id="1" reference="android/os/Build${'$'}VERSION_CODES${'$'}A" />
                 <symbol jar="mod" pattern="*" sdks="A" />
             </sdk-extensions-info>
-        """.trimIndent()
+        """
+                .trimIndent()
         val map = ApiToExtensionsMap.fromXml("mod", xml)
 
         assertEquals(map.getExtensions("com.foo.Bar"), listOf("A"))
@@ -57,7 +61,8 @@ class ApiToExtensionsMapTest {
 
     @Test
     fun `single class`() {
-        val xml = """
+        val xml =
+            """
             <?xml version="1.0" encoding="utf-8"?>
             <!-- A single class. The class, any internal classes, and any methods are allowed;
                  everything else is denied -->
@@ -65,7 +70,8 @@ class ApiToExtensionsMapTest {
                 <sdk shortname="A" name="A Extensions" id="1" reference="android/os/Build${'$'}VERSION_CODES${'$'}A" />
                 <symbol jar="mod" pattern="com.foo.Bar" sdks="A" />
             </sdk-extensions-info>
-        """.trimIndent()
+        """
+                .trimIndent()
         val map = ApiToExtensionsMap.fromXml("mod", xml)
 
         assertEquals(map.getExtensions("com.foo.Bar"), listOf("A"))
@@ -84,7 +90,8 @@ class ApiToExtensionsMapTest {
 
     @Test
     fun `multiple extensions`() {
-        val xml = """
+        val xml =
+            """
             <?xml version="1.0" encoding="utf-8"?>
             <!-- Any number of white space separated extension SDKs may be listed. -->
             <sdk-extensions-info>
@@ -94,7 +101,8 @@ class ApiToExtensionsMapTest {
                 <sdk shortname="BAR" name="BAR Extensions" id="11" reference="android/os/Build${'$'}VERSION_CODES${'$'}BAR" />
                 <symbol jar="mod" pattern="*" sdks="A,B,FOO,BAR" />
             </sdk-extensions-info>
-        """.trimIndent()
+        """
+                .trimIndent()
         val map = ApiToExtensionsMap.fromXml("mod", xml)
 
         assertEquals(listOf("A", "B", "FOO", "BAR"), map.getExtensions("com.foo.Bar"))
@@ -102,7 +110,8 @@ class ApiToExtensionsMapTest {
 
     @Test
     fun precedence() {
-        val xml = """
+        val xml =
+            """
             <?xml version="1.0" encoding="utf-8"?>
             <!-- Multiple classes, and multiple rules with different precedence. -->
             <sdk-extensions-info>
@@ -115,7 +124,8 @@ class ApiToExtensionsMapTest {
                 <symbol jar="mod" pattern="com.foo.Bar${'$'}Inner#method" sdks="C" />
                 <symbol jar="mod" pattern="com.bar.Foo" sdks="D" />
             </sdk-extensions-info>
-        """.trimIndent()
+        """
+                .trimIndent()
         val map = ApiToExtensionsMap.fromXml("mod", xml)
 
         assertEquals(map.getExtensions("anything"), listOf("A"))
@@ -132,7 +142,8 @@ class ApiToExtensionsMapTest {
 
     @Test
     fun `multiple mainline modules`() {
-        val xml = """
+        val xml =
+            """
             <?xml version="1.0" encoding="utf-8"?>
             <!-- The allow list will only consider patterns that are marked with the given mainline module -->
             <sdk-extensions-info>
@@ -141,7 +152,8 @@ class ApiToExtensionsMapTest {
                 <symbol jar="foo" pattern="*" sdks="A" />
                 <symbol jar="bar" pattern="*" sdks="B" />
             </sdk-extensions-info>
-        """.trimIndent()
+        """
+                .trimIndent()
         val allowListA = ApiToExtensionsMap.fromXml("foo", xml)
         val allowListB = ApiToExtensionsMap.fromXml("bar", xml)
         val allowListC = ApiToExtensionsMap.fromXml("baz", xml)
@@ -153,7 +165,8 @@ class ApiToExtensionsMapTest {
 
     @Test
     fun `declarations and rules can be mixed`() {
-        val xml = """
+        val xml =
+            """
             <?xml version="1.0" encoding="utf-8"?>
             <!-- SDK declarations and rule lines can be mixed in any order -->
             <sdk-extensions-info>
@@ -161,7 +174,8 @@ class ApiToExtensionsMapTest {
                 <symbol jar="foo" pattern="*" sdks="A,B" />
                 <sdk shortname="B" name="B Extensions" id="2" reference="android/os/Build${'$'}VERSION_CODES${'$'}B" />
             </sdk-extensions-info>
-        """.trimIndent()
+        """
+                .trimIndent()
         val map = ApiToExtensionsMap.fromXml("foo", xml)
 
         assertEquals(map.getExtensions("com.foo.Bar"), listOf("A", "B"))
@@ -177,7 +191,8 @@ class ApiToExtensionsMapTest {
                     <!-- Missing root element -->
                     <sdk shortname="A" name="A Extensions" id="1" reference="android/os/Build${'$'}VERSION_CODES${'$'}A" />
                     <symbol jar="mod" pattern="com.foo.Bar" sdks="A" />
-                """.trimIndent()
+                """
+                    .trimIndent()
             )
         }
 
@@ -193,7 +208,8 @@ class ApiToExtensionsMapTest {
                         </foo>
                         <symbol jar="mod" pattern="com.foo.Bar" sdks="A" />
                     </sdk-extensions-info>
-                """.trimIndent()
+                """
+                    .trimIndent()
             )
         }
 
@@ -207,7 +223,8 @@ class ApiToExtensionsMapTest {
                         <sdk shortname="A" name="A Extensions" id="0" reference="android/os/Build${'$'}VERSION_CODES${'$'}A" />
                         <symbol jar="mod" pattern="com.foo.Bar" sdks="A" />
                     </sdk-extensions-info>
-                """.trimIndent()
+                """
+                    .trimIndent()
             )
         }
 
@@ -221,7 +238,8 @@ class ApiToExtensionsMapTest {
                         <sdk shortname="A" name="A Extensions" id="1" reference="android/os/Build${'$'}VERSION_CODES${'$'}A" />
                         <symbol pattern="com.foo.Bar" sdks="A" />
                     </sdk-extensions-info>
-                """.trimIndent()
+                """
+                    .trimIndent()
             )
         }
 
@@ -236,7 +254,8 @@ class ApiToExtensionsMapTest {
                         <symbol jar="mod" pattern="com.foo.Bar" sdks="A" />
                         <symbol jar="mod" pattern="com.foo.Bar" sdks="B" />
                     </sdk-extensions-info>
-                """.trimIndent()
+                """
+                    .trimIndent()
             )
         }
 
@@ -250,7 +269,8 @@ class ApiToExtensionsMapTest {
                         <sdk shortname="B" name="A Extensions" id="2" reference="android/os/Build${'$'}VERSION_CODES${'$'}A" />
                         <symbol jar="mod" pattern="com.foo.Bar" sdks="A" />
                     </sdk-extensions-info>
-                """.trimIndent()
+                """
+                    .trimIndent()
             )
         }
 
@@ -265,7 +285,8 @@ class ApiToExtensionsMapTest {
                         <sdk shortname="B" name="B Extensions" id="1" reference="android/os/Build${'$'}VERSION_CODES${'$'}B" />
                         <symbol jar="mod" pattern="com.foo.Bar" sdks="A" />
                     </sdk-extensions-info>
-                """.trimIndent()
+                """
+                    .trimIndent()
             )
         }
 
@@ -280,7 +301,8 @@ class ApiToExtensionsMapTest {
                         <sdk shortname="A" name="B Extensions" id="2" reference="android/os/Build${'$'}VERSION_CODES${'$'}B" />
                         <symbol jar="mod" pattern="com.foo.Bar" sdks="A" />
                     </sdk-extensions-info>
-                """.trimIndent()
+                """
+                    .trimIndent()
             )
         }
 
@@ -295,7 +317,8 @@ class ApiToExtensionsMapTest {
                         <sdk shortname="B" name="A Extensions" id="2" reference="android/os/Build${'$'}VERSION_CODES${'$'}B" />
                         <symbol jar="mod" pattern="com.foo.Bar" sdks="A" />
                     </sdk-extensions-info>
-                """.trimIndent()
+                """
+                    .trimIndent()
             )
         }
 
@@ -310,7 +333,8 @@ class ApiToExtensionsMapTest {
                         <sdk shortname="B" name="B Extensions" id="2" reference="android/os/Build${'$'}VERSION_CODES${'$'}A" />
                         <symbol jar="mod" pattern="com.foo.Bar" sdks="A" />
                     </sdk-extensions-info>
-                """.trimIndent()
+                """
+                    .trimIndent()
             )
         }
 
@@ -325,14 +349,16 @@ class ApiToExtensionsMapTest {
                         <sdk shortname="B" name="B Extensions" id="1" reference="android/os/Build${'$'}VERSION_CODES${'$'}B" />
                         <symbol jar="mod" pattern="com.foo.Bar" sdks="A,B,A" />
                     </sdk-extensions-info>
-                """.trimIndent()
+                """
+                    .trimIndent()
             )
         }
     }
 
     @Test
     fun `calculate sdks xml attribute`() {
-        val xml = """
+        val xml =
+            """
             <?xml version="1.0" encoding="utf-8"?>
             <!-- Verify the calculateSdksAttr method -->
             <sdk-extensions-info>
@@ -342,28 +368,17 @@ class ApiToExtensionsMapTest {
                 <sdk shortname="FOO" name="FOO Extensions" id="1000" reference="android/os/Build${'$'}VERSION_CODES${'$'}FOO" />
                 <sdk shortname="BAR" name="BAR Extensions" id="1001" reference="android/os/Build${'$'}VERSION_CODES${'$'}BAR" />
             </sdk-extensions-info>
-        """.trimIndent()
+        """
+                .trimIndent()
         val filter = ApiToExtensionsMap.fromXml("mod", xml)
 
-        Assert.assertEquals(
-            "0:34",
-            filter.calculateSdksAttr(34, 34, listOf(), ApiElement.NEVER)
-        )
+        Assert.assertEquals("0:34", filter.calculateSdksAttr(34, 34, listOf(), ApiElement.NEVER))
 
-        Assert.assertEquals(
-            "30:4",
-            filter.calculateSdksAttr(34, 34, listOf("R"), 4)
-        )
+        Assert.assertEquals("30:4", filter.calculateSdksAttr(34, 34, listOf("R"), 4))
 
-        Assert.assertEquals(
-            "30:4,31:4",
-            filter.calculateSdksAttr(34, 34, listOf("R", "S"), 4)
-        )
+        Assert.assertEquals("30:4,31:4", filter.calculateSdksAttr(34, 34, listOf("R", "S"), 4))
 
-        Assert.assertEquals(
-            "30:4,31:4,0:33",
-            filter.calculateSdksAttr(33, 34, listOf("R", "S"), 4)
-        )
+        Assert.assertEquals("30:4,31:4,0:33", filter.calculateSdksAttr(33, 34, listOf("R", "S"), 4))
 
         Assert.assertEquals(
             "30:4,31:4,1000:4,0:33",

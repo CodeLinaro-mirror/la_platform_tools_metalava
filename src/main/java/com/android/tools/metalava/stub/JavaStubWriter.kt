@@ -39,7 +39,8 @@ class JavaStubWriter(
     private val preFiltered: Boolean = true,
     private val docStubs: Boolean
 ) : ItemVisitor() {
-    private val annotationTarget = if (docStubs) AnnotationTarget.DOC_STUBS_FILE else AnnotationTarget.SDK_STUBS_FILE
+    private val annotationTarget =
+        if (docStubs) AnnotationTarget.DOC_STUBS_FILE else AnnotationTarget.SDK_STUBS_FILE
 
     override fun visitClass(cls: ClassItem) {
         if (cls.isTopLevelClass()) {
@@ -55,10 +56,8 @@ class JavaStubWriter(
                 cls.getSourceFile()?.getImportStatements(filterReference)?.let {
                     for (item in it) {
                         when (item) {
-                            is PackageItem ->
-                                writer.println("import ${item.qualifiedName()}.*;")
-                            is ClassItem ->
-                                writer.println("import ${item.qualifiedName()};")
+                            is PackageItem -> writer.println("import ${item.qualifiedName()}.*;")
+                            is ClassItem -> writer.println("import ${item.qualifiedName()};")
                             is MemberItem ->
                                 writer.println(
                                     "import static ${item.containingClass()
@@ -155,7 +154,9 @@ class JavaStubWriter(
         val separateLines = item is ClassItem || item is MethodItem
 
         ModifierList.write(
-            writer, modifiers, item,
+            writer,
+            modifiers,
+            item,
             target = annotationTarget,
             includeDeprecated = true,
             runtimeAnnotationsOnly = !generateAnnotations,
@@ -168,20 +169,21 @@ class JavaStubWriter(
 
     private fun generateSuperClassDeclaration(cls: ClassItem) {
         if (cls.isEnum() || cls.isAnnotationType()) {
-            // No extends statement for enums and annotations; it's implied by the "enum" and "@interface" keywords
+            // No extends statement for enums and annotations; it's implied by the "enum" and
+            // "@interface" keywords
             return
         }
 
-        val superClass = if (preFiltered)
-            cls.superClassType()
-        else cls.filteredSuperClassType(filterReference)
+        val superClass =
+            if (preFiltered) cls.superClassType() else cls.filteredSuperClassType(filterReference)
 
         if (superClass != null && !superClass.isJavaLangObject()) {
             val qualifiedName = superClass.toTypeString()
             writer.print(" extends ")
 
             if (qualifiedName.contains("<")) {
-                // TODO: I need to push this into the model at filter-time such that clients don't need
+                // TODO: I need to push this into the model at filter-time such that clients don't
+                // need
                 // to remember to do this!!
                 val s = superClass.asClass()
                 if (s != null) {
@@ -201,13 +203,12 @@ class JavaStubWriter(
             return
         }
 
-        val interfaces = if (preFiltered)
-            cls.interfaceTypes().asSequence()
-        else cls.filteredInterfaceTypes(filterReference).asSequence()
+        val interfaces =
+            if (preFiltered) cls.interfaceTypes().asSequence()
+            else cls.filteredInterfaceTypes(filterReference).asSequence()
 
         if (interfaces.any()) {
-            if (cls.isInterface() && cls.superClassType() != null)
-                writer.print(", ")
+            if (cls.isInterface() && cls.superClassType() != null) writer.print(", ")
             else writer.print(" implements")
             interfaces.forEachIndexed { index, type ->
                 if (index > 0) {
@@ -219,10 +220,7 @@ class JavaStubWriter(
         }
     }
 
-    private fun generateTypeParameterList(
-        typeList: TypeParameterList,
-        addSpace: Boolean
-    ) {
+    private fun generateTypeParameterList(typeList: TypeParameterList, addSpace: Boolean) {
         // TODO: Do I need to map type variables?
 
         val typeListString = typeList.toString()
@@ -239,17 +237,11 @@ class JavaStubWriter(
         writeConstructor(constructor, constructor.superConstructor)
     }
 
-    private fun writeConstructor(
-        constructor: MethodItem,
-        superConstructor: MethodItem?
-    ) {
+    private fun writeConstructor(constructor: MethodItem, superConstructor: MethodItem?) {
         writer.println()
         appendDocumentation(constructor, writer, docStubs)
         appendModifiers(constructor, false)
-        generateTypeParameterList(
-            typeList = constructor.typeParameterList(),
-            addSpace = true
-        )
+        generateTypeParameterList(typeList = constructor.typeParameterList(), addSpace = true)
         writer.print(constructor.containingClass().simpleName())
 
         generateParameterList(constructor)
@@ -265,10 +257,15 @@ class JavaStubWriter(
         // Find any constructor in parent that we can compile against
         superConstructor?.let { it ->
             val parameters = it.parameters()
-            val invokeOnThis = constructor != null && constructor.containingClass() == it.containingClass()
+            val invokeOnThis =
+                constructor != null && constructor.containingClass() == it.containingClass()
             if (invokeOnThis || parameters.isNotEmpty()) {
-                val includeCasts = parameters.isNotEmpty() &&
-                    it.containingClass().constructors().filter { filterReference.test(it) }.size > 1
+                val includeCasts =
+                    parameters.isNotEmpty() &&
+                        it.containingClass()
+                            .constructors()
+                            .filter { filterReference.test(it) }
+                            .size > 1
                 if (invokeOnThis) {
                     writer.print("this(")
                 } else {
@@ -285,9 +282,13 @@ class JavaStubWriter(
                             val typeString = type.toErasedTypeString(it).replace("...", "[]")
                             writer.write("(")
                             if (type.asTypeParameter(superConstructor) != null) {
-                                // It's a type parameter: see if we should map the type back to the concrete
+                                // It's a type parameter: see if we should map the type back to the
+                                // concrete
                                 // type in this class
-                                val map = constructor?.containingClass()?.mapTypeVariables(it.containingClass())
+                                val map =
+                                    constructor
+                                        ?.containingClass()
+                                        ?.mapTypeVariables(it.containingClass())
                                 val cast = map?.get(type.toTypeString(context = it)) ?: typeString
                                 writer.write(cast)
                             } else {
@@ -299,7 +300,9 @@ class JavaStubWriter(
                     } else {
                         // Add cast for things like shorts and bytes
                         val typeString = type.toTypeString(context = it)
-                        if (typeString != "boolean" && typeString != "int" && typeString != "long") {
+                        if (
+                            typeString != "boolean" && typeString != "int" && typeString != "long"
+                        ) {
                             writer.write("(")
                             writer.write(typeString)
                             writer.write(")")
@@ -317,7 +320,8 @@ class JavaStubWriter(
     private fun generateMissingConstructors(cls: ClassItem) {
         val clsStubConstructor = cls.stubConstructor
         val constructors = cls.filteredConstructors(filterEmit)
-        // If the default stub constructor is not publicly visible then it won't be output during the normal visiting
+        // If the default stub constructor is not publicly visible then it won't be output during
+        // the normal visiting
         // so visit it specially to ensure that it is output.
         if (clsStubConstructor != null && !constructors.contains(clsStubConstructor)) {
             visitConstructor(clsStubConstructor)
@@ -329,7 +333,11 @@ class JavaStubWriter(
         writeMethod(method.containingClass(), method, false)
     }
 
-    private fun writeMethod(containingClass: ClassItem, method: MethodItem, movedFromInterface: Boolean) {
+    private fun writeMethod(
+        containingClass: ClassItem,
+        method: MethodItem,
+        movedFromInterface: Boolean
+    ) {
         val modifiers = method.modifiers
         val isEnum = containingClass.isEnum()
         val isAnnotation = containingClass.isAnnotationType()
@@ -346,7 +354,8 @@ class JavaStubWriter(
 
         // Need to filter out abstract from the modifiers list and turn it
         // into a concrete method to make the stub compile
-        val removeAbstract = modifiers.isAbstract() && (isEnum || isAnnotation) || movedFromInterface
+        val removeAbstract =
+            modifiers.isAbstract() && (isEnum || isAnnotation) || movedFromInterface
 
         appendModifiers(method, modifiers, removeAbstract, movedFromInterface)
         generateTypeParameterList(typeList = method.typeParameterList(), addSpace = true)
@@ -373,7 +382,11 @@ class JavaStubWriter(
             }
         }
 
-        if (modifiers.isAbstract() && !removeAbstract && !isEnum || isAnnotation || modifiers.isNative()) {
+        if (
+            modifiers.isAbstract() && !removeAbstract && !isEnum ||
+                isAnnotation ||
+                modifiers.isNative()
+        ) {
             writer.println(";")
         } else {
             writer.print(" { ")
@@ -393,16 +406,20 @@ class JavaStubWriter(
         appendDocumentation(field, writer, docStubs)
         appendModifiers(field, removeAbstract = false, removeFinal = false)
         writer.print(
-            field.type().toTypeString(
-                outerAnnotations = false,
-                innerAnnotations = generateAnnotations,
-                filter = filterReference
-            )
+            field
+                .type()
+                .toTypeString(
+                    outerAnnotations = false,
+                    innerAnnotations = generateAnnotations,
+                    filter = filterReference
+                )
         )
         writer.print(' ')
         writer.print(field.name())
         val needsInitialization =
-            field.modifiers.isFinal() && field.initialValue(true) == null && field.containingClass().isClass()
+            field.modifiers.isFinal() &&
+                field.initialValue(true) == null &&
+                field.containingClass().isClass()
         field.writeValueWithSemicolon(
             writer,
             allowDefaultValue = !needsInitialization,
@@ -430,11 +447,13 @@ class JavaStubWriter(
             }
             appendModifiers(parameter, false)
             writer.print(
-                parameter.type().toTypeString(
-                    outerAnnotations = false,
-                    innerAnnotations = generateAnnotations,
-                    filter = filterReference
-                )
+                parameter
+                    .type()
+                    .toTypeString(
+                        outerAnnotations = false,
+                        innerAnnotations = generateAnnotations,
+                        filter = filterReference
+                    )
             )
             writer.print(' ')
             val name = parameter.publicName() ?: parameter.name()
@@ -445,11 +464,12 @@ class JavaStubWriter(
 
     private fun generateThrowsList(method: MethodItem) {
         // Note that throws types are already sorted internally to help comparison matching
-        val throws = if (preFiltered) {
-            method.throwsTypes().asSequence()
-        } else {
-            method.filteredThrowsTypes(filterReference).asSequence()
-        }
+        val throws =
+            if (preFiltered) {
+                method.throwsTypes().asSequence()
+            } else {
+                method.filteredThrowsTypes(filterReference).asSequence()
+            }
         if (throws.any()) {
             writer.print(" throws ")
             throws.asSequence().sortedWith(ClassItem.fullNameComparator).forEachIndexed { i, type ->

@@ -33,34 +33,43 @@ class TextParameterItem(
     modifiers: TextModifiers,
     position: SourcePositionInfo
 ) :
-// TODO: We need to pass in parameter modifiers here (synchronized etc)
-        TextItem(codebase, position, modifiers = modifiers), ParameterItem {
+    // TODO: We need to pass in parameter modifiers here (synchronized etc)
+    TextItem(codebase, position, modifiers = modifiers),
+    ParameterItem {
 
-        init {
-            modifiers.setOwner(this)
-        }
-
-        override fun isVarArgs(): Boolean {
-            return type.toString().contains("...")
-        }
-
-        override val synthetic: Boolean get() = containingMethod.isEnumSyntheticMethod()
-        override fun type(): TextTypeItem = type
-        override fun name(): String = name
-        override fun publicName(): String? = publicName
-        override fun hasDefaultValue(): Boolean = hasDefaultValue
-        override fun isDefaultValueKnown(): Boolean = defaultValueBody != UNKNOWN_DEFAULT_VALUE
-        override fun defaultValue(): String? = defaultValueBody
-        override fun containingMethod(): MethodItem = containingMethod
-
-        override fun equals(other: Any?): Boolean {
-            if (this === other) return true
-            if (other !is ParameterItem) return false
-
-            return parameterIndex == other.parameterIndex
-        }
-
-        override fun hashCode(): Int = parameterIndex
-
-        override fun toString(): String = "parameter ${name()}"
+    init {
+        modifiers.setOwner(this)
     }
+
+    override fun isVarArgs(): Boolean {
+        return type.toString().contains("...")
+    }
+
+    override val synthetic: Boolean
+        get() = containingMethod.isEnumSyntheticMethod()
+
+    override fun type(): TextTypeItem = type
+
+    override fun name(): String = name
+
+    override fun publicName(): String? = publicName
+
+    override fun hasDefaultValue(): Boolean = hasDefaultValue
+
+    override fun isDefaultValueKnown(): Boolean = defaultValueBody != UNKNOWN_DEFAULT_VALUE
+
+    override fun defaultValue(): String? = defaultValueBody
+
+    override fun containingMethod(): MethodItem = containingMethod
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is ParameterItem) return false
+
+        return parameterIndex == other.parameterIndex
+    }
+
+    override fun hashCode(): Int = parameterIndex
+
+    override fun toString(): String = "parameter ${name()}"
+}

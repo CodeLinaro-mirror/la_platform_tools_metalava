@@ -20,9 +20,11 @@ class ApiParseException : Exception {
     private var line = 0
 
     internal constructor(message: String) : super(message)
+
     internal constructor(message: String, file: String, cause: Exception?) : super(message, cause) {
         this.file = file
     }
+
     internal constructor(message: String, tokenizer: ApiFile.Tokenizer) : super(message) {
         file = tokenizer.fileName
         line = tokenizer.line

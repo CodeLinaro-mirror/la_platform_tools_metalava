@@ -26,6 +26,7 @@ import com.intellij.psi.PsiAnnotationMethod
 import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiMethod
 import com.intellij.psi.util.PsiTypesUtil
+import java.io.StringWriter
 import org.intellij.lang.annotations.Language
 import org.jetbrains.kotlin.psi.KtNamedFunction
 import org.jetbrains.kotlin.psi.KtParameter
@@ -42,7 +43,6 @@ import org.jetbrains.uast.getParentOfType
 import org.jetbrains.uast.kotlin.KotlinUMethodWithFakeLightDelegate
 import org.jetbrains.uast.toUElement
 import org.jetbrains.uast.visitor.AbstractUastVisitor
-import java.io.StringWriter
 
 open class PsiMethodItem(
     override val codebase: PsiBasedCodebase,
@@ -70,10 +70,9 @@ open class PsiMethodItem(
     }
 
     /**
-     * If this item was created by filtering down a different codebase, this temporarily
-     * points to the original item during construction. This is used to let us initialize
-     * for example throws lists later, when all classes in the codebase have been
-     * initialized.
+     * If this item was created by filtering down a different codebase, this temporarily points to
+     * the original item during construction. This is used to let us initialize for example throws
+     * lists later, when all classes in the codebase have been initialized.
      */
     internal var source: PsiMethodItem? = null
 
@@ -83,6 +82,7 @@ open class PsiMethodItem(
     override var property: PsiPropertyItem? = null
 
     override fun name(): String = name
+
     override fun containingClass(): ClassItem = containingClass
 
     override fun equals(other: Any?): Boolean {
@@ -116,9 +116,11 @@ open class PsiMethodItem(
 
     override fun parameters(): List<PsiParameterItem> = parameters
 
-    override val synthetic: Boolean get() = isEnumSyntheticMethod()
+    override val synthetic: Boolean
+        get() = isEnumSyntheticMethod()
 
     private var superMethods: List<MethodItem>? = null
+
     override fun superMethods(): List<MethodItem> {
         if (superMethods == null) {
             val result = mutableListOf<MethodItem>()
@@ -133,8 +135,7 @@ open class PsiMethodItem(
         if (psiMethod.hasTypeParameters()) {
             return PsiTypeParameterList(
                 codebase,
-                psiMethod.typeParameterList
-                    ?: return TypeParameterList.NONE
+                psiMethod.typeParameterList ?: return TypeParameterList.NONE
             )
         } else {
             return TypeParameterList.NONE
@@ -178,11 +179,11 @@ open class PsiMethodItem(
     }
 
     override fun isKotlinProperty(): Boolean {
-        return psiMethod is UMethod && (
-            psiMethod.sourcePsi is KtProperty ||
+        return psiMethod is UMethod &&
+            (psiMethod.sourcePsi is KtProperty ||
                 psiMethod.sourcePsi is KtPropertyAccessor ||
-                psiMethod.sourcePsi is KtParameter && (psiMethod.sourcePsi as KtParameter).hasValOrVar()
-            )
+                psiMethod.sourcePsi is KtParameter &&
+                    (psiMethod.sourcePsi as KtParameter).hasValOrVar())
     }
 
     override fun findThrownExceptions(): Set<ClassItem> {
@@ -193,38 +194,44 @@ open class PsiMethodItem(
 
         val exceptions = mutableSetOf<ClassItem>()
 
-        method.accept(object : AbstractUastVisitor() {
-            override fun visitThrowExpression(node: UThrowExpression): Boolean {
-                val type = node.thrownExpression.getExpressionType()
-                if (type != null) {
-                    val exceptionClass = codebase.getType(type).asClass()
-                    if (exceptionClass != null && !isCaught(exceptionClass, node)) {
-                        exceptions.add(exceptionClass)
-                    }
-                }
-                return super.visitThrowExpression(node)
-            }
-
-            private fun isCaught(exceptionClass: ClassItem, node: UThrowExpression): Boolean {
-                var current: UElement = node
-                while (true) {
-                    val tryExpression = current.getParentOfType<UTryExpression>(
-                        UTryExpression::class.java, true, UMethod::class.java
-                    ) ?: return false
-
-                    for (catchClause in tryExpression.catchClauses) {
-                        for (type in catchClause.types) {
-                            val qualifiedName = type.canonicalText
-                            if (exceptionClass.extends(qualifiedName)) {
-                                return true
-                            }
+        method.accept(
+            object : AbstractUastVisitor() {
+                override fun visitThrowExpression(node: UThrowExpression): Boolean {
+                    val type = node.thrownExpression.getExpressionType()
+                    if (type != null) {
+                        val exceptionClass = codebase.getType(type).asClass()
+                        if (exceptionClass != null && !isCaught(exceptionClass, node)) {
+                            exceptions.add(exceptionClass)
                         }
                     }
+                    return super.visitThrowExpression(node)
+                }
 
-                    current = tryExpression
+                private fun isCaught(exceptionClass: ClassItem, node: UThrowExpression): Boolean {
+                    var current: UElement = node
+                    while (true) {
+                        val tryExpression =
+                            current.getParentOfType<UTryExpression>(
+                                UTryExpression::class.java,
+                                true,
+                                UMethod::class.java
+                            )
+                                ?: return false
+
+                        for (catchClause in tryExpression.catchClauses) {
+                            for (type in catchClause.types) {
+                                val qualifiedName = type.canonicalText
+                                if (exceptionClass.extends(qualifiedName)) {
+                                    return true
+                                }
+                            }
+                        }
+
+                        current = tryExpression
+                    }
                 }
             }
-        })
+        )
 
         return exceptions
     }
@@ -241,14 +248,11 @@ open class PsiMethodItem(
     override fun defaultValue(): String {
         return when (psiMethod) {
             is UAnnotationMethod -> {
-                psiMethod.uastDefaultValue?.let {
-                    codebase.printer.toSourceString(it)
-                } ?: ""
+                psiMethod.uastDefaultValue?.let { codebase.printer.toSourceString(it) } ?: ""
             }
             is PsiAnnotationMethod -> {
-                psiMethod.defaultValue?.let {
-                    codebase.printer.toSourceExpression(it, this)
-                } ?: super.defaultValue()
+                psiMethod.defaultValue?.let { codebase.printer.toSourceExpression(it, this) }
+                    ?: super.defaultValue()
             }
             else -> super.defaultValue()
         }
@@ -303,7 +307,9 @@ open class PsiMethodItem(
 
         val modifierString = StringWriter()
         ModifierList.write(
-            modifierString, method.modifiers, method,
+            modifierString,
+            method.modifiers,
+            method,
             target = AnnotationTarget.INTERNAL,
             removeAbstract = false,
             removeFinal = false,
@@ -331,7 +337,9 @@ open class PsiMethodItem(
 
             val parameterModifierString = StringWriter()
             ModifierList.write(
-                parameterModifierString, parameter.modifiers, parameter,
+                parameterModifierString,
+                parameter.modifiers,
+                parameter,
                 target = AnnotationTarget.INTERNAL
             )
             sb.append(parameterModifierString.toString())
@@ -376,46 +384,56 @@ open class PsiMethodItem(
             assert(!psiMethod.isConstructor)
             // UAST workaround: @JvmName for UMethod with fake LC PSI
             // TODO: https://youtrack.jetbrains.com/issue/KTIJ-25133
-            val name = if (psiMethod is KotlinUMethodWithFakeLightDelegate) {
-                psiMethod.sourcePsi?.annotationEntries?.find { annoEntry ->
-                    val text = annoEntry.typeReference?.text ?: return@find false
-                    JvmName::class.qualifiedName?.contains(text) == true
-                }?.toUElement(UAnnotation::class.java)
-                    ?.takeIf {
-                        // Above `find` deliberately avoids resolution and uses verbatim text.
-                        // Below, we need annotation value anyway, but just double-check
-                        // if the converted annotation is indeed the resolved @JvmName
-                        it.qualifiedName == JvmName::class.qualifiedName
-                    }
-                    ?.findAttributeValue("name")
-                    ?.evaluate() as? String
-                    ?: psiMethod.name
-            } else {
-                psiMethod.name
-            }
+            val name =
+                if (psiMethod is KotlinUMethodWithFakeLightDelegate) {
+                    psiMethod.sourcePsi
+                        ?.annotationEntries
+                        ?.find { annoEntry ->
+                            val text = annoEntry.typeReference?.text ?: return@find false
+                            JvmName::class.qualifiedName?.contains(text) == true
+                        }
+                        ?.toUElement(UAnnotation::class.java)
+                        ?.takeIf {
+                            // Above `find` deliberately avoids resolution and uses verbatim text.
+                            // Below, we need annotation value anyway, but just double-check
+                            // if the converted annotation is indeed the resolved @JvmName
+                            it.qualifiedName == JvmName::class.qualifiedName
+                        }
+                        ?.findAttributeValue("name")
+                        ?.evaluate() as? String
+                        ?: psiMethod.name
+                } else {
+                    psiMethod.name
+                }
             val commentText = javadoc(psiMethod)
             val modifiers = modifiers(codebase, psiMethod, commentText)
-            if (modifiers.isFinal() && containingClass.modifiers.isFinal()) {
-                // The containing class is final, so it is implied that every method is final as well.
-                // No need to apply 'final' to each method. (We do it here rather than just in the
-                // signature emit code since we want to make sure that the signature comparison
-                // methods with super methods also consider this method non-final.)
-                modifiers.setFinal(false)
-            }
             val parameters = parameterList(codebase, psiMethod)
             val psiReturnType = psiMethod.returnType
             val returnType = codebase.getType(psiReturnType!!)
-            val method = PsiMethodItem(
-                codebase = codebase,
-                psiMethod = psiMethod,
-                containingClass = containingClass,
-                name = name,
-                documentation = commentText,
-                modifiers = modifiers,
-                returnType = returnType,
-                parameters = parameters
-            )
+            val method =
+                PsiMethodItem(
+                    codebase = codebase,
+                    psiMethod = psiMethod,
+                    containingClass = containingClass,
+                    name = name,
+                    documentation = commentText,
+                    modifiers = modifiers,
+                    returnType = returnType,
+                    parameters = parameters
+                )
             method.modifiers.setOwner(method)
+            if (modifiers.isFinal() && containingClass.modifiers.isFinal()) {
+                // The containing class is final, so it is implied that every method is final as
+                // well.
+                // No need to apply 'final' to each method. (We do it here rather than just in the
+                // signature emit code since we want to make sure that the signature comparison
+                // methods with super methods also consider this method non-final.)
+                if (!containingClass.isEnum() && !method.isEnumSyntheticMethod()) {
+                    // Unless this is a non-synthetic enum member
+                    // See: https://youtrack.jetbrains.com/issue/KT-57567
+                    modifiers.setFinal(false)
+                }
+            }
 
             return method
         }
@@ -425,16 +443,17 @@ open class PsiMethodItem(
             containingClass: PsiClassItem,
             original: PsiMethodItem
         ): PsiMethodItem {
-            val method = PsiMethodItem(
-                codebase = codebase,
-                psiMethod = original.psiMethod,
-                containingClass = containingClass,
-                name = original.name(),
-                documentation = original.documentation,
-                modifiers = PsiModifierItem.create(codebase, original.modifiers),
-                returnType = PsiTypeItem.create(codebase, original.returnType),
-                parameters = PsiParameterItem.create(codebase, original.parameters())
-            )
+            val method =
+                PsiMethodItem(
+                    codebase = codebase,
+                    psiMethod = original.psiMethod,
+                    containingClass = containingClass,
+                    name = original.name(),
+                    documentation = original.documentation,
+                    modifiers = PsiModifierItem.create(codebase, original.modifiers),
+                    returnType = PsiTypeItem.create(codebase, original.returnType),
+                    parameters = PsiParameterItem.create(codebase, original.parameters())
+                )
             method.modifiers.setOwner(method)
             method.source = original
             method.inheritedMethod = original.inheritedMethod
@@ -469,7 +488,8 @@ open class PsiMethodItem(
             }
 
             // We're sorting the names here even though outputs typically do their own sorting,
-            // since for example the MethodItem.sameSignature check wants to do an element-by-element
+            // since for example the MethodItem.sameSignature check wants to do an
+            // element-by-element
             // comparison to see if the signature matches, and that should match overrides even if
             // they specify their elements in different orders.
             result.sortWith(ClassItem.fullNameComparator)
@@ -477,6 +497,7 @@ open class PsiMethodItem(
         }
     }
 
-    override fun toString(): String = "${if (isConstructor()) "constructor" else "method"} ${
+    override fun toString(): String =
+        "${if (isConstructor()) "constructor" else "method"} ${
     containingClass.qualifiedName()}.${name()}(${parameters().joinToString { it.type().toSimpleType() }})"
 }

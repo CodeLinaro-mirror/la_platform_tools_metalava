@@ -16,33 +16,43 @@
 
 package com.android.tools.metalava.model.text
 
-import org.junit.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
+import org.junit.Test
 
 class TextMethodItemTest {
     @Test
     fun `text method item return type is non-null`() {
-        val codebase = ApiFile.parseApi(
-            "test",
-            """
+        val codebase =
+            ApiFile.parseApi(
+                "test",
+                """
             package test.pkg {
               public class Foo {
                 ctor public Foo();
                 method public void bar();
               }
             }
-            """.trimIndent(),
-            false
-        )
+            """
+                    .trimIndent(),
+                false
+            )
 
         val cls = codebase.findClass("test.pkg.Foo")!!
         val ctorItem = cls.findMethod("Foo", "")!!
         val methodItem = cls.findMethod("bar", "")!!
 
         assertNotNull(ctorItem.returnType())
-        assertEquals("test.pkg.Foo", ctorItem.returnType().toString(), "Return type of the constructor item must be the containing class.")
+        assertEquals(
+            "test.pkg.Foo",
+            ctorItem.returnType().toString(),
+            "Return type of the constructor item must be the containing class."
+        )
         assertNotNull(methodItem.returnType())
-        assertEquals("void", methodItem.returnType().toString(), "Return type of an method item should match the expected value.")
+        assertEquals(
+            "void",
+            methodItem.returnType().toString(),
+            "Return type of an method item should match the expected value."
+        )
     }
 }

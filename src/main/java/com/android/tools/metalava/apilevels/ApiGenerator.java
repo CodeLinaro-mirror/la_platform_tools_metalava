@@ -102,20 +102,23 @@ public class ApiGenerator {
         return api;
     }
 
-
     /**
      * Generates an API version history file based on the API surfaces of the versions provided.
      *
-     * @param apiVersions A list of API signature files, ordered from oldest API version to newest.
+     * @param pastApiVersions A list of API signature files, ordered from oldest API version to newest.
+     * @param currentApiVersion A codebase representing the current API surface.
      * @param outputFile Path of the JSON file to write output to.
-     * @param apiVersionNames The names of the API versions, ordered starting from version 1.
+     * @param apiVersionNames The names of the API versions, ordered starting from version 1. This should include the
+     *                        names of all the [pastApiVersions], then the name of the [currentVersion].
      * @param inputKotlinStyleNulls Whether to assume the signature files are formatted as Kotlin-style nulls.
      */
-    public static void generateJson(@NotNull List<File> apiVersions,
+    public static void generateJson(@NotNull List<File> pastApiVersions,
+                                    @NotNull Codebase currentApiVersion,
                                     @NotNull File outputFile,
                                     @NotNull List<String> apiVersionNames,
                                     boolean inputKotlinStyleNulls) {
-        Api api = createApiFromSignatureFiles(apiVersions, inputKotlinStyleNulls);
+        Api api = createApiFromSignatureFiles(pastApiVersions, inputKotlinStyleNulls);
+        AddApisFromCodebaseKt.addApisFromCodebase(api, apiVersionNames.size(), currentApiVersion, false);
         ApiJsonPrinter printer = new ApiJsonPrinter(apiVersionNames);
         printer.print(api, outputFile);
     }

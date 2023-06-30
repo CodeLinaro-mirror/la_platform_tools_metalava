@@ -16,8 +16,8 @@
 
 package com.android.tools.metalava
 
-import org.junit.Test
 import java.io.File
+import org.junit.Test
 
 /** Tests around symlinks in source trees */
 class SymlinkTest : DriverTest() {
@@ -37,7 +37,8 @@ class SymlinkTest : DriverTest() {
         val before = System.getProperty("user.dir")
         try {
             check(
-                expectedIssues = "TESTROOT/src/test/pkg/sub1/sub2/sub3: info: Ignoring symlink during source file discovery directory traversal [IgnoringSymlink]",
+                expectedIssues =
+                    "TESTROOT/src/test/pkg/sub1/sub2/sub3: info: Ignoring symlink during source file discovery directory traversal [IgnoringSymlink]",
                 projectSetup = { dir ->
                     // Add a symlink from deep in the source tree back out to the
                     // root, which makes a cycle
@@ -50,8 +51,9 @@ class SymlinkTest : DriverTest() {
                     java.nio.file.Files.createSymbolicLink(git, dir.toPath())
 
                     // Write implicit source files to be discovered by our crawl.
-                    File(dir, "src/test/pkg/Foo.java").writeText(
-                        """
+                    File(dir, "src/test/pkg/Foo.java")
+                        .writeText(
+                            """
                         package test.pkg;
                         import android.annotation.Nullable;
                         import android.annotation.NonNull;
@@ -63,9 +65,10 @@ class SymlinkTest : DriverTest() {
                             @Nullable public Double method3(@NonNull Double factor1, @NonNull Double factor2) { }
                         }
                         """
-                    )
-                    File(dir, "src/test/pkg/sub1/package.html").writeText(
-                        """
+                        )
+                    File(dir, "src/test/pkg/sub1/package.html")
+                        .writeText(
+                            """
                         <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
                         <!-- not a body tag: <body> -->
                         <html>
@@ -77,17 +80,15 @@ class SymlinkTest : DriverTest() {
                         </BODY>
                         </html>
                         """
-                    )
+                        )
                 },
                 // Empty source path: don't pick up random directory stuff
-                extraArguments = arrayOf(
-                    "--pwd", temporaryFolder.root.path,
-                    ARG_SOURCE_PATH, ""
-                ),
+                extraArguments = arrayOf("--pwd", temporaryFolder.root.path, ARG_SOURCE_PATH, ""),
                 checkCompilation = false, // needs androidx.annotations in classpath
-                stubFiles = arrayOf(
-                    java(
-                        """
+                stubFiles =
+                    arrayOf(
+                        java(
+                            """
                         package test.pkg;
                         @SuppressWarnings({"unchecked", "deprecation", "all"})
                         public class Foo {
@@ -102,8 +103,8 @@ class SymlinkTest : DriverTest() {
                         public java.lang.Double method3(@android.annotation.NonNull java.lang.Double factor1, @android.annotation.NonNull java.lang.Double factor2) { throw new RuntimeException("Stub!"); }
                         }
                         """
+                        )
                     )
-                )
             )
         } finally {
             System.setProperty("user.dir", before)

@@ -32,7 +32,8 @@ class TextTypeParameterList(
 
     override fun typeParameterNames(): List<String> {
         if (typeParameterNames == null) {
-//     TODO: Delete this method now that I'm doing it differently: typeParameterNames(typeListString)
+            //     TODO: Delete this method now that I'm doing it differently:
+            // typeParameterNames(typeListString)
             val typeParameters = typeParameters()
             val names = ArrayList<String>(typeParameters.size)
             for (parameter in typeParameters) {
@@ -54,7 +55,11 @@ class TextTypeParameterList(
     }
 
     companion object {
-        fun create(codebase: TextCodebase, owner: TypeParameterListOwner?, typeListString: String): TypeParameterList {
+        fun create(
+            codebase: TextCodebase,
+            owner: TypeParameterListOwner?,
+            typeListString: String
+        ): TypeParameterList {
             return TextTypeParameterList(codebase, owner, typeListString)
         }
 
@@ -79,12 +84,13 @@ class TextTypeParameterList(
                         return list
                     }
                 } else if (c == ',') {
-                    expect = if (balance == 1) {
-                        add(list, s, start, i)
-                        true
-                    } else {
-                        false
-                    }
+                    expect =
+                        if (balance == 1) {
+                            add(list, s, start, i)
+                            true
+                        } else {
+                            false
+                        }
                 } else if (expect && balance == 1) {
                     start = i
                     expect = false

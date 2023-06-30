@@ -31,8 +31,8 @@ import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 
 /**
- * A [ClassItem] implementation which is just a wrapper around another variable [ClassItem].
- * This allows the class to start as an empty stub which is later be swapped out for a PSI class.
+ * A [ClassItem] implementation which is just a wrapper around another variable [ClassItem]. This
+ * allows the class to start as an empty stub which is later be swapped out for a PSI class.
  *
  * Defers to its [wrappedItem] for implementations of all methods and properties.
  */
@@ -41,7 +41,9 @@ class WrappedClassItem(
 ) : ClassItem, DefaultItem() {
     override var emit: Boolean
         get() = wrappedItem.emit
-        set(value) { wrappedItem.emit = value }
+        set(value) {
+            wrappedItem.emit = value
+        }
 
     override val codebase: Codebase
         get() = wrappedItem.codebase
@@ -51,23 +53,33 @@ class WrappedClassItem(
 
     override var originallyHidden: Boolean
         get() = wrappedItem.originallyHidden
-        set(value) { wrappedItem.originallyHidden = value }
+        set(value) {
+            wrappedItem.originallyHidden = value
+        }
 
     override var hidden: Boolean
         get() = wrappedItem.hidden
-        set(value) { wrappedItem.hidden = value }
+        set(value) {
+            wrappedItem.hidden = value
+        }
 
     override var removed: Boolean
         get() = wrappedItem.removed
-        set(value) { wrappedItem.removed = value }
+        set(value) {
+            wrappedItem.removed = value
+        }
 
     override var deprecated: Boolean
         get() = wrappedItem.deprecated
-        set(value) { wrappedItem.deprecated = value }
+        set(value) {
+            wrappedItem.deprecated = value
+        }
 
     override var docOnly: Boolean
         get() = wrappedItem.docOnly
-        set(value) { wrappedItem.docOnly = value }
+        set(value) {
+            wrappedItem.docOnly = value
+        }
 
     override val synthetic: Boolean
         get() = wrappedItem.synthetic
@@ -76,7 +88,9 @@ class WrappedClassItem(
 
     override var documentation: String
         get() = wrappedItem.documentation
-        set(value) { wrappedItem.documentation = value }
+        set(value) {
+            wrappedItem.documentation = value
+        }
 
     override fun findTagDocumentation(tag: String, value: String?): String? =
         wrappedItem.findTagDocumentation(tag, value)
@@ -98,15 +112,21 @@ class WrappedClassItem(
 
     override var hasPrivateConstructor: Boolean
         get() = wrappedItem.hasPrivateConstructor
-        set(value) { wrappedItem.hasPrivateConstructor = value }
+        set(value) {
+            wrappedItem.hasPrivateConstructor = value
+        }
 
     override var artifact: String?
         get() = wrappedItem.artifact
-        set(value) { wrappedItem.artifact = value }
+        set(value) {
+            wrappedItem.artifact = value
+        }
 
     override var stubConstructor: ConstructorItem?
         get() = wrappedItem.stubConstructor
-        set(value) { wrappedItem.stubConstructor = value }
+        set(value) {
+            wrappedItem.stubConstructor = value
+        }
 
     override fun simpleName(): String = wrappedItem.simpleName()
 
@@ -132,7 +152,8 @@ class WrappedClassItem(
 
     override fun constructors(): List<ConstructorItem> = wrappedItem.constructors()
 
-    override fun hasImplicitDefaultConstructor(): Boolean = wrappedItem.hasImplicitDefaultConstructor()
+    override fun hasImplicitDefaultConstructor(): Boolean =
+        wrappedItem.hasImplicitDefaultConstructor()
 
     override fun methods(): List<MethodItem> = wrappedItem.methods()
 
@@ -145,6 +166,7 @@ class WrappedClassItem(
     override fun isAnnotationType(): Boolean = wrappedItem.isAnnotationType()
 
     override fun isEnum(): Boolean = wrappedItem.isEnum()
+
     override fun containingClass(): ClassItem? = wrappedItem.containingClass()
 
     override fun containingPackage(): PackageItem = wrappedItem.containingPackage()

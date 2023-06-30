@@ -21,11 +21,6 @@ import org.junit.Test
 class UastTestK1 : UastTestBase() {
 
     @Test
-    fun `Kotlin language level -- K1`() {
-        `Kotlin language level`(isK2 = false)
-    }
-
-    @Test
     fun `Test RequiresOptIn and OptIn -- K1`() {
         `Test RequiresOptIn and OptIn`(isK2 = false)
     }
@@ -34,7 +29,8 @@ class UastTestK1 : UastTestBase() {
     fun `renamed via @JvmName -- K1`() {
         `renamed via @JvmName`(
             isK2 = false,
-            api = """
+            api =
+                """
                 // Signature format: 4.0
                 package test.pkg {
                   public final class ColorRamp {

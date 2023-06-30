@@ -33,17 +33,16 @@ interface ParameterItem : Item {
     val parameterIndex: Int
 
     /**
-     * The public name of this parameter. In Kotlin, names are part of the
-     * public API; in Java they are not. In Java, you can annotate a
-     * parameter with {@literal @ParameterName("foo")} to name the parameter
-     * something (potentially different from the actual code parameter name).
+     * The public name of this parameter. In Kotlin, names are part of the public API; in Java they
+     * are not. In Java, you can annotate a parameter with {@literal @ParameterName("foo")} to name
+     * the parameter something (potentially different from the actual code parameter name).
      */
     fun publicName(): String?
 
     /**
-     * Returns whether this parameter has a default value. In Kotlin, this is supported directly;
-     * in Java, it's supported via a special annotation, {@literal @DefaultValue("source"). This
-     * does not necessarily imply that the default value is accessible, and we know the body of the
+     * Returns whether this parameter has a default value. In Kotlin, this is supported directly; in
+     * Java, it's supported via a special annotation, {@literal @DefaultValue("source"). This does
+     * not necessarily imply that the default value is accessible, and we know the body of the
      * default value.
      *
      * @see isDefaultValueKnown
@@ -63,19 +62,16 @@ interface ParameterItem : Item {
     /**
      * Returns the default value.
      *
-     * **This method should only be called if [isDefaultValueKnown] returned true!** (This
-     * is necessary since the null return value is a valid default value separate from
-     * no default value specified.)
+     * **This method should only be called if [isDefaultValueKnown] returned true!** (This is
+     * necessary since the null return value is a valid default value separate from no default value
+     * specified.)
      *
-     * The default value is the source string
-     * literal representation of the value, e.g. strings would be surrounded
-     * by quotes, Booleans are the strings "true" or "false", and so on.
+     * The default value is the source string literal representation of the value, e.g. strings
+     * would be surrounded by quotes, Booleans are the strings "true" or "false", and so on.
      */
     fun defaultValue(): String?
 
-    /**
-     * Whether this is a varargs parameter
-     */
+    /** Whether this is a varargs parameter */
     fun isVarArgs(): Boolean
 
     /** The property declared by this parameter; inverse of [PropertyItem.constructorParameter] */
@@ -118,8 +114,11 @@ interface ParameterItem : Item {
         return modifiers.hasNullnessInfo()
     }
 
-    override fun containingClass(strict: Boolean): ClassItem? = containingMethod().containingClass(false)
-    override fun containingPackage(strict: Boolean): PackageItem? = containingMethod().containingPackage(false)
+    override fun containingClass(strict: Boolean): ClassItem? =
+        containingMethod().containingClass(false)
+
+    override fun containingPackage(strict: Boolean): PackageItem? =
+        containingMethod().containingPackage(false)
 
     // TODO: modifier list
 }

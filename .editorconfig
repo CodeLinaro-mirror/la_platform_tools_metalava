@@ -1,2 +1,0 @@
-[*.{kt,kts}]
-ktlint_disabled_rules = trailing-comma-on-call-site,trailing-comma-on-declaration-site,multiline-if-else,argument-list-wrapping,spacing-between-declarations-with-comments,spacing-between-declarations-with-annotations

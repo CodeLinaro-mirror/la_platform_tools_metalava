@@ -29,32 +29,37 @@ import com.android.tools.metalava.model.SourceFileItem
 
 open class ItemVisitor(
     /**
-     * Whether constructors should be visited as part of a [#visitMethod] call
-     * instead of just a [#visitConstructor] call. Helps simplify visitors that
-     * don't care to distinguish between the two cases. Defaults to true.
+     * Whether constructors should be visited as part of a [#visitMethod] call instead of just a
+     * [#visitConstructor] call. Helps simplify visitors that don't care to distinguish between the
+     * two cases. Defaults to true.
      */
     val visitConstructorsAsMethods: Boolean = true,
     /**
-     * Whether inner classes should be visited "inside" a class; when this property
-     * is true, inner classes are visited before the [#afterVisitClass] method is
-     * called; when false, it's done afterwards. Defaults to false.
+     * Whether inner classes should be visited "inside" a class; when this property is true, inner
+     * classes are visited before the [#afterVisitClass] method is called; when false, it's done
+     * afterwards. Defaults to false.
      */
     val nestInnerClasses: Boolean = false,
-    /**
-     * Whether to skip empty packages
-     */
+    /** Whether to skip empty packages */
     val skipEmptyPackages: Boolean = false
 ) {
 
     open fun skip(item: Item): Boolean = false
 
-    /** Visits the item. This is always called before other more specialized visit methods, such as [visitClass]. */
+    /**
+     * Visits the item. This is always called before other more specialized visit methods, such as
+     * [visitClass].
+     */
     open fun visitItem(item: Item) {}
 
     open fun visitCodebase(codebase: Codebase) {}
+
     open fun visitPackage(pkg: PackageItem) {}
+
     open fun visitSourceFile(sourceFile: SourceFileItem) {}
+
     open fun visitClass(cls: ClassItem) {}
+
     open fun visitConstructor(constructor: ConstructorItem) {
         if (visitConstructorsAsMethods) {
             visitMethod(constructor)
@@ -62,15 +67,23 @@ open class ItemVisitor(
     }
 
     open fun visitField(field: FieldItem) {}
+
     open fun visitMethod(method: MethodItem) {}
+
     open fun visitParameter(parameter: ParameterItem) {}
+
     open fun visitProperty(property: PropertyItem) {}
 
     open fun afterVisitItem(item: Item) {}
+
     open fun afterVisitCodebase(codebase: Codebase) {}
+
     open fun afterVisitPackage(pkg: PackageItem) {}
+
     open fun afterVisitSourceFile(sourceFile: SourceFileItem) {}
+
     open fun afterVisitClass(cls: ClassItem) {}
+
     open fun afterVisitConstructor(constructor: ConstructorItem) {
         if (visitConstructorsAsMethods) {
             afterVisitMethod(constructor)
@@ -78,7 +91,10 @@ open class ItemVisitor(
     }
 
     open fun afterVisitField(field: FieldItem) {}
+
     open fun afterVisitMethod(method: MethodItem) {}
+
     open fun afterVisitParameter(parameter: ParameterItem) {}
+
     open fun afterVisitProperty(property: PropertyItem) {}
 }

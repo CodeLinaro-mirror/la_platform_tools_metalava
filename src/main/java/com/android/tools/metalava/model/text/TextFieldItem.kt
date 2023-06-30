@@ -54,10 +54,16 @@ class TextFieldItem(
     override fun toString(): String = "field ${containingClass().fullName()}.${name()}"
 
     override fun duplicate(targetContainingClass: ClassItem): TextFieldItem {
-        val duplicated = TextFieldItem(
-            codebase, name(), targetContainingClass as TextClassItem,
-            modifiers.duplicate(), type, constantValue, position
-        )
+        val duplicated =
+            TextFieldItem(
+                codebase,
+                name(),
+                targetContainingClass as TextClassItem,
+                modifiers.duplicate(),
+                type,
+                constantValue,
+                position
+            )
         duplicated.inheritedFrom = containingClass()
         duplicated.inheritedField = inheritedField
 
@@ -79,7 +85,9 @@ class TextFieldItem(
     override var inheritedField: Boolean = false
 
     private var isEnumConstant = false
+
     override fun isEnumConstant(): Boolean = isEnumConstant
+
     fun setEnumConstant(isEnumConstant: Boolean) {
         this.isEnumConstant = isEnumConstant
     }

@@ -16,13 +16,13 @@
 
 package com.android.tools.metalava
 
+import java.io.File
+import kotlin.text.Charsets.UTF_8
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import java.io.File
-import kotlin.text.Charsets.UTF_8
 
 class RewriteAnnotationsTest : DriverTest() {
     @Test
@@ -32,12 +32,9 @@ class RewriteAnnotationsTest : DriverTest() {
         val target = temporaryFolder.newFolder()
         runDriver(
             ARG_NO_COLOR,
-            ARG_NO_BANNER,
-
             ARG_COPY_ANNOTATIONS,
             source.path,
             target.path,
-
             ARG_CLASS_PATH,
             getAndroidJar().path
         )
@@ -85,7 +82,9 @@ class RewriteAnnotationsTest : DriverTest() {
             @Retention(CLASS)
             @Target({METHOD, PARAMETER, FIELD})
             @interface RecentlyNullable {}
-            """.trimIndent().trim(),
+            """
+                .trimIndent()
+                .trim(),
             recentlyNull.readText(UTF_8).trim().replace("\r\n", "\n")
         )
     }
@@ -119,12 +118,9 @@ class RewriteAnnotationsTest : DriverTest() {
         assertThrows(IllegalStateException::class.java) {
             runDriver(
                 ARG_NO_COLOR,
-                ARG_NO_BANNER,
-
                 ARG_COPY_ANNOTATIONS,
                 source.path,
                 target.path,
-
                 ARG_CLASS_PATH,
                 getAndroidJar().path
             )

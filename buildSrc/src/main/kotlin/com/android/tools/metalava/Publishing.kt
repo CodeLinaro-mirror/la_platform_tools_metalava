@@ -16,10 +16,10 @@
 
 package com.android.tools.metalava
 
+import java.io.File
 import org.gradle.api.Project
 import org.gradle.api.tasks.TaskProvider
 import org.gradle.api.tasks.bundling.Zip
-import java.io.File
 
 const val CREATE_ARCHIVE_TASK = "createArchive"
 
@@ -35,9 +35,11 @@ fun configurePublishingArchive(
         it.group = "publishing"
 
         it.from("${distributionDirectory.canonicalPath}/repo")
-        it.archiveFileName.set(project.provider {
-            "per-project-zips/${project.group}-${project.name}-all-$buildId-${project.version}.zip"
-        })
+        it.archiveFileName.set(
+            project.provider {
+                "per-project-zips/${project.group}-${project.name}-all-$buildId-${project.version}.zip"
+            }
+        )
         it.destinationDirectory.set(distributionDirectory)
         it.dependsOn("publish${publicationName}PublicationTo${repositoryName}Repository")
     }

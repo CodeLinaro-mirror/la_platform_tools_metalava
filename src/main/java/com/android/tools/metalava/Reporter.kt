@@ -34,44 +34,42 @@ import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiModifierListOwner
 import com.intellij.psi.PsiNameIdentifierOwner
 import com.intellij.psi.impl.light.LightElement
+import java.io.File
+import java.io.PrintWriter
 import org.jetbrains.kotlin.psi.KtModifierListOwner
 import org.jetbrains.uast.UClass
 import org.jetbrains.uast.UElement
-import java.io.File
-import java.io.PrintWriter
 
 /**
- * "Global" [Reporter] used by most operations.
- * Certain operations, such as api-lint and compatibility check, may use a custom [Reporter]
+ * "Global" [Reporter] used by most operations. Certain operations, such as api-lint and
+ * compatibility check, may use a custom [Reporter]
  */
 lateinit var reporter: Reporter
 
 enum class Severity(private val displayName: String) {
     INHERIT("inherit"),
-
     HIDDEN("hidden"),
 
     /**
-     * Information level are for issues that are informational only; may or
-     * may not be a problem.
+     * Information level are for issues that are informational only; may or may not be a problem.
      */
     INFO("info"),
 
     /**
-     * Lint level means that we encountered inconsistent or broken documentation.
-     * These should be resolved, but don't impact API compatibility.
+     * Lint level means that we encountered inconsistent or broken documentation. These should be
+     * resolved, but don't impact API compatibility.
      */
     LINT("lint"),
 
     /**
-     * Warning level means that we encountered some incompatible or inconsistent
-     * API change. These must be resolved to preserve API compatibility.
+     * Warning level means that we encountered some incompatible or inconsistent API change. These
+     * must be resolved to preserve API compatibility.
      */
     WARNING("warning"),
 
     /**
-     * Error level means that we encountered severe trouble and were unable to
-     * output the requested documentation.
+     * Error level means that we encountered severe trouble and were unable to output the requested
+     * documentation.
      */
     ERROR("error");
 
@@ -84,17 +82,19 @@ class Reporter(
     private val customBaseline: Baseline?,
 
     /**
-     * An error message associated with this [Reporter], which should be shown to the user
-     * when metalava finishes with errors.
+     * An error message associated with this [Reporter], which should be shown to the user when
+     * metalava finishes with errors.
      */
     private val errorMessage: String?
 ) {
     private var errors = mutableListOf<String>()
     private var warningCount = 0
-    val totalCount get() = errors.size + warningCount
+    val totalCount
+        get() = errors.size + warningCount
 
     /** The number of errors. */
-    val errorCount get() = errors.size
+    val errorCount
+        get() = errors.size
 
     /** Returns whether any errors have been detected. */
     fun hasErrors(): Boolean = errors.size > 0
@@ -140,14 +140,18 @@ class Reporter(
         }
 
         fun dispatch(
-            which: (severity: Severity, location: String?, message: String, id: Issues.Issue) -> Boolean
-        ) = when {
-            psi != null -> which(severity, elementToLocation(psi), message, id)
-            item is PsiItem -> which(severity, elementToLocation(item.psi()), message, id)
-            item is TextItem ->
-                which(severity, (item as? TextItem)?.position.toString(), message, id)
-            else -> which(severity, null as String?, message, id)
-        }
+            which:
+                (
+                    severity: Severity, location: String?, message: String, id: Issues.Issue
+                ) -> Boolean
+        ) =
+            when {
+                psi != null -> which(severity, elementToLocation(psi), message, id)
+                item is PsiItem -> which(severity, elementToLocation(item.psi()), message, id)
+                item is TextItem ->
+                    which(severity, (item as? TextItem)?.position.toString(), message, id)
+                else -> which(severity, null as String?, message, id)
+            }
 
         // Optionally write to the --report-even-if-suppressed file.
         dispatch(this::reportEvenIfSuppressed)
@@ -222,8 +226,11 @@ class Reporter(
             return true
         }
 
-        if (message != null && value.startsWith(id) && value.endsWith(message) &&
-            (value == "$id:$message" || value == "$id: $message")
+        if (
+            message != null &&
+                value.startsWith(id) &&
+                value.endsWith(message) &&
+                (value == "$id:$message" || value == "$id: $message")
         ) {
             return true
         }
@@ -254,16 +261,17 @@ class Reporter(
         element ?: return null
         val psiFile = element.containingFile ?: return null
         val virtualFile = psiFile.virtualFile ?: return null
-        val virtualFileAbsolutePath = try {
-            virtualFile.toNioPath().toAbsolutePath()
-        } catch (e: UnsupportedOperationException) {
-            return null
-        }
+        val virtualFileAbsolutePath =
+            try {
+                virtualFile.toNioPath().toAbsolutePath()
+            } catch (e: UnsupportedOperationException) {
+                return null
+            }
 
         // b/255575766: Note that [relativize] requires two paths to compare to have same types:
         // either both of them are absolute paths or both of them are not absolute paths.
-        val path = rootFolder?.toPath()?.relativize(virtualFileAbsolutePath)
-            ?: virtualFileAbsolutePath
+        val path =
+            rootFolder?.toPath()?.relativize(virtualFileAbsolutePath) ?: virtualFileAbsolutePath
         val pathString = path.toString()
 
         // Unwrap UAST for accurate Kotlin line numbers (UAST synthesizes text offsets sometimes)
@@ -272,17 +280,18 @@ class Reporter(
         // Skip doc comments for classes, methods and fields by pointing at the line where the
         // element's name is or falling back to the first line of its modifier list (which may
         // include annotations) or lastly to the start of the element itself
-        val rangeElement = (sourceElement as? PsiNameIdentifierOwner)?.nameIdentifier
-            ?: (sourceElement as? KtModifierListOwner)?.modifierList
-            ?: (sourceElement as? PsiModifierListOwner)?.modifierList
-            ?: sourceElement
+        val rangeElement =
+            (sourceElement as? PsiNameIdentifierOwner)?.nameIdentifier
+                ?: (sourceElement as? KtModifierListOwner)?.modifierList
+                    ?: (sourceElement as? PsiModifierListOwner)?.modifierList ?: sourceElement
 
         val range = getTextRange(rangeElement)
-        val lineNumber = if (range == null) {
-            -1 // No source offsets, use invalid line number
-        } else {
-            getLineNumber(psiFile.text, range.startOffset) + 1
-        }
+        val lineNumber =
+            if (range == null) {
+                -1 // No source offsets, use invalid line number
+            } else {
+                getLineNumber(psiFile.text, range.startOffset) + 1
+            }
         return if (lineNumber > 0) "$pathString:$lineNumber" else pathString
     }
 
@@ -300,30 +309,34 @@ class Reporter(
     }
 
     /** Alias to allow method reference to `dispatch` in [report] */
-    private fun doReport(severity: Severity, location: String?, message: String, id: Issues.Issue?) =
-        report(severity, location, message, id)
+    private fun doReport(
+        severity: Severity,
+        location: String?,
+        message: String,
+        id: Issues.Issue?
+    ) = report(severity, location, message, id)
 
     fun report(
         severity: Severity,
         location: String?,
         message: String,
         id: Issues.Issue? = null,
-        color: Boolean = options.color
+        terminal: Terminal = options.terminal
     ): Boolean {
         if (severity == HIDDEN) {
             return false
         }
 
         val effectiveSeverity =
-            if (severity == LINT && options.lintsAreErrors)
-                ERROR
+            if (severity == LINT && options.lintsAreErrors) ERROR
             else if (severity == WARNING && options.warningsAreErrors) {
                 ERROR
             } else {
                 severity
             }
 
-        val formattedMessage = format(effectiveSeverity, location, message, id, color, options.omitLocations)
+        val formattedMessage =
+            format(effectiveSeverity, location, message, id, terminal, options.omitLocations)
         if (effectiveSeverity == ERROR) {
             errors.add(formattedMessage)
         } else if (severity == WARNING) {
@@ -339,53 +352,33 @@ class Reporter(
         location: String?,
         message: String,
         id: Issues.Issue?,
-        color: Boolean,
+        terminal: Terminal,
         omitLocations: Boolean
     ): String {
         val sb = StringBuilder(100)
 
-        if (color && !isUnderTest()) {
-            sb.append(terminalAttributes(bold = true))
-            if (!omitLocations) {
-                location?.let {
-                    sb.append(it).append(": ")
-                }
-            }
-            when (severity) {
-                LINT -> sb.append(terminalAttributes(foreground = TerminalColor.CYAN)).append("lint: ")
-                INFO -> sb.append(terminalAttributes(foreground = TerminalColor.CYAN)).append("info: ")
-                WARNING -> sb.append(terminalAttributes(foreground = TerminalColor.YELLOW)).append("warning: ")
-                ERROR -> sb.append(terminalAttributes(foreground = TerminalColor.RED)).append("error: ")
-                INHERIT, HIDDEN -> {
-                }
-            }
-            sb.append(resetTerminal())
-            sb.append(message)
-            id?.let {
-                sb.append(" [").append(it.name).append("]")
-            }
-        } else {
-            if (!omitLocations) {
-                location?.let { sb.append(it).append(": ") }
-            }
-            when (severity) {
-                LINT -> sb.append("lint: ")
-                INFO -> sb.append("info: ")
-                WARNING -> sb.append("warning: ")
-                ERROR -> sb.append("error: ")
-                INHERIT, HIDDEN -> {
-                }
-            }
-            sb.append(message)
-            id?.let {
-                sb.append(" [")
-                sb.append(it.name)
-                sb.append("]")
-                val link = it.category.ruleLink
-                if (it.rule != null && link != null) {
-                    sb.append(" [See ").append(link).append(it.rule)
-                    sb.append("]")
-                }
+        sb.append(terminal.attributes(bold = true))
+        if (!omitLocations) {
+            location?.let { sb.append(it).append(": ") }
+        }
+        when (severity) {
+            LINT -> sb.append(terminal.attributes(foreground = TerminalColor.CYAN)).append("lint: ")
+            INFO -> sb.append(terminal.attributes(foreground = TerminalColor.CYAN)).append("info: ")
+            WARNING ->
+                sb.append(terminal.attributes(foreground = TerminalColor.YELLOW))
+                    .append("warning: ")
+            ERROR ->
+                sb.append(terminal.attributes(foreground = TerminalColor.RED)).append("error: ")
+            INHERIT,
+            HIDDEN -> {}
+        }
+        sb.append(terminal.reset())
+        sb.append(message)
+        id?.let {
+            sb.append(" [").append(it.name).append("]")
+            val link = it.category.ruleLink
+            if (it.rule != null && link != null) {
+                sb.append(" [See ").append(link).append(it.rule).append("]")
             }
         }
         return sb.toString()
@@ -398,21 +391,12 @@ class Reporter(
         id: Issues.Issue
     ): Boolean {
         options.reportEvenIfSuppressedWriter?.println(
-            format(
-                severity,
-                location,
-                message,
-                id,
-                color = false,
-                omitLocations = false
-            )
+            format(severity, location, message, id, terminal = plainTerminal, omitLocations = false)
         )
         return true
     }
 
-    /**
-     * Print all the recorded errors to the given writer. Returns the number of errors printer.
-     */
+    /** Print all the recorded errors to the given writer. Returns the number of errors printer. */
     fun printErrors(writer: PrintWriter, maxErrors: Int): Int {
         var i = 0
         errors.forEach loop@{
@@ -428,7 +412,7 @@ class Reporter(
     /** Write the error message set to this [Reporter], if any errors have been detected. */
     fun writeErrorMessage(writer: PrintWriter) {
         if (hasErrors()) {
-            errorMessage ?. let { writer.write(it) }
+            errorMessage?.let { writer.write(it) }
         }
     }
 
@@ -443,16 +427,16 @@ class Reporter(
 
     companion object {
         /** root folder, which needs to be changed for unit tests. */
-        @VisibleForTesting
-        internal var rootFolder: File? = File("").absoluteFile
+        @VisibleForTesting internal var rootFolder: File? = File("").absoluteFile
 
         /** Injection point for unit tests. */
         internal var reportPrinter: (String, Severity) -> Unit = { message, severity ->
-            val output = if (severity == ERROR) {
-                options.stderr
-            } else {
-                options.stdout
-            }
+            val output =
+                if (severity == ERROR) {
+                    options.stderr
+                } else {
+                    options.stdout
+                }
             output.println()
             output.print(message.trim())
             output.flush()
@@ -460,8 +444,5 @@ class Reporter(
     }
 }
 
-private val SUPPRESS_ANNOTATIONS = listOf(
-    ANDROID_SUPPRESS_LINT,
-    JAVA_LANG_SUPPRESS_WARNINGS,
-    KOTLIN_SUPPRESS
-)
+private val SUPPRESS_ANNOTATIONS =
+    listOf(ANDROID_SUPPRESS_LINT, JAVA_LANG_SUPPRESS_WARNINGS, KOTLIN_SUPPRESS)

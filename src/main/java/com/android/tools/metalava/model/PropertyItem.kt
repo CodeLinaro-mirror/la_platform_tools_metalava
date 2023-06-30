@@ -33,8 +33,8 @@ interface PropertyItem : MemberItem {
         get() = null
 
     /**
-     * The constructor parameter for this property, if declared in a primary constructor; inverse
-     * of [ParameterItem.property]
+     * The constructor parameter for this property, if declared in a primary constructor; inverse of
+     * [ParameterItem.property]
      */
     val constructorParameter: ParameterItem?
         get() = null
@@ -81,6 +81,8 @@ interface PropertyItem : MemberItem {
     }
 
     companion object {
-        val comparator: java.util.Comparator<PropertyItem> = Comparator { a, b -> a.name().compareTo(b.name()) }
+        val comparator: java.util.Comparator<PropertyItem> = Comparator { a, b ->
+            a.name().compareTo(b.name())
+        }
     }
 }

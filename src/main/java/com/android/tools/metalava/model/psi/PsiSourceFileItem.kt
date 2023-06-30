@@ -34,30 +34,28 @@ import com.intellij.psi.PsiJavaFile
 import com.intellij.psi.PsiMethod
 import com.intellij.psi.PsiPackage
 import com.intellij.psi.PsiWhiteSpace
+import java.util.function.Predicate
 import org.jetbrains.kotlin.kdoc.psi.api.KDoc
 import org.jetbrains.kotlin.psi.KtFile
 import org.jetbrains.kotlin.psi.psiUtil.startOffset
 import org.jetbrains.uast.UFile
-import java.util.function.Predicate
 
-/** Whether we should limit import statements to symbols found in class docs  */
+/** Whether we should limit import statements to symbols found in class docs */
 private const val ONLY_IMPORT_CLASSES_REFERENCED_IN_DOCS = true
 
-class PsiSourceFileItem(
-    codebase: PsiBasedCodebase,
-    val file: PsiFile,
-    val uFile: UFile? = null
-) : SourceFileItem, PsiItem(codebase, file, PsiModifierItem(codebase), documentation = "") {
+class PsiSourceFileItem(codebase: PsiBasedCodebase, val file: PsiFile, val uFile: UFile? = null) :
+    SourceFileItem, PsiItem(codebase, file, PsiModifierItem(codebase), documentation = "") {
     override fun getHeaderComments(): String? {
         if (uFile != null) {
             var comment: String? = null
             for (uComment in uFile.allCommentsInFile) {
                 val text = uComment.text
-                comment = if (comment != null) {
-                    comment + "\n" + text
-                } else {
-                    text
-                }
+                comment =
+                    if (comment != null) {
+                        comment + "\n" + text
+                    } else {
+                        text
+                    }
             }
             return comment
         }
@@ -72,11 +70,12 @@ class PsiSourceFileItem(
             while (curr != null) {
                 if (curr is PsiComment || curr is KDoc) {
                     val text = curr.text
-                    comment = if (comment != null) {
-                        comment + "\n" + text
-                    } else {
-                        text
-                    }
+                    comment =
+                        if (comment != null) {
+                            comment + "\n" + text
+                        } else {
+                            text
+                        }
                 } else if (curr !is PsiWhiteSpace) {
                     break
                 }
@@ -103,10 +102,12 @@ class PsiSourceFileItem(
                         }
                     } else if (resolved is PsiPackage) {
                         val pkgItem = codebase.findPackage(resolved.qualifiedName) ?: continue
-                        if (predicate.test(pkgItem) &&
-                            // Also make sure it isn't an empty package (after applying the filter)
-                            // since in that case we'd have an invalid import
-                            pkgItem.topLevelClasses().any { it.emit && predicate.test(it) }
+                        if (
+                            predicate.test(pkgItem) &&
+                                // Also make sure it isn't an empty package (after applying the
+                                // filter)
+                                // since in that case we'd have an invalid import
+                                pkgItem.topLevelClasses().any { it.emit && predicate.test(it) }
                         ) {
                             imports.add(pkgItem)
                         }
@@ -117,12 +118,15 @@ class PsiSourceFileItem(
                             imports.add(methodItem)
                         }
                     } else if (resolved is PsiField) {
-                        val classItem = codebase.findClass(resolved.containingClass ?: continue) ?: continue
-                        val fieldItem = classItem.findField(
-                            resolved.name,
-                            includeSuperClasses = true,
-                            includeInterfaces = false
-                        ) ?: continue
+                        val classItem =
+                            codebase.findClass(resolved.containingClass ?: continue) ?: continue
+                        val fieldItem =
+                            classItem.findField(
+                                resolved.name,
+                                includeSuperClasses = true,
+                                includeInterfaces = false
+                            )
+                                ?: continue
                         if (predicate.test(fieldItem)) {
                             imports.add(fieldItem)
                         }
@@ -168,37 +172,39 @@ class PsiSourceFileItem(
                 imports.filterIsInstance<PackageItem>().forEach { result.add(it) }
 
                 for (cls in classes().filter { predicate.test(it) }) {
-                    cls.accept(object : ItemVisitor() {
-                        override fun visitItem(item: Item) {
-                            // Do not let documentation on hidden items affect the imports.
-                            if (!predicate.test(item)) {
-                                return
-                            }
-                            val doc = item.documentation
-                            if (doc.isNotBlank()) {
-                                var found: MutableList<String>? = null
-                                for (name in map.keys()) {
-                                    if (docContainsWord(doc, name)) {
-                                        if (found == null) {
-                                            found = mutableListOf()
-                                        }
-                                        found.add(name)
-                                    }
+                    cls.accept(
+                        object : ItemVisitor() {
+                            override fun visitItem(item: Item) {
+                                // Do not let documentation on hidden items affect the imports.
+                                if (!predicate.test(item)) {
+                                    return
                                 }
-                                found?.let {
-                                    for (name in found) {
-                                        val all = map.get(name) ?: continue
-                                        for (referenced in all) {
-                                            if (!result.contains(referenced)) {
-                                                result.add(referenced)
+                                val doc = item.documentation
+                                if (doc.isNotBlank()) {
+                                    var found: MutableList<String>? = null
+                                    for (name in map.keys()) {
+                                        if (docContainsWord(doc, name)) {
+                                            if (found == null) {
+                                                found = mutableListOf()
                                             }
+                                            found.add(name)
                                         }
-                                        map.removeAll(name)
+                                    }
+                                    found?.let {
+                                        for (name in found) {
+                                            val all = map.get(name) ?: continue
+                                            for (referenced in all) {
+                                                if (!result.contains(referenced)) {
+                                                    result.add(referenced)
+                                                }
+                                            }
+                                            map.removeAll(name)
+                                        }
                                     }
                                 }
                             }
                         }
-                    })
+                    )
                 }
                 result
             } else {
@@ -210,7 +216,9 @@ class PsiSourceFileItem(
     }
 
     override fun classes(): Sequence<ClassItem> {
-        return (file as? PsiClassOwner)?.classes?.asSequence()
+        return (file as? PsiClassOwner)
+            ?.classes
+            ?.asSequence()
             ?.mapNotNull { codebase.findClass(it) }
             .orEmpty()
     }
@@ -241,11 +249,13 @@ class PsiSourceFileItem(
                 return false
             }
 
-            val regex = regexMap[word] ?: run {
-                val new = Regex("""\b$word\b""")
-                regexMap[word] = new
-                new
-            }
+            val regex =
+                regexMap[word]
+                    ?: run {
+                        val new = Regex("""\b$word\b""")
+                        regexMap[word] = new
+                        new
+                    }
             return regex.find(doc) != null
         }
     }

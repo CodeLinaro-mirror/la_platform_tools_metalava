@@ -17,7 +17,10 @@
 package com.android.tools.metalava.model
 
 interface MemberItem : Item {
-    /** The name of this method/field. Constructors have the same name as their containing class' simple name */
+    /**
+     * The name of this method/field. Constructors have the same name as their containing class'
+     * simple name
+     */
     fun name(): String
 
     /** Returns the internal name of the method, as seen in bytecode */
@@ -27,12 +30,15 @@ interface MemberItem : Item {
     fun containingClass(): ClassItem
 
     override fun containingClass(strict: Boolean): ClassItem = containingClass()
-    override fun containingPackage(strict: Boolean): PackageItem = containingClass().containingPackage(false)
+
+    override fun containingPackage(strict: Boolean): PackageItem =
+        containingClass().containingPackage(false)
+
     override fun parent(): ClassItem? = containingClass()
 
     /**
-     * Returns true if this member is effectively final: it's either final itself, or implied to
-     * be final because its containing class is final
+     * Returns true if this member is effectively final: it's either final itself, or implied to be
+     * final because its containing class is final
      */
     fun isEffectivelyFinal(): Boolean {
         return modifiers.isFinal() ||

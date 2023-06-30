@@ -23,17 +23,18 @@ class ConvertTest : DriverTest() {
     @Test
     fun `Test conversion flag`() {
         check(
-            convertToJDiff = listOf(
-                ConvertData(
-                    """
+            convertToJDiff =
+                listOf(
+                    ConvertData(
+                        """
                     package test.pkg {
                       public class MyTest1 {
                         ctor public MyTest1();
                       }
                     }
                     """,
-                    outputFile =
-                    """
+                        outputFile =
+                            """
                     <api name="convert-output1" xmlns:metalava="http://www.android.com/metalava/">
                     <package name="test.pkg"
                     >
@@ -57,17 +58,17 @@ class ConvertTest : DriverTest() {
                     </package>
                     </api>
                     """
-                ),
-                ConvertData(
-                    fromApi =
-                    """
+                    ),
+                    ConvertData(
+                        fromApi =
+                            """
                     package test.pkg {
                       public class MyTest2 {
                       }
                     }
                     """,
-                    outputFile =
-                    """
+                        outputFile =
+                            """
                     <api name="convert-output2" xmlns:metalava="http://www.android.com/metalava/">
                     <package name="test.pkg"
                     >
@@ -83,19 +84,20 @@ class ConvertTest : DriverTest() {
                     </package>
                     </api>
                     """
+                    )
                 )
-            )
         )
     }
 
     @Test
     fun `Test convert new with compat mode and api strip`() {
         check(
-            convertToJDiff = listOf(
-                ConvertData(
-                    strip = true,
-                    fromApi =
-                    """
+            convertToJDiff =
+                listOf(
+                    ConvertData(
+                        strip = true,
+                        fromApi =
+                            """
                     package test.pkg {
                       public class MyTest1 {
                         ctor public MyTest1();
@@ -118,8 +120,8 @@ class ConvertTest : DriverTest() {
                       }
                     }
                     """,
-                    baseApi =
-                    """
+                        baseApi =
+                            """
                     package test.pkg {
                       public class MyTest1 {
                         ctor public MyTest1();
@@ -128,8 +130,8 @@ class ConvertTest : DriverTest() {
                       }
                     }
                     """,
-                    outputFile =
-                    """
+                        outputFile =
+                            """
                     <api name="convert-output1" xmlns:metalava="http://www.android.com/metalava/">
                     <package name="test.pkg"
                     >
@@ -230,19 +232,20 @@ class ConvertTest : DriverTest() {
                     </package>
                     </api>
                     """
+                    )
                 )
-            )
         )
     }
 
     @Test
     fun `Test convert new without compat mode and no strip`() {
         check(
-            convertToJDiff = listOf(
-                ConvertData(
-                    strip = false,
-                    fromApi =
-                    """
+            convertToJDiff =
+                listOf(
+                    ConvertData(
+                        strip = false,
+                        fromApi =
+                            """
                     package test.pkg {
                       public class MyTest1 {
                         ctor public MyTest1();
@@ -265,8 +268,8 @@ class ConvertTest : DriverTest() {
                       }
                     }
                     """,
-                    baseApi =
-                    """
+                        baseApi =
+                            """
                     package test.pkg {
                       public class MyTest1 {
                         ctor public MyTest1();
@@ -275,8 +278,8 @@ class ConvertTest : DriverTest() {
                       }
                     }
                     """,
-                    outputFile =
-                    """
+                        outputFile =
+                            """
                     <api name="convert-output1" xmlns:metalava="http://www.android.com/metalava/">
                     <package name="test.pkg"
                     >
@@ -379,8 +382,8 @@ class ConvertTest : DriverTest() {
                     </package>
                     </api>
                     """
+                    )
                 )
-            )
         )
     }
 
@@ -388,10 +391,11 @@ class ConvertTest : DriverTest() {
     fun `Test convert nothing new`() {
         check(
             expectedOutput = "",
-            convertToJDiff = listOf(
-                ConvertData(
-                    fromApi =
-                    """
+            convertToJDiff =
+                listOf(
+                    ConvertData(
+                        fromApi =
+                            """
                     package test.pkg {
                       public class MyTest1 {
                         ctor public MyTest1();
@@ -410,8 +414,8 @@ class ConvertTest : DriverTest() {
                       }
                     }
                     """,
-                    baseApi =
-                    """
+                        baseApi =
+                            """
                     package test.pkg {
                       public class MyTest1 {
                         ctor public MyTest1();
@@ -430,13 +434,13 @@ class ConvertTest : DriverTest() {
                       }
                     }
                     """,
-                    outputFile =
-                    """
+                        outputFile =
+                            """
                     <api name="convert-output1" xmlns:metalava="http://www.android.com/metalava/">
                     </api>
                     """
+                    )
                 )
-            )
         )
     }
 }

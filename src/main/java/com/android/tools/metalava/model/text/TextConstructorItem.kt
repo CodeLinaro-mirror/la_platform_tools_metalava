@@ -26,7 +26,8 @@ class TextConstructorItem(
     modifiers: TextModifiers,
     returnType: TextTypeItem,
     position: SourcePositionInfo
-) : TextMethodItem(codebase, name, containingClass, modifiers, returnType, position),
+) :
+    TextMethodItem(codebase, name, containingClass, modifiers, returnType, position),
     ConstructorItem {
 
     override var superConstructor: ConstructorItem? = null
@@ -45,14 +46,15 @@ class TextConstructorItem(
             // without a constructor has no public constructors.
             val modifiers = TextModifiers(codebase, DefaultModifierList.PACKAGE_PRIVATE, null)
 
-            val item = TextConstructorItem(
-                codebase = codebase,
-                name = name,
-                containingClass = containingClass,
-                modifiers = modifiers,
-                returnType = containingClass.asTypeInfo(),
-                position = position,
-            )
+            val item =
+                TextConstructorItem(
+                    codebase = codebase,
+                    name = name,
+                    containingClass = containingClass,
+                    modifiers = modifiers,
+                    returnType = containingClass.asTypeInfo(),
+                    position = position,
+                )
             modifiers.setOwner(item)
             return item
         }

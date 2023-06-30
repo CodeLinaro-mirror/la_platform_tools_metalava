@@ -23,5 +23,6 @@ repositories {
 }
 
 dependencies {
+    implementation(gradleApi())
     implementation("com.google.code.gson:gson:2.8.6")
 }
