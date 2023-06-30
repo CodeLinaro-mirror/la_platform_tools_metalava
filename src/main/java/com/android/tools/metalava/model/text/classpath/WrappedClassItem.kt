@@ -166,6 +166,7 @@ class WrappedClassItem(
     override fun isAnnotationType(): Boolean = wrappedItem.isAnnotationType()
 
     override fun isEnum(): Boolean = wrappedItem.isEnum()
+
     override fun containingClass(): ClassItem? = wrappedItem.containingClass()
 
     override fun containingPackage(): PackageItem = wrappedItem.containingPackage()

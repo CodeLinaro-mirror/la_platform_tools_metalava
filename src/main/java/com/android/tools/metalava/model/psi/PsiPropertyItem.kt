@@ -51,7 +51,9 @@ private constructor(
     PropertyItem {
 
     override fun type(): TypeItem = fieldType
+
     override fun name(): String = name
+
     override fun containingClass(): ClassItem = containingClass
 
     override fun isCloned(): Boolean {

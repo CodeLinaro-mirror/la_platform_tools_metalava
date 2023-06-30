@@ -1070,7 +1070,6 @@ abstract class DriverTest {
         val actualOutput =
             runDriver(
                 ARG_NO_COLOR,
-                ARG_NO_BANNER,
 
                 // Tell metalava where to store temp folder: place them under the
                 // test root folder such that we clean up the output strings referencing

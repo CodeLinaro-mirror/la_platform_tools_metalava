@@ -3053,6 +3053,7 @@ class ApiLint(
     companion object {
 
         private data class GetterSetterPattern(val getter: String, val setter: String)
+
         private val goodBooleanGetterSetterPrefixes =
             listOf(
                 GetterSetterPattern("has", "setHas"),

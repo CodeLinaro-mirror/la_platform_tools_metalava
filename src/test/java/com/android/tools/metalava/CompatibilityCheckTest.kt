@@ -4423,6 +4423,55 @@ class CompatibilityCheckTest : DriverTest() {
     }
 
     @Test
+    fun `Doesn't crash when checking annotations with BINARY retention`() {
+        check(
+            expectedIssues = "",
+            checkCompatibilityApiReleased =
+                """
+                package androidx.wear.watchface {
+                  @androidx.wear.watchface.complications.data.ComplicationExperimental public final class BoundingArc {
+                    ctor public BoundingArc(float startAngle, float totalAngle, @Px float thickness);
+                    method public float getStartAngle();
+                    method public float getThickness();
+                    method public float getTotalAngle();
+                    method public boolean hitTest(android.graphics.Rect rect, @Px float x, @Px float y);
+                    method public void setStartAngle(float);
+                    method public void setThickness(float);
+                    method public void setTotalAngle(float);
+                    property public final float startAngle;
+                    property public final float thickness;
+                    property public final float totalAngle;
+                  }
+                }
+                package androidx.wear.watchface.complications.data {
+                  @kotlin.RequiresOptIn(message="This is an experimental API that may change or be removed without warning.") @kotlin.annotation.Retention(kotlin.annotation.AnnotationRetention.BINARY) public @interface ComplicationExperimental {
+                  }
+                }
+                """,
+            signatureSource =
+                """
+                package androidx.wear.watchface {
+                  @androidx.wear.watchface.complications.data.ComplicationExperimental public final class BoundingArc {
+                    ctor public BoundingArc(float startAngle, float totalAngle, @Px float thickness);
+                    method public float getStartAngle();
+                    method public float getThickness();
+                    method public float getTotalAngle();
+                    method public boolean hitTest(android.graphics.Rect rect, @Px float x, @Px float y);
+                    property public final float startAngle;
+                    property public final float thickness;
+                    property public final float totalAngle;
+                  }
+                }
+                package androidx.wear.watchface.complications.data {
+                  @kotlin.RequiresOptIn(message="This is an experimental API that may change or be removed without warning.") @kotlin.annotation.Retention(kotlin.annotation.AnnotationRetention.BINARY) public @interface ComplicationExperimental {
+                  }
+                }
+                """,
+            suppressCompatibilityMetaAnnotations = arrayOf("kotlin.RequiresOptIn")
+        )
+    }
+
+    @Test
     fun `Fail when changing API from checked to unchecked`() {
         check(
             expectedIssues =
@@ -4731,8 +4780,38 @@ class CompatibilityCheckTest : DriverTest() {
         )
     }
 
+    @Test
+    fun `Synthetic suppress compatibility annotation allows incompatible changes`() {
+        check(
+            checkCompatibilityApiReleased =
+                """
+                package androidx.benchmark.macro.junit4 {
+                  @RequiresApi(28) @SuppressCompatibility @androidx.benchmark.macro.ExperimentalBaselineProfilesApi public final class BaselineProfileRule implements org.junit.rules.TestRule {
+                    ctor public BaselineProfileRule();
+                    method public org.junit.runners.model.Statement apply(org.junit.runners.model.Statement base, org.junit.runner.Description description);
+                    method public void collectBaselineProfile(String packageName, kotlin.jvm.functions.Function1<? super androidx.benchmark.macro.MacrobenchmarkScope,kotlin.Unit> profileBlock);
+                  }
+                }
+                """,
+            signatureSource =
+                """
+                package androidx.benchmark.macro.junit4 {
+                  @RequiresApi(28) public final class BaselineProfileRule implements org.junit.rules.TestRule {
+                    ctor public BaselineProfileRule();
+                    method public org.junit.runners.model.Statement apply(org.junit.runners.model.Statement base, org.junit.runner.Description description);
+                    method public void collect(String packageName, kotlin.jvm.functions.Function1<? super androidx.benchmark.macro.MacrobenchmarkScope,kotlin.Unit> profileBlock);
+                  }
+                }
+                package androidx.benchmark.macro {
+                  @kotlin.RequiresOptIn(message="The Baseline profile generation API is experimental.") @kotlin.annotation.Retention(kotlin.annotation.AnnotationRetention.BINARY) @kotlin.annotation.Target(allowedTargets={kotlin.annotation.AnnotationTarget.CLASS, kotlin.annotation.AnnotationTarget.FUNCTION}) public @interface ExperimentalBaselineProfilesApi {
+                  }
+                }
+                """,
+            suppressCompatibilityMetaAnnotations = arrayOf("kotlin.RequiresOptIn")
+        )
+    }
+
     // TODO: Check method signatures changing incompatibly (look especially out for adding new
-    // overloaded
-    // methods and comparator getting confused!)
+    // overloaded methods and comparator getting confused!)
     //   ..equals on the method items should actually be very useful!
 }

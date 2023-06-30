@@ -1102,6 +1102,7 @@ object ApiFile {
     internal class Tokenizer(val fileName: String, private val buffer: CharArray) {
         var position = 0
         var line = 1
+
         fun pos(): SourcePositionInfo {
             return SourcePositionInfo(fileName, line)
         }

@@ -27,31 +27,9 @@ import org.junit.Test
 
 @Suppress("PrivatePropertyName")
 class OptionsTest : DriverTest() {
-    private val DESCRIPTION =
-        """
-$PROGRAM_NAME extracts metadata from source code to generate artifacts such as the signature files, the SDK stub files,
-external annotations etc.
-    """
-            .trimIndent()
-
     private val FLAGS =
         """
-Usage: metalava <flags>
-
-
 General:
---help
-                                             This message.
---version
-                                             Show the version of metalava.
---quiet
-                                             Only include vital output
---verbose
-                                             Include extra diagnostic output
---color
-                                             Attempt to colorize the output (defaults to true if ${"$"}TERM is xterm)
---no-color
-                                             Do not attempt to colorize the output
 --repeat-errors-max <N>
                                              When specified, repeat at most N errors before finishing.
 
@@ -463,6 +441,34 @@ METALAVA_APPEND_ARGS
     """
             .trimIndent()
 
+    private val USAGE =
+        """
+Usage: metalava [options] [flags]... <sub-command>? ...
+        """
+            .trimIndent()
+
+    private val COMMON_OPTIONS =
+        """
+Options:
+  --version            Show the version and exit
+  --color, --no-color  Determine whether to use terminal capabilities to colorize and otherwise style the output.
+                       (default: true if ${"$"}TERM starts with `xterm` or ${"$"}COLORTERM is set)
+  --no-banner          A banner is never output so this has no effect (deprecated: please remove)
+  --quiet, --verbose   Set the verbosity of the output.
+                       --quiet - Only include vital output.
+                       --verbose - Include extra diagnostic output.
+                       (default: Neither --quiet or --verbose)
+  -h, --help           Show this message and exit
+    """
+            .trimIndent()
+
+    private val SUB_COMMANDS =
+        """
+Sub-commands:
+  version  Show the version
+        """
+            .trimIndent()
+
     @Test
     fun `Test invalid arguments`() {
         val args = listOf(ARG_NO_COLOR, "--blah-blah-blah")
@@ -474,14 +480,23 @@ METALAVA_APPEND_ARGS
             stdout = PrintWriter(stdout),
             stderr = PrintWriter(stderr)
         )
-        assertEquals(BANNER + "\n", stdout.toString())
+        assertEquals("", stdout.toString())
         assertEquals(
             """
 
-Aborting: Invalid argument --blah-blah-blah
+Aborting: Error: no such option: "--blah-blah-blah"
+
+$USAGE
+
+$COMMON_OPTIONS
+
+Arguments:
+  flags  See below.
+
+$SUB_COMMANDS
+
 
 $FLAGS
-
             """
                 .trimIndent(),
             stderr.toString()
@@ -499,7 +514,7 @@ $FLAGS
             stdout = PrintWriter(stdout),
             stderr = PrintWriter(stderr)
         )
-        assertEquals(BANNER + "\n", stdout.toString())
+        assertEquals("", stdout.toString())
         assertEquals(
             """
 
@@ -525,12 +540,21 @@ Aborting: --api-class-resolution must be one of api, api:classpath; was foo
         assertEquals("", stderr.toString())
         assertEquals(
             """
-$BANNER
 
-$DESCRIPTION
+$USAGE
+
+  Extracts metadata from source code to generate artifacts such as the signature files, the SDK stub files, external
+  annotations etc.
+
+$COMMON_OPTIONS
+
+Arguments:
+  flags  See below.
+
+$SUB_COMMANDS
+
 
 $FLAGS
-
             """
                 .trimIndent(),
             stdout.toString()

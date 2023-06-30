@@ -68,6 +68,7 @@ open class TextClassItem(
     }
 
     override fun interfaceTypes(): List<TypeItem> = interfaceTypes
+
     override fun allInterfaces(): Sequence<ClassItem> {
         return interfaceTypes.asSequence().map { it.asClass() }.filterNotNull()
     }
@@ -85,10 +86,13 @@ open class TextClassItem(
     }
 
     override fun isInterface(): Boolean = isInterface
+
     override fun isAnnotationType(): Boolean = isAnnotation
+
     override fun isEnum(): Boolean = isEnum
 
     var containingClass: ClassItem? = null
+
     override fun containingClass(): ClassItem? = containingClass
 
     private var containingPackage: PackageItem? = null
@@ -160,6 +164,7 @@ open class TextClassItem(
     private var superClassType: TypeItem? = null
 
     override fun superClass(): ClassItem? = superClass
+
     override fun superClassType(): TypeItem? = superClassType
 
     override fun setSuperClass(superClass: ClassItem?, superClassType: TypeItem?) {
@@ -172,6 +177,7 @@ open class TextClassItem(
     }
 
     private var typeInfo: TextTypeItem? = null
+
     fun setTypeInfo(typeInfo: TextTypeItem) {
         this.typeInfo = typeInfo
     }
@@ -190,8 +196,11 @@ open class TextClassItem(
     private val properties = mutableListOf<PropertyItem>()
 
     override fun constructors(): List<ConstructorItem> = constructors
+
     override fun methods(): List<MethodItem> = methods
+
     override fun fields(): List<FieldItem> = fields
+
     override fun properties(): List<PropertyItem> = properties
 
     fun addInterface(itf: TypeItem) {
@@ -272,13 +281,18 @@ open class TextClassItem(
     }
 
     private var fullName: String = name
+
     override fun simpleName(): String = name.substring(name.lastIndexOf('.') + 1)
+
     override fun fullName(): String = fullName
+
     override fun qualifiedName(): String = qualifiedName
+
     override fun isDefined(): Boolean {
         assert(emit == (position != SourcePositionInfo.UNKNOWN))
         return emit
     }
+
     override fun toString(): String = "class ${qualifiedName()}"
 
     override fun mapTypeVariables(target: ClassItem): Map<String, String> {

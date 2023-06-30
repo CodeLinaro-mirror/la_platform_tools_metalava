@@ -61,9 +61,6 @@ import org.jetbrains.kotlin.config.JVMConfigurationKeys
 import org.jetbrains.kotlin.config.LanguageVersionSettings
 
 const val PROGRAM_NAME = "metalava"
-const val HELP_PROLOGUE =
-    "$PROGRAM_NAME extracts metadata from source code to generate artifacts such as the " +
-        "signature files, the SDK stub files, external annotations etc."
 const val PACKAGE_HTML = "package.html"
 const val OVERVIEW_HTML = "overview.html"
 
@@ -194,6 +191,7 @@ internal fun maybeActivateSandbox() {
     FileReadSandbox.activate(
         object : FileReadSandbox.Listener {
             var seen = mutableSetOf<String>()
+
             override fun onViolation(absolutePath: String, isDirectory: Boolean) {
                 if (!seen.contains(absolutePath)) {
                     val suffix = if (isDirectory) "/" else ""

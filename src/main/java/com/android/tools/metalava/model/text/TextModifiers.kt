@@ -74,6 +74,7 @@ class TextModifiers(
                     override val attributes: List<AnnotationAttribute> = attributes
                     override val originalName: String? = originalName
                     override val qualifiedName: String? = qualifiedName
+
                     override fun toSource(
                         target: AnnotationTarget,
                         showDefaultAttrs: Boolean

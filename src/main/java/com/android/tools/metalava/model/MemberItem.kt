@@ -30,8 +30,10 @@ interface MemberItem : Item {
     fun containingClass(): ClassItem
 
     override fun containingClass(strict: Boolean): ClassItem = containingClass()
+
     override fun containingPackage(strict: Boolean): PackageItem =
         containingClass().containingPackage(false)
+
     override fun parent(): ClassItem? = containingClass()
 
     /**

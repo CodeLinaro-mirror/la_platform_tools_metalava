@@ -33,6 +33,7 @@ val stylingTerminal: Terminal = StylingTerminal()
 sealed class Terminal {
     abstract fun attributes(
         bold: Boolean = false,
+        italic: Boolean = false,
         underline: Boolean = false,
         reverse: Boolean = false,
         foreground: TerminalColor? = null,
@@ -45,6 +46,10 @@ sealed class Terminal {
         return "${attributes(bold = true)}$string${reset()}"
     }
 
+    fun italic(string: String): String {
+        return "${attributes(italic = true)}$string${reset()}"
+    }
+
     fun colorize(string: String, color: TerminalColor): String {
         return "${attributes(foreground = color)}$string${reset()}"
     }
@@ -54,6 +59,7 @@ sealed class Terminal {
 private class PlainTerminal : Terminal() {
     override fun attributes(
         bold: Boolean,
+        italic: Boolean,
         underline: Boolean,
         reverse: Boolean,
         foreground: TerminalColor?,
@@ -71,6 +77,7 @@ private class PlainTerminal : Terminal() {
 private class StylingTerminal : Terminal() {
     override fun attributes(
         bold: Boolean,
+        italic: Boolean,
         underline: Boolean,
         reverse: Boolean,
         foreground: TerminalColor?,
@@ -88,6 +95,10 @@ private class StylingTerminal : Terminal() {
         if (bold) {
             if (sb.last().isDigit()) sb.append(';')
             sb.append('1')
+        }
+        if (italic) {
+            if (sb.last().isDigit()) sb.append(';')
+            sb.append('3')
         }
         if (underline) {
             if (sb.last().isDigit()) sb.append(';')

@@ -51,31 +51,51 @@ open class ComparisonVisitor(
     val visitAddedItemsRecursively: Boolean = false
 ) {
     open fun compare(old: Item, new: Item) {}
+
     open fun added(new: Item) {}
+
     open fun removed(old: Item, from: Item?) {}
 
     open fun compare(old: PackageItem, new: PackageItem) {}
+
     open fun compare(old: ClassItem, new: ClassItem) {}
+
     open fun compare(old: ConstructorItem, new: ConstructorItem) {}
+
     open fun compare(old: MethodItem, new: MethodItem) {}
+
     open fun compare(old: FieldItem, new: FieldItem) {}
+
     open fun compare(old: PropertyItem, new: PropertyItem) {}
+
     open fun compare(old: ParameterItem, new: ParameterItem) {}
 
     open fun added(new: PackageItem) {}
+
     open fun added(new: ClassItem) {}
+
     open fun added(new: ConstructorItem) {}
+
     open fun added(new: MethodItem) {}
+
     open fun added(new: FieldItem) {}
+
     open fun added(new: PropertyItem) {}
+
     open fun added(new: ParameterItem) {}
 
     open fun removed(old: PackageItem, from: Item?) {}
+
     open fun removed(old: ClassItem, from: Item?) {}
+
     open fun removed(old: ConstructorItem, from: ClassItem?) {}
+
     open fun removed(old: MethodItem, from: ClassItem?) {}
+
     open fun removed(old: FieldItem, from: ClassItem?) {}
+
     open fun removed(old: PropertyItem, from: ClassItem?) {}
+
     open fun removed(old: ParameterItem, from: MethodItem?) {}
 }
 
@@ -652,6 +672,7 @@ class CodebaseComparator {
 
     data class ItemTree(val item: Item?) : Comparable<ItemTree> {
         val children: MutableList<ItemTree> = mutableListOf()
+
         fun item(): Item =
             item!! // Only the root note can be null, and this method should never be called on it
 

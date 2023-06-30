@@ -204,6 +204,7 @@ class PsiParameterItem(
     }
 
     override fun type(): TypeItem = type
+
     override fun containingMethod(): MethodItem = containingMethod
 
     override fun equals(other: Any?): Boolean {

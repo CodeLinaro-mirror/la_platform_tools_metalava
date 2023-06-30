@@ -28,21 +28,35 @@ import java.io.Writer
 
 interface ModifierList {
     val codebase: Codebase
+
     fun annotations(): List<AnnotationItem>
 
     fun owner(): Item
+
     fun getVisibilityLevel(): VisibilityLevel
+
     fun isPublic(): Boolean
+
     fun isProtected(): Boolean
+
     fun isPrivate(): Boolean
+
     fun isStatic(): Boolean
+
     fun isAbstract(): Boolean
+
     fun isFinal(): Boolean
+
     fun isNative(): Boolean
+
     fun isSynchronized(): Boolean
+
     fun isStrictFp(): Boolean
+
     fun isTransient(): Boolean
+
     fun isVolatile(): Boolean
+
     fun isDefault(): Boolean
 
     // Modifier in Kotlin, separate syntax (...) in Java but modeled as modifier here
@@ -50,18 +64,29 @@ interface ModifierList {
 
     // Kotlin
     fun isSealed(): Boolean = false
+
     fun isFunctional(): Boolean = false
+
     fun isCompanion(): Boolean = false
+
     fun isInfix(): Boolean = false
+
     fun isConst(): Boolean = false
+
     fun isSuspend(): Boolean = false
+
     fun isOperator(): Boolean = false
+
     fun isInline(): Boolean = false
+
     fun isValue(): Boolean = false
+
     fun isData(): Boolean = false
+
     fun isEmpty(): Boolean
 
     fun isPackagePrivate() = !(isPublic() || isProtected() || isPrivate())
+
     fun isPublicOrProtected() = isPublic() || isProtected()
 
     // Rename? It's not a full equality, it's whether an override's modifier set is significant
@@ -194,7 +219,8 @@ interface ModifierList {
             return false
         }
         return annotations().any { annotation ->
-            options.suppressCompatibilityMetaAnnotations.contains(annotation.qualifiedName) ||
+            annotation.qualifiedName == SUPPRESS_COMPATIBILITY_ANNOTATION_QUALIFIED ||
+                options.suppressCompatibilityMetaAnnotations.contains(annotation.qualifiedName) ||
                 annotation.resolve()?.hasSuppressCompatibilityMetaAnnotation() ?: false
         }
     }
@@ -454,6 +480,11 @@ interface ModifierList {
                 writer.write(if (separateLines) "\n" else " ")
             }
 
+            if (item.hasSuppressCompatibilityMetaAnnotation()) {
+                writer.write("@$SUPPRESS_COMPATIBILITY_ANNOTATION")
+                writer.write(if (separateLines) "\n" else " ")
+            }
+
             writeAnnotations(
                 list = list,
                 runtimeAnnotationsOnly = runtimeAnnotationsOnly,
@@ -558,5 +589,25 @@ interface ModifierList {
                 }
             }
         }
+
+        /**
+         * Synthetic annotation used to mark an API as suppressed for compatibility checks.
+         *
+         * This is added automatically when an API has a meta-annotation that suppresses
+         * compatibility but is defined outside the source set and may not always be available on
+         * the classpath.
+         *
+         * Because this is used in API files, it needs to maintain compatibility.
+         */
+        private const val SUPPRESS_COMPATIBILITY_ANNOTATION = "SuppressCompatibility"
+
+        /**
+         * Fully-qualified version of [SUPPRESS_COMPATIBILITY_ANNOTATION].
+         *
+         * This is only used at run-time for matching against [AnnotationItem.qualifiedName], so it
+         * doesn't need to maintain compatibility.
+         */
+        private val SUPPRESS_COMPATIBILITY_ANNOTATION_QUALIFIED =
+            AnnotationItem.unshortenAnnotation("@$SUPPRESS_COMPATIBILITY_ANNOTATION").substring(1)
     }
 }

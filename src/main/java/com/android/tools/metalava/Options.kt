@@ -24,6 +24,7 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.defaultConfiguration
 import com.android.tools.metalava.model.text.ApiClassResolution
 import com.android.utils.SdkUtils.wrap
+import com.github.ajalt.clikt.core.NoSuchOption
 import com.google.common.base.CharMatcher
 import com.google.common.base.Splitter
 import com.google.common.io.Files
@@ -742,12 +743,6 @@ class Options(
         while (index < args.size) {
 
             when (val arg = args[index]) {
-                ARG_HELP,
-                "-h",
-                "-?" -> {
-                    helpAndQuit(terminal)
-                }
-
                 // For now we don't distinguish between bootclasspath and classpath
                 ARG_CLASS_PATH,
                 "-classpath",
@@ -1293,8 +1288,7 @@ class Options(
                         outputFormat.configureOptions(this)
                     } else if (arg.startsWith("-")) {
                         // Some other argument: display usage info and exit
-                        val usage = getUsage(includeHeader = false, terminal = terminal)
-                        throw DriverException(stderr = "Invalid argument $arg\n\n$usage")
+                        throw NoSuchOption(givenName = arg)
                     } else {
                         // All args that don't start with "-" are taken to be filenames
                         mutableSources.addAll(stringToExistingFiles(arg))
@@ -1573,10 +1567,6 @@ class Options(
         }
     }
 
-    private fun helpAndQuit(terminal: Terminal) {
-        throw DriverException(stdout = getUsage(terminal = terminal))
-    }
-
     private fun getValue(args: Array<String>, index: Int): String {
         if (index >= args.size) {
             throw DriverException("Missing argument for ${args[index - 1]}")
@@ -1788,39 +1778,18 @@ class Options(
         return File(path).absoluteFile
     }
 
-    private fun getUsage(
-        includeHeader: Boolean = true,
-        terminal: Terminal = this.terminal
-    ): String {
+    fun getUsage(terminal: Terminal): String {
         val usage = StringWriter()
         val printWriter = PrintWriter(usage)
-        usage(printWriter, includeHeader, terminal)
+        usage(printWriter, terminal)
         return usage.toString()
     }
 
-    private fun usage(out: PrintWriter, includeHeader: Boolean = true, terminal: Terminal) {
-        if (includeHeader) {
-            out.println(wrap(HELP_PROLOGUE, MAX_LINE_WIDTH, ""))
-        }
-
-        out.println("Usage: ${terminal.colorize(PROGRAM_NAME, TerminalColor.BLUE)} <flags>")
-
+    private fun usage(out: PrintWriter, terminal: Terminal) {
         val args =
             arrayOf(
                 "",
                 "General:",
-                ARG_HELP,
-                "This message.",
-                ARG_VERSION,
-                "Show the version of $PROGRAM_NAME.",
-                ARG_QUIET,
-                "Only include vital output",
-                ARG_VERBOSE,
-                "Include extra diagnostic output",
-                ARG_COLOR,
-                "Attempt to colorize the output (defaults to true if \$TERM is xterm)",
-                ARG_NO_COLOR,
-                "Do not attempt to colorize the output",
                 "$ARG_REPEAT_ERRORS_MAX <N>",
                 "When specified, repeat at most N errors before finishing.",
                 "",

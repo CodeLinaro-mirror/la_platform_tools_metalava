@@ -395,6 +395,7 @@ interface ClassItem : Item {
                 source.contains("CLASS") -> AnnotationRetention.CLASS
                 source.contains("RUNTIME") -> AnnotationRetention.RUNTIME
                 source.contains("SOURCE") -> AnnotationRetention.SOURCE
+                source.contains("BINARY") -> AnnotationRetention.BINARY
                 else -> AnnotationRetention.getDefault(cls)
             }
         }

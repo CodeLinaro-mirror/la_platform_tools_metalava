@@ -23,7 +23,7 @@ import com.github.ajalt.clikt.output.Localization
 const val MAX_LINE_WIDTH = 120
 
 /** Metalava specific implementation of [CliktHelpFormatter]. */
-internal class MetalavaHelpFormatter(
+internal open class MetalavaHelpFormatter(
     terminalSupplier: () -> Terminal,
     localization: Localization,
 ) :
@@ -38,7 +38,7 @@ internal class MetalavaHelpFormatter(
      * Property for accessing the [Terminal] instance that should be used to style (or not) help
      * text.
      */
-    private val terminal: Terminal by lazy { terminalSupplier() }
+    protected val terminal: Terminal by lazy { terminalSupplier() }
 
     override fun formatHelp(
         prolog: String,

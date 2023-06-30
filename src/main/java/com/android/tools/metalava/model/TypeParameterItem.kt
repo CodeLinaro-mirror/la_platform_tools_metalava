@@ -23,6 +23,8 @@ interface TypeParameterItem : ClassItem {
         replaceWith = ReplaceWith("typeBounds().mapNotNull { it.asClass() }")
     )
     fun bounds(): List<ClassItem> = typeBounds().mapNotNull { it.asClass() }
+
     fun typeBounds(): List<TypeItem>
+
     fun isReified(): Boolean
 }

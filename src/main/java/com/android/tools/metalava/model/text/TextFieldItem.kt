@@ -85,7 +85,9 @@ class TextFieldItem(
     override var inheritedField: Boolean = false
 
     private var isEnumConstant = false
+
     override fun isEnumConstant(): Boolean = isEnumConstant
+
     fun setEnumConstant(isEnumConstant: Boolean) {
         this.isEnumConstant = isEnumConstant
     }

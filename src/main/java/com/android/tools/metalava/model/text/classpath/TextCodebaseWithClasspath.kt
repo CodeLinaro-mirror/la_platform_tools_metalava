@@ -18,15 +18,17 @@ package com.android.tools.metalava.model.text.classpath
 
 import com.android.tools.lint.UastEnvironment
 import com.android.tools.metalava.FileFormat
+import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.DefaultCodebase
+import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.PackageDocs
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PackageList
 import com.android.tools.metalava.model.psi.PsiBasedCodebase
+import com.android.tools.metalava.model.text.TextBackedAnnotationItem
 import com.android.tools.metalava.model.text.TextCodebase
 import com.intellij.psi.JavaPsiFacade
-import com.intellij.psi.PsiFile
 import com.intellij.psi.search.GlobalSearchScope
 
 /**
@@ -52,8 +54,6 @@ class TextCodebaseWithClasspath(
     private val javaPsiFacade = JavaPsiFacade.getInstance(project)
     private val searchScope = GlobalSearchScope.everythingScope(project)
 
-    override var units: List<PsiFile> = emptyList()
-
     private val packages: PackageList
 
     override fun getPackages(): PackageList = packages
@@ -67,7 +67,7 @@ class TextCodebaseWithClasspath(
             textCodebase.wrappedStubClasses.keys.mapNotNull {
                 javaPsiFacade.findClass(it, searchScope)
             }
-        units = psiClasses.map { it.containingFile }
+        val units = psiClasses.map { it.containingFile }
         classpathCodebase =
             PsiBasedCodebase(location, "Codebase from classpath", fromClasspath = true)
         val emptyPackageDocs = PackageDocs(mutableMapOf(), mutableMapOf(), mutableSetOf())
@@ -109,6 +109,14 @@ class TextCodebaseWithClasspath(
                 PackageItem.comparator
             )
         packages = PackageList(this, allPackages)
+    }
+
+    override fun createAnnotation(
+        source: String,
+        context: Item?,
+        mapName: Boolean
+    ): AnnotationItem {
+        return TextBackedAnnotationItem(this, source, mapName)
     }
 
     // Search the [textCodebase] before the [classpathCodebase]

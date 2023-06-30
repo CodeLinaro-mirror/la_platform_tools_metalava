@@ -18,6 +18,8 @@ package com.android.tools.metalava
 
 import com.android.tools.metalava.LibraryBuildInfoFile.Check
 import com.google.gson.GsonBuilder
+import java.io.File
+import java.util.concurrent.TimeUnit
 import org.gradle.api.DefaultTask
 import org.gradle.api.GradleException
 import org.gradle.api.Project
@@ -27,28 +29,19 @@ import org.gradle.api.tasks.OutputFile
 import org.gradle.api.tasks.TaskAction
 import org.gradle.api.tasks.TaskProvider
 import org.gradle.api.tasks.bundling.Zip
-import java.io.File
-import java.util.concurrent.TimeUnit
 
 const val CREATE_BUILD_INFO_TASK = "createBuildInfo"
 
 abstract class CreateLibraryBuildInfoTask : DefaultTask() {
-    @get:Input
-    abstract val artifactId: Property<String>
-    @get:Input
-    abstract val groupId: Property<String>
-    @get:Input
-    abstract val version: Property<String>
-    @get:Input
-    abstract val sha: Property<String>
-    @get:Input
-    abstract val projectZipPath: Property<String>
+    @get:Input abstract val artifactId: Property<String>
+    @get:Input abstract val groupId: Property<String>
+    @get:Input abstract val version: Property<String>
+    @get:Input abstract val sha: Property<String>
+    @get:Input abstract val projectZipPath: Property<String>
 
-    @get:OutputFile
-    abstract val outputFile: Property<File>
+    @get:OutputFile abstract val outputFile: Property<File>
 
-    @get:OutputFile
-    abstract val aggregateOutputFile: Property<File>
+    @get:OutputFile abstract val aggregateOutputFile: Property<File>
 
     @TaskAction
     fun createFile() {
@@ -87,24 +80,27 @@ fun configureBuildInfoTask(
         // Only set sha when in CI to keep local builds faster
         it.sha.set(project.provider { if (inCI) getGitSha(project.projectDir) else "" })
         it.projectZipPath.set(archiveTaskProvider.flatMap { task -> task.archiveFileName })
-        it.outputFile.set(project.provider {
-            File(
-                distributionDirectory,
-                "build-info/${project.group}_${project.name}_build_info.txt"
-            )
-        })
-        it.aggregateOutputFile.set(project.provider {
-            File(distributionDirectory, "androidx_aggregate_build_info.txt")}
+        it.outputFile.set(
+            project.provider {
+                File(
+                    distributionDirectory,
+                    "build-info/${project.group}_${project.name}_build_info.txt"
+                )
+            }
+        )
+        it.aggregateOutputFile.set(
+            project.provider { File(distributionDirectory, "androidx_aggregate_build_info.txt") }
         )
     }
 }
 
 fun getGitSha(directory: File): String {
-    val process = ProcessBuilder("git", "rev-parse", "--verify", "HEAD")
-        .directory(directory)
-        .redirectOutput(ProcessBuilder.Redirect.PIPE)
-        .redirectError(ProcessBuilder.Redirect.PIPE)
-        .start()
+    val process =
+        ProcessBuilder("git", "rev-parse", "--verify", "HEAD")
+            .directory(directory)
+            .redirectOutput(ProcessBuilder.Redirect.PIPE)
+            .redirectError(ProcessBuilder.Redirect.PIPE)
+            .start()
     // Read output, waiting for process to finish, as needed
     val stdout = process.inputStream.bufferedReader().readText()
     val stderr = process.errorStream.bufferedReader().readText()
@@ -120,20 +116,18 @@ fun getGitSha(directory: File): String {
 }
 
 /**
- * Object outlining the format of a library's build info file.
- * This object will be serialized to json.
- * This file should match the corresponding class in Jetpad because
- * this object will be serialized to json and the result will be parsed by Jetpad.
- * DO NOT TOUCH.
+ * Object outlining the format of a library's build info file. This object will be serialized to
+ * json. This file should match the corresponding class in Jetpad because this object will be
+ * serialized to json and the result will be parsed by Jetpad. DO NOT TOUCH.
  *
  * @property groupId library maven group Id
  * @property artifactId library maven artifact Id
  * @property version library maven version
  * @property path local project directory path used for development, rooted at framework/support
- * @property sha the sha of the latest commit to modify the library (aka a commit that
- * touches a file within [path])
- * @property groupIdRequiresSameVersion boolean that determines if all libraries with [groupId]
- * have the same version
+ * @property sha the sha of the latest commit to modify the library (aka a commit that touches a
+ *   file within [path])
+ * @property groupIdRequiresSameVersion boolean that determines if all libraries with [groupId] have
+ *   the same version
  * @property dependencies a list of dependencies on other androidx libraries
  * @property checks arraylist of [Check]s that is used by Jetpad
  */
@@ -149,9 +143,7 @@ class LibraryBuildInfoFile {
     var dependencies: ArrayList<Dependency> = arrayListOf()
     var checks: ArrayList<Check> = arrayListOf()
 
-    /**
-     * @property isTipOfTree boolean that specifies whether the dependency is tip-of-tree
-     */
+    /** @property isTipOfTree boolean that specifies whether the dependency is tip-of-tree */
     inner class Dependency {
         var groupId: String? = null
         var artifactId: String? = null

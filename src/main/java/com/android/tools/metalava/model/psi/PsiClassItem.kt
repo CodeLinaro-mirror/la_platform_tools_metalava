@@ -74,19 +74,30 @@ open class PsiClassItem(
 
     override fun containingPackage(): PackageItem =
         containingClass?.containingPackage() ?: containingPackage
+
     override fun simpleName(): String = name
+
     override fun fullName(): String = fullName
+
     override fun qualifiedName(): String = qualifiedName
+
     override fun isDefined(): Boolean = codebase.unsupported()
+
     override fun isInterface(): Boolean = classType == ClassType.INTERFACE
+
     override fun isAnnotationType(): Boolean = classType == ClassType.ANNOTATION_TYPE
+
     override fun isEnum(): Boolean = classType == ClassType.ENUM
+
     override fun isFromClassPath(): Boolean = fromClassPath
+
     override fun hasImplicitDefaultConstructor(): Boolean = hasImplicitDefaultConstructor
 
     private var superClass: ClassItem? = null
     private var superClassType: TypeItem? = null
+
     override fun superClass(): ClassItem? = superClass
+
     override fun superClassType(): TypeItem? = superClassType
 
     override fun setSuperClass(superClass: ClassItem?, superClassType: TypeItem?) {
@@ -98,6 +109,7 @@ open class PsiClassItem(
     override var artifact: String? = null
 
     private var containingClass: PsiClassItem? = null
+
     override fun containingClass(): PsiClassItem? = containingClass
 
     override var hasPrivateConstructor: Boolean = false
@@ -165,9 +177,13 @@ open class PsiClassItem(
     internal var source: PsiClassItem? = null
 
     override fun innerClasses(): List<PsiClassItem> = innerClasses
+
     override fun constructors(): List<PsiConstructorItem> = constructors
+
     override fun methods(): List<PsiMethodItem> = methods
+
     override fun properties(): List<PropertyItem> = properties
+
     override fun fields(): List<FieldItem> = fields
 
     final override var primaryConstructor: PsiConstructorItem? = null

@@ -21,6 +21,8 @@ import com.android.tools.metalava.model.TypeItem
 
 open class TypeVisitor(val includeInterfaces: Boolean = false) {
     open fun skip(item: Item): Boolean = false
+
     open fun visitType(type: TypeItem, owner: Item) {}
+
     open fun afterVisitType(type: TypeItem, owner: Item) {}
 }
