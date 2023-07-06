@@ -67,7 +67,6 @@ class TextTypeItemTest {
             }
             """
                     .trimIndent(),
-                false
             )
         val cls = codebase.findClass("androidx.navigation.NavDestinationBuilder")
         val method = cls?.findMethod("build", "") as TextMethodItem
@@ -97,7 +96,6 @@ class TextTypeItemTest {
             }
             """
                     .trimIndent(),
-                false
             )
         val cls = codebase.findClass("test.pkg.TestClass")
         val method = cls?.findMethod("build", "") as TextMethodItem
@@ -128,7 +126,6 @@ class TextTypeItemTest {
             }
             """
                     .trimIndent(),
-                false
             )
         val cls = codebase.findClass("test.pkg.EnumMap")
         val method = cls?.findMethod("clone", "") as TextMethodItem

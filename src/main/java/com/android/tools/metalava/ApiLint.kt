@@ -143,6 +143,7 @@ import com.android.tools.metalava.Issues.USER_HANDLE_NAME
 import com.android.tools.metalava.Issues.USE_ICU
 import com.android.tools.metalava.Issues.USE_PARCEL_FILE_DESCRIPTOR
 import com.android.tools.metalava.Issues.VISIBLY_SYNCHRONIZED
+import com.android.tools.metalava.manifest.Manifest
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.AnnotationItem.Companion.getImplicitNullness
 import com.android.tools.metalava.model.ClassItem
@@ -180,7 +181,8 @@ import org.jetbrains.uast.visitor.AbstractUastVisitor
 class ApiLint(
     private val codebase: Codebase,
     private val oldCodebase: Codebase?,
-    private val reporter: Reporter
+    private val reporter: Reporter,
+    private val manifest: Manifest = options.manifest,
 ) :
     ApiVisitor(
         // Sort by source order such that warnings follow source line number order
@@ -2450,7 +2452,7 @@ class ApiLint(
         // AutoCloseable has been added in API 19, so libraries with minSdkVersion <19 cannot use
         // it. If the version
         // is not set, then keep the check enabled.
-        val minSdkVersion = codebase.getMinSdkVersion()
+        val minSdkVersion = manifest.getMinSdkVersion()
         if (minSdkVersion is SetMinSdkVersion && minSdkVersion.value < 19) {
             return
         }
@@ -2807,7 +2809,7 @@ class ApiLint(
         }
         // ICU types have been added in API 24, so libraries with minSdkVersion <24 cannot use them.
         // If the version is not set, then keep the check enabled.
-        val minSdkVersion = codebase.getMinSdkVersion()
+        val minSdkVersion = manifest.getMinSdkVersion()
         if (minSdkVersion is SetMinSdkVersion && minSdkVersion.value < 24) {
             return
         }
