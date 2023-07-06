@@ -23,9 +23,10 @@ class NullabilityAnnotationsValidatorTest : DriverTest() {
     @Test
     fun `Empty report when all expected annotations present`() {
         check(
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                         package test.pkg;
 
                         public interface Appendable {
@@ -41,13 +42,14 @@ class NullabilityAnnotationsValidatorTest : DriverTest() {
                             NotAnnotated combine(NotAnnotated other);
                         }
                     """
+                    ),
+                    libcoreNonNullSource,
+                    libcoreNullableSource,
+                    libcoreNullFromTypeParamSource
                 ),
-                libcoreNonNullSource,
-                libcoreNullableSource,
-                libcoreNullFromTypeParamSource
-            ),
             outputKotlinStyleNulls = false,
-            mergeJavaStubAnnotations = """
+            mergeJavaStubAnnotations =
+                """
                 package test.pkg;
 
                 import libcore.util.NonNull;
@@ -70,9 +72,10 @@ class NullabilityAnnotationsValidatorTest : DriverTest() {
     @Test
     fun `Missing parameter annotation`() {
         check(
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                         package test.pkg;
 
                         public interface Appendable {
@@ -83,12 +86,13 @@ class NullabilityAnnotationsValidatorTest : DriverTest() {
                             T get(int index);
                         }
                     """
+                    ),
+                    libcoreNonNullSource,
+                    libcoreNullFromTypeParamSource
                 ),
-                libcoreNonNullSource,
-                libcoreNullFromTypeParamSource
-            ),
             outputKotlinStyleNulls = false,
-            mergeJavaStubAnnotations = """
+            mergeJavaStubAnnotations =
+                """
                 package test.pkg;
 
                 import libcore.util.NonNull;
@@ -103,18 +107,20 @@ class NullabilityAnnotationsValidatorTest : DriverTest() {
                 }
                 """,
             extraArguments = arrayOf(ARG_VALIDATE_NULLABILITY_FROM_MERGED_STUBS),
-            validateNullability = setOf(
-                "WARNING: method test.pkg.Appendable.append(CharSequence), parameter csq, MISSING"
-            )
+            validateNullability =
+                setOf(
+                    "WARNING: method test.pkg.Appendable.append(CharSequence), parameter csq, MISSING"
+                )
         )
     }
 
     @Test
     fun `Missing return type annotations`() {
         check(
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                         package test.pkg;
 
                         public interface Appendable {
@@ -125,11 +131,12 @@ class NullabilityAnnotationsValidatorTest : DriverTest() {
                             T get(int index);
                         }
                     """
+                    ),
+                    libcoreNullableSource
                 ),
-                libcoreNullableSource
-            ),
             outputKotlinStyleNulls = false,
-            mergeJavaStubAnnotations = """
+            mergeJavaStubAnnotations =
+                """
                 package test.pkg;
 
                 import libcore.util.Nullable;
@@ -142,19 +149,21 @@ class NullabilityAnnotationsValidatorTest : DriverTest() {
                 }
                 """,
             extraArguments = arrayOf(ARG_VALIDATE_NULLABILITY_FROM_MERGED_STUBS),
-            validateNullability = setOf(
-                "WARNING: method test.pkg.Appendable.append(CharSequence), return value, MISSING",
-                "WARNING: method test.pkg.List.get(int), return value, MISSING"
-            )
+            validateNullability =
+                setOf(
+                    "WARNING: method test.pkg.Appendable.append(CharSequence), return value, MISSING",
+                    "WARNING: method test.pkg.List.get(int), return value, MISSING"
+                )
         )
     }
 
     @Test
     fun `Error from annotation on primitive`() {
         check(
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                         package test.pkg;
 
                         public interface Appendable {
@@ -165,13 +174,14 @@ class NullabilityAnnotationsValidatorTest : DriverTest() {
                             T get(int index);
                         }
                     """
+                    ),
+                    libcoreNonNullSource,
+                    libcoreNullableSource,
+                    libcoreNullFromTypeParamSource
                 ),
-                libcoreNonNullSource,
-                libcoreNullableSource,
-                libcoreNullFromTypeParamSource
-            ),
             outputKotlinStyleNulls = false,
-            mergeJavaStubAnnotations = """
+            mergeJavaStubAnnotations =
+                """
                 package test.pkg;
 
                 import libcore.util.NonNull;
@@ -187,18 +197,18 @@ class NullabilityAnnotationsValidatorTest : DriverTest() {
                 }
                 """,
             extraArguments = arrayOf(ARG_VALIDATE_NULLABILITY_FROM_MERGED_STUBS),
-            validateNullability = setOf(
-                "ERROR: method test.pkg.List.get(int), parameter index, ON_PRIMITIVE"
-            )
+            validateNullability =
+                setOf("ERROR: method test.pkg.List.get(int), parameter index, ON_PRIMITIVE")
         )
     }
 
     @Test
     fun `Error from NullFromTypeParam not on type param`() {
         check(
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                         package test.pkg;
 
                         public interface Appendable {
@@ -209,12 +219,13 @@ class NullabilityAnnotationsValidatorTest : DriverTest() {
                             T get(int index);
                         }
                     """
+                    ),
+                    libcoreNullableSource,
+                    libcoreNullFromTypeParamSource
                 ),
-                libcoreNullableSource,
-                libcoreNullFromTypeParamSource
-            ),
             outputKotlinStyleNulls = false,
-            mergeJavaStubAnnotations = """
+            mergeJavaStubAnnotations =
+                """
                 package test.pkg;
 
                 import libcore.util.Nullable;
@@ -229,18 +240,20 @@ class NullabilityAnnotationsValidatorTest : DriverTest() {
                 }
                 """,
             extraArguments = arrayOf(ARG_VALIDATE_NULLABILITY_FROM_MERGED_STUBS),
-            validateNullability = setOf(
-                "ERROR: method test.pkg.Appendable.append(CharSequence), return value, BAD_TYPE_PARAM"
-            )
+            validateNullability =
+                setOf(
+                    "ERROR: method test.pkg.Appendable.append(CharSequence), return value, BAD_TYPE_PARAM"
+                )
         )
     }
 
     @Test
     fun `Using class list`() {
         check(
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                         package test.pkg;
 
                         import libcore.util.Nullable;
@@ -255,20 +268,21 @@ class NullabilityAnnotationsValidatorTest : DriverTest() {
                             T get(int index);
                         }
                     """
+                    ),
+                    libcoreNullableSource
                 ),
-                libcoreNullableSource
-            ),
             outputKotlinStyleNulls = false,
             extraArguments = arrayOf(ARG_VALIDATE_NULLABILITY_FROM_MERGED_STUBS),
             validateNullabilityFromList =
-            """
+                """
                 # a comment, then a blank line, then the class to validate
 
                 test.pkg.Appendable
             """,
-            validateNullability = setOf(
-                "WARNING: method test.pkg.Appendable.append(CharSequence), return value, MISSING"
-            )
+            validateNullability =
+                setOf(
+                    "WARNING: method test.pkg.Appendable.append(CharSequence), return value, MISSING"
+                )
         )
     }
 }

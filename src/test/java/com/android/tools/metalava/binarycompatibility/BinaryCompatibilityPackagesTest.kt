@@ -25,126 +25,157 @@ class BinaryCompatibilityPackagesTest : DriverTest() {
     @Test
     fun `Add API Package (Compatible)`() {
         check(
-            signatureSource = """
+            signatureSource =
+                """
                 package test.pkg {
                   public class Foo {}
                 }
                 package test.pkg.added {
                   public class Foo {}
                 }
-            """.trimIndent(),
+            """
+                    .trimIndent(),
             format = FileFormat.V4,
-            checkCompatibilityApiReleased = """
+            checkCompatibilityApiReleased =
+                """
                 package test.pkg {
                   public class Foo {}
                 }
-            """.trimIndent()
+            """
+                    .trimIndent()
         )
     }
     @Test
     fun `Delete API Package (Incompatible)`() {
         check(
-            expectedIssues = """
+            expectedIssues =
+                """
                 TESTROOT/released-api.txt:4: error: Removed package test.pkg.removed [RemovedPackage]
-            """.trimIndent(),
-            signatureSource = """
+            """
+                    .trimIndent(),
+            signatureSource =
+                """
                 package test.pkg {
                   public class Foo {}
                 }
-            """.trimIndent(),
+            """
+                    .trimIndent(),
             format = FileFormat.V4,
-            checkCompatibilityApiReleased = """
+            checkCompatibilityApiReleased =
+                """
                 package test.pkg {
                   public class Foo {}
                 }
                 package test.pkg.removed {
                   public class Foo {}
                 }
-            """.trimIndent()
+            """
+                    .trimIndent()
         )
     }
     @Test
     fun `Add API Type to API Package (Compatible)`() {
         check(
-            signatureSource = """
+            signatureSource =
+                """
                 package test.pkg {
                   public class Foo {}
                   public class Bar {}
                 }
-            """.trimIndent(),
+            """
+                    .trimIndent(),
             format = FileFormat.V4,
-            checkCompatibilityApiReleased = """
+            checkCompatibilityApiReleased =
+                """
                 package test.pkg {
                   public class Foo {}
                 }
-            """.trimIndent()
+            """
+                    .trimIndent()
         )
     }
     @Test
     fun `Delete API Type from API Package (Incompatible)`() {
         check(
-            expectedIssues = """
+            expectedIssues =
+                """
                 TESTROOT/released-api.txt:3: error: Removed class test.pkg.Bar [RemovedClass]
-            """.trimIndent(),
-            signatureSource = """
+            """
+                    .trimIndent(),
+            signatureSource =
+                """
                 package test.pkg {
                   public class Foo {}
                 }
-            """.trimIndent(),
+            """
+                    .trimIndent(),
             format = FileFormat.V4,
-            checkCompatibilityApiReleased = """
+            checkCompatibilityApiReleased =
+                """
                 package test.pkg {
                   public class Foo {}
                   public class Bar {}
                 }
-            """.trimIndent()
+            """
+                    .trimIndent()
         )
     }
     @Test
     fun `Add non-public (non-API) type to API package (Compatible)`() {
         check(
-            sourceFiles = arrayOf(
-                kotlin(
-                    """
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
                         package test.pkg
                         private class Bar
                         class Foo
-                    """.trimIndent()
-                )
-            ),
+                    """
+                            .trimIndent()
+                    )
+                ),
             format = FileFormat.V4,
-            checkCompatibilityApiReleased = """
+            checkCompatibilityApiReleased =
+                """
                 package test.pkg {
                   public class Foo {}
                 }
-            """.trimIndent()
+            """
+                    .trimIndent()
         )
     }
     @Test
     fun `Change public type in API package to make non-public (Incompatible)`() {
         check(
-            expectedIssues = """
+            expectedIssues =
+                """
                 TESTROOT/load-api.txt:2: error: Class test.pkg.Foo changed visibility from public to private [ChangedScope]
-            """.trimIndent(),
-            signatureSource = """
+            """
+                    .trimIndent(),
+            signatureSource =
+                """
                 package test.pkg {
                   private class Foo {}
                   public class Bar {}
                 }
-            """.trimIndent(),
+            """
+                    .trimIndent(),
             format = FileFormat.V4,
-            checkCompatibilityApiReleased = """
+            checkCompatibilityApiReleased =
+                """
                 package test.pkg {
                   public class Foo {}
                   public class Bar {}
                 }
-            """.trimIndent()
+            """
+                    .trimIndent()
         )
     }
     @Test
     fun `Change kind of API type (class, interface, enum, or annotation type) (Incompatible)`() {
         check(
-            expectedIssues = """
+            expectedIssues =
+                """
                 TESTROOT/load-api.txt:11: error: Class test.pkg.AnnotationToClass changed class/interface declaration [ChangedClass]
                 TESTROOT/load-api.txt:13: error: Class test.pkg.AnnotationToEnum changed class/interface declaration [ChangedClass]
                 TESTROOT/load-api.txt:12: error: Class test.pkg.AnnotationToInterface changed class/interface declaration [ChangedClass]
@@ -157,8 +188,10 @@ class BinaryCompatibilityPackagesTest : DriverTest() {
                 TESTROOT/load-api.txt:10: error: Class test.pkg.InterfaceToAnnotation changed class/interface declaration [ChangedClass]
                 TESTROOT/load-api.txt:8: error: Class test.pkg.InterfaceToClass changed class/interface declaration [ChangedClass]
                 TESTROOT/load-api.txt:9: error: Class test.pkg.InterfaceToEnum changed class/interface declaration [ChangedClass]
-            """.trimIndent(),
-            signatureSource = """
+            """
+                    .trimIndent(),
+            signatureSource =
+                """
                 package test.pkg {
                   public enum ClassToEnum {}
                   public interface ClassToInterface {}
@@ -173,9 +206,11 @@ class BinaryCompatibilityPackagesTest : DriverTest() {
                   public interface AnnotationToInterface {}
                   public enum AnnotationToEnum {}
                 }
-            """.trimIndent(),
+            """
+                    .trimIndent(),
             format = FileFormat.V4,
-            checkCompatibilityApiReleased = """
+            checkCompatibilityApiReleased =
+                """
                 package test.pkg {
                   public class ClassToEnum {}
                   public class ClassToInterface {}
@@ -190,7 +225,8 @@ class BinaryCompatibilityPackagesTest : DriverTest() {
                   public @interface AnnotationToInterface {}
                   public @interface AnnotationToEnum {}
                 }
-            """.trimIndent()
+            """
+                    .trimIndent()
         )
     }
 }

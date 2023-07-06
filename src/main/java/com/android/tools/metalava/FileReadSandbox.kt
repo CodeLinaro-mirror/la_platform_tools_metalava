@@ -28,31 +28,26 @@ import kotlin.concurrent.getOrSet
 /**
  * Detect access to files that not explicitly specified in the command line.
  *
- * This class detects reads on both files and directories. Directory accesses are logged by
- * the driver in [run], which only logs it, but doesn't consider it an error.
+ * This class detects reads on both files and directories. Directory accesses are logged by the
+ * driver in [run], which only logs it, but doesn't consider it an error.
  *
  * We do not prevent reads on directories that are not explicitly listed in the command line because
  * metalava (or JVM, really) seems to read some system directories such as /usr/, etc., but this
- * behavior may be JVM dependent so we do not want to have to explicitly include them.
- * (Because, otherwise, when we update JVM, it may access different directories and we end up
- * having to update the implicit allowed list.) As long as we don't read files, reading directories
- * shouldn't (normally) affect the result, so we simply allow any directory reads.
+ * behavior may be JVM dependent so we do not want to have to explicitly include them. (Because,
+ * otherwise, when we update JVM, it may access different directories and we end up having to update
+ * the implicit allowed list.) As long as we don't read files, reading directories shouldn't
+ * (normally) affect the result, so we simply allow any directory reads.
  */
 internal object FileReadSandbox {
     private var installed = false
 
-    @Suppress("DEPRECATION")
-    private var previousSecurityManager: SecurityManager? = null
+    @Suppress("DEPRECATION") private var previousSecurityManager: SecurityManager? = null
     private val mySecurityManager = MySecurityManager()
 
-    /**
-     * Set of paths that are allowed to access. This is used with an exact match.
-     */
+    /** Set of paths that are allowed to access. This is used with an exact match. */
     private var allowedPaths = mutableSetOf<String>()
 
-    /**
-     * Set of path prefixes that are allowed to access.
-     */
+    /** Set of path prefixes that are allowed to access. */
     private var allowedPathPrefixes = mutableSetOf<String>()
 
     interface Listener {
@@ -76,9 +71,7 @@ internal object FileReadSandbox {
         // access /dev/urandom on linux), so we need to allow them.
         // At least on linux, there doesn't seem to be any access to files under /proc/ or /sys/,
         // but they should be allowed anyway.
-        listOf("/dev", "/proc", "/sys").forEach {
-            allowAccess(File(it))
-        }
+        listOf("/dev", "/proc", "/sys").forEach { allowAccess(File(it)) }
         // Allow access to the directory containing the metalava's jar itself.
         // (so even if metalava loads other jar files in the same directory, that wouldn't be a
         // violation.)
@@ -89,18 +82,11 @@ internal object FileReadSandbox {
         // Allow access to $JAVA_HOME.
         // We also allow $ANDROID_JAVA_HOME, which is used in the Android platform build.
         // (which is normally $ANDROID_BUILD_TOP + "/prebuilts/jdk/jdk11/linux-x86" as of writing.)
-        listOf(
-            "JAVA_HOME",
-            "ANDROID_JAVA_HOME"
-        ).forEach {
-            System.getenv(it)?.let { path ->
-                allowAccess(File(path))
-            }
+        listOf("JAVA_HOME", "ANDROID_JAVA_HOME").forEach {
+            System.getenv(it)?.let { path -> allowAccess(File(path)) }
         }
         // JVM seems to use ~/.cache/
-        System.getenv("HOME")?.let {
-            allowAccess(File("$it/.cache"))
-        }
+        System.getenv("HOME")?.let { allowAccess(File("$it/.cache")) }
     }
 
     /** Activate the sandbox. */
@@ -110,8 +96,7 @@ internal object FileReadSandbox {
         }
         @Suppress("DEPRECATION")
         previousSecurityManager = System.getSecurityManager()
-        @Suppress("DEPRECATION")
-        System.setSecurityManager(mySecurityManager)
+        @Suppress("DEPRECATION") System.setSecurityManager(mySecurityManager)
         installed = true
         this.listener = listener
     }
@@ -121,8 +106,7 @@ internal object FileReadSandbox {
         if (!installed) {
             throw IllegalStateException("Not activated")
         }
-        @Suppress("DEPRECATION")
-        System.setSecurityManager(previousSecurityManager)
+        @Suppress("DEPRECATION") System.setSecurityManager(previousSecurityManager)
         previousSecurityManager = null
 
         installed = false
@@ -166,8 +150,7 @@ internal object FileReadSandbox {
             if (parent == null) {
                 break
             }
-            @Suppress("NAME_SHADOWING")
-            val path = parent.absolutePath
+            @Suppress("NAME_SHADOWING") val path = parent.absolutePath
             if (!allowedPaths.add(path)) {
                 break // already added.
             }
@@ -236,8 +219,8 @@ internal object FileReadSandbox {
     }
 
     /**
-     * Reading files that are created by metalava should be allowed, so we detect file writes to
-     * new files, and add them to the allowed path list.
+     * Reading files that are created by metalava should be allowed, so we detect file writes to new
+     * files, and add them to the allowed path list.
      */
     private fun writeDetected(origPath: String?) {
         origPath ?: return
@@ -268,80 +251,56 @@ internal object FileReadSandbox {
         override fun checkRead(file: String, context: Any?) {
             check(file)
         }
-        override fun checkRead(p0: FileDescriptor?) {
-        }
+        override fun checkRead(p0: FileDescriptor?) {}
 
-        override fun checkDelete(p0: String?) {
-        }
+        override fun checkDelete(p0: String?) {}
 
-        override fun checkPropertiesAccess() {
-        }
+        override fun checkPropertiesAccess() {}
 
-        override fun checkAccess(p0: Thread?) {
-        }
+        override fun checkAccess(p0: Thread?) {}
 
-        override fun checkAccess(p0: ThreadGroup?) {
-        }
+        override fun checkAccess(p0: ThreadGroup?) {}
 
-        override fun checkExec(p0: String?) {
-        }
+        override fun checkExec(p0: String?) {}
 
-        override fun checkListen(p0: Int) {
-        }
+        override fun checkListen(p0: Int) {}
 
-        override fun checkExit(p0: Int) {
-        }
+        override fun checkExit(p0: Int) {}
 
-        override fun checkLink(p0: String?) {
-        }
+        override fun checkLink(p0: String?) {}
 
-        override fun checkPropertyAccess(p0: String?) {
-        }
+        override fun checkPropertyAccess(p0: String?) {}
 
-        override fun checkPackageDefinition(p0: String?) {
-        }
+        override fun checkPackageDefinition(p0: String?) {}
 
-        override fun checkMulticast(p0: InetAddress?) {
-        }
+        override fun checkMulticast(p0: InetAddress?) {}
 
-        override fun checkMulticast(p0: InetAddress?, p1: Byte) {
-        }
+        override fun checkMulticast(p0: InetAddress?, p1: Byte) {}
 
-        override fun checkPermission(p0: Permission?) {
-        }
+        override fun checkPermission(p0: Permission?) {}
 
-        override fun checkPermission(p0: Permission?, p1: Any?) {
-        }
+        override fun checkPermission(p0: Permission?, p1: Any?) {}
 
-        override fun checkPackageAccess(p0: String?) {
-        }
+        override fun checkPackageAccess(p0: String?) {}
 
-        override fun checkAccept(p0: String?, p1: Int) {
-        }
+        override fun checkAccept(p0: String?, p1: Int) {}
 
-        override fun checkSecurityAccess(p0: String?) {
-        }
+        override fun checkSecurityAccess(p0: String?) {}
 
-        override fun checkWrite(p0: FileDescriptor?) {
-        }
+        override fun checkWrite(p0: FileDescriptor?) {}
 
         override fun checkWrite(file: String?) {
             writeDetected(file)
         }
 
-        override fun checkPrintJobAccess() {
-        }
+        override fun checkPrintJobAccess() {}
 
-        override fun checkCreateClassLoader() {
-        }
+        override fun checkCreateClassLoader() {}
 
-        override fun checkConnect(p0: String?, p1: Int) {
-        }
+        override fun checkConnect(p0: String?, p1: Int) {}
 
-        override fun checkConnect(p0: String?, p1: Int, p2: Any?) {
-        }
+        override fun checkConnect(p0: String?, p1: Int, p2: Any?) {}
 
-        override fun checkSetFactory() {
-        }
+        override fun checkSetFactory() {}
     }
 }

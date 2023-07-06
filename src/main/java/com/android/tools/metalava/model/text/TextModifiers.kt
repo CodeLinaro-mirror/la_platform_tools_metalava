@@ -64,15 +64,21 @@ class TextModifiers(
                 if (index == -1) {
                     emptyList()
                 } else {
-                    DefaultAnnotationAttribute.createList(source.substring(index + 1, source.lastIndexOf(')')))
+                    DefaultAnnotationAttribute.createList(
+                        source.substring(index + 1, source.lastIndexOf(')'))
+                    )
                 }
             val codebase = codebase
-            val item = object : DefaultAnnotationItem(codebase) {
-                override val attributes: List<AnnotationAttribute> = attributes
-                override val originalName: String? = originalName
-                override val qualifiedName: String? = qualifiedName
-                override fun toSource(target: AnnotationTarget, showDefaultAttrs: Boolean): String = source
-            }
+            val item =
+                object : DefaultAnnotationItem(codebase) {
+                    override val attributes: List<AnnotationAttribute> = attributes
+                    override val originalName: String? = originalName
+                    override val qualifiedName: String? = qualifiedName
+                    override fun toSource(
+                        target: AnnotationTarget,
+                        showDefaultAttrs: Boolean
+                    ): String = source
+                }
             annotations.add(item)
         }
         this.annotations = annotations

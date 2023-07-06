@@ -44,10 +44,9 @@ class ArtifactTagger {
     private fun getRegistrations(): Collection<Map.Entry<File, String>> = artifacts.entries
 
     /**
-     * Applies the artifact registrations in this map to the given [codebase].
-     * If [warnAboutMissing] is true, it will complain if any classes in the API
-     * are found that have not been tagged (e.g. where no artifact signature file
-     * referenced the API.
+     * Applies the artifact registrations in this map to the given [codebase]. If [warnAboutMissing]
+     * is true, it will complain if any classes in the API are found that have not been tagged (e.g.
+     * where no artifact signature file referenced the API.
      */
     fun tag(codebase: Codebase, warnAboutMissing: Boolean = true) {
         if (!any()) {
@@ -65,7 +64,8 @@ class ArtifactTagger {
                 specApi = ApiFile.parseApi(xmlFile, options.inputKotlinStyleNulls)
             } catch (e: ApiParseException) {
                 reporter.report(
-                    Issues.BROKEN_ARTIFACT_FILE, xmlFile,
+                    Issues.BROKEN_ARTIFACT_FILE,
+                    xmlFile,
                     "Failed to parse $xmlFile for $artifactName artifact data.\n"
                 )
                 continue
@@ -75,16 +75,19 @@ class ArtifactTagger {
         }
 
         if (warnAboutMissing) {
-            codebase.accept(object : ApiVisitor() {
-                override fun visitClass(cls: ClassItem) {
-                    if (cls.artifact == null && cls.isTopLevelClass()) {
-                        reporter.report(
-                            Issues.NO_ARTIFACT_DATA, cls,
-                            "No registered artifact signature file referenced class ${cls.qualifiedName()}"
-                        )
+            codebase.accept(
+                object : ApiVisitor() {
+                    override fun visitClass(cls: ClassItem) {
+                        if (cls.artifact == null && cls.isTopLevelClass()) {
+                            reporter.report(
+                                Issues.NO_ARTIFACT_DATA,
+                                cls,
+                                "No registered artifact signature file referenced class ${cls.qualifiedName()}"
+                            )
+                        }
                     }
                 }
-            })
+            )
         }
     }
 
@@ -106,7 +109,8 @@ class ArtifactTagger {
                     cls.artifact = mavenSpec
                 } else {
                     reporter.report(
-                        Issues.BROKEN_ARTIFACT_FILE, cls,
+                        Issues.BROKEN_ARTIFACT_FILE,
+                        cls,
                         "Class ${cls.qualifiedName()} belongs to multiple artifacts: ${cls.artifact} and $mavenSpec"
                     )
                 }

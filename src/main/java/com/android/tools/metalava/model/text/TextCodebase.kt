@@ -24,7 +24,6 @@ import com.android.tools.metalava.JAVA_LANG_ANNOTATION
 import com.android.tools.metalava.JAVA_LANG_ENUM
 import com.android.tools.metalava.JAVA_LANG_OBJECT
 import com.android.tools.metalava.JAVA_LANG_THROWABLE
-import com.android.tools.metalava.Options
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
@@ -48,12 +47,16 @@ import java.util.HashMap
 import java.util.function.Predicate
 import kotlin.math.min
 
-// Copy of ApiInfo in doclava1 (converted to Kotlin + some cleanup to make it work with metalava's data structures.
+// Copy of ApiInfo in doclava1 (converted to Kotlin + some cleanup to make it work with metalava's
+// data structures.
 // (Converted to Kotlin such that I can inherit behavior via interfaces, in particular Codebase.)
-class TextCodebase(location: File) : DefaultCodebase(location) {
+class TextCodebase(
+    location: File,
+    val apiClassResolution: ApiClassResolution = ApiClassResolution.API_CLASSPATH,
+) : DefaultCodebase(location) {
     /**
-     * Whether types should be interpreted to be in Kotlin format (e.g. ? suffix means nullable,
-     * ! suffix means unknown, and absence of a suffix means not nullable.
+     * Whether types should be interpreted to be in Kotlin format (e.g. ? suffix means nullable, !
+     * suffix means unknown, and absence of a suffix means not nullable.
      */
     var kotlinStyleNulls = false
 
@@ -66,10 +69,8 @@ class TextCodebase(location: File) : DefaultCodebase(location) {
     // These are initialized as wrapped empty stubs, but may be switched out for PSI classes.
     val wrappedStubClasses = HashMap<String, WrappedClassItem>()
 
-    /**
-     * True if [getOrCreateClass] should add [WrapperClassItem]s around unknown classes.
-     */
-    val addWrappersForUnknownClasses = options.apiClassResolution == Options.ApiClassResolution.API_CLASSPATH
+    /** True if [getOrCreateClass] should add [WrapperClassItem]s around unknown classes. */
+    val addWrappersForUnknownClasses = apiClassResolution == ApiClassResolution.API_CLASSPATH
 
     override var description = "Codebase"
     override var preFiltered: Boolean = true
@@ -77,8 +78,8 @@ class TextCodebase(location: File) : DefaultCodebase(location) {
     override fun trustedApi(): Boolean = true
 
     /**
-     * Signature file format version, if found. Type "GradleVersion" is misleading; it's just a convenient
-     * version class.
+     * Signature file format version, if found. Type "GradleVersion" is misleading; it's just a
+     * convenient version class.
      */
     var format: FileFormat = FileFormat.V1 // not specifying format: assumed to be doclava, 1.0
 
@@ -116,9 +117,7 @@ class TextCodebase(location: File) : DefaultCodebase(location) {
         if (!mClassToInterface.containsKey(classInfo)) {
             mClassToInterface[classInfo] = ArrayList()
         }
-        mClassToInterface[classInfo]?.let {
-            if (!it.contains(iface)) it.add(iface)
-        }
+        mClassToInterface[classInfo]?.let { if (!it.contains(iface)) it.add(iface) }
     }
 
     fun implementsInterface(classInfo: TextClassItem, iface: String): Boolean {
@@ -143,15 +142,17 @@ class TextCodebase(location: File) : DefaultCodebase(location) {
             }
             var scName: String? = mClassToSuper[cl]
             if (scName == null) {
-                scName = when {
-                    cl.isEnum() -> JAVA_LANG_ENUM
-                    cl.isAnnotationType() -> JAVA_LANG_ANNOTATION
-                    else -> {
-                        val existing = cl.superClassType()?.toTypeString()
-                        val s = existing ?: JAVA_LANG_OBJECT
-                        s // unnecessary variable, works around current compiler believing the expression to be nullable
+                scName =
+                    when {
+                        cl.isEnum() -> JAVA_LANG_ENUM
+                        cl.isAnnotationType() -> JAVA_LANG_ANNOTATION
+                        else -> {
+                            val existing = cl.superClassType()?.toTypeString()
+                            val s = existing ?: JAVA_LANG_OBJECT
+                            s // unnecessary variable, works around current compiler believing the
+                            // expression to be nullable
+                        }
                     }
-                }
             }
 
             val superclass = getOrCreateClass(scName)
@@ -210,8 +211,10 @@ class TextCodebase(location: File) : DefaultCodebase(location) {
                     index = qualifiedName.lastIndexOf('.')
                     assert(index != -1) { qualifiedName }
                     val outerClassName = qualifiedName.substring(0, index)
-                    // If the outer class doesn't exist in the text codebase, it should not be resolved
-                    // through the classpath--if it did exist there, this inner class would be overridden
+                    // If the outer class doesn't exist in the text codebase, it should not be
+                    // resolved
+                    // through the classpath--if it did exist there, this inner class would be
+                    // overridden
                     // by the version from the classpath.
                     val outerClass = getOrCreateClass(outerClassName, canBeFromClasspath = false)
                     cl.containingClass = outerClass
@@ -226,11 +229,10 @@ class TextCodebase(location: File) : DefaultCodebase(location) {
     }
 
     /**
-     * Add abstract superclass abstract methods to non-abstract class
-     * when generating from-text stubs.
-     * Iterate through the hierarchy and collect all super abstract methods that need to be added.
-     * These are not included in the signature files but omitting these methods
-     * will lead to compile error.
+     * Add abstract superclass abstract methods to non-abstract class when generating from-text
+     * stubs. Iterate through the hierarchy and collect all super abstract methods that need to be
+     * added. These are not included in the signature files but omitting these methods will lead to
+     * compile error.
      */
     private fun resolveAbstractMethods(allClasses: List<TextClassItem>) {
         for (cl in allClasses) {
@@ -259,10 +261,13 @@ class TextCodebase(location: File) : DefaultCodebase(location) {
                         methodCount[signature] = newCount
                         hasDefault[signature] = newHasDefault
 
-                        // If the method has appeared more than once, there may be a potential conflict
+                        // If the method has appeared more than once, there may be a potential
+                        // conflict
                         // thus add the method to the interface
-                        if (newHasDefault && newCount == 2 &&
-                            !cl.containsMethodInClassContext(method)
+                        if (
+                            newHasDefault &&
+                                newCount == 2 &&
+                                !cl.containsMethodInClassContext(method)
                         ) {
                             val m = method.duplicate(cl) as TextMethodItem
                             m.modifiers.setAbstract(true)
@@ -281,13 +286,15 @@ class TextCodebase(location: File) : DefaultCodebase(location) {
                 val hierarchyClassesList = cl.getAllSuperClassesAndInterfaces().toMutableList()
                 while (hierarchyClassesList.isNotEmpty()) {
                     val ancestorClass = hierarchyClassesList.removeLast()
-                    val abstractMethods = ancestorClass.methods().filter { it.modifiers.isAbstract() }
+                    val abstractMethods =
+                        ancestorClass.methods().filter { it.modifiers.isAbstract() }
                     for (method in abstractMethods) {
                         // We do not compare this against all ancestors of cl,
                         // because an abstract method cannot be overridden at its ancestor class.
                         // Thus, we compare against hierarchyClassesList.
-                        if (hierarchyClassesList.all { !it.containsMethodInClassContext(method) } &&
-                            !cl.containsMethodInClassContext(method)
+                        if (
+                            hierarchyClassesList.all { !it.containsMethodInClassContext(method) } &&
+                                !cl.containsMethodInClassContext(method)
                         ) {
                             superMethodsToBeOverridden.add(method as TextMethodItem)
                         }
@@ -311,10 +318,10 @@ class TextCodebase(location: File) : DefaultCodebase(location) {
     }
 
     /**
-     * Tries to find [name] in [mAllClasses]. If not found, creates an empty stub class (or interface,
-     * if [isInterface] is true). If [canBeFromClasspath] is true, creates a [WrappedClassItem] with
-     * the stub class inside, which might later be switched out for a PSI class. Otherwise, just
-     * uses the stub class.
+     * Tries to find [name] in [mAllClasses]. If not found, creates an empty stub class (or
+     * interface, if [isInterface] is true). If [canBeFromClasspath] is true, creates a
+     * [WrappedClassItem] with the stub class inside, which might later be switched out for a PSI
+     * class. Otherwise, just uses the stub class.
      *
      * Initializes outer classes and packages for the created class as needed.
      */
@@ -329,46 +336,57 @@ class TextCodebase(location: File) : DefaultCodebase(location) {
             return cls
         }
 
-        val stubClass = if (isInterface) {
-            TextClassItem.createInterfaceStub(this, name)
-        } else {
-            TextClassItem.createClassStub(this, name)
-        }
+        val stubClass =
+            if (isInterface) {
+                TextClassItem.createInterfaceStub(this, name)
+            } else {
+                TextClassItem.createClassStub(this, name)
+            }
 
         // If needed, wrap the class. Add the new class to the appropriate set
-        val newClass = if (canBeFromClasspath) {
-            val wrappedClass = WrappedClassItem(stubClass)
-            wrappedStubClasses[erased] = wrappedClass
-            wrappedClass
-        } else {
-            mAllClasses[erased] = stubClass
-            stubClass
-        }
+        val newClass =
+            if (canBeFromClasspath) {
+                val wrappedClass = WrappedClassItem(stubClass)
+                wrappedStubClasses[erased] = wrappedClass
+                wrappedClass
+            } else {
+                mAllClasses[erased] = stubClass
+                stubClass
+            }
         newClass.emit = false
 
         val fullName = newClass.fullName()
         if (fullName.contains('.')) {
-            // We created a new inner class stub. We need to fully initialize it with outer classes, themselves
+            // We created a new inner class stub. We need to fully initialize it with outer classes,
+            // themselves
             // possibly stubs
             val outerName = erased.substring(0, erased.lastIndexOf('.'))
-            val outerClass = getOrCreateClass(outerName, isInterface = false, canBeFromClasspath = canBeFromClasspath)
+            val outerClass =
+                getOrCreateClass(
+                    outerName,
+                    isInterface = false,
+                    canBeFromClasspath = canBeFromClasspath
+                )
             stubClass.containingClass = outerClass
             outerClass.addInnerClass(newClass)
         } else {
             // Add to package
             val endIndex = erased.lastIndexOf('.')
             val pkgPath = if (endIndex != -1) erased.substring(0, endIndex) else ""
-            val pkg = findPackage(pkgPath) ?: run {
-                val newPkg = TextPackageItem(
-                    this,
-                    pkgPath,
-                    TextModifiers(this, DefaultModifierList.PUBLIC),
-                    SourcePositionInfo.UNKNOWN
-                )
-                addPackage(newPkg)
-                newPkg.emit = false
-                newPkg
-            }
+            val pkg =
+                findPackage(pkgPath)
+                    ?: run {
+                        val newPkg =
+                            TextPackageItem(
+                                this,
+                                pkgPath,
+                                TextModifiers(this, DefaultModifierList.PUBLIC),
+                                SourcePositionInfo.UNKNOWN
+                            )
+                        addPackage(newPkg)
+                        newPkg.emit = false
+                        newPkg
+                    }
             stubClass.setContainingPackage(pkg)
             pkg.addClass(newClass)
         }
@@ -387,7 +405,7 @@ class TextCodebase(location: File) : DefaultCodebase(location) {
         // Add overridden methods to the codebase only when the codebase is generated
         // from text file passed via --source-files and it does not fallback to loading classes from
         // the classpath.
-        if (options.apiClassResolution == Options.ApiClassResolution.API && this.location in options.sources) {
+        if (apiClassResolution == ApiClassResolution.API && this.location in options.sources) {
             resolveAbstractMethods(classes)
         }
     }
@@ -404,11 +422,19 @@ class TextCodebase(location: File) : DefaultCodebase(location) {
         getPackages().acceptTypes(visitor)
     }
 
-    override fun compareWith(visitor: ComparisonVisitor, other: Codebase, filter: Predicate<Item>?) {
+    override fun compareWith(
+        visitor: ComparisonVisitor,
+        other: Codebase,
+        filter: Predicate<Item>?
+    ) {
         CodebaseComparator().compare(visitor, this, other, filter)
     }
 
-    override fun createAnnotation(source: String, context: Item?, mapName: Boolean): AnnotationItem {
+    override fun createAnnotation(
+        source: String,
+        context: Item?,
+        mapName: Boolean
+    ): AnnotationItem {
         return TextBackedAnnotationItem(this, source, mapName)
     }
 
@@ -435,11 +461,12 @@ class TextCodebase(location: File) : DefaultCodebase(location) {
                     break
                 }
             }
-            val name = if (nameEnd == length) {
-                type
-            } else {
-                type.substring(0, nameEnd)
-            }
+            val name =
+                if (nameEnd == length) {
+                    type
+                } else {
+                    type.substring(0, nameEnd)
+                }
 
             val isMethodTypeVar = methodTypeParameterList.typeParameterNames().contains(name)
             val isClassTypeVar = cl.typeParameterList().typeParameterNames().contains(name)
@@ -457,89 +484,89 @@ class TextCodebase(location: File) : DefaultCodebase(location) {
     }
 
     companion object {
-        fun computeDelta(
-            baseFile: File,
-            baseApi: Codebase,
-            signatureApi: Codebase
-        ): TextCodebase {
+        fun computeDelta(baseFile: File, baseApi: Codebase, signatureApi: Codebase): TextCodebase {
             // Compute just the delta
-            val delta =
-                TextCodebase(baseFile)
+            val delta = TextCodebase(baseFile)
             delta.description = "Delta between $baseApi and $signatureApi"
 
-            CodebaseComparator().compare(
-                object : ComparisonVisitor() {
-                    override fun added(new: PackageItem) {
-                        delta.addPackage(new as TextPackageItem)
-                    }
-
-                    override fun added(new: ClassItem) {
-                        val pkg = getOrAddPackage(new.containingPackage().qualifiedName())
-                        pkg.addClass(new as TextClassItem)
-                    }
-
-                    override fun added(new: ConstructorItem) {
-                        val cls = getOrAddClass(new.containingClass())
-                        cls.addConstructor(new as TextConstructorItem)
-                    }
-
-                    override fun added(new: MethodItem) {
-                        val cls = getOrAddClass(new.containingClass())
-                        cls.addMethod(new as TextMethodItem)
-                    }
-
-                    override fun added(new: FieldItem) {
-                        val cls = getOrAddClass(new.containingClass())
-                        cls.addField(new as TextFieldItem)
-                    }
-
-                    override fun added(new: PropertyItem) {
-                        val cls = getOrAddClass(new.containingClass())
-                        cls.addProperty(new as TextPropertyItem)
-                    }
-
-                    private fun getOrAddClass(fullClass: ClassItem): TextClassItem {
-                        val cls = delta.findClass(fullClass.qualifiedName())
-                        if (cls != null) {
-                            return cls
+            CodebaseComparator()
+                .compare(
+                    object : ComparisonVisitor() {
+                        override fun added(new: PackageItem) {
+                            delta.addPackage(new as TextPackageItem)
                         }
-                        val textClass = fullClass as TextClassItem
-                        val newClass = TextClassItem(
-                            delta,
-                            SourcePositionInfo.UNKNOWN,
-                            textClass.modifiers,
-                            textClass.isInterface(),
-                            textClass.isEnum(),
-                            textClass.isAnnotationType(),
-                            textClass.qualifiedName,
-                            textClass.qualifiedName,
-                            textClass.name,
-                            textClass.annotations
-                        )
-                        val pkg = getOrAddPackage(fullClass.containingPackage().qualifiedName())
-                        pkg.addClass(newClass)
-                        newClass.setContainingPackage(pkg)
-                        delta.registerClass(newClass)
-                        return newClass
-                    }
 
-                    private fun getOrAddPackage(pkgName: String): TextPackageItem {
-                        val pkg = delta.findPackage(pkgName)
-                        if (pkg != null) {
-                            return pkg
+                        override fun added(new: ClassItem) {
+                            val pkg = getOrAddPackage(new.containingPackage().qualifiedName())
+                            pkg.addClass(new as TextClassItem)
                         }
-                        val newPkg = TextPackageItem(
-                            delta,
-                            pkgName,
-                            TextModifiers(delta, DefaultModifierList.PUBLIC),
-                            SourcePositionInfo.UNKNOWN
-                        )
-                        delta.addPackage(newPkg)
-                        return newPkg
-                    }
-                },
-                baseApi, signatureApi, ApiType.ALL.getReferenceFilter()
-            )
+
+                        override fun added(new: ConstructorItem) {
+                            val cls = getOrAddClass(new.containingClass())
+                            cls.addConstructor(new as TextConstructorItem)
+                        }
+
+                        override fun added(new: MethodItem) {
+                            val cls = getOrAddClass(new.containingClass())
+                            cls.addMethod(new as TextMethodItem)
+                        }
+
+                        override fun added(new: FieldItem) {
+                            val cls = getOrAddClass(new.containingClass())
+                            cls.addField(new as TextFieldItem)
+                        }
+
+                        override fun added(new: PropertyItem) {
+                            val cls = getOrAddClass(new.containingClass())
+                            cls.addProperty(new as TextPropertyItem)
+                        }
+
+                        private fun getOrAddClass(fullClass: ClassItem): TextClassItem {
+                            val cls = delta.findClass(fullClass.qualifiedName())
+                            if (cls != null) {
+                                return cls
+                            }
+                            val textClass = fullClass as TextClassItem
+                            val newClass =
+                                TextClassItem(
+                                    delta,
+                                    SourcePositionInfo.UNKNOWN,
+                                    textClass.modifiers,
+                                    textClass.isInterface(),
+                                    textClass.isEnum(),
+                                    textClass.isAnnotationType(),
+                                    textClass.qualifiedName,
+                                    textClass.qualifiedName,
+                                    textClass.name,
+                                    textClass.annotations
+                                )
+                            val pkg = getOrAddPackage(fullClass.containingPackage().qualifiedName())
+                            pkg.addClass(newClass)
+                            newClass.setContainingPackage(pkg)
+                            delta.registerClass(newClass)
+                            return newClass
+                        }
+
+                        private fun getOrAddPackage(pkgName: String): TextPackageItem {
+                            val pkg = delta.findPackage(pkgName)
+                            if (pkg != null) {
+                                return pkg
+                            }
+                            val newPkg =
+                                TextPackageItem(
+                                    delta,
+                                    pkgName,
+                                    TextModifiers(delta, DefaultModifierList.PUBLIC),
+                                    SourcePositionInfo.UNKNOWN
+                                )
+                            delta.addPackage(newPkg)
+                            return newPkg
+                        }
+                    },
+                    baseApi,
+                    signatureApi,
+                    ApiType.ALL.getReferenceFilter()
+                )
 
             delta.postProcess()
             return delta
@@ -552,47 +579,50 @@ class TextCodebase(location: File) : DefaultCodebase(location) {
         return mTypesFromString.obtain(type) as TextTypeItem
     }
 
-    private val mTypesFromString = object : Cache(this) {
-        override fun make(o: Any): Any {
-            val name = o as String
+    private val mTypesFromString =
+        object : Cache(this) {
+            override fun make(o: Any): Any {
+                val name = o as String
 
-            // Reverse effect of TypeItem.shortenTypes(...)
-            if (implicitJavaLangType(name)) {
-                return TextTypeItem(codebase, "java.lang.$name")
-            }
-
-            return TextTypeItem(codebase, name)
-        }
-
-        private fun implicitJavaLangType(s: String): Boolean {
-            if (s.length <= 1) {
-                return false // Usually a type variable
-            }
-            if (s[1] == '[') {
-                return false // Type variable plus array
-            }
-
-            val dotIndex = s.indexOf('.')
-            val array = s.indexOf('[')
-            val generics = s.indexOf('<')
-            if (array == -1 && generics == -1) {
-                return dotIndex == -1 && !TextTypeItem.isPrimitive(s)
-            }
-            val typeEnd =
-                if (array != -1) {
-                    if (generics != -1) {
-                        min(array, generics)
-                    } else {
-                        array
-                    }
-                } else {
-                    generics
+                // Reverse effect of TypeItem.shortenTypes(...)
+                if (implicitJavaLangType(name)) {
+                    return TextTypeItem(codebase, "java.lang.$name")
                 }
 
-            // Allow dotted type in generic parameter, e.g. "Iterable<java.io.File>" -> return true
-            return (dotIndex == -1 || dotIndex > typeEnd) && !TextTypeItem.isPrimitive(s.substring(0, typeEnd).trim())
+                return TextTypeItem(codebase, name)
+            }
+
+            private fun implicitJavaLangType(s: String): Boolean {
+                if (s.length <= 1) {
+                    return false // Usually a type variable
+                }
+                if (s[1] == '[') {
+                    return false // Type variable plus array
+                }
+
+                val dotIndex = s.indexOf('.')
+                val array = s.indexOf('[')
+                val generics = s.indexOf('<')
+                if (array == -1 && generics == -1) {
+                    return dotIndex == -1 && !TextTypeItem.isPrimitive(s)
+                }
+                val typeEnd =
+                    if (array != -1) {
+                        if (generics != -1) {
+                            min(array, generics)
+                        } else {
+                            array
+                        }
+                    } else {
+                        generics
+                    }
+
+                // Allow dotted type in generic parameter, e.g. "Iterable<java.io.File>" -> return
+                // true
+                return (dotIndex == -1 || dotIndex > typeEnd) &&
+                    !TextTypeItem.isPrimitive(s.substring(0, typeEnd).trim())
+            }
         }
-    }
 
     private abstract class Cache(val codebase: TextCodebase) {
 

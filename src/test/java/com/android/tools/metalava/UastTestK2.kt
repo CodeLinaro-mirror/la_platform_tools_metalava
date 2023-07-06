@@ -16,14 +16,10 @@
 
 package com.android.tools.metalava
 
+import org.junit.Ignore
 import org.junit.Test
 
 class UastTestK2 : UastTestBase() {
-
-    @Test
-    fun `Kotlin language level -- K2`() {
-        `Kotlin language level`(isK2 = true)
-    }
 
     @Test
     fun `Test RequiresOptIn and OptIn -- K2`() {
@@ -35,7 +31,8 @@ class UastTestK2 : UastTestBase() {
         // NB: getInterpolated -> isInterpolated
         `renamed via @JvmName`(
             isK2 = true,
-            api = """
+            api =
+                """
                 // Signature format: 4.0
                 package test.pkg {
                   public final class ColorRamp {
@@ -58,16 +55,6 @@ class UastTestK2 : UastTestBase() {
     @Test
     fun `Kotlin Reified Methods -- K2`() {
         `Kotlin Reified Methods`(isK2 = true)
-    }
-
-    @Test
-    fun `Nullness in reified signatures -- K2`() {
-        `Nullness in reified signatures`(isK2 = true)
-    }
-
-    @Test
-    fun `Annotations aren't dropped when DeprecationLevel is HIDDEN -- K2`() {
-        `Annotations aren't dropped when DeprecationLevel is HIDDEN`(isK2 = true)
     }
 
     @Test
@@ -95,6 +82,7 @@ class UastTestK2 : UastTestBase() {
         `constant in file-level annotation`(isK2 = true)
     }
 
+    @Ignore("Restore after AGP 8.2.0-alpha9: preserve language version")
     @Test
     fun `final modifier in enum members -- K2`() {
         `final modifier in enum members`(isK2 = true)
@@ -105,6 +93,7 @@ class UastTestK2 : UastTestBase() {
         `lateinit var as mutable bare field`(isK2 = true)
     }
 
+    @Ignore("Restore after AGP 8.2.0-alpha9: preserve language version")
     @Test
     fun `Upper bound wildcards -- K2`() {
         `Upper bound wildcards`(isK2 = true)

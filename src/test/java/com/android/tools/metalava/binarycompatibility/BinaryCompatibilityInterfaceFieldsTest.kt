@@ -24,17 +24,20 @@ class BinaryCompatibilityInterfaceFieldsTest : DriverTest() {
     @Test
     fun `Change type of API field (Incompatible)`() {
         check(
-            expectedIssues = """
+            expectedIssues =
+                """
                 TESTROOT/load-api.txt:3: error: Field test.pkg.Foo.bar has changed type from int to java.lang.String [ChangedType]
             """,
-            signatureSource = """
+            signatureSource =
+                """
                 package test.pkg {
                   public interface Foo {
                     field public final String bar;
                   }
                 }
             """,
-            checkCompatibilityApiReleased = """
+            checkCompatibilityApiReleased =
+                """
                 package test.pkg {
                 public interface Foo {
                   field public final int bar;
@@ -47,17 +50,20 @@ class BinaryCompatibilityInterfaceFieldsTest : DriverTest() {
     @Test
     fun `Change value of API field (Incompatible)`() {
         check(
-            expectedIssues = """
+            expectedIssues =
+                """
                 TESTROOT/load-api.txt:3: error: Field test.pkg.Foo.bar has changed value from 8 to 7 [ChangedValue]
             """,
-            signatureSource = """
+            signatureSource =
+                """
                 package test.pkg {
                   public interface Foo {
                     field public static final int bar = 7;
                   }
                 }
             """,
-            checkCompatibilityApiReleased = """
+            checkCompatibilityApiReleased =
+                """
                 package test.pkg {
                 public interface Foo {
                   field public static final int bar = 8;

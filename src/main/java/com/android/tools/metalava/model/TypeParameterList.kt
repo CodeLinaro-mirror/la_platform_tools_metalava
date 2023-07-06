@@ -17,17 +17,15 @@
 package com.android.tools.metalava.model
 
 /**
- * Represents a type parameter list. For example, in
- *     class<S, T extends List<String>>
- * the type parameter list is
- *     <S, T extends List<String>>
- * and has type parameters named S and T, and type parameter T has bounds List<String>.
+ * Represents a type parameter list. For example, in class<S, T extends List<String>> the type
+ * parameter list is <S, T extends List<String>> and has type parameters named S and T, and type
+ * parameter T has bounds List<String>.
  */
 interface TypeParameterList {
     /**
-     * Returns source representation of this type parameter, using fully qualified names
-     * (possibly with java.lang. removed if requested via options)
-     * */
+     * Returns source representation of this type parameter, using fully qualified names (possibly
+     * with java.lang. removed if requested via options)
+     */
     override fun toString(): String
 
     /** Returns the names of the type parameters, if any */
@@ -41,11 +39,12 @@ interface TypeParameterList {
 
     companion object {
         /** Type parameter list when there are no type parameters */
-        val NONE = object : TypeParameterList {
-            override fun toString(): String = ""
-            override fun typeParameterNames(): List<String> = emptyList()
-            override fun typeParameters(): List<TypeParameterItem> = emptyList()
-            override fun typeParameterCount(): Int = 0
-        }
+        val NONE =
+            object : TypeParameterList {
+                override fun toString(): String = ""
+                override fun typeParameterNames(): List<String> = emptyList()
+                override fun typeParameters(): List<TypeParameterItem> = emptyList()
+                override fun typeParameterCount(): Int = 0
+            }
     }
 }

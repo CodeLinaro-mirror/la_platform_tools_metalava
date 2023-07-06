@@ -31,7 +31,8 @@ enum class ApiType(val flagName: String, val displayName: String = flagName) {
         }
 
         override fun getEmitFilter(): Predicate<Item> {
-            // This filter is for API signature files, where we don't need the "for stub purposes" APIs.
+            // This filter is for API signature files, where we don't need the "for stub purposes"
+            // APIs.
             val apiFilter = FilterPredicate(ApiPredicate(includeApisForStubPurposes = false))
             val apiReference = ApiPredicate(ignoreShown = true)
             return apiFilter.and(ElidingPredicate(apiReference))
@@ -49,8 +50,12 @@ enum class ApiType(val flagName: String, val displayName: String = flagName) {
         }
 
         override fun getEmitFilter(): Predicate<Item> {
-            // This filter is for API signature files, where we don't need the "for stub purposes" APIs.
-            val removedFilter = FilterPredicate(ApiPredicate(includeApisForStubPurposes = false, matchRemoved = true))
+            // This filter is for API signature files, where we don't need the "for stub purposes"
+            // APIs.
+            val removedFilter =
+                FilterPredicate(
+                    ApiPredicate(includeApisForStubPurposes = false, matchRemoved = true)
+                )
             val removedReference = ApiPredicate(ignoreShown = true, ignoreRemoved = true)
             return removedFilter.and(ElidingPredicate(removedReference))
         }
@@ -84,23 +89,21 @@ enum class ApiType(val flagName: String, val displayName: String = flagName) {
 
     override fun toString(): String = displayName
 
-    /**
-     * Gets the signature file for the given API type. Will create it if not already
-     * created.
-     */
+    /** Gets the signature file for the given API type. Will create it if not already created. */
     fun getSignatureFile(codebase: Codebase, defaultName: String): File {
         val apiType = this
-        return apiType.getOptionFile() ?: run {
-            val tempFile = createTempFile(defaultName, DOT_TXT)
-            tempFile.deleteOnExit()
-            val apiEmit = apiType.getEmitFilter()
-            val apiReference = apiType.getReferenceFilter()
+        return apiType.getOptionFile()
+            ?: run {
+                val tempFile = createTempFile(defaultName, DOT_TXT)
+                tempFile.deleteOnExit()
+                val apiEmit = apiType.getEmitFilter()
+                val apiReference = apiType.getReferenceFilter()
 
-            createReportFile(codebase, tempFile, null) { printWriter ->
-                SignatureWriter(printWriter, apiEmit, apiReference, codebase.preFiltered)
+                createReportFile(codebase, tempFile, null) { printWriter ->
+                    SignatureWriter(printWriter, apiEmit, apiReference, codebase.preFiltered)
+                }
+
+                tempFile
             }
-
-            tempFile
-        }
     }
 }

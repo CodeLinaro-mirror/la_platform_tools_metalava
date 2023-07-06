@@ -17,25 +17,27 @@
 package com.android.tools.metalava
 
 import com.android.tools.lint.checks.infrastructure.TestFiles.source
-import org.junit.Test
 import java.io.File
+import org.junit.Test
 
 class BaselineTest : DriverTest() {
     @Test
     fun `Check baseline`() {
         check(
             format = FileFormat.V1,
-            extraArguments = arrayOf(
-                ARG_HIDE,
-                "HiddenSuperclass",
-                ARG_HIDE,
-                "UnavailableSymbol",
-                ARG_HIDE,
-                "HiddenTypeParameter",
-                ARG_ERROR,
-                "ReferencesHidden"
-            ),
-            baseline = """
+            extraArguments =
+                arrayOf(
+                    ARG_HIDE,
+                    "HiddenSuperclass",
+                    ARG_HIDE,
+                    "UnavailableSymbol",
+                    ARG_HIDE,
+                    "HiddenTypeParameter",
+                    ARG_ERROR,
+                    "ReferencesHidden"
+                ),
+            baseline =
+                """
                 // Baseline format: 1.0
                 BothPackageInfoAndHtml: test/visible/package-info.java:
                     It is illegal to provide both a package-info.java file and a package.html file for the same package
@@ -59,12 +61,14 @@ class BaselineTest : DriverTest() {
                     Class test.pkg.Hidden2 is hidden but was referenced (as parameter type) from public parameter hidden2 in test.pkg.Foo.method(test.pkg.Hidden1 hidden1, test.pkg.Hidden2 hidden2)
             """,
             // Commented out above:
-            expectedIssues = """
+            expectedIssues =
+                """
                 src/test/pkg/Foo.java:9: error: Class test.pkg.Hidden2 is hidden but was referenced (as return type) from public method test.pkg.Foo.getHidden2() [ReferencesHidden]
             """,
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
                     public class Foo extends Hidden2 {
                         public Hidden1 hidden1;
@@ -76,35 +80,36 @@ class BaselineTest : DriverTest() {
                         public Hidden2 getHidden2() { return null; }
                     }
                     """
-                ),
-                java(
-                    """
+                    ),
+                    java(
+                        """
                     package test.pkg;
                     // Implicitly not part of the API by being package private
                     class Hidden1 {
                     }
                     """
-                ),
-                java(
-                    """
+                    ),
+                    java(
+                        """
                     package test.pkg;
                     /** @hide */
                     public class Hidden2 {
                     }
                     """
-                ),
-                java(
-                    """
+                    ),
+                    java(
+                        """
                     package test.pkg;
                     /** @hide */
                     public class Hidden3 extends IOException {
                     }
                     """
-                ),
-                // Generate duplicate package-info & package.html warning: tests baseline functionality
-                // around PSI elements
-                java(
-                    """
+                    ),
+                    // Generate duplicate package-info & package.html warning: tests baseline
+                    // functionality
+                    // around PSI elements
+                    java(
+                        """
                     /**
                      * My package docs<br>
                      * <!-- comment -->
@@ -113,10 +118,10 @@ class BaselineTest : DriverTest() {
                      */
                     package test.visible;
                     """
-                ),
-                source(
-                    "src/test/visible/package.html",
-                    """
+                    ),
+                    source(
+                            "src/test/visible/package.html",
+                            """
                     <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
                     <!-- not a body tag: <body> -->
                     <html>
@@ -128,10 +133,12 @@ class BaselineTest : DriverTest() {
                     </BODY>
                     </html>
                     """
-                ).indented()
-            ),
+                        )
+                        .indented()
+                ),
             projectSetup = { dir ->
-                // Generate a symlink warning: tests baseline functionality around errors reported as file paths
+                // Generate a symlink warning: tests baseline functionality around errors reported
+                // as file paths
                 val file = File(dir, "src/test/pkg/sub1/sub2")
                 file.mkdirs()
                 val symlink = File(file, "sub3").toPath()
@@ -139,7 +146,8 @@ class BaselineTest : DriverTest() {
                 val git = File(file, ".git").toPath()
                 java.nio.file.Files.createSymbolicLink(git, dir.toPath())
             },
-            api = """
+            api =
+                """
                 package test.pkg {
                   public class Foo {
                     ctor public Foo();
@@ -161,22 +169,27 @@ class BaselineTest : DriverTest() {
         check(
             format = FileFormat.V1,
             includeSystemApiAnnotations = true,
-            extraArguments = arrayOf(
-                ARG_SHOW_ANNOTATION, "android.annotation.TestApi",
-                ARG_HIDE_PACKAGE, "android.annotation",
-                ARG_API_LINT
-            ),
+            extraArguments =
+                arrayOf(
+                    ARG_SHOW_ANNOTATION,
+                    "android.annotation.TestApi",
+                    ARG_HIDE_PACKAGE,
+                    "android.annotation",
+                    ARG_API_LINT
+                ),
             baseline = """
             """,
-            updateBaseline = """
+            updateBaseline =
+                """
                 // Baseline format: 1.0
                 PairedRegistration: android.pkg.RegistrationMethods#registerUnpaired2Callback(Runnable):
                     Found registerUnpaired2Callback but not unregisterUnpaired2Callback in android.pkg.RegistrationMethods
             """,
             expectedIssues = "",
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package android.pkg;
                     import android.annotation.TestApi;
                     import androidx.annotation.Nullable;
@@ -218,11 +231,12 @@ class BaselineTest : DriverTest() {
                         public void registerUnpaired2Callback(@Nullable Runnable r) { }
                     }
                     """
+                    ),
+                    testApiSource,
+                    androidxNullableSource
                 ),
-                testApiSource,
-                androidxNullableSource
-            ),
-            api = """
+            api =
+                """
                 package android.pkg {
                   public class RegistrationMethods {
                     method public void registerOk2Callback(@Nullable Runnable);
@@ -237,21 +251,25 @@ class BaselineTest : DriverTest() {
 
     @Test
     fun `Check merging`() {
-        // Checks merging existing baseline with new baseline: here we have 2 issues that are no longer
-        // in the code base, one issue that is in the code base before and after, and one new issue, and
+        // Checks merging existing baseline with new baseline: here we have 2 issues that are no
+        // longer
+        // in the code base, one issue that is in the code base before and after, and one new issue,
+        // and
         // all 4 end up in the merged baseline.
         check(
-            extraArguments = arrayOf(
-                ARG_HIDE,
-                "HiddenSuperclass",
-                ARG_HIDE,
-                "UnavailableSymbol",
-                ARG_HIDE,
-                "HiddenTypeParameter",
-                ARG_ERROR,
-                "ReferencesHidden"
-            ),
-            baseline = """
+            extraArguments =
+                arrayOf(
+                    ARG_HIDE,
+                    "HiddenSuperclass",
+                    ARG_HIDE,
+                    "UnavailableSymbol",
+                    ARG_HIDE,
+                    "HiddenTypeParameter",
+                    ARG_ERROR,
+                    "ReferencesHidden"
+                ),
+            baseline =
+                """
                 // Baseline format: 1.0
                 BothPackageInfoAndHtml: test/visible/package-info.java:
                     It is illegal to provide both a package-info.java file and a package.html file for the same package
@@ -260,7 +278,8 @@ class BaselineTest : DriverTest() {
                 ReferencesHidden: test.pkg.Foo#hidden2:
                     Class test.pkg.Hidden2 is hidden but was referenced (as field type) from public field test.pkg.Foo.hidden2
             """,
-            mergeBaseline = """
+            mergeBaseline =
+                """
                 // Baseline format: 1.0
                 BothPackageInfoAndHtml: test/visible/package-info.java:
                     It is illegal to provide both a package-info.java file and a package.html file for the same package
@@ -271,33 +290,34 @@ class BaselineTest : DriverTest() {
                 ReferencesHidden: test.pkg.Foo#hidden2:
                     Class test.pkg.Hidden2 is hidden but was referenced (as field type) from public field test.pkg.Foo.hidden2
             """,
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
                     public class Foo extends Hidden2 {
                         public Hidden1 hidden1;
                         public Hidden2 hidden2;
                     }
                     """
-                ),
-                java(
-                    """
+                    ),
+                    java(
+                        """
                     package test.pkg;
                     // Implicitly not part of the API by being package private
                     class Hidden1 {
                     }
                     """
-                ),
-                java(
-                    """
+                    ),
+                    java(
+                        """
                     package test.pkg;
                     /** @hide */
                     public class Hidden2 {
                     }
                     """
+                    )
                 )
-            )
         )
     }
 }

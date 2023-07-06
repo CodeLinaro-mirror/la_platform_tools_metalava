@@ -25,17 +25,19 @@ class UnhideApisTest : DriverTest() {
     fun `Report hidden API access rather than opening up access`() {
         check(
             format = FileFormat.V1,
-            extraArguments = arrayOf(
-                ARG_HIDE,
-                "HiddenSuperclass",
-                ARG_HIDE,
-                "UnavailableSymbol",
-                ARG_HIDE,
-                "HiddenTypeParameter",
-                ARG_ERROR,
-                "ReferencesHidden"
-            ),
-            expectedIssues = """
+            extraArguments =
+                arrayOf(
+                    ARG_HIDE,
+                    "HiddenSuperclass",
+                    ARG_HIDE,
+                    "UnavailableSymbol",
+                    ARG_HIDE,
+                    "HiddenTypeParameter",
+                    ARG_ERROR,
+                    "ReferencesHidden"
+                ),
+            expectedIssues =
+                """
             src/test/pkg/Foo.java:3: error: Class test.pkg.Hidden1 is not public but was referenced (as field type) from public field test.pkg.Foo.hidden1 [ReferencesHidden]
             src/test/pkg/Foo.java:4: error: Class test.pkg.Hidden2 is hidden but was referenced (as field type) from public field test.pkg.Foo.hidden2 [ReferencesHidden]
             src/test/pkg/Foo.java:5: error: Class test.pkg.Hidden1 is not public but was referenced (as parameter type) from public parameter hidden1 in test.pkg.Foo.method(test.pkg.Hidden1 hidden1, test.pkg.Hidden2 hidden2) [ReferencesHidden]
@@ -46,9 +48,10 @@ class UnhideApisTest : DriverTest() {
             src/test/pkg/Foo.java:8: error: Class test.pkg.Hidden1 is not public but was referenced (as return type) from public method test.pkg.Foo.getHidden1() [ReferencesHidden]
             src/test/pkg/Foo.java:9: error: Class test.pkg.Hidden2 is hidden but was referenced (as return type) from public method test.pkg.Foo.getHidden2() [ReferencesHidden]
             """,
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
                     public class Foo extends Hidden2 {
                         public Hidden1 hidden1;
@@ -60,33 +63,34 @@ class UnhideApisTest : DriverTest() {
                         public Hidden2 getHidden2() { return null; }
                     }
                     """
-                ),
-                java(
-                    """
+                    ),
+                    java(
+                        """
                     package test.pkg;
                     // Implicitly not part of the API by being package private
                     class Hidden1 {
                     }
                     """
-                ),
-                java(
-                    """
+                    ),
+                    java(
+                        """
                     package test.pkg;
                     /** @hide */
                     public class Hidden2 {
                     }
                     """
-                ),
-                java(
-                    """
+                    ),
+                    java(
+                        """
                     package test.pkg;
                     /** @hide */
                     public class Hidden3 extends IOException {
                     }
                     """
-                )
-            ),
-            api = """
+                    )
+                ),
+            api =
+                """
                 package test.pkg {
                   public class Foo {
                     ctor public Foo();
@@ -107,27 +111,30 @@ class UnhideApisTest : DriverTest() {
         // Like above test, but with --package and therefore fewer warnings
         check(
             format = FileFormat.V1,
-            extraArguments = arrayOf(
-                ARG_PACKAGE,
-                ARG_HIDE,
-                "HiddenSuperclass",
-                ARG_HIDE,
-                "UnavailableSymbol",
-                ARG_HIDE,
-                "HiddenTypeParameter",
-                ARG_ERROR,
-                "ReferencesHidden"
-            ),
-            expectedIssues = """
+            extraArguments =
+                arrayOf(
+                    ARG_PACKAGE,
+                    ARG_HIDE,
+                    "HiddenSuperclass",
+                    ARG_HIDE,
+                    "UnavailableSymbol",
+                    ARG_HIDE,
+                    "HiddenTypeParameter",
+                    ARG_ERROR,
+                    "ReferencesHidden"
+                ),
+            expectedIssues =
+                """
             src/test/pkg/Foo.java:4: error: Class test.pkg.Hidden2 is hidden but was referenced (as field type) from public field test.pkg.Foo.hidden2 [ReferencesHidden]
             src/test/pkg/Foo.java:5: error: Class test.pkg.Hidden2 is hidden but was referenced (as parameter type) from public parameter hidden2 in test.pkg.Foo.method(test.pkg.Hidden1 hidden1, test.pkg.Hidden2 hidden2) [ReferencesHidden]
             src/test/pkg/Foo.java:5: error: Class test.pkg.Hidden3 is hidden but was referenced (as exception) from public method test.pkg.Foo.method(test.pkg.Hidden1,test.pkg.Hidden2) [ReferencesHidden]
             src/test/pkg/Foo.java:7: error: Class test.pkg.Hidden2 is hidden but was referenced (as type parameter) from public method test.pkg.Foo.get(T) [ReferencesHidden]
             src/test/pkg/Foo.java:9: error: Class test.pkg.Hidden2 is hidden but was referenced (as return type) from public method test.pkg.Foo.getHidden2() [ReferencesHidden]
             """,
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
                     public class Foo extends Hidden2 {
                         public Hidden1 hidden1;
@@ -139,33 +146,34 @@ class UnhideApisTest : DriverTest() {
                         public Hidden2 getHidden2() { return null; }
                     }
                     """
-                ),
-                java(
-                    """
+                    ),
+                    java(
+                        """
                     package test.pkg;
                     // Implicitly not part of the API by being package private
                     class Hidden1 {
                     }
                     """
-                ),
-                java(
-                    """
+                    ),
+                    java(
+                        """
                     package test.pkg;
                     /** @hide */
                     public class Hidden2 {
                     }
                     """
-                ),
-                java(
-                    """
+                    ),
+                    java(
+                        """
                     package test.pkg;
                     /** @hide */
                     public class Hidden3 extends IOException {
                     }
                     """
-                )
-            ),
-            api = """
+                    )
+                ),
+            api =
+                """
                 package test.pkg {
                   public class Foo {
                     ctor public Foo();
@@ -186,19 +194,20 @@ class UnhideApisTest : DriverTest() {
         check(
             format = FileFormat.V1,
             extraArguments = arrayOf(ARG_ERROR, "ReferencesHidden"),
-            sourceFiles = arrayOf(
-                java("""package test.pkg1; interface Interface1 { }"""),
-                java("""package test.pkg1; abstract class Class1 { }"""),
-                java("""package test.pkg1; abstract class Class2 { }"""),
-                java("""package test.pkg1; abstract class Class3 { }"""),
-                java("""package test.pkg1; abstract class Class4 { }"""),
-                java("""package test.pkg1; abstract class Class5 { }"""),
-                java("""package test.pkg1; abstract class Class6 { }"""),
-                java("""package test.pkg1; abstract class Class7 { }"""),
-                java("""package test.pkg1; abstract class Class8 { }"""),
-                java("""package test.pkg1; abstract class Class9 { }"""),
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java("""package test.pkg1; interface Interface1 { }"""),
+                    java("""package test.pkg1; abstract class Class1 { }"""),
+                    java("""package test.pkg1; abstract class Class2 { }"""),
+                    java("""package test.pkg1; abstract class Class3 { }"""),
+                    java("""package test.pkg1; abstract class Class4 { }"""),
+                    java("""package test.pkg1; abstract class Class5 { }"""),
+                    java("""package test.pkg1; abstract class Class6 { }"""),
+                    java("""package test.pkg1; abstract class Class7 { }"""),
+                    java("""package test.pkg1; abstract class Class8 { }"""),
+                    java("""package test.pkg1; abstract class Class9 { }"""),
+                    java(
+                        """
                     package test.pkg1;
 
                     import java.util.List;
@@ -213,11 +222,12 @@ class UnhideApisTest : DriverTest() {
                        public void arrayType(Class9[] myargs);
                     }
                     """
-                )
-            ),
+                    )
+                ),
 
             // TODO: Test annotations! (values, annotation classes, etc.)
-            expectedIssues = """
+            expectedIssues =
+                """
                     src/test/pkg1/Usage.java:7: error: Class test.pkg1.Class3 is not public but was referenced (as field type) from public field test.pkg1.Usage.myClass1 [ReferencesHidden]
                     src/test/pkg1/Usage.java:8: error: Class test.pkg1.Class4 is not public but was referenced (as field type argument class) from public field test.pkg1.Usage.myClass2 [ReferencesHidden]
                     src/test/pkg1/Usage.java:9: error: Class test.pkg1.Class5 is not public but was referenced (as field type argument class) from public field test.pkg1.Usage.myClass3 [ReferencesHidden]
@@ -233,7 +243,8 @@ class UnhideApisTest : DriverTest() {
                     src/test/pkg1/Usage.java:8: warning: Field Usage.myClass2 references hidden type class test.pkg1.Class4. [HiddenTypeParameter]
                     src/test/pkg1/Usage.java:9: warning: Field Usage.myClass3 references hidden type class test.pkg1.Class5. [HiddenTypeParameter]
                     """,
-            api = """
+            api =
+                """
                     package test.pkg1 {
                       public abstract class Usage implements java.util.List<test.pkg1.Class1> {
                         ctor public Usage();

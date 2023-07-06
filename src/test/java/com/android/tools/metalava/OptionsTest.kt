@@ -17,22 +17,25 @@
 package com.android.tools.metalava
 
 import com.android.tools.metalava.model.defaultConfiguration
+import java.io.File
+import java.io.PrintWriter
+import java.io.StringWriter
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import java.io.File
-import java.io.PrintWriter
-import java.io.StringWriter
 
 @Suppress("PrivatePropertyName")
 class OptionsTest : DriverTest() {
-    private val DESCRIPTION = """
+    private val DESCRIPTION =
+        """
 $PROGRAM_NAME extracts metadata from source code to generate artifacts such as the signature files, the SDK stub files,
 external annotations etc.
-    """.trimIndent()
+    """
+            .trimIndent()
 
-    private val FLAGS = """
+    private val FLAGS =
+        """
 Usage: metalava <flags>
 
 
@@ -49,14 +52,6 @@ General:
                                              Attempt to colorize the output (defaults to true if ${"$"}TERM is xterm)
 --no-color
                                              Do not attempt to colorize the output
---only-update-api
-                                             Cancel any other "action" flags other than generating signature files. This
-                                             is here to make it easier customize build system tasks, particularly for
-                                             the "make update-api" task.
---only-check-api
-                                             Cancel any other "action" flags other than checking signature files. This
-                                             is here to make it easier customize build system tasks, particularly for
-                                             the "make checkapi" task.
 --repeat-errors-max <N>
                                              When specified, repeat at most N errors before finishing.
 
@@ -77,10 +72,11 @@ API sources:
                                              should be on the classpath when parsing the source files
 --api-class-resolution <api|api:classpath>
                                              Determines how class resolution is performed when loading API signature
-                                             files (default `api`). `--api-class-resolution api` will only look for
-                                             classes in the API signature files. `--api-class-resolution api:classpath`
-                                             will look for classes in the API signature files first and then in the
-                                             classpath. Any classes that cannot be found will be treated as empty.
+                                             files (default `api:classpath`). `--api-class-resolution api` will only
+                                             look for classes in the API signature files. `--api-class-resolution
+                                             api:classpath` will look for classes in the API signature files first and
+                                             then in the classpath. Any classes that cannot be found will be treated as
+                                             empty.
 --merge-qualifier-annotations <file>
                                              An external annotations file to merge and overlay the sources, or a
                                              directory of such files. Should be used for annotations intended for
@@ -136,7 +132,7 @@ API sources:
 --java-source <level>
                                              Sets the source level for Java source files; default is 1.8.
 --kotlin-source <level>
-                                             Sets the source level for Kotlin source files; default is 1.8.
+                                             Sets the source level for Kotlin source files; default is 1.9.
 --sdk-home <dir>
                                              If set, locate the `android.jar` file from the given Android SDK
 --compile-sdk-version <api>
@@ -185,6 +181,13 @@ Extracting Signature Files:
                                              Generate a DEX signature descriptor file listing the APIs
 --removed-api <file>
                                              Generate a signature descriptor file for APIs that have been removed
+--api-overloaded-method-order <source|signature>
+                                             Specifies the order of overloaded methods in signature files (default
+                                             `signature`). Applies to the contents of the files specified on --api and
+                                             --removed-api. `--api-overloaded-method-order source` will preserve the
+                                             order in which they appear in the source files.
+                                             `--api-overloaded-method-order signature` will sort them based on their
+                                             signature.
 --format=<v1,v2,v3,...>
                                              Sets the output signature file format to be the given version.
 --output-kotlin-nulls[=yes|no]
@@ -281,9 +284,17 @@ Diffs and Checks:
                                              Report issues of the given id as having lint-severity
 --hide <id>
                                              Hide/skip issues of the given id
+--error-category <name>
+                                             Report all issues in the given category as errors
+--warning-category <name>
+                                             Report all issues in the given category as warnings
+--lint-category <name>
+                                             Report all issues in the given category as having lint-severity
+--hide-category <name>
+                                             Hide/skip all issues in the given category
 --report-even-if-suppressed <file>
                                              Write all issues into the given file, even if suppressed (via annotation or
-                                             baseline) but not if hidden (by '--hide')
+                                             baseline) but not if hidden (by '--hide' or '--hide-category')
 --baseline <file>
                                              Filter out any errors already reported in the given baseline file, or
                                              create if it does not already exist
@@ -406,7 +417,14 @@ Generating API version history:
                                              deprecated in. Required to generate API version JSON.
 --api-version-signature-files <files>
                                              An ordered list of text API signature files. The oldest API version should
-                                             be first, the newest last. Required to generate API version JSON.
+                                             be first, the newest last. This should not include a signature file for the
+                                             current API version, which will be parsed from the provided source files.
+                                             Not required to generate API version JSON if the current version is the
+                                             only version.
+--api-version-names <strings>
+                                             An ordered list of strings with the names to use for the API versions from
+                                             --api-version-signature-files, and the name of the current API version.
+                                             Required to generate API version JSON.
 
 
 Sandboxing:
@@ -442,7 +460,8 @@ METALAVA_APPEND_ARGS
                                              One or more arguments (concatenated by space) to append to the end of the
                                              command line, after the generate documentation flags.
 
-    """.trimIndent()
+    """
+            .trimIndent()
 
     @Test
     fun `Test invalid arguments`() {
@@ -455,7 +474,7 @@ METALAVA_APPEND_ARGS
             stdout = PrintWriter(stdout),
             stderr = PrintWriter(stderr)
         )
-        assertEquals(BANNER + "\n\n", stdout.toString())
+        assertEquals(BANNER + "\n", stdout.toString())
         assertEquals(
             """
 
@@ -463,7 +482,31 @@ Aborting: Invalid argument --blah-blah-blah
 
 $FLAGS
 
-            """.trimIndent(),
+            """
+                .trimIndent(),
+            stderr.toString()
+        )
+    }
+
+    @Test
+    fun `Test invalid value`() {
+        val args = listOf(ARG_NO_COLOR, "--api-class-resolution", "foo")
+
+        val stdout = StringWriter()
+        val stderr = StringWriter()
+        run(
+            originalArgs = args.toTypedArray(),
+            stdout = PrintWriter(stdout),
+            stderr = PrintWriter(stderr)
+        )
+        assertEquals(BANNER + "\n", stdout.toString())
+        assertEquals(
+            """
+
+Aborting: --api-class-resolution must be one of api, api:classpath; was foo
+
+            """
+                .trimIndent(),
             stderr.toString()
         )
     }
@@ -484,12 +527,35 @@ $FLAGS
             """
 $BANNER
 
-
 $DESCRIPTION
 
 $FLAGS
 
-            """.trimIndent(),
+            """
+                .trimIndent(),
+            stdout.toString()
+        )
+    }
+
+    @Test
+    fun `Test version`() {
+        val args = listOf(ARG_NO_COLOR, "--version")
+
+        val stdout = StringWriter()
+        val stderr = StringWriter()
+        run(
+            originalArgs = args.toTypedArray(),
+            stdout = PrintWriter(stdout),
+            stderr = PrintWriter(stderr)
+        )
+        assertEquals("", stderr.toString())
+        assertEquals(
+            """
+
+                metalava version: 1.0.0-alpha09
+
+            """
+                .trimIndent(),
             stdout.toString()
         )
     }
@@ -497,16 +563,17 @@ $FLAGS
     @Test
     fun `Test issue severity options`() {
         check(
-            extraArguments = arrayOf(
-                "--hide",
-                "StartWithLower",
-                "--lint",
-                "EndsWithImpl",
-                "--warning",
-                "StartWithUpper",
-                "--error",
-                "ArrayReturn"
-            )
+            extraArguments =
+                arrayOf(
+                    "--hide",
+                    "StartWithLower",
+                    "--lint",
+                    "EndsWithImpl",
+                    "--warning",
+                    "StartWithUpper",
+                    "--error",
+                    "ArrayReturn"
+                )
         )
         assertEquals(Severity.HIDDEN, defaultConfiguration.getSeverity(Issues.START_WITH_LOWER))
         assertEquals(Severity.LINT, defaultConfiguration.getSeverity(Issues.ENDS_WITH_IMPL))
@@ -516,9 +583,7 @@ $FLAGS
 
     @Test
     fun `Test multiple issue severity options`() {
-        check(
-            extraArguments = arrayOf("--hide", "StartWithLower,StartWithUpper,ArrayReturn")
-        )
+        check(extraArguments = arrayOf("--hide", "StartWithLower,StartWithUpper,ArrayReturn"))
         assertEquals(Severity.HIDDEN, defaultConfiguration.getSeverity(Issues.START_WITH_LOWER))
         assertEquals(Severity.HIDDEN, defaultConfiguration.getSeverity(Issues.START_WITH_UPPER))
         assertEquals(Severity.HIDDEN, defaultConfiguration.getSeverity(Issues.ARRAY_RETURN))
@@ -526,18 +591,20 @@ $FLAGS
 
     @Test
     fun `Test issue severity options with inheriting issues`() {
-        check(
-            extraArguments = arrayOf("--error", "RemovedClass")
-        )
+        check(extraArguments = arrayOf("--error", "RemovedClass"))
         assertEquals(Severity.ERROR, defaultConfiguration.getSeverity(Issues.REMOVED_CLASS))
-        assertEquals(Severity.ERROR, defaultConfiguration.getSeverity(Issues.REMOVED_DEPRECATED_CLASS))
+        assertEquals(
+            Severity.ERROR,
+            defaultConfiguration.getSeverity(Issues.REMOVED_DEPRECATED_CLASS)
+        )
     }
 
     @Test
     fun `Test issue severity options with case insensitive names`() {
         check(
             extraArguments = arrayOf("--hide", "arrayreturn"),
-            expectedIssues = "warning: Case-insensitive issue matching is deprecated, use --hide ArrayReturn instead of --hide arrayreturn [DeprecatedOption]"
+            expectedIssues =
+                "warning: Case-insensitive issue matching is deprecated, use --hide ArrayReturn instead of --hide arrayreturn [DeprecatedOption]"
         )
         assertEquals(Severity.HIDDEN, defaultConfiguration.getSeverity(Issues.ARRAY_RETURN))
     }
@@ -562,10 +629,11 @@ $FLAGS
 
         try {
             check(
-                extraArguments = arrayOf(
-                    "--strict-input-files-exempt",
-                    file1.path + File.pathSeparatorChar + dir.path
-                )
+                extraArguments =
+                    arrayOf(
+                        "--strict-input-files-exempt",
+                        file1.path + File.pathSeparatorChar + dir.path
+                    )
             )
 
             assertTrue(FileReadSandbox.isAccessAllowed(file1))

@@ -28,7 +28,8 @@ import org.jetbrains.uast.UAnnotation
 import org.jetbrains.uast.UClass
 import org.jetbrains.uast.toUElement
 
-class PsiPropertyItem private constructor(
+class PsiPropertyItem
+private constructor(
     override val codebase: PsiBasedCodebase,
     private val psiMethod: PsiMethod,
     private val containingClass: PsiClassItem,
@@ -69,7 +70,9 @@ class PsiPropertyItem private constructor(
         if (this === other) {
             return true
         }
-        return other is FieldItem && name == other.name() && containingClass == other.containingClass()
+        return other is FieldItem &&
+            name == other.name() &&
+            containingClass == other.containingClass()
     }
 
     override fun hashCode(): Int {
@@ -88,12 +91,12 @@ class PsiPropertyItem private constructor(
          *
          * Metalava currently requires all properties to have a [getter]. It does not currently
          * support private, `const val`, or [JvmField] properties. Mutable `var` properties usually
-         * have a [setter], but properties with a private default setter may use direct field
-         * access instead.
+         * have a [setter], but properties with a private default setter may use direct field access
+         * instead.
          *
          * Properties declared in the primary constructor of a class have an associated
-         * [constructorParameter]. This relationship is important for resolving docs which may
-         * exist on the constructor parameter.
+         * [constructorParameter]. This relationship is important for resolving docs which may exist
+         * on the constructor parameter.
          *
          * Most properties on classes without a custom getter have a [backingField] to hold their
          * value. This is private except for [JvmField] properties.
@@ -109,24 +112,27 @@ class PsiPropertyItem private constructor(
             backingField: PsiFieldItem? = null
         ): PsiPropertyItem {
             val psiMethod = getter.psiMethod
-            val documentation = when (val sourcePsi = getter.sourcePsi) {
-                is KtPropertyAccessor -> javadoc(sourcePsi.property)
-                else -> javadoc(sourcePsi ?: psiMethod)
-            }
+            val documentation =
+                when (val sourcePsi = getter.sourcePsi) {
+                    is KtPropertyAccessor -> javadoc(sourcePsi.property)
+                    else -> javadoc(sourcePsi ?: psiMethod)
+                }
             val modifiers = modifiers(codebase, psiMethod, documentation)
             // Alas, annotations whose target is property won't be bound to anywhere in LC/UAST,
             // if the property doesn't need a backing field. Same for unspecified use-site target.
             // To preserve such annotations, our last resort is to examine source PSI directly.
             if (backingField == null) {
                 val ktProperty = (getter.sourcePsi as? KtPropertyAccessor)?.property
-                val annotations = ktProperty?.annotationEntries?.mapNotNull {
-                    val useSiteTarget = it.useSiteTarget?.getAnnotationUseSiteTarget()
-                    if (useSiteTarget == null ||
-                        useSiteTarget == AnnotationUseSiteTarget.PROPERTY
-                    ) {
-                        it.toUElement() as? UAnnotation
-                    } else null
-                }
+                val annotations =
+                    ktProperty?.annotationEntries?.mapNotNull {
+                        val useSiteTarget = it.useSiteTarget?.getAnnotationUseSiteTarget()
+                        if (
+                            useSiteTarget == null ||
+                                useSiteTarget == AnnotationUseSiteTarget.PROPERTY
+                        ) {
+                            it.toUElement() as? UAnnotation
+                        } else null
+                    }
                 annotations?.forEach { uAnnotation ->
                     val annotationItem = UAnnotationItem.create(codebase, uAnnotation)
                     if (annotationItem !in modifiers.annotations()) {
@@ -134,19 +140,20 @@ class PsiPropertyItem private constructor(
                     }
                 }
             }
-            val property = PsiPropertyItem(
-                codebase = codebase,
-                psiMethod = psiMethod,
-                containingClass = containingClass,
-                name = name,
-                documentation = documentation,
-                modifiers = modifiers,
-                fieldType = type,
-                getter = getter,
-                setter = setter,
-                constructorParameter = constructorParameter,
-                backingField = backingField
-            )
+            val property =
+                PsiPropertyItem(
+                    codebase = codebase,
+                    psiMethod = psiMethod,
+                    containingClass = containingClass,
+                    name = name,
+                    documentation = documentation,
+                    modifiers = modifiers,
+                    fieldType = type,
+                    getter = getter,
+                    setter = setter,
+                    constructorParameter = constructorParameter,
+                    backingField = backingField
+                )
             getter.property = property
             setter?.property = property
             constructorParameter?.property = property

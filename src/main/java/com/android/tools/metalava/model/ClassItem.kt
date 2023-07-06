@@ -32,7 +32,8 @@ import java.util.function.Predicate
 /**
  * Represents a {@link https://docs.oracle.com/javase/8/docs/api/java/lang/Class.html Class}
  *
- * If you need to model array dimensions or resolved type parameters, see {@link com.android.tools.metalava.model.TypeItem} instead
+ * If you need to model array dimensions or resolved type parameters, see {@link
+ * com.android.tools.metalava.model.TypeItem} instead
  */
 interface ClassItem : Item {
     /** The simple name of a class. In class foo.bar.Outer.Inner, the simple name is "Inner" */
@@ -41,7 +42,10 @@ interface ClassItem : Item {
     /** The full name of a class. In class foo.bar.Outer.Inner, the full name is "Outer.Inner" */
     fun fullName(): String
 
-    /** The qualified name of a class. In class foo.bar.Outer.Inner, the qualified name is the whole thing. */
+    /**
+     * The qualified name of a class. In class foo.bar.Outer.Inner, the qualified name is the whole
+     * thing.
+     */
     fun qualifiedName(): String
 
     /** Is the class explicitly defined in the source file? */
@@ -61,9 +65,9 @@ interface ClassItem : Item {
     override fun parent(): Item? = containingClass() ?: containingPackage()
 
     /**
-     * The qualified name where inner classes use $ as a separator.
-     * In class foo.bar.Outer.Inner, this method will return foo.bar.Outer$Inner.
-     * (This is the name format used in ProGuard keep files for example.)
+     * The qualified name where inner classes use $ as a separator. In class foo.bar.Outer.Inner,
+     * this method will return foo.bar.Outer$Inner. (This is the name format used in ProGuard keep
+     * files for example.)
      */
     fun qualifiedNameWithDollarInnerClasses(): String {
         var curr: ClassItem? = this
@@ -89,26 +93,28 @@ interface ClassItem : Item {
             return fullName().replace('.', '$')
         }
 
-        return curr.containingPackage().qualifiedName().replace('.', '/') + "/" +
+        return curr.containingPackage().qualifiedName().replace('.', '/') +
+            "/" +
             fullName().replace('.', '$')
     }
 
-    /** The super class of this class, if any  */
+    /** The super class of this class, if any */
     fun superClass(): ClassItem?
 
     /** All super classes, if any */
     fun allSuperClasses(): Sequence<ClassItem> {
         return superClass()?.let { cls ->
-            return generateSequence(cls) {
-                it.superClass()
-            }
-        } ?: return emptySequence()
+            return generateSequence(cls) { it.superClass() }
+        }
+            ?: return emptySequence()
     }
 
-    /** The super class type of this class, if any. The difference between this and [superClass] is
-     * that the type reference can include type arguments; e.g. in "class MyList extends List<String>"
-     * the super class is java.util.List and the super class type is java.util.List<java.lang.String>.
-     * */
+    /**
+     * The super class type of this class, if any. The difference between this and [superClass] is
+     * that the type reference can include type arguments; e.g. in "class MyList extends
+     * List<String>" the super class is java.util.List and the super class type is
+     * java.util.List<java.lang.String>.
+     */
     fun superClassType(): TypeItem?
 
     /** Finds the public super class of this class, if any */
@@ -128,11 +134,12 @@ interface ClassItem : Item {
         }
 
         val superClass = superClass()
-        return superClass?.extends(qualifiedName) ?: when {
-            isEnum() -> qualifiedName == JAVA_LANG_ENUM
-            isAnnotationType() -> qualifiedName == JAVA_LANG_ANNOTATION
-            else -> qualifiedName == JAVA_LANG_OBJECT
-        }
+        return superClass?.extends(qualifiedName)
+            ?: when {
+                isEnum() -> qualifiedName == JAVA_LANG_ENUM
+                isAnnotationType() -> qualifiedName == JAVA_LANG_ANNOTATION
+                else -> qualifiedName == JAVA_LANG_OBJECT
+            }
     }
 
     /** Returns true if this class implements the given interface (includes self) */
@@ -157,12 +164,16 @@ interface ClassItem : Item {
     }
 
     /** Returns true if this class extends or implements the given class or interface */
-    fun extendsOrImplements(qualifiedName: String): Boolean = extends(qualifiedName) || implements(qualifiedName)
+    fun extendsOrImplements(qualifiedName: String): Boolean =
+        extends(qualifiedName) || implements(qualifiedName)
 
     /** Any interfaces implemented by this class */
     fun interfaceTypes(): List<TypeItem>
 
-    /** All classes and interfaces implemented (by this class and its super classes and the interfaces themselves) */
+    /**
+     * All classes and interfaces implemented (by this class and its super classes and the
+     * interfaces themselves)
+     */
     fun allInterfaces(): Sequence<ClassItem>
 
     /** Any inner classes of this class */
@@ -220,7 +231,10 @@ interface ClassItem : Item {
     /** Returns true if this class has type parameters */
     fun hasTypeVariables(): Boolean
 
-    /** Any type parameters for the class, if any, as a source string (with fully qualified class names) */
+    /**
+     * Any type parameters for the class, if any, as a source string (with fully qualified class
+     * names)
+     */
     fun typeParameterList(): TypeParameterList
 
     /** Returns the classes that are part of the type parameters of this method, if any */
@@ -231,7 +245,7 @@ interface ClassItem : Item {
     }
 
     fun isAbstractClass(): Boolean {
-        return this.modifiers.isAbstract()
+        return modifiers.isAbstract()
     }
 
     // Mutation APIs: Used to "fix up" the API hierarchy (in [ApiAnalyzer]) to only expose
@@ -243,7 +257,8 @@ interface ClassItem : Item {
     // This replaces the interface types implemented by this class
     fun setInterfaceTypes(interfaceTypes: List<TypeItem>)
 
-    // Whether this class is a generic type parameter, such as T, rather than a non-generic type, like String
+    // Whether this class is a generic type parameter, such as T, rather than a non-generic type,
+    // like String
     val isTypeParameter: Boolean
 
     var hasPrivateConstructor: Boolean
@@ -253,8 +268,8 @@ interface ClassItem : Item {
         get() = constructors().singleOrNull { it.isPrimary }
 
     /**
-     * Maven artifact of this class, if any. (Not used for the Android SDK, but used in
-     * for example support libraries.
+     * Maven artifact of this class, if any. (Not used for the Android SDK, but used in for example
+     * support libraries.
      */
     var artifact: String?
 
@@ -341,9 +356,7 @@ interface ClassItem : Item {
         visitor.visitType(type, this)
 
         // TODO: Visit type parameter list (at least the bounds types, e.g. View in <T extends View>
-        superClass()?.let {
-            visitor.visitType(it.toType(), it)
-        }
+        superClass()?.let { visitor.visitType(it.toType(), it) }
 
         if (visitor.includeInterfaces) {
             for (itf in interfaceTypes()) {
@@ -372,8 +385,9 @@ interface ClassItem : Item {
         /** Looks up the retention policy for the given class */
         fun findRetention(cls: ClassItem): AnnotationRetention {
             val modifiers = cls.modifiers
-            val annotation = modifiers.findAnnotation("java.lang.annotation.Retention")
-                ?: modifiers.findAnnotation("kotlin.annotation.Retention")
+            val annotation =
+                modifiers.findAnnotation("java.lang.annotation.Retention")
+                    ?: modifiers.findAnnotation("kotlin.annotation.Retention")
             val value = annotation?.findAttribute(SdkConstants.ATTR_VALUE)
             val source = value?.value?.toSource()
             return when {
@@ -399,7 +413,9 @@ interface ClassItem : Item {
             a.simpleName().compareTo(b.simpleName())
         }
 
-        val fullNameComparator: Comparator<ClassItem> = Comparator { a, b -> a.fullName().compareTo(b.fullName()) }
+        val fullNameComparator: Comparator<ClassItem> = Comparator { a, b ->
+            a.fullName().compareTo(b.fullName())
+        }
 
         val qualifiedComparator: Comparator<ClassItem> = Comparator { a, b ->
             a.qualifiedName().compareTo(b.qualifiedName())
@@ -417,26 +433,33 @@ interface ClassItem : Item {
             return findConstructor(template as ConstructorItem)
         }
 
-        methods().asSequence()
+        methods()
+            .asSequence()
             .filter { it.matches(template) }
-            .forEach { return it }
+            .forEach {
+                return it
+            }
 
         if (includeSuperClasses) {
-            superClass()?.findMethod(template, true, includeInterfaces)?.let { return it }
+            superClass()?.findMethod(template, true, includeInterfaces)?.let {
+                return it
+            }
         }
 
         if (includeInterfaces) {
             for (itf in interfaceTypes()) {
                 val cls = itf.asClass() ?: continue
-                cls.findMethod(template, includeSuperClasses, true)?.let { return it }
+                cls.findMethod(template, includeSuperClasses, true)?.let {
+                    return it
+                }
             }
         }
         return null
     }
 
     /**
-     * Finds a method matching the given method that satisfies the given predicate,
-     * considering all methods defined on this class and its super classes
+     * Finds a method matching the given method that satisfies the given predicate, considering all
+     * methods defined on this class and its super classes
      */
     fun findPredicateMethodWithSuper(template: MethodItem, filter: Predicate<Item>?): MethodItem? {
         val method = findMethod(template, true, true)
@@ -457,33 +480,46 @@ interface ClassItem : Item {
         includeInterfaces: Boolean = false
     ): MethodItem? {
         if (desc.startsWith("<init>")) {
-            constructors().asSequence()
+            constructors()
+                .asSequence()
                 .filter { it.internalDesc() == desc }
-                .forEach { return it }
+                .forEach {
+                    return it
+                }
             return null
         } else {
-            methods().asSequence()
+            methods()
+                .asSequence()
                 .filter { it.name() == name && it.internalDesc() == desc }
-                .forEach { return it }
+                .forEach {
+                    return it
+                }
         }
 
         if (includeSuperClasses) {
-            superClass()?.findMethodByDesc(name, desc, true, includeInterfaces)?.let { return it }
+            superClass()?.findMethodByDesc(name, desc, true, includeInterfaces)?.let {
+                return it
+            }
         }
 
         if (includeInterfaces) {
             for (itf in interfaceTypes()) {
                 val cls = itf.asClass() ?: continue
-                cls.findMethodByDesc(name, desc, includeSuperClasses, true)?.let { return it }
+                cls.findMethodByDesc(name, desc, includeSuperClasses, true)?.let {
+                    return it
+                }
             }
         }
         return null
     }
 
     fun findConstructor(template: ConstructorItem): ConstructorItem? {
-        constructors().asSequence()
+        constructors()
+            .asSequence()
             .filter { it.matches(template) }
-            .forEach { return it }
+            .forEach {
+                return it
+            }
         return null
     }
 
@@ -498,13 +534,17 @@ interface ClassItem : Item {
         }
 
         if (includeSuperClasses) {
-            superClass()?.findField(fieldName, true, includeInterfaces)?.let { return it }
+            superClass()?.findField(fieldName, true, includeInterfaces)?.let {
+                return it
+            }
         }
 
         if (includeInterfaces) {
             for (itf in interfaceTypes()) {
                 val cls = itf.asClass() ?: continue
-                cls.findField(fieldName, includeSuperClasses, true)?.let { return it }
+                cls.findField(fieldName, includeSuperClasses, true)?.let {
+                    return it
+                }
             }
         }
         return null
@@ -515,18 +555,23 @@ interface ClassItem : Item {
             // Constructor
             constructors()
                 .filter { parametersMatch(it, parameters) }
-                .forEach { return it }
+                .forEach {
+                    return it
+                }
         } else {
             methods()
                 .filter { it.name() == methodName && parametersMatch(it, parameters) }
-                .forEach { return it }
+                .forEach {
+                    return it
+                }
         }
 
         return null
     }
 
     private fun parametersMatch(method: MethodItem, description: String): Boolean {
-        val parameterStrings = Splitter.on(",").trimResults().omitEmptyStrings().splitToList(description)
+        val parameterStrings =
+            Splitter.on(",").trimResults().omitEmptyStrings().splitToList(description)
         val parameters = method.parameters()
         if (parameters.size != parameterStrings.size) {
             return false
@@ -553,8 +598,8 @@ interface ClassItem : Item {
     fun getRetention(): AnnotationRetention
 
     /**
-     * Return superclass matching the given predicate. When a superclass doesn't
-     * match, we'll keep crawling up the tree until we find someone who matches.
+     * Return superclass matching the given predicate. When a superclass doesn't match, we'll keep
+     * crawling up the tree until we find someone who matches.
      */
     fun filteredSuperclass(predicate: Predicate<Item>): ClassItem? {
         val superClass = superClass() ?: return null
@@ -591,8 +636,8 @@ interface ClassItem : Item {
     }
 
     /**
-     * Return methods matching the given predicate. Forcibly includes local
-     * methods that override a matching method in an ancestor class.
+     * Return methods matching the given predicate. Forcibly includes local methods that override a
+     * matching method in an ancestor class.
      */
     fun filteredMethods(
         predicate: Predicate<Item>,
@@ -608,7 +653,9 @@ interface ClassItem : Item {
             }
         }
         if (includeSuperClassMethods) {
-            superClass()?.filteredMethods(predicate, includeSuperClassMethods)?.let { methods += it }
+            superClass()?.filteredMethods(predicate, includeSuperClassMethods)?.let {
+                methods += it
+            }
         }
         return methods
     }
@@ -619,8 +666,8 @@ interface ClassItem : Item {
     }
 
     /**
-     * Return fields matching the given predicate. Also clones fields from
-     * ancestors that would match had they been defined in this class.
+     * Return fields matching the given predicate. Also clones fields from ancestors that would
+     * match had they been defined in this class.
      */
     fun filteredFields(predicate: Predicate<Item>, showUnannotated: Boolean): List<FieldItem> {
         val fields = LinkedHashSet<FieldItem>()
@@ -645,7 +692,11 @@ interface ClassItem : Item {
                 // Include constants from hidden super classes.
                 for (field in superClass.fields()) {
                     val fieldModifiers = field.modifiers
-                    if (!fieldModifiers.isStatic() || !fieldModifiers.isFinal() || !fieldModifiers.isPublic()) {
+                    if (
+                        !fieldModifiers.isStatic() ||
+                            !fieldModifiers.isFinal() ||
+                            !fieldModifiers.isPublic()
+                    ) {
                         continue
                     }
                     if (!field.originallyHidden) {
@@ -674,10 +725,14 @@ interface ClassItem : Item {
     }
 
     fun filteredInterfaceTypes(predicate: Predicate<Item>): Collection<TypeItem> {
-        val interfaceTypes = filteredInterfaceTypes(
-            predicate, LinkedHashSet(),
-            includeSelf = false, includeParents = false, target = this
-        )
+        val interfaceTypes =
+            filteredInterfaceTypes(
+                predicate,
+                LinkedHashSet(),
+                includeSelf = false,
+                includeParents = false,
+                target = this
+            )
         if (interfaceTypes.isEmpty()) {
             return interfaceTypes
         }
@@ -686,10 +741,14 @@ interface ClassItem : Item {
     }
 
     fun allInterfaceTypes(predicate: Predicate<Item>): Collection<TypeItem> {
-        val interfaceTypes = filteredInterfaceTypes(
-            predicate, LinkedHashSet(),
-            includeSelf = false, includeParents = true, target = this
-        )
+        val interfaceTypes =
+            filteredInterfaceTypes(
+                predicate,
+                LinkedHashSet(),
+                includeSelf = false,
+                includeParents = true,
+                target = this
+            )
         if (interfaceTypes.isEmpty()) {
             return interfaceTypes
         }
@@ -709,11 +768,23 @@ interface ClassItem : Item {
             val superClass = superClassType.asClass()
             if (superClass != null) {
                 if (!predicate.test(superClass)) {
-                    superClass.filteredInterfaceTypes(predicate, types, true, includeParents, target)
+                    superClass.filteredInterfaceTypes(
+                        predicate,
+                        types,
+                        true,
+                        includeParents,
+                        target
+                    )
                 } else if (includeSelf && superClass.isInterface()) {
                     types.add(superClassType)
                     if (includeParents) {
-                        superClass.filteredInterfaceTypes(predicate, types, true, includeParents, target)
+                        superClass.filteredInterfaceTypes(
+                            predicate,
+                            types,
+                            true,
+                            includeParents,
+                            target
+                        )
                     }
                 }
             }
@@ -761,35 +832,29 @@ interface ClassItem : Item {
     }
 
     /**
-     * The default constructor to invoke on this class from subclasses; initially null
-     * but populated by [ApiAnalyzer.addConstructors]. (Note that in some cases
-     * [stubConstructor] may not be in [constructors], e.g. when we need to
-     * create a constructor to match a public parent class with a non-default constructor
-     * and the one in the code is not a match, e.g. is marked @hide etc.)
+     * The default constructor to invoke on this class from subclasses; initially null but populated
+     * by [ApiAnalyzer.addConstructors]. (Note that in some cases [stubConstructor] may not be in
+     * [constructors], e.g. when we need to create a constructor to match a public parent class with
+     * a non-default constructor and the one in the code is not a match, e.g. is marked @hide etc.)
      */
     var stubConstructor: ConstructorItem?
 
     /**
-     * Creates a map of type variables from this class to the given target class.
-     * If class A<X,Y> extends B<X,Y>, and B is declared as class B<M,N>,
-     * this returns the map {"X"->"M", "Y"->"N"}. There could be multiple intermediate
-     * classes between this class and the target class, and in some cases we could
-     * be substituting in a concrete class, e.g. class MyClass extends B<String,Number>
-     * would return the map {"java.lang.String"->"M", "java.lang.Number"->"N"}.
+     * Creates a map of type variables from this class to the given target class. If class A<X,Y>
+     * extends B<X,Y>, and B is declared as class B<M,N>, this returns the map {"X"->"M", "Y"->"N"}.
+     * There could be multiple intermediate classes between this class and the target class, and in
+     * some cases we could be substituting in a concrete class, e.g. class MyClass extends
+     * B<String,Number> would return the map {"java.lang.String"->"M", "java.lang.Number"->"N"}.
      *
-     * If [reverse] is true, compute the reverse map: keys are the variables in
-     * the target and the values are the variables in the source.
+     * If [reverse] is true, compute the reverse map: keys are the variables in the target and the
+     * values are the variables in the source.
      */
     fun mapTypeVariables(target: ClassItem): Map<String, String> = codebase.unsupported()
 
-    /**
-     * Creates a constructor in this class
-     */
+    /** Creates a constructor in this class */
     fun createDefaultConstructor(): ConstructorItem = codebase.unsupported()
 
-    /**
-     * Creates a method corresponding to the given method signature in this class
-     */
+    /** Creates a method corresponding to the given method signature in this class */
     fun createMethod(template: MethodItem): MethodItem = codebase.unsupported()
 
     fun addMethod(method: MethodItem): Unit = codebase.unsupported()
@@ -808,51 +873,59 @@ class VisitCandidate(val cls: ClassItem, private val visitor: ApiVisitor) {
     init {
         val filterEmit = visitor.filterEmit
 
-        constructors = cls.constructors().asSequence()
-            .filter { filterEmit.test(it) }
-            .sortedWith(MethodItem.comparator)
+        constructors =
+            cls.constructors()
+                .asSequence()
+                .filter { filterEmit.test(it) }
+                .sortedWith(MethodItem.comparator)
 
-        methods = cls.methods().asSequence()
-            .filter { filterEmit.test(it) }
-            .sortedWith(MethodItem.comparator)
+        methods =
+            cls.methods()
+                .asSequence()
+                .filter { filterEmit.test(it) }
+                .sortedWith(MethodItem.comparator)
 
         val fieldSequence =
             if (visitor.inlineInheritedFields) {
                 cls.filteredFields(filterEmit, visitor.showUnannotated).asSequence()
             } else {
-                cls.fields().asSequence()
-                    .filter { filterEmit.test(it) }
+                cls.fields().asSequence().filter { filterEmit.test(it) }
             }
         if (cls.isEnum()) {
-            fields = fieldSequence
-                .filter { !it.isEnumConstant() }
-                .sortedWith(FieldItem.comparator)
-            enums = fieldSequence
-                .filter { it.isEnumConstant() }
-                .filter { filterEmit.test(it) }
-                .sortedWith(FieldItem.comparator)
+            fields = fieldSequence.filter { !it.isEnumConstant() }.sortedWith(FieldItem.comparator)
+            enums =
+                fieldSequence
+                    .filter { it.isEnumConstant() }
+                    .filter { filterEmit.test(it) }
+                    .sortedWith(FieldItem.comparator)
         } else {
             fields = fieldSequence.sortedWith(FieldItem.comparator)
             enums = emptySequence()
         }
 
-        properties = if (cls.properties().isEmpty()) {
-            emptySequence()
-        } else {
-            cls.properties().asSequence()
-                .filter { filterEmit.test(it) }
-                .sortedWith(PropertyItem.comparator)
-        }
+        properties =
+            if (cls.properties().isEmpty()) {
+                emptySequence()
+            } else {
+                cls.properties()
+                    .asSequence()
+                    .filter { filterEmit.test(it) }
+                    .sortedWith(PropertyItem.comparator)
+            }
 
-        innerClasses = cls.innerClasses()
-            .asSequence()
-            .sortedWith(ClassItem.classNameSorter())
-            .map { VisitCandidate(it, visitor) }
+        innerClasses =
+            cls.innerClasses().asSequence().sortedWith(ClassItem.classNameSorter()).map {
+                VisitCandidate(it, visitor)
+            }
     }
 
     /** Whether the class body contains any Item's (other than inner Classes) */
     fun nonEmpty(): Boolean {
-        return !(constructors.none() && methods.none() && enums.none() && fields.none() && properties.none())
+        return !(constructors.none() &&
+            methods.none() &&
+            enums.none() &&
+            fields.none() &&
+            properties.none())
     }
 
     fun accept() {
@@ -872,21 +945,24 @@ class VisitCandidate(val cls: ClassItem, private val visitor: ApiVisitor) {
             visitor.visitItem(cls)
             visitor.visitClass(cls)
 
-            val sortedConstructors = if (visitor.methodComparator != null) {
-                constructors.sortedWith(visitor.methodComparator)
-            } else {
-                constructors
-            }
-            val sortedMethods = if (visitor.methodComparator != null) {
-                methods.sortedWith(visitor.methodComparator)
-            } else {
-                methods
-            }
-            val sortedFields = if (visitor.fieldComparator != null) {
-                fields.sortedWith(visitor.fieldComparator)
-            } else {
-                fields
-            }
+            val sortedConstructors =
+                if (visitor.methodComparator != null) {
+                    constructors.sortedWith(visitor.methodComparator)
+                } else {
+                    constructors
+                }
+            val sortedMethods =
+                if (visitor.methodComparator != null) {
+                    methods.sortedWith(visitor.methodComparator)
+                } else {
+                    methods
+                }
+            val sortedFields =
+                if (visitor.fieldComparator != null) {
+                    fields.sortedWith(visitor.fieldComparator)
+                } else {
+                    fields
+                }
 
             for (constructor in sortedConstructors) {
                 constructor.accept(visitor)

@@ -23,29 +23,27 @@ import com.android.tools.metalava.JAVA_LANG_STRING
 import java.util.function.Predicate
 
 /**
- * Whether metalava supports type use annotations.
- * Note that you can't just turn this flag back on; you have to
- * also add TYPE_USE back to the handful of nullness
- * annotations in stub-annotations/src/main/java/.
+ * Whether metalava supports type use annotations. Note that you can't just turn this flag back on;
+ * you have to also add TYPE_USE back to the handful of nullness annotations in
+ * stub-annotations/src/main/java/.
  */
 const val SUPPORT_TYPE_USE_ANNOTATIONS = false
 
-/** Represents a {@link https://docs.oracle.com/javase/8/docs/api/java/lang/reflect/Type.html Type} */
+/**
+ * Represents a {@link https://docs.oracle.com/javase/8/docs/api/java/lang/reflect/Type.html Type}
+ */
 interface TypeItem {
     /**
      * Generates a string for this type.
      *
-     * For a type like this: @Nullable java.util.List<@NonNull java.lang.String>,
-     * [outerAnnotations] controls whether the top level annotation like @Nullable
-     * is included, [innerAnnotations] controls whether annotations like @NonNull
-     * are included, and [erased] controls whether we return the string for
-     * the raw type, e.g. just "java.util.List". The [kotlinStyleNulls] parameter
-     * controls whether it should return "@Nullable List<String>" as "List<String!>?".
-     * Finally, [filter] specifies a filter to apply to the type annotations, if
-     * any.
+     * For a type like this: @Nullable java.util.List<@NonNull java.lang.String>, [outerAnnotations]
+     * controls whether the top level annotation like @Nullable is included, [innerAnnotations]
+     * controls whether annotations like @NonNull are included, and [erased] controls whether we
+     * return the string for the raw type, e.g. just "java.util.List". The [kotlinStyleNulls]
+     * parameter controls whether it should return "@Nullable List<String>" as "List<String!>?".
+     * Finally, [filter] specifies a filter to apply to the type annotations, if any.
      *
-     * (The combination [outerAnnotations] = true and [innerAnnotations] = false
-     * is not allowed.)
+     * (The combination [outerAnnotations] = true and [innerAnnotations] = false is not allowed.)
      */
     fun toTypeString(
         outerAnnotations: Boolean = false,
@@ -60,9 +58,9 @@ interface TypeItem {
     fun toErasedTypeString(context: Item? = null): String
 
     /**
-     * Returns the internal name of the type, as seen in bytecode. The optional [context]
-     * provides the method or class where this type appears, and can be used for example
-     * to resolve the bounds for a type variable used in a method that was specified on the class.
+     * Returns the internal name of the type, as seen in bytecode. The optional [context] provides
+     * the method or class where this type appears, and can be used for example to resolve the
+     * bounds for a type variable used in a method that was specified on the class.
      */
     fun internalName(context: Item? = null): String {
         // Default implementation; PSI subclass is more accurate
@@ -79,9 +77,9 @@ interface TypeItem {
     }
 
     /**
-     * Helper methods to compare types, especially types from signature files with types
-     * from parsing, which may have slightly different formats, e.g. varargs ("...") versus
-     * arrays ("[]"), java.lang. prefixes removed in wildcard signatures, etc.
+     * Helper methods to compare types, especially types from signature files with types from
+     * parsing, which may have slightly different formats, e.g. varargs ("...") versus arrays
+     * ("[]"), java.lang. prefixes removed in wildcard signatures, etc.
      */
     fun toCanonicalType(context: Item? = null): String {
         var s = toTypeString(context = context)
@@ -96,9 +94,8 @@ interface TypeItem {
     }
 
     /**
-     * Returns the element type if the type is an array or contains a vararg.
-     * If the element is not an array or does not contain a vararg,
-     * returns the original type string.
+     * Returns the element type if the type is an array or contains a vararg. If the element is not
+     * an array or does not contain a vararg, returns the original type string.
      */
     fun toElementType(): String {
         return toTypeString().replace("...", "").replace("[]", "")
@@ -136,31 +133,46 @@ interface TypeItem {
     fun defaultValue(): Any? {
         return when (toTypeString()) {
             "boolean" -> false
-            "char", "int", "float", "double" -> 0
             "byte" -> 0.toByte()
-            "short" -> 0.toShort()
+            "char" -> 0.toChar()
+            "double" -> 0.0
+            "float" -> 0F
+            "int" -> 0
             "long" -> 0L
+            "short" -> 0.toShort()
             else -> null
         }
     }
 
-    fun defaultValueString(): String = defaultValue()?.toString() ?: "null"
+    fun defaultValueString(): String {
+        return when (toTypeString()) {
+            "boolean" -> "false"
+            "byte",
+            "char",
+            "double",
+            "float",
+            "int",
+            "long",
+            "short" -> "0"
+            else -> "null"
+        }
+    }
 
     fun hasTypeArguments(): Boolean = toTypeString().contains("<")
 
     /**
-     * If the item has type arguments, return a list of type arguments.
-     * If simplified is true, returns the simplified forms of the type arguments.
-     * e.g. when type arguments are <K, V extends some.arbitrary.Class>, [K, V] will be returned.
-     * If the item does not have any type arguments, return an empty list.
+     * If the item has type arguments, return a list of type arguments. If simplified is true,
+     * returns the simplified forms of the type arguments. e.g. when type arguments are <K, V
+     * extends some.arbitrary.Class>, [K, V] will be returned. If the item does not have any type
+     * arguments, return an empty list.
      */
     fun typeArguments(simplified: Boolean = false): List<String> {
         if (!hasTypeArguments()) {
             return emptyList()
         }
         val typeString = toTypeString()
-        val bracketRemovedTypeString = typeString.indexOf('<')
-            .let { typeString.substring(it + 1, typeString.length - 1) }
+        val bracketRemovedTypeString =
+            typeString.indexOf('<').let { typeString.substring(it + 1, typeString.length - 1) }
         val typeArguments = mutableListOf<String>()
         var builder = StringBuilder()
         var balance = 0
@@ -196,20 +208,19 @@ interface TypeItem {
     }
 
     /**
-     * If this type is a type parameter, then return the corresponding [TypeParameterItem].
-     * The optional [context] provides the method or class where this type parameter
-     * appears, and can be used for example to resolve the bounds for a type variable
-     * used in a method that was specified on the class.
+     * If this type is a type parameter, then return the corresponding [TypeParameterItem]. The
+     * optional [context] provides the method or class where this type parameter appears, and can be
+     * used for example to resolve the bounds for a type variable used in a method that was
+     * specified on the class.
      */
     fun asTypeParameter(context: MemberItem? = null): TypeParameterItem?
 
-    /**
-     * Whether this type is a type parameter.
-     */
+    /** Whether this type is a type parameter. */
     fun isTypeParameter(context: MemberItem? = null): Boolean = asTypeParameter(context) != null
 
     /**
      * Mark nullness annotations in the type as recent.
+     *
      * TODO: This isn't very clean; we should model individual annotations.
      */
     fun markRecent()
@@ -217,9 +228,7 @@ interface TypeItem {
     /** Returns true if this type represents an array of one or more dimensions */
     fun isArray(): Boolean = arrayDimensions() > 0
 
-    /**
-     * Ensure that we don't include any annotations in the type strings for this type.
-     */
+    /** Ensure that we don't include any annotations in the type strings for this type. */
     fun scrubAnnotations()
 
     companion object {
@@ -233,16 +242,15 @@ interface TypeItem {
         }
 
         /**
-         * Removes java.lang. prefixes from types, unless it's in a subpackage such
-         * as java.lang.reflect. For simplicity we may also leave inner classes
-         * in the java.lang package untouched.
+         * Removes java.lang. prefixes from types, unless it's in a subpackage such as
+         * java.lang.reflect. For simplicity we may also leave inner classes in the java.lang
+         * package untouched.
          *
          * NOTE: We only remove this from the front of the type; e.g. we'll replace
-         * java.lang.Class<java.lang.String> with Class<java.lang.String>.
-         * This is because the signature parsing of types is not 100% accurate
-         * and we don't want to run into trouble with more complicated generic
-         * type signatures where we end up not mapping the simplified types back
-         * to the real fully qualified type names.
+         * java.lang.Class<java.lang.String> with Class<java.lang.String>. This is because the
+         * signature parsing of types is not 100% accurate and we don't want to run into trouble
+         * with more complicated generic type signatures where we end up not mapping the simplified
+         * types back to the real fully qualified type names.
          */
         fun stripJavaLangPrefix(type: String): String {
             if (type.startsWith(JAVA_LANG_PREFIX)) {
@@ -298,9 +306,12 @@ interface TypeItem {
                 if (replacementMap.isNotEmpty()) {
                     replacementMap.forEach { (from, to) ->
                         // We can't just replace one string at a time:
-                        // what if I have a map of {"A"->"B", "B"->"C"} and I tried to convert A,B,C?
-                        // If I do the replacements one letter at a time I end up with C,C,C; if I do the substitutions
-                        // simultaneously I get B,C,C. Therefore, we insert "___" as a magical prefix to prevent
+                        // what if I have a map of {"A"->"B", "B"->"C"} and I tried to convert
+                        // A,B,C?
+                        // If I do the replacements one letter at a time I end up with C,C,C; if I
+                        // do the substitutions
+                        // simultaneously I get B,C,C. Therefore, we insert "___" as a magical
+                        // prefix to prevent
                         // scenarios like this, and then we'll drop them afterwards.
                         string =
                             string.replace(Regex(pattern = """\b$from\b"""), replacement = "___$to")
@@ -359,18 +370,20 @@ interface TypeItem {
                 }
 
                 when {
-                    depth == 0 -> when { // At the top level
-                        c == ',' -> {
-                            // When top level comma is found, mark it as the exclusive end of the
-                            // parameter types and end the loop
-                            paramTypesEnd = i
-                            break
+                    depth == 0 ->
+                        when { // At the top level
+                            c == ',' -> {
+                                // When top level comma is found, mark it as the exclusive end of
+                                // the
+                                // parameter types and end the loop
+                                paramTypesEnd = i
+                                break
+                            }
+                            !c.isWhitespace() -> {
+                                // Keep moving the start of the return type back until whitespace
+                                returnTypeStart = i
+                            }
                         }
-                        !c.isWhitespace() -> {
-                            // Keep moving the start of the return type back until whitespace
-                            returnTypeStart = i
-                        }
-                    }
                     depth < 0 -> return typeName // Bail, unbalanced nesting
                 }
             }
@@ -409,18 +422,19 @@ interface TypeItem {
             }
 
             val base: String
-            base = when (name) {
-                "void" -> "V"
-                "byte" -> "B"
-                "boolean" -> "Z"
-                "char" -> "C"
-                "short" -> "S"
-                "int" -> "I"
-                "long" -> "J"
-                "float" -> "F"
-                "double" -> "D"
-                else -> "L" + ClassContext.getInternalName(name) + ";"
-            }
+            base =
+                when (name) {
+                    "void" -> "V"
+                    "byte" -> "B"
+                    "boolean" -> "Z"
+                    "char" -> "C"
+                    "short" -> "S"
+                    "int" -> "I"
+                    "long" -> "J"
+                    "float" -> "F"
+                    "double" -> "D"
+                    else -> "L" + ClassContext.getInternalName(name) + ";"
+                }
 
             return dimension + base
         }

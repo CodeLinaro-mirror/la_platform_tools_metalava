@@ -23,25 +23,28 @@ class ReporterTest : DriverTest() {
     fun `Errors are sent to stderr`() {
         check(
             apiLint = "",
-            expectedIssues = """
+            expectedIssues =
+                """
                 src/test/pkg/foo.java:2: error: Class must start with uppercase char: foo [StartWithUpper] [See https://s.android.com/api-guidelines#style-conventions]
                 src/test/pkg/foo.java:4: warning: If min/max could change in future, make them dynamic methods: test.pkg.foo#MAX_BAR [MinMaxConstant] [See https://s.android.com/api-guidelines#min-max-constants]
             """,
-            errorSeverityExpectedIssues = """
+            errorSeverityExpectedIssues =
+                """
                 src/test/pkg/foo.java:2: error: Class must start with uppercase char: foo [StartWithUpper] [See https://s.android.com/api-guidelines#style-conventions]
             """,
             expectedFail = DefaultLintErrorMessage,
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
                     public class foo {
                         private foo() {}
                         public static final int MAX_BAR = 0;
                     }
                     """
+                    )
                 )
-            )
         )
     }
 
@@ -49,14 +52,16 @@ class ReporterTest : DriverTest() {
     fun `Test suppression annotations`() {
         check(
             apiLint = "",
-            expectedIssues = """
+            expectedIssues =
+                """
                 src/test/pkg/Bar.kt:10: error: Method name must start with lowercase char: Unsuppressed [StartWithLower] [See https://s.android.com/api-guidelines#style-conventions]
                 src/test/pkg/Foo.java:10: error: Method name must start with lowercase char: Unsuppressed [StartWithLower] [See https://s.android.com/api-guidelines#style-conventions]
             """,
             expectedFail = DefaultLintErrorMessage,
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
                     import android.annotation.SuppressLint;
 
@@ -69,9 +74,9 @@ class ReporterTest : DriverTest() {
                         public void Unsuppressed() { }
                     }
                 """
-                ),
-                kotlin(
-                    """
+                    ),
+                    kotlin(
+                        """
                     package test.pkg
                     import android.annotation.SuppressLint;
 
@@ -84,9 +89,9 @@ class ReporterTest : DriverTest() {
                         fun Unsuppressed() { }
                     }
                 """
-                ),
-                suppressLintSource
-            )
+                    ),
+                    suppressLintSource
+                )
         )
     }
 
@@ -95,9 +100,10 @@ class ReporterTest : DriverTest() {
         check(
             apiLint = "",
             expectedIssues = "",
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
                     import android.annotation.SuppressLint;
 
@@ -106,9 +112,9 @@ class ReporterTest : DriverTest() {
                         public int get(int i) { return i + 1; }
                     }
                 """
-                ),
-                suppressLintSource
-            )
+                    ),
+                    suppressLintSource
+                )
         )
     }
 
@@ -116,27 +122,31 @@ class ReporterTest : DriverTest() {
     fun `Test repeat errors with 1 error`() {
         check(
             apiLint = "",
-            expectedIssues = """
+            expectedIssues =
+                """
                 src/test/pkg/Foo.java:4: error: Missing nullability on parameter `a` in method `foo1` [MissingNullability] [See https://s.android.com/api-guidelines#annotations]
             """,
-            expectedFail = """
+            expectedFail =
+                """
                 Error: metalava detected the following problems:
                 src/test/pkg/Foo.java:4: error: Missing nullability on parameter `a` in method `foo1` [MissingNullability] [See https://s.android.com/api-guidelines#annotations]
 
-            """.trimIndent() + DefaultLintErrorMessage,
+            """
+                    .trimIndent() + DefaultLintErrorMessage,
             repeatErrorsMax = 5,
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
 
                     public class Foo {
                         public void foo1(String a) {} 
                     }
                 """
-                ),
-                suppressLintSource
-            )
+                    ),
+                    suppressLintSource
+                )
         )
     }
 
@@ -144,14 +154,16 @@ class ReporterTest : DriverTest() {
     fun `Test repeat errors with 5 errors`() {
         check(
             apiLint = "",
-            expectedIssues = """
+            expectedIssues =
+                """
                 src/test/pkg/Foo.java:4: error: Missing nullability on parameter `a` in method `foo1` [MissingNullability] [See https://s.android.com/api-guidelines#annotations]
                 src/test/pkg/Foo.java:5: error: Missing nullability on parameter `a` in method `foo2` [MissingNullability] [See https://s.android.com/api-guidelines#annotations]
                 src/test/pkg/Foo.java:6: error: Missing nullability on parameter `a` in method `foo3` [MissingNullability] [See https://s.android.com/api-guidelines#annotations]
                 src/test/pkg/Foo.java:7: error: Missing nullability on parameter `a` in method `foo4` [MissingNullability] [See https://s.android.com/api-guidelines#annotations]
                 src/test/pkg/Foo.java:8: error: Missing nullability on parameter `a` in method `foo5` [MissingNullability] [See https://s.android.com/api-guidelines#annotations]
             """,
-            expectedFail = """
+            expectedFail =
+                """
                 Error: metalava detected the following problems:
                 src/test/pkg/Foo.java:4: error: Missing nullability on parameter `a` in method `foo1` [MissingNullability] [See https://s.android.com/api-guidelines#annotations]
                 src/test/pkg/Foo.java:5: error: Missing nullability on parameter `a` in method `foo2` [MissingNullability] [See https://s.android.com/api-guidelines#annotations]
@@ -159,11 +171,13 @@ class ReporterTest : DriverTest() {
                 src/test/pkg/Foo.java:7: error: Missing nullability on parameter `a` in method `foo4` [MissingNullability] [See https://s.android.com/api-guidelines#annotations]
                 src/test/pkg/Foo.java:8: error: Missing nullability on parameter `a` in method `foo5` [MissingNullability] [See https://s.android.com/api-guidelines#annotations]
 
-            """.trimIndent() + DefaultLintErrorMessage,
+            """
+                    .trimIndent() + DefaultLintErrorMessage,
             repeatErrorsMax = 5,
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
 
                     public class Foo {
@@ -174,9 +188,9 @@ class ReporterTest : DriverTest() {
                         public void foo5(String a) {} 
                     }
                 """
-                ),
-                suppressLintSource
-            )
+                    ),
+                    suppressLintSource
+                )
         )
     }
 
@@ -184,7 +198,8 @@ class ReporterTest : DriverTest() {
     fun `Test repeat errors with 6 errors`() {
         check(
             apiLint = "",
-            expectedIssues = """
+            expectedIssues =
+                """
                 src/test/pkg/Foo.java:4: error: Missing nullability on parameter `a` in method `foo1` [MissingNullability] [See https://s.android.com/api-guidelines#annotations]
                 src/test/pkg/Foo.java:5: error: Missing nullability on parameter `a` in method `foo2` [MissingNullability] [See https://s.android.com/api-guidelines#annotations]
                 src/test/pkg/Foo.java:6: error: Missing nullability on parameter `a` in method `foo3` [MissingNullability] [See https://s.android.com/api-guidelines#annotations]
@@ -192,7 +207,8 @@ class ReporterTest : DriverTest() {
                 src/test/pkg/Foo.java:8: error: Missing nullability on parameter `a` in method `foo5` [MissingNullability] [See https://s.android.com/api-guidelines#annotations]
                 src/test/pkg/Foo.java:9: error: Missing nullability on parameter `a` in method `foo6` [MissingNullability] [See https://s.android.com/api-guidelines#annotations]
             """,
-            expectedFail = """
+            expectedFail =
+                """
                 Error: metalava detected the following problems:
                 src/test/pkg/Foo.java:4: error: Missing nullability on parameter `a` in method `foo1` [MissingNullability] [See https://s.android.com/api-guidelines#annotations]
                 src/test/pkg/Foo.java:5: error: Missing nullability on parameter `a` in method `foo2` [MissingNullability] [See https://s.android.com/api-guidelines#annotations]
@@ -201,11 +217,13 @@ class ReporterTest : DriverTest() {
                 src/test/pkg/Foo.java:8: error: Missing nullability on parameter `a` in method `foo5` [MissingNullability] [See https://s.android.com/api-guidelines#annotations]
                 1 more error(s) omitted. Search the log for 'error:' to find all of them.
 
-            """.trimIndent() + DefaultLintErrorMessage,
+            """
+                    .trimIndent() + DefaultLintErrorMessage,
             repeatErrorsMax = 5,
-            sourceFiles = arrayOf(
-                java(
-                    """
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
                     package test.pkg;
 
                     public class Foo {
@@ -217,9 +235,9 @@ class ReporterTest : DriverTest() {
                         public void foo6(String a) {} 
                     }
                 """
-                ),
-                suppressLintSource
-            )
+                    ),
+                    suppressLintSource
+                )
         )
     }
 }

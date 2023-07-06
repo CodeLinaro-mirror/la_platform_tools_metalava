@@ -31,9 +31,7 @@ import kotlin.text.Charsets.UTF_8
 
 private const val RETURN_LABEL = "return value"
 
-/**
- * Class that validates nullability annotations in the codebase.
- */
+/** Class that validates nullability annotations in the codebase. */
 class NullabilityAnnotationsValidator {
 
     private enum class ErrorType {
@@ -79,21 +77,31 @@ class NullabilityAnnotationsValidator {
      */
     fun validateAll(codebase: Codebase, topLevelClassNames: List<String>) {
         for (topLevelClassName in topLevelClassNames) {
-            val topLevelClass = codebase.findClass(topLevelClassName)
-                ?: throw DriverException("Trying to validate nullability annotations for class $topLevelClassName which could not be found in main codebase")
+            val topLevelClass =
+                codebase.findClass(topLevelClassName)
+                    ?: throw DriverException(
+                        "Trying to validate nullability annotations for class $topLevelClassName which could not be found in main codebase"
+                    )
             // Visit methods to check their return type, and parameters to check them. Don't visit
             // constructors as we don't want to check their return types. This visits members of
             // inner classes as well.
-            topLevelClass.accept(object : ApiVisitor(visitConstructorsAsMethods = false) {
+            topLevelClass.accept(
+                object : ApiVisitor(visitConstructorsAsMethods = false) {
 
-                override fun visitMethod(method: MethodItem) {
-                    checkItem(method, RETURN_LABEL, method.returnType(), method)
-                }
+                    override fun visitMethod(method: MethodItem) {
+                        checkItem(method, RETURN_LABEL, method.returnType(), method)
+                    }
 
-                override fun visitParameter(parameter: ParameterItem) {
-                    checkItem(parameter.containingMethod(), parameter.toString(), parameter.type(), parameter)
+                    override fun visitParameter(parameter: ParameterItem) {
+                        checkItem(
+                            parameter.containingMethod(),
+                            parameter.toString(),
+                            parameter.type(),
+                            parameter
+                        )
+                    }
                 }
-            })
+            )
         }
     }
 
@@ -179,9 +187,7 @@ class NullabilityAnnotationsValidator {
         }
     }
 
-    /**
-     * Report on any violations found during earlier validation calls.
-     */
+    /** Report on any violations found during earlier validation calls. */
     fun report() {
         errors.sortBy { it.toString() }
         warnings.sortBy { it.toString() }
@@ -206,7 +212,9 @@ class NullabilityAnnotationsValidator {
 
         // Fatal issues are thrown.
         if (fatalIssues.isNotEmpty()) {
-            fatalIssues.forEach { reporter.report(Issues.INVALID_NULLABILITY_ANNOTATION, it.method, it.toString()) }
+            fatalIssues.forEach {
+                reporter.report(Issues.INVALID_NULLABILITY_ANNOTATION, it.method, it.toString())
+            }
         }
 
         // Non-fatal issues are written to the warnings .txt file if present, else logged.
@@ -216,7 +224,11 @@ class NullabilityAnnotationsValidator {
             }
         } else {
             nonFatalIssues.forEach {
-                reporter.report(Issues.INVALID_NULLABILITY_ANNOTATION_WARNING, it.method, "Nullability issue: $it")
+                reporter.report(
+                    Issues.INVALID_NULLABILITY_ANNOTATION_WARNING,
+                    it.method,
+                    "Nullability issue: $it"
+                )
             }
         }
     }

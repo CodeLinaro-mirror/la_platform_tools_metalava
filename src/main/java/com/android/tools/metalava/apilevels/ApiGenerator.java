@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.apilevels;
 
+import com.android.tools.metalava.SignatureFileLoader;
 import com.android.tools.metalava.model.Codebase;
 import com.android.tools.metalava.SdkIdentifier;
 
@@ -25,40 +26,39 @@ import org.jetbrains.annotations.Nullable;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintStream;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.function.Function;
 
 /**
  * Main class for command line command to convert the existing API XML/TXT files into diff-based
  * simple text files.
  */
 public class ApiGenerator {
-    public static boolean generate(@NotNull File[] apiLevels,
-                                   int firstApiLevel,
-                                   int currentApiLevel,
-                                   boolean isDeveloperPreviewBuild,
-                                   @NotNull File outputFile,
-                                   @NotNull Codebase codebase,
-                                   @Nullable File sdkJarRoot,
-                                   @Nullable File sdkFilterFile,
-                                   boolean removeMissingClasses) throws IOException, IllegalArgumentException {
+    public static boolean generateXml(@NotNull File[] apiLevels,
+                                      int firstApiLevel,
+                                      int currentApiLevel,
+                                      boolean isDeveloperPreviewBuild,
+                                      @NotNull File outputFile,
+                                      @NotNull Codebase codebase,
+                                      @Nullable File sdkJarRoot,
+                                      @Nullable File sdkFilterFile,
+                                      boolean removeMissingClasses) throws IOException, IllegalArgumentException {
         if ((sdkJarRoot == null) != (sdkFilterFile == null)) {
             throw new IllegalArgumentException("sdkJarRoot and sdkFilterFile must both be null, or non-null");
         }
 
         int notFinalizedApiLevel = currentApiLevel + 1;
-        Api api = readAndroidJars(apiLevels, firstApiLevel);
+        Api api = createApiFromAndroidJars(apiLevels, firstApiLevel);
         if (isDeveloperPreviewBuild || apiLevels.length - 1 < currentApiLevel) {
             // Only include codebase if we don't have a prebuilt, finalized jar for it.
             int apiLevel = isDeveloperPreviewBuild ? notFinalizedApiLevel : currentApiLevel;
-            AddApisFromCodebaseKt.addApisFromCodebase(api, apiLevel, codebase);
+            AddApisFromCodebaseKt.addApisFromCodebase(api, apiLevel, codebase, true);
         }
         api.backfillHistoricalFixes();
 
@@ -79,21 +79,51 @@ public class ApiGenerator {
     }
 
     /**
+     * Creates an [Api] from a list of past API signature files. In the generated [Api], the oldest API
+     * version will be represented as level 1, the next as level 2, etc.
+     *
+     * @param previousApiFiles A list of API signature files, one for each version of the API, in order
+     * from oldest to newest API version.
+     * @param kotlinStyleNulls Whether to assume the inputs are formatted as Kotlin-style nulls.
+     */
+    private static Api createApiFromSignatureFiles(
+        List<File> previousApiFiles,
+        boolean kotlinStyleNulls
+    ) {
+        // Starts at level 1 because 0 is not a valid API level.
+        int apiLevel = 1;
+        Api api = new Api(apiLevel);
+        for (File apiFile : previousApiFiles) {
+            Codebase codebase = SignatureFileLoader.INSTANCE.load(apiFile, kotlinStyleNulls);
+            AddApisFromCodebaseKt.addApisFromCodebase(api, apiLevel, codebase, false);
+            apiLevel += 1;
+        }
+        api.clean();
+        return api;
+    }
+
+    /**
      * Generates an API version history file based on the API surfaces of the versions provided.
      *
-     * @param apiVersions A list of API signature files, ordered from oldest API version to newest.
+     * @param pastApiVersions A list of API signature files, ordered from oldest API version to newest.
+     * @param currentApiVersion A codebase representing the current API surface.
      * @param outputFile Path of the JSON file to write output to.
+     * @param apiVersionNames The names of the API versions, ordered starting from version 1. This should include the
+     *                        names of all the [pastApiVersions], then the name of the [currentVersion].
+     * @param inputKotlinStyleNulls Whether to assume the signature files are formatted as Kotlin-style nulls.
      */
-    public static void generate(@NotNull List<File> apiVersions,
-                                @NotNull File outputFile) {
-        AndroidSignatureReader reader = new AndroidSignatureReader(apiVersions);
-        Api api = reader.getApi();
-        ApiJsonPrinter printer = new ApiJsonPrinter();
+    public static void generateJson(@NotNull List<File> pastApiVersions,
+                                    @NotNull Codebase currentApiVersion,
+                                    @NotNull File outputFile,
+                                    @NotNull List<String> apiVersionNames,
+                                    boolean inputKotlinStyleNulls) {
+        Api api = createApiFromSignatureFiles(pastApiVersions, inputKotlinStyleNulls);
+        AddApisFromCodebaseKt.addApisFromCodebase(api, apiVersionNames.size(), currentApiVersion, false);
+        ApiJsonPrinter printer = new ApiJsonPrinter(apiVersionNames);
         printer.print(api, outputFile);
     }
 
-
-    private static Api readAndroidJars(File[] apiLevels, int firstApiLevel) {
+    private static Api createApiFromAndroidJars(File[] apiLevels, int firstApiLevel) {
         Api api = new Api(firstApiLevel);
         for (int apiLevel = firstApiLevel; apiLevel < apiLevels.length; apiLevel++) {
             File jar = apiLevels[apiLevel];
@@ -185,7 +215,7 @@ public class ApiGenerator {
                 return false;
             }
         }
-        try (PrintStream stream = new PrintStream(outFile, "UTF-8")) {
+        try (PrintStream stream = new PrintStream(outFile, StandardCharsets.UTF_8)) {
             stream.println("<?xml version=\"1.0\" encoding=\"utf-8\"?>");
             api.print(stream, sdkIdentifiers);
         } catch (Exception e) {

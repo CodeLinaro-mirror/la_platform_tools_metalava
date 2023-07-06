@@ -16,41 +16,43 @@
 
 package com.android.tools.metalava.apilevels
 
-import org.junit.Assert.assertEquals
 import java.io.File
 import java.io.FileNotFoundException
 import java.nio.file.Files
 import kotlin.test.Test
+import org.junit.Assert.assertEquals
 
 class ExtensionSdkJarReaderTest {
     @Test
     fun `Verify findExtensionSdkJarFiles`() {
         TemporaryDirectoryHierarchy(
-            listOf(
-                "1/public/foo.jar",
-                "1/public/bar.jar",
-                "2/public/foo.jar",
-                "2/public/bar.jar",
-                "2/public/baz.jar",
+                listOf(
+                    "1/public/foo.jar",
+                    "1/public/bar.jar",
+                    "2/public/foo.jar",
+                    "2/public/bar.jar",
+                    "2/public/baz.jar",
+                )
             )
-        ).use {
-            val root = it.root
-            val expected = mapOf(
-                "foo" to listOf(
-                    VersionAndPath(1, File(root, "1/public/foo.jar")),
-                    VersionAndPath(2, File(root, "2/public/foo.jar"))
-                ),
-                "bar" to listOf(
-                    VersionAndPath(1, File(root, "1/public/bar.jar")),
-                    VersionAndPath(2, File(root, "2/public/bar.jar"))
-                ),
-                "baz" to listOf(
-                    VersionAndPath(2, File(root, "2/public/baz.jar"))
-                ),
-            )
-            val actual = ExtensionSdkJarReader.findExtensionSdkJarFiles(root)
-            assertEquals(expected, actual)
-        }
+            .use {
+                val root = it.root
+                val expected =
+                    mapOf(
+                        "foo" to
+                            listOf(
+                                VersionAndPath(1, File(root, "1/public/foo.jar")),
+                                VersionAndPath(2, File(root, "2/public/foo.jar"))
+                            ),
+                        "bar" to
+                            listOf(
+                                VersionAndPath(1, File(root, "1/public/bar.jar")),
+                                VersionAndPath(2, File(root, "2/public/bar.jar"))
+                            ),
+                        "baz" to listOf(VersionAndPath(2, File(root, "2/public/baz.jar"))),
+                    )
+                val actual = ExtensionSdkJarReader.findExtensionSdkJarFiles(root)
+                assertEquals(expected, actual)
+            }
     }
 }
 

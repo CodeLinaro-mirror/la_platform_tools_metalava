@@ -107,27 +107,25 @@ interface AnnotationItem {
         if (!(name.endsWith("Def"))) {
             return false
         }
-        return (
-            ANDROIDX_INT_DEF == name ||
-                ANDROIDX_STRING_DEF == name ||
-                ANDROIDX_LONG_DEF == name ||
-                ANDROID_INT_DEF == name ||
-                ANDROID_STRING_DEF == name ||
-                ANDROID_LONG_DEF == name
-            )
+        return (ANDROIDX_INT_DEF == name ||
+            ANDROIDX_STRING_DEF == name ||
+            ANDROIDX_LONG_DEF == name ||
+            ANDROID_INT_DEF == name ||
+            ANDROID_STRING_DEF == name ||
+            ANDROID_LONG_DEF == name)
     }
 
     /**
-     * True if this annotation represents a @ParameterName annotation (or some synonymous annotation).
-     * The parameter name should be the default attribute or "value".
+     * True if this annotation represents a @ParameterName annotation (or some synonymous
+     * annotation). The parameter name should be the default attribute or "value".
      */
     fun isParameterName(): Boolean {
         return qualifiedName?.endsWith(".ParameterName") ?: return false
     }
 
     /**
-     * True if this annotation represents a @DefaultValue annotation (or some synonymous annotation).
-     * The default value should be the default attribute or "value".
+     * True if this annotation represents a @DefaultValue annotation (or some synonymous
+     * annotation). The default value should be the default attribute or "value".
      */
     fun isDefaultValue(): Boolean {
         return qualifiedName?.endsWith(".DefaultValue") ?: return false
@@ -147,7 +145,9 @@ interface AnnotationItem {
     /** If this annotation has a typedef annotation associated with it, return it */
     fun findTypedefAnnotation(): AnnotationItem? {
         val className = originalName ?: return null
-        return codebase.findClass(className)?.modifiers?.annotations()?.firstOrNull { it.isTypeDefAnnotation() }
+        return codebase.findClass(className)?.modifiers?.annotations()?.firstOrNull {
+            it.isTypeDefAnnotation()
+        }
     }
 
     /** Returns the retention of this annotation */
@@ -155,7 +155,9 @@ interface AnnotationItem {
         get() {
             val name = qualifiedName
             if (name != null) {
-                val cls = codebase.findClass(name) ?: (codebase as? PsiBasedCodebase)?.findOrCreateClass(name)
+                val cls =
+                    codebase.findClass(name)
+                        ?: (codebase as? PsiBasedCodebase)?.findOrCreateClass(name)
                 if (cls != null) {
                     if (cls.isAnnotationType()) {
                         return cls.getRetention()
@@ -167,23 +169,27 @@ interface AnnotationItem {
         }
 
     companion object {
-        /** The simple name of an annotation, which is the annotation name (not qualified name) prefixed by @ */
+        /**
+         * The simple name of an annotation, which is the annotation name (not qualified name)
+         * prefixed by @
+         */
         fun simpleName(item: AnnotationItem): String {
             return item.qualifiedName?.let { "@${it.substringAfterLast('.')}" }.orEmpty()
         }
 
         /**
-         * Maps an annotation name to the name to be used in signatures/stubs/external annotation files.
-         * Annotations that should not be exported are mapped to null.
+         * Maps an annotation name to the name to be used in signatures/stubs/external annotation
+         * files. Annotations that should not be exported are mapped to null.
          */
         fun mapName(
             qualifiedName: String?,
             target: AnnotationTarget = AnnotationTarget.SIGNATURE_FILE
         ): String? {
             qualifiedName ?: return null
-            if (options.passThroughAnnotations.contains(qualifiedName) ||
-                options.showAnnotations.matches(qualifiedName) ||
-                options.hideAnnotations.matches(qualifiedName)
+            if (
+                options.passThroughAnnotations.contains(qualifiedName) ||
+                    options.showAnnotations.matches(qualifiedName) ||
+                    options.hideAnnotations.matches(qualifiedName)
             ) {
                 return qualifiedName
             }
@@ -238,14 +244,16 @@ interface AnnotationItem {
 
                 // Null
                 // We only change recently/newly nullable annotation in stubs
-                RECENTLY_NULLABLE -> return if (target == AnnotationTarget.SDK_STUBS_FILE) qualifiedName else ANDROIDX_NULLABLE
-                RECENTLY_NONNULL -> return if (target == AnnotationTarget.SDK_STUBS_FILE) qualifiedName else ANDROIDX_NONNULL
-
+                RECENTLY_NULLABLE ->
+                    return if (target == AnnotationTarget.SDK_STUBS_FILE) qualifiedName
+                    else ANDROIDX_NULLABLE
+                RECENTLY_NONNULL ->
+                    return if (target == AnnotationTarget.SDK_STUBS_FILE) qualifiedName
+                    else ANDROIDX_NONNULL
                 ANDROIDX_NULLABLE,
                 ANDROID_NULLABLE,
                 "libcore.util.Nullable",
                 "org.jetbrains.annotations.Nullable" -> return nullableAnnotationName(target)
-
                 ANDROIDX_NONNULL,
                 ANDROID_NONNULL,
                 "libcore.util.NonNull",
@@ -266,9 +274,12 @@ interface AnnotationItem {
                 "android.annotation.CallSuper" -> return "androidx.annotation.CallSuper"
                 "android.annotation.CheckResult" -> return "androidx.annotation.CheckResult"
                 "android.annotation.Discouraged" -> return "androidx.annotation.Discouraged"
-                "android.annotation.RequiresPermission" -> return "androidx.annotation.RequiresPermission"
-                "android.annotation.RequiresPermission.Read" -> return "androidx.annotation.RequiresPermission.Read"
-                "android.annotation.RequiresPermission.Write" -> return "androidx.annotation.RequiresPermission.Write"
+                "android.annotation.RequiresPermission" ->
+                    return "androidx.annotation.RequiresPermission"
+                "android.annotation.RequiresPermission.Read" ->
+                    return "androidx.annotation.RequiresPermission.Read"
+                "android.annotation.RequiresPermission.Write" ->
+                    return "androidx.annotation.RequiresPermission.Write"
 
                 // These aren't support annotations, but could/should be:
                 "android.annotation.CurrentTimeMillisLong",
@@ -285,7 +296,6 @@ interface AnnotationItem {
                 "android.annotation.CallbackExecutor",
                 "android.annotation.Condemned",
                 "android.annotation.Hide",
-
                 "android.annotation.Widget" -> return qualifiedName
 
                 // Included for analysis, but should not be exported:
@@ -297,19 +307,23 @@ interface AnnotationItem {
                 // Should not be mapped to a different package name:
                 "android.annotation.TargetApi",
                 "android.annotation.SuppressLint" -> return qualifiedName
-
+                "android.annotation.FlaggedApi" -> return qualifiedName
                 else -> {
-                    // Some new annotations added to the platform: assume they are support annotations?
+                    // Some new annotations added to the platform: assume they are support
+                    // annotations?
                     return when {
-                        // Special Kotlin annotations recognized by the compiler: map to supported package name
-                        qualifiedName.endsWith(".ParameterName") || qualifiedName.endsWith(".DefaultValue") ->
+                        // Special Kotlin annotations recognized by the compiler: map to supported
+                        // package name
+                        qualifiedName.endsWith(".ParameterName") ||
+                            qualifiedName.endsWith(".DefaultValue") ->
                             "kotlin.annotations.jvm.internal${qualifiedName.substring(qualifiedName.lastIndexOf('.'))}"
 
                         // Other third party nullness annotations?
                         isNullableAnnotation(qualifiedName) -> nullableAnnotationName(target)
                         isNonNullAnnotation(qualifiedName) -> nonNullAnnotationName(target)
 
-                        // AndroidX annotations are all included, as is the built-in stuff like @Retention
+                        // AndroidX annotations are all included, as is the built-in stuff like
+                        // @Retention
                         qualifiedName.startsWith(ANDROIDX_ANNOTATION_PREFIX) -> return qualifiedName
                         qualifiedName.startsWith(JAVA_LANG_PREFIX) -> return qualifiedName
 
@@ -317,7 +331,6 @@ interface AnnotationItem {
                         qualifiedName.startsWith("android.annotation.") -> {
                             return null
                         }
-
                         else -> qualifiedName
                     }
                 }
@@ -331,12 +344,12 @@ interface AnnotationItem {
             if (target == AnnotationTarget.SDK_STUBS_FILE) ANDROID_NONNULL else ANDROIDX_NONNULL
 
         private val TYPEDEF_ANNOTATION_TARGETS =
-            if (options.typedefMode == Options.TypedefMode.INLINE ||
-                options.typedefMode == Options.TypedefMode.NONE
+            if (
+                options.typedefMode == Options.TypedefMode.INLINE ||
+                    options.typedefMode == Options.TypedefMode.NONE
             ) // just here for compatibility purposes
-                ANNOTATION_EXTERNAL
-            else
-                ANNOTATION_EXTERNAL_ONLY
+             ANNOTATION_EXTERNAL
+            else ANNOTATION_EXTERNAL_ONLY
 
         /** The applicable targets for this annotation */
         fun computeTargets(
@@ -349,7 +362,8 @@ interface AnnotationItem {
             }
             when (qualifiedName) {
                 // The typedef annotations are special: they should not be in the signature
-                // files, but we want to include them in the external annotations file such that tools
+                // files, but we want to include them in the external annotations file such that
+                // tools
                 // can enforce them.
                 "android.annotation.IntDef",
                 "androidx.annotation.IntDef",
@@ -362,12 +376,15 @@ interface AnnotationItem {
                 "android.view.ViewDebug.ExportedProperty",
                 "android.view.ViewDebug.CapturedViewProperty" -> return ANNOTATION_STUBS_ONLY
 
-                // Retained in the sdk/jar stub source code so that SdkConstant files can be extracted
+                // Retained in the sdk/jar stub source code so that SdkConstant files can be
+                // extracted
                 // from those. This is useful for modularizing the main SDK stubs without having to
                 // add a separate module SDK artifact for sdk constants.
                 "android.annotation.SdkConstant" -> return ANNOTATION_SDK_STUBS_ONLY
+                "android.annotation.FlaggedApi" -> return ANNOTATION_SIGNATURE_ONLY
 
-                // Skip known annotations that we (a) never want in external annotations and (b) we are
+                // Skip known annotations that we (a) never want in external annotations and (b) we
+                // are
                 // specially overwriting anyway in the stubs (and which are (c) not API significant)
                 "com.android.modules.annotation.MinSdk",
                 "java.lang.annotation.Native",
@@ -388,16 +405,17 @@ interface AnnotationItem {
                     return NO_ANNOTATION_TARGETS
 
                 // TODO(aurimas): consider using annotation directly instead of modifiers
-                "kotlin.Deprecated" -> return NO_ANNOTATION_TARGETS // tracked separately as a pseudo-modifier
+                "kotlin.Deprecated" ->
+                    return NO_ANNOTATION_TARGETS // tracked separately as a pseudo-modifier
                 "android.annotation.DeprecatedForSdk",
                 "java.lang.Deprecated", // tracked separately as a pseudo-modifier
 
-                // Below this when-statement we perform the correct lookup: check API predicate, and check
+                // Below this when-statement we perform the correct lookup: check API predicate, and
+                // check
                 // that retention is class or runtime, but we've hardcoded the answers here
                 // for some common annotations.
 
                 "android.widget.RemoteViews.RemoteView",
-
                 "kotlin.annotation.Target",
                 "kotlin.annotation.Retention",
                 "kotlin.annotation.Repeatable",
@@ -405,7 +423,6 @@ interface AnnotationItem {
                 "kotlin.DslMarker",
                 "kotlin.PublishedApi",
                 "kotlin.ExtensionFunctionType",
-
                 "java.lang.FunctionalInterface",
                 "java.lang.SafeVarargs",
                 "java.lang.annotation.Documented",
@@ -414,19 +431,22 @@ interface AnnotationItem {
                 "java.lang.annotation.Retention",
                 "java.lang.annotation.Target" -> return ANNOTATION_IN_ALL_STUBS
 
-                // Metalava already tracks all the methods that get generated due to these annotations.
+                // Metalava already tracks all the methods that get generated due to these
+                // annotations.
                 "kotlin.jvm.JvmOverloads",
                 "kotlin.jvm.JvmField",
                 "kotlin.jvm.JvmStatic",
                 "kotlin.jvm.JvmName" -> return NO_ANNOTATION_TARGETS
             }
 
-            // @android.annotation.Nullable and NonNullable specially recognized annotations by the Kotlin
+            // @android.annotation.Nullable and NonNullable specially recognized annotations by the
+            // Kotlin
             // compiler 1.3 and above: they always go in the stubs.
-            if (qualifiedName == ANDROID_NULLABLE ||
-                qualifiedName == ANDROID_NONNULL ||
-                qualifiedName == ANDROIDX_NULLABLE ||
-                qualifiedName == ANDROIDX_NONNULL
+            if (
+                qualifiedName == ANDROID_NULLABLE ||
+                    qualifiedName == ANDROID_NONNULL ||
+                    qualifiedName == ANDROIDX_NULLABLE ||
+                    qualifiedName == ANDROIDX_NONNULL
             ) {
                 return ANNOTATION_IN_ALL_STUBS
             }
@@ -437,11 +457,10 @@ interface AnnotationItem {
                 return NO_ANNOTATION_TARGETS
             }
 
-            // @RecentlyNullable and @RecentlyNonNull are specially recognized annotations by the Kotlin
+            // @RecentlyNullable and @RecentlyNonNull are specially recognized annotations by the
+            // Kotlin
             // compiler: they always go in the stubs.
-            if (qualifiedName == RECENTLY_NULLABLE ||
-                qualifiedName == RECENTLY_NONNULL
-            ) {
+            if (qualifiedName == RECENTLY_NULLABLE || qualifiedName == RECENTLY_NONNULL) {
                 return ANNOTATION_IN_ALL_STUBS
             }
 
@@ -453,9 +472,11 @@ interface AnnotationItem {
 
             if (qualifiedName.startsWith("androidx.annotation.")) {
                 if (qualifiedName == ANDROIDX_NULLABLE || qualifiedName == ANDROIDX_NONNULL) {
-                    // Right now, nullness annotations (other than @RecentlyNullable and @RecentlyNonNull)
+                    // Right now, nullness annotations (other than @RecentlyNullable and
+                    // @RecentlyNonNull)
                     // have to go in external annotations since they aren't in the class path for
-                    // annotation processors. However, we do want them showing up in the documentation using
+                    // annotation processors. However, we do want them showing up in the
+                    // documentation using
                     // their real annotation names.
                     return ANNOTATION_IN_DOC_STUBS_AND_EXTERNAL
                 }
@@ -463,7 +484,8 @@ interface AnnotationItem {
                 return ANNOTATION_EXTERNAL
             }
 
-            // See if the annotation is pointing to an annotation class that is part of the API; if not, skip it.
+            // See if the annotation is pointing to an annotation class that is part of the API; if
+            // not, skip it.
             val cls = classFinder(qualifiedName) ?: return NO_ANNOTATION_TARGETS
             if (!ApiPredicate().test(cls)) {
                 if (options.typedefMode != Options.TypedefMode.NONE) {
@@ -477,7 +499,10 @@ interface AnnotationItem {
 
             if (cls.isAnnotationType()) {
                 val retention = cls.getRetention()
-                if (retention == AnnotationRetention.RUNTIME || retention == AnnotationRetention.CLASS) {
+                if (
+                    retention == AnnotationRetention.RUNTIME ||
+                        retention == AnnotationRetention.CLASS
+                ) {
                     return ANNOTATION_IN_ALL_STUBS
                 }
             }
@@ -486,8 +511,8 @@ interface AnnotationItem {
         }
 
         /**
-         * Given a "full" annotation name, shortens it by removing redundant package names.
-         * This is intended to be used to reduce clutter in signature files.
+         * Given a "full" annotation name, shortens it by removing redundant package names. This is
+         * intended to be used to reduce clutter in signature files.
          *
          * For example, this method will convert `@androidx.annotation.Nullable` to just
          * `@Nullable`, and `@androidx.annotation.IntRange(from=20)` to `IntRange(from=20)`.
@@ -512,15 +537,15 @@ interface AnnotationItem {
         fun unshortenAnnotation(source: String): String {
             return when {
                 source == "@Deprecated" -> "@java.lang.Deprecated"
-                // The first 3 annotations are in the android.annotation. package, not androidx.annotation
+                // The first 3 annotations are in the android.annotation. package, not
+                // androidx.annotation
                 // Nullability annotations are written as @NonNull and @Nullable in API text files,
                 // and these should be linked no android.annotation package when generating stubs.
                 source.startsWith("@SystemService") ||
                     source.startsWith("@TargetApi") ||
                     source.startsWith("@SuppressLint") ||
                     source.startsWith("@Nullable") ||
-                    source.startsWith("@NonNull") ->
-                    "@android.annotation." + source.substring(1)
+                    source.startsWith("@NonNull") -> "@android.annotation." + source.substring(1)
                 // If the first character of the name (after "@") is lower-case, then
                 // assume it's a package name, so no need to shorten it.
                 source.startsWith("@") && source[1].isLowerCase() -> source
@@ -531,10 +556,10 @@ interface AnnotationItem {
         }
 
         /**
-         * If the given element has an *implicit* nullness, return it. This returns
-         * true for implicitly nullable elements, such as the parameter to the equals
-         * method, false for implicitly non null elements (such as annotation type
-         * members), and null if there is no implicit nullness.
+         * If the given element has an *implicit* nullness, return it. This returns true for
+         * implicitly nullable elements, such as the parameter to the equals method, false for
+         * implicitly non null elements (such as annotation type members), and null if there is no
+         * implicit nullness.
          */
         fun getImplicitNullness(item: Item): Boolean? {
             var nullable: Boolean? = null
@@ -547,8 +572,10 @@ interface AnnotationItem {
             }
 
             // Constant field not initialized to null?
-            if (item is FieldItem &&
-                (item.isEnumConstant() || item.modifiers.isFinal() && item.initialValue(false) != null)
+            if (
+                item is FieldItem &&
+                    (item.isEnumConstant() ||
+                        item.modifiers.isFinal() && item.initialValue(false) != null)
             ) {
                 // Assigned to constant: not nullable
                 nullable = false
@@ -561,27 +588,25 @@ interface AnnotationItem {
                 val initializer = (item.psi() as? PsiField)?.initializer
                 if (initializer != null && initializer is PsiReference) {
                     val resolved = initializer.resolve()
-                    if (resolved is PsiModifierListOwner &&
-                        resolved.annotations.any {
-                            isNonNullAnnotation(it.qualifiedName ?: "")
-                        }
+                    if (
+                        resolved is PsiModifierListOwner &&
+                            resolved.annotations.any { isNonNullAnnotation(it.qualifiedName ?: "") }
                     ) {
                         nullable = false
                     }
                 } else if (initializer != null && initializer is PsiCallExpression) {
                     val resolved = initializer.resolveMethod()
-                    if (resolved != null &&
-                        resolved.annotations.any {
-                            isNonNullAnnotation(it.qualifiedName ?: "")
-                        }
+                    if (
+                        resolved != null &&
+                            resolved.annotations.any { isNonNullAnnotation(it.qualifiedName ?: "") }
                     ) {
                         nullable = false
                     }
                 }
-            } else if (item.synthetic && (
-                item is MethodItem && item.isEnumSyntheticMethod() ||
-                    item is ParameterItem && item.containingMethod().isEnumSyntheticMethod()
-                )
+            } else if (
+                item.synthetic &&
+                    (item is MethodItem && item.isEnumSyntheticMethod() ||
+                        item is ParameterItem && item.containingMethod().isEnumSyntheticMethod())
             ) {
                 // Workaround the fact that the Kotlin synthetic enum methods
                 // do not have nullness information
@@ -596,8 +621,10 @@ interface AnnotationItem {
             // Equals and toString have known nullness
             if (item is MethodItem && item.name() == "toString" && item.parameters().isEmpty()) {
                 nullable = false
-            } else if (item is ParameterItem && item.containingMethod().name() == "equals" &&
-                item.containingMethod().parameters().size == 1
+            } else if (
+                item is ParameterItem &&
+                    item.containingMethod().name() == "equals" &&
+                    item.containingMethod().parameters().size == 1
             ) {
                 nullable = true
             }
@@ -645,11 +672,16 @@ interface AnnotationAttributeValue {
     /** The value of the annotation */
     fun value(): Any?
 
-    /** If the annotation declaration references a field (or class etc), return the resolved class */
+    /**
+     * If the annotation declaration references a field (or class etc), return the resolved class
+     */
     fun resolve(): Item?
 
     companion object {
-        fun addValues(value: AnnotationAttributeValue, into: MutableList<AnnotationAttributeValue>) {
+        fun addValues(
+            value: AnnotationAttributeValue,
+            into: MutableList<AnnotationAttributeValue>
+        ) {
             if (value is AnnotationArrayAttributeValue) {
                 for (v in value.values) {
                     addValues(v, into)
@@ -736,7 +768,12 @@ class DefaultAnnotationAttribute(
             return to
         }
 
-        private fun addAttribute(list: MutableList<AnnotationAttribute>, source: String, from: Int, to: Int) {
+        private fun addAttribute(
+            list: MutableList<AnnotationAttribute>,
+            source: String,
+            from: Int,
+            to: Int
+        ) {
             var split = source.indexOf('=', from)
             if (split >= to) {
                 split = -1
@@ -784,24 +821,25 @@ abstract class DefaultAnnotationValue : AnnotationAttributeValue {
 }
 
 class DefaultAnnotationSingleAttributeValue(override val valueSource: String) :
-    DefaultAnnotationValue(),
-    AnnotationSingleAttributeValue {
+    DefaultAnnotationValue(), AnnotationSingleAttributeValue {
     @Suppress("IMPLICIT_CAST_TO_ANY")
-    override val value = when {
-        valueSource == SdkConstants.VALUE_TRUE -> true
-        valueSource == SdkConstants.VALUE_FALSE -> false
-        valueSource.startsWith("\"") -> valueSource.removeSurrounding("\"")
-        valueSource.startsWith('\'') -> valueSource.removeSurrounding("'")[0]
-        else -> try {
-            if (valueSource.contains(".")) {
-                valueSource.toDouble()
-            } else {
-                valueSource.toLong()
-            }
-        } catch (e: NumberFormatException) {
-            valueSource
+    override val value =
+        when {
+            valueSource == SdkConstants.VALUE_TRUE -> true
+            valueSource == SdkConstants.VALUE_FALSE -> false
+            valueSource.startsWith("\"") -> valueSource.removeSurrounding("\"")
+            valueSource.startsWith('\'') -> valueSource.removeSurrounding("'")[0]
+            else ->
+                try {
+                    if (valueSource.contains(".")) {
+                        valueSource.toDouble()
+                    } else {
+                        valueSource.toLong()
+                    }
+                } catch (e: NumberFormatException) {
+                    valueSource
+                }
         }
-    }
 
     override fun resolve(): Item? = null
 
@@ -814,15 +852,17 @@ class DefaultAnnotationSingleAttributeValue(override val valueSource: String) :
 }
 
 class DefaultAnnotationArrayAttributeValue(val value: String) :
-    DefaultAnnotationValue(),
-    AnnotationArrayAttributeValue {
+    DefaultAnnotationValue(), AnnotationArrayAttributeValue {
     init {
         assert(value.startsWith("{") && value.endsWith("}")) { value }
     }
 
-    override val values = value.substring(1, value.length - 1).split(",").map {
-        DefaultAnnotationValue.create(it.trim())
-    }.toList()
+    override val values =
+        value
+            .substring(1, value.length - 1)
+            .split(",")
+            .map { DefaultAnnotationValue.create(it.trim()) }
+            .toList()
 
     override fun toSource() = value
 

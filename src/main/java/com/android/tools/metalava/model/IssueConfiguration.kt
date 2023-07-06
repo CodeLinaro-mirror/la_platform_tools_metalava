@@ -26,7 +26,9 @@ class IssueConfiguration {
 
     /** Returns the severity of the given issue */
     fun getSeverity(issue: Issues.Issue): Severity {
-        overrides[issue]?.let { return it }
+        overrides[issue]?.let {
+            return it
+        }
         if (issue.defaultLevel == Severity.INHERIT) {
             return getSeverity(issue.parent!!)
         }

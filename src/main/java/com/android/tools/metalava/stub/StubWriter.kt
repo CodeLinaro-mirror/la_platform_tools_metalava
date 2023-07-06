@@ -45,18 +45,19 @@ class StubWriter(
     private val generateAnnotations: Boolean = false,
     private val preFiltered: Boolean = true,
     private val docStubs: Boolean
-) : ApiVisitor(
-    visitConstructorsAsMethods = false,
-    nestInnerClasses = true,
-    inlineInheritedFields = true,
-    fieldComparator = FieldItem.comparator,
-    // Methods are by default sorted in source order in stubs, to encourage methods
-    // that are near each other in the source to show up near each other in the documentation
-    methodComparator = MethodItem.sourceOrderComparator,
-    filterEmit = FilterPredicate(ApiPredicate(ignoreShown = true, includeDocOnly = docStubs)),
-    filterReference = ApiPredicate(ignoreShown = true, includeDocOnly = docStubs),
-    includeEmptyOuterClasses = true
-) {
+) :
+    ApiVisitor(
+        visitConstructorsAsMethods = false,
+        nestInnerClasses = true,
+        inlineInheritedFields = true,
+        fieldComparator = FieldItem.comparator,
+        // Methods are by default sorted in source order in stubs, to encourage methods
+        // that are near each other in the source to show up near each other in the documentation
+        methodComparator = MethodItem.sourceOrderComparator,
+        filterEmit = FilterPredicate(ApiPredicate(ignoreShown = true, includeDocOnly = docStubs)),
+        filterReference = ApiPredicate(ignoreShown = true, includeDocOnly = docStubs),
+        includeEmptyOuterClasses = true
+    ) {
     private val annotationTarget =
         if (docStubs) AnnotationTarget.DOC_STUBS_FILE else AnnotationTarget.SDK_STUBS_FILE
 
@@ -65,12 +66,13 @@ class StubWriter(
     /** Writes a source file list of the generated stubs */
     fun writeSourceList(target: File, root: File?) {
         target.parentFile?.mkdirs()
-        val contents = if (root != null) {
-            val path = root.path.replace('\\', '/') + "/"
-            sourceList.toString().replace(path, "")
-        } else {
-            sourceList.toString()
-        }
+        val contents =
+            if (root != null) {
+                val path = root.path.replace('\\', '/') + "/"
+                sourceList.toString().replace(path, "")
+            } else {
+                sourceList.toString()
+            }
         target.writeText(contents)
     }
 
@@ -99,12 +101,13 @@ class StubWriter(
         }
 
         val sourceFile = File(getPackageDir(pkg), "overview.html")
-        val overviewWriter = try {
-            PrintWriter(BufferedWriter(FileWriter(sourceFile)))
-        } catch (e: IOException) {
-            reporter.report(Issues.IO_ERROR, sourceFile, "Cannot open file for write.")
-            return
-        }
+        val overviewWriter =
+            try {
+                PrintWriter(BufferedWriter(FileWriter(sourceFile)))
+            } catch (e: IOException) {
+                reporter.report(Issues.IO_ERROR, sourceFile, "Cannot open file for write.")
+                return
+            }
 
         // Should we include this in our stub list?
         //     startFile(sourceFile)
@@ -120,12 +123,13 @@ class StubWriter(
         val writeDocumentation = docStubs && pkg.documentation.isNotBlank()
         if (writeAnnotations || writeDocumentation) {
             val sourceFile = File(getPackageDir(pkg), "package-info.java")
-            val packageInfoWriter = try {
-                PrintWriter(BufferedWriter(FileWriter(sourceFile)))
-            } catch (e: IOException) {
-                reporter.report(Issues.IO_ERROR, sourceFile, "Cannot open file for write.")
-                return
-            }
+            val packageInfoWriter =
+                try {
+                    PrintWriter(BufferedWriter(FileWriter(sourceFile)))
+                } catch (e: IOException) {
+                    reporter.report(Issues.IO_ERROR, sourceFile, "Cannot open file for write.")
+                    return
+                }
             startFile(sourceFile)
 
             appendDocumentation(pkg, packageInfoWriter, docStubs)
@@ -176,9 +180,9 @@ class StubWriter(
     }
 
     /**
-     * Between top level class files the [textWriter] field doesn't point to a real file; it
-     * points to this writer, which redirects to the error output. Nothing should be written
-     * to the writer at that time.
+     * Between top level class files the [textWriter] field doesn't point to a real file; it points
+     * to this writer, which redirects to the error output. Nothing should be written to the writer
+     * at that time.
      */
     private var errorTextWriter = PrintWriter(options.stderr)
 
@@ -190,20 +194,36 @@ class StubWriter(
     override fun visitClass(cls: ClassItem) {
         if (cls.isTopLevelClass()) {
             val sourceFile = getClassFile(cls)
-            textWriter = try {
-                PrintWriter(BufferedWriter(FileWriter(sourceFile)))
-            } catch (e: IOException) {
-                reporter.report(Issues.IO_ERROR, sourceFile, "Cannot open file for write.")
-                errorTextWriter
-            }
+            textWriter =
+                try {
+                    PrintWriter(BufferedWriter(FileWriter(sourceFile)))
+                } catch (e: IOException) {
+                    reporter.report(Issues.IO_ERROR, sourceFile, "Cannot open file for write.")
+                    errorTextWriter
+                }
 
             startFile(sourceFile)
 
-            stubWriter = if (options.kotlinStubs && cls.isKotlin()) {
-                KotlinStubWriter(textWriter, filterEmit, filterReference, generateAnnotations, preFiltered, docStubs)
-            } else {
-                JavaStubWriter(textWriter, filterEmit, filterReference, generateAnnotations, preFiltered, docStubs)
-            }
+            stubWriter =
+                if (options.kotlinStubs && cls.isKotlin()) {
+                    KotlinStubWriter(
+                        textWriter,
+                        filterEmit,
+                        filterReference,
+                        generateAnnotations,
+                        preFiltered,
+                        docStubs
+                    )
+                } else {
+                    JavaStubWriter(
+                        textWriter,
+                        filterEmit,
+                        filterReference,
+                        generateAnnotations,
+                        preFiltered,
+                        docStubs
+                    )
+                }
 
             // Copyright statements from the original file?
             cls.getSourceFile()?.getHeaderComments()?.let { textWriter.println(it) }
@@ -247,11 +267,7 @@ class StubWriter(
     }
 }
 
-internal fun appendDocumentation(
-    item: Item,
-    writer: PrintWriter,
-    docStubs: Boolean
-) {
+internal fun appendDocumentation(item: Item, writer: PrintWriter, docStubs: Boolean) {
     if (options.includeDocumentationInStubs || docStubs) {
         val documentation = item.fullyQualifiedDocumentation()
         if (documentation.isNotBlank()) {

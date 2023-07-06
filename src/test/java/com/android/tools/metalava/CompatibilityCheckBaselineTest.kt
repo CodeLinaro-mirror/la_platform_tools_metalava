@@ -23,11 +23,13 @@ class CompatibilityCheckBaselineTest : DriverTest() {
     fun `Test released-API check, with error message`() {
         // Global baseline works on released api check.
         check(
-            expectedIssues = """
+            expectedIssues =
+                """
                 TESTROOT/released-api.txt:1: error: Removed package test.pkg [RemovedPackage]
                 """,
             errorMessageCheckCompatibilityReleased = "*** release-api check failed ***",
-            checkCompatibilityApiReleased = """
+            checkCompatibilityApiReleased =
+                """
                 package test.pkg {
                   public class MyTest1 {
                   }
@@ -35,7 +37,8 @@ class CompatibilityCheckBaselineTest : DriverTest() {
                 """,
             signatureSource = """
                 """,
-            expectedFail = """
+            expectedFail =
+                """
                 Aborting: Found compatibility problems checking the public API (TESTROOT/project/load-api.txt) against the API in TESTROOT/project/released-api.txt
                 *** release-api check failed ***
                 """
@@ -48,18 +51,21 @@ class CompatibilityCheckBaselineTest : DriverTest() {
         check(
             expectedIssues = """
                 """,
-            baseline = """
+            baseline =
+                """
                 // Baseline format: 1.0
                 ChangedScope: test.pkg.MyTest1:
                     Class test.pkg.MyTest1 changed visibility from public to private
                 """,
-            checkCompatibilityApiReleased = """
+            checkCompatibilityApiReleased =
+                """
                 package test.pkg {
                   public class MyTest1 {
                   }
                 }
                 """,
-            signatureSource = """
+            signatureSource =
+                """
                 package test.pkg {
                   private class MyTest1 { // visibility changed
                   }
@@ -74,18 +80,21 @@ class CompatibilityCheckBaselineTest : DriverTest() {
         check(
             expectedIssues = """
                 """,
-            baselineCheckCompatibilityReleased = """
+            baselineCheckCompatibilityReleased =
+                """
                 // Baseline format: 1.0
                 ChangedScope: test.pkg.MyTest1:
                     Class test.pkg.MyTest1 changed visibility from public to private
                 """,
-            checkCompatibilityApiReleased = """
+            checkCompatibilityApiReleased =
+                """
                 package test.pkg {
                   public class MyTest1 {
                   }
                 }
                 """,
-            signatureSource = """
+            signatureSource =
+                """
                 package test.pkg {
                   private class MyTest1 { // visibility changed
                   }
@@ -102,18 +111,21 @@ class CompatibilityCheckBaselineTest : DriverTest() {
                 """,
             baselineCheckCompatibilityReleased = """
                 """,
-            updateBaselineCheckCompatibilityReleased = """
+            updateBaselineCheckCompatibilityReleased =
+                """
                 // Baseline format: 1.0
                 ChangedScope: test.pkg.MyTest1:
                     Class test.pkg.MyTest1 changed visibility from public to private
                 """,
-            checkCompatibilityApiReleased = """
+            checkCompatibilityApiReleased =
+                """
                 package test.pkg {
                   public class MyTest1 {
                   }
                 }
                 """,
-            signatureSource = """
+            signatureSource =
+                """
                 package test.pkg {
                   private class MyTest1 { // visibility changed
                   }

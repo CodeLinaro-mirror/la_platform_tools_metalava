@@ -36,17 +36,19 @@ class SignatureWriter(
     filterEmit: Predicate<Item>,
     filterReference: Predicate<Item>,
     private val preFiltered: Boolean,
-    var emitHeader: EmitFileHeader = options.includeSignatureFormatVersionNonRemoved
-) : ApiVisitor(
-    visitConstructorsAsMethods = false,
-    nestInnerClasses = false,
-    inlineInheritedFields = true,
-    methodComparator = MethodItem.comparator,
-    fieldComparator = FieldItem.comparator,
-    filterEmit = filterEmit,
-    filterReference = filterReference,
-    showUnannotated = options.showUnannotated
-) {
+    var emitHeader: EmitFileHeader = options.includeSignatureFormatVersionNonRemoved,
+    methodComparator: Comparator<MethodItem> = MethodItem.comparator,
+) :
+    ApiVisitor(
+        visitConstructorsAsMethods = false,
+        nestInnerClasses = false,
+        inlineInheritedFields = true,
+        methodComparator = methodComparator,
+        fieldComparator = FieldItem.comparator,
+        filterEmit = filterEmit,
+        filterReference = filterReference,
+        showUnannotated = options.showUnannotated
+    ) {
     init {
         if (emitHeader == EmitFileHeader.ALWAYS) {
             writer.print(options.outputFormat.header())
@@ -93,7 +95,11 @@ class SignatureWriter(
         writeType(field, field.type())
         write(" ")
         write(field.name())
-        field.writeValueWithSemicolon(writer, allowDefaultValue = false, requireInitialValue = false)
+        field.writeValueWithSemicolon(
+            writer,
+            allowDefaultValue = false,
+            requireInitialValue = false
+        )
         write("\n")
     }
 
@@ -172,9 +178,8 @@ class SignatureWriter(
             return
         }
 
-        val superClass = if (preFiltered)
-            cls.superClassType()
-        else cls.filteredSuperClassType(filterReference)
+        val superClass =
+            if (preFiltered) cls.superClassType() else cls.filteredSuperClassType(filterReference)
         if (superClass != null && !superClass.isJavaLangObject()) {
             val superClassString =
                 superClass.toTypeString(
@@ -193,9 +198,9 @@ class SignatureWriter(
         }
         val isInterface = cls.isInterface()
 
-        val interfaces = if (preFiltered)
-            cls.interfaceTypes().asSequence()
-        else cls.filteredInterfaceTypes(filterReference).asSequence()
+        val interfaces =
+            if (preFiltered) cls.interfaceTypes().asSequence()
+            else cls.filteredInterfaceTypes(filterReference).asSequence()
 
         if (interfaces.any()) {
             val label =
@@ -241,9 +246,10 @@ class SignatureWriter(
             if (i > 0) {
                 write(", ")
             }
-            if (parameter.hasDefaultValue() &&
-                options.outputDefaultValues &&
-                options.outputFormat.conciseDefaultValues
+            if (
+                parameter.hasDefaultValue() &&
+                    options.outputDefaultValues &&
+                    options.outputFormat.conciseDefaultValues
             ) {
                 // Concise representation of a parameter with a default
                 write("optional ")
@@ -255,9 +261,10 @@ class SignatureWriter(
                 write(" ")
                 write(name)
             }
-            if (parameter.isDefaultValueKnown() &&
-                options.outputDefaultValues &&
-                !options.outputFormat.conciseDefaultValues
+            if (
+                parameter.isDefaultValueKnown() &&
+                    options.outputDefaultValues &&
+                    !options.outputFormat.conciseDefaultValues
             ) {
                 write(" = ")
                 val defaultValue = parameter.defaultValue()
@@ -279,14 +286,15 @@ class SignatureWriter(
     ) {
         type ?: return
 
-        var typeString = type.toTypeString(
-            outerAnnotations = false,
-            innerAnnotations = true,
-            erased = false,
-            kotlinStyleNulls = outputKotlinStyleNulls && !item.hasInheritedGenericType(),
-            context = item,
-            filter = filterReference
-        )
+        var typeString =
+            type.toTypeString(
+                outerAnnotations = false,
+                innerAnnotations = true,
+                erased = false,
+                kotlinStyleNulls = outputKotlinStyleNulls && !item.hasInheritedGenericType(),
+                context = item,
+                filter = filterReference
+            )
 
         // Strip java.lang. prefix
         typeString = TypeItem.shortenTypes(typeString)
@@ -295,10 +303,11 @@ class SignatureWriter(
     }
 
     private fun writeThrowsList(method: MethodItem) {
-        val throws = when {
-            preFiltered -> method.throwsTypes().asSequence()
-            else -> method.filteredThrowsTypes(filterReference).asSequence()
-        }
+        val throws =
+            when {
+                preFiltered -> method.throwsTypes().asSequence()
+                else -> method.filteredThrowsTypes(filterReference).asSequence()
+            }
         if (throws.any()) {
             write(" throws ")
             throws.asSequence().sortedWith(ClassItem.fullNameComparator).forEachIndexed { i, type ->

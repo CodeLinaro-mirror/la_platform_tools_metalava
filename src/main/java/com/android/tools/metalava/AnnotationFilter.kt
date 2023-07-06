@@ -74,8 +74,8 @@ class MutableAnnotationFilter : AnnotationFilter {
     private var includedNames: List<String>? = null
 
     override fun matchesAnnotationName(qualifiedName: String): Boolean {
-        val includedNames = includedNames
-            ?: getIncludedAnnotationNames().also { includedNames = it }
+        val includedNames =
+            includedNames ?: getIncludedAnnotationNames().also { includedNames = it }
         return includedNames.contains(qualifiedName)
     }
 
@@ -98,7 +98,10 @@ class MutableAnnotationFilter : AnnotationFilter {
         return inclusion.qualifiedName
     }
 
-    private fun annotationsMatch(filter: AnnotationFilterEntry, existingAnnotation: AnnotationFilterEntry): Boolean {
+    private fun annotationsMatch(
+        filter: AnnotationFilterEntry,
+        existingAnnotation: AnnotationFilterEntry
+    ): Boolean {
         if (filter.qualifiedName != existingAnnotation.qualifiedName) {
             return false
         }
@@ -152,19 +155,21 @@ private class AnnotationFilterEntry(
             val text = source.replace("@", "")
             val index = text.indexOf("(")
 
-            val qualifiedName = if (index == -1) {
-                text
-            } else {
-                text.substring(0, index)
-            }
+            val qualifiedName =
+                if (index == -1) {
+                    text
+                } else {
+                    text.substring(0, index)
+                }
 
-            val attributes: List<AnnotationAttribute> = if (index == -1) {
-                emptyList()
-            } else {
-                DefaultAnnotationAttribute.createList(
-                    text.substring(index + 1, text.lastIndexOf(')'))
-                )
-            }
+            val attributes: List<AnnotationAttribute> =
+                if (index == -1) {
+                    emptyList()
+                } else {
+                    DefaultAnnotationAttribute.createList(
+                        text.substring(index + 1, text.lastIndexOf(')'))
+                    )
+                }
             return AnnotationFilterEntry(qualifiedName, attributes)
         }
 
