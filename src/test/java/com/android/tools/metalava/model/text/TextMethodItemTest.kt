@@ -35,7 +35,6 @@ class TextMethodItemTest {
             }
             """
                     .trimIndent(),
-                false
             )
 
         val cls = codebase.findClass("test.pkg.Foo")!!

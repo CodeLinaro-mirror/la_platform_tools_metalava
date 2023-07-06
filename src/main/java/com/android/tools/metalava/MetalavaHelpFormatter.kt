@@ -32,6 +32,9 @@ internal open class MetalavaHelpFormatter(
         showDefaultValues = true,
         showRequiredTag = true,
         maxWidth = MAX_LINE_WIDTH,
+        // The following value was chosen to produce the same indentation for option descriptions
+        // as is produced by Options.usage.
+        maxColWidth = 41,
     ) {
 
     /**

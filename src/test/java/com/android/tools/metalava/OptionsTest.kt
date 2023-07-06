@@ -18,6 +18,7 @@ package com.android.tools.metalava
 
 import com.android.tools.metalava.model.defaultConfiguration
 import java.io.File
+import java.io.OutputStreamWriter
 import java.io.PrintWriter
 import java.io.StringWriter
 import org.junit.Assert.assertEquals
@@ -48,13 +49,6 @@ API sources:
 --classpath <paths>
                                              One or more directories or jars (separated by `:`) containing classes that
                                              should be on the classpath when parsing the source files
---api-class-resolution <api|api:classpath>
-                                             Determines how class resolution is performed when loading API signature
-                                             files (default `api:classpath`). `--api-class-resolution api` will only
-                                             look for classes in the API signature files. `--api-class-resolution
-                                             api:classpath` will look for classes in the API signature files first and
-                                             then in the classpath. Any classes that cannot be found will be treated as
-                                             empty.
 --merge-qualifier-annotations <file>
                                              An external annotations file to merge and overlay the sources, or a
                                              directory of such files. Should be used for annotations intended for
@@ -81,8 +75,6 @@ API sources:
                                              the file specified in --nullability-warnings-txt instead.
 --input-api-jar <file>
                                              A .jar file to read APIs from directly
---manifest <file>
-                                             A manifest file, used to for check permissions to cross check APIs
 --hide-package <package>
                                              Remove the given packages from the API even if they have not been marked
                                              with @hide
@@ -226,11 +218,6 @@ Generating Stubs:
 
 
 Diffs and Checks:
---input-kotlin-nulls[=yes|no]
-                                             Whether the signature file being read should be interpreted as having
-                                             encoded its types using Kotlin style types: a suffix of "?" for nullable
-                                             types, no suffix for non nullable types, and "!" for unknown. The default
-                                             is no.
 --check-compatibility:type:released <file>
                                              Check compatibility. Type is one of 'api' and 'removed', which checks
                                              either the public api or the removed api.
@@ -450,15 +437,30 @@ Usage: metalava [options] [flags]... <sub-command>? ...
     private val COMMON_OPTIONS =
         """
 Options:
-  --version            Show the version and exit
-  --color, --no-color  Determine whether to use terminal capabilities to colorize and otherwise style the output.
-                       (default: true if ${"$"}TERM starts with `xterm` or ${"$"}COLORTERM is set)
-  --no-banner          A banner is never output so this has no effect (deprecated: please remove)
-  --quiet, --verbose   Set the verbosity of the output.
-                       --quiet - Only include vital output.
-                       --verbose - Include extra diagnostic output.
-                       (default: Neither --quiet or --verbose)
-  -h, --help           Show this message and exit
+  --version                                  Show the version and exit
+  --color, --no-color                        Determine whether to use terminal capabilities to colorize and otherwise
+                                             style the output. (default: true if ${"$"}TERM starts with `xterm` or ${"$"}COLORTERM
+                                             is set)
+  --no-banner                                A banner is never output so this has no effect (deprecated: please remove)
+  --quiet, --verbose                         Set the verbosity of the output.
+                                             --quiet - Only include vital output.
+                                             --verbose - Include extra diagnostic output.
+                                             (default: Neither --quiet or --verbose)
+  -h, --help                                 Show this message and exit
+  --api-class-resolution [api|api:classpath]
+                                             Determines how class resolution is performed when loading API signature
+                                             files. `api` will only look for classes in the API signature files.
+                                             `api:classpath` will look for classes in the API signature files first and
+                                             then in the classpath. Any classes that cannot be found will be treated as
+                                             empty.", (default: api:classpath)
+  --api-overloaded-method-order [source|signature]
+                                             Specifies the order of overloaded methods in signature files (default
+                                             `signature`). Applies to the contents of the files specified on --api and
+                                             --removed-api. `source` will preserve the order in which they appear in the
+                                             source files. `signature` will sort them based on their signature.
+                                             (default: signature)
+  -manifest, --manifest <file>               A manifest file, used to check permissions to cross check APIs and retrieve
+                                             min_sdk_version. (default: no manifest)
     """
             .trimIndent()
 
@@ -518,7 +520,9 @@ $FLAGS
         assertEquals(
             """
 
-Aborting: --api-class-resolution must be one of api, api:classpath; was foo
+Aborting: Usage: metalava [options] [flags]... <sub-command>? ...
+
+Error: Invalid value for "--api-class-resolution": invalid choice: foo. (choose from api, api:classpath)
 
             """
                 .trimIndent(),
@@ -669,4 +673,23 @@ $FLAGS
             FileReadSandbox.reset()
         }
     }
+}
+
+/**
+ * Update the global [options] from the supplied arguments.
+ *
+ * This is for use by tests which do not use [Driver.run]. It does not support any of the
+ * [CommonOptions] in the [args] parameter, instead it just uses [defaultCommonOptions].
+ */
+internal fun updateGlobalOptionsForTest(
+    args: Array<String>,
+    /** Writer to direct output to */
+    stdout: PrintWriter = PrintWriter(OutputStreamWriter(System.out)),
+    /** Writer to direct error messages to */
+    stderr: PrintWriter = PrintWriter(OutputStreamWriter(System.err)),
+) {
+    // Create a special command that will ensure that the Clikt based properties in Options have
+    // been initialized correctly before updating the global options.
+    val command = MetalavaCommand(stdout, stderr, parseOptionsOnly = true)
+    command.parse(args)
 }

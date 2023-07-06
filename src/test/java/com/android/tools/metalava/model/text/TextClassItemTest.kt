@@ -90,7 +90,6 @@ class TextClassItemTest {
             }
             """
                     .trimIndent(),
-                false
             )
 
         val toLocalDate1 =
@@ -159,7 +158,6 @@ class TextClassItemTest {
             }
             """
                     .trimIndent(),
-                false
             )
 
         val getAnnotation1 =
@@ -194,7 +192,6 @@ class TextClassItemTest {
             }
             """
                     .trimIndent(),
-                false,
                 apiClassResolution = ApiClassResolution.API,
             )
 
@@ -243,7 +240,6 @@ class TextClassItemTest {
             }
             """
                     .trimIndent(),
-                false,
                 apiClassResolution = ApiClassResolution.API,
             )
 

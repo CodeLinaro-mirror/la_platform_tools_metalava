@@ -366,13 +366,7 @@ open class TextClassItem(
     }
 
     companion object {
-        fun createClassStub(codebase: TextCodebase, name: String): TextClassItem =
-            createStub(codebase, name, isInterface = false)
-
-        fun createInterfaceStub(codebase: TextCodebase, name: String): TextClassItem =
-            createStub(codebase, name, isInterface = true)
-
-        private fun createStub(
+        internal fun createStubClass(
             codebase: TextCodebase,
             name: String,
             isInterface: Boolean

@@ -19,6 +19,7 @@ import com.android.SdkConstants.DOT_TXT
 import com.android.tools.lint.checks.infrastructure.stripComments
 import com.android.tools.metalava.ANDROIDX_NONNULL
 import com.android.tools.metalava.ANDROIDX_NULLABLE
+import com.android.tools.metalava.FileFormat
 import com.android.tools.metalava.FileFormat.Companion.parseHeader
 import com.android.tools.metalava.JAVA_LANG_ANNOTATION
 import com.android.tools.metalava.JAVA_LANG_ENUM
@@ -38,92 +39,99 @@ import java.io.IOException
 import javax.annotation.Nonnull
 import kotlin.text.Charsets.UTF_8
 
-object ApiFile {
-    /**
-     * Same as [.parseApi]}, but take a single file for convenience.
-     *
-     * @param file input signature file
-     * @param kotlinStyleNulls if true, we assume the input has a kotlin style nullability markers
-     *   (e.g. "?"). Even if false, we'll allow them if the file format supports them/
-     */
-    @Throws(ApiParseException::class)
-    fun parseApi(
-        @Nonnull file: File,
-        kotlinStyleNulls: Boolean,
-        apiClassResolution: ApiClassResolution = ApiClassResolution.API_CLASSPATH,
-    ) = parseApi(listOf(file), kotlinStyleNulls, apiClassResolution)
+class ApiFile {
 
     /**
-     * Read API signature files into a [TextCodebase].
+     * Whether types should be interpreted to be in Kotlin format (e.g. ? suffix means nullable, !
+     * suffix means unknown, and absence of a suffix means not nullable.
      *
-     * Note: when reading from them multiple files, [TextCodebase.location] would refer to the first
-     * file specified. each [com.android.tools.metalava.model.text.TextItem.position] would
-     * correctly point out the source file of each item.
-     *
-     * @param files input signature files
-     * @param kotlinStyleNulls if true, we assume the input has a kotlin style nullability markers
-     *   (e.g. "?"). Even if false, we'll allow them if the file format supports them/
+     * Updated based on the header of the signature file being parsed.
      */
-    @Throws(ApiParseException::class)
-    fun parseApi(
-        @Nonnull files: List<File>,
-        kotlinStyleNulls: Boolean,
-        apiClassResolution: ApiClassResolution = ApiClassResolution.API_CLASSPATH,
-    ): TextCodebase {
-        require(files.isNotEmpty()) { "files must not be empty" }
-        val api = TextCodebase(files[0], apiClassResolution = apiClassResolution)
-        val description = StringBuilder("Codebase loaded from ")
-        var first = true
-        for (file in files) {
-            if (!first) {
-                description.append(", ")
-            }
-            description.append(file.path)
-            val apiText: String =
-                try {
-                    Files.asCharSource(file, UTF_8).read()
-                } catch (ex: IOException) {
-                    throw ApiParseException("Error reading API file", file.path, ex)
+    var kotlinStyleNulls: Boolean = false
+
+    /** The file format of the file being parsed. */
+    var format: FileFormat = FileFormat.UNKNOWN
+
+    companion object {
+        /**
+         * Same as [.parseApi]}, but take a single file for convenience.
+         *
+         * @param file input signature file
+         */
+        @Throws(ApiParseException::class)
+        fun parseApi(
+            @Nonnull file: File,
+            apiClassResolution: ApiClassResolution = ApiClassResolution.API_CLASSPATH,
+        ) = parseApi(listOf(file), apiClassResolution)
+
+        /**
+         * Read API signature files into a [TextCodebase].
+         *
+         * Note: when reading from them multiple files, [TextCodebase.location] would refer to the
+         * first file specified. each [com.android.tools.metalava.model.text.TextItem.position]
+         * would correctly point out the source file of each item.
+         *
+         * @param files input signature files
+         */
+        @Throws(ApiParseException::class)
+        fun parseApi(
+            @Nonnull files: List<File>,
+            apiClassResolution: ApiClassResolution = ApiClassResolution.API_CLASSPATH,
+        ): TextCodebase {
+            require(files.isNotEmpty()) { "files must not be empty" }
+            val api = TextCodebase(files[0], apiClassResolution = apiClassResolution)
+            val description = StringBuilder("Codebase loaded from ")
+            val parser = ApiFile()
+            var first = true
+            for (file in files) {
+                if (!first) {
+                    description.append(", ")
                 }
-            parseApiSingleFile(api, !first, file.path, apiText, kotlinStyleNulls)
-            first = false
+                description.append(file.path)
+                val apiText: String =
+                    try {
+                        Files.asCharSource(file, UTF_8).read()
+                    } catch (ex: IOException) {
+                        throw ApiParseException("Error reading API file", file.path, ex)
+                    }
+                parser.parseApiSingleFile(api, !first, file.path, apiText)
+                first = false
+            }
+            api.description = description.toString()
+            api.postProcess()
+            return api
         }
-        api.description = description.toString()
-        api.postProcess()
-        return api
-    }
 
-    /** <p>DO NOT MODIFY - used by com/android/gts/api/ApprovedApis.java */
-    @Deprecated("Exists only for external callers. ")
-    @JvmStatic
-    @Throws(ApiParseException::class)
-    fun parseApi(
-        filename: String,
-        apiText: String,
-        kotlinStyleNulls: Boolean?,
-    ): TextCodebase {
-        return parseApi(
-            filename,
-            apiText,
-            kotlinStyleNulls != null && kotlinStyleNulls,
-            ApiClassResolution.API_CLASSPATH,
-        )
-    }
+        /** <p>DO NOT MODIFY - used by com/android/gts/api/ApprovedApis.java */
+        @Deprecated("Exists only for external callers. ")
+        @JvmStatic
+        @Throws(ApiParseException::class)
+        fun parseApi(
+            filename: String,
+            apiText: String,
+            @Suppress("UNUSED_PARAMETER") kotlinStyleNulls: Boolean?,
+        ): TextCodebase {
+            return parseApi(
+                filename,
+                apiText,
+                ApiClassResolution.API_CLASSPATH,
+            )
+        }
 
-    /** Entry point fo test. Take a filename and content separately. */
-    @VisibleForTesting
-    @Throws(ApiParseException::class)
-    fun parseApi(
-        @Nonnull filename: String,
-        @Nonnull apiText: String,
-        kotlinStyleNulls: Boolean,
-        apiClassResolution: ApiClassResolution = ApiClassResolution.API_CLASSPATH,
-    ): TextCodebase {
-        val api = TextCodebase(File(filename), apiClassResolution)
-        api.description = "Codebase loaded from $filename"
-        parseApiSingleFile(api, false, filename, apiText, kotlinStyleNulls)
-        api.postProcess()
-        return api
+        /** Entry point for testing. Take a filename and content separately. */
+        @VisibleForTesting
+        @Throws(ApiParseException::class)
+        fun parseApi(
+            @Nonnull filename: String,
+            @Nonnull apiText: String,
+            apiClassResolution: ApiClassResolution = ApiClassResolution.API_CLASSPATH,
+        ): TextCodebase {
+            val api = TextCodebase(File(filename), apiClassResolution)
+            api.description = "Codebase loaded from $filename"
+            ApiFile().parseApiSingleFile(api, false, filename, apiText)
+            api.postProcess()
+            return api
+        }
     }
 
     @Throws(ApiParseException::class)
@@ -132,10 +140,9 @@ object ApiFile {
         appending: Boolean,
         filename: String,
         apiText: String,
-        kotlinStyleNulls: Boolean
     ) {
         // Infer the format.
-        val format = parseHeader(apiText)
+        format = parseHeader(apiText)
 
         // If it's the first file, set the format. Otherwise, make sure the format is the same as
         // the prior files.
@@ -160,18 +167,12 @@ object ApiFile {
             }
         }
 
-        var signatureFormatUsesKotlinStyleNull = false
         if (format.isSignatureFormat()) {
-            if (!kotlinStyleNulls) {
-                signatureFormatUsesKotlinStyleNull = format.useKotlinStyleNulls()
-            }
+            kotlinStyleNulls = format.useKotlinStyleNulls()
         } else if (apiText.isBlank()) {
             // Sometimes, signature files are empty, and we do want to accept them.
         } else {
             throw ApiParseException("Unknown file format of $filename")
-        }
-        if (kotlinStyleNulls || signatureFormatUsesKotlinStyleNull) {
-            api.kotlinStyleNulls = true
         }
 
         // Remove the block comments.
@@ -410,7 +411,6 @@ object ApiFile {
 
     @Throws(ApiParseException::class)
     private fun processKotlinTypeSuffix(
-        api: TextCodebase,
         startingType: String,
         annotations: MutableList<String>
     ): Pair<String, MutableList<String>> {
@@ -420,7 +420,7 @@ object ApiFile {
             type = type.substring(0, type.length - 3)
             varArgs = true
         }
-        if (api.kotlinStyleNulls) {
+        if (kotlinStyleNulls) {
             if (type.endsWith("?")) {
                 type = type.substring(0, type.length - 1)
                 mergeAnnotations(annotations, ANDROIDX_NULLABLE)
@@ -433,9 +433,7 @@ object ApiFile {
             }
         } else if (type.endsWith("?") || type.endsWith("!")) {
             throw ApiParseException(
-                "Did you forget to supply --input-kotlin-nulls? Found Kotlin-style null type suffix when parser was not configured " +
-                    "to interpret signature file that way: " +
-                    type
+                "Format $format does not support Kotlin-style null type syntax: $type"
             )
         }
         if (varArgs) {
@@ -550,7 +548,7 @@ object ApiFile {
             token = tokenizer.requireToken()
         }
         assertIdent(tokenizer, token)
-        val (first, second) = processKotlinTypeSuffix(api, token, annotations)
+        val (first, second) = processKotlinTypeSuffix(token, annotations)
         token = first
         annotations = second
         modifiers.addAnnotations(annotations)
@@ -639,7 +637,7 @@ object ApiFile {
         val modifiers = parseModifiers(api, tokenizer, token, null)
         token = tokenizer.current
         assertIdent(tokenizer, token)
-        val (first, second) = processKotlinTypeSuffix(api, token, annotations)
+        val (first, second) = processKotlinTypeSuffix(token, annotations)
         token = first
         annotations = second
         modifiers.addAnnotations(annotations)
@@ -838,7 +836,7 @@ object ApiFile {
         val modifiers = parseModifiers(api, tokenizer, token, null)
         token = tokenizer.current
         assertIdent(tokenizer, token)
-        val (first, second) = processKotlinTypeSuffix(api, token, annotations)
+        val (first, second) = processKotlinTypeSuffix(token, annotations)
         token = first
         annotations = second
         modifiers.addAnnotations(annotations)
@@ -925,7 +923,7 @@ object ApiFile {
                     token = tokenizer.requireToken()
                 }
             }
-            val (typeString, second) = processKotlinTypeSuffix(api, type, annotations)
+            val (typeString, second) = processKotlinTypeSuffix(type, annotations)
             annotations = second
             modifiers.addAnnotations(annotations)
             if (typeString.endsWith("...")) {
@@ -1099,7 +1097,7 @@ object ApiFile {
         return c != '"' && !isSeparator(c, true)
     }
 
-    internal class Tokenizer(val fileName: String, private val buffer: CharArray) {
+    internal inner class Tokenizer(val fileName: String, private val buffer: CharArray) {
         var position = 0
         var line = 1
 

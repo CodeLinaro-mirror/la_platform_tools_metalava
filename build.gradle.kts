@@ -99,7 +99,7 @@ dependencies {
 }
 
 val zipTask: TaskProvider<Zip> =
-    project.tasks.register("zipResultsOf${name.capitalize()}", Zip::class.java) {
+    project.tasks.register("zipTestResults", Zip::class.java) {
         destinationDirectory.set(File(getDistributionDirectory(), "host-test-reports"))
         archiveFileName.set("metalava-tests.zip")
     }

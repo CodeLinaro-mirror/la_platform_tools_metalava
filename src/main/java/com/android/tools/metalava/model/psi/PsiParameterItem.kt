@@ -27,7 +27,6 @@ import com.intellij.psi.PsiEllipsisType
 import com.intellij.psi.PsiParameter
 import org.jetbrains.kotlin.analysis.api.analyze
 import org.jetbrains.kotlin.analysis.api.types.KtTypeNullability
-import org.jetbrains.kotlin.builtins.StandardNames
 import org.jetbrains.kotlin.psi.KtConstantExpression
 import org.jetbrains.kotlin.psi.KtFunction
 import org.jetbrains.kotlin.psi.KtParameter
@@ -80,11 +79,6 @@ class PsiParameterItem(
                     containingMethod.parameters().size - 1 == parameterIndex
             ) {
                 return null
-            }
-            // UAST workaround: value parameter name for enum synthetic valueOf
-            // TODO: won't need this after kotlinc 1.9
-            if (containingMethod.isEnumSyntheticValueOf()) {
-                return StandardNames.DEFAULT_VALUE_PARAMETER.identifier
             }
             return name
         } else {
