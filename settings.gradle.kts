@@ -7,4 +7,7 @@ pluginManagement {
     }
 }
 
+if (!System.getenv("INTEGRATION").isNullOrBlank()) {
+    include(":integration")
+}
 include(":stub-annotations")

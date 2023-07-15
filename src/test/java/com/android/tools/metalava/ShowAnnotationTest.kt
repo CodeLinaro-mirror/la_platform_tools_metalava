@@ -369,7 +369,8 @@ class ShowAnnotationTest : DriverTest() {
                     ),
                     systemApiSource
                 ),
-            showAnnotations = arrayOf("android.annotation.SystemApi"),
+            // Use a leading @ as that is allowed and so should be tested.
+            showAnnotations = arrayOf("@android.annotation.SystemApi"),
             expectedIssues =
                 """
                 src/test/pkg/Class1.java:8: error: Attempting to unhide method test.pkg.Class1.method1(), but surrounding class test.pkg.Class1 is hidden and should also be annotated with @android.annotation.SystemApi [ShowingMemberInHiddenClass]

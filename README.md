@@ -81,6 +81,15 @@ To build Metalava's Maven artifacts including `.pom` and `.module` metadata, run
 
 Then locate the artifacts under `../../out/dist/repo/m2repository`.
 
+### Integration testing
+
+To build and run Metalava against a pinned version of an AndroidX library you can
+run the following:
+
+    $ INTEGRATION=true ./gradlew integration:run --rerun
+
+Details on what runs are in `integration/build.gradle.kts`.
+
 ## Features
 
 * Ability to read in an existing android.jar file instead of from source, which

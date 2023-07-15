@@ -145,18 +145,19 @@ import com.android.tools.metalava.Issues.USE_PARCEL_FILE_DESCRIPTOR
 import com.android.tools.metalava.Issues.VISIBLY_SYNCHRONIZED
 import com.android.tools.metalava.manifest.Manifest
 import com.android.tools.metalava.model.AnnotationItem
-import com.android.tools.metalava.model.AnnotationItem.Companion.getImplicitNullness
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.model.Location
 import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.SetMinSdkVersion
 import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.psi.PsiLocationProvider
 import com.android.tools.metalava.model.psi.PsiMethodItem
 import com.android.tools.metalava.model.psi.PsiTypeItem
 import com.android.tools.metalava.model.visitors.ApiVisitor
@@ -192,7 +193,12 @@ class ApiLint(
         // No need to check "for stubs only APIs" (== "implicit" APIs)
         includeApisForStubPurposes = false
     ) {
-    private fun report(id: Issue, item: Item, message: String, element: PsiElement? = null) {
+    private fun report(
+        id: Issue,
+        item: Item,
+        message: String,
+        location: Location = Location.unknownLocationAndBaselineKey
+    ) {
         // Don't flag api warnings on deprecated APIs; these are obviously already known to
         // be problematic.
         if (item.deprecated) {
@@ -209,7 +215,7 @@ class ApiLint(
             return
         }
 
-        reporter.report(id, item, message, element)
+        reporter.report(id, item, message, location)
     }
 
     private fun check() {
@@ -923,7 +929,8 @@ class ApiLint(
             }
             message.append(": ")
             message.append(method.describe())
-            report(VISIBLY_SYNCHRONIZED, method, message.toString(), psi)
+            val location = PsiLocationProvider.elementToLocation(psi)
+            report(VISIBLY_SYNCHRONIZED, method, message.toString(), location)
         }
 
         if (method.modifiers.isSynchronized()) {
@@ -1735,7 +1742,7 @@ class ApiLint(
 
     private fun checkHasNullability(item: Item) {
         if (!item.requiresNullnessInfo()) return
-        if (!item.hasNullnessInfo() && getImplicitNullness(item) == null) {
+        if (!item.hasNullnessInfo() && item.implicitNullness() == null) {
             val type = item.type()
             val inherited =
                 when (item) {

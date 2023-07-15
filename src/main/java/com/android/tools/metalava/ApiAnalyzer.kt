@@ -32,9 +32,10 @@ import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.VisibilityLevel
+import com.android.tools.metalava.model.psi.PsiClassItem
 import com.android.tools.metalava.model.psi.PsiItem.Companion.isKotlin
 import com.android.tools.metalava.model.visitors.ApiVisitor
-import com.android.tools.metalava.model.visitors.ItemVisitor
+import com.android.tools.metalava.model.visitors.BaseItemVisitor
 import java.util.Locale
 import java.util.function.Predicate
 import org.jetbrains.kotlin.asJava.classes.KtLightClassForFacade
@@ -528,7 +529,7 @@ class ApiAnalyzer(
     /** If a file facade class has no public members, don't add it to the api */
     private fun hideEmptyKotlinFileFacadeClasses() {
         codebase.getPackages().allClasses().forEach { cls ->
-            val psi = cls.psi()
+            val psi = (cls as? PsiClassItem)?.psi()
             if (
                 psi != null &&
                     isKotlin(psi) &&
@@ -571,7 +572,7 @@ class ApiAnalyzer(
      */
     private fun propagateHiddenRemovedAndDocOnly(includingFields: Boolean) {
         packages.accept(
-            object : ItemVisitor(visitConstructorsAsMethods = true, nestInnerClasses = true) {
+            object : BaseItemVisitor(visitConstructorsAsMethods = true, nestInnerClasses = true) {
                 override fun visitPackage(pkg: PackageItem) {
                     when {
                         options.hidePackages.contains(pkg.qualifiedName()) -> pkg.hidden = true
@@ -1054,7 +1055,7 @@ class ApiAnalyzer(
         // then we can't strip it
         val allTopLevelClasses = codebase.getPackages().allTopLevelClasses().toList()
         allTopLevelClasses
-            .filter { it.checkLevel() && it.emit && !it.hidden() }
+            .filter { it.isApiCandidate() && it.emit && !it.hidden() }
             .forEach { cantStripThis(it, filter, notStrippable, stubImportPackages, it, "self") }
 
         // complain about anything that looks includeable but is not supposed to
@@ -1062,9 +1063,9 @@ class ApiAnalyzer(
         for (cl in notStrippable) {
             if (!cl.isHiddenOrRemoved()) {
                 val publiclyConstructable =
-                    !cl.modifiers.isSealed() && cl.constructors().any { it.checkLevel() }
+                    !cl.modifiers.isSealed() && cl.constructors().any { it.isApiCandidate() }
                 for (m in cl.methods()) {
-                    if (!m.checkLevel()) {
+                    if (!m.isApiCandidate()) {
                         // TODO: enable this check for options.showSingleAnnotations
                         if (
                             options.showSingleAnnotations.isEmpty() &&
@@ -1226,7 +1227,7 @@ class ApiAnalyzer(
         }
 
         if (
-            (cl.isHiddenOrRemoved() || cl.isPackagePrivate && !cl.checkLevel()) &&
+            (cl.isHiddenOrRemoved() || cl.isPackagePrivate && !cl.isApiCandidate()) &&
                 !cl.isTypeParameter
         ) {
             reporter.report(
@@ -1484,4 +1485,9 @@ private fun String.capitalize(): String {
             it.toString()
         }
     }
+}
+
+/** Returns true if this item is public or protected and so a candidate for inclusion in an API. */
+private fun Item.isApiCandidate(): Boolean {
+    return !isHiddenOrRemoved() && (modifiers.isPublic() || modifiers.isProtected())
 }

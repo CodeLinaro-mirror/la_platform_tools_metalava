@@ -17,7 +17,6 @@
 package com.android.tools.metalava.model.text
 
 import com.android.tools.metalava.model.AnnotationAttribute
-import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.AnnotationTarget
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.DefaultAnnotationAttribute
@@ -37,7 +36,8 @@ class TextBackedAnnotationItem(codebase: Codebase, source: String, mapName: Bool
             else source.substring(1, index)
 
         originalName = annotationClass
-        qualifiedName = if (mapName) AnnotationItem.mapName(annotationClass) else annotationClass
+        qualifiedName =
+            if (mapName) codebase.annotationManager.mapName(annotationClass) else annotationClass
         full =
             when {
                 qualifiedName == null -> ""

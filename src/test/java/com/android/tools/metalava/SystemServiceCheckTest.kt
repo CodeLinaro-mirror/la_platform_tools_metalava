@@ -303,7 +303,7 @@ class SystemServiceCheckTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                TESTROOT/manifest.xml: error: Failed to parse TESTROOT/manifest.xml: The markup in the document preceding the root element must be well-formed. [ParseError]
+                manifest.xml: error: Failed to parse TESTROOT/manifest.xml: The markup in the document preceding the root element must be well-formed. [ParseError]
                 src/test/pkg/MyTest2.java:7: lint: None of the permissions foo.bar.PERMISSION1, foo.bar.PERMISSION2 are defined by manifest TESTROOT/manifest.xml. [RequiresPermission]
                 src/test/pkg/MyTest2.java:7: lint: Method 'test' must be protected with a system permission. [RequiresPermission]
                 """,

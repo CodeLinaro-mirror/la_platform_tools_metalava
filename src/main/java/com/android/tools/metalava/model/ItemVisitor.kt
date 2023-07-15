@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 The Android Open Source Project
+ * Copyright (C) 2023 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,15 +14,22 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava.model.visitors
+package com.android.tools.metalava.model
 
-import com.android.tools.metalava.model.Item
-import com.android.tools.metalava.model.TypeItem
+interface ItemVisitor {
+    fun visit(cls: ClassItem)
 
-open class TypeVisitor(val includeInterfaces: Boolean = false) {
-    open fun skip(item: Item): Boolean = false
+    fun visit(field: FieldItem)
 
-    open fun visitType(type: TypeItem, owner: Item) {}
+    fun visit(method: MethodItem)
 
-    open fun afterVisitType(type: TypeItem, owner: Item) {}
+    fun visit(pkg: PackageItem)
+
+    fun visit(packageList: PackageList)
+
+    fun visit(parameter: ParameterItem)
+
+    fun visit(property: PropertyItem)
+
+    fun visit(sourceFile: SourceFileItem)
 }

@@ -16,9 +16,6 @@
 
 package com.android.tools.metalava.model
 
-import com.android.tools.metalava.model.visitors.ItemVisitor
-import com.android.tools.metalava.model.visitors.TypeVisitor
-
 interface PropertyItem : MemberItem {
     /** The getter for this property, if it exists; inverse of [MethodItem.property] */
     val getter: MethodItem?
@@ -43,15 +40,7 @@ interface PropertyItem : MemberItem {
     override fun type(): TypeItem
 
     override fun accept(visitor: ItemVisitor) {
-        if (visitor.skip(this)) {
-            return
-        }
-
-        visitor.visitItem(this)
-        visitor.visitProperty(this)
-
-        visitor.afterVisitProperty(this)
-        visitor.afterVisitItem(this)
+        visitor.visit(this)
     }
 
     override fun acceptTypes(visitor: TypeVisitor) {

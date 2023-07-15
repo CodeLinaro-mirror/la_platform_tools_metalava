@@ -22,8 +22,12 @@ import com.android.tools.lint.detector.api.isJdkFolder
 import com.android.tools.metalava.CompatibilityCheck.CheckRequest
 import com.android.tools.metalava.manifest.Manifest
 import com.android.tools.metalava.manifest.emptyManifest
+import com.android.tools.metalava.model.AnnotationFilter
+import com.android.tools.metalava.model.AnnotationManager
+import com.android.tools.metalava.model.DefaultAnnotationManager
 import com.android.tools.metalava.model.MethodItem
-import com.android.tools.metalava.model.defaultConfiguration
+import com.android.tools.metalava.model.MutableAnnotationFilter
+import com.android.tools.metalava.model.TypedefMode
 import com.android.tools.metalava.model.text.ApiClassResolution
 import com.android.utils.SdkUtils.wrap
 import com.github.ajalt.clikt.core.NoSuchOption
@@ -57,7 +61,13 @@ import org.jetbrains.kotlin.config.LanguageVersionSettingsImpl
  * the actual options to use, either created from the command line arguments for the main process or
  * with arguments supplied by tests.
  */
-var options = Options()
+var options =
+    Options().let {
+        // Call parse with an empty array to ensure that the properties are set to the correct
+        // defaults.
+        it.parse(emptyArray())
+        it
+    }
 
 private const val INDENT_WIDTH = 45
 
@@ -132,11 +142,6 @@ const val ARG_API_VERSION_SIGNATURE_FILES = "--api-version-signature-files"
 const val ARG_API_VERSION_NAMES = "--api-version-names"
 const val ARG_API_LINT = "--api-lint"
 const val ARG_API_LINT_IGNORE_PREFIX = "--api-lint-ignore-prefix"
-const val ARG_PUBLIC = "--public"
-const val ARG_PROTECTED = "--protected"
-const val ARG_PACKAGE = "--package"
-const val ARG_PRIVATE = "--private"
-const val ARG_HIDDEN = "--hidden"
 const val ARG_JAVA_SOURCE = "--java-source"
 const val ARG_KOTLIN_SOURCE = "--kotlin-source"
 const val ARG_SDK_HOME = "--sdk-home"
@@ -348,6 +353,19 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
 
     /** Meta-annotations to hide */
     var hideMetaAnnotations = mutableHideMetaAnnotations
+
+    val annotationManager: AnnotationManager by lazy {
+        DefaultAnnotationManager(
+            DefaultAnnotationManager.Config(
+                passThroughAnnotations = passThroughAnnotations,
+                showAnnotations = showAnnotations,
+                hideAnnotations = hideAnnotations,
+                excludeAnnotations = excludeAnnotations,
+                typedefMode = typedefMode,
+                apiPredicate = ApiPredicate(),
+            )
+        )
+    }
 
     /** Meta-annotations for which annotated APIs should not be checked for compatibility. */
     var suppressCompatibilityMetaAnnotations = mutableNoCompatCheckMetaAnnotations
@@ -573,9 +591,6 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
      */
     var apiVersionNames: List<String>? = null
 
-    /** Level to include for javadoc */
-    var docLevel = DocLevel.PROTECTED
-
     /** Whether to include the signature file format version header in most signature files */
     var includeSignatureFormatVersion: Boolean = true
 
@@ -660,9 +675,6 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
      */
     var omitLocations = false
 
-    /** Directory to write signature files to, if any. */
-    var androidJarSignatureFiles: File? = null
-
     /** The language level to use for Java files, set with [ARG_JAVA_SOURCE] */
     var javaLanguageLevel: LanguageLevel = LanguageLevel.JDK_1_8
 
@@ -692,13 +704,7 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
     private var compileSdkVersion: String? = null
 
     /** List of signature files to export as JDiff files */
-    val convertToXmlFiles: List<ConvertFile> = mutableConvertToXmlFiles
-
-    enum class TypedefMode {
-        NONE,
-        REFERENCE,
-        INLINE
-    }
+    internal val convertToXmlFiles: List<ConvertFile> = mutableConvertToXmlFiles
 
     /**
      * How to handle typedef annotations in signature files; corresponds to
@@ -742,14 +748,6 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
 
     var strictInputViolationsFile: File? = null
     var strictInputViolationsPrintWriter: PrintWriter? = null
-
-    /** File conversion tasks */
-    data class ConvertFile(
-        val fromApiFile: File,
-        val outputFile: File,
-        val baseApiFile: File? = null,
-        val strip: Boolean = false
-    )
 
     /** Temporary folder to use instead of the JDK default, if any */
     var tempFolder: File? = null
@@ -1007,16 +1005,6 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
                 ARG_PASS_BASELINE_UPDATES -> passBaselineUpdates = true
                 ARG_DELETE_EMPTY_BASELINES -> deleteEmptyBaselines = true
                 ARG_DELETE_EMPTY_REMOVED_SIGNATURES -> deleteEmptyRemovedSignatures = true
-                ARG_PUBLIC,
-                "-public" -> docLevel = DocLevel.PUBLIC
-                ARG_PROTECTED,
-                "-protected" -> docLevel = DocLevel.PROTECTED
-                ARG_PACKAGE,
-                "-package" -> docLevel = DocLevel.PACKAGE
-                ARG_PRIVATE,
-                "-private" -> docLevel = DocLevel.PRIVATE
-                ARG_HIDDEN,
-                "-hidden" -> docLevel = DocLevel.HIDDEN
                 ARG_INPUT_API_JAR -> apiJar = stringToExistingFile(getValue(args, ++index))
                 ARG_EXTRACT_ANNOTATIONS ->
                     externalAnnotations = stringToNewFile(getValue(args, ++index))
@@ -1184,15 +1172,6 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
                     mutableConvertToXmlFiles.add(
                         ConvertFile(signatureFile, jDiffFile, baseFile, strip)
                     )
-                }
-                "--write-android-jar-signatures" -> {
-                    val root = stringToExistingDir(getValue(args, ++index))
-                    if (!File(root, "prebuilts/sdk").isDirectory) {
-                        throw DriverException(
-                            "$androidJarSignatureFiles does not point to an Android source tree"
-                        )
-                    }
-                    androidJarSignatureFiles = root
                 }
                 "-encoding" -> {
                     val value = getValue(args, ++index)
@@ -1803,14 +1782,14 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
         return File(path).absoluteFile
     }
 
-    fun getUsage(terminal: Terminal): String {
+    fun getUsage(terminal: Terminal, width: Int): String {
         val usage = StringWriter()
         val printWriter = PrintWriter(usage)
-        usage(printWriter, terminal)
+        usage(printWriter, terminal, width)
         return usage.toString()
     }
 
-    private fun usage(out: PrintWriter, terminal: Terminal) {
+    private fun usage(out: PrintWriter, terminal: Terminal, width: Int) {
         val args =
             arrayOf(
                 "",
@@ -1910,18 +1889,6 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
                 ARG_IGNORE_CLASSES_ON_CLASSPATH,
                 "Prevents references to classes on the classpath from being added to " +
                     "the generated stub files.",
-                "",
-                "Documentation:",
-                ARG_PUBLIC,
-                "Only include elements that are public",
-                ARG_PROTECTED,
-                "Only include elements that are public or protected",
-                ARG_PACKAGE,
-                "Only include elements that are public, protected or package protected",
-                ARG_PRIVATE,
-                "Include all elements except those that are marked hidden",
-                ARG_HIDDEN,
-                "Include all elements, including hidden",
                 "",
                 "Extracting Signature Files:",
                 // TODO: Document --show-annotation!
@@ -2188,11 +2155,7 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
                     "end of the command line, after the generate documentation flags."
             )
 
-        val sb = StringBuilder(INDENT_WIDTH)
-        for (indent in 0 until INDENT_WIDTH) {
-            sb.append(' ')
-        }
-        val indent = sb.toString()
+        val indent = " ".repeat(INDENT_WIDTH)
 
         var i = 0
         while (i < args.size) {
@@ -2212,8 +2175,8 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
                 val output =
                     wrap(
                         String.format(formatString, formattedArg, description),
-                        MAX_LINE_WIDTH + invisibleChars,
-                        MAX_LINE_WIDTH,
+                        width + invisibleChars,
+                        width,
                         indent
                     )
 

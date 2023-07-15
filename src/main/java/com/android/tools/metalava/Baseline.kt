@@ -16,28 +16,10 @@
 
 package com.android.tools.metalava
 
-import com.android.tools.metalava.model.ClassItem
-import com.android.tools.metalava.model.FieldItem
-import com.android.tools.metalava.model.Item
-import com.android.tools.metalava.model.MethodItem
-import com.android.tools.metalava.model.PackageItem
-import com.android.tools.metalava.model.ParameterItem
-import com.android.tools.metalava.model.configuration
-import com.intellij.openapi.vfs.VfsUtilCore
-import com.intellij.psi.PsiClass
-import com.intellij.psi.PsiElement
-import com.intellij.psi.PsiField
-import com.intellij.psi.PsiFile
-import com.intellij.psi.PsiMethod
-import com.intellij.psi.PsiPackage
-import com.intellij.psi.PsiParameter
+import com.android.tools.metalava.model.Location
 import java.io.File
 import java.io.PrintWriter
 import kotlin.text.Charsets.UTF_8
-import org.jetbrains.kotlin.psi.KtClass
-import org.jetbrains.kotlin.psi.KtProperty
-import org.jetbrains.kotlin.psi.psiUtil.containingClass
-import org.jetbrains.kotlin.psi.psiUtil.parameterIndex
 
 const val DEFAULT_BASELINE_NAME = "baseline.txt"
 
@@ -69,28 +51,13 @@ class Baseline(
     }
 
     /** Returns true if the given issue is listed in the baseline, otherwise false */
-    fun mark(element: Item, message: String, issue: Issues.Issue): Boolean {
-        val elementId = getBaselineKey(element)
+    fun mark(location: Location, message: String, issue: Issues.Issue): Boolean {
+        val elementId =
+            location.baselineKey.elementId(pathTransformer = this::transformBaselinePath)
         return mark(elementId, message, issue)
     }
 
-    /** Returns true if the given issue is listed in the baseline, otherwise false */
-    fun mark(element: PsiElement, message: String, issue: Issues.Issue): Boolean {
-        val elementId = getBaselineKey(element)
-        return mark(elementId, message, issue)
-    }
-
-    /** Returns true if the given issue is listed in the baseline, otherwise false */
-    fun mark(file: File, message: String, issue: Issues.Issue): Boolean {
-        val elementId = getBaselineKey(file)
-        return mark(elementId, message, issue)
-    }
-
-    private fun mark(
-        elementId: String,
-        @Suppress("UNUSED_PARAMETER") message: String,
-        issue: Issues.Issue
-    ): Boolean {
+    private fun mark(elementId: String, message: String, issue: Issues.Issue): Boolean {
         val idMap: MutableMap<String, String>? =
             map[issue]
                 ?: run {
@@ -128,79 +95,16 @@ class Baseline(
         return false
     }
 
-    private fun getBaselineKey(element: Item): String {
-        return when (element) {
-            is ClassItem -> element.qualifiedName()
-            is MethodItem ->
-                element.containingClass().qualifiedName() +
-                    "#" +
-                    element.name() +
-                    "(" +
-                    element.parameters().joinToString { it.type().toSimpleType() } +
-                    ")"
-            is FieldItem -> element.containingClass().qualifiedName() + "#" + element.name()
-            is PackageItem -> element.qualifiedName()
-            is ParameterItem ->
-                getBaselineKey(element.containingMethod()) + " parameter #" + element.parameterIndex
-            else -> element.describe(false)
-        }
-    }
-
-    private fun getBaselineKey(element: PsiElement): String {
-        return when (element) {
-            is PsiClass -> element.qualifiedName ?: element.name ?: "?"
-            is KtClass -> element.fqName?.asString() ?: element.name ?: "?"
-            is PsiMethod -> {
-                val containingClass = element.containingClass
-                val name = element.name
-                val parameterList =
-                    "(" +
-                        element.parameterList.parameters.joinToString { it.type.canonicalText } +
-                        ")"
-                if (containingClass != null) {
-                    getBaselineKey(containingClass) + "#" + name + parameterList
-                } else {
-                    name + parameterList
-                }
-            }
-            is PsiField -> {
-                val containingClass = element.containingClass
-                val name = element.name
-                if (containingClass != null) {
-                    getBaselineKey(containingClass) + "#" + name
-                } else {
-                    name
-                }
-            }
-            is KtProperty -> {
-                val containingClass = element.containingClass()
-                val name = element.nameAsSafeName.asString()
-                if (containingClass != null) {
-                    getBaselineKey(containingClass) + "#" + name
-                } else {
-                    name
-                }
-            }
-            is PsiPackage -> element.qualifiedName
-            is PsiParameter -> {
-                val method = element.declarationScope.parent
-                if (method is PsiMethod) {
-                    getBaselineKey(method) + " parameter #" + element.parameterIndex()
-                } else {
-                    "?"
-                }
-            }
-            is PsiFile -> {
-                val virtualFile = element.virtualFile
-                val file = VfsUtilCore.virtualToIoFile(virtualFile)
-                return getBaselineKey(file)
-            }
-            else -> element.toString()
-        }
-    }
-
     private fun getBaselineKey(file: File): String {
-        val path = file.path
+        return transformBaselinePath(file.path)
+    }
+
+    /**
+     * Transform the path (which is absolute) so that it is relative to one of the source roots, and
+     * make sure that it uses `/` consistently as the file separator so that the generated files are
+     * platform independent.
+     */
+    private fun transformBaselinePath(path: String): String {
         for (sourcePath in options.sourcePath) {
             if (path.startsWith(sourcePath.path)) {
                 return path.substring(sourcePath.path.length).replace('\\', '/').removePrefix("/")

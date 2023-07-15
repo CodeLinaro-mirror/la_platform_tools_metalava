@@ -21,7 +21,6 @@ import com.android.tools.lint.detector.api.ConstantEvaluator
 import com.android.tools.metalava.model.AnnotationArrayAttributeValue
 import com.android.tools.metalava.model.AnnotationAttribute
 import com.android.tools.metalava.model.AnnotationAttributeValue
-import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.AnnotationSingleAttributeValue
 import com.android.tools.metalava.model.AnnotationTarget
 import com.android.tools.metalava.model.ClassItem
@@ -52,7 +51,7 @@ private constructor(
     val uAnnotation: UAnnotation,
     override val originalName: String?
 ) : DefaultAnnotationItem(codebase) {
-    override val qualifiedName: String? = AnnotationItem.mapName(originalName)
+    override val qualifiedName: String? = codebase.annotationManager.mapName(originalName)
 
     override fun toString(): String = toSource()
 
@@ -83,7 +82,7 @@ private constructor(
     }
 
     override val targets: Set<AnnotationTarget> by lazy {
-        AnnotationItem.computeTargets(this, codebase::findOrCreateClass)
+        codebase.annotationManager.computeTargets(this, codebase::findOrCreateClass)
     }
 
     companion object {
@@ -128,7 +127,7 @@ private constructor(
             target: AnnotationTarget,
             showDefaultAttrs: Boolean
         ) {
-            val qualifiedName = AnnotationItem.mapName(originalName, target) ?: return
+            val qualifiedName = codebase.annotationManager.mapName(originalName, target) ?: return
 
             val attributes = getAttributes(uAnnotation, showDefaultAttrs)
             if (attributes.isEmpty()) {

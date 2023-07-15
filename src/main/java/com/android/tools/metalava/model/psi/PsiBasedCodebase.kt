@@ -21,6 +21,7 @@ import com.android.tools.lint.UastEnvironment
 import com.android.tools.metalava.ANDROIDX_NONNULL
 import com.android.tools.metalava.ANDROIDX_NULLABLE
 import com.android.tools.metalava.Issues
+import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.DefaultCodebase
 import com.android.tools.metalava.model.FieldItem
@@ -98,8 +99,9 @@ const val METHOD_ESTIMATE = 1000
 open class PsiBasedCodebase(
     location: File,
     override var description: String = "Unknown",
+    annotationManager: AnnotationManager,
     val fromClasspath: Boolean = false
-) : DefaultCodebase(location) {
+) : DefaultCodebase(location, annotationManager) {
     lateinit var uastEnvironment: UastEnvironment
     val project: Project
         get() = uastEnvironment.ideaProject
@@ -846,7 +848,7 @@ open class PsiBasedCodebase(
         context: Item?,
         mapName: Boolean
     ): PsiAnnotationItem {
-        val psiAnnotation = createPsiAnnotation(source, context?.psi())
+        val psiAnnotation = createPsiAnnotation(source, (context as? PsiItem)?.psi())
         return PsiAnnotationItem.create(this, psiAnnotation)
     }
 

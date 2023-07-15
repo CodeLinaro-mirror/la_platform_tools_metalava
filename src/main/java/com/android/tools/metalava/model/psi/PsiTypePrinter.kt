@@ -18,7 +18,6 @@ package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.JAVA_LANG_OBJECT
 import com.android.tools.metalava.model.AnnotationItem
-import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.SUPPORT_TYPE_USE_ANNOTATIONS
 import com.android.tools.metalava.model.isNonNullAnnotation
@@ -69,7 +68,7 @@ import java.util.function.Predicate
  * appear in different places.
  */
 class PsiTypePrinter(
-    private val codebase: Codebase,
+    private val codebase: PsiBasedCodebase,
     private val filter: Predicate<Item>? = null,
     private val mapAnnotations: Boolean = false,
     private val kotlinStyleNulls: Boolean = options.outputKotlinStyleNulls,
@@ -497,7 +496,7 @@ class PsiTypePrinter(
 
         val mapped =
             if (mapAnnotations) {
-                AnnotationItem.mapName(qualifiedName) ?: return null
+                codebase.annotationManager.mapName(qualifiedName) ?: return null
             } else {
                 qualifiedName
             }

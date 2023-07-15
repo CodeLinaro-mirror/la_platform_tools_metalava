@@ -17,11 +17,13 @@
 package com.android.tools.metalava.model.text
 
 import com.android.tools.metalava.model.DefaultItem
+import com.android.tools.metalava.model.Location
 import com.android.tools.metalava.model.MutableModifierList
+import java.nio.file.Path
 
 abstract class TextItem(
     override val codebase: TextCodebase,
-    val position: SourcePositionInfo,
+    internal val position: SourcePositionInfo,
     override var docOnly: Boolean = false,
     override var documentation: String = "",
     override var modifiers: TextModifiers
@@ -48,4 +50,11 @@ abstract class TextItem(
     override var deprecated = false
 
     override fun isCloned(): Boolean = false
+
+    override fun location(): Location {
+        val path = if (position == SourcePositionInfo.UNKNOWN) null else Path.of(position.file)
+        val line = position.line
+        val baselineKey = Location.getBaselineKeyForItem(this)
+        return Location(path, line, baselineKey)
+    }
 }

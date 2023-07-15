@@ -29,16 +29,17 @@ import com.android.tools.lint.detector.api.assertionsEnabled
 import com.android.tools.metalava.CompatibilityCheck.CheckRequest
 import com.android.tools.metalava.apilevels.ApiGenerator
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.PackageDocs
+import com.android.tools.metalava.model.psi.PsiBasedClassResolver
 import com.android.tools.metalava.model.psi.PsiBasedCodebase
 import com.android.tools.metalava.model.psi.packageHtmlToJavadoc
 import com.android.tools.metalava.model.text.ApiClassResolution
 import com.android.tools.metalava.model.text.TextClassItem
 import com.android.tools.metalava.model.text.TextCodebase
 import com.android.tools.metalava.model.text.TextMethodItem
-import com.android.tools.metalava.model.text.classpath.TextCodebaseWithClasspath
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.stub.StubWriter
 import com.google.common.base.Stopwatch
@@ -244,15 +245,15 @@ internal fun processFlags() {
                         "Inconsistent input file types: The first file is of $DOT_TXT, but detected different extension in ${it.path}"
                     )
                 }
-            val textCodebase = SignatureFileLoader.loadFiles(sources)
+            val classResolver = getClassResolver()
+            val textCodebase = SignatureFileLoader.loadFiles(sources, classResolver)
 
             // If this codebase was loaded in order to generate stubs then they will need some
             // additional items to be added that were purposely removed from the signature files.
             if (options.stubsDir != null) {
                 addMissingItemsRequiredForGeneratingStubs(textCodebase)
             }
-
-            mergeClasspathIntoTextCodebase(textCodebase)
+            textCodebase
         } else if (options.apiJar != null) {
             loadFromJarFile(options.apiJar!!)
         } else if (sources.size == 1 && sources[0].path.endsWith(DOT_JAR)) {
@@ -422,7 +423,7 @@ internal fun processFlags() {
         // as migrated (which will cause the Kotlin compiler to treat problems
         // as warnings instead of errors
 
-        migrateNulls(codebase, previous)
+        NullnessMigration.migrateNulls(codebase, previous)
 
         previous.dispose()
     }
@@ -618,41 +619,8 @@ fun processNonCodebaseFlags() {
         }
     }
 
-    // Convert android.jar files?
-    options.androidJarSignatureFiles?.let { root ->
-        // Generate API signature files for all the historical JAR files
-        ConvertJarsToSignatureFiles().convertJars(root)
-    }
-
     for (convert in options.convertToXmlFiles) {
-        val signatureApi = SignatureFileLoader.load(file = convert.fromApiFile)
-
-        val apiType = ApiType.ALL
-        val apiEmit = apiType.getEmitFilter()
-        val strip = convert.strip
-        val apiReference = if (strip) apiType.getEmitFilter() else apiType.getReferenceFilter()
-        val baseFile = convert.baseApiFile
-
-        val outputApi =
-            if (baseFile != null) {
-                // Convert base on a diff
-                val baseApi = SignatureFileLoader.load(file = baseFile)
-                TextCodebase.computeDelta(baseFile, baseApi, signatureApi)
-            } else {
-                signatureApi
-            }
-
-        // See JDiff's XMLToAPI#nameAPI
-        val apiName = convert.outputFile.nameWithoutExtension.replace(' ', '_')
-        createReportFile(outputApi, convert.outputFile, "JDiff File") { printWriter ->
-            JDiffXmlWriter(
-                printWriter,
-                apiEmit,
-                apiReference,
-                signatureApi.preFiltered && !strip,
-                apiName
-            )
-        }
+        convert.process()
     }
 }
 
@@ -665,12 +633,11 @@ fun checkCompatibility(newCodebase: Codebase, check: CheckRequest) {
         if (signatureFile.path.endsWith(DOT_JAR)) {
             loadFromJarFile(signatureFile)
         } else {
-            mergeClasspathIntoTextCodebase(SignatureFileLoader.load(file = signatureFile))
+            val classResolver = getClassResolver()
+            SignatureFileLoader.load(signatureFile, classResolver)
         }
 
-    val oldFormat =
-        (oldCodebase as? TextCodebase)?.format
-            ?: (oldCodebase as? TextCodebaseWithClasspath)?.format
+    val oldFormat = (oldCodebase as? TextCodebase)?.format
     if (oldFormat != null && oldFormat > FileFormat.V1 && options.outputFormat == FileFormat.V1) {
         throw DriverException(
             "Cannot perform compatibility check of signature file $signatureFile in format $oldFormat without analyzing current codebase with $ARG_FORMAT=$oldFormat"
@@ -715,10 +682,6 @@ fun createTempFile(namePrefix: String, nameSuffix: String): File {
     } else {
         File.createTempFile(namePrefix, nameSuffix)
     }
-}
-
-private fun migrateNulls(codebase: Codebase, previous: Codebase) {
-    previous.compareWith(NullnessMigration(), codebase)
 }
 
 private fun convertToWarningNullabilityAnnotations(codebase: Codebase, filter: PackageFilter?) {
@@ -893,22 +856,18 @@ private fun parseAbsoluteSources(
     val units = Extractor.createUnitsForFiles(environment.ideaProject, sources)
     val packageDocs = gatherPackageJavadoc(sources, sourceRoots)
 
-    val codebase = PsiBasedCodebase(rootDir, description)
+    val codebase = PsiBasedCodebase(rootDir, description, options.annotationManager)
     codebase.initialize(environment, units, packageDocs)
     return codebase
 }
 
-/** If classpath jars are present, merges classes loaded from the jars into the [textCodebase]. */
-fun mergeClasspathIntoTextCodebase(textCodebase: TextCodebase): Codebase {
-    return if (
-        options.apiClassResolution == ApiClassResolution.API_CLASSPATH &&
-            options.classpath.isNotEmpty()
-    ) {
-        progress("Processing classpath: ")
-        val uastEnvironment = loadUastFromJars(options.classpath)
-        TextCodebaseWithClasspath(textCodebase, uastEnvironment)
+private fun getClassResolver(): ClassResolver? {
+    val apiClassResolution = options.apiClassResolution
+    val classpath = options.classpath
+    return if (apiClassResolution == ApiClassResolution.API_CLASSPATH && classpath.isNotEmpty()) {
+        PsiBasedClassResolver(classpath, options.annotationManager)
     } else {
-        textCodebase
+        null
     }
 }
 
@@ -926,7 +885,8 @@ fun loadFromJarFile(apiJar: File, preFiltered: Boolean = false): Codebase {
     progress("Processing jar file: ")
 
     val environment = loadUastFromJars(listOf(apiJar))
-    val codebase = PsiBasedCodebase(apiJar, "Codebase loaded from $apiJar")
+    val codebase =
+        PsiBasedCodebase(apiJar, "Codebase loaded from $apiJar", options.annotationManager)
     codebase.initialize(environment, apiJar, preFiltered)
     val apiEmit = ApiPredicate(ignoreShown = true)
     val apiReference = ApiPredicate(ignoreShown = true)

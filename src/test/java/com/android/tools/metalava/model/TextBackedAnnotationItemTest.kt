@@ -26,7 +26,7 @@ import org.junit.Test
 class TextBackedAnnotationItemTest {
     // Placeholder for use in test where we don't need codebase functionality
     private val placeholderCodebase =
-        object : DefaultCodebase(File("").canonicalFile) {
+        object : DefaultCodebase(File("").canonicalFile, DefaultAnnotationManager()) {
             override fun supportsDocumentation(): Boolean = false
 
             override var description: String = ""

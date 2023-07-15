@@ -9,6 +9,7 @@
          <trust group="com.google.testing.platform"/>
          <trust file=".*-javadoc[.]jar" regex="true"/>
          <trust file=".*-sources[.]jar" regex="true"/>
+         <trust group="^androidx($|([.].*))" regex="true" reason="not signed yet"/>
          <trust group="^com.android($|([.].*))" regex="true"/>
       </trusted-artifacts>
       <trusted-keys>

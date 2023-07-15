@@ -16,12 +16,6 @@
 
 package com.android.tools.metalava.model
 
-import com.android.tools.metalava.NullnessMigration.Companion.findNullnessAnnotation
-import com.android.tools.metalava.RECENTLY_NONNULL
-import com.android.tools.metalava.RECENTLY_NULLABLE
-import com.android.tools.metalava.model.visitors.ItemVisitor
-import com.android.tools.metalava.model.visitors.TypeVisitor
-import com.intellij.psi.PsiElement
 import java.util.concurrent.atomic.AtomicInteger
 
 /**
@@ -166,6 +160,15 @@ interface Item {
     fun hasNullnessInfo(): Boolean = false
 
     /**
+     * Get this element's *implicit* nullness, if any.
+     *
+     * This returns true for implicitly nullable elements, such as the parameter to the
+     * [Object.equals] method, false for implicitly non-null elements (such as annotation type
+     * members), and null if there is no implicit nullness.
+     */
+    fun implicitNullness(): Boolean? = null
+
+    /**
      * Returns true if this item has generic type whose nullability is determined at subclass
      * declaration site.
      */
@@ -214,10 +217,6 @@ interface Item {
      */
     fun onlyShowForStubPurposesInherited(): Boolean = onlyShowForStubPurposes()
 
-    fun checkLevel(): Boolean {
-        return modifiers.checkLevel()
-    }
-
     fun sourceFile(): SourceFileItem? {
         var curr: Item? = this
         while (curr != null) {
@@ -230,8 +229,8 @@ interface Item {
         return null
     }
 
-    /** Returns the PSI element for this item, if any */
-    fun psi(): PsiElement? = null
+    /** Returns the [Location] for this item, if any. */
+    fun location(): Location = Location.unknownLocationAndBaselineKey
 
     /** Tag field used for DFS etc */
     var tag: Boolean
@@ -273,24 +272,6 @@ interface Item {
      * files, it's null.
      */
     fun type(): TypeItem?
-
-    /**
-     * Marks the nullability of this Item as Recent. That is, replaces @Nullable/@NonNull
-     * with @RecentlyNullable/@RecentlyNonNull
-     */
-    fun markRecent() {
-        val annotation = findNullnessAnnotation(this) ?: return
-        // Nullness information change: Add migration annotation
-        val annotationClass = if (annotation.isNullable()) RECENTLY_NULLABLE else RECENTLY_NONNULL
-
-        val modifiers = mutableModifiers()
-        modifiers.removeAnnotation(annotation)
-
-        // Don't map annotation names - this would turn newly non null back into non null
-        modifiers.addAnnotation(
-            codebase.createAnnotation("@$annotationClass", this, mapName = false)
-        )
-    }
 
     companion object {
         fun describe(item: Item, capitalize: Boolean = false): String {

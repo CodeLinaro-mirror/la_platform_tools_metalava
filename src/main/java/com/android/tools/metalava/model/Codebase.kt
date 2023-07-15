@@ -16,12 +16,7 @@
 
 package com.android.tools.metalava.model
 
-import com.android.tools.metalava.CodebaseComparator
-import com.android.tools.metalava.ComparisonVisitor
-import com.android.tools.metalava.model.visitors.ItemVisitor
-import com.android.tools.metalava.model.visitors.TypeVisitor
 import java.io.File
-import java.util.function.Predicate
 
 /**
  * Represents a complete unit of code -- typically in the form of a set of source trees, but also
@@ -36,6 +31,9 @@ interface Codebase {
      * files, or a jar file, etc.
      */
     var location: File
+
+    /** The manager of annotations within this codebase. */
+    val annotationManager: AnnotationManager
 
     /** The packages in the codebase (may include packages that are not included in the API) */
     fun getPackages(): PackageList
@@ -71,14 +69,6 @@ interface Codebase {
 
     fun acceptTypes(visitor: TypeVisitor) {
         getPackages().acceptTypes(visitor)
-    }
-
-    /**
-     * Visits this codebase and compares it with another codebase, informing the visitors about the
-     * correlations and differences that it finds
-     */
-    fun compareWith(visitor: ComparisonVisitor, other: Codebase, filter: Predicate<Item>? = null) {
-        CodebaseComparator().compare(visitor, other, this, filter)
     }
 
     /** Creates an annotation item for the given (fully qualified) Java source */
@@ -120,7 +110,10 @@ data class SetMinSdkVersion(val value: Int) : MinSdkVersion()
 
 object UnsetMinSdkVersion : MinSdkVersion()
 
-abstract class DefaultCodebase(override var location: File) : Codebase {
+abstract class DefaultCodebase(
+    override var location: File,
+    override val annotationManager: AnnotationManager,
+) : Codebase {
     override var original: Codebase? = null
     @Suppress("LeakingThis") override var preFiltered: Boolean = original != null
 

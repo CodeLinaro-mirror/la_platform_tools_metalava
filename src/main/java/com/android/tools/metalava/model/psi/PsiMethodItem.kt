@@ -119,6 +119,8 @@ open class PsiMethodItem(
     override val synthetic: Boolean
         get() = isEnumSyntheticMethod()
 
+    override fun psi(): PsiMethod = psiMethod
+
     private var superMethods: List<MethodItem>? = null
 
     override fun superMethods(): List<MethodItem> {
@@ -157,7 +159,7 @@ open class PsiMethodItem(
 
     override fun isCloned(): Boolean {
         val psiClass = run {
-            val p = containingClass().psi() as? PsiClass ?: return false
+            val p = (containingClass() as? PsiClassItem)?.psi() ?: return false
             if (p is UClass) {
                 p.sourcePsi as? PsiClass ?: return false
             } else {

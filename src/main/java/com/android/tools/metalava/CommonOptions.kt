@@ -25,9 +25,6 @@ import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.switch
 
-val colorDefaultValue: Boolean =
-    System.getenv("TERM")?.startsWith("xterm") ?: (System.getenv("COLORTERM") != null)
-
 const val ARG_QUIET = "--quiet"
 const val ARG_VERBOSE = "--verbose"
 const val ARG_COLOR = "--color"
@@ -52,13 +49,22 @@ enum class Verbosity(val quiet: Boolean = false, val verbose: Boolean = false) {
 /** Options that are common to all metalava sub-commands. */
 class CommonOptions : OptionGroup() {
 
-    /** Whether output should use terminal capabilities */
-    val terminal by
+    /**
+     * Whether output should use terminal capabilities.
+     *
+     * This is unsafe to use when generating the help as the help may be being generated in response
+     * to a failure to parse these options in which case these options will not be set.
+     *
+     * This is only accessible for testing purposes, do not use this otherwise. Use [terminal]
+     * instead.
+     */
+    internal val unsafeTerminal by
         option(
+                "terminal",
                 help =
                     """
                 Determine whether to use terminal capabilities to colorize and otherwise style the
-                output.
+                output. (default: true if ${"$"}TERM starts with `xterm` or ${"$"}COLORTERM is set)
             """
                         .trimIndent(),
             )
@@ -66,10 +72,25 @@ class CommonOptions : OptionGroup() {
                 ARG_COLOR to stylingTerminal,
                 ARG_NO_COLOR to plainTerminal,
             )
-            .default(
-                if (colorDefaultValue) stylingTerminal else plainTerminal,
-                defaultForHelp = "true if \$TERM starts with `xterm` or \$COLORTERM is set",
-            )
+
+    /** A safe property for accessing the terminal. */
+    val terminal by lazy {
+        val configuredTerminal =
+            try {
+                unsafeTerminal
+            } catch (e: IllegalStateException) {
+                null
+            }
+
+        configuredTerminal
+            ?: run {
+                val colorDefaultValue: Boolean =
+                    System.getenv("TERM")?.startsWith("xterm")
+                        ?: (System.getenv("COLORTERM") != null)
+
+                if (colorDefaultValue) stylingTerminal else plainTerminal
+            }
+    }
 
     val noBanner by
         option(ARG_NO_BANNER, help = "A banner is never output so this has no effect")

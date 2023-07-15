@@ -28,8 +28,8 @@ class CompatibilityCheckTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                TESTROOT/load-api.txt:2: error: Class test.pkg.MyTest1 changed class/interface declaration [ChangedClass]
-                TESTROOT/load-api.txt:4: error: Class test.pkg.MyTest2 changed class/interface declaration [ChangedClass]
+                load-api.txt:2: error: Class test.pkg.MyTest1 changed class/interface declaration [ChangedClass]
+                load-api.txt:4: error: Class test.pkg.MyTest2 changed class/interface declaration [ChangedClass]
                 """,
             checkCompatibilityApiReleased =
                 """
@@ -67,8 +67,8 @@ class CompatibilityCheckTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                TESTROOT/load-api.txt:2: error: Class test.pkg.MyTest1 changed class/interface declaration [ChangedClass]
-                TESTROOT/load-api.txt:4: error: Class test.pkg.MyTest2 changed class/interface declaration [ChangedClass]
+                load-api.txt:2: error: Class test.pkg.MyTest1 changed class/interface declaration [ChangedClass]
+                load-api.txt:4: error: Class test.pkg.MyTest2 changed class/interface declaration [ChangedClass]
                 """,
             checkCompatibilityApiReleased =
                 """
@@ -106,9 +106,9 @@ class CompatibilityCheckTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                TESTROOT/released-api.txt:3: error: Removed method test.pkg.MyTest1.method(Float) [RemovedMethod]
-                TESTROOT/released-api.txt:4: error: Removed field test.pkg.MyTest1.field [RemovedField]
-                TESTROOT/released-api.txt:6: error: Removed class test.pkg.MyTest2 [RemovedClass]
+                released-api.txt:3: error: Removed method test.pkg.MyTest1.method(Float) [RemovedMethod]
+                released-api.txt:4: error: Removed field test.pkg.MyTest1.field [RemovedField]
+                released-api.txt:6: error: Removed class test.pkg.MyTest2 [RemovedClass]
                 """,
             checkCompatibilityApiReleased =
                 """
@@ -140,12 +140,12 @@ class CompatibilityCheckTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                TESTROOT/load-api.txt:5: error: Attempted to remove @Nullable annotation from method test.pkg.MyTest.convert3(Float) [InvalidNullConversion]
-                TESTROOT/load-api.txt:5: error: Attempted to remove @Nullable annotation from parameter arg1 in test.pkg.MyTest.convert3(Float arg1) [InvalidNullConversion]
-                TESTROOT/load-api.txt:6: error: Attempted to remove @NonNull annotation from method test.pkg.MyTest.convert4(Float) [InvalidNullConversion]
-                TESTROOT/load-api.txt:6: error: Attempted to remove @NonNull annotation from parameter arg1 in test.pkg.MyTest.convert4(Float arg1) [InvalidNullConversion]
-                TESTROOT/load-api.txt:7: error: Attempted to change parameter from @Nullable to @NonNull: incompatible change for parameter arg1 in test.pkg.MyTest.convert5(Float arg1) [InvalidNullConversion]
-                TESTROOT/load-api.txt:8: error: Attempted to change method return from @NonNull to @Nullable: incompatible change for method test.pkg.MyTest.convert6(Float) [InvalidNullConversion]
+                load-api.txt:5: error: Attempted to remove @Nullable annotation from method test.pkg.MyTest.convert3(Float) [InvalidNullConversion]
+                load-api.txt:5: error: Attempted to remove @Nullable annotation from parameter arg1 in test.pkg.MyTest.convert3(Float arg1) [InvalidNullConversion]
+                load-api.txt:6: error: Attempted to remove @NonNull annotation from method test.pkg.MyTest.convert4(Float) [InvalidNullConversion]
+                load-api.txt:6: error: Attempted to remove @NonNull annotation from parameter arg1 in test.pkg.MyTest.convert4(Float arg1) [InvalidNullConversion]
+                load-api.txt:7: error: Attempted to change parameter from @Nullable to @NonNull: incompatible change for parameter arg1 in test.pkg.MyTest.convert5(Float arg1) [InvalidNullConversion]
+                load-api.txt:8: error: Attempted to change method return from @NonNull to @Nullable: incompatible change for method test.pkg.MyTest.convert6(Float) [InvalidNullConversion]
                 """,
             outputKotlinStyleNulls = false,
             checkCompatibilityApiReleased =
@@ -1046,7 +1046,7 @@ class CompatibilityCheckTest : DriverTest() {
             expectedIssues =
                 """
                 src/test/pkg/Class1.java:3: error: Class test.pkg.Class1 added 'final' qualifier [AddedFinal]
-                TESTROOT/released-api.txt:3: error: Removed constructor test.pkg.Class1() [RemovedMethod]
+                released-api.txt:3: error: Removed constructor test.pkg.Class1() [RemovedMethod]
                 """,
             checkCompatibilityApiReleased =
                 """
@@ -1210,7 +1210,7 @@ class CompatibilityCheckTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                TESTROOT/load-api.txt:2: error: Class test.pkg.Foo changed number of type parameters from 1 to 0 [ChangedType]
+                load-api.txt:2: error: Class test.pkg.Foo changed number of type parameters from 1 to 0 [ChangedType]
             """,
             checkCompatibilityApiReleased =
                 """
@@ -1234,7 +1234,7 @@ class CompatibilityCheckTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                TESTROOT/load-api.txt:2: error: Class test.pkg.Foo changed number of type parameters from 1 to 2 [ChangedType]
+                load-api.txt:2: error: Class test.pkg.Foo changed number of type parameters from 1 to 2 [ChangedType]
             """,
             checkCompatibilityApiReleased =
                 """
@@ -1565,8 +1565,8 @@ class CompatibilityCheckTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                TESTROOT/released-api.txt:2: error: Removed class test.pkg.MyOldClass [RemovedClass]
-                TESTROOT/released-api.txt:5: error: Removed package test.pkg3 [RemovedPackage]
+                released-api.txt:2: error: Removed class test.pkg.MyOldClass [RemovedClass]
+                released-api.txt:5: error: Removed package test.pkg3 [RemovedPackage]
                 """,
             checkCompatibilityApiReleased =
                 """
@@ -1616,7 +1616,7 @@ class CompatibilityCheckTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                TESTROOT/released-api.txt:3: error: Removed constructor test.pkg.MyClass() [RemovedMethod]
+                released-api.txt:3: error: Removed constructor test.pkg.MyClass() [RemovedMethod]
                 """,
             checkCompatibilityApiReleased =
                 """
@@ -1888,7 +1888,7 @@ class CompatibilityCheckTest : DriverTest() {
             includeSystemApiAnnotations = true,
             expectedIssues =
                 """
-                TESTROOT/released-api.txt:4: error: Removed method test.pkg.Bar.Inner1.Inner2.removedMethod() [RemovedMethod]
+                released-api.txt:4: error: Removed method test.pkg.Bar.Inner1.Inner2.removedMethod() [RemovedMethod]
                 """,
             sourceFiles =
                 arrayOf(
@@ -2010,7 +2010,7 @@ class CompatibilityCheckTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                TESTROOT/released-api.txt:5: error: Removed method test.pkg.Foo.method2() [RemovedMethod]
+                released-api.txt:5: error: Removed method test.pkg.Foo.method2() [RemovedMethod]
                 """,
             signatureSource =
                 """
@@ -2054,7 +2054,7 @@ class CompatibilityCheckTest : DriverTest() {
             includeSystemApiAnnotations = true,
             expectedIssues =
                 """
-                TESTROOT/released-api.txt:4: error: Removed method android.rolecontrollerservice.RoleControllerService.onClearRoleHolders() [RemovedMethod]
+                released-api.txt:4: error: Removed method android.rolecontrollerservice.RoleControllerService.onClearRoleHolders() [RemovedMethod]
                 """,
             sourceFiles =
                 arrayOf(
@@ -2183,7 +2183,7 @@ class CompatibilityCheckTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                TESTROOT/released-api.txt:6: error: Removed method test.view.ViewTreeObserver.registerFrameCommitCallback(Runnable) [RemovedMethod]
+                released-api.txt:6: error: Removed method test.view.ViewTreeObserver.registerFrameCommitCallback(Runnable) [RemovedMethod]
                 """,
             sourceFiles =
                 arrayOf(
@@ -2250,11 +2250,11 @@ class CompatibilityCheckTest : DriverTest() {
             expectedIssues =
                 """
                 src/test/pkg/Class1.java:3: error: Class test.pkg.Class1 added 'final' qualifier [AddedFinal]
-                TESTROOT/released-api.txt:3: error: Removed constructor test.pkg.Class1() [RemovedMethod]
+                released-api.txt:3: error: Removed constructor test.pkg.Class1() [RemovedMethod]
                 src/test/pkg/MyClass.java:5: error: Method test.pkg.MyClass.myMethod2 has changed 'abstract' qualifier [ChangedAbstract]
                 src/test/pkg/MyClass.java:6: error: Method test.pkg.MyClass.myMethod3 has changed 'static' qualifier [ChangedStatic]
-                TESTROOT/released-api.txt:14: error: Removed class test.pkg.MyOldClass [RemovedClass]
-                TESTROOT/released-api.txt:17: error: Removed package test.pkg3 [RemovedPackage]
+                released-api.txt:14: error: Removed class test.pkg.MyOldClass [RemovedClass]
+                released-api.txt:17: error: Removed package test.pkg3 [RemovedPackage]
                 """,
             checkCompatibilityApiReleased =
                 """
@@ -2339,9 +2339,9 @@ class CompatibilityCheckTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                TESTROOT/released-api.txt:6: error: Removed deprecated class test.pkg.DeprecatedClass [RemovedDeprecatedClass]
-                TESTROOT/released-api.txt:3: error: Removed deprecated constructor test.pkg.SomeClass() [RemovedDeprecatedMethod]
-                TESTROOT/released-api.txt:4: error: Removed deprecated method test.pkg.SomeClass.deprecatedMethod() [RemovedDeprecatedMethod]
+                released-api.txt:6: error: Removed deprecated class test.pkg.DeprecatedClass [RemovedDeprecatedClass]
+                released-api.txt:3: error: Removed deprecated constructor test.pkg.SomeClass() [RemovedDeprecatedMethod]
+                released-api.txt:4: error: Removed deprecated method test.pkg.SomeClass.deprecatedMethod() [RemovedDeprecatedMethod]
                 """,
             checkCompatibilityApiReleased =
                 """
@@ -2443,7 +2443,7 @@ class CompatibilityCheckTest : DriverTest() {
                 ),
             expectedIssues =
                 """
-            TESTROOT/released-api.txt:6: error: Removed method test.pkg.SomeClass2.oldMethod() [RemovedMethod]
+            released-api.txt:6: error: Removed method test.pkg.SomeClass2.oldMethod() [RemovedMethod]
             """
                     .trimIndent()
         )
@@ -2614,8 +2614,8 @@ class CompatibilityCheckTest : DriverTest() {
         check(
             expectedIssues =
                 """
-            TESTROOT/load-api.txt:5: error: Attempted to remove @NonNull annotation from parameter str in test.pkg.Foo.method1(int p, Integer int2, int p1, String str, java.lang.String... args) [InvalidNullConversion]
-            TESTROOT/load-api.txt:7: error: Attempted to change parameter from @Nullable to @NonNull: incompatible change for parameter str in test.pkg.Foo.method3(String str, int p, int int2) [InvalidNullConversion]
+            load-api.txt:5: error: Attempted to remove @NonNull annotation from parameter str in test.pkg.Foo.method1(int p, Integer int2, int p1, String str, java.lang.String... args) [InvalidNullConversion]
+            load-api.txt:7: error: Attempted to change parameter from @Nullable to @NonNull: incompatible change for parameter str in test.pkg.Foo.method3(String str, int p, int int2) [InvalidNullConversion]
             """
                     .trimIndent(),
             format = FileFormat.V3,
@@ -3077,7 +3077,7 @@ class CompatibilityCheckTest : DriverTest() {
                 ),
             expectedIssues =
                 """
-                TESTROOT/released-api.txt:5: error: Removed method android.hardware.lights.LightsRequest.Builder.setLight() [RemovedMethod]
+                released-api.txt:5: error: Removed method android.hardware.lights.LightsRequest.Builder.setLight() [RemovedMethod]
                 """
         )
     }
@@ -3157,7 +3157,7 @@ class CompatibilityCheckTest : DriverTest() {
             // saying that SomeInterface no longer implements wait()
             expectedIssues =
                 """
-                TESTROOT/released-api.txt:1: error: Removed package java.lang [RemovedPackage]
+                released-api.txt:1: error: Removed package java.lang [RemovedPackage]
                 """
         )
     }
@@ -3654,7 +3654,7 @@ class CompatibilityCheckTest : DriverTest() {
         check(
             expectedIssues =
                 """
-            TESTROOT/load-api.txt:7: error: Method test.pkg.sample.SampleClass.convert1 has changed return type from Number to java.lang.Number [ChangedType]
+            load-api.txt:7: error: Method test.pkg.sample.SampleClass.convert1 has changed return type from Number to java.lang.Number [ChangedType]
             """,
             outputKotlinStyleNulls = true,
             checkCompatibilityApiReleased =
@@ -3788,8 +3788,8 @@ class CompatibilityCheckTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                TESTROOT/load-api.txt:11: error: Class test.pkg.ParentClass.AnotherBadInnerClass changed 'static' qualifier [ChangedStatic]
-                TESTROOT/load-api.txt:8: error: Class test.pkg.ParentClass.BadInnerClass changed 'static' qualifier [ChangedStatic]
+                load-api.txt:11: error: Class test.pkg.ParentClass.AnotherBadInnerClass changed 'static' qualifier [ChangedStatic]
+                load-api.txt:8: error: Class test.pkg.ParentClass.BadInnerClass changed 'static' qualifier [ChangedStatic]
             """,
             checkCompatibilityApiReleased =
                 """
@@ -3865,7 +3865,7 @@ class CompatibilityCheckTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                TESTROOT/load-api.txt:3: error: Cannot remove 'fun' modifier from class test.pkg.FunctionalInterface: source incompatible change [FunRemoval]
+                load-api.txt:3: error: Cannot remove 'fun' modifier from class test.pkg.FunctionalInterface: source incompatible change [FunRemoval]
                 """,
             format = FileFormat.V4,
             checkCompatibilityApiReleased =
@@ -3971,7 +3971,7 @@ class CompatibilityCheckTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                TESTROOT/load-api.txt:2: error: Class test.pkg.Foo changed visibility from public to private [ChangedScope]
+                load-api.txt:2: error: Class test.pkg.Foo changed visibility from public to private [ChangedScope]
             """
                     .trimIndent(),
             signatureSource =
@@ -3997,18 +3997,18 @@ class CompatibilityCheckTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                TESTROOT/load-api.txt:11: error: Class test.pkg.AnnotationToClass changed class/interface declaration [ChangedClass]
-                TESTROOT/load-api.txt:13: error: Class test.pkg.AnnotationToEnum changed class/interface declaration [ChangedClass]
-                TESTROOT/load-api.txt:12: error: Class test.pkg.AnnotationToInterface changed class/interface declaration [ChangedClass]
-                TESTROOT/load-api.txt:4: error: Class test.pkg.ClassToAnnotation changed class/interface declaration [ChangedClass]
-                TESTROOT/load-api.txt:2: error: Class test.pkg.ClassToEnum changed class/interface declaration [ChangedClass]
-                TESTROOT/load-api.txt:3: error: Class test.pkg.ClassToInterface changed class/interface declaration [ChangedClass]
-                TESTROOT/load-api.txt:7: error: Class test.pkg.EnumToAnnotation changed class/interface declaration [ChangedClass]
-                TESTROOT/load-api.txt:5: error: Class test.pkg.EnumToClass changed class/interface declaration [ChangedClass]
-                TESTROOT/load-api.txt:6: error: Class test.pkg.EnumToInterface changed class/interface declaration [ChangedClass]
-                TESTROOT/load-api.txt:10: error: Class test.pkg.InterfaceToAnnotation changed class/interface declaration [ChangedClass]
-                TESTROOT/load-api.txt:8: error: Class test.pkg.InterfaceToClass changed class/interface declaration [ChangedClass]
-                TESTROOT/load-api.txt:9: error: Class test.pkg.InterfaceToEnum changed class/interface declaration [ChangedClass]
+                load-api.txt:11: error: Class test.pkg.AnnotationToClass changed class/interface declaration [ChangedClass]
+                load-api.txt:13: error: Class test.pkg.AnnotationToEnum changed class/interface declaration [ChangedClass]
+                load-api.txt:12: error: Class test.pkg.AnnotationToInterface changed class/interface declaration [ChangedClass]
+                load-api.txt:4: error: Class test.pkg.ClassToAnnotation changed class/interface declaration [ChangedClass]
+                load-api.txt:2: error: Class test.pkg.ClassToEnum changed class/interface declaration [ChangedClass]
+                load-api.txt:3: error: Class test.pkg.ClassToInterface changed class/interface declaration [ChangedClass]
+                load-api.txt:7: error: Class test.pkg.EnumToAnnotation changed class/interface declaration [ChangedClass]
+                load-api.txt:5: error: Class test.pkg.EnumToClass changed class/interface declaration [ChangedClass]
+                load-api.txt:6: error: Class test.pkg.EnumToInterface changed class/interface declaration [ChangedClass]
+                load-api.txt:10: error: Class test.pkg.InterfaceToAnnotation changed class/interface declaration [ChangedClass]
+                load-api.txt:8: error: Class test.pkg.InterfaceToClass changed class/interface declaration [ChangedClass]
+                load-api.txt:9: error: Class test.pkg.InterfaceToEnum changed class/interface declaration [ChangedClass]
             """
                     .trimIndent(),
             signatureSource =
@@ -4082,9 +4082,9 @@ class CompatibilityCheckTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                TESTROOT/load-api.txt:3: error: Field test.pkg.Foo.bar changed visibility from public to protected [ChangedScope]
-                TESTROOT/load-api.txt:4: error: Field test.pkg.Foo.baz changed visibility from protected to private [ChangedScope]
-                TESTROOT/load-api.txt:5: error: Field test.pkg.Foo.spam changed visibility from protected to internal [ChangedScope]
+                load-api.txt:3: error: Field test.pkg.Foo.bar changed visibility from public to protected [ChangedScope]
+                load-api.txt:4: error: Field test.pkg.Foo.baz changed visibility from protected to private [ChangedScope]
+                load-api.txt:5: error: Field test.pkg.Foo.spam changed visibility from protected to internal [ChangedScope]
             """,
             signatureSource =
                 """
@@ -4141,9 +4141,9 @@ class CompatibilityCheckTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                TESTROOT/load-api.txt:3: error: Method test.pkg.Foo.bar changed visibility from public to protected [ChangedScope]
-                TESTROOT/load-api.txt:4: error: Method test.pkg.Foo.baz changed visibility from protected to private [ChangedScope]
-                TESTROOT/load-api.txt:5: error: Method test.pkg.Foo.spam changed visibility from protected to internal [ChangedScope]
+                load-api.txt:3: error: Method test.pkg.Foo.bar changed visibility from public to protected [ChangedScope]
+                load-api.txt:4: error: Method test.pkg.Foo.baz changed visibility from protected to private [ChangedScope]
+                load-api.txt:5: error: Method test.pkg.Foo.spam changed visibility from protected to internal [ChangedScope]
             """,
             signatureSource =
                 """
@@ -4197,8 +4197,8 @@ class CompatibilityCheckTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                TESTROOT/load-api.txt:2: error: Class test.pkg.Foo changed 'abstract' qualifier [ChangedAbstract]
-                TESTROOT/load-api.txt:4: error: Method test.pkg.Foo.bar has changed 'abstract' qualifier [ChangedAbstract]
+                load-api.txt:2: error: Class test.pkg.Foo changed 'abstract' qualifier [ChangedAbstract]
+                load-api.txt:4: error: Method test.pkg.Foo.bar has changed 'abstract' qualifier [ChangedAbstract]
             """,
             signatureSource =
                 """
@@ -4250,7 +4250,7 @@ class CompatibilityCheckTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                TESTROOT/load-api.txt:3: error: Method test.pkg.Foo.bar has changed 'default' qualifier [ChangedDefault]
+                load-api.txt:3: error: Method test.pkg.Foo.bar has changed 'default' qualifier [ChangedDefault]
             """,
             signatureSource =
                 """
@@ -4471,7 +4471,7 @@ class CompatibilityCheckTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                TESTROOT/released-api.txt:2: error: Removed class test.pkg.MyTest1 from compatibility checked API surface [BecameUnchecked]
+                released-api.txt:2: error: Removed class test.pkg.MyTest1 from compatibility checked API surface [BecameUnchecked]
             """,
             checkCompatibilityApiReleased =
                 """
@@ -4539,7 +4539,7 @@ class CompatibilityCheckTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                TESTROOT/load-api.txt:3: error: Class test.pkg.Foo no longer implements java.io.Closeable [RemovedInterface]
+                load-api.txt:3: error: Class test.pkg.Foo no longer implements java.io.Closeable [RemovedInterface]
             """
                     .trimIndent(),
             checkCompatibilityApiReleased =
@@ -4619,9 +4619,9 @@ class CompatibilityCheckTest : DriverTest() {
                 error: Method test.pkg.MyCollection.addAll has changed 'abstract' qualifier [ChangedAbstract]
                 error: Attempted to change parameter name from c to p in method test.pkg.MyCollection.addAll [ParameterNameChange]
                 error: Method test.pkg.MyCollection.clear has changed 'abstract' qualifier [ChangedAbstract]
-                TESTROOT/load-api.txt:5: error: Attempted to change parameter name from o to element in method test.pkg.MyCollection.contains [ParameterNameChange]
-                TESTROOT/load-api.txt:6: error: Attempted to change parameter name from c to elements in method test.pkg.MyCollection.containsAll [ParameterNameChange]
-                TESTROOT/load-api.txt:6: error: Attempted to change parameter name from c to elements in method test.pkg.MyCollection.containsAll [ParameterNameChange]
+                load-api.txt:5: error: Attempted to change parameter name from o to element in method test.pkg.MyCollection.contains [ParameterNameChange]
+                load-api.txt:6: error: Attempted to change parameter name from c to elements in method test.pkg.MyCollection.containsAll [ParameterNameChange]
+                load-api.txt:6: error: Attempted to change parameter name from c to elements in method test.pkg.MyCollection.containsAll [ParameterNameChange]
                 error: Method test.pkg.MyCollection.remove has changed 'abstract' qualifier [ChangedAbstract]
                 error: Attempted to change parameter name from o to p in method test.pkg.MyCollection.remove [ParameterNameChange]
                 error: Method test.pkg.MyCollection.removeAll has changed 'abstract' qualifier [ChangedAbstract]
@@ -4680,7 +4680,7 @@ class CompatibilityCheckTest : DriverTest() {
             expectedIssues =
                 """
                 error: Attempted to change parameter name from prefix to suffix in method test.pkg.MyString.endsWith [ParameterNameChange]
-                TESTROOT/load-api.txt:4: error: Attempted to change parameter name from prefix to suffix in method test.pkg.MyString.startsWith [ParameterNameChange]
+                load-api.txt:4: error: Attempted to change parameter name from prefix to suffix in method test.pkg.MyString.startsWith [ParameterNameChange]
             """
                     .trimIndent(),
             checkCompatibilityApiReleased =
@@ -4757,7 +4757,7 @@ class CompatibilityCheckTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                TESTROOT/load-api.txt:2: error: Added package test.pkg [AddedPackage]
+                load-api.txt:2: error: Added package test.pkg [AddedPackage]
             """
                     .trimIndent(),
             checkCompatibilityApiReleased =

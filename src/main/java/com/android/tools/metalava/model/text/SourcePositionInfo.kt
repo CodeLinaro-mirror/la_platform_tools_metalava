@@ -15,8 +15,7 @@
  */
 package com.android.tools.metalava.model.text
 
-class SourcePositionInfo(private val file: String, private val line: Int) :
-    Comparable<SourcePositionInfo> {
+data class SourcePositionInfo(val file: String, val line: Int) : Comparable<SourcePositionInfo> {
     override fun toString(): String {
         return "$file:$line"
     }

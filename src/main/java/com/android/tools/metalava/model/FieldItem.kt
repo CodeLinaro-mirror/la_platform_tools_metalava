@@ -16,8 +16,6 @@
 
 package com.android.tools.metalava.model
 
-import com.android.tools.metalava.model.visitors.ItemVisitor
-import com.android.tools.metalava.model.visitors.TypeVisitor
 import com.intellij.psi.PsiField
 import java.io.PrintWriter
 
@@ -60,15 +58,7 @@ interface FieldItem : MemberItem {
     fun duplicate(targetContainingClass: ClassItem): FieldItem
 
     override fun accept(visitor: ItemVisitor) {
-        if (visitor.skip(this)) {
-            return
-        }
-
-        visitor.visitItem(this)
-        visitor.visitField(this)
-
-        visitor.afterVisitField(this)
-        visitor.afterVisitItem(this)
+        visitor.visit(this)
     }
 
     override fun acceptTypes(visitor: TypeVisitor) {
@@ -144,6 +134,22 @@ interface FieldItem : MemberItem {
         }
 
         return true
+    }
+
+    override fun implicitNullness(): Boolean? {
+        // Delegate to the super class, only dropping through if it did not determine an implicit
+        // nullness.
+        super.implicitNullness()?.let { nullable ->
+            return nullable
+        }
+
+        // Constant field not initialized to null?
+        if (isEnumConstant() || modifiers.isFinal() && initialValue(false) != null) {
+            // Assigned to constant: not nullable
+            return false
+        }
+
+        return null
     }
 
     companion object {

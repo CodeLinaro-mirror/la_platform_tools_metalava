@@ -21,9 +21,6 @@ import com.android.tools.metalava.ApiAnalyzer
 import com.android.tools.metalava.JAVA_LANG_ANNOTATION
 import com.android.tools.metalava.JAVA_LANG_ENUM
 import com.android.tools.metalava.JAVA_LANG_OBJECT
-import com.android.tools.metalava.model.visitors.ApiVisitor
-import com.android.tools.metalava.model.visitors.ItemVisitor
-import com.android.tools.metalava.model.visitors.TypeVisitor
 import com.google.common.base.Splitter
 import java.util.ArrayList
 import java.util.LinkedHashSet
@@ -116,16 +113,6 @@ interface ClassItem : Item {
      * java.util.List<java.lang.String>.
      */
     fun superClassType(): TypeItem?
-
-    /** Finds the public super class of this class, if any */
-    fun publicSuperClass(): ClassItem? {
-        var superClass = superClass()
-        while (superClass != null && !superClass.checkLevel()) {
-            superClass = superClass.superClass()
-        }
-
-        return superClass
-    }
 
     /** Returns true if this class extends the given class (includes self) */
     fun extends(qualifiedName: String): Boolean {
@@ -274,77 +261,7 @@ interface ClassItem : Item {
     var artifact: String?
 
     override fun accept(visitor: ItemVisitor) {
-        if (visitor is ApiVisitor) {
-            accept(visitor)
-            return
-        }
-
-        if (visitor.skip(this)) {
-            return
-        }
-
-        visitor.visitItem(this)
-        visitor.visitClass(this)
-
-        for (constructor in constructors()) {
-            constructor.accept(visitor)
-        }
-
-        for (method in methods()) {
-            method.accept(visitor)
-        }
-
-        for (property in properties()) {
-            property.accept(visitor)
-        }
-
-        if (isEnum()) {
-            // In enums, visit the enum constants first, then the fields
-            for (field in fields()) {
-                if (field.isEnumConstant()) {
-                    field.accept(visitor)
-                }
-            }
-            for (field in fields()) {
-                if (!field.isEnumConstant()) {
-                    field.accept(visitor)
-                }
-            }
-        } else {
-            for (field in fields()) {
-                field.accept(visitor)
-            }
-        }
-
-        if (visitor.nestInnerClasses) {
-            for (cls in innerClasses()) {
-                cls.accept(visitor)
-            }
-        } // otherwise done below
-
-        visitor.afterVisitClass(this)
-        visitor.afterVisitItem(this)
-
-        if (!visitor.nestInnerClasses) {
-            for (cls in innerClasses()) {
-                cls.accept(visitor)
-            }
-        }
-    }
-
-    fun accept(visitor: ApiVisitor) {
-        if (!visitor.include(this)) {
-            return
-        }
-
-        // We build up a separate data structure such that we can compute the
-        // sets of fields, methods, etc even for inner classes (recursively); that way
-        // we can easily and up front determine whether we have any matches for
-        // inner classes (which is vital for computing the removed-api for example, where
-        // only something like the appearance of a removed method inside an inner class
-        // results in the outer class being described in the signature file.
-        val candidate = VisitCandidate(this, visitor)
-        candidate.accept()
+        visitor.visit(this)
     }
 
     override fun acceptTypes(visitor: TypeVisitor) {
@@ -471,47 +388,6 @@ interface ClassItem : Item {
             return method
         }
         return method.findPredicateSuperMethod(filter)
-    }
-
-    /** Finds a given method in this class matching the VM name signature */
-    fun findMethodByDesc(
-        name: String,
-        desc: String,
-        includeSuperClasses: Boolean = false,
-        includeInterfaces: Boolean = false
-    ): MethodItem? {
-        if (desc.startsWith("<init>")) {
-            constructors()
-                .asSequence()
-                .filter { it.internalDesc() == desc }
-                .forEach {
-                    return it
-                }
-            return null
-        } else {
-            methods()
-                .asSequence()
-                .filter { it.name() == name && it.internalDesc() == desc }
-                .forEach {
-                    return it
-                }
-        }
-
-        if (includeSuperClasses) {
-            superClass()?.findMethodByDesc(name, desc, true, includeInterfaces)?.let {
-                return it
-            }
-        }
-
-        if (includeInterfaces) {
-            for (itf in interfaceTypes()) {
-                val cls = itf.asClass() ?: continue
-                cls.findMethodByDesc(name, desc, includeSuperClasses, true)?.let {
-                    return it
-                }
-            }
-        }
-        return null
     }
 
     fun findConstructor(template: ConstructorItem): ConstructorItem? {
@@ -861,140 +737,4 @@ interface ClassItem : Item {
     fun addMethod(method: MethodItem): Unit = codebase.unsupported()
 
     fun addInnerClass(cls: ClassItem): Unit = codebase.unsupported()
-}
-
-class VisitCandidate(val cls: ClassItem, private val visitor: ApiVisitor) {
-    val innerClasses: Sequence<VisitCandidate>
-    private val constructors: Sequence<MethodItem>
-    private val methods: Sequence<MethodItem>
-    private val fields: Sequence<FieldItem>
-    private val enums: Sequence<FieldItem>
-    private val properties: Sequence<PropertyItem>
-
-    init {
-        val filterEmit = visitor.filterEmit
-
-        constructors =
-            cls.constructors()
-                .asSequence()
-                .filter { filterEmit.test(it) }
-                .sortedWith(MethodItem.comparator)
-
-        methods =
-            cls.methods()
-                .asSequence()
-                .filter { filterEmit.test(it) }
-                .sortedWith(MethodItem.comparator)
-
-        val fieldSequence =
-            if (visitor.inlineInheritedFields) {
-                cls.filteredFields(filterEmit, visitor.showUnannotated).asSequence()
-            } else {
-                cls.fields().asSequence().filter { filterEmit.test(it) }
-            }
-        if (cls.isEnum()) {
-            fields = fieldSequence.filter { !it.isEnumConstant() }.sortedWith(FieldItem.comparator)
-            enums =
-                fieldSequence
-                    .filter { it.isEnumConstant() }
-                    .filter { filterEmit.test(it) }
-                    .sortedWith(FieldItem.comparator)
-        } else {
-            fields = fieldSequence.sortedWith(FieldItem.comparator)
-            enums = emptySequence()
-        }
-
-        properties =
-            if (cls.properties().isEmpty()) {
-                emptySequence()
-            } else {
-                cls.properties()
-                    .asSequence()
-                    .filter { filterEmit.test(it) }
-                    .sortedWith(PropertyItem.comparator)
-            }
-
-        innerClasses =
-            cls.innerClasses().asSequence().sortedWith(ClassItem.classNameSorter()).map {
-                VisitCandidate(it, visitor)
-            }
-    }
-
-    /** Whether the class body contains any Item's (other than inner Classes) */
-    fun nonEmpty(): Boolean {
-        return !(constructors.none() &&
-            methods.none() &&
-            enums.none() &&
-            fields.none() &&
-            properties.none())
-    }
-
-    fun accept() {
-        if (!visitor.include(this)) {
-            return
-        }
-
-        val emitThis = visitor.shouldEmitClass(this)
-        if (emitThis) {
-            if (!visitor.visitingPackage) {
-                visitor.visitingPackage = true
-                val pkg = cls.containingPackage()
-                visitor.visitItem(pkg)
-                visitor.visitPackage(pkg)
-            }
-
-            visitor.visitItem(cls)
-            visitor.visitClass(cls)
-
-            val sortedConstructors =
-                if (visitor.methodComparator != null) {
-                    constructors.sortedWith(visitor.methodComparator)
-                } else {
-                    constructors
-                }
-            val sortedMethods =
-                if (visitor.methodComparator != null) {
-                    methods.sortedWith(visitor.methodComparator)
-                } else {
-                    methods
-                }
-            val sortedFields =
-                if (visitor.fieldComparator != null) {
-                    fields.sortedWith(visitor.fieldComparator)
-                } else {
-                    fields
-                }
-
-            for (constructor in sortedConstructors) {
-                constructor.accept(visitor)
-            }
-
-            for (method in sortedMethods) {
-                method.accept(visitor)
-            }
-
-            for (property in properties) {
-                property.accept(visitor)
-            }
-            for (enumConstant in enums) {
-                enumConstant.accept(visitor)
-            }
-            for (field in sortedFields) {
-                field.accept(visitor)
-            }
-        }
-
-        if (visitor.nestInnerClasses) { // otherwise done below
-            innerClasses.forEach { it.accept() }
-        }
-
-        if (emitThis) {
-            visitor.afterVisitClass(cls)
-            visitor.afterVisitItem(cls)
-        }
-
-        if (!visitor.nestInnerClasses) {
-            innerClasses.forEach { it.accept() }
-        }
-    }
 }

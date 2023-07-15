@@ -89,6 +89,8 @@ open class PsiClassItem(
 
     override fun isEnum(): Boolean = classType == ClassType.ENUM
 
+    override fun psi(): PsiClass = psiClass
+
     override fun isFromClassPath(): Boolean = fromClassPath
 
     override fun hasImplicitDefaultConstructor(): Boolean = hasImplicitDefaultConstructor
@@ -315,7 +317,7 @@ open class PsiClassItem(
     }
 
     override fun mapTypeVariables(target: ClassItem): Map<String, String> {
-        val targetPsi = target.psi() as PsiClass
+        val targetPsi = (target as PsiClassItem).psi()
         val maps =
             mapTypeVariablesToSuperclass(
                 psiClass,

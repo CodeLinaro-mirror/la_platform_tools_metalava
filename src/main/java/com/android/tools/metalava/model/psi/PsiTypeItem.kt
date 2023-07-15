@@ -18,7 +18,6 @@ package com.android.tools.metalava.model.psi
 
 import com.android.tools.lint.detector.api.getInternalName
 import com.android.tools.metalava.JAVA_LANG_STRING
-import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MemberItem
@@ -322,7 +321,7 @@ private constructor(private val codebase: PsiBasedCodebase, var psiType: PsiType
 
     override fun convertType(replacementMap: Map<String, String>?, owner: Item?): TypeItem {
         val s = convertTypeString(replacementMap)
-        return create(codebase, codebase.createPsiType(s, owner?.psi()))
+        return create(codebase, codebase.createPsiType(s, (owner as? PsiItem)?.psi()))
     }
 
     override fun hasTypeArguments(): Boolean {
@@ -466,8 +465,7 @@ private constructor(private val codebase: PsiBasedCodebase, var psiType: PsiType
                             listOf(nullness)
                         } else null
 
-                    val implicitNullness =
-                        if (owner != null) AnnotationItem.getImplicitNullness(owner) else null
+                    val implicitNullness = if (owner != null) owner.implicitNullness() else null
                     val annotatedType =
                         if (implicitNullness != null) {
                             val provider =

@@ -33,6 +33,7 @@ import com.android.tools.metalava.model.psi.PsiAnnotationItem
 import com.android.tools.metalava.model.psi.PsiClassItem
 import com.android.tools.metalava.model.psi.PsiMethodItem
 import com.android.tools.metalava.model.psi.UAnnotationItem
+import com.android.tools.metalava.model.psi.report
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.google.common.xml.XmlEscapers
 import com.intellij.lang.jvm.annotation.JvmAnnotationConstantValue

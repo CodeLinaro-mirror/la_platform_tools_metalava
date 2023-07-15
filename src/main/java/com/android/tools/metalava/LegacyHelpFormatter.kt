@@ -28,7 +28,7 @@ internal class LegacyHelpFormatter(terminalSupplier: () -> Terminal, localizatio
         parameters: List<HelpFormatter.ParameterHelp>,
         programName: String
     ): String {
-        val extendedEpilog = "```${options.getUsage(terminal)}```$epilog"
+        val extendedEpilog = "```${options.getUsage(terminal, width)}```$epilog"
         return super.formatHelp(prolog, extendedEpilog, parameters, programName)
     }
 }

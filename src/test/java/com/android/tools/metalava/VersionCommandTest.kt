@@ -16,60 +16,42 @@
 
 package com.android.tools.metalava
 
-import java.io.PrintWriter
-import java.io.StringWriter
-import org.junit.Assert
+import com.android.tools.metalava.testing.BaseCommandTest
 import org.junit.Test
 
-class VersionCommandTest : DriverTest() {
+class VersionCommandTest : BaseCommandTest() {
 
     @Test
     fun `Test help`() {
-        val args = listOf(ARG_NO_COLOR, "version", "--help")
+        commandTest {
+            args += listOf("version", "--help")
 
-        val stdout = StringWriter()
-        val stderr = StringWriter()
-        run(
-            originalArgs = args.toTypedArray(),
-            stdout = PrintWriter(stdout),
-            stderr = PrintWriter(stderr)
-        )
-        Assert.assertEquals("", stderr.toString())
-        Assert.assertEquals(
-            """
+            expectedStdout =
+                """
 
 Usage: metalava version [options]
 
   Show the version
 
 Options:
-  -h, -?, --help  Show this message and exit
+  -h, -?, --help                             Show this message and exit
 
             """
-                .trimIndent(),
-            stdout.toString()
-        )
+                    .trimIndent()
+        }
     }
 
     @Test
     fun `Test output`() {
-        val args = listOf("version")
+        commandTest {
+            args += listOf("version")
 
-        val stdout = StringWriter()
-        val stderr = StringWriter()
-        run(
-            originalArgs = args.toTypedArray(),
-            stdout = PrintWriter(stdout),
-            stderr = PrintWriter(stderr)
-        )
-        Assert.assertEquals("", stderr.toString())
-        Assert.assertEquals(
-            """
+            expectedStdout =
+                """
 version version: ${Version.VERSION}
 
             """
-                .trimIndent(),
-            stdout.toString()
-        )
+                    .trimIndent()
+        }
     }
 }

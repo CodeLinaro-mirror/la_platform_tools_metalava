@@ -21,7 +21,7 @@ import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.SourceFileItem
-import com.android.tools.metalava.model.visitors.ItemVisitor
+import com.android.tools.metalava.model.visitors.BaseItemVisitor
 import com.google.common.collect.ArrayListMultimap
 import com.google.common.collect.Multimap
 import com.intellij.psi.PsiClass
@@ -173,7 +173,7 @@ class PsiSourceFileItem(codebase: PsiBasedCodebase, val file: PsiFile, val uFile
 
                 for (cls in classes().filter { predicate.test(it) }) {
                     cls.accept(
-                        object : ItemVisitor() {
+                        object : BaseItemVisitor() {
                             override fun visitItem(item: Item) {
                                 // Do not let documentation on hidden items affect the imports.
                                 if (!predicate.test(item)) {

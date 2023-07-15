@@ -4063,6 +4063,54 @@ class ApiFileTest : DriverTest() {
     }
 
     @Test
+    fun `Test can merge API signature files with duplicate classes with constructors`() {
+        val source1 =
+            """
+            package Test.pkg {
+              public class IpcDataCache<Query, Result> extends android.app.PropertyInvalidatedCache<Query,Result> {
+                ctor public IpcDataCache(int, @NonNull String, @NonNull String, @NonNull String, @NonNull android.os.IpcDataCache.QueryHandler<Query,Result>);
+                method public static void disableForCurrentProcess(@NonNull String);
+                method public static void invalidateCache(@NonNull String, @NonNull String);
+                field public static final String MODULE_BLUETOOTH = "bluetooth";
+                field public static final String MODULE_SYSTEM = "system_server";
+                field public static final String MODULE_TEST = "test";
+              }
+            }
+                    """
+        val source2 =
+            """
+            package Test.pkg {
+              public class IpcDataCache<Query, Result> {
+                ctor public IpcDataCache(int, @NonNull String, @NonNull String, @NonNull String, @NonNull android.os.IpcDataCache.QueryHandler<Query,Result>);
+                method public void disableForCurrentProcess();
+                method public static void disableForCurrentProcess(@NonNull String);
+                method public void invalidateCache();
+                method public static void invalidateCache(@NonNull String, @NonNull String);
+                method @Nullable public Result query(@NonNull Query);
+                field public static final String MODULE_BLUETOOTH = "bluetooth";
+              }
+            }
+                    """
+        val expected =
+            """
+            package Test.pkg {
+              public class IpcDataCache<Query, Result> extends android.app.PropertyInvalidatedCache<Query,Result> {
+                ctor public IpcDataCache(int, String, String, String, android.os.IpcDataCache.QueryHandler<Query,Result>);
+                method public void disableForCurrentProcess();
+                method public static void disableForCurrentProcess(String);
+                method public void invalidateCache();
+                method public static void invalidateCache(String, String);
+                method public Result? query(Query);
+                field public static final String MODULE_BLUETOOTH = "bluetooth";
+                field public static final String MODULE_SYSTEM = "system_server";
+                field public static final String MODULE_TEST = "test";
+              }
+            }
+                    """
+        check(signatureSources = arrayOf(source1, source2), api = expected)
+    }
+
+    @Test
     fun `Test can merge API signature files with generic type classes`() {
         val source1 =
             """

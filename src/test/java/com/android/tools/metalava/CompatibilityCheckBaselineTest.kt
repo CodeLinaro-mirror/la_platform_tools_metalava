@@ -25,7 +25,7 @@ class CompatibilityCheckBaselineTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                TESTROOT/released-api.txt:1: error: Removed package test.pkg [RemovedPackage]
+                released-api.txt:1: error: Removed package test.pkg [RemovedPackage]
                 """,
             errorMessageCheckCompatibilityReleased = "*** release-api check failed ***",
             checkCompatibilityApiReleased =

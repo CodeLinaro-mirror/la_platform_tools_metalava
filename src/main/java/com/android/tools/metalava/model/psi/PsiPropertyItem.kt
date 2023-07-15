@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.model.psi
 
-import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.TypeItem
@@ -54,11 +53,11 @@ private constructor(
 
     override fun name(): String = name
 
-    override fun containingClass(): ClassItem = containingClass
+    override fun containingClass(): PsiClassItem = containingClass
 
     override fun isCloned(): Boolean {
         val psiClass = run {
-            val p = containingClass().psi() as? PsiClass ?: return false
+            val p = containingClass().psi()
             if (p is UClass) {
                 p.sourcePsi as? PsiClass ?: return false
             } else {

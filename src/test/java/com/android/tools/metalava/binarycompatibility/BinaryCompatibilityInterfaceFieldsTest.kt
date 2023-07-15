@@ -26,7 +26,7 @@ class BinaryCompatibilityInterfaceFieldsTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                TESTROOT/load-api.txt:3: error: Field test.pkg.Foo.bar has changed type from int to java.lang.String [ChangedType]
+                load-api.txt:3: error: Field test.pkg.Foo.bar has changed type from int to java.lang.String [ChangedType]
             """,
             signatureSource =
                 """
@@ -52,7 +52,7 @@ class BinaryCompatibilityInterfaceFieldsTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                TESTROOT/load-api.txt:3: error: Field test.pkg.Foo.bar has changed value from 8 to 7 [ChangedValue]
+                load-api.txt:3: error: Field test.pkg.Foo.bar has changed value from 8 to 7 [ChangedValue]
             """,
             signatureSource =
                 """

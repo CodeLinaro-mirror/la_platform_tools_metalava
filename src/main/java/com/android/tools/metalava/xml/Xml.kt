@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018 The Android Open Source Project
+ * Copyright (C) 2023 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava.model
+package com.android.tools.metalava.xml
 
 import com.android.utils.XmlUtils.stripBom
 import java.io.PrintWriter
@@ -40,7 +40,7 @@ private const val EXTERNAL_GENERAL_ENTITIES =
  * Parses the given XML string as a DOM document, using the JDK parser. The parser does not
  * validate, and is optionally namespace aware.
  *
- * @param xml the XML content to be parsed (must be well formed)
+ * @param xml the XML content to be parsed (must be well-formed)
  * @param namespaceAware whether the parser is namespace aware
  * @param errorWriter the writer to write errors to
  * @return the DOM document
@@ -57,7 +57,7 @@ fun parseDocument(
  * Parses the given [Reader] as a DOM document, using the JDK parser. The parser does not validate,
  * and is optionally namespace aware.
  *
- * @param xml a reader for the XML content to be parsed (must be well formed)
+ * @param xml a reader for the XML content to be parsed (must be well-formed)
  * @param namespaceAware whether the parser is namespace aware
  * @param errorWriter the writer to write errors to
  * @return the DOM document

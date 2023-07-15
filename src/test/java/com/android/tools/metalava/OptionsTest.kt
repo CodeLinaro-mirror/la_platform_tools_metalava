@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava
 
-import com.android.tools.metalava.model.defaultConfiguration
 import java.io.File
 import java.io.OutputStreamWriter
 import java.io.PrintWriter
@@ -129,19 +128,6 @@ API sources:
 --ignore-classes-on-classpath
                                              Prevents references to classes on the classpath from being added to the
                                              generated stub files.
-
-
-Documentation:
---public
-                                             Only include elements that are public
---protected
-                                             Only include elements that are public or protected
---package
-                                             Only include elements that are public, protected or package protected
---private
-                                             Include all elements except those that are marked hidden
---hidden
-                                             Include all elements, including hidden
 
 
 Extracting Signature Files:
@@ -434,7 +420,8 @@ Usage: metalava [options] [flags]... <sub-command>? ...
         """
             .trimIndent()
 
-    private val COMMON_OPTIONS =
+    /** The options from [CommonOptions] plus Clikt defined opiotns from [Options]. */
+    private val CLIKT_OPTIONS =
         """
 Options:
   --version                                  Show the version and exit
@@ -467,7 +454,24 @@ Options:
     private val SUB_COMMANDS =
         """
 Sub-commands:
-  version  Show the version
+  android-jars-to-signatures                 Rewrite the signature files in the `prebuilts/sdk` directory in the Android
+                                             source tree by
+  signature-to-jdiff                         Convert an API signature file into a file in the JDiff XML format.
+  version                                    Show the version
+        """
+            .trimIndent()
+
+    private val MAIN_HELP_BODY =
+        """
+$CLIKT_OPTIONS
+
+Arguments:
+  flags                                      See below.
+
+$SUB_COMMANDS
+
+
+$FLAGS
         """
             .trimIndent()
 
@@ -490,15 +494,7 @@ Aborting: Error: no such option: "--blah-blah-blah"
 
 $USAGE
 
-$COMMON_OPTIONS
-
-Arguments:
-  flags  See below.
-
-$SUB_COMMANDS
-
-
-$FLAGS
+$MAIN_HELP_BODY
             """
                 .trimIndent(),
             stderr.toString()
@@ -550,15 +546,7 @@ $USAGE
   Extracts metadata from source code to generate artifacts such as the signature files, the SDK stub files, external
   annotations etc.
 
-$COMMON_OPTIONS
-
-Arguments:
-  flags  See below.
-
-$SUB_COMMANDS
-
-
-$FLAGS
+$MAIN_HELP_BODY
             """
                 .trimIndent(),
             stdout.toString()
@@ -672,6 +660,11 @@ $FLAGS
         } finally {
             FileReadSandbox.reset()
         }
+    }
+
+    @Test
+    fun `Test for @ usage on command line`() {
+        check(showAnnotations = arrayOf("@foo.Show"))
     }
 }
 

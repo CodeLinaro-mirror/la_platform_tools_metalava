@@ -30,7 +30,7 @@ import com.android.tools.metalava.model.ModifierList
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.psi.trimDocIndent
 import com.android.tools.metalava.model.visitors.ApiVisitor
-import com.android.tools.metalava.model.visitors.ItemVisitor
+import com.android.tools.metalava.model.visitors.BaseItemVisitor
 import com.android.tools.metalava.options
 import com.android.tools.metalava.reporter
 import java.io.BufferedWriter
@@ -189,7 +189,7 @@ class StubWriter(
     /** The writer to write the stubs file to */
     private var textWriter: PrintWriter = errorTextWriter
 
-    private var stubWriter: ItemVisitor? = null
+    private var stubWriter: BaseItemVisitor? = null
 
     override fun visitClass(cls: ClassItem) {
         if (cls.isTopLevelClass()) {
