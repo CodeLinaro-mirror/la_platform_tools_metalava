@@ -227,4 +227,14 @@ open class TextMethodItem(
     override fun defaultValue(): String {
         return annotationDefault
     }
+
+    override fun checkGenericParameterTypes(typeString1: String, typeString2: String): Boolean {
+        if (typeString1[0].isUpperCase() && typeString1.length == 1) {
+            return true
+        }
+        if (typeString2.length >= 2 && !typeString2[1].isLetterOrDigit()) {
+            return true
+        }
+        return false
+    }
 }

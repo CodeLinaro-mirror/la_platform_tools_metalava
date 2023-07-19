@@ -16,8 +16,6 @@
 
 package com.android.tools.metalava.model
 
-import com.android.SdkConstants.ATTR_VALUE
-
 interface AnnotationFilter {
     // tells whether an annotation is included by the filter
     fun matches(annotation: AnnotationItem): Boolean
@@ -161,7 +159,7 @@ private class AnnotationFilterEntry(
     val attributes: List<AnnotationAttribute>
 ) {
     fun findAttribute(name: String?): AnnotationAttribute? {
-        val actualName = name ?: ATTR_VALUE
+        val actualName = name ?: ANNOTATION_ATTR_VALUE
         return attributes.firstOrNull { it.name == actualName }
     }
 

@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model
 
+import com.android.tools.metalava.model.text.NoOpAnnotationManager
 import com.android.tools.metalava.model.text.TextBackedAnnotationItem
 import java.io.File
 import org.junit.Assert.assertEquals
@@ -26,7 +27,7 @@ import org.junit.Test
 class TextBackedAnnotationItemTest {
     // Placeholder for use in test where we don't need codebase functionality
     private val placeholderCodebase =
-        object : DefaultCodebase(File("").canonicalFile, DefaultAnnotationManager()) {
+        object : DefaultCodebase(File("").canonicalFile, NoOpAnnotationManager()) {
             override fun supportsDocumentation(): Boolean = false
 
             override var description: String = ""

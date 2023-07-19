@@ -16,8 +16,8 @@
 
 package com.android.tools.metalava.model.psi
 
-import com.android.SdkConstants.ATTR_VALUE
 import com.android.tools.lint.detector.api.ConstantEvaluator
+import com.android.tools.metalava.model.ANNOTATION_ATTR_VALUE
 import com.android.tools.metalava.model.AnnotationArrayAttributeValue
 import com.android.tools.metalava.model.AnnotationAttribute
 import com.android.tools.metalava.model.AnnotationAttributeValue
@@ -76,7 +76,11 @@ private constructor(
     override val attributes: List<UAnnotationAttribute> by lazy {
         uAnnotation.attributeValues
             .map { attribute ->
-                UAnnotationAttribute(codebase, attribute.name ?: ATTR_VALUE, attribute.expression)
+                UAnnotationAttribute(
+                    codebase,
+                    attribute.name ?: ANNOTATION_ATTR_VALUE,
+                    attribute.expression
+                )
             }
             .toList()
     }
@@ -140,7 +144,7 @@ private constructor(
             sb.append("(")
             if (
                 attributes.size == 1 &&
-                    (attributes[0].first == null || attributes[0].first == ATTR_VALUE)
+                    (attributes[0].first == null || attributes[0].first == ANNOTATION_ATTR_VALUE)
             ) {
                 // Special case: omit "value" if it's the only attribute
                 appendValue(codebase, sb, attributes[0].second, target, showDefaultAttrs)
@@ -152,7 +156,7 @@ private constructor(
                     } else {
                         sb.append(", ")
                     }
-                    sb.append(attribute.first ?: ATTR_VALUE)
+                    sb.append(attribute.first ?: ANNOTATION_ATTR_VALUE)
                     sb.append('=')
                     appendValue(codebase, sb, attribute.second, target, showDefaultAttrs)
                 }
@@ -373,7 +377,7 @@ class UAnnotationArrayAttributeValue(
 
     override fun equals(other: Any?): Boolean {
         if (other !is AnnotationArrayAttributeValue) return false
-        return values.containsAll(other.values)
+        return values == other.values
     }
 }
 

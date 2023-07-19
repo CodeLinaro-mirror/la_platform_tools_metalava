@@ -19,6 +19,7 @@ package com.android.tools.metalava
 import com.github.ajalt.clikt.output.CliktHelpFormatter
 import com.github.ajalt.clikt.output.HelpFormatter
 import com.github.ajalt.clikt.output.Localization
+import java.util.TreeMap
 
 private const val MAX_LINE_WIDTH = 120
 
@@ -92,7 +93,7 @@ internal open class MetalavaHelpFormatter(
     /**
      * Removes additional padding added to help to force a fixed column width.
      *
-     * This also
+     * This also removes trailing white space.
      */
     private fun removePadding(help: String): String = buildString {
         val iterator = help.lines().iterator()
@@ -118,7 +119,7 @@ internal open class MetalavaHelpFormatter(
                     append(reducedIndent)
                 }
             } else {
-                append(line)
+                append(line.trimEnd())
             }
             if (iterator.hasNext()) {
                 append("\n")
@@ -128,6 +129,23 @@ internal open class MetalavaHelpFormatter(
 
     override fun renderArgumentName(name: String): String {
         return terminal.bold(super.renderArgumentName(name)) + namePadding
+    }
+
+    override fun renderHelpText(help: String, tags: Map<String, String>): String {
+        // Copy the tags as they may be modified.
+        val mutableTags = TreeMap(tags)
+
+        // Scan the help text to see if it contains enum values and if it does then style them
+        // accordingly.
+        val styledHelp = styleEnumHelpTextIfNeeded(help, mutableTags, terminal)
+
+        // Add any additional help text.
+        val helpText = super.renderHelpText(styledHelp, mutableTags)
+
+        // Remove any trailing NEL to prevent additional blank lines being added. This is done here
+        // rather than before as super.renderHelpText(...) may append content to the end which would
+        // need to be separated from the rest of the text by a blank line.
+        return helpText.removeSuffix(HARD_NEWLINE)
     }
 
     override fun renderOptionName(name: String): String {

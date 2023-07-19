@@ -366,7 +366,7 @@ class PsiModifierItem(
 
         /** Returns whether this is a `@DeprecatedForSdk` annotation **that should be skipped**. */
         private fun AnnotationItem.isDeprecatedForSdk(): Boolean {
-            if (originalName != ANDROID_DEPRECATED_FOR_SDK) {
+            if (qualifiedName != ANDROID_DEPRECATED_FOR_SDK) {
                 return false
             }
 

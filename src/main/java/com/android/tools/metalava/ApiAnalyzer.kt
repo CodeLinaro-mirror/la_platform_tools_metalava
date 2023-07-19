@@ -16,9 +16,10 @@
 
 package com.android.tools.metalava
 
-import com.android.SdkConstants.ATTR_VALUE
 import com.android.tools.metalava.manifest.Manifest
 import com.android.tools.metalava.manifest.emptyManifest
+import com.android.tools.metalava.model.ANDROID_ANNOTATION_PREFIX
+import com.android.tools.metalava.model.ANNOTATION_ATTR_VALUE
 import com.android.tools.metalava.model.AnnotationAttributeValue
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
@@ -855,8 +856,7 @@ class ApiAnalyzer(
                             // and expected to *not* combine this with @deprecated in the text;
                             // here,
                             // the text comes from an annotation attribute.
-                            item.modifiers.findAnnotation(JAVA_LANG_DEPRECATED)?.originalName !=
-                                ANDROID_DEPRECATED_FOR_SDK
+                            item.modifiers.isAnnotatedWith(JAVA_LANG_DEPRECATED)
                     ) {
                         reporter.report(
                             Issues.DEPRECATION_MISMATCH,
@@ -866,7 +866,7 @@ class ApiAnalyzer(
                         // TODO: Check opposite (doc tag but no annotation)
                     } else {
                         val deprecatedForSdk =
-                            item.modifiers.findExactAnnotation(ANDROID_DEPRECATED_FOR_SDK)
+                            item.modifiers.findAnnotation(ANDROID_DEPRECATED_FOR_SDK)
                         if (deprecatedForSdk != null) {
                             item.deprecated = true
                             if (item.documentation.contains("@deprecated")) {
@@ -876,7 +876,7 @@ class ApiAnalyzer(
                                     "${item.toString().capitalize()}: Documentation contains `@deprecated` which implies this API is fully deprecated, not just @DeprecatedForSdk"
                                 )
                             } else {
-                                val value = deprecatedForSdk.findAttribute(ATTR_VALUE)
+                                val value = deprecatedForSdk.findAttribute(ANNOTATION_ATTR_VALUE)
                                 val message = value?.value?.value()?.toString() ?: ""
                                 item.appendDocumentation(message, "@deprecated")
                             }

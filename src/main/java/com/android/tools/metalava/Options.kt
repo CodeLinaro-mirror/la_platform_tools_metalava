@@ -24,7 +24,6 @@ import com.android.tools.metalava.manifest.Manifest
 import com.android.tools.metalava.manifest.emptyManifest
 import com.android.tools.metalava.model.AnnotationFilter
 import com.android.tools.metalava.model.AnnotationManager
-import com.android.tools.metalava.model.DefaultAnnotationManager
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.MutableAnnotationFilter
 import com.android.tools.metalava.model.TypedefMode
@@ -35,7 +34,6 @@ import com.github.ajalt.clikt.parameters.groups.OptionGroup
 import com.github.ajalt.clikt.parameters.options.convert
 import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.option
-import com.github.ajalt.clikt.parameters.types.choice
 import com.github.ajalt.clikt.parameters.types.file
 import com.google.common.base.CharMatcher
 import com.google.common.base.Splitter
@@ -293,21 +291,17 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
     var sources: List<File> = mutableSources
 
     val apiClassResolution by
-        option(
-                help =
-                    """
-                Determines how class resolution is performed when loading API signature files. `api`
-                will only look for classes in the API signature files. `api:classpath` will look for
-                classes in the API signature files first and then in the classpath. Any classes that
-                cannot be found will be treated as empty.",
+        enumOption(
+            help =
+                """
+                Determines how class resolution is performed when loading API signature files. Any
+                classes that cannot be found will be treated as empty.",
             """
-                        .trimIndent()
-            )
-            .choice(ApiClassResolution.values().associateBy { it.optionValue })
-            .default(
-                ApiClassResolution.API_CLASSPATH,
-                defaultForHelp = ApiClassResolution.API_CLASSPATH.optionValue
-            )
+                    .trimIndent(),
+            enumValueHelpGetter = { it.help },
+            default = ApiClassResolution.API_CLASSPATH,
+            key = { it.optionValue },
+        )
 
     /**
      * Whether to include APIs with annotations (intended for documentation purposes). This includes
@@ -427,12 +421,30 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
     /** If set, a file to write an API file to. Corresponds to the --api/-api flag. */
     var apiFile: File? = null
 
-    enum class OverloadedMethodOrder(val comparator: Comparator<MethodItem>) {
+    enum class OverloadedMethodOrder(val comparator: Comparator<MethodItem>, val help: String) {
         /** Sort overloaded methods according to source order. */
-        SOURCE(MethodItem.sourceOrderForOverloadedMethodsComparator),
+        SOURCE(
+            MethodItem.sourceOrderForOverloadedMethodsComparator,
+            help =
+                """
+            preserves the order in which overloaded methods appear in the source files. This means
+            that refactorings of the source files which change the order but not the API can cause
+            unnecessary changes in the API signature files.
+        """
+                    .trimIndent()
+        ),
 
         /** Sort overloaded methods by their signature. */
-        SIGNATURE(MethodItem.comparator)
+        SIGNATURE(
+            MethodItem.comparator,
+            help =
+                """
+            sorts overloaded methods by their signature. This means that refactorings of the source
+            files which change the order but not the API will have no effect on the API signature
+            files.
+        """
+                    .trimIndent()
+        )
     }
 
     /**
@@ -440,21 +452,16 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
      * files.
      */
     val apiOverloadedMethodOrder by
-        option(
-                help =
-                    """
-                Specifies the order of overloaded methods in signature files (default `signature`).
+        enumOption(
+            help =
+                """
+                Specifies the order of overloaded methods in signature files.
                 Applies to the contents of the files specified on $ARG_API and $ARG_REMOVED_API.
-                `source` will preserve the order in which they appear in the source files.
-                `signature` will sort them based on their signature.
             """
-                        .trimIndent()
-            )
-            .choice(OverloadedMethodOrder.values().associateBy { it.name.lowercase() })
-            .default(
-                OverloadedMethodOrder.SIGNATURE,
-                defaultForHelp = OverloadedMethodOrder.SIGNATURE.name.lowercase(),
-            )
+                    .trimIndent(),
+            enumValueHelpGetter = { it.help },
+            default = OverloadedMethodOrder.SIGNATURE,
+        )
 
     /** Like [apiFile], but with JDiff xml format. */
     var apiXmlFile: File? = null
@@ -710,7 +717,14 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
      * How to handle typedef annotations in signature files; corresponds to
      * $ARG_TYPEDEFS_IN_SIGNATURES
      */
-    var typedefMode = TypedefMode.NONE
+    val typedefMode by
+        enumOption(
+            ARG_TYPEDEFS_IN_SIGNATURES,
+            help = """Whether to include typedef annotations in signature files.""",
+            enumValueHelpGetter = { it.help },
+            default = TypedefMode.NONE,
+            key = { it.optionValue },
+        )
 
     /** Allow implicit root detection (which is the default behavior). See [ARG_NO_IMPLICIT_ROOT] */
     var allowImplicitRoot = true
@@ -950,20 +964,6 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
                 "--skip-emit-packages" -> {
                     val packages = getValue(args, ++index)
                     mutableSkipEmitPackages += packages.split(File.pathSeparatorChar)
-                }
-                ARG_TYPEDEFS_IN_SIGNATURES -> {
-                    val type = getValue(args, ++index)
-                    typedefMode =
-                        when (type) {
-                            "ref" -> TypedefMode.REFERENCE
-                            "inline" -> TypedefMode.INLINE
-                            "none" -> TypedefMode.NONE
-                            else ->
-                                throw DriverException(
-                                    stderr =
-                                        "$ARG_TYPEDEFS_IN_SIGNATURES must be one of ref, inline, none; was $type"
-                                )
-                        }
                 }
                 ARG_IGNORE_CLASSES_ON_CLASSPATH -> {
                     allowClassesFromClasspath = false
@@ -1578,14 +1578,6 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
         return args[index]
     }
 
-    private fun stringToExistingDir(value: String): File {
-        val file = fileForPathInner(value)
-        if (!file.isDirectory) {
-            throw DriverException("$file is not a directory")
-        }
-        return FileReadSandbox.allowAccess(file)
-    }
-
     @Suppress("unused")
     private fun stringToExistingDirs(value: String): List<File> {
         val files = mutableListOf<File>()
@@ -1624,14 +1616,6 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
             files.add(file)
         }
         return FileReadSandbox.allowAccess(files)
-    }
-
-    private fun stringToExistingFile(value: String): File {
-        val file = fileForPathInner(value)
-        if (!file.isFile) {
-            throw DriverException("$file is not a file")
-        }
-        return FileReadSandbox.allowAccess(file)
     }
 
     @Suppress("unused")
@@ -1690,27 +1674,6 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
         return FileReadSandbox.allowAccess(files)
     }
 
-    private fun stringToNewFile(value: String): File {
-        val output = fileForPathInner(value)
-
-        if (output.exists()) {
-            if (output.isDirectory) {
-                throw DriverException("$output is a directory")
-            }
-            val deleted = output.delete()
-            if (!deleted) {
-                throw DriverException("Could not delete previous version of $output")
-            }
-        } else if (output.parentFile != null && !output.parentFile.exists()) {
-            val ok = output.parentFile.mkdirs()
-            if (!ok) {
-                throw DriverException("Could not create ${output.parentFile}")
-            }
-        }
-
-        return FileReadSandbox.allowAccess(output)
-    }
-
     private fun stringToNewOrExistingDir(value: String): File {
         val dir = fileForPathInner(value)
         if (!dir.isDirectory) {
@@ -1756,30 +1719,6 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
         }
 
         return FileReadSandbox.allowAccess(output)
-    }
-
-    /**
-     * Converts a path to a [File] that represents the absolute path, with the following special
-     * behavior:
-     * - "~" will be expanded into the home directory path.
-     * - If the given path starts with "@", it'll be converted into "@" + [file's absolute path]
-     *
-     * Note, unlike the other "stringToXxx" methods, this method won't register the given path to
-     * [FileReadSandbox].
-     */
-    private fun fileForPathInner(path: String): File {
-        // java.io.File doesn't automatically handle ~/ -> home directory expansion.
-        // This isn't necessary when metalava is run via the command line driver
-        // (since shells will perform this expansion) but when metalava is run
-        // directly, not from a shell.
-        if (path.startsWith("~/")) {
-            val home = System.getProperty("user.home") ?: return File(path)
-            return File(home + path.substring(1))
-        } else if (path.startsWith("@")) {
-            return File("@" + File(path.substring(1)).absolutePath)
-        }
-
-        return File(path).absoluteFile
     }
 
     fun getUsage(terminal: Terminal, width: Int): String {
@@ -1879,13 +1818,6 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
                 "Subtracts the API in the given signature or jar file from the " +
                     "current API being emitted via $ARG_API, $ARG_STUBS, $ARG_DOC_STUBS, etc. " +
                     "Note that the subtraction only applies to classes; it does not subtract members.",
-                "$ARG_TYPEDEFS_IN_SIGNATURES <ref|inline>",
-                "Whether to include typedef annotations in signature " +
-                    "files. `$ARG_TYPEDEFS_IN_SIGNATURES ref` will include just a reference to the typedef class, " +
-                    "which is not itself part of the API and is not included as a class, and " +
-                    "`$ARG_TYPEDEFS_IN_SIGNATURES inline` will include the constants themselves into each usage " +
-                    "site. You can also supply `$ARG_TYPEDEFS_IN_SIGNATURES none` to explicitly turn it off, if the " +
-                    "default ever changes.",
                 ARG_IGNORE_CLASSES_ON_CLASSPATH,
                 "Prevents references to classes on the classpath from being added to " +
                     "the generated stub files.",

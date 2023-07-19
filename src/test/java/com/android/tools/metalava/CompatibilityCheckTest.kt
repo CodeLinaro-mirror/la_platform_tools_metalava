@@ -4806,6 +4806,75 @@ class CompatibilityCheckTest : DriverTest() {
         )
     }
 
+    @Test
+    fun `Removing @JvmDefaultWithCompatibility is an incompatible change`() {
+        check(
+            expectedIssues =
+                "load-api.txt:3: error: Cannot remove @kotlin.jvm.JvmDefaultWithCompatibility annotation from class test.pkg.AnnotationRemoved: Incompatible change [RemovedJvmDefaultWithCompatibility]",
+            checkCompatibilityApiReleased =
+                """
+                // Signature format: 4.0
+                package test.pkg {
+                  @kotlin.jvm.JvmDefaultWithCompatibility public interface AnnotationRemoved {
+                    method public default void foo();
+                  }
+                  @kotlin.jvm.JvmDefaultWithCompatibility public interface AnnotationStays {
+                    method public default void foo();
+                  }
+                }
+                """,
+            signatureSource =
+                """
+                // Signature format: 4.0
+                package test.pkg {
+                  public interface AnnotationRemoved {
+                    method public default void foo();
+                  }
+                  @kotlin.jvm.JvmDefaultWithCompatibility public interface AnnotationStays {
+                    method public default void foo();
+                  }
+                }
+                """
+        )
+    }
+
+    @Test
+    fun `@JvmDefaultWithCompatibility check works with source files`() {
+        check(
+            expectedIssues =
+                "src/test/pkg/AnnotationRemoved.kt:3: error: Cannot remove @kotlin.jvm.JvmDefaultWithCompatibility annotation from class test.pkg.AnnotationRemoved: Incompatible change [RemovedJvmDefaultWithCompatibility]",
+            checkCompatibilityApiReleased =
+                """
+                // Signature format: 4.0
+                package test.pkg {
+                  @kotlin.jvm.JvmDefaultWithCompatibility public interface AnnotationRemoved {
+                    method public default void foo();
+                  }
+                  @kotlin.jvm.JvmDefaultWithCompatibility public interface AnnotationStays {
+                    method public default void foo();
+                  }
+                }
+                """,
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                        package test.pkg
+
+                        interface AnnotationRemoved {
+                            fun foo() {}
+                        }
+
+                        @JvmDefaultWithCompatibility
+                        interface AnnotationStays {
+                            fun foo() {}
+                        }
+                    """
+                    )
+                )
+        )
+    }
+
     // TODO: Check method signatures changing incompatibly (look especially out for adding new
     // overloaded methods and comparator getting confused!)
     //   ..equals on the method items should actually be very useful!

@@ -16,10 +16,9 @@
 
 package com.android.tools.metalava.model.psi
 
-import com.android.tools.lint.detector.api.getInternalName
-import com.android.tools.metalava.JAVA_LANG_STRING
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.model.JAVA_LANG_STRING
 import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ParameterItem
@@ -188,18 +187,6 @@ private constructor(private val codebase: PsiBasedCodebase, var psiType: PsiType
         return psiType.arrayDimensions
     }
 
-    override fun internalName(context: Item?): String {
-        if (primitive) {
-            val signature = getPrimitiveSignature(toString())
-            if (signature != null) {
-                return signature
-            }
-        }
-        val sb = StringBuilder()
-        appendJvmSignature(sb, psiType)
-        return sb.toString()
-    }
-
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
 
@@ -353,48 +340,6 @@ private constructor(private val codebase: PsiBasedCodebase, var psiType: PsiType
     }
 
     companion object {
-        private fun getPrimitiveSignature(typeName: String): String? =
-            when (typeName) {
-                "boolean" -> "Z"
-                "byte" -> "B"
-                "char" -> "C"
-                "short" -> "S"
-                "int" -> "I"
-                "long" -> "J"
-                "float" -> "F"
-                "double" -> "D"
-                "void" -> "V"
-                else -> null
-            }
-
-        private fun appendJvmSignature(buffer: StringBuilder, type: PsiType?): Boolean {
-            if (type == null) {
-                return false
-            }
-
-            when (val psiType = TypeConversionUtil.erasure(type)) {
-                is PsiArrayType -> {
-                    buffer.append('[')
-                    appendJvmSignature(buffer, psiType.componentType)
-                }
-                is PsiClassType -> {
-                    val resolved = psiType.resolve() ?: return false
-                    if (!appendJvmTypeName(buffer, resolved)) {
-                        return false
-                    }
-                }
-                is PsiPrimitiveType -> buffer.append(getPrimitiveSignature(psiType.canonicalText))
-                else -> return false
-            }
-            return true
-        }
-
-        private fun appendJvmTypeName(signature: StringBuilder, outerClass: PsiClass): Boolean {
-            val className = getInternalName(outerClass) ?: return false
-            signature.append('L').append(className).append(';')
-            return true
-        }
-
         fun toTypeString(
             codebase: PsiBasedCodebase,
             type: PsiType,

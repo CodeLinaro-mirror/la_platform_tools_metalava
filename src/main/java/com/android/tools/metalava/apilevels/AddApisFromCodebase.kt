@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.apilevels
 
+import com.android.tools.metalava.internalName
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.FieldItem

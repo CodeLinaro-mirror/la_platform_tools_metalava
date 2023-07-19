@@ -28,7 +28,6 @@ import com.android.SdkConstants.LT_ENTITY
 import com.android.SdkConstants.QUOT_ENTITY
 import com.android.SdkConstants.TYPE_DEF_FLAG_ATTRIBUTE
 import com.android.SdkConstants.TYPE_DEF_VALUE_ATTRIBUTE
-import com.android.SdkConstants.VALUE_TRUE
 import com.android.tools.lint.annotations.Extractor.ANDROID_INT_DEF
 import com.android.tools.lint.annotations.Extractor.ANDROID_NOTNULL
 import com.android.tools.lint.annotations.Extractor.ANDROID_NULLABLE
@@ -42,6 +41,9 @@ import com.android.tools.lint.annotations.Extractor.IDEA_NULLABLE
 import com.android.tools.lint.annotations.Extractor.SUPPORT_NOTNULL
 import com.android.tools.lint.annotations.Extractor.SUPPORT_NULLABLE
 import com.android.tools.lint.detector.api.getChildren
+import com.android.tools.metalava.model.ANDROIDX_INT_DEF
+import com.android.tools.metalava.model.ANDROIDX_STRING_DEF
+import com.android.tools.metalava.model.ANNOTATION_VALUE_TRUE
 import com.android.tools.metalava.model.AnnotationAttribute
 import com.android.tools.metalava.model.AnnotationAttributeValue
 import com.android.tools.metalava.model.AnnotationItem
@@ -696,7 +698,7 @@ class AnnotationsMerger(private val codebase: Codebase) {
                 attributes.add(XmlBackedAnnotationAttribute(TYPE_DEF_VALUE_ATTRIBUTE, value))
                 if (flag) {
                     attributes.add(
-                        XmlBackedAnnotationAttribute(TYPE_DEF_FLAG_ATTRIBUTE, VALUE_TRUE)
+                        XmlBackedAnnotationAttribute(TYPE_DEF_FLAG_ATTRIBUTE, ANNOTATION_VALUE_TRUE)
                     )
                 }
                 return PsiAnnotationItem.create(
@@ -723,11 +725,11 @@ class AnnotationsMerger(private val codebase: Codebase) {
                             )
                         }
                         TYPE_DEF_FLAG_ATTRIBUTE -> {
-                            if (VALUE_TRUE == value) {
+                            if (ANNOTATION_VALUE_TRUE == value) {
                                 attributes.add(
                                     XmlBackedAnnotationAttribute(
                                         TYPE_DEF_FLAG_ATTRIBUTE,
-                                        VALUE_TRUE
+                                        ANNOTATION_VALUE_TRUE
                                     )
                                 )
                             }

@@ -58,6 +58,7 @@ object Issues {
     val REMOVED_DEPRECATED_FIELD = Issue(REMOVED_FIELD, Category.COMPATIBILITY)
     val ADDED_ABSTRACT_METHOD = Issue(Severity.ERROR, Category.COMPATIBILITY)
     val ADDED_REIFIED = Issue(Severity.ERROR, Category.COMPATIBILITY)
+    val REMOVED_JVM_DEFAULT_WITH_COMPATIBILITY = Issue(Severity.ERROR, Category.COMPATIBILITY)
 
     // Issues in javadoc generation
     val UNRESOLVED_LINK = Issue(Severity.LINT, Category.DOCUMENTATION)

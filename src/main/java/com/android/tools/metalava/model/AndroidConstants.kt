@@ -16,15 +16,12 @@
 
 package com.android.tools.metalava.model
 
-enum class TypedefMode(val optionValue: String, val help: String) {
-    NONE(optionValue = "none", help = """will not include typedef annotations in signature."""),
-    REFERENCE(
-        optionValue = "ref",
-        help =
-            """will include just a reference to the typedef class, which is not itself part of the API and is not included as a class"""
-    ),
-    INLINE(
-        optionValue = "inline",
-        help = """will include the constants themselves into each usage site"""
-    )
-}
+const val ANDROID_ANNOTATION_PREFIX = "android.annotation."
+const val ANDROID_INT_DEF = "android.annotation.IntDef"
+const val ANDROID_LONG_DEF = "android.annotation.LongDef"
+const val ANDROID_STRING_DEF = "android.annotation.StringDef"
+
+const val ANDROIDX_ANNOTATION_PREFIX = "androidx.annotation."
+const val ANDROIDX_INT_DEF = "androidx.annotation.IntDef"
+const val ANDROIDX_LONG_DEF = "androidx.annotation.LongDef"
+const val ANDROIDX_STRING_DEF = "androidx.annotation.StringDef"

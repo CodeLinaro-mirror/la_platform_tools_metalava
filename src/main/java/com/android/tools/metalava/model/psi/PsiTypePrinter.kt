@@ -16,9 +16,9 @@
 
 package com.android.tools.metalava.model.psi
 
-import com.android.tools.metalava.JAVA_LANG_OBJECT
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.model.JAVA_LANG_OBJECT
 import com.android.tools.metalava.model.SUPPORT_TYPE_USE_ANNOTATIONS
 import com.android.tools.metalava.model.isNonNullAnnotation
 import com.android.tools.metalava.model.isNullableAnnotation

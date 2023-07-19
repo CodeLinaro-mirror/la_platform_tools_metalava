@@ -17,10 +17,16 @@
 package com.android.tools.metalava.model.text
 
 /** Determines the locations where classes are searched for while loading a signature api file. */
-enum class ApiClassResolution(val optionValue: String) {
+enum class ApiClassResolution(val optionValue: String, val help: String) {
     /** Only look for classes in the API signature text files. */
-    API("api"),
+    API(
+        "api",
+        help = "will only look for classes in the API signature files.",
+    ),
 
     /** Look for classes in the API signature text files first, then the classpath. */
-    API_CLASSPATH("api:classpath")
+    API_CLASSPATH(
+        "api:classpath",
+        help = "will look for classes in the API signature files first and then in the classpath.",
+    )
 }

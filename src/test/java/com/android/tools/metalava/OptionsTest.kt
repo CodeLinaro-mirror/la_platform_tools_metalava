@@ -118,13 +118,6 @@ API sources:
                                              Subtracts the API in the given signature or jar file from the current API
                                              being emitted via --api, --stubs, --doc-stubs, etc. Note that the
                                              subtraction only applies to classes; it does not subtract members.
---typedefs-in-signatures <ref|inline>
-                                             Whether to include typedef annotations in signature files.
-                                             `--typedefs-in-signatures ref` will include just a reference to the typedef
-                                             class, which is not itself part of the API and is not included as a class,
-                                             and `--typedefs-in-signatures inline` will include the constants themselves
-                                             into each usage site. You can also supply `--typedefs-in-signatures none`
-                                             to explicitly turn it off, if the default ever changes.
 --ignore-classes-on-classpath
                                              Prevents references to classes on the classpath from being added to the
                                              generated stub files.
@@ -436,18 +429,35 @@ Options:
   -h, --help                                 Show this message and exit
   --api-class-resolution [api|api:classpath]
                                              Determines how class resolution is performed when loading API signature
-                                             files. `api` will only look for classes in the API signature files.
-                                             `api:classpath` will look for classes in the API signature files first and
-                                             then in the classpath. Any classes that cannot be found will be treated as
-                                             empty.", (default: api:classpath)
+                                             files. Any classes that cannot be found will be treated as empty.",
+
+                                             api - will only look for classes in the API signature files.
+
+                                             api:classpath (default) - will look for classes in the API signature files
+                                             first and then in the classpath.
   --api-overloaded-method-order [source|signature]
-                                             Specifies the order of overloaded methods in signature files (default
-                                             `signature`). Applies to the contents of the files specified on --api and
-                                             --removed-api. `source` will preserve the order in which they appear in the
-                                             source files. `signature` will sort them based on their signature.
-                                             (default: signature)
+                                             Specifies the order of overloaded methods in signature files. Applies to
+                                             the contents of the files specified on --api and --removed-api.
+
+                                             source - preserves the order in which overloaded methods appear in the
+                                             source files. This means that refactorings of the source files which change
+                                             the order but not the API can cause unnecessary changes in the API
+                                             signature files.
+
+                                             signature (default) - sorts overloaded methods by their signature. This
+                                             means that refactorings of the source files which change the order but not
+                                             the API will have no effect on the API signature files.
   -manifest, --manifest <file>               A manifest file, used to check permissions to cross check APIs and retrieve
                                              min_sdk_version. (default: no manifest)
+  --typedefs-in-signatures [none|ref|inline]
+                                             Whether to include typedef annotations in signature files.
+
+                                             none (default) - will not include typedef annotations in signature.
+
+                                             ref - will include just a reference to the typedef class, which is not
+                                             itself part of the API and is not included as a class
+
+                                             inline - will include the constants themselves into each usage site
     """
             .trimIndent()
 

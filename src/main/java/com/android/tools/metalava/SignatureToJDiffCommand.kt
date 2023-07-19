@@ -19,7 +19,6 @@ package com.android.tools.metalava
 import com.github.ajalt.clikt.parameters.arguments.argument
 import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.option
-import com.github.ajalt.clikt.parameters.types.file
 
 class SignatureToJDiffCommand :
     MetalavaSubCommand(
@@ -52,7 +51,7 @@ class SignatureToJDiffCommand :
                     """
                         .trimIndent()
             )
-            .file(mustExist = true, canBeDir = false, mustBeReadable = true)
+            .existingFile()
 
     private val apiFile by
         argument(
@@ -63,7 +62,7 @@ class SignatureToJDiffCommand :
                     """
                         .trimIndent()
             )
-            .file(mustExist = true, canBeDir = false, mustBeReadable = true)
+            .existingFile()
 
     private val xmlFile by
         argument(
@@ -74,7 +73,7 @@ class SignatureToJDiffCommand :
                     """
                         .trimIndent()
             )
-            .file(mustExist = false, canBeDir = false)
+            .newFile()
 
     override fun run() {
         val convertFile = ConvertFile(apiFile, xmlFile, baseApiFile, strip)

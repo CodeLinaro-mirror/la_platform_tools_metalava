@@ -18,7 +18,6 @@ package com.android.tools.metalava
 
 import com.github.ajalt.clikt.parameters.arguments.argument
 import com.github.ajalt.clikt.parameters.arguments.validate
-import com.github.ajalt.clikt.parameters.types.file
 
 private const val ARG_ANDROID_ROOT_DIR = "<android-root-dir>"
 
@@ -32,7 +31,7 @@ class AndroidJarsToSignaturesCommand :
                 .trimIndent(),
     ) {
 
-    val androidRootDir by
+    private val androidRootDir by
         argument(
                 ARG_ANDROID_ROOT_DIR,
                 help =
@@ -42,7 +41,7 @@ class AndroidJarsToSignaturesCommand :
     """
                         .trimIndent()
             )
-            .file(mustExist = true, canBeFile = false, mustBeReadable = true, mustBeWritable = true)
+            .existingDir()
             .validate {
                 require(it.resolve("prebuilts/sdk").isDirectory) {
                     throw DriverException(

@@ -28,6 +28,7 @@ import com.android.tools.lint.detector.api.Project
 import com.android.tools.lint.detector.api.assertionsEnabled
 import com.android.tools.metalava.CompatibilityCheck.CheckRequest
 import com.android.tools.metalava.apilevels.ApiGenerator
+import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.Codebase
@@ -881,12 +882,15 @@ fun loadUastFromJars(apiJars: List<File>): UastEnvironment {
     return environment
 }
 
-fun loadFromJarFile(apiJar: File, preFiltered: Boolean = false): Codebase {
+fun loadFromJarFile(
+    apiJar: File,
+    preFiltered: Boolean = false,
+    annotationManager: AnnotationManager = options.annotationManager,
+): Codebase {
     progress("Processing jar file: ")
 
     val environment = loadUastFromJars(listOf(apiJar))
-    val codebase =
-        PsiBasedCodebase(apiJar, "Codebase loaded from $apiJar", options.annotationManager)
+    val codebase = PsiBasedCodebase(apiJar, "Codebase loaded from $apiJar", annotationManager)
     codebase.initialize(environment, apiJar, preFiltered)
     val apiEmit = ApiPredicate(ignoreShown = true)
     val apiReference = ApiPredicate(ignoreShown = true)

@@ -234,16 +234,6 @@ interface ModifierList {
     }
 
     /**
-     * Returns the annotation of the given qualified name if found in this modifier list. Like
-     * [findAnnotation], but where that method translates both the annotations in the source and the
-     * target name to their canonical form (E.g. the androidx name), this method will look at the
-     * original source for the exact name passed in here.
-     */
-    fun findExactAnnotation(qualifiedName: String): AnnotationItem? {
-        return annotations().firstOrNull { qualifiedName == it.originalName }
-    }
-
-    /**
      * Returns true if the visibility modifiers in this modifier list is as least as visible as the
      * ones in the given [other] modifier list
      */

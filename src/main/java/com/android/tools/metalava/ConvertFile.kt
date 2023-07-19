@@ -48,7 +48,8 @@ internal data class ConvertFile(
 
 /** Perform the file conversion described by the [ConvertFile] on which this is called. */
 internal fun ConvertFile.process() {
-    val signatureApi = SignatureFileLoader.load(fromApiFile)
+    val annotationManager = DefaultAnnotationManager()
+    val signatureApi = SignatureFileLoader.load(fromApiFile, annotationManager = annotationManager)
 
     val apiType = ApiType.ALL
     val apiEmit = apiType.getEmitFilter()
@@ -59,7 +60,7 @@ internal fun ConvertFile.process() {
     val outputApi =
         if (baseFile != null) {
             // Convert base on a diff
-            val baseApi = SignatureFileLoader.load(baseFile)
+            val baseApi = SignatureFileLoader.load(baseFile, annotationManager = annotationManager)
             computeDelta(baseFile, baseApi, signatureApi)
         } else {
             signatureApi

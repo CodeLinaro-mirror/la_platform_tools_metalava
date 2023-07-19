@@ -31,10 +31,6 @@ const val ARG_COLOR = "--color"
 const val ARG_NO_COLOR = "--no-color"
 const val ARG_NO_BANNER = "--no-banner"
 
-// Unicode Next Line (NEL) character which forces Clikt to insert a new line instead of just
-// collapsing the `\n` into adjacent spaces. Acts like an HTML <br/>.
-private const val NEL = "\u0085"
-
 enum class Verbosity(val quiet: Boolean = false, val verbose: Boolean = false) {
     /** Whether to report warnings and other diagnostics along the way. */
     QUIET(quiet = true),
@@ -104,9 +100,9 @@ class CommonOptions : OptionGroup() {
         option(
                 help =
                     """
-            Set the verbosity of the output.$NEL
-                $ARG_QUIET - Only include vital output.$NEL
-                $ARG_VERBOSE - Include extra diagnostic output.$NEL
+            Set the verbosity of the output.$HARD_NEWLINE
+                $ARG_QUIET - Only include vital output.$HARD_NEWLINE
+                $ARG_VERBOSE - Include extra diagnostic output.$HARD_NEWLINE
             """
                         .trimIndent()
             )
