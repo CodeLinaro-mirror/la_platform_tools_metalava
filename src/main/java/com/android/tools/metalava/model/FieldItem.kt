@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.model
 
-import com.intellij.psi.PsiField
 import java.io.PrintWriter
 
 interface FieldItem : MemberItem {
@@ -100,17 +99,6 @@ interface FieldItem : MemberItem {
             // with signature files we sometimes don't have the right
             // types from signatures
             return true
-        }
-
-        // Try a little harder when we're dealing with PsiElements
-        if (thisConstant is PsiField && otherConstant is PsiField) {
-            val name1 = thisConstant.name
-            val name2 = otherConstant.name
-            if (name1 == name2) {
-                val qualifiedName1 = thisConstant.containingClass?.qualifiedName
-                val qualifiedName2 = otherConstant.containingClass?.qualifiedName
-                return qualifiedName1 == qualifiedName2
-            }
         }
 
         return false

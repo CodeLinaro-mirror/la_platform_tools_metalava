@@ -255,7 +255,7 @@ class ApiFile(
         pkg = TextPackageItem(api, name, modifiers, tokenizer.pos())
         val existing = api.findPackage(name)
         if (existing != null) {
-            if (pkg.modifiers.toString() != existing.modifiers.toString()) {
+            if (pkg.modifiers != existing.modifiers) {
                 throw ApiParseException(
                     String.format(
                         "Contradicting declaration of package %s. Previously seen with modifiers \"%s\", but now with \"%s\"",
@@ -1540,7 +1540,7 @@ private fun TextClassItem.isCompatible(cls: TextClassItem): Boolean {
         return false
     }
 
-    return modifiers.toString() == cls.modifiers.toString() &&
+    return modifiers == cls.modifiers &&
         isInterface() == cls.isInterface() &&
         isEnum() == cls.isEnum() &&
         isAnnotation == cls.isAnnotation &&

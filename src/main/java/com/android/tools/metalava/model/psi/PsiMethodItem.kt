@@ -315,7 +315,6 @@ open class PsiMethodItem(
             target = AnnotationTarget.INTERNAL,
             removeAbstract = false,
             removeFinal = false,
-            addPublic = true
         )
         sb.append(modifierString.toString())
 

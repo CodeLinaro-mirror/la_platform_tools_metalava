@@ -21,6 +21,7 @@ import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassResolver
+import com.android.tools.metalava.model.DefaultAnnotationItem
 import com.android.tools.metalava.model.DefaultCodebase
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.Item
@@ -166,7 +167,7 @@ class TextCodebase(
         context: Item?,
         mapName: Boolean
     ): AnnotationItem {
-        return TextBackedAnnotationItem(this, source, mapName)
+        return DefaultAnnotationItem.create(this, source, mapName)
     }
 
     override fun toString(): String {

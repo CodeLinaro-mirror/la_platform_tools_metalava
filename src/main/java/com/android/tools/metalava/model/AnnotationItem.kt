@@ -16,6 +16,8 @@
 
 package com.android.tools.metalava.model
 
+import com.google.common.base.Objects
+
 fun isNullnessAnnotation(qualifiedName: String): Boolean =
     isNullableAnnotation(qualifiedName) || isNonNullAnnotation(qualifiedName)
 
@@ -48,7 +50,7 @@ interface AnnotationItem {
     /** The applicable targets for this annotation */
     val targets: Set<AnnotationTarget>
 
-    /** Attributes of the annotation (may be empty) */
+    /** Attributes of the annotation; may be empty. */
     val attributes: List<AnnotationAttribute>
 
     /** True if this annotation represents @Nullable or @NonNull (or some synonymous annotation) */
@@ -183,13 +185,44 @@ interface AnnotationItem {
 }
 
 /** Default implementation of an annotation item */
-abstract class DefaultAnnotationItem(override val codebase: Codebase) : AnnotationItem {
+open class DefaultAnnotationItem
+/** The primary constructor is private to force sub-classes to use the secondary constructor. */
+private constructor(
+    override val codebase: Codebase,
+
+    /** Fully qualified name of the annotation (prior to name mapping) */
+    protected val originalName: String?,
+
+    /** Fully qualified name of the annotation (after name mapping) */
+    final override val qualifiedName: String?,
+
+    /** Possibly empty list of attributes. */
+    attributesGetter: () -> List<AnnotationAttribute>,
+) : AnnotationItem {
+
+    /**
+     * This constructor is needed to initialize [qualifiedName] using the [codebase] parameter
+     * instead of the [DefaultAnnotationItem.codebase] property which is overridden by sub-classes
+     * and will not be initialized at the time it is used.
+     */
+    constructor(
+        codebase: Codebase,
+        originalName: String?,
+        attributesGetter: () -> List<AnnotationAttribute>,
+        mapName: Boolean = true,
+    ) : this(
+        codebase,
+        originalName,
+        qualifiedName =
+            if (mapName) codebase.annotationManager.mapName(originalName) else originalName,
+        attributesGetter,
+    )
+
     override val targets: Set<AnnotationTarget> by lazy {
         codebase.annotationManager.computeTargets(this, codebase::findClass)
     }
 
-    /** Fully qualified name of the annotation (prior to name mapping) */
-    abstract val originalName: String?
+    final override val attributes: List<AnnotationAttribute> by lazy(attributesGetter)
 
     override fun resolve(): ClassItem? {
         return codebase.findClass(originalName ?: return null)
@@ -206,6 +239,66 @@ abstract class DefaultAnnotationItem(override val codebase: Codebase) : Annotati
     override fun equals(other: Any?): Boolean {
         if (other !is AnnotationItem) return false
         return qualifiedName == other.qualifiedName && attributes == other.attributes
+    }
+
+    override fun hashCode(): Int {
+        return Objects.hashCode(qualifiedName, attributes)
+    }
+
+    override fun toSource(target: AnnotationTarget, showDefaultAttrs: Boolean): String {
+        val qualifiedName = codebase.annotationManager.mapName(qualifiedName, target) ?: return ""
+
+        return formatAnnotationItem(qualifiedName, attributes)
+    }
+
+    final override fun toString() = toSource()
+
+    companion object {
+        fun formatAnnotationItem(
+            qualifiedName: String,
+            attributes: List<AnnotationAttribute>,
+        ): String {
+            return buildString {
+                append("@")
+                append(qualifiedName)
+                if (attributes.isNotEmpty()) {
+                    val suppressDefaultAnnotationAttribute = attributes.size == 1
+                    append("(")
+                    attributes.forEachIndexed { i, attribute ->
+                        if (i != 0) {
+                            append(", ")
+                        }
+                        if (
+                            !suppressDefaultAnnotationAttribute ||
+                                attribute.name != ANNOTATION_ATTR_VALUE
+                        ) {
+                            append(attribute.name)
+                            append("=")
+                        }
+                        append(attribute.value)
+                    }
+                    append(")")
+                }
+            }
+        }
+
+        fun create(codebase: Codebase, source: String, mapName: Boolean = true): AnnotationItem {
+            val index = source.indexOf("(")
+            val originalName =
+                if (index == -1) source.substring(1) // Strip @
+                else source.substring(1, index)
+
+            fun attributes(): List<AnnotationAttribute> =
+                if (index == -1) {
+                    emptyList()
+                } else {
+                    DefaultAnnotationAttribute.createList(
+                        source.substring(index + 1, source.lastIndexOf(')'))
+                    )
+                }
+
+            return DefaultAnnotationItem(codebase, originalName, ::attributes, mapName)
+        }
     }
 }
 
@@ -242,7 +335,7 @@ interface AnnotationAttributeValue {
     fun value(): Any?
 
     /**
-     * If the annotation declaration references a field (or class etc), return the resolved class
+     * If the annotation declaration references a field (or class etc.), return the resolved class
      */
     fun resolve(): Item?
 
@@ -264,9 +357,6 @@ interface AnnotationAttributeValue {
 
 /** An annotation value (for a single item, not an array) */
 interface AnnotationSingleAttributeValue : AnnotationAttributeValue {
-    /** The annotation value, expressed as source code */
-    val valueSource: String
-    /** The annotation value */
     val value: Any?
 
     override fun value() = value
@@ -284,9 +374,9 @@ interface AnnotationArrayAttributeValue : AnnotationAttributeValue {
     override fun value() = values.mapNotNull { it.value() }.toTypedArray()
 }
 
-class DefaultAnnotationAttribute(
+open class DefaultAnnotationAttribute(
     override val name: String,
-    override val value: DefaultAnnotationValue
+    override val value: AnnotationAttributeValue
 ) : AnnotationAttribute {
     companion object {
         fun create(name: String, value: String): DefaultAnnotationAttribute {
@@ -352,7 +442,7 @@ class DefaultAnnotationAttribute(
             val valueBegin: Int
             val valueEnd: Int
             if (split == -1) {
-                valueBegin = split + 1
+                valueBegin = 0
                 valueEnd = to
                 name = "value"
             } else {
@@ -361,82 +451,107 @@ class DefaultAnnotationAttribute(
                 valueEnd = to
             }
             value = source.substring(valueBegin, valueEnd).trim()
-            list.add(DefaultAnnotationAttribute.create(name, value))
+            list.add(create(name, value))
         }
     }
 
     override fun toString(): String {
-        return "DefaultAnnotationAttribute(name='$name', value=$value)"
+        return "$name=$value"
     }
 
     override fun equals(other: Any?): Boolean {
         if (other !is AnnotationAttribute) return false
         return name == other.name && value == other.value
     }
+
+    override fun hashCode(): Int {
+        return Objects.hashCode(name, value)
+    }
 }
 
-abstract class DefaultAnnotationValue : AnnotationAttributeValue {
+abstract class DefaultAnnotationValue(sourceGetter: () -> String) : AnnotationAttributeValue {
     companion object {
-        fun create(value: String): DefaultAnnotationValue {
-            return if (value.startsWith("{")) { // Array
-                DefaultAnnotationArrayAttributeValue(value)
+        fun create(valueSource: String): DefaultAnnotationValue {
+            return if (valueSource.startsWith("{")) { // Array
+                DefaultAnnotationArrayAttributeValue(
+                    { valueSource },
+                    {
+                        assert(valueSource.startsWith("{") && valueSource.endsWith("}")) {
+                            valueSource
+                        }
+                        valueSource
+                            .substring(1, valueSource.length - 1)
+                            .split(",")
+                            .map { create(it.trim()) }
+                            .toList()
+                    },
+                )
             } else {
-                DefaultAnnotationSingleAttributeValue(value)
+                DefaultAnnotationSingleAttributeValue(
+                    { valueSource },
+                    {
+                        when {
+                            valueSource == ANNOTATION_VALUE_TRUE -> true
+                            valueSource == ANNOTATION_VALUE_FALSE -> false
+                            valueSource.startsWith("\"") -> valueSource.removeSurrounding("\"")
+                            valueSource.startsWith('\'') -> valueSource.removeSurrounding("'")[0]
+                            else ->
+                                try {
+                                    if (valueSource.contains(".")) {
+                                        valueSource.toDouble()
+                                    } else {
+                                        valueSource.toLong()
+                                    }
+                                } catch (e: NumberFormatException) {
+                                    valueSource
+                                }
+                        }
+                    },
+                )
             }
         }
     }
 
+    /** The annotation value, expressed as source code */
+    private val valueSource: String by lazy(LazyThreadSafetyMode.NONE, sourceGetter)
+
+    override fun toSource() = valueSource
+
     override fun toString(): String = toSource()
 }
 
-class DefaultAnnotationSingleAttributeValue(override val valueSource: String) :
-    DefaultAnnotationValue(), AnnotationSingleAttributeValue {
-    @Suppress("IMPLICIT_CAST_TO_ANY")
-    override val value =
-        when {
-            valueSource == ANNOTATION_VALUE_TRUE -> true
-            valueSource == ANNOTATION_VALUE_FALSE -> false
-            valueSource.startsWith("\"") -> valueSource.removeSurrounding("\"")
-            valueSource.startsWith('\'') -> valueSource.removeSurrounding("'")[0]
-            else ->
-                try {
-                    if (valueSource.contains(".")) {
-                        valueSource.toDouble()
-                    } else {
-                        valueSource.toLong()
-                    }
-                } catch (e: NumberFormatException) {
-                    valueSource
-                }
-        }
+open class DefaultAnnotationSingleAttributeValue(
+    sourceGetter: () -> String,
+    valueGetter: () -> Any?
+) : DefaultAnnotationValue(sourceGetter), AnnotationSingleAttributeValue {
+
+    override val value by lazy(LazyThreadSafetyMode.NONE, valueGetter)
 
     override fun resolve(): Item? = null
-
-    override fun toSource() = valueSource
 
     override fun equals(other: Any?): Boolean {
         if (other !is AnnotationSingleAttributeValue) return false
         return value == other.value
     }
+
+    override fun hashCode(): Int {
+        return value.hashCode()
+    }
 }
 
-class DefaultAnnotationArrayAttributeValue(val value: String) :
-    DefaultAnnotationValue(), AnnotationArrayAttributeValue {
-    init {
-        assert(value.startsWith("{") && value.endsWith("}")) { value }
-    }
+open class DefaultAnnotationArrayAttributeValue(
+    sourceGetter: () -> String,
+    valuesGetter: () -> List<AnnotationAttributeValue>
+) : DefaultAnnotationValue(sourceGetter), AnnotationArrayAttributeValue {
 
-    override val values =
-        value
-            .substring(1, value.length - 1)
-            .split(",")
-            .map { DefaultAnnotationValue.create(it.trim()) }
-            .toList()
-
-    override fun toSource() = value
+    override val values by lazy(LazyThreadSafetyMode.NONE, valuesGetter)
 
     override fun equals(other: Any?): Boolean {
         if (other !is AnnotationArrayAttributeValue) return false
         return values == other.values
+    }
+
+    override fun hashCode(): Int {
+        return values.hashCode()
     }
 }

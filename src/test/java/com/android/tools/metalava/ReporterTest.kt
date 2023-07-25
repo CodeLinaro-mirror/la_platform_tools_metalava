@@ -25,12 +25,12 @@ class ReporterTest : DriverTest() {
             apiLint = "",
             expectedIssues =
                 """
-                src/test/pkg/foo.java:2: error: Class must start with uppercase char: foo [StartWithUpper] [See https://s.android.com/api-guidelines#style-conventions]
-                src/test/pkg/foo.java:4: warning: If min/max could change in future, make them dynamic methods: test.pkg.foo#MAX_BAR [MinMaxConstant] [See https://s.android.com/api-guidelines#min-max-constants]
+                src/test/pkg/foo.java:2: error: Class must start with uppercase char: foo [StartWithUpper]
+                src/test/pkg/foo.java:4: warning: If min/max could change in future, make them dynamic methods: test.pkg.foo#MAX_BAR [MinMaxConstant]
             """,
             errorSeverityExpectedIssues =
                 """
-                src/test/pkg/foo.java:2: error: Class must start with uppercase char: foo [StartWithUpper] [See https://s.android.com/api-guidelines#style-conventions]
+                src/test/pkg/foo.java:2: error: Class must start with uppercase char: foo [StartWithUpper]
             """,
             expectedFail = DefaultLintErrorMessage,
             sourceFiles =
@@ -54,8 +54,8 @@ class ReporterTest : DriverTest() {
             apiLint = "",
             expectedIssues =
                 """
-                src/test/pkg/Bar.kt:10: error: Method name must start with lowercase char: Unsuppressed [StartWithLower] [See https://s.android.com/api-guidelines#style-conventions]
-                src/test/pkg/Foo.java:10: error: Method name must start with lowercase char: Unsuppressed [StartWithLower] [See https://s.android.com/api-guidelines#style-conventions]
+                src/test/pkg/Bar.kt:10: error: Method name must start with lowercase char: Unsuppressed [StartWithLower]
+                src/test/pkg/Foo.java:10: error: Method name must start with lowercase char: Unsuppressed [StartWithLower]
             """,
             expectedFail = DefaultLintErrorMessage,
             sourceFiles =
@@ -124,12 +124,12 @@ class ReporterTest : DriverTest() {
             apiLint = "",
             expectedIssues =
                 """
-                src/test/pkg/Foo.java:4: error: Missing nullability on parameter `a` in method `foo1` [MissingNullability] [See https://s.android.com/api-guidelines#annotations]
+                src/test/pkg/Foo.java:4: error: Missing nullability on parameter `a` in method `foo1` [MissingNullability]
             """,
             expectedFail =
                 """
                 Error: metalava detected the following problems:
-                src/test/pkg/Foo.java:4: error: Missing nullability on parameter `a` in method `foo1` [MissingNullability] [See https://s.android.com/api-guidelines#annotations]
+                src/test/pkg/Foo.java:4: error: Missing nullability on parameter `a` in method `foo1` [MissingNullability]
 
             """
                     .trimIndent() + DefaultLintErrorMessage,
@@ -156,20 +156,20 @@ class ReporterTest : DriverTest() {
             apiLint = "",
             expectedIssues =
                 """
-                src/test/pkg/Foo.java:4: error: Missing nullability on parameter `a` in method `foo1` [MissingNullability] [See https://s.android.com/api-guidelines#annotations]
-                src/test/pkg/Foo.java:5: error: Missing nullability on parameter `a` in method `foo2` [MissingNullability] [See https://s.android.com/api-guidelines#annotations]
-                src/test/pkg/Foo.java:6: error: Missing nullability on parameter `a` in method `foo3` [MissingNullability] [See https://s.android.com/api-guidelines#annotations]
-                src/test/pkg/Foo.java:7: error: Missing nullability on parameter `a` in method `foo4` [MissingNullability] [See https://s.android.com/api-guidelines#annotations]
-                src/test/pkg/Foo.java:8: error: Missing nullability on parameter `a` in method `foo5` [MissingNullability] [See https://s.android.com/api-guidelines#annotations]
+                src/test/pkg/Foo.java:4: error: Missing nullability on parameter `a` in method `foo1` [MissingNullability]
+                src/test/pkg/Foo.java:5: error: Missing nullability on parameter `a` in method `foo2` [MissingNullability]
+                src/test/pkg/Foo.java:6: error: Missing nullability on parameter `a` in method `foo3` [MissingNullability]
+                src/test/pkg/Foo.java:7: error: Missing nullability on parameter `a` in method `foo4` [MissingNullability]
+                src/test/pkg/Foo.java:8: error: Missing nullability on parameter `a` in method `foo5` [MissingNullability]
             """,
             expectedFail =
                 """
                 Error: metalava detected the following problems:
-                src/test/pkg/Foo.java:4: error: Missing nullability on parameter `a` in method `foo1` [MissingNullability] [See https://s.android.com/api-guidelines#annotations]
-                src/test/pkg/Foo.java:5: error: Missing nullability on parameter `a` in method `foo2` [MissingNullability] [See https://s.android.com/api-guidelines#annotations]
-                src/test/pkg/Foo.java:6: error: Missing nullability on parameter `a` in method `foo3` [MissingNullability] [See https://s.android.com/api-guidelines#annotations]
-                src/test/pkg/Foo.java:7: error: Missing nullability on parameter `a` in method `foo4` [MissingNullability] [See https://s.android.com/api-guidelines#annotations]
-                src/test/pkg/Foo.java:8: error: Missing nullability on parameter `a` in method `foo5` [MissingNullability] [See https://s.android.com/api-guidelines#annotations]
+                src/test/pkg/Foo.java:4: error: Missing nullability on parameter `a` in method `foo1` [MissingNullability]
+                src/test/pkg/Foo.java:5: error: Missing nullability on parameter `a` in method `foo2` [MissingNullability]
+                src/test/pkg/Foo.java:6: error: Missing nullability on parameter `a` in method `foo3` [MissingNullability]
+                src/test/pkg/Foo.java:7: error: Missing nullability on parameter `a` in method `foo4` [MissingNullability]
+                src/test/pkg/Foo.java:8: error: Missing nullability on parameter `a` in method `foo5` [MissingNullability]
 
             """
                     .trimIndent() + DefaultLintErrorMessage,
@@ -200,21 +200,21 @@ class ReporterTest : DriverTest() {
             apiLint = "",
             expectedIssues =
                 """
-                src/test/pkg/Foo.java:4: error: Missing nullability on parameter `a` in method `foo1` [MissingNullability] [See https://s.android.com/api-guidelines#annotations]
-                src/test/pkg/Foo.java:5: error: Missing nullability on parameter `a` in method `foo2` [MissingNullability] [See https://s.android.com/api-guidelines#annotations]
-                src/test/pkg/Foo.java:6: error: Missing nullability on parameter `a` in method `foo3` [MissingNullability] [See https://s.android.com/api-guidelines#annotations]
-                src/test/pkg/Foo.java:7: error: Missing nullability on parameter `a` in method `foo4` [MissingNullability] [See https://s.android.com/api-guidelines#annotations]
-                src/test/pkg/Foo.java:8: error: Missing nullability on parameter `a` in method `foo5` [MissingNullability] [See https://s.android.com/api-guidelines#annotations]
-                src/test/pkg/Foo.java:9: error: Missing nullability on parameter `a` in method `foo6` [MissingNullability] [See https://s.android.com/api-guidelines#annotations]
+                src/test/pkg/Foo.java:4: error: Missing nullability on parameter `a` in method `foo1` [MissingNullability]
+                src/test/pkg/Foo.java:5: error: Missing nullability on parameter `a` in method `foo2` [MissingNullability]
+                src/test/pkg/Foo.java:6: error: Missing nullability on parameter `a` in method `foo3` [MissingNullability]
+                src/test/pkg/Foo.java:7: error: Missing nullability on parameter `a` in method `foo4` [MissingNullability]
+                src/test/pkg/Foo.java:8: error: Missing nullability on parameter `a` in method `foo5` [MissingNullability]
+                src/test/pkg/Foo.java:9: error: Missing nullability on parameter `a` in method `foo6` [MissingNullability]
             """,
             expectedFail =
                 """
                 Error: metalava detected the following problems:
-                src/test/pkg/Foo.java:4: error: Missing nullability on parameter `a` in method `foo1` [MissingNullability] [See https://s.android.com/api-guidelines#annotations]
-                src/test/pkg/Foo.java:5: error: Missing nullability on parameter `a` in method `foo2` [MissingNullability] [See https://s.android.com/api-guidelines#annotations]
-                src/test/pkg/Foo.java:6: error: Missing nullability on parameter `a` in method `foo3` [MissingNullability] [See https://s.android.com/api-guidelines#annotations]
-                src/test/pkg/Foo.java:7: error: Missing nullability on parameter `a` in method `foo4` [MissingNullability] [See https://s.android.com/api-guidelines#annotations]
-                src/test/pkg/Foo.java:8: error: Missing nullability on parameter `a` in method `foo5` [MissingNullability] [See https://s.android.com/api-guidelines#annotations]
+                src/test/pkg/Foo.java:4: error: Missing nullability on parameter `a` in method `foo1` [MissingNullability]
+                src/test/pkg/Foo.java:5: error: Missing nullability on parameter `a` in method `foo2` [MissingNullability]
+                src/test/pkg/Foo.java:6: error: Missing nullability on parameter `a` in method `foo3` [MissingNullability]
+                src/test/pkg/Foo.java:7: error: Missing nullability on parameter `a` in method `foo4` [MissingNullability]
+                src/test/pkg/Foo.java:8: error: Missing nullability on parameter `a` in method `foo5` [MissingNullability]
                 1 more error(s) omitted. Search the log for 'error:' to find all of them.
 
             """

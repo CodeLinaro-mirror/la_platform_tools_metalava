@@ -17,10 +17,7 @@
 package com.android.tools.metalava.model.text
 
 import com.android.tools.metalava.model.AnnotationItem
-import com.android.tools.metalava.model.AnnotationTarget
 import com.android.tools.metalava.model.DefaultModifierList
-import com.android.tools.metalava.model.ModifierList
-import java.io.StringWriter
 
 class TextModifiers(
     override val codebase: TextCodebase,
@@ -37,12 +34,5 @@ class TextModifiers(
                 annotations.toMutableList()
             }
         return TextModifiers(codebase, flags, newAnnotations)
-    }
-
-    override fun toString(): String {
-        val item = owner()
-        val writer = StringWriter()
-        ModifierList.write(writer, this, item, target = AnnotationTarget.SDK_STUBS_FILE)
-        return writer.toString()
     }
 }

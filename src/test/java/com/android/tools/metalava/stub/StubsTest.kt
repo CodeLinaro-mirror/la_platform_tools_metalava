@@ -650,7 +650,7 @@ class StubsTest : AbstractStubsTest() {
                   public class Generics.MyClass<X, Y extends java.lang.Number> extends test.pkg.Generics.PublicParent<X,Y> implements test.pkg.Generics.PublicInterface<X,Y> {
                     ctor public Generics.MyClass();
                     method public java.util.Map<X!,java.util.Map<Y!,java.lang.String!>!>! createMap(java.util.List<X!>!) throws java.io.IOException;
-                    method public java.util.List<X!>! foo();
+                    method protected java.util.List<X!>! foo();
                   }
                   public static interface Generics.PublicInterface<A, B> {
                     method public java.util.Map<A!,java.util.Map<B!,java.lang.String!>!>! createMap(java.util.List<A!>!) throws java.io.IOException;
@@ -670,7 +670,7 @@ class StubsTest : AbstractStubsTest() {
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class MyClass<X, Y extends java.lang.Number> extends test.pkg.Generics.PublicParent<X,Y> implements test.pkg.Generics.PublicInterface<X,Y> {
                     public MyClass() { throw new RuntimeException("Stub!"); }
-                    public java.util.List<X> foo() { throw new RuntimeException("Stub!"); }
+                    protected java.util.List<X> foo() { throw new RuntimeException("Stub!"); }
                     public java.util.Map<X,java.util.Map<Y,java.lang.String>> createMap(java.util.List<X> list) throws java.io.IOException { throw new RuntimeException("Stub!"); }
                     }
                     @SuppressWarnings({"unchecked", "deprecation", "all"})

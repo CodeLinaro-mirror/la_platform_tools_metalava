@@ -17,14 +17,13 @@
 package com.android.tools.metalava.model
 
 import com.android.tools.metalava.model.text.NoOpAnnotationManager
-import com.android.tools.metalava.model.text.TextBackedAnnotationItem
 import java.io.File
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-class TextBackedAnnotationItemTest {
+class DefaultAnnotationItemTest {
     // Placeholder for use in test where we don't need codebase functionality
     private val placeholderCodebase =
         object : DefaultCodebase(File("").canonicalFile, NoOpAnnotationManager()) {
@@ -52,7 +51,7 @@ class TextBackedAnnotationItemTest {
     @Test
     fun testSimple() {
         val annotation =
-            TextBackedAnnotationItem(placeholderCodebase, "@androidx.annotation.Nullable")
+            DefaultAnnotationItem.create(placeholderCodebase, "@androidx.annotation.Nullable")
         assertEquals("@androidx.annotation.Nullable", annotation.toSource())
         assertEquals("androidx.annotation.Nullable", annotation.qualifiedName)
         assertTrue(annotation.attributes.isEmpty())
@@ -61,11 +60,11 @@ class TextBackedAnnotationItemTest {
     @Test
     fun testIntRange() {
         val annotation =
-            TextBackedAnnotationItem(
+            DefaultAnnotationItem.create(
                 placeholderCodebase,
                 "@androidx.annotation.IntRange(from = 20, to = 40)"
             )
-        assertEquals("@androidx.annotation.IntRange(from = 20, to = 40)", annotation.toSource())
+        assertEquals("@androidx.annotation.IntRange(from=20, to=40)", annotation.toSource())
         assertEquals("androidx.annotation.IntRange", annotation.qualifiedName)
         assertEquals(2, annotation.attributes.size)
         assertEquals("from", annotation.findAttribute("from")?.name)
@@ -77,7 +76,7 @@ class TextBackedAnnotationItemTest {
     @Test
     fun testIntDef() {
         val annotation =
-            TextBackedAnnotationItem(
+            DefaultAnnotationItem.create(
                 placeholderCodebase,
                 "@androidx.annotation.IntDef({STYLE_NORMAL, STYLE_NO_TITLE, STYLE_NO_FRAME, STYLE_NO_INPUT})"
             )

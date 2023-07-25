@@ -844,7 +844,7 @@ class ApiAnalyzer(
                 override fun visitItem(item: Item) {
                     if (
                         item.deprecated &&
-                            !item.documentation.contains("@deprecated") &&
+                            !item.documentationContainsDeprecated() &&
                             // Don't warn about this in Kotlin; the Kotlin deprecation annotation
                             // includes deprecation
                             // messages (unlike java.lang.Deprecated which has no attributes).
@@ -1490,4 +1490,16 @@ private fun String.capitalize(): String {
 /** Returns true if this item is public or protected and so a candidate for inclusion in an API. */
 private fun Item.isApiCandidate(): Boolean {
     return !isHiddenOrRemoved() && (modifiers.isPublic() || modifiers.isProtected())
+}
+
+/**
+ * Whether documentation for the [Item] has the `@deprecated` tag -- for inherited methods, this
+ * also looks at any inherited documentation.
+ */
+private fun Item.documentationContainsDeprecated(): Boolean {
+    if (documentation.contains("@deprecated")) return true
+    if (this is MethodItem && (documentation == "" || documentation.contains("@inheritDoc"))) {
+        return superMethods().any { it.documentationContainsDeprecated() }
+    }
+    return false
 }

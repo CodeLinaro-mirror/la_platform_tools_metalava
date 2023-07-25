@@ -712,8 +712,8 @@ class CompatibilityCheckTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                src/test/pkg/Foo.kt:3: error: Attempted to remove default value from parameter s1 in test.pkg.Foo [DefaultValueChange] [See https://s.android.com/api-guidelines#default-value-removal]
-                src/test/pkg/Foo.kt:7: error: Attempted to remove default value from parameter s1 in test.pkg.Foo.method4 [DefaultValueChange] [See https://s.android.com/api-guidelines#default-value-removal]
+                src/test/pkg/Foo.kt:3: error: Attempted to remove default value from parameter s1 in test.pkg.Foo [DefaultValueChange]
+                src/test/pkg/Foo.kt:7: error: Attempted to remove default value from parameter s1 in test.pkg.Foo.method4 [DefaultValueChange]
 
                 """,
             checkCompatibilityApiReleased =
@@ -752,8 +752,8 @@ class CompatibilityCheckTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                src/test/pkg/Foo.kt:3: error: Attempted to remove default value from parameter s1 in test.pkg.Foo [DefaultValueChange] [See https://s.android.com/api-guidelines#default-value-removal]
-                src/test/pkg/Foo.kt:7: error: Attempted to remove default value from parameter s1 in test.pkg.Foo.method4 [DefaultValueChange] [See https://s.android.com/api-guidelines#default-value-removal]
+                src/test/pkg/Foo.kt:3: error: Attempted to remove default value from parameter s1 in test.pkg.Foo [DefaultValueChange]
+                src/test/pkg/Foo.kt:7: error: Attempted to remove default value from parameter s1 in test.pkg.Foo.method4 [DefaultValueChange]
                 """,
             format = FileFormat.V4,
             checkCompatibilityApiReleased =
