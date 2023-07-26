@@ -92,13 +92,10 @@ class ConvertJarsToSignatureFiles {
                             val modifiers = new.mutableModifiers()
                             modifiers.removeAnnotation(annotation)
 
-                            // Don't map annotation names - this would turn newly non null back into
-                            // non null
                             modifiers.addAnnotation(
                                 new.codebase.createAnnotation(
                                     "@$annotationClass",
                                     new,
-                                    mapName = false
                                 )
                             )
                         }

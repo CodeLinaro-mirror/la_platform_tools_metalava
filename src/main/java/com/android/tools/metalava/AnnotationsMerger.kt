@@ -281,14 +281,11 @@ class AnnotationsMerger(private val codebase: Codebase) {
                     }
 
                     if (addAnnotation) {
-                        // Don't map annotation names - this would turn newly non null back into non
-                        // null
                         new.mutableModifiers()
                             .addAnnotation(
                                 new.codebase.createAnnotation(
                                     annotation.toSource(showDefaultAttrs = false),
                                     new,
-                                    mapName = false
                                 )
                             )
                     }
@@ -551,7 +548,8 @@ class AnnotationsMerger(private val codebase: Codebase) {
     private fun mergeAnnotations(xmlElement: Element, item: Item) {
         loop@ for (annotationElement in getChildren(xmlElement)) {
             val originalName = getAnnotationName(annotationElement)
-            val qualifiedName = codebase.annotationManager.mapName(originalName) ?: originalName
+            val qualifiedName =
+                codebase.annotationManager.normalizeInputName(originalName) ?: originalName
             if (hasNullnessConflicts(item, qualifiedName)) {
                 continue@loop
             }

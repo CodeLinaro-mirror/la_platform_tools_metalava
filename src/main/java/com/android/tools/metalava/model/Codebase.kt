@@ -75,7 +75,6 @@ interface Codebase {
     fun createAnnotation(
         source: String,
         context: Item? = null,
-        mapName: Boolean = true
     ): AnnotationItem
 
     /** Clear the [Item.tag] fields (prior to iteration like DFS) */

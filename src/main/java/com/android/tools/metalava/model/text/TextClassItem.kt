@@ -35,7 +35,7 @@ import java.util.function.Predicate
 open class TextClassItem(
     override val codebase: TextCodebase,
     position: SourcePositionInfo = SourcePositionInfo.UNKNOWN,
-    modifiers: TextModifiers,
+    modifiers: DefaultModifierList,
     private var isInterface: Boolean = false,
     private var isEnum: Boolean = false,
     internal var isAnnotation: Boolean = false,
@@ -355,7 +355,7 @@ open class TextClassItem(
                     name = fullName,
                     qualifiedName = qualifiedName,
                     isInterface = isInterface,
-                    modifiers = TextModifiers(codebase, DefaultModifierList.PUBLIC)
+                    modifiers = DefaultModifierList(codebase, DefaultModifierList.PUBLIC)
                 )
             cls.emit = false // it's a stub
 

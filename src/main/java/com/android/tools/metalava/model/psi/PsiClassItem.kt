@@ -505,7 +505,6 @@ open class PsiClassItem(
                             append(')')
                         },
                         item,
-                        false
                     )
                 )
             }

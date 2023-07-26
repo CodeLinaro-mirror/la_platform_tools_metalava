@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019 The Android Open Source Project
+ * Copyright (C) 2023 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,7 +21,8 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import org.junit.Test
 
-class TextModifiersTest {
+/** Tests that the text model parses modifiers correctly. */
+class TextModifierListTest {
 
     @Test
     fun `test equivalentTo()`() {
@@ -39,12 +40,12 @@ class TextModifiersTest {
             )
 
         assertTrue {
-            TextModifiers(codebase, flags = DefaultModifierList.PUBLIC)
-                .equivalentTo(TextModifiers(codebase, flags = DefaultModifierList.PUBLIC))
+            DefaultModifierList(codebase, flags = DefaultModifierList.PUBLIC)
+                .equivalentTo(DefaultModifierList(codebase, flags = DefaultModifierList.PUBLIC))
         }
         assertFalse {
-            TextModifiers(codebase, flags = DefaultModifierList.PRIVATE)
-                .equivalentTo(TextModifiers(codebase, flags = DefaultModifierList.PUBLIC))
+            DefaultModifierList(codebase, flags = DefaultModifierList.PRIVATE)
+                .equivalentTo(DefaultModifierList(codebase, flags = DefaultModifierList.PUBLIC))
         }
     }
 }

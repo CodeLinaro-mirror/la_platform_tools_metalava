@@ -496,7 +496,7 @@ class PsiTypePrinter(
 
         val mapped =
             if (mapAnnotations) {
-                codebase.annotationManager.mapName(qualifiedName) ?: return null
+                codebase.annotationManager.normalizeOutputName(qualifiedName) ?: return null
             } else {
                 qualifiedName
             }

@@ -145,7 +145,7 @@ class TextCodebase(
                             TextPackageItem(
                                 this,
                                 pkgPath,
-                                TextModifiers(this, DefaultModifierList.PUBLIC),
+                                DefaultModifierList(this, DefaultModifierList.PUBLIC),
                                 SourcePositionInfo.UNKNOWN
                             )
                         addPackage(newPkg)
@@ -165,9 +165,8 @@ class TextCodebase(
     override fun createAnnotation(
         source: String,
         context: Item?,
-        mapName: Boolean
     ): AnnotationItem {
-        return DefaultAnnotationItem.create(this, source, mapName)
+        return DefaultAnnotationItem.create(this, source)
     }
 
     override fun toString(): String {

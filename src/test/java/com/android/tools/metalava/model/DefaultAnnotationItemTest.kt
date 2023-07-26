@@ -44,7 +44,6 @@ class DefaultAnnotationItemTest {
             override fun createAnnotation(
                 source: String,
                 context: Item?,
-                mapName: Boolean
             ): AnnotationItem = unsupported()
         }
 

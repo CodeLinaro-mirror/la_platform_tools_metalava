@@ -128,6 +128,5 @@ fun Item.markRecent() {
     val modifiers = mutableModifiers()
     modifiers.removeAnnotation(annotation)
 
-    // Don't map annotation names - this would turn newly non null back into non null
-    modifiers.addAnnotation(codebase.createAnnotation("@$annotationClass", this, mapName = false))
+    modifiers.addAnnotation(codebase.createAnnotation("@$annotationClass", this))
 }

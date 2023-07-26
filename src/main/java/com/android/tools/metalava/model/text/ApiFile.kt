@@ -231,7 +231,7 @@ class ApiFile(
 
         // Metalava: including annotations in file now
         val annotations: List<String> = getAnnotations(tokenizer, token)
-        val modifiers = TextModifiers(api, DefaultModifierList.PUBLIC, null)
+        val modifiers = DefaultModifierList(api, DefaultModifierList.PUBLIC, null)
         modifiers.addAnnotations(annotations)
         token = tokenizer.current
         assertIdent(tokenizer, token)
@@ -720,9 +720,9 @@ class ApiFile(
         tokenizer: Tokenizer,
         startingToken: String?,
         annotations: List<String>?
-    ): TextModifiers {
+    ): DefaultModifierList {
         var token = startingToken
-        val modifiers = TextModifiers(api, DefaultModifierList.PACKAGE_PRIVATE, null)
+        val modifiers = DefaultModifierList(api, DefaultModifierList.PACKAGE_PRIVATE, null)
         processModifiers@ while (true) {
             token =
                 when (token) {
@@ -1494,7 +1494,11 @@ class ReferenceResolver(
  */
 internal class NoOpAnnotationManager : AnnotationManager {
 
-    override fun mapName(qualifiedName: String?, target: AnnotationTarget): String? {
+    override fun normalizeInputName(qualifiedName: String?): String? {
+        return qualifiedName
+    }
+
+    override fun normalizeOutputName(qualifiedName: String?, target: AnnotationTarget): String? {
         return qualifiedName
     }
 

@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model.text
 
 import com.android.tools.metalava.model.DefaultItem
+import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.Location
 import com.android.tools.metalava.model.MutableModifierList
 import java.nio.file.Path
@@ -26,7 +27,7 @@ abstract class TextItem(
     internal val position: SourcePositionInfo,
     override var docOnly: Boolean = false,
     override var documentation: String = "",
-    override var modifiers: TextModifiers
+    override var modifiers: DefaultModifierList
 ) : DefaultItem() {
 
     override val synthetic = false

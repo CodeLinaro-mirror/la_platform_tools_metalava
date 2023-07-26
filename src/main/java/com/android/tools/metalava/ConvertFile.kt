@@ -33,7 +33,6 @@ import com.android.tools.metalava.model.text.TextCodebase
 import com.android.tools.metalava.model.text.TextConstructorItem
 import com.android.tools.metalava.model.text.TextFieldItem
 import com.android.tools.metalava.model.text.TextMethodItem
-import com.android.tools.metalava.model.text.TextModifiers
 import com.android.tools.metalava.model.text.TextPackageItem
 import com.android.tools.metalava.model.text.TextPropertyItem
 import java.io.File
@@ -169,7 +168,7 @@ fun computeDelta(baseFile: File, baseApi: Codebase, signatureApi: Codebase): Tex
                         TextPackageItem(
                             delta,
                             pkgName,
-                            TextModifiers(delta, DefaultModifierList.PUBLIC),
+                            DefaultModifierList(delta, DefaultModifierList.PUBLIC),
                             SourcePositionInfo.UNKNOWN
                         )
                     delta.addPackage(newPkg)

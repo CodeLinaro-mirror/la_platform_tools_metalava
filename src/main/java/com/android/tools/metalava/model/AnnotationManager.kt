@@ -18,11 +18,19 @@ package com.android.tools.metalava.model
 
 /** Provides support for managing annotations within Metalava. */
 interface AnnotationManager {
+
+    /**
+     * Maps an annotation name to the name to be used internally.
+     *
+     * Annotations that should not be used internally are mapped to null.
+     */
+    fun normalizeInputName(qualifiedName: String?): String?
+
     /**
      * Maps an annotation name to the name to be used in signatures/stubs/external annotation files.
      * Annotations that should not be exported are mapped to null.
      */
-    fun mapName(
+    fun normalizeOutputName(
         qualifiedName: String?,
         target: AnnotationTarget = AnnotationTarget.SIGNATURE_FILE
     ): String?

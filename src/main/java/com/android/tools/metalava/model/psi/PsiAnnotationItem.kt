@@ -59,7 +59,7 @@ private constructor(
 
     override fun toSource(target: AnnotationTarget, showDefaultAttrs: Boolean): String {
         val sb = StringBuilder(60)
-        appendAnnotation(codebase, sb, psiAnnotation, originalName, target, showDefaultAttrs)
+        appendAnnotation(codebase, sb, psiAnnotation, qualifiedName, target, showDefaultAttrs)
         return sb.toString()
     }
 
@@ -150,7 +150,8 @@ private constructor(
             target: AnnotationTarget,
             showDefaultAttrs: Boolean
         ) {
-            val qualifiedName = codebase.annotationManager.mapName(originalName, target) ?: return
+            val qualifiedName =
+                codebase.annotationManager.normalizeOutputName(originalName, target) ?: return
 
             val attributes = getAttributes(psiAnnotation, showDefaultAttrs)
             if (attributes.isEmpty()) {
@@ -260,7 +261,8 @@ private constructor(
                         codebase,
                         sb,
                         value,
-                        value.qualifiedName,
+                        // Normalize the input name of the annotation.
+                        codebase.annotationManager.normalizeInputName(value.qualifiedName),
                         target,
                         showDefaultAttrs
                     )
