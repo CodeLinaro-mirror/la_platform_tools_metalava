@@ -192,8 +192,6 @@ interface Item {
 
     fun hasHideAnnotation(): Boolean = modifiers.hasHideAnnotations()
 
-    fun hasHideMetaAnnotation(): Boolean = modifiers.hasHideMetaAnnotations()
-
     fun hasSuppressCompatibilityMetaAnnotation(): Boolean =
         modifiers.hasSuppressCompatibilityMetaAnnotations()
 

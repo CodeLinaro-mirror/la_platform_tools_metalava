@@ -16,8 +16,6 @@
 
 package com.android.tools.metalava.model
 
-import com.android.tools.metalava.Options
-import com.android.tools.metalava.options
 import java.io.Writer
 
 interface ModifierList {
@@ -124,81 +122,34 @@ interface ModifierList {
     }
 
     /**
-     * Returns true if this modifier list contains any annotations explicitly passed in via
-     * [Options.showAnnotations]
+     * Returns true if this modifier list contains any show annotations.
+     *
+     * See [AnnotationItem.isShowAnnotation]
      */
     fun hasShowAnnotation(): Boolean {
-        if (options.showAnnotations.isEmpty()) {
-            return false
-        }
-        return annotations().any { options.showAnnotations.matches(it) }
+        return codebase.annotationManager.hasShowAnnotation(this)
     }
 
-    /**
-     * Returns true if this modifier list contains any annotations explicitly passed in via
-     * [Options.showSingleAnnotations]
-     */
+    /** Returns true if this modifier list contains any show single annotations. */
     fun hasShowSingleAnnotation(): Boolean {
-        if (options.showSingleAnnotations.isEmpty()) {
-            return false
-        }
-        return annotations().any { options.showSingleAnnotations.matches(it) }
+        return codebase.annotationManager.hasShowSingleAnnotation(this)
     }
 
     /**
-     * Returns true if this modifier list contains any annotations explicitly passed in via
-     * [Options.showForStubPurposesAnnotations], and this is the only showAnnotation.
+     * Returns true if this modifier list contains any show for stub purposes annotations and that
+     * is the only show annotation.
      */
     fun onlyShowForStubPurposes(): Boolean {
-        if (options.showForStubPurposesAnnotations.isEmpty()) {
-            return false
-        }
-        return annotations().any { options.showForStubPurposesAnnotations.matches(it) } &&
-            !annotations().any {
-                options.showAnnotations.matches(it) &&
-                    !options.showForStubPurposesAnnotations.matches(it)
-            }
+        return codebase.annotationManager.onlyShowForStubPurposes(this)
     }
 
-    /**
-     * Returns true if this modifier list contains any annotations explicitly passed in via
-     * [Options.hideAnnotations] or any annotations which are themselves annotated with
-     * meta-annotations explicitly passed in via [Options.hideMetaAnnotations]
-     *
-     * @see hasHideMetaAnnotations
-     */
+    /** Returns true if this modifier list contains any hide annotations */
     fun hasHideAnnotations(): Boolean {
-        if (options.hideAnnotations.isEmpty() && options.hideMetaAnnotations.isEmpty()) {
-            return false
-        }
-        return annotations().any { annotation ->
-            options.hideAnnotations.matches(annotation) ||
-                annotation.resolve()?.hasHideMetaAnnotation() ?: false
-        }
+        return codebase.annotationManager.hasHideAnnotations(this)
     }
 
     /**
-     * Returns true if this modifier list contains any meta-annotations explicitly passed in via
-     * [Options.hideMetaAnnotations].
-     *
-     * Hidden meta-annotations allow Metalava to handle concepts like Kotlin's [RequiresOptIn],
-     * which allows developers to create annotations that describe experimental features -- sets of
-     * distinct and potentially overlapping unstable API surfaces. Libraries may wish to exclude
-     * such sets of APIs from tracking and stub JAR generation by passing [RequiresOptIn] as a
-     * hidden meta-annotation.
-     */
-    fun hasHideMetaAnnotations(): Boolean {
-        if (options.hideMetaAnnotations.isEmpty()) {
-            return false
-        }
-        return annotations().any { annotation ->
-            options.hideMetaAnnotations.contains(annotation.qualifiedName)
-        }
-    }
-
-    /**
-     * Returns true if this modifier list contains any meta-annotations explicitly passed in via
-     * [Options.suppressCompatibilityMetaAnnotations].
+     * Returns true if this modifier list contains any suppress compatibility meta-annotations.
      *
      * Metalava will suppress compatibility checks for APIs which are within the scope of a
      * "suppress compatibility" meta-annotation, but they may still be written to API files or stub
@@ -209,14 +160,7 @@ interface ModifierList {
      * feature sets with unstable APIs.
      */
     fun hasSuppressCompatibilityMetaAnnotations(): Boolean {
-        if (options.suppressCompatibilityMetaAnnotations.isEmpty()) {
-            return false
-        }
-        return annotations().any { annotation ->
-            annotation.qualifiedName == SUPPRESS_COMPATIBILITY_ANNOTATION_QUALIFIED ||
-                options.suppressCompatibilityMetaAnnotations.contains(annotation.qualifiedName) ||
-                annotation.resolve()?.hasSuppressCompatibilityMetaAnnotation() ?: false
-        }
+        return codebase.annotationManager.hasSuppressCompatibilityMetaAnnotations(this)
     }
 
     /** Returns true if this modifier list contains the given annotation */
@@ -564,15 +508,6 @@ interface ModifierList {
          *
          * Because this is used in API files, it needs to maintain compatibility.
          */
-        private const val SUPPRESS_COMPATIBILITY_ANNOTATION = "SuppressCompatibility"
-
-        /**
-         * Fully-qualified version of [SUPPRESS_COMPATIBILITY_ANNOTATION].
-         *
-         * This is only used at run-time for matching against [AnnotationItem.qualifiedName], so it
-         * doesn't need to maintain compatibility.
-         */
-        private val SUPPRESS_COMPATIBILITY_ANNOTATION_QUALIFIED =
-            AnnotationItem.unshortenAnnotation("@$SUPPRESS_COMPATIBILITY_ANNOTATION").substring(1)
+        const val SUPPRESS_COMPATIBILITY_ANNOTATION = "SuppressCompatibility"
     }
 }

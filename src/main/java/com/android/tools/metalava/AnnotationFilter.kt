@@ -14,7 +14,14 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava.model
+package com.android.tools.metalava
+
+import com.android.tools.metalava.model.ANNOTATION_ATTR_VALUE
+import com.android.tools.metalava.model.AnnotationArrayAttributeValue
+import com.android.tools.metalava.model.AnnotationAttribute
+import com.android.tools.metalava.model.AnnotationItem
+import com.android.tools.metalava.model.AnnotationSingleAttributeValue
+import com.android.tools.metalava.model.DefaultAnnotationAttribute
 
 interface AnnotationFilter {
     // tells whether an annotation is included by the filter

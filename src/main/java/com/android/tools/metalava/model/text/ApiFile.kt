@@ -24,10 +24,12 @@ import com.android.tools.metalava.FileFormat.Companion.parseHeader
 import com.android.tools.metalava.JAVA_LANG_DEPRECATED
 import com.android.tools.metalava.JAVA_LANG_THROWABLE
 import com.android.tools.metalava.model.ANNOTATION_IN_ALL_STUBS
+import com.android.tools.metalava.model.AnnotationInfo
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.AnnotationItem.Companion.unshortenAnnotation
 import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.AnnotationTarget
+import com.android.tools.metalava.model.BaseAnnotationManager
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.DefaultModifierList
@@ -1492,7 +1494,17 @@ class ReferenceResolver(
  * * The annotation names are correct and do not need mapping into another form.
  * * The annotations can be used in all stubs.
  */
-internal class NoOpAnnotationManager : AnnotationManager {
+internal class NoOpAnnotationManager : BaseAnnotationManager() {
+
+    override fun getKeyForAnnotationItem(annotationItem: AnnotationItem): String {
+        // Just use the qualified name as the key as [computeAnnotationInfo] does not use anything
+        // else.
+        return annotationItem.qualifiedName!!
+    }
+
+    override fun computeAnnotationInfo(annotationItem: AnnotationItem): AnnotationInfo {
+        return AnnotationInfo(annotationItem.qualifiedName!!)
+    }
 
     override fun normalizeInputName(qualifiedName: String?): String? {
         return qualifiedName

@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.model
 
-import com.google.common.base.Splitter
 import java.util.ArrayList
 import java.util.LinkedHashSet
 import java.util.function.Predicate
@@ -442,7 +441,7 @@ interface ClassItem : Item {
 
     private fun parametersMatch(method: MethodItem, description: String): Boolean {
         val parameterStrings =
-            Splitter.on(",").trimResults().omitEmptyStrings().splitToList(description)
+            description.splitToSequence(",").map(String::trim).filter(String::isNotEmpty).toList()
         val parameters = method.parameters()
         if (parameters.size != parameterStrings.size) {
             return false

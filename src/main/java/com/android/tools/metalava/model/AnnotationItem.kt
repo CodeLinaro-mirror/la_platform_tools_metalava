@@ -16,8 +16,6 @@
 
 package com.android.tools.metalava.model
 
-import com.google.common.base.Objects
-
 fun isNullnessAnnotation(qualifiedName: String): Boolean =
     isNullableAnnotation(qualifiedName) || isNonNullAnnotation(qualifiedName)
 
@@ -54,19 +52,13 @@ interface AnnotationItem {
     val attributes: List<AnnotationAttribute>
 
     /** True if this annotation represents @Nullable or @NonNull (or some synonymous annotation) */
-    fun isNullnessAnnotation(): Boolean {
-        return isNullable() || isNonNull()
-    }
+    fun isNullnessAnnotation(): Boolean
 
     /** True if this annotation represents @Nullable (or some synonymous annotation) */
-    fun isNullable(): Boolean {
-        return isNullableAnnotation(qualifiedName ?: return false)
-    }
+    fun isNullable(): Boolean
 
     /** True if this annotation represents @NonNull (or some synonymous annotation) */
-    fun isNonNull(): Boolean {
-        return isNonNullAnnotation(qualifiedName ?: return false)
-    }
+    fun isNonNull(): Boolean
 
     /** True if this annotation represents @JvmSynthetic */
     fun isJvmSynthetic(): Boolean {
@@ -114,6 +106,18 @@ interface AnnotationItem {
 
     /** If this annotation has a typedef annotation associated with it, return it */
     fun findTypedefAnnotation(): AnnotationItem?
+
+    /**
+     * Returns true iff the annotation is a show annotations.
+     *
+     * If `true` then an item annotated with this annotation (and any contents) will be added to the
+     * API.
+     *
+     * e.g. if a class is annotated with this then it will also apply (unless overridden by a
+     * closer) annotation to all its contents like nested classes, methods, fields, constructors,
+     * properties, etc.
+     */
+    fun isShowAnnotation(): Boolean
 
     /** Returns the retention of this annotation */
     val retention: AnnotationRetention
@@ -222,6 +226,21 @@ private constructor(
 
     final override val attributes: List<AnnotationAttribute> by lazy(attributesGetter)
 
+    /** Information that metalava has gathered about this annotation item. */
+    val info: AnnotationInfo by lazy { codebase.annotationManager.getAnnotationInfo(this) }
+
+    override fun isNullnessAnnotation(): Boolean {
+        return info.nullability != null
+    }
+
+    override fun isNullable(): Boolean {
+        return info.nullability == Nullability.NULLABLE
+    }
+
+    override fun isNonNull(): Boolean {
+        return info.nullability == Nullability.NON_NULL
+    }
+
     override fun resolve(): ClassItem? {
         return codebase.findClass(originalName ?: return null)
     }
@@ -234,13 +253,17 @@ private constructor(
         }
     }
 
+    override fun isShowAnnotation(): Boolean = info.show
+
     override fun equals(other: Any?): Boolean {
         if (other !is AnnotationItem) return false
         return qualifiedName == other.qualifiedName && attributes == other.attributes
     }
 
     override fun hashCode(): Int {
-        return Objects.hashCode(qualifiedName, attributes)
+        var result = qualifiedName?.hashCode() ?: 0
+        result = 31 * result + attributes.hashCode()
+        return result
     }
 
     override fun toSource(target: AnnotationTarget, showDefaultAttrs: Boolean): String {
@@ -464,7 +487,9 @@ open class DefaultAnnotationAttribute(
     }
 
     override fun hashCode(): Int {
-        return Objects.hashCode(name, value)
+        var result = name.hashCode()
+        result = 31 * result + value.hashCode()
+        return result
     }
 }
 

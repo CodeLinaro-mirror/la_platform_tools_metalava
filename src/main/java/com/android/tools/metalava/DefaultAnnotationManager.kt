@@ -25,30 +25,99 @@ import com.android.tools.metalava.model.ANNOTATION_IN_DOC_STUBS_AND_EXTERNAL
 import com.android.tools.metalava.model.ANNOTATION_SDK_STUBS_ONLY
 import com.android.tools.metalava.model.ANNOTATION_SIGNATURE_ONLY
 import com.android.tools.metalava.model.ANNOTATION_STUBS_ONLY
-import com.android.tools.metalava.model.AnnotationFilter
+import com.android.tools.metalava.model.AnnotationInfo
 import com.android.tools.metalava.model.AnnotationItem
-import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.AnnotationRetention
 import com.android.tools.metalava.model.AnnotationTarget
+import com.android.tools.metalava.model.BaseAnnotationManager
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.JAVA_LANG_PREFIX
+import com.android.tools.metalava.model.ModifierList
+import com.android.tools.metalava.model.ModifierList.Companion.SUPPRESS_COMPATIBILITY_ANNOTATION
 import com.android.tools.metalava.model.NO_ANNOTATION_TARGETS
 import com.android.tools.metalava.model.TypedefMode
 import com.android.tools.metalava.model.isNonNullAnnotation
 import com.android.tools.metalava.model.isNullableAnnotation
 import java.util.function.Predicate
 
-class DefaultAnnotationManager(private val config: Config = Config()) : AnnotationManager {
+/** The type of lambda that can construct a key from an [AnnotationItem] */
+typealias KeyFactory = (annotationItem: AnnotationItem) -> String
+
+class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnnotationManager() {
 
     data class Config(
         val passThroughAnnotations: Set<String> = emptySet(),
         val showAnnotations: AnnotationFilter = AnnotationFilter.emptyFilter(),
+        val showSingleAnnotations: AnnotationFilter = AnnotationFilter.emptyFilter(),
+        val showForStubPurposesAnnotations: AnnotationFilter = AnnotationFilter.emptyFilter(),
         val hideAnnotations: AnnotationFilter = AnnotationFilter.emptyFilter(),
+        val hideMetaAnnotations: List<String> = emptyList(),
+        val suppressCompatibilityMetaAnnotations: Set<String> = emptySet(),
         val excludeAnnotations: Set<String> = emptySet(),
         val typedefMode: TypedefMode = TypedefMode.NONE,
         val apiPredicate: Predicate<Item> = Predicate { true },
     )
+
+    /**
+     * Map from annotation name to the [KeyFactory] to use to create a key.
+     *
+     * See [getKeyForAnnotationItem] to see how this is used.
+     */
+    private val annotationNameToKeyFactory: Map<String, KeyFactory>
+
+    init {
+        /** Use the complete source representation of the item as the key. */
+        fun useSourceAsKey(annotationItem: AnnotationItem): String {
+            val qualifiedName = annotationItem.qualifiedName!!
+            val attributes = annotationItem.attributes
+            if (attributes.isEmpty()) {
+                return qualifiedName
+            }
+            return buildString {
+                append(qualifiedName)
+                append("(")
+                attributes.forEachIndexed { index, attribute ->
+                    if (index > 0) {
+                        append(",")
+                    }
+                    append(attribute)
+                }
+                append(")")
+            }
+        }
+
+        // Iterate over all the annotation names matched by all the filters currently used by
+        // [LazyAnnotationInfo] and associate them with a [KeyFactory] that will use the complete
+        // source representation of the annotation as the key. This is needed because filters can
+        // match on attribute values as well as the name.
+        val filters =
+            arrayOf(
+                config.showAnnotations,
+            )
+        annotationNameToKeyFactory =
+            filters
+                .asSequence()
+                .flatMap { it.getIncludedAnnotationNames().asSequence() }
+                .associate { Pair(it, ::useSourceAsKey) }
+    }
+
+    override fun getKeyForAnnotationItem(annotationItem: AnnotationItem): String {
+        val qualifiedName = annotationItem.qualifiedName!!
+
+        // Check to see if this requires a special [KeyFactory] and use it if it does.
+        val keyFactory = annotationNameToKeyFactory.get(qualifiedName)
+        if (keyFactory != null) {
+            return keyFactory(annotationItem)
+        }
+
+        // No special key factory is needed so just use the qualified name as the key.
+        return qualifiedName
+    }
+
+    override fun computeAnnotationInfo(annotationItem: AnnotationItem): AnnotationInfo {
+        return LazyAnnotationInfo(config, annotationItem)
+    }
 
     override fun normalizeInputName(qualifiedName: String?): String? {
         qualifiedName ?: return null
@@ -397,5 +466,96 @@ class DefaultAnnotationManager(private val config: Config = Config()) : Annotati
         return ANNOTATION_EXTERNAL
     }
 
+    override fun hasShowAnnotation(modifiers: ModifierList): Boolean {
+        if (config.showAnnotations.isEmpty()) {
+            return false
+        }
+        return modifiers.annotations().any(AnnotationItem::isShowAnnotation)
+    }
+
+    override fun hasShowSingleAnnotation(modifiers: ModifierList): Boolean {
+        if (config.showSingleAnnotations.isEmpty()) {
+            return false
+        }
+        return modifiers.annotations().any { config.showSingleAnnotations.matches(it) }
+    }
+
+    override fun onlyShowForStubPurposes(modifiers: ModifierList): Boolean {
+        if (config.showForStubPurposesAnnotations.isEmpty()) {
+            return false
+        }
+        return modifiers.annotations().any { config.showForStubPurposesAnnotations.matches(it) } &&
+            !modifiers.annotations().any {
+                it.isShowAnnotation() && !config.showForStubPurposesAnnotations.matches(it)
+            }
+    }
+
+    override fun hasHideAnnotations(modifiers: ModifierList): Boolean {
+        if (config.hideAnnotations.isEmpty() && config.hideMetaAnnotations.isEmpty()) {
+            return false
+        }
+        return modifiers.annotations().any { annotation ->
+            config.hideAnnotations.matches(annotation) ||
+                (config.hideMetaAnnotations.isNotEmpty() &&
+                    annotation.resolve()?.modifiers?.let { hasHideMetaAnnotation(it) } ?: false)
+        }
+    }
+
+    /**
+     * Returns true if the modifier list contains any hide meta-annotations.
+     *
+     * Hide meta-annotations allow Metalava to handle concepts like Kotlin's [RequiresOptIn], which
+     * allows developers to create annotations that describe experimental features -- sets of
+     * distinct and potentially overlapping unstable API surfaces. Libraries may wish to exclude
+     * such sets of APIs from tracking and stub JAR generation by passing [RequiresOptIn] as a
+     * hidden meta-annotation.
+     */
+    private fun hasHideMetaAnnotation(modifiers: ModifierList): Boolean {
+        return modifiers.annotations().any { annotation ->
+            config.hideMetaAnnotations.contains(annotation.qualifiedName)
+        }
+    }
+
+    override fun hasSuppressCompatibilityMetaAnnotations(modifiers: ModifierList): Boolean {
+        if (config.suppressCompatibilityMetaAnnotations.isEmpty()) {
+            return false
+        }
+        return modifiers.annotations().any { annotation ->
+            annotation.qualifiedName == SUPPRESS_COMPATIBILITY_ANNOTATION_QUALIFIED ||
+                config.suppressCompatibilityMetaAnnotations.contains(annotation.qualifiedName) ||
+                annotation.resolve()?.hasSuppressCompatibilityMetaAnnotation() ?: false
+        }
+    }
+
     override val typedefMode: TypedefMode = config.typedefMode
+
+    companion object {
+        /**
+         * Fully-qualified version of [SUPPRESS_COMPATIBILITY_ANNOTATION].
+         *
+         * This is only used at run-time for matching against [AnnotationItem.qualifiedName], so it
+         * doesn't need to maintain compatibility.
+         */
+        private val SUPPRESS_COMPATIBILITY_ANNOTATION_QUALIFIED =
+            AnnotationItem.unshortenAnnotation("@$SUPPRESS_COMPATIBILITY_ANNOTATION").substring(1)
+    }
+}
+
+/**
+ * Extension of [AnnotationInfo] that supports initializing properties based on the
+ * [DefaultAnnotationManager.Config].
+ *
+ * The properties are initialized lazily to avoid doing more work than necessary.
+ */
+private class LazyAnnotationInfo(
+    config: DefaultAnnotationManager.Config,
+    private val annotationItem: AnnotationItem,
+) : AnnotationInfo(annotationItem.qualifiedName!!) {
+
+    /** Compute lazily to avoid doing any more work than strictly necessary. */
+    override val show: Boolean by
+        lazy(LazyThreadSafetyMode.NONE) {
+            val filter = config.showAnnotations
+            filter.isNotEmpty() && filter.matches(annotationItem)
+        }
 }

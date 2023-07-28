@@ -231,8 +231,7 @@ class Reporter(
      * See [relativizeLocationPath].
      */
     private fun Location.forReport(): String? {
-        path ?: return null
-        val pathString = relativizeLocationPath(path)
+        val pathString = path?.let { relativizeLocationPath(it) } ?: return null
         return if (line > 0) "$pathString:$line" else pathString
     }
 

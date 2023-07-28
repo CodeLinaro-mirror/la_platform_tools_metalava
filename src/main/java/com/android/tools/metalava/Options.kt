@@ -22,10 +22,8 @@ import com.android.tools.lint.detector.api.isJdkFolder
 import com.android.tools.metalava.CompatibilityCheck.CheckRequest
 import com.android.tools.metalava.manifest.Manifest
 import com.android.tools.metalava.manifest.emptyManifest
-import com.android.tools.metalava.model.AnnotationFilter
 import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.MethodItem
-import com.android.tools.metalava.model.MutableAnnotationFilter
 import com.android.tools.metalava.model.TypedefMode
 import com.android.tools.metalava.model.text.ApiClassResolution
 import com.android.utils.SdkUtils.wrap
@@ -33,7 +31,9 @@ import com.github.ajalt.clikt.core.NoSuchOption
 import com.github.ajalt.clikt.parameters.groups.OptionGroup
 import com.github.ajalt.clikt.parameters.options.convert
 import com.github.ajalt.clikt.parameters.options.default
+import com.github.ajalt.clikt.parameters.options.multiple
 import com.github.ajalt.clikt.parameters.options.option
+import com.github.ajalt.clikt.parameters.options.unique
 import com.github.ajalt.clikt.parameters.types.file
 import com.google.common.base.CharMatcher
 import com.google.common.base.Splitter
@@ -202,8 +202,6 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
     private val mutableHideAnnotations = MutableAnnotationFilter()
     /** Internal list backing [hideMetaAnnotations] */
     private val mutableHideMetaAnnotations: MutableList<String> = mutableListOf()
-    /** Internal list backing [suppressCompatibilityMetaAnnotations] */
-    private val mutableNoCompatCheckMetaAnnotations: MutableSet<String> = mutableSetOf()
     /** Internal list backing [showForStubPurposesAnnotations] */
     private val mutableShowForStubPurposesAnnotation = MutableAnnotationFilter()
     /** Internal list backing [stubImportPackages] */
@@ -353,7 +351,11 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
             DefaultAnnotationManager.Config(
                 passThroughAnnotations = passThroughAnnotations,
                 showAnnotations = showAnnotations,
+                showSingleAnnotations = showSingleAnnotations,
+                showForStubPurposesAnnotations = showForStubPurposesAnnotations,
                 hideAnnotations = hideAnnotations,
+                hideMetaAnnotations = hideMetaAnnotations,
+                suppressCompatibilityMetaAnnotations = suppressCompatibilityMetaAnnotations,
                 excludeAnnotations = excludeAnnotations,
                 typedefMode = typedefMode,
                 apiPredicate = ApiPredicate(),
@@ -362,7 +364,19 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
     }
 
     /** Meta-annotations for which annotated APIs should not be checked for compatibility. */
-    var suppressCompatibilityMetaAnnotations = mutableNoCompatCheckMetaAnnotations
+    private val suppressCompatibilityMetaAnnotations by
+        option(
+                ARG_SUPPRESS_COMPATIBILITY_META_ANNOTATION,
+                help =
+                    """
+                       Suppress compatibility checks for any elements within the scope of an 
+                       annotation which is itself annotated with the given meta-annotation.
+                    """
+                        .trimIndent(),
+                metavar = "<meta-annotation class>",
+            )
+            .multiple()
+            .unique()
 
     /**
      * Annotations that defines APIs that are implicitly included in the API surface. These APIs
@@ -906,8 +920,6 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
                 ARG_HIDE_META_ANNOTATION,
                 "--hideMetaAnnotations",
                 "-hideMetaAnnotation" -> mutableHideMetaAnnotations.add(getValue(args, ++index))
-                ARG_SUPPRESS_COMPATIBILITY_META_ANNOTATION ->
-                    mutableNoCompatCheckMetaAnnotations.add(getValue(args, ++index))
                 ARG_STUBS,
                 "-stubs" -> stubsDir = stringToNewDir(getValue(args, ++index))
                 ARG_DOC_STUBS -> docStubsDir = stringToNewDir(getValue(args, ++index))
@@ -1793,9 +1805,6 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
                 "$ARG_HIDE_META_ANNOTATION <meta-annotation class>",
                 "Treat as hidden any elements annotated with an " +
                     "annotation which is itself annotated with the given meta-annotation",
-                "$ARG_SUPPRESS_COMPATIBILITY_META_ANNOTATION <meta-annotation class>",
-                "Suppress compatibility checks for any elements within the scope of an annotation " +
-                    "which is itself annotated with the given meta-annotation",
                 ARG_SHOW_UNANNOTATED,
                 "Include un-annotated public APIs in the signature file as well",
                 "$ARG_JAVA_SOURCE <level>",

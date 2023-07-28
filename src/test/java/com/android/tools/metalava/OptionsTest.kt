@@ -93,9 +93,6 @@ API sources:
 --hide-meta-annotation <meta-annotation class>
                                              Treat as hidden any elements annotated with an annotation which is itself
                                              annotated with the given meta-annotation
---suppress-compatibility-meta-annotation <meta-annotation class>
-                                             Suppress compatibility checks for any elements within the scope of an
-                                             annotation which is itself annotated with the given meta-annotation
 --show-unannotated
                                              Include un-annotated public APIs in the signature file as well
 --java-source <level>
@@ -435,6 +432,9 @@ Options:
 
                                              api:classpath (default) - will look for classes in the API signature files
                                              first and then in the classpath.
+  --suppress-compatibility-meta-annotation <meta-annotation class>
+                                             Suppress compatibility checks for any elements within the scope of an
+                                             annotation which is itself annotated with the given meta-annotation.
   --api-overloaded-method-order [source|signature]
                                              Specifies the order of overloaded methods in signature files. Applies to
                                              the contents of the files specified on --api and --removed-api.

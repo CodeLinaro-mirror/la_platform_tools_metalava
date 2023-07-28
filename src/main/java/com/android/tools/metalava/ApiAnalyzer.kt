@@ -21,6 +21,7 @@ import com.android.tools.metalava.manifest.emptyManifest
 import com.android.tools.metalava.model.ANDROID_ANNOTATION_PREFIX
 import com.android.tools.metalava.model.ANNOTATION_ATTR_VALUE
 import com.android.tools.metalava.model.AnnotationAttributeValue
+import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ConstructorItem
@@ -705,9 +706,7 @@ class ApiAnalyzer(
                     }
                     val violatingAnnotation =
                         if (item.modifiers.hasShowAnnotation()) {
-                            item.modifiers.annotations().find {
-                                options.showAnnotations.matches(it)
-                            }
+                            item.modifiers.annotations().find(AnnotationItem::isShowAnnotation)
                                 ?: options.showAnnotations.firstQualifiedName()
                         } else if (item.modifiers.hasShowSingleAnnotation()) {
                             item.modifiers.annotations().find {
@@ -892,9 +891,7 @@ class ApiAnalyzer(
                         val annotationName =
                             (item.modifiers
                                     .annotations()
-                                    .firstOrNull { annotation ->
-                                        options.showAnnotations.matches(annotation)
-                                    }
+                                    .firstOrNull(AnnotationItem::isShowAnnotation)
                                     ?.qualifiedName
                                     ?: options.showAnnotations.firstQualifiedName())
                                 .removePrefix(ANDROID_ANNOTATION_PREFIX)

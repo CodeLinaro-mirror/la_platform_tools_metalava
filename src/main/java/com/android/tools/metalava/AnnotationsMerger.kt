@@ -324,7 +324,7 @@ class AnnotationsMerger(private val codebase: Codebase) {
                         for (annotation in old.modifiers.annotations()) {
                             val qualifiedName = annotation.qualifiedName ?: continue
                             if (
-                                (showAnnotations.matches(annotation) ||
+                                (annotation.isShowAnnotation() ||
                                     hideAnnotations.matches(annotation) ||
                                     hideMetaAnnotations.contains(qualifiedName)) &&
                                     new.modifiers.findAnnotation(qualifiedName) == null
