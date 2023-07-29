@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava
 
+import com.android.tools.metalava.model.FileFormat
 import com.android.tools.metalava.model.Location
 import java.io.File
 import java.io.PrintWriter

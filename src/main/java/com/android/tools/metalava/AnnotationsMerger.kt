@@ -42,6 +42,8 @@ import com.android.tools.lint.annotations.Extractor.SUPPORT_NOTNULL
 import com.android.tools.lint.annotations.Extractor.SUPPORT_NULLABLE
 import com.android.tools.lint.detector.api.getChildren
 import com.android.tools.metalava.model.ANDROIDX_INT_DEF
+import com.android.tools.metalava.model.ANDROIDX_NONNULL
+import com.android.tools.metalava.model.ANDROIDX_NULLABLE
 import com.android.tools.metalava.model.ANDROIDX_STRING_DEF
 import com.android.tools.metalava.model.ANNOTATION_VALUE_TRUE
 import com.android.tools.metalava.model.AnnotationAttribute

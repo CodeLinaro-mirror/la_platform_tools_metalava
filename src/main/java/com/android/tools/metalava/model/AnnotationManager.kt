@@ -153,3 +153,40 @@ abstract class BaseAnnotationManager : AnnotationManager {
      */
     protected abstract fun computeAnnotationInfo(annotationItem: AnnotationItem): AnnotationInfo
 }
+
+/**
+ * A no op implementation of [AnnotationManager] that is suitable for use by the deprecated,
+ * external use only `ApiFile.parseApi(String,String,Boolean?)` and the for test only
+ * `ApiFile.parseApi(String,String,ClassResolver?)` methods.
+ *
+ * This is used when loading an API signature from a text file and makes the following assumptions:
+ * * The annotation names are correct and do not need mapping into another form.
+ * * The annotations can be used in all stubs.
+ */
+class NoOpAnnotationManager : BaseAnnotationManager() {
+
+    override fun getKeyForAnnotationItem(annotationItem: AnnotationItem): String {
+        // Just use the qualified name as the key as [computeAnnotationInfo] does not use anything
+        // else.
+        return annotationItem.qualifiedName!!
+    }
+
+    override fun computeAnnotationInfo(annotationItem: AnnotationItem): AnnotationInfo {
+        return AnnotationInfo(annotationItem.qualifiedName!!)
+    }
+
+    override fun normalizeInputName(qualifiedName: String?): String? {
+        return qualifiedName
+    }
+
+    override fun normalizeOutputName(qualifiedName: String?, target: AnnotationTarget): String? {
+        return qualifiedName
+    }
+
+    override fun computeTargets(
+        annotation: AnnotationItem,
+        classFinder: (String) -> ClassItem?
+    ): Set<AnnotationTarget> = ANNOTATION_IN_ALL_STUBS
+
+    override val typedefMode: TypedefMode = TypedefMode.NONE
+}

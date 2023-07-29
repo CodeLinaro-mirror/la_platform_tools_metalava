@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava
 
+import com.android.tools.metalava.model.FileFormat
 import com.android.tools.metalava.model.text.ApiClassResolution
 import java.io.File
 import kotlin.text.Charsets.UTF_8

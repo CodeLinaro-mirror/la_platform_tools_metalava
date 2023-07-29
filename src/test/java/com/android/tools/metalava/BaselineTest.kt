@@ -17,6 +17,7 @@
 package com.android.tools.metalava
 
 import com.android.tools.lint.checks.infrastructure.TestFiles.source
+import com.android.tools.metalava.model.FileFormat
 import java.io.File
 import org.junit.Test
 

@@ -16,12 +16,8 @@
 
 package com.android.tools.metalava
 
-const val JAVA_LANG_THROWABLE = "java.lang.Throwable"
-const val JAVA_LANG_DEPRECATED = "java.lang.Deprecated"
 const val ORG_JETBRAINS_ANNOTATIONS_PREFIX = "org.jetbrains.annotations."
 const val ORG_INTELLIJ_LANG_ANNOTATIONS_PREFIX = "org.intellij.lang.annotations."
-const val ANDROIDX_NONNULL = "androidx.annotation.NonNull"
-const val ANDROIDX_NULLABLE = "androidx.annotation.Nullable"
 const val ANDROID_SYSTEM_API = "android.annotation.SystemApi"
 const val ANDROID_REQUIRES_PERMISSION = "android.annotation.RequiresPermission"
 const val ANDROID_DEPRECATED_FOR_SDK = "android.annotation.DeprecatedForSdk"

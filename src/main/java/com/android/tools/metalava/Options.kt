@@ -23,6 +23,7 @@ import com.android.tools.metalava.CompatibilityCheck.CheckRequest
 import com.android.tools.metalava.manifest.Manifest
 import com.android.tools.metalava.manifest.emptyManifest
 import com.android.tools.metalava.model.AnnotationManager
+import com.android.tools.metalava.model.FileFormat
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.TypedefMode
 import com.android.tools.metalava.model.text.ApiClassResolution
@@ -195,15 +196,15 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
     /** Internal list backing [classpath] */
     private val mutableClassPath: MutableList<File> = mutableListOf()
     /** Internal list backing [showAnnotations] */
-    private val mutableShowAnnotations = MutableAnnotationFilter()
+    private val showAnnotationsBuilder = AnnotationFilterBuilder()
     /** Internal list backing [showSingleAnnotations] */
-    private val mutableShowSingleAnnotations = MutableAnnotationFilter()
+    private val showSingleAnnotationsBuilder = AnnotationFilterBuilder()
     /** Internal list backing [hideAnnotations] */
-    private val mutableHideAnnotations = MutableAnnotationFilter()
+    private val hideAnnotationsBuilder = AnnotationFilterBuilder()
     /** Internal list backing [hideMetaAnnotations] */
     private val mutableHideMetaAnnotations: MutableList<String> = mutableListOf()
     /** Internal list backing [showForStubPurposesAnnotations] */
-    private val mutableShowForStubPurposesAnnotation = MutableAnnotationFilter()
+    private val showForStubPurposesAnnotationBuilder = AnnotationFilterBuilder()
     /** Internal list backing [stubImportPackages] */
     private val mutableStubImportPackages: MutableSet<String> = mutableSetOf()
     /** Internal list backing [mergeQualifierAnnotations] */
@@ -306,13 +307,13 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
      * [ARG_SHOW_ANNOTATION], [ARG_SHOW_SINGLE_ANNOTATION] and
      * [ARG_SHOW_FOR_STUB_PURPOSES_ANNOTATION].
      */
-    var showAnnotations: AnnotationFilter = mutableShowAnnotations
+    val showAnnotations by lazy(showAnnotationsBuilder::build)
 
     /**
      * Like [showAnnotations], but does not work recursively. Note that these annotations are *also*
      * show annotations and will be added to the above list; this is a subset.
      */
-    val showSingleAnnotations: AnnotationFilter = mutableShowSingleAnnotations
+    val showSingleAnnotations by lazy(showSingleAnnotationsBuilder::build)
 
     /**
      * Whether to include unannotated elements if {@link #showAnnotations} is set. Note: This only
@@ -341,7 +342,7 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
     var skipEmitPackages: List<String> = mutableSkipEmitPackages
 
     /** Annotations to hide */
-    var hideAnnotations: AnnotationFilter = mutableHideAnnotations
+    val hideAnnotations by lazy(hideAnnotationsBuilder::build)
 
     /** Meta-annotations to hide */
     var hideMetaAnnotations = mutableHideMetaAnnotations
@@ -383,7 +384,7 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
      * will be included in certain kinds of output such as stubs, but others (e.g. API lint and the
      * API signature file) ignore them.
      */
-    var showForStubPurposesAnnotations: AnnotationFilter = mutableShowForStubPurposesAnnotation
+    val showForStubPurposesAnnotations by lazy(showForStubPurposesAnnotationBuilder::build)
 
     /**
      * Whether the generated API can contain classes that are not present in the source but are
@@ -897,26 +898,26 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
                 ARG_REMOVED_API,
                 "-removedApi" -> removedApiFile = stringToNewFile(getValue(args, ++index))
                 ARG_SHOW_ANNOTATION,
-                "-showAnnotation" -> mutableShowAnnotations.add(getValue(args, ++index))
+                "-showAnnotation" -> showAnnotationsBuilder.add(getValue(args, ++index))
                 ARG_SHOW_SINGLE_ANNOTATION -> {
                     val annotation = getValue(args, ++index)
-                    mutableShowSingleAnnotations.add(annotation)
+                    showSingleAnnotationsBuilder.add(annotation)
                     // These should also be counted as show annotations
-                    mutableShowAnnotations.add(annotation)
+                    showAnnotationsBuilder.add(annotation)
                 }
                 ARG_SHOW_FOR_STUB_PURPOSES_ANNOTATION,
                 "--show-for-stub-purposes-annotations",
                 "-show-for-stub-purposes-annotation" -> {
                     val annotation = getValue(args, ++index)
-                    mutableShowForStubPurposesAnnotation.add(annotation)
+                    showForStubPurposesAnnotationBuilder.add(annotation)
                     // These should also be counted as show annotations
-                    mutableShowAnnotations.add(annotation)
+                    showAnnotationsBuilder.add(annotation)
                 }
                 ARG_SHOW_UNANNOTATED,
                 "-showUnannotated" -> showUnannotated = true
                 ARG_HIDE_ANNOTATION,
                 "--hideAnnotations",
-                "-hideAnnotation" -> mutableHideAnnotations.add(getValue(args, ++index))
+                "-hideAnnotation" -> hideAnnotationsBuilder.add(getValue(args, ++index))
                 ARG_HIDE_META_ANNOTATION,
                 "--hideMetaAnnotations",
                 "-hideMetaAnnotation" -> mutableHideMetaAnnotations.add(getValue(args, ++index))
@@ -2177,4 +2178,15 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
             return LanguageVersionSettingsImpl(languageLevel, apiVersion)
         }
     }
+}
+
+/** Configures the option object such that the output format will be the given format */
+private fun FileFormat.configureOptions(options: Options) {
+    if (this == FileFormat.JDIFF) {
+        return
+    }
+    options.outputFormat = this
+    options.outputKotlinStyleNulls = this >= FileFormat.V3
+    options.outputDefaultValues = this >= FileFormat.V2
+    options.includeSignatureFormatVersion = this >= FileFormat.V2
 }

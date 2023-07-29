@@ -16,8 +16,8 @@
 
 package com.android.tools.metalava.stub
 
-import com.android.tools.metalava.FileFormat
 import com.android.tools.metalava.java
+import com.android.tools.metalava.model.FileFormat
 import org.junit.Test
 
 @SuppressWarnings("ALL")

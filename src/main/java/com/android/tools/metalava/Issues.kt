@@ -249,8 +249,6 @@ object Issues {
         val parent: Issue?,
         /** Applicable category */
         val category: Category,
-        /** Related rule, if any */
-        val rule: String?
     ) {
         /** The name of this issue */
         lateinit var name: String
@@ -259,18 +257,12 @@ object Issues {
         internal constructor(
             defaultLevel: Severity,
             category: Category = Category.UNKNOWN
-        ) : this(defaultLevel, null, category, null)
-
-        internal constructor(
-            defaultLevel: Severity,
-            category: Category,
-            rule: String
-        ) : this(defaultLevel, null, category, rule)
+        ) : this(defaultLevel, null, category)
 
         internal constructor(
             parent: Issue,
             category: Category
-        ) : this(Severity.INHERIT, parent, category, null)
+        ) : this(Severity.INHERIT, parent, category)
 
         override fun toString(): String {
             return "Issue $name"
@@ -281,16 +273,13 @@ object Issues {
         }
     }
 
-    enum class Category(val description: String, val ruleLink: String?) {
-        COMPATIBILITY("Compatibility", null),
-        DOCUMENTATION("Documentation", null),
-        API_LINT("API Lint", null),
+    enum class Category(val description: String) {
+        COMPATIBILITY("Compatibility"),
+        DOCUMENTATION("Documentation"),
+        API_LINT("API Lint"),
         // AndroidX API guidelines are split across multiple files, so add a category per-file
-        API_LINT_ANDROIDX_MISC(
-            "API Lint",
-            "https://android.googlesource.com/platform/frameworks/support/+/androidx-main/docs/api_guidelines/misc.md#"
-        ),
-        UNKNOWN("Default", null);
+        API_LINT_ANDROIDX_MISC("API Lint"),
+        UNKNOWN("Default");
 
         /** Identifier for use in command-line arguments and reporting. */
         val id: String = SdkVersionInfo.underlinesToCamelCase(name.lowercase(Locale.US))

@@ -26,6 +26,4 @@ export LINT_REPO="$(pwd)/out/repo"
 JAVA_HOME="$(pwd)/prebuilts/jdk/jdk17/linux-x86/" tools/gradlew -p tools/metalava \
   --no-daemon \
   --stacktrace \
-   --dependency-verification=off \
-  -PlintRepo=$LINT_REPO \
-  -PlintVersion=$LINT_VERSION
+   --dependency-verification=off

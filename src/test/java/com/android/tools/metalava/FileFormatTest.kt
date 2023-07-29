@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava
 
+import com.android.tools.metalava.model.FileFormat
 import org.junit.Assert.assertSame
 import org.junit.Test
 

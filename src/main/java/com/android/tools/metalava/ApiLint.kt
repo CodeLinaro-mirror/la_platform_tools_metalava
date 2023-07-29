@@ -150,6 +150,7 @@ import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.model.JAVA_LANG_THROWABLE
 import com.android.tools.metalava.model.Location
 import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.MethodItem

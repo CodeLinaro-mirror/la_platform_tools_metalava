@@ -18,9 +18,9 @@ package com.android.tools.metalava.model.psi
 
 import com.android.SdkConstants
 import com.android.tools.lint.UastEnvironment
-import com.android.tools.metalava.ANDROIDX_NONNULL
-import com.android.tools.metalava.ANDROIDX_NULLABLE
 import com.android.tools.metalava.Issues
+import com.android.tools.metalava.model.ANDROIDX_NONNULL
+import com.android.tools.metalava.model.ANDROIDX_NULLABLE
 import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.DefaultCodebase
@@ -30,7 +30,6 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageDocs
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PackageList
-import com.android.tools.metalava.options
 import com.android.tools.metalava.reporter
 import com.android.tools.metalava.tick
 import com.intellij.openapi.application.ApplicationManager
@@ -48,7 +47,6 @@ import com.intellij.psi.PsiErrorElement
 import com.intellij.psi.PsiField
 import com.intellij.psi.PsiFile
 import com.intellij.psi.PsiImportStatement
-import com.intellij.psi.PsiJavaCodeReferenceElement
 import com.intellij.psi.PsiJavaFile
 import com.intellij.psi.PsiMethod
 import com.intellij.psi.PsiPackage
@@ -56,7 +54,6 @@ import com.intellij.psi.PsiSubstitutor
 import com.intellij.psi.PsiType
 import com.intellij.psi.TypeAnnotationProvider
 import com.intellij.psi.javadoc.PsiDocComment
-import com.intellij.psi.javadoc.PsiDocTag
 import com.intellij.psi.search.GlobalSearchScope
 import com.intellij.psi.util.PsiTreeUtil
 import java.io.File
@@ -512,14 +509,6 @@ open class PsiBasedCodebase(
         packageClasses.clear() // Not used after this point
     }
 
-    fun dumpStats() {
-        options.stdout.println(
-            "INTERNAL STATS: Size of classMap=${classMap.size} and size of " +
-                "methodMap=${methodMap.size} and size of packageMap=${packageMap.size}, and the " +
-                "size of packageClasses=${packageClasses.size} "
-        )
-    }
-
     private fun registerPackageClass(packageName: String, cls: PsiClassItem) {
         var list = packageClasses[packageName]
         if (list == null) {
@@ -793,24 +782,14 @@ open class PsiBasedCodebase(
         return topLevelClassesFromSource
     }
 
-    fun createReferenceFromText(
-        s: String,
-        parent: PsiElement? = null
-    ): PsiJavaCodeReferenceElement = getFactory().createReferenceFromText(s, parent)
-
     fun createPsiMethod(s: String, parent: PsiElement? = null): PsiMethod =
         getFactory().createMethodFromText(s, parent)
-
-    fun createConstructor(s: String, parent: PsiElement? = null): PsiMethod =
-        getFactory().createConstructor(s, parent)
 
     fun createPsiType(s: String, parent: PsiElement? = null): PsiType =
         getFactory().createTypeFromText(s, parent)
 
     fun createPsiAnnotation(s: String, parent: PsiElement? = null): PsiAnnotation =
         getFactory().createAnnotationFromText(s, parent)
-
-    fun createDocTagFromText(s: String): PsiDocTag = getFactory().createDocTagFromText(s)
 
     private fun getFactory() = JavaPsiFacade.getElementFactory(project)
 

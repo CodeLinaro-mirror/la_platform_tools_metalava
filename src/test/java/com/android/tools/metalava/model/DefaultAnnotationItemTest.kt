@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.model
 
-import com.android.tools.metalava.model.text.NoOpAnnotationManager
 import java.io.File
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull

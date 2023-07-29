@@ -20,6 +20,7 @@ package com.android.tools.metalava
 
 import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.lint.checks.infrastructure.TestFiles
+import com.android.tools.metalava.model.FileFormat
 import org.junit.Test
 
 /** Test to explore hidden versus public APIs via annotations */

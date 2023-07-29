@@ -37,7 +37,9 @@ fun configurePublishingArchive(
         it.from("${distributionDirectory.canonicalPath}/repo")
         it.archiveFileName.set(
             project.provider {
-                "per-project-zips/${project.group}-${project.name}-all-$buildId-${project.version}.zip"
+                "per-project-zips/${project.group}-${project.name}-all-$buildId-${
+                    project.version().get()
+                }.zip"
             }
         )
         it.destinationDirectory.set(distributionDirectory)

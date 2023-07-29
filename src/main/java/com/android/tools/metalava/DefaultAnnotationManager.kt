@@ -17,6 +17,8 @@
 package com.android.tools.metalava
 
 import com.android.tools.metalava.model.ANDROIDX_ANNOTATION_PREFIX
+import com.android.tools.metalava.model.ANDROIDX_NONNULL
+import com.android.tools.metalava.model.ANDROIDX_NULLABLE
 import com.android.tools.metalava.model.ANDROID_ANNOTATION_PREFIX
 import com.android.tools.metalava.model.ANNOTATION_EXTERNAL
 import com.android.tools.metalava.model.ANNOTATION_EXTERNAL_ONLY

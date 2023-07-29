@@ -22,6 +22,8 @@ import com.android.tools.metalava.model.AnnotationAttribute
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.AnnotationSingleAttributeValue
 import com.android.tools.metalava.model.DefaultAnnotationAttribute
+import kotlinx.collections.immutable.ImmutableList
+import kotlinx.collections.immutable.toImmutableList
 
 interface AnnotationFilter {
     // tells whether an annotation is included by the filter
@@ -45,12 +47,14 @@ interface AnnotationFilter {
     fun firstQualifiedName(): String
 
     companion object {
-        fun emptyFilter(): AnnotationFilter = MutableAnnotationFilter()
+        private val empty = AnnotationFilterBuilder().build()
+
+        fun emptyFilter(): AnnotationFilter = empty
     }
 }
 
-// Mutable implementation of AnnotationFilter
-class MutableAnnotationFilter : AnnotationFilter {
+/** Builder for [AnnotationFilter]s. */
+class AnnotationFilterBuilder {
     private val inclusionExpressions = mutableListOf<AnnotationFilterEntry>()
 
     // Adds the given source as a fully qualified annotation name to match with this filter
@@ -61,6 +65,17 @@ class MutableAnnotationFilter : AnnotationFilter {
     fun add(source: String) {
         inclusionExpressions.add(AnnotationFilterEntry.fromSource(source))
     }
+
+    /** Build the [AnnotationFilter]. */
+    fun build(): AnnotationFilter {
+        return ImmutableAnnotationFilter(inclusionExpressions.toImmutableList())
+    }
+}
+
+// Immutable implementation of AnnotationFilter
+private class ImmutableAnnotationFilter(
+    private val inclusionExpressions: ImmutableList<AnnotationFilterEntry>
+) : AnnotationFilter {
 
     override fun matches(annotationSource: String): Boolean {
         val annotationText = annotationSource.replace("@", "")
@@ -82,20 +97,19 @@ class MutableAnnotationFilter : AnnotationFilter {
         }
     }
 
-    override fun getIncludedAnnotationNames(): List<String> {
-        val annotationNames = mutableListOf<String>()
-        for (expression in inclusionExpressions) {
-            annotationNames.add(expression.qualifiedName)
-        }
-        return annotationNames
-    }
+    override fun getIncludedAnnotationNames(): List<String> = includedNames
 
     /** Cache for [getIncludedAnnotationNames] since we call this method over and over again */
-    private var includedNames: List<String>? = null
+    private val includedNames: List<String> by
+        lazy(LazyThreadSafetyMode.NONE) {
+            val annotationNames = mutableListOf<String>()
+            for (expression in inclusionExpressions) {
+                annotationNames.add(expression.qualifiedName)
+            }
+            annotationNames.toImmutableList()
+        }
 
     override fun matchesAnnotationName(qualifiedName: String): Boolean {
-        val includedNames =
-            includedNames ?: getIncludedAnnotationNames().also { includedNames = it }
         return includedNames.contains(qualifiedName)
     }
 

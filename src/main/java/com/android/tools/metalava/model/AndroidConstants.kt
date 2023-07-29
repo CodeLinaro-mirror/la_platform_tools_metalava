@@ -25,3 +25,6 @@ const val ANDROIDX_ANNOTATION_PREFIX = "androidx.annotation."
 const val ANDROIDX_INT_DEF = "androidx.annotation.IntDef"
 const val ANDROIDX_LONG_DEF = "androidx.annotation.LongDef"
 const val ANDROIDX_STRING_DEF = "androidx.annotation.StringDef"
+
+const val ANDROIDX_NONNULL = "androidx.annotation.NonNull"
+const val ANDROIDX_NULLABLE = "androidx.annotation.Nullable"

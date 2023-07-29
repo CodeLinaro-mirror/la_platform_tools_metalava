@@ -301,13 +301,7 @@ class Reporter(
         }
         sb.append(terminal.reset())
         sb.append(message)
-        id?.let {
-            sb.append(" [").append(it.name).append("]")
-            val link = it.category.ruleLink
-            if (it.rule != null && link != null) {
-                sb.append(" [See ").append(link).append(it.rule).append("]")
-            }
-        }
+        id?.let { sb.append(" [").append(it.name).append("]") }
         return sb.toString()
     }
 

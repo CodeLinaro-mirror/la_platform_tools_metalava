@@ -19,6 +19,7 @@
 package com.android.tools.metalava
 
 import com.android.tools.lint.checks.infrastructure.TestFiles.base64gzip
+import com.android.tools.metalava.model.FileFormat
 import org.junit.Test
 
 class ApiFileTest : DriverTest() {

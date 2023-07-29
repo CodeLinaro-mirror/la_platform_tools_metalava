@@ -33,6 +33,7 @@ import com.android.tools.lint.checks.infrastructure.TestFiles.java
 import com.android.tools.lint.checks.infrastructure.TestFiles.kotlin
 import com.android.tools.lint.checks.infrastructure.stripComments
 import com.android.tools.lint.client.api.LintClient
+import com.android.tools.metalava.model.FileFormat
 import com.android.tools.metalava.model.SUPPORT_TYPE_USE_ANNOTATIONS
 import com.android.tools.metalava.model.text.ApiClassResolution
 import com.android.tools.metalava.model.text.ApiFile
@@ -835,7 +836,7 @@ abstract class DriverTest {
                     val base = convert.baseApi
                     val convertSig = temporaryFolder.newFile("convert-signatures$index.txt")
                     convertSig.writeText(signature.trimIndent(), UTF_8)
-                    val extension = FileFormat.JDIFF.preferredExtension()
+                    val extension = DOT_XML
                     val output = temporaryFolder.newFile("convert-output$index$extension")
                     val baseFile =
                         if (base != null) {
@@ -1537,6 +1538,27 @@ abstract class DriverTest {
             }
             return apiText
         }
+    }
+}
+
+private fun FileFormat.outputFlag(): String {
+    return if (isSignatureFormat()) {
+        "$ARG_FORMAT=v${signatureFormatAsInt()}"
+    } else {
+        ""
+    }
+}
+
+private fun FileFormat.signatureFormatAsInt(): Int {
+    return when (this) {
+        FileFormat.V1 -> 1
+        FileFormat.V2 -> 2
+        FileFormat.V3 -> 3
+        FileFormat.V4 -> 4
+        FileFormat.BASELINE,
+        FileFormat.JDIFF,
+        FileFormat.SINCE_XML,
+        FileFormat.UNKNOWN -> error("this method is only allowed on signature formats, was $this")
     }
 }
 

@@ -22,7 +22,6 @@ import com.android.tools.metalava.model.JAVA_LANG_OBJECT
 import com.android.tools.metalava.model.SUPPORT_TYPE_USE_ANNOTATIONS
 import com.android.tools.metalava.model.isNonNullAnnotation
 import com.android.tools.metalava.model.isNullableAnnotation
-import com.android.tools.metalava.options
 import com.intellij.openapi.util.text.StringUtil
 import com.intellij.psi.PsiAnnotatedJavaCodeReferenceElement
 import com.intellij.psi.PsiAnnotation
@@ -69,9 +68,9 @@ import java.util.function.Predicate
  */
 class PsiTypePrinter(
     private val codebase: PsiBasedCodebase,
-    private val filter: Predicate<Item>? = null,
-    private val mapAnnotations: Boolean = false,
-    private val kotlinStyleNulls: Boolean = options.outputKotlinStyleNulls,
+    private val filter: Predicate<Item>?,
+    private val mapAnnotations: Boolean,
+    private val kotlinStyleNulls: Boolean,
     private val supportTypeUseAnnotations: Boolean = SUPPORT_TYPE_USE_ANNOTATIONS
 ) {
     // This class inlines a lot of methods from IntelliJ, but with (a) annotated=true, (b) calling

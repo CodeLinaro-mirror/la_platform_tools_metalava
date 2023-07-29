@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018 The Android Open Source Project
+ * Copyright (C) 2023 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,10 +14,7 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava
-
-import com.android.SdkConstants.DOT_TXT
-import com.android.SdkConstants.DOT_XML
+package com.android.tools.metalava.model
 
 /** File formats that metalava can emit APIs to */
 enum class FileFormat(
@@ -36,53 +33,8 @@ enum class FileFormat(
     V3("Metalava signature file", "3.0"),
     V4("Metalava signature file", "4.0", conciseDefaultValues = true);
 
-    /** Configures the option object such that the output format will be the given format */
-    fun configureOptions(options: Options) {
-        if (this == JDIFF) {
-            return
-        }
-        options.outputFormat = this
-        options.outputKotlinStyleNulls = this >= V3
-        options.outputDefaultValues = this >= V2
-        options.includeSignatureFormatVersion = this >= V2
-    }
-
     fun useKotlinStyleNulls(): Boolean {
         return this >= V3
-    }
-
-    private fun signatureFormatAsInt(): Int {
-        return when (this) {
-            V1 -> 1
-            V2 -> 2
-            V3 -> 3
-            V4 -> 4
-            BASELINE,
-            JDIFF,
-            SINCE_XML,
-            UNKNOWN -> error("this method is only allowed on signature formats, was $this")
-        }
-    }
-
-    fun outputFlag(): String {
-        return if (isSignatureFormat()) {
-            "$ARG_FORMAT=v${signatureFormatAsInt()}"
-        } else {
-            ""
-        }
-    }
-
-    fun preferredExtension(): String {
-        return when (this) {
-            V1,
-            V2,
-            V3,
-            V4 -> DOT_TXT
-            BASELINE -> DOT_TXT
-            JDIFF,
-            SINCE_XML -> DOT_XML
-            UNKNOWN -> ""
-        }
     }
 
     fun header(): String? {

@@ -76,7 +76,7 @@ fun configureBuildInfoTask(
     return project.tasks.register(CREATE_BUILD_INFO_TASK, CreateLibraryBuildInfoTask::class.java) {
         it.artifactId.set(project.provider { project.name })
         it.groupId.set(project.provider { project.group as String })
-        it.version.set(project.provider { project.version as String })
+        it.version.set(project.version())
         // Only set sha when in CI to keep local builds faster
         it.sha.set(project.provider { if (inCI) getGitSha(project.projectDir) else "" })
         it.projectZipPath.set(archiveTaskProvider.flatMap { task -> task.archiveFileName })

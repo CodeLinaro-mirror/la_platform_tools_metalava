@@ -18,6 +18,7 @@
 
 package com.android.tools.metalava
 
+import com.android.tools.metalava.model.FileFormat
 import org.junit.Test
 
 class UnhideApisTest : DriverTest() {
