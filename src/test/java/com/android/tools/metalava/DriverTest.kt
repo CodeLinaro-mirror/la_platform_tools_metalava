@@ -850,19 +850,14 @@ abstract class DriverTest {
                     convertFiles += ConvertFile(convertSig, output, baseFile, strip = true)
                     index++
 
+                    if (convert.strip) {
+                        throw IllegalArgumentException("Stripping not supported: $convert")
+                    }
                     if (baseFile != null) {
-                        args +=
-                            when {
-                                convert.strip -> "-new_api"
-                                else -> ARG_CONVERT_NEW_TO_JDIFF
-                            }
+                        args += ARG_CONVERT_NEW_TO_JDIFF
                         args += baseFile.path
                     } else {
-                        args +=
-                            when {
-                                convert.strip -> "-convert2xml"
-                                else -> ARG_CONVERT_TO_JDIFF
-                            }
+                        args += ARG_CONVERT_TO_JDIFF
                     }
                     args += convertSig.path
                     args += output.path

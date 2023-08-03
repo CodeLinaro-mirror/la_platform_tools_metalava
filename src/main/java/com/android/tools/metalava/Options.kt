@@ -1163,27 +1163,19 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
                 ARG_API_VERSION_NAMES -> {
                     apiVersionNames = getValue(args, ++index).split(' ')
                 }
-                ARG_CONVERT_TO_JDIFF,
-                // doclava compatibility:
-                "-convert2xml",
-                "-convert2xmlnostrip" -> {
-                    val strip = arg == "-convert2xml"
+                ARG_CONVERT_TO_JDIFF -> {
                     val signatureFile = stringToExistingFile(getValue(args, ++index))
                     val outputFile = stringToNewFile(getValue(args, ++index))
                     mutableConvertToXmlFiles.add(
-                        ConvertFile(signatureFile, outputFile, null, strip)
+                        ConvertFile(signatureFile, outputFile, null, false)
                     )
                 }
-                ARG_CONVERT_NEW_TO_JDIFF,
-                // doclava compatibility:
-                "-new_api",
-                "-new_api_no_strip" -> {
-                    val strip = arg == "-new_api"
+                ARG_CONVERT_NEW_TO_JDIFF -> {
                     val baseFile = stringToExistingFile(getValue(args, ++index))
                     val signatureFile = stringToExistingFile(getValue(args, ++index))
                     val jDiffFile = stringToNewFile(getValue(args, ++index))
                     mutableConvertToXmlFiles.add(
-                        ConvertFile(signatureFile, jDiffFile, baseFile, strip)
+                        ConvertFile(signatureFile, jDiffFile, baseFile, false)
                     )
                 }
                 "-encoding" -> {
