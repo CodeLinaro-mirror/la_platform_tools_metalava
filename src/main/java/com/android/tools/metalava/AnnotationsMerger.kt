@@ -61,6 +61,7 @@ import com.android.tools.metalava.model.psi.PsiTypeItem
 import com.android.tools.metalava.model.text.ApiFile
 import com.android.tools.metalava.model.text.ApiParseException
 import com.android.tools.metalava.model.visitors.ApiVisitor
+import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.xml.parseDocument
 import com.google.common.io.ByteStreams
 import com.google.common.io.Closeables

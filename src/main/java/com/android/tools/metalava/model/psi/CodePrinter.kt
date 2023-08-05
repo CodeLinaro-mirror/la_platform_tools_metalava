@@ -18,13 +18,12 @@ package com.android.tools.metalava.model.psi
 
 import com.android.SdkConstants.DOT_CLASS
 import com.android.tools.lint.detector.api.ConstantEvaluator
-import com.android.tools.metalava.Issues
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.canonicalizeFloatingPointString
 import com.android.tools.metalava.model.javaEscapeString
-import com.android.tools.metalava.reporter
-import com.android.utils.XmlUtils
+import com.android.tools.metalava.reporter.Issues
+import com.android.tools.metalava.reporter.Reporter
 import com.intellij.psi.PsiAnnotation
 import com.intellij.psi.PsiAnnotationMemberValue
 import com.intellij.psi.PsiArrayInitializerMemberValue
@@ -55,8 +54,9 @@ import org.jetbrains.uast.util.isConstructorCall
 import org.jetbrains.uast.util.isTypeCast
 
 /** Utility methods */
-open class CodePrinter(
+class CodePrinter(
     private val codebase: Codebase,
+    private val reporter: Reporter,
     /**
      * Whether we should inline the values of fields, e.g. instead of "Integer.MAX_VALUE" we'd emit
      * "0x7fffffff"
@@ -72,11 +72,11 @@ open class CodePrinter(
     /** An optional filter to use to determine if we should emit a reference to an item */
     private val filterReference: Predicate<Item>? = null
 ) {
-    open fun warning(message: String, psiElement: PsiElement? = null) {
+    fun warning(message: String, psiElement: PsiElement? = null) {
         reporter.report(Issues.INTERNAL_ERROR, psiElement, message)
     }
 
-    open fun warning(message: String, uElement: UElement) {
+    fun warning(message: String, uElement: UElement) {
         warning(message, uElement.sourcePsi ?: uElement.javaPsi)
     }
 
@@ -146,6 +146,81 @@ open class CodePrinter(
             }
         }
         reporter.report(Issues.INTERNAL_ERROR, owner, "Unexpected annotation default value $value")
+        return false
+    }
+
+    private fun appendSourceLiteral(v: Any?, sb: StringBuilder, owner: Item): Boolean {
+        if (v == null) {
+            sb.append("null")
+            return true
+        }
+        when (v) {
+            is Int,
+            is Boolean,
+            is Byte,
+            is Short -> {
+                sb.append(v.toString())
+                return true
+            }
+            is Long -> {
+                sb.append(v.toString()).append('L')
+                return true
+            }
+            is String -> {
+                sb.append('"').append(javaEscapeString(v)).append('"')
+                return true
+            }
+            is Float -> {
+                return when {
+                    v == Float.POSITIVE_INFINITY -> {
+                        // This convention (displaying fractions) is inherited from doclava
+                        sb.append("(1.0f/0.0f)")
+                        true
+                    }
+                    v == Float.NEGATIVE_INFINITY -> {
+                        sb.append("(-1.0f/0.0f)")
+                        true
+                    }
+                    java.lang.Float.isNaN(v) -> {
+                        sb.append("(0.0f/0.0f)")
+                        true
+                    }
+                    else -> {
+                        sb.append(canonicalizeFloatingPointString(v.toString()) + "f")
+                        true
+                    }
+                }
+            }
+            is Double -> {
+                return when {
+                    v == Double.POSITIVE_INFINITY -> {
+                        // This convention (displaying fractions) is inherited from doclava
+                        sb.append("(1.0/0.0)")
+                        true
+                    }
+                    v == Double.NEGATIVE_INFINITY -> {
+                        sb.append("(-1.0/0.0)")
+                        true
+                    }
+                    java.lang.Double.isNaN(v) -> {
+                        sb.append("(0.0/0.0)")
+                        true
+                    }
+                    else -> {
+                        sb.append(canonicalizeFloatingPointString(v.toString()))
+                        true
+                    }
+                }
+            }
+            is Char -> {
+                sb.append('\'').append(javaEscapeString(v.toString())).append('\'')
+                return true
+            }
+            else -> {
+                reporter.report(Issues.INTERNAL_ERROR, owner, "Unexpected literal value $v")
+            }
+        }
+
         return false
     }
 
@@ -392,7 +467,7 @@ open class CodePrinter(
                 return true
             } else if (literalValue is String || literalValue is Char) {
                 sb.append('"')
-                XmlUtils.appendXmlAttributeValue(sb, literalValue.toString())
+                sb.append(javaEscapeString(literalValue.toString()))
                 sb.append('"')
                 return true
             }
@@ -501,81 +576,6 @@ open class CodePrinter(
                     null
                 }
             }
-        }
-
-        private fun appendSourceLiteral(v: Any?, sb: StringBuilder, owner: Item): Boolean {
-            if (v == null) {
-                sb.append("null")
-                return true
-            }
-            when (v) {
-                is Int,
-                is Boolean,
-                is Byte,
-                is Short -> {
-                    sb.append(v.toString())
-                    return true
-                }
-                is Long -> {
-                    sb.append(v.toString()).append('L')
-                    return true
-                }
-                is String -> {
-                    sb.append('"').append(javaEscapeString(v)).append('"')
-                    return true
-                }
-                is Float -> {
-                    return when {
-                        v == Float.POSITIVE_INFINITY -> {
-                            // This convention (displaying fractions) is inherited from doclava
-                            sb.append("(1.0f/0.0f)")
-                            true
-                        }
-                        v == Float.NEGATIVE_INFINITY -> {
-                            sb.append("(-1.0f/0.0f)")
-                            true
-                        }
-                        java.lang.Float.isNaN(v) -> {
-                            sb.append("(0.0f/0.0f)")
-                            true
-                        }
-                        else -> {
-                            sb.append(canonicalizeFloatingPointString(v.toString()) + "f")
-                            true
-                        }
-                    }
-                }
-                is Double -> {
-                    return when {
-                        v == Double.POSITIVE_INFINITY -> {
-                            // This convention (displaying fractions) is inherited from doclava
-                            sb.append("(1.0/0.0)")
-                            true
-                        }
-                        v == Double.NEGATIVE_INFINITY -> {
-                            sb.append("(-1.0/0.0)")
-                            true
-                        }
-                        java.lang.Double.isNaN(v) -> {
-                            sb.append("(0.0/0.0)")
-                            true
-                        }
-                        else -> {
-                            sb.append(canonicalizeFloatingPointString(v.toString()))
-                            true
-                        }
-                    }
-                }
-                is Char -> {
-                    sb.append('\'').append(javaEscapeString(v.toString())).append('\'')
-                    return true
-                }
-                else -> {
-                    reporter.report(Issues.INTERNAL_ERROR, owner, "Unexpected literal value $v")
-                }
-            }
-
-            return false
         }
     }
 }

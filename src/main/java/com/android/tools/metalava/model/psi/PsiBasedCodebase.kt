@@ -18,7 +18,6 @@ package com.android.tools.metalava.model.psi
 
 import com.android.SdkConstants
 import com.android.tools.lint.UastEnvironment
-import com.android.tools.metalava.Issues
 import com.android.tools.metalava.model.ANDROIDX_NONNULL
 import com.android.tools.metalava.model.ANDROIDX_NULLABLE
 import com.android.tools.metalava.model.AnnotationManager
@@ -30,8 +29,8 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageDocs
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PackageList
-import com.android.tools.metalava.reporter
-import com.android.tools.metalava.tick
+import com.android.tools.metalava.reporter.Issues
+import com.android.tools.metalava.reporter.Reporter
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.project.Project
 import com.intellij.psi.JavaPsiFacade
@@ -95,10 +94,11 @@ const val METHOD_ESTIMATE = 1000
  */
 open class PsiBasedCodebase(
     location: File,
-    override var description: String = "Unknown",
+    description: String = "Unknown",
     annotationManager: AnnotationManager,
+    private val reporter: Reporter,
     val fromClasspath: Boolean = false
-) : DefaultCodebase(location, annotationManager) {
+) : DefaultCodebase(location, description, false, annotationManager) {
     lateinit var uastEnvironment: UastEnvironment
     val project: Project
         get() = uastEnvironment.ideaProject
@@ -113,7 +113,10 @@ open class PsiBasedCodebase(
      * Printer which can convert PSI, UAST and constants into source code, with ability to filter
      * out elements that are not part of a codebase etc
      */
-    @Suppress("LeakingThis") val printer = CodePrinter(this)
+    @Suppress("LeakingThis") internal val printer = CodePrinter(this, reporter)
+
+    /** Supports fully qualifying Javadoc. */
+    internal val docQualifier = DocQualifier(reporter)
 
     /** Map from class name to class item. Classes are added via [registerClass] */
     private val classMap: MutableMap<String, PsiClassItem> = HashMap(CLASS_ESTIMATE)
@@ -190,7 +193,7 @@ open class PsiBasedCodebase(
 
         // Make sure we only process the files once; sometimes there's overlap in the source lists
         for (psiFile in psiFiles.asSequence().distinct()) {
-            tick() // show progress
+            reporter.showProgressTick() // show progress
 
             // Visiting psiFile directly would eagerly load the entire file even though we only need
             // the importList here.
@@ -289,7 +292,7 @@ open class PsiBasedCodebase(
 
         // Next construct packages
         for ((pkgName, classes) in packageClasses) {
-            tick() // show progress
+            reporter.showProgressTick() // show progress
             val psiPackage = JavaPsiFacade.getInstance(project).findPackage(pkgName)
             if (psiPackage == null) {
                 println("Could not find package $pkgName")

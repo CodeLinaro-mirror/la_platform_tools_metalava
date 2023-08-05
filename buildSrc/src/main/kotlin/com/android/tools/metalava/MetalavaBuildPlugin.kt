@@ -17,6 +17,10 @@
 package com.android.tools.metalava
 
 import com.android.build.api.dsl.Lint
+import com.android.tools.metalava.buildinfo.CreateAggregateLibraryBuildInfoFileTask
+import com.android.tools.metalava.buildinfo.CreateAggregateLibraryBuildInfoFileTask.Companion.CREATE_AGGREGATE_BUILD_INFO_FILES_TASK
+import com.android.tools.metalava.buildinfo.addTaskToAggregateBuildInfoFileTask
+import com.android.tools.metalava.buildinfo.configureBuildInfoTask
 import java.io.File
 import java.io.StringReader
 import java.util.Properties
@@ -28,7 +32,7 @@ import org.gradle.api.plugins.JavaPluginExtension
 import org.gradle.api.provider.Provider
 import org.gradle.api.publish.PublishingExtension
 import org.gradle.api.publish.maven.MavenPublication
-import org.gradle.api.publish.plugins.PublishingPlugin
+import org.gradle.api.publish.maven.plugins.MavenPublishPlugin
 import org.gradle.api.publish.tasks.GenerateModuleMetadata
 import org.gradle.api.tasks.TaskProvider
 import org.gradle.api.tasks.bundling.Zip
@@ -42,6 +46,13 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 class MetalavaBuildPlugin : Plugin<Project> {
     override fun apply(project: Project) {
+        if (project.rootProject == project) {
+            project.tasks.register(
+                CREATE_AGGREGATE_BUILD_INFO_FILES_TASK,
+                CreateAggregateLibraryBuildInfoFileTask::class.java
+            )
+        }
+
         project.plugins.all { plugin ->
             when (plugin) {
                 is JavaPlugin -> {
@@ -60,7 +71,7 @@ class MetalavaBuildPlugin : Plugin<Project> {
                         }
                     }
                 }
-                is PublishingPlugin -> {
+                is MavenPublishPlugin -> {
                     configurePublishing(project)
                 }
             }
@@ -92,7 +103,7 @@ class MetalavaBuildPlugin : Plugin<Project> {
                 zip.destinationDirectory.set(
                     File(getDistributionDirectory(project), "host-test-reports")
                 )
-                zip.archiveFileName.set("${project.path}-tests.zip")
+                zip.archiveFileName.set(testTask.map { "${it.path}.zip" })
                 zip.from(testTask.map { it.reports.junitXml.outputLocation.get() })
             }
 
@@ -115,6 +126,15 @@ class MetalavaBuildPlugin : Plugin<Project> {
     }
 
     fun configurePublishing(project: Project) {
+        val archiveTaskProvider =
+            configurePublishingArchive(
+                project,
+                publicationName,
+                repositoryName,
+                getBuildId(),
+                getDistributionDirectory(project)
+            )
+
         project.extensions.getByType<PublishingExtension>().apply {
             publications {
                 it.create<MavenPublication>(publicationName) {
@@ -138,6 +158,16 @@ class MetalavaBuildPlugin : Plugin<Project> {
                             scm.url.set("https://android.googlesource.com/platform/tools/metalava/")
                         }
                     }
+
+                    val buildInfoTask =
+                        configureBuildInfoTask(
+                            project,
+                            this,
+                            isBuildingOnServer(),
+                            getDistributionDirectory(project),
+                            archiveTaskProvider
+                        )
+                    project.addTaskToAggregateBuildInfoFileTask(buildInfoTask)
                 }
             }
             repositories { handler ->
@@ -152,21 +182,6 @@ class MetalavaBuildPlugin : Plugin<Project> {
                 }
             }
         }
-        val archiveTaskProvider =
-            configurePublishingArchive(
-                project,
-                publicationName,
-                repositoryName,
-                getBuildId(),
-                getDistributionDirectory(project)
-            )
-
-        configureBuildInfoTask(
-            project,
-            isBuildingOnServer(),
-            getDistributionDirectory(project),
-            archiveTaskProvider
-        )
 
         // Add a buildId into Gradle Metadata file so we can tell which build it is from.
         project.tasks.withType(GenerateModuleMetadata::class.java).configureEach { task ->
@@ -191,31 +206,40 @@ class MetalavaBuildPlugin : Plugin<Project> {
 }
 
 internal fun Project.version(): Provider<String> {
-    @Suppress("UNCHECKED_CAST") // version is a Provider<String> set in MetalavaBuildPlugin
-    return version as Provider<String>
+    @Suppress("UNCHECKED_CAST") // version is a VersionProviderWrapper set in MetalavaBuildPlugin
+    return (version as VersionProviderWrapper).versionProvider
 }
 
-private fun Project.getMetalavaVersion(): Provider<String> {
+// https://github.com/gradle/gradle/issues/25971
+private class VersionProviderWrapper(val versionProvider: Provider<String>) {
+    override fun toString(): String {
+        return versionProvider.get()
+    }
+}
+
+private fun Project.getMetalavaVersion(): VersionProviderWrapper {
     val contents =
         providers.fileContents(
             rootProject.layout.projectDirectory.file("src/main/resources/version.properties")
         )
-    return contents.asText.map {
-        val versionProps = Properties()
-        versionProps.load(StringReader(it))
-        versionProps["metalavaVersion"]!! as String
-    }
+    return VersionProviderWrapper(
+        contents.asText.map {
+            val versionProps = Properties()
+            versionProps.load(StringReader(it))
+            versionProps["metalavaVersion"]!! as String
+        }
+    )
 }
 
 /**
  * The build server will copy the contents of the distribution directory and make it available for
  * download.
  */
-private fun getDistributionDirectory(project: Project): File {
+internal fun getDistributionDirectory(project: Project): File {
     return if (System.getenv("DIST_DIR") != null) {
         File(System.getenv("DIST_DIR"))
     } else {
-        File(project.projectDir, "../../out/dist")
+        File(project.rootProject.projectDir, "../../out/dist")
     }
 }
 

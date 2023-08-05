@@ -294,7 +294,7 @@ abstract class PsiItem(
     }
 
     override fun fullyQualifiedDocumentation(documentation: String): String {
-        return toFullyQualifiedDocumentation(this, documentation)
+        return codebase.docQualifier.toFullyQualifiedDocumentation(this, documentation)
     }
 
     /** Finish initialization of the item */

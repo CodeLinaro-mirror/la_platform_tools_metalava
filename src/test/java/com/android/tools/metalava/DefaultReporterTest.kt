@@ -18,7 +18,7 @@ package com.android.tools.metalava
 
 import org.junit.Test
 
-class ReporterTest : DriverTest() {
+class DefaultReporterTest : DriverTest() {
     @Test
     fun `Errors are sent to stderr`() {
         check(
@@ -78,7 +78,7 @@ class ReporterTest : DriverTest() {
                     kotlin(
                         """
                     package test.pkg
-                    import android.annotation.SuppressLint;
+                    import android.annotation.SuppressLint
 
                     class Bar {
                         @SuppressLint("StartWithLower")

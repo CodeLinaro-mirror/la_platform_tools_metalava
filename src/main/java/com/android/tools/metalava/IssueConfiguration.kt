@@ -16,6 +16,9 @@
 
 package com.android.tools.metalava
 
+import com.android.tools.metalava.reporter.Issues
+import com.android.tools.metalava.reporter.Severity
+
 /** An issue configuration is a set of overrides for severities for various [Issues.Issue] */
 class IssueConfiguration {
     private val overrides = mutableMapOf<Issues.Issue, Severity>()

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2020 The Android Open Source Project
+ * Copyright (C) 2023 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,16 +14,24 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava
+package com.android.tools.metalava.buildinfo
 
-import com.android.tools.metalava.LibraryBuildInfoFile.Check
+import com.android.tools.metalava.buildinfo.LibraryBuildInfoFile.Check
+import com.android.tools.metalava.version
 import com.google.gson.GsonBuilder
 import java.io.File
+import java.io.Serializable
+import java.util.Objects
 import java.util.concurrent.TimeUnit
 import org.gradle.api.DefaultTask
 import org.gradle.api.GradleException
 import org.gradle.api.Project
+import org.gradle.api.artifacts.Dependency
+import org.gradle.api.artifacts.ProjectDependency
+import org.gradle.api.internal.artifacts.ivyservice.projectmodule.ProjectComponentPublication
+import org.gradle.api.provider.ListProperty
 import org.gradle.api.provider.Property
+import org.gradle.api.publish.maven.MavenPublication
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.OutputFile
 import org.gradle.api.tasks.TaskAction
@@ -38,47 +46,55 @@ abstract class CreateLibraryBuildInfoTask : DefaultTask() {
     @get:Input abstract val version: Property<String>
     @get:Input abstract val sha: Property<String>
     @get:Input abstract val projectZipPath: Property<String>
+    @get:Input abstract val projectDirectoryRelativeToRootProject: Property<String>
+    @get:Input abstract val dependencyList: ListProperty<LibraryBuildInfoFile.Dependency>
 
     @get:OutputFile abstract val outputFile: Property<File>
-
-    @get:OutputFile abstract val aggregateOutputFile: Property<File>
 
     @TaskAction
     fun createFile() {
         val info = LibraryBuildInfoFile()
         info.artifactId = artifactId.get()
         info.groupId = groupId.get()
-        info.groupIdRequiresSameVersion = false
+        info.groupIdRequiresSameVersion = true
         info.version = version.get()
-        info.path = "/"
+        info.path = projectDirectoryRelativeToRootProject.get()
         info.sha = sha.get()
         info.projectZipPath = projectZipPath.get()
-        info.dependencies = arrayListOf()
+        info.dependencies = dependencyList.get()
         info.checks = arrayListOf()
         val gson = GsonBuilder().setPrettyPrinting().create()
         val serializedInfo: String = gson.toJson(info)
         outputFile.get().writeText(serializedInfo)
-
-        aggregateOutputFile.get().let {
-            it.writeText("{ \"artifacts\": [\n")
-            it.appendText(serializedInfo)
-            it.appendText("]}")
-        }
     }
 }
 
-fun configureBuildInfoTask(
+internal fun configureBuildInfoTask(
     project: Project,
+    mavenPublication: MavenPublication,
     inCI: Boolean,
     distributionDirectory: File,
     archiveTaskProvider: TaskProvider<Zip>
 ): TaskProvider<CreateLibraryBuildInfoTask> {
+    // Unfortunately, dependency information is only available through internal API
+    // (See https://github.com/gradle/gradle/issues/21345).
+    val dependencies =
+        (mavenPublication as ProjectComponentPublication).component.map {
+            it.usages.orEmpty().flatMap { it.dependencies }
+        }
+
     return project.tasks.register(CREATE_BUILD_INFO_TASK, CreateLibraryBuildInfoTask::class.java) {
         it.artifactId.set(project.provider { project.name })
         it.groupId.set(project.provider { project.group as String })
         it.version.set(project.version())
+        it.projectDirectoryRelativeToRootProject.set(
+            project.provider {
+                "/" + project.layout.projectDirectory.asFile.relativeTo(project.rootDir).toString()
+            }
+        )
         // Only set sha when in CI to keep local builds faster
         it.sha.set(project.provider { if (inCI) getGitSha(project.projectDir) else "" })
+        it.dependencyList.set(dependencies.map { it.asBuildInfoDependencies() })
         it.projectZipPath.set(archiveTaskProvider.flatMap { task -> task.archiveFileName })
         it.outputFile.set(
             project.provider {
@@ -87,9 +103,6 @@ fun configureBuildInfoTask(
                     "build-info/${project.group}_${project.name}_build_info.txt"
                 )
             }
-        )
-        it.aggregateOutputFile.set(
-            project.provider { File(distributionDirectory, "androidx_aggregate_build_info.txt") }
         )
     }
 }
@@ -115,6 +128,19 @@ fun getGitSha(directory: File): String {
     return stdout.trim()
 }
 
+fun List<Dependency>.asBuildInfoDependencies() =
+    filter { it.group?.startsWith("com.android.tools.metalava") ?: false }
+        .map {
+            LibraryBuildInfoFile.Dependency().apply {
+                this.artifactId = it.name.toString()
+                this.groupId = it.group.toString()
+                this.version = it.version.toString()
+                this.isTipOfTree = it is ProjectDependency
+            }
+        }
+        .toHashSet()
+        .sortedWith(compareBy({ it.groupId }, { it.artifactId }, { it.version }))
+
 /**
  * Object outlining the format of a library's build info file. This object will be serialized to
  * json. This file should match the corresponding class in Jetpad because this object will be
@@ -131,7 +157,6 @@ fun getGitSha(directory: File): String {
  * @property dependencies a list of dependencies on other androidx libraries
  * @property checks arraylist of [Check]s that is used by Jetpad
  */
-@Suppress("UNUSED")
 class LibraryBuildInfoFile {
     var groupId: String? = null
     var artifactId: String? = null
@@ -140,15 +165,33 @@ class LibraryBuildInfoFile {
     var sha: String? = null
     var projectZipPath: String? = null
     var groupIdRequiresSameVersion: Boolean? = null
-    var dependencies: ArrayList<Dependency> = arrayListOf()
+    var dependencies: List<Dependency> = arrayListOf()
     var checks: ArrayList<Check> = arrayListOf()
 
     /** @property isTipOfTree boolean that specifies whether the dependency is tip-of-tree */
-    inner class Dependency {
+    class Dependency : Serializable {
         var groupId: String? = null
         var artifactId: String? = null
         var version: String? = null
         var isTipOfTree = false
+
+        override fun equals(other: Any?): Boolean {
+            if (this === other) return true
+            if (other == null || javaClass != other.javaClass) return false
+            other as Dependency
+            return isTipOfTree == other.isTipOfTree &&
+                groupId == other.groupId &&
+                artifactId == other.artifactId &&
+                version == other.version
+        }
+
+        override fun hashCode(): Int {
+            return Objects.hash(groupId, artifactId, version, isTipOfTree)
+        }
+
+        companion object {
+            private const val serialVersionUID = 346431634564L
+        }
     }
 
     inner class Check {

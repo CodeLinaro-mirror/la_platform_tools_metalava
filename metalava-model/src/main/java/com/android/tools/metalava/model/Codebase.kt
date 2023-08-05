@@ -24,13 +24,13 @@ import java.io.File
  */
 interface Codebase {
     /** Description of what this codebase is (useful during debugging) */
-    var description: String
+    val description: String
 
     /**
      * The location of the API. Could point to a signature file, or a directory root for source
      * files, or a jar file, etc.
      */
-    var location: File
+    val location: File
 
     /** The manager of annotations within this codebase. */
     val annotationManager: AnnotationManager
@@ -88,12 +88,10 @@ interface Codebase {
     fun unsupported(desc: String? = null): Nothing
 
     /** Discards this model */
-    fun dispose() {
-        description += " [disposed]"
-    }
+    fun dispose()
 
     /** If this codebase was filtered from another codebase, this points to the original */
-    var original: Codebase?
+    val original: Codebase?
 
     /** If true, this codebase has already been filtered */
     val preFiltered: Boolean
@@ -110,11 +108,12 @@ data class SetMinSdkVersion(val value: Int) : MinSdkVersion()
 object UnsetMinSdkVersion : MinSdkVersion()
 
 abstract class DefaultCodebase(
-    override var location: File,
-    override val annotationManager: AnnotationManager,
+    final override var location: File,
+    final override var description: String,
+    final override var preFiltered: Boolean,
+    final override val annotationManager: AnnotationManager,
 ) : Codebase {
-    override var original: Codebase? = null
-    @Suppress("LeakingThis") override var preFiltered: Boolean = original != null
+    final override var original: Codebase? = null
 
     override fun getPackageDocs(): PackageDocs? = null
 
@@ -123,5 +122,9 @@ abstract class DefaultCodebase(
             desc
                 ?: "This operation is not available on this type of codebase (${this.javaClass.simpleName})"
         )
+    }
+
+    override fun dispose() {
+        description += " [disposed]"
     }
 }

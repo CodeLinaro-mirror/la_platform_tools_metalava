@@ -16,10 +16,10 @@
 
 package com.android.tools.metalava.model.psi
 
-import com.android.tools.metalava.Issues
-import com.android.tools.metalava.Reporter
 import com.android.tools.metalava.model.BaselineKey
 import com.android.tools.metalava.model.Location
+import com.android.tools.metalava.reporter.Issues
+import com.android.tools.metalava.reporter.Reporter
 import com.intellij.openapi.util.TextRange
 import com.intellij.openapi.vfs.VfsUtilCore
 import com.intellij.psi.PsiClass

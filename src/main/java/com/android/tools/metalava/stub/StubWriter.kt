@@ -18,7 +18,6 @@ package com.android.tools.metalava.stub
 
 import com.android.tools.metalava.ApiPredicate
 import com.android.tools.metalava.FilterPredicate
-import com.android.tools.metalava.Issues
 import com.android.tools.metalava.model.AnnotationTarget
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
@@ -33,6 +32,7 @@ import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.model.visitors.BaseItemVisitor
 import com.android.tools.metalava.options
 import com.android.tools.metalava.reporter
+import com.android.tools.metalava.reporter.Issues
 import java.io.BufferedWriter
 import java.io.File
 import java.io.FileWriter

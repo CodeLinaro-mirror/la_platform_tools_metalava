@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava
 
-import com.android.tools.metalava.Issues.Issue
 import com.android.tools.metalava.NullnessMigration.Companion.findNullnessAnnotation
 import com.android.tools.metalava.NullnessMigration.Companion.isNullable
 import com.android.tools.metalava.model.AnnotationItem
@@ -33,6 +32,10 @@ import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.psi.PsiItem
 import com.android.tools.metalava.model.text.TextCodebase
+import com.android.tools.metalava.reporter.Issues
+import com.android.tools.metalava.reporter.Issues.Issue
+import com.android.tools.metalava.reporter.Reporter
+import com.android.tools.metalava.reporter.Severity
 import com.intellij.psi.PsiField
 import java.io.File
 import java.util.function.Predicate
@@ -295,16 +298,18 @@ class CompatibilityCheck(
         // a bit in whether they include these for enums
         if (!new.isEnum()) {
             if (!oldModifiers.isFinal() && newModifiers.isFinal()) {
-                // It is safe to make a class final if it did not previously have any public
-                // constructors because it was impossible for an application to create a subclass.
-                if (old.constructors().filter { it.isPublic || it.isProtected }.none()) {
+                // It is safe to make a class final if was impossible for an application to create a
+                // subclass.
+                if (!old.isExtensible()) {
                     report(
                         Issues.ADDED_FINAL_UNINSTANTIABLE,
                         new,
-                        "${describe(
-                            new,
-                            capitalize = true
-                        )} added 'final' qualifier but was previously uninstantiable and therefore could not be subclassed"
+                        "${
+                            describe(
+                                new,
+                                capitalize = true
+                            )
+                        } added 'final' qualifier but was previously uninstantiable and therefore could not be subclassed"
                     )
                 } else {
                     report(
@@ -395,6 +400,15 @@ class CompatibilityCheck(
             )
         }
     }
+
+    /**
+     * Return true if a [ClassItem] loaded from a signature file could be subclassed, i.e. is not
+     * final, or sealed and has at least one accessible constructor.
+     */
+    private fun ClassItem.isExtensible() =
+        !modifiers.isFinal() &&
+            !modifiers.isSealed() &&
+            constructors().any { it.isPublic || it.isProtected }
 
     override fun compare(old: MethodItem, new: MethodItem) {
         val oldModifiers = old.modifiers
@@ -570,11 +584,24 @@ class CompatibilityCheck(
                 // status of a method is only relevant if (a) the method is not declared 'static'
                 // and (b) the method is not already inferred to be 'final' by virtue of its class.
                 if (!old.isEffectivelyFinal() && new.isEffectivelyFinal()) {
-                    report(
-                        Issues.ADDED_FINAL,
-                        new,
-                        "${describe(new, capitalize = true)} has added 'final' qualifier"
-                    )
+                    if (!old.containingClass().isExtensible()) {
+                        report(
+                            Issues.ADDED_FINAL_UNINSTANTIABLE,
+                            new,
+                            "${
+                                describe(
+                                    new,
+                                    capitalize = true
+                                )
+                            } added 'final' qualifier but containing ${old.containingClass().describe()} was previously uninstantiable and therefore could not be subclassed"
+                        )
+                    } else {
+                        report(
+                            Issues.ADDED_FINAL,
+                            new,
+                            "${describe(new, capitalize = true)} has added 'final' qualifier"
+                        )
+                    }
                 } else if (old.isEffectivelyFinal() && !new.isEffectivelyFinal()) {
                     // Disallowed removing final: If an app inherits the class and starts overriding
                     // the method it's going to crash on earlier versions where the method is final

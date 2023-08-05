@@ -689,4 +689,41 @@ class ExtractAnnotationsTest : DriverTest() {
                 )
         )
     }
+
+    @Test
+    fun `Test string literal encoding`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    java(
+                            """
+                    package test.pkg;
+
+                    import android.annotation.RequiresPermission;
+
+                    public class PermissionsTest {
+                        @RequiresPermission("'&\"")
+                        public static final String CONTENT_URI = "";
+                    }
+                    """
+                        )
+                        .indented(),
+                    requiresPermissionSource,
+                ),
+            extractAnnotations =
+                mapOf(
+                    "test.pkg" to
+                        """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <root>
+                  <item name="test.pkg.PermissionsTest CONTENT_URI">
+                    <annotation name="androidx.annotation.RequiresPermission">
+                      <val name="value" val="&quot;\&apos;&amp;\&quot;&quot;" />
+                    </annotation>
+                  </item>
+                </root>
+                """
+                )
+        )
+    }
 }

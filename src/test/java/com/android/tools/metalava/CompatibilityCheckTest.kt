@@ -18,6 +18,7 @@ package com.android.tools.metalava
 
 import com.android.tools.metalava.model.FileFormat
 import com.android.tools.metalava.model.text.ApiClassResolution
+import com.android.tools.metalava.reporter.Issues
 import java.io.File
 import kotlin.text.Charsets.UTF_8
 import org.junit.Ignore
@@ -396,10 +397,112 @@ class CompatibilityCheckTest : DriverTest() {
     }
 
     @Test
-    fun `Add final`() {
-        // Adding final on class or method is incompatible; adding it on a parameter is fine.
-        // Field is iffy.
+    fun `Add final to class that can be extended`() {
+        // Adding final on a class is incompatible.
         check(
+            // Make AddedFinalInstantiable an error, so it is reported as an issue.
+            extraArguments = arrayOf("--error", Issues.ADDED_FINAL_UNINSTANTIABLE.name),
+            expectedIssues =
+                """
+                src/test/pkg/Java.java:2: error: Class test.pkg.Java added 'final' qualifier [AddedFinal]
+                src/test/pkg/Java.java:3: error: Constructor test.pkg.Java has added 'final' qualifier [AddedFinal]
+                src/test/pkg/Java.java:4: error: Method test.pkg.Java.method has added 'final' qualifier [AddedFinal]
+                src/test/pkg/Kotlin.kt:3: error: Class test.pkg.Kotlin added 'final' qualifier [AddedFinal]
+                src/test/pkg/Kotlin.kt:3: error: Constructor test.pkg.Kotlin has added 'final' qualifier [AddedFinal]
+                src/test/pkg/Kotlin.kt:4: error: Method test.pkg.Kotlin.method has added 'final' qualifier [AddedFinal]
+                """,
+            checkCompatibilityApiReleased =
+                """
+                package test.pkg {
+                  public class Java {
+                    ctor public Java();
+                    method public void method(int);
+                  }
+                  public class Kotlin {
+                    ctor public Kotlin();
+                    method public void method(String s);
+                  }
+                }
+                """,
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                    package test.pkg
+
+                    class Kotlin {
+                        fun method(s: String) { }
+                    }
+                    """
+                    ),
+                    java(
+                        """
+                        package test.pkg;
+                        public final class Java {
+                            public Java() { }
+                            public void method(int parameter) { }
+                        }
+                        """
+                    )
+                )
+        )
+    }
+
+    @Test
+    fun `Add final to class that cannot be extended`() {
+        // Adding final on a class is incompatible unless the class could not be extended.
+        check(
+            // Make AddedFinalInstantiable an error, so it is reported as an issue.
+            extraArguments = arrayOf("--error", Issues.ADDED_FINAL_UNINSTANTIABLE.name),
+            expectedIssues =
+                """
+                src/test/pkg/Java.java:2: error: Class test.pkg.Java added 'final' qualifier but was previously uninstantiable and therefore could not be subclassed [AddedFinalUninstantiable]
+                src/test/pkg/Java.java:4: error: Method test.pkg.Java.method added 'final' qualifier but containing class test.pkg.Java was previously uninstantiable and therefore could not be subclassed [AddedFinalUninstantiable]
+                src/test/pkg/Kotlin.kt:3: error: Class test.pkg.Kotlin added 'final' qualifier but was previously uninstantiable and therefore could not be subclassed [AddedFinalUninstantiable]
+                src/test/pkg/Kotlin.kt:5: error: Method test.pkg.Kotlin.method added 'final' qualifier but containing class test.pkg.Kotlin was previously uninstantiable and therefore could not be subclassed [AddedFinalUninstantiable]
+                """,
+            checkCompatibilityApiReleased =
+                """
+                package test.pkg {
+                  public class Java {
+                    method public void method(int);
+                  }
+                  public class Kotlin {
+                    method public void method(String s);
+                  }
+                }
+                """,
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                    package test.pkg
+
+                    class Kotlin
+                    private constructor() {
+                        fun method(s: String) { }
+                    }
+                    """
+                    ),
+                    java(
+                        """
+                        package test.pkg;
+                        public final class Java {
+                            private Java() { }
+                            public void method(int parameter) { }
+                        }
+                        """
+                    )
+                )
+        )
+    }
+
+    @Test
+    fun `Add final to method of class that can be extended`() {
+        // Adding final on a method is incompatible.
+        check(
+            // Make AddedFinalInstantiable an error, so it is reported as an issue.
+            extraArguments = arrayOf("--error", Issues.ADDED_FINAL_UNINSTANTIABLE.name),
             expectedIssues =
                 """
                 src/test/pkg/Java.java:4: error: Method test.pkg.Java.method has added 'final' qualifier [AddedFinal]
@@ -409,6 +512,7 @@ class CompatibilityCheckTest : DriverTest() {
                 """
                 package test.pkg {
                   public class Java {
+                    ctor public Java();
                     method public void method(int);
                   }
                   public class Kotlin {
@@ -432,8 +536,85 @@ class CompatibilityCheckTest : DriverTest() {
                         """
                         package test.pkg;
                         public class Java {
+                            public Java() { }
+                            public final void method(final int parameter) { }
+                        }
+                        """
+                    )
+                )
+        )
+    }
+
+    @Test
+    fun `Add final to method of class that cannot be extended`() {
+        // Adding final on a method is incompatible unless the containing class could not be
+        // extended.
+        check(
+            // Make AddedFinalInstantiable an error, so it is reported as an issue.
+            extraArguments = arrayOf("--error", Issues.ADDED_FINAL_UNINSTANTIABLE.name),
+            expectedIssues =
+                """
+                src/test/pkg/Java.java:4: error: Method test.pkg.Java.method added 'final' qualifier but containing class test.pkg.Java was previously uninstantiable and therefore could not be subclassed [AddedFinalUninstantiable]
+                src/test/pkg/Kotlin.kt:5: error: Method test.pkg.Kotlin.method added 'final' qualifier but containing class test.pkg.Kotlin was previously uninstantiable and therefore could not be subclassed [AddedFinalUninstantiable]
+            """
+                    .trimIndent(),
+            checkCompatibilityApiReleased =
+                """
+                package test.pkg {
+                  public class Java {
+                    method public void method(int);
+                  }
+                  public class Kotlin {
+                    method public void method(String s);
+                  }
+                }
+                """,
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                    package test.pkg
+
+                    open class Kotlin
+                    private constructor() {
+                        fun method(s: String) { }
+                    }
+                    """
+                    ),
+                    java(
+                        """
+                        package test.pkg;
+                        public class Java {
                             private Java() { }
                             public final void method(final int parameter) { }
+                        }
+                        """
+                    )
+                )
+        )
+    }
+
+    @Test
+    fun `Add final to method parameter`() {
+        // Adding final on a method parameter is fine.
+        check(
+            checkCompatibilityApiReleased =
+                """
+                package test.pkg {
+                  public class Java {
+                    ctor public Java();
+                    method public void method(int);
+                  }
+                }
+                """,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                        package test.pkg;
+                        public class Java {
+                            public Java() { }
+                            public void method(final int parameter) { }
                         }
                         """
                     )
@@ -1304,6 +1485,7 @@ class CompatibilityCheckTest : DriverTest() {
                   public abstract class Outer {
                   }
                   public class Outer.Class1 {
+                    ctor public Class1();
                     method public void method1();
                   }
                   public final class Outer.Class2 {
@@ -1326,7 +1508,7 @@ class CompatibilityCheckTest : DriverTest() {
                     public abstract class Outer {
                         private Outer() {}
                         public class Class1 {
-                            private Class1() {}
+                            public Class1() {}
                             public final void method1() { } // Added final
                         }
                         public final class Class2 {
@@ -3256,7 +3438,6 @@ class CompatibilityCheckTest : DriverTest() {
                     package java.security;
                     public abstract class Permission {
                         public abstract boolean implies(Permission permission);
-                        }
                     }
                     """
                     )

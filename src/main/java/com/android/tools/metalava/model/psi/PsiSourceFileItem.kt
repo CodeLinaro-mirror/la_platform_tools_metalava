@@ -17,13 +17,11 @@
 package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.Import
 import com.android.tools.metalava.model.Item
-import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.SourceFileItem
 import com.android.tools.metalava.model.visitors.BaseItemVisitor
-import com.google.common.collect.ArrayListMultimap
-import com.google.common.collect.Multimap
 import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiClassOwner
 import com.intellij.psi.PsiComment
@@ -34,6 +32,7 @@ import com.intellij.psi.PsiJavaFile
 import com.intellij.psi.PsiMethod
 import com.intellij.psi.PsiPackage
 import com.intellij.psi.PsiWhiteSpace
+import java.util.TreeSet
 import java.util.function.Predicate
 import org.jetbrains.kotlin.kdoc.psi.api.KDoc
 import org.jetbrains.kotlin.psi.KtFile
@@ -87,8 +86,8 @@ class PsiSourceFileItem(codebase: PsiBasedCodebase, val file: PsiFile, val uFile
         return super.getHeaderComments()
     }
 
-    override fun getImportStatements(predicate: Predicate<Item>): Collection<Item> {
-        val imports = mutableListOf<Item>()
+    override fun getImports(predicate: Predicate<Item>): Collection<Import> {
+        val imports = TreeSet<Import>(compareBy { it.pattern })
 
         if (file is PsiJavaFile) {
             val importList = file.importList
@@ -98,7 +97,7 @@ class PsiSourceFileItem(codebase: PsiBasedCodebase, val file: PsiFile, val uFile
                     if (resolved is PsiClass) {
                         val classItem = codebase.findClass(resolved) ?: continue
                         if (predicate.test(classItem)) {
-                            imports.add(classItem)
+                            imports.add(Import(classItem))
                         }
                     } else if (resolved is PsiPackage) {
                         val pkgItem = codebase.findPackage(resolved.qualifiedName) ?: continue
@@ -109,13 +108,13 @@ class PsiSourceFileItem(codebase: PsiBasedCodebase, val file: PsiFile, val uFile
                                 // since in that case we'd have an invalid import
                                 pkgItem.topLevelClasses().any { it.emit && predicate.test(it) }
                         ) {
-                            imports.add(pkgItem)
+                            imports.add(Import(pkgItem))
                         }
                     } else if (resolved is PsiMethod) {
                         codebase.findClass(resolved.containingClass ?: continue) ?: continue
                         val methodItem = codebase.findMethod(resolved)
                         if (predicate.test(methodItem)) {
-                            imports.add(methodItem)
+                            imports.add(Import(methodItem))
                         }
                     } else if (resolved is PsiField) {
                         val classItem =
@@ -128,7 +127,7 @@ class PsiSourceFileItem(codebase: PsiBasedCodebase, val file: PsiFile, val uFile
                             )
                                 ?: continue
                         if (predicate.test(fieldItem)) {
-                            imports.add(fieldItem)
+                            imports.add(Import(fieldItem))
                         }
                     }
                 }
@@ -139,7 +138,7 @@ class PsiSourceFileItem(codebase: PsiBasedCodebase, val file: PsiFile, val uFile
                 if (resolved is PsiClass) {
                     val classItem = codebase.findClass(resolved) ?: continue
                     if (predicate.test(classItem)) {
-                        imports.add(classItem)
+                        imports.add(Import(classItem))
                     }
                 }
             }
@@ -148,32 +147,33 @@ class PsiSourceFileItem(codebase: PsiBasedCodebase, val file: PsiFile, val uFile
         // Next only keep those that are present in any docs; those are the only ones
         // we need to import
         if (imports.isNotEmpty()) {
-            val map: Multimap<String, Item> = ArrayListMultimap.create()
-            for (item in imports) {
-                if (item is ClassItem) {
-                    map.put(item.simpleName(), item)
-                } else if (item is MemberItem) {
-                    map.put(item.name(), item)
-                }
-            }
+            // Create a map from the short name for the import to a list of the items imported. A
+            // list is needed because classes and members could be imported with the same short
+            // name.
+            val remainingImports = mutableMapOf<String, MutableList<Import>>()
+            imports.groupByTo(remainingImports) { it.name }
 
-            // Compute set of import statements that are actually referenced
-            // from the documentation (we do inexact matching here; we don't
-            // need to have an exact set of imports since it's okay to have
-            // some extras). This isn't a big problem since our code style
-            // forbids/discourages wildcards, so it shows up in fewer places,
-            // but we need to handle it when it does -- such as in ojluni.
+            // Compute set of import statements that are actually referenced from the documentation
+            // (we do inexact matching here; we don't need to have an exact set of imports since
+            // it's okay to have some extras). This isn't a big problem since our code style
+            // forbids/discourages wildcards, so it shows up in fewer places, but we need to handle
+            // it when it does -- such as in ojluni.
 
             @Suppress("ConstantConditionIf")
             return if (ONLY_IMPORT_CLASSES_REFERENCED_IN_DOCS) {
-                val result = mutableListOf<Item>()
+                val result = TreeSet<Import>(compareBy { it.pattern })
 
                 // We keep the wildcard imports since we don't know which ones of those are relevant
-                imports.filterIsInstance<PackageItem>().forEach { result.add(it) }
+                imports.filter { it.name == "*" }.forEach { result.add(it) }
 
                 for (cls in classes().filter { predicate.test(it) }) {
                     cls.accept(
                         object : BaseItemVisitor() {
+                            override fun skip(item: Item): Boolean {
+                                // There is nothing to do if the map of imports to add is empty.
+                                return remainingImports.isEmpty()
+                            }
+
                             override fun visitItem(item: Item) {
                                 // Do not let documentation on hidden items affect the imports.
                                 if (!predicate.test(item)) {
@@ -181,8 +181,12 @@ class PsiSourceFileItem(codebase: PsiBasedCodebase, val file: PsiFile, val uFile
                                 }
                                 val doc = item.documentation
                                 if (doc.isNotBlank()) {
+                                    // Scan the documentation text to see if it contains any of the
+                                    // short names imported. It does not check whether the names
+                                    // are actually used as part of a link, so they could just be in
+                                    // as text but having extra imports should not be an issue.
                                     var found: MutableList<String>? = null
-                                    for (name in map.keys()) {
+                                    for (name in remainingImports.keys) {
                                         if (docContainsWord(doc, name)) {
                                             if (found == null) {
                                                 found = mutableListOf()
@@ -190,15 +194,14 @@ class PsiSourceFileItem(codebase: PsiBasedCodebase, val file: PsiFile, val uFile
                                             found.add(name)
                                         }
                                     }
+
+                                    // For every imported name add all the matching imports and then
+                                    // remove them from the available imports as there is no need to
+                                    // check them again.
                                     found?.let {
                                         for (name in found) {
-                                            val all = map.get(name) ?: continue
-                                            for (referenced in all) {
-                                                if (!result.contains(referenced)) {
-                                                    result.add(referenced)
-                                                }
-                                            }
-                                            map.removeAll(name)
+                                            val all = remainingImports.remove(name) ?: continue
+                                            result.addAll(all)
                                         }
                                     }
                                 }

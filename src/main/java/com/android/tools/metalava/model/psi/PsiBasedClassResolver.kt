@@ -16,24 +16,26 @@
 
 package com.android.tools.metalava.model.psi
 
-import com.android.tools.metalava.loadUastFromJars
+import com.android.tools.lint.UastEnvironment
 import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.PackageDocs
+import com.android.tools.metalava.reporter.Reporter
 import com.intellij.psi.JavaPsiFacade
 import com.intellij.psi.search.GlobalSearchScope
 import java.io.File
 
-class PsiBasedClassResolver(classpath: List<File>, annotationManager: AnnotationManager) :
-    ClassResolver {
+class PsiBasedClassResolver(
+    uastEnvironment: UastEnvironment,
+    annotationManager: AnnotationManager,
+    reporter: Reporter
+) : ClassResolver {
     private val javaPsiFacade: JavaPsiFacade
     private val searchScope: GlobalSearchScope
     private val classpathCodebase: PsiBasedCodebase
 
     init {
-        val uastEnvironment = loadUastFromJars(classpath)
-
         // Properties used to resolve classes from the classpath
         val project = uastEnvironment.ideaProject
         javaPsiFacade = JavaPsiFacade.getInstance(project)
@@ -44,6 +46,7 @@ class PsiBasedClassResolver(classpath: List<File>, annotationManager: Annotation
                 File("classpath"),
                 "Codebase from classpath",
                 annotationManager,
+                reporter = reporter,
                 fromClasspath = true
             )
         val emptyPackageDocs = PackageDocs(mutableMapOf(), mutableMapOf(), mutableSetOf())

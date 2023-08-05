@@ -24,6 +24,7 @@ import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.SUPPORT_TYPE_USE_ANNOTATIONS
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.visitors.ApiVisitor
+import com.android.tools.metalava.reporter.Issues
 import com.google.common.io.Files
 import java.io.File
 import java.io.PrintWriter

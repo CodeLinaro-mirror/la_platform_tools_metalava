@@ -25,10 +25,8 @@ import org.junit.Test
 class DefaultAnnotationItemTest {
     // Placeholder for use in test where we don't need codebase functionality
     private val placeholderCodebase =
-        object : DefaultCodebase(File("").canonicalFile, NoOpAnnotationManager()) {
+        object : DefaultCodebase(File("").canonicalFile, "", false, NoOpAnnotationManager()) {
             override fun supportsDocumentation(): Boolean = false
-
-            override var description: String = ""
 
             override fun getPackages(): PackageList = unsupported()
 

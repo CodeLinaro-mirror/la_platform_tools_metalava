@@ -43,6 +43,7 @@ import com.android.tools.metalava.model.text.TextClassItem
 import com.android.tools.metalava.model.text.TextCodebase
 import com.android.tools.metalava.model.text.TextMethodItem
 import com.android.tools.metalava.model.visitors.ApiVisitor
+import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.stub.StubWriter
 import com.google.common.base.Stopwatch
 import com.google.common.collect.Lists
@@ -214,7 +215,7 @@ internal fun maybeActivateSandbox() {
     )
 }
 
-private fun repeatErrors(writer: PrintWriter, reporters: List<Reporter>, max: Int) {
+private fun repeatErrors(writer: PrintWriter, reporters: List<DefaultReporter>, max: Int) {
     writer.println("Error: $PROGRAM_NAME detected the following problems:")
     val totalErrors = reporters.sumOf { it.errorCount }
     var remainingCap = max
@@ -750,7 +751,7 @@ private fun loadFromSources(): Codebase {
                 previousApiFile.path.endsWith(DOT_JAR) -> loadFromJarFile(previousApiFile)
                 else -> SignatureFileLoader.load(file = previousApiFile)
             }
-        val apiLintReporter = options.reporterApiLint
+        val apiLintReporter = options.reporterApiLint as DefaultReporter
         ApiLint.check(codebase, previous, apiLintReporter)
         progress(
             "$PROGRAM_NAME ran api-lint in ${localTimer.elapsed(SECONDS)} seconds with ${apiLintReporter.getBaselineDescription()}"
@@ -858,7 +859,7 @@ private fun parseAbsoluteSources(
     val units = Extractor.createUnitsForFiles(environment.ideaProject, sources)
     val packageDocs = gatherPackageJavadoc(sources, sourceRoots)
 
-    val codebase = PsiBasedCodebase(rootDir, description, options.annotationManager)
+    val codebase = PsiBasedCodebase(rootDir, description, options.annotationManager, reporter)
     codebase.initialize(environment, units, packageDocs)
     return codebase
 }
@@ -867,7 +868,8 @@ private fun getClassResolver(): ClassResolver? {
     val apiClassResolution = options.apiClassResolution
     val classpath = options.classpath
     return if (apiClassResolution == ApiClassResolution.API_CLASSPATH && classpath.isNotEmpty()) {
-        PsiBasedClassResolver(classpath, options.annotationManager)
+        val uastEnvironment = loadUastFromJars(classpath)
+        PsiBasedClassResolver(uastEnvironment, options.annotationManager, reporter)
     } else {
         null
     }
@@ -891,7 +893,8 @@ fun loadFromJarFile(
     progress("Processing jar file: ")
 
     val environment = loadUastFromJars(listOf(apiJar))
-    val codebase = PsiBasedCodebase(apiJar, "Codebase loaded from $apiJar", annotationManager)
+    val codebase =
+        PsiBasedCodebase(apiJar, "Codebase loaded from $apiJar", annotationManager, reporter)
     codebase.initialize(environment, apiJar, preFiltered)
     val apiEmit = ApiPredicate(ignoreShown = true)
     val apiReference = ApiPredicate(ignoreShown = true)

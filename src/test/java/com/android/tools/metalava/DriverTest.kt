@@ -37,6 +37,7 @@ import com.android.tools.metalava.model.FileFormat
 import com.android.tools.metalava.model.SUPPORT_TYPE_USE_ANNOTATIONS
 import com.android.tools.metalava.model.text.ApiClassResolution
 import com.android.tools.metalava.model.text.ApiFile
+import com.android.tools.metalava.reporter.Severity
 import com.android.tools.metalava.xml.parseDocument
 import com.android.utils.SdkUtils
 import com.android.utils.StdLogger
@@ -519,8 +520,8 @@ abstract class DriverTest {
 
         val allReportedIssues = StringBuilder()
         val errorSeverityReportedIssues = StringBuilder()
-        Reporter.rootFolder = project
-        Reporter.reportPrinter = { message, severity ->
+        DefaultReporter.rootFolder = project
+        DefaultReporter.reportPrinter = { message, severity ->
             val cleanedUpMessage = cleanupString(message, project).trim()
             if (severity == Severity.ERROR) {
                 errorSeverityReportedIssues.append(cleanedUpMessage).append('\n')

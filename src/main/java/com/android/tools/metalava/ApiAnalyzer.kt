@@ -39,6 +39,7 @@ import com.android.tools.metalava.model.psi.PsiClassItem
 import com.android.tools.metalava.model.psi.PsiItem.Companion.isKotlin
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.model.visitors.BaseItemVisitor
+import com.android.tools.metalava.reporter.Issues
 import java.util.Locale
 import java.util.function.Predicate
 import org.jetbrains.kotlin.asJava.classes.KtLightClassForFacade
@@ -709,11 +710,6 @@ class ApiAnalyzer(
                         if (item.modifiers.hasShowAnnotation()) {
                             item.modifiers.annotations().find(AnnotationItem::isShowAnnotation)
                                 ?: options.showAnnotations.firstQualifiedName()
-                        } else if (item.modifiers.hasShowSingleAnnotation()) {
-                            item.modifiers.annotations().find {
-                                options.showSingleAnnotations.matches(it)
-                            }
-                                ?: options.showSingleAnnotations.firstQualifiedName()
                         } else {
                             null
                         }
@@ -1064,12 +1060,7 @@ class ApiAnalyzer(
                     !cl.modifiers.isSealed() && cl.constructors().any { it.isApiCandidate() }
                 for (m in cl.methods()) {
                     if (!m.isApiCandidate()) {
-                        // TODO: enable this check for options.showSingleAnnotations
-                        if (
-                            options.showSingleAnnotations.isEmpty() &&
-                                publiclyConstructable &&
-                                m.modifiers.isAbstract()
-                        ) {
+                        if (publiclyConstructable && m.modifiers.isAbstract()) {
                             reporter.report(
                                 Issues.HIDDEN_ABSTRACT_METHOD,
                                 m,

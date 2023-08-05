@@ -16,15 +16,18 @@
 
 package com.android.tools.metalava
 
-import com.android.tools.metalava.Severity.ERROR
-import com.android.tools.metalava.Severity.HIDDEN
-import com.android.tools.metalava.Severity.INFO
-import com.android.tools.metalava.Severity.INHERIT
-import com.android.tools.metalava.Severity.LINT
-import com.android.tools.metalava.Severity.WARNING
 import com.android.tools.metalava.model.AnnotationArrayAttributeValue
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.Location
+import com.android.tools.metalava.reporter.Issues
+import com.android.tools.metalava.reporter.Reporter
+import com.android.tools.metalava.reporter.Severity
+import com.android.tools.metalava.reporter.Severity.ERROR
+import com.android.tools.metalava.reporter.Severity.HIDDEN
+import com.android.tools.metalava.reporter.Severity.INFO
+import com.android.tools.metalava.reporter.Severity.INHERIT
+import com.android.tools.metalava.reporter.Severity.LINT
+import com.android.tools.metalava.reporter.Severity.WARNING
 import com.google.common.annotations.VisibleForTesting
 import java.io.File
 import java.io.PrintWriter
@@ -36,37 +39,7 @@ import java.nio.file.Path
  */
 lateinit var reporter: Reporter
 
-enum class Severity(private val displayName: String) {
-    INHERIT("inherit"),
-    HIDDEN("hidden"),
-
-    /**
-     * Information level are for issues that are informational only; may or may not be a problem.
-     */
-    INFO("info"),
-
-    /**
-     * Lint level means that we encountered inconsistent or broken documentation. These should be
-     * resolved, but don't impact API compatibility.
-     */
-    LINT("lint"),
-
-    /**
-     * Warning level means that we encountered some incompatible or inconsistent API change. These
-     * must be resolved to preserve API compatibility.
-     */
-    WARNING("warning"),
-
-    /**
-     * Error level means that we encountered severe trouble and were unable to output the requested
-     * documentation.
-     */
-    ERROR("error");
-
-    override fun toString(): String = displayName
-}
-
-class Reporter(
+internal class DefaultReporter(
     /** [Baseline] file associated with this [Reporter]. If null, the global baseline is used. */
     // See the comment on [getBaseline] for why it's nullable.
     private val customBaseline: Baseline?,
@@ -76,7 +49,7 @@ class Reporter(
      * metalava finishes with errors.
      */
     private val errorMessage: String?
-) {
+) : Reporter {
     private var errors = mutableListOf<String>()
     private var warningCount = 0
 
@@ -91,22 +64,11 @@ class Reporter(
     // options.baseline will be initialized after the global [Reporter] is instantiated.
     private fun getBaseline(): Baseline? = customBaseline ?: options.baseline
 
-    fun report(id: Issues.Issue, file: File?, message: String): Boolean {
-        val location = Location.forFile(file)
-        return report(id, null, message, location)
-    }
-
-    /**
-     * Report an issue.
-     *
-     * @param id the id of the issue.
-     * @param item the optional item for which the issue is reported.
-     */
-    fun report(
+    override fun report(
         id: Issues.Issue,
         item: Item?,
         message: String,
-        location: Location = Location.unknownLocationAndBaselineKey
+        location: Location
     ): Boolean {
         val severity = configuration.getSeverity(id)
         if (severity == HIDDEN) {
@@ -156,7 +118,7 @@ class Reporter(
         return dispatch(this::doReport)
     }
 
-    fun isSuppressed(id: Issues.Issue, item: Item? = null, message: String? = null): Boolean {
+    override fun isSuppressed(id: Issues.Issue, item: Item?, message: String?): Boolean {
         val severity = configuration.getSeverity(id)
         if (severity == HIDDEN) {
             return true
@@ -191,6 +153,10 @@ class Reporter(
         }
 
         return false
+    }
+
+    override fun showProgressTick() {
+        tick()
     }
 
     private fun suppressMatches(value: String, id: String?, message: String?): Boolean {
@@ -240,15 +206,7 @@ class Reporter(
         severity: Severity,
         location: String?,
         message: String,
-        id: Issues.Issue?
-    ) = report(severity, location, message, id)
-
-    fun report(
-        severity: Severity,
-        location: String?,
-        message: String,
-        id: Issues.Issue? = null,
-        terminal: Terminal = options.terminal
+        id: Issues.Issue?,
     ): Boolean {
         if (severity == HIDDEN) {
             return false
@@ -262,6 +220,7 @@ class Reporter(
                 severity
             }
 
+        val terminal: Terminal = options.terminal
         val formattedMessage =
             format(effectiveSeverity, location, message, id, terminal, options.omitLocations)
         if (effectiveSeverity == ERROR) {

@@ -16,15 +16,13 @@ package {
     default_applicable_licenses: ["Android-Apache-2.0"],
 }
 
-model_api_files = [
-    "src/main/java/com/android/tools/metalava/model/*.java",
-    "src/main/java/com/android/tools/metalava/model/*.kt",
-]
-
 java_library_host {
-    name: "metalava-model-api",
+    name: "metalava-model",
     visibility: ["//visibility:private"],
-    srcs: model_api_files,
+    srcs: [
+        "metalava-model/src/main/java/**/*.java",
+        "metalava-model/src/main/java/**/*.kt",
+    ],
 }
 
 model_text_files = [
@@ -37,14 +35,14 @@ java_library_host {
     visibility: ["//visibility:private"],
     srcs: model_text_files,
     libs: [
-        "metalava-model-api",
+        "metalava-model",
     ],
 }
 
 java_library_host {
     name: "metalava-signature-reader",
     static_libs: [
-        "metalava-model-api",
+        "metalava-model",
         "metalava-model-text",
     ],
 }
@@ -55,13 +53,13 @@ java_binary_host {
         "src/main/java/**/*.java",
         "src/main/java/**/*.kt",
     ],
-    exclude_srcs: model_api_files + model_text_files,
+    exclude_srcs: model_text_files,
     java_resource_dirs: ["src/main/resources/"],
     static_libs: [
         "jsr305",
         "jsr330",
         "kotlin-reflect",
-        "metalava-model-api",
+        "metalava-model",
         "metalava-model-text",
         "metalava-tools-common-m2-deps",
         "metalava-gradle-plugin-deps",

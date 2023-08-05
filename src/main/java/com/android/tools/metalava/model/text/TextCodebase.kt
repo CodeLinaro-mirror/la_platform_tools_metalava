@@ -39,14 +39,11 @@ import kotlin.math.min
 class TextCodebase(
     location: File,
     annotationManager: AnnotationManager,
-) : DefaultCodebase(location, annotationManager) {
+) : DefaultCodebase(location, "Codebase", true, annotationManager) {
     internal val mPackages = HashMap<String, TextPackageItem>(300)
     internal val mAllClasses = HashMap<String, TextClassItem>(30000)
 
     val externalClasses = HashMap<String, ClassItem>()
-
-    override var description = "Codebase"
-    override var preFiltered: Boolean = true
 
     override fun trustedApi(): Boolean = true
 

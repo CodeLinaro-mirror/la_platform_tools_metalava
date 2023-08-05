@@ -130,7 +130,11 @@ interface ModifierList {
         return codebase.annotationManager.hasShowAnnotation(this)
     }
 
-    /** Returns true if this modifier list contains any show single annotations. */
+    /**
+     * Returns true if this modifier list contains any show single annotations.
+     *
+     * See [AnnotationItem.isShowSingleAnnotation]
+     */
     fun hasShowSingleAnnotation(): Boolean {
         return codebase.annotationManager.hasShowSingleAnnotation(this)
     }
@@ -138,6 +142,8 @@ interface ModifierList {
     /**
      * Returns true if this modifier list contains any show for stub purposes annotations and that
      * is the only show annotation.
+     *
+     * See [AnnotationItem.isShowAnnotation] and [AnnotationItem.isShowForStubPurposes]
      */
     fun onlyShowForStubPurposes(): Boolean {
         return codebase.annotationManager.onlyShowForStubPurposes(this)

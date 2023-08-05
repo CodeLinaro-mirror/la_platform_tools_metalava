@@ -25,7 +25,7 @@ interface SourceFileItem : Item {
 
     fun getHeaderComments(): String? = null
 
-    fun getImportStatements(predicate: Predicate<Item>): Collection<Item> = emptyList()
+    fun getImports(predicate: Predicate<Item>): Collection<Import> = emptyList()
 
     override fun parent(): PackageItem? = containingPackage()
 
@@ -42,4 +42,47 @@ interface SourceFileItem : Item {
 
         classes().forEach { it.acceptTypes(visitor) }
     }
+}
+
+/** Encapsulates information about the imports used in a [SourceFileItem]. */
+data class Import
+internal constructor(
+    /**
+     * The import pattern, i.e. the whole part of the import statement after `import static? ` and
+     * before the optional `;`, excluding any whitespace.
+     */
+    val pattern: String,
+
+    /**
+     * The name that is being imported, i.e. the part after the last `.`. Is `*` for wildcard
+     * imports.
+     */
+    val name: String,
+
+    /**
+     * True if the item that is being imported is a member of a class. Corresponds to the `static`
+     * keyword in Java, has no effect on Kotlin import statements.
+     */
+    val isMember: Boolean,
+) {
+    /** Import a whole [PackageItem], i.e. uses a wildcard. */
+    constructor(pkgItem: PackageItem) : this("${pkgItem.qualifiedName()}.*", "*", false)
+
+    /** Import a [ClassItem]. */
+    constructor(
+        classItem: ClassItem
+    ) : this(
+        classItem.qualifiedName(),
+        classItem.simpleName(),
+        false,
+    )
+
+    /** Import a [MemberItem]. */
+    constructor(
+        memberItem: MemberItem
+    ) : this(
+        "${memberItem.containingClass().qualifiedName()}.${memberItem.name()}",
+        memberItem.name(),
+        true,
+    )
 }

@@ -38,6 +38,7 @@ import com.android.tools.metalava.model.psi.PsiMethodItem
 import com.android.tools.metalava.model.psi.UAnnotationItem
 import com.android.tools.metalava.model.psi.report
 import com.android.tools.metalava.model.visitors.ApiVisitor
+import com.android.tools.metalava.reporter.Issues
 import com.google.common.xml.XmlEscapers
 import com.intellij.lang.jvm.annotation.JvmAnnotationConstantValue
 import com.intellij.lang.jvm.annotation.JvmAnnotationEnumFieldValue
@@ -86,17 +87,19 @@ class ExtractAnnotations(private val codebase: Codebase, private val outputFile:
     private val fieldNamePrinter =
         CodePrinter(
             codebase = codebase,
+            reporter = reporter,
             filterReference = filterReference,
             inlineFieldValues = false,
-            skipUnknown = true
+            skipUnknown = true,
         )
 
     private val fieldValuePrinter =
         CodePrinter(
             codebase = codebase,
+            reporter = reporter,
             filterReference = filterReference,
             inlineFieldValues = true,
-            skipUnknown = true
+            skipUnknown = true,
         )
 
     private val classToAnnotationHolder = mutableMapOf<String, AnnotationHolder>()

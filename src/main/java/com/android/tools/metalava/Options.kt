@@ -27,6 +27,9 @@ import com.android.tools.metalava.model.FileFormat
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.TypedefMode
 import com.android.tools.metalava.model.text.ApiClassResolution
+import com.android.tools.metalava.reporter.Issues
+import com.android.tools.metalava.reporter.Reporter
+import com.android.tools.metalava.reporter.Severity
 import com.android.utils.SdkUtils.wrap
 import com.github.ajalt.clikt.core.NoSuchOption
 import com.github.ajalt.clikt.parameters.groups.OptionGroup
@@ -313,7 +316,7 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
      * Like [showAnnotations], but does not work recursively. Note that these annotations are *also*
      * show annotations and will be added to the above list; this is a subset.
      */
-    val showSingleAnnotations by lazy(showSingleAnnotationsBuilder::build)
+    private val showSingleAnnotations by lazy(showSingleAnnotationsBuilder::build)
 
     /**
      * Whether to include unannotated elements if {@link #showAnnotations} is set. Note: This only
@@ -664,15 +667,15 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
     private var errorMessageCompatibilityReleased: String? = null
 
     /** [Reporter] for "api-lint" */
-    var reporterApiLint: Reporter = Reporter(null, null)
+    var reporterApiLint: Reporter = DefaultReporter(null, null)
 
     /**
      * [Reporter] for "check-compatibility:*:released". (i.e. [ARG_CHECK_COMPATIBILITY_API_RELEASED]
      * and [ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED])
      */
-    var reporterCompatibilityReleased: Reporter = Reporter(null, null)
+    var reporterCompatibilityReleased: Reporter = DefaultReporter(null, null)
 
-    var allReporters: List<Reporter> = emptyList()
+    internal var allReporters: List<DefaultReporter> = emptyList()
 
     /** If updating baselines, don't fail the build */
     var passBaselineUpdates = false
@@ -798,7 +801,7 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
 
         var androidJarPatterns: MutableList<String>? = null
         var currentJar: File? = null
-        reporter = Reporter(null, null)
+        reporter = DefaultReporter(null, null)
 
         val baselineBuilder = Baseline.Builder().apply { description = "base" }
         val baselineApiLintBuilder = Baseline.Builder().apply { description = "api-lint" }
@@ -1383,9 +1386,12 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
         baselineCompatibilityReleased = baselineCompatibilityReleasedBuilder.build()
 
         // Override the default reporters.
-        reporterApiLint = Reporter(baselineApiLint ?: baseline, errorMessageApiLint)
+        reporterApiLint = DefaultReporter(baselineApiLint ?: baseline, errorMessageApiLint)
         reporterCompatibilityReleased =
-            Reporter(baselineCompatibilityReleased ?: baseline, errorMessageCompatibilityReleased)
+            DefaultReporter(
+                baselineCompatibilityReleased ?: baseline,
+                errorMessageCompatibilityReleased
+            )
 
         // Build "all baselines" and "all reporters"
 
@@ -1393,12 +1399,14 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
         allBaselines = listOfNotNull(baseline, baselineApiLint, baselineCompatibilityReleased)
 
         // Reporters are non-null.
+        // Downcast to DefaultReporter to gain access to some implementation specific functionality.
         allReporters =
             listOf(
-                reporter,
-                reporterApiLint,
-                reporterCompatibilityReleased,
-            )
+                    reporter,
+                    reporterApiLint,
+                    reporterCompatibilityReleased,
+                )
+                .map { it as DefaultReporter }
 
         updateClassPath()
         checkFlagConsistency()

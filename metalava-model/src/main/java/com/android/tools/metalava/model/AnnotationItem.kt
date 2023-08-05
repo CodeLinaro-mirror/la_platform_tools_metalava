@@ -108,16 +108,39 @@ interface AnnotationItem {
     fun findTypedefAnnotation(): AnnotationItem?
 
     /**
-     * Returns true iff the annotation is a show annotations.
+     * Returns true iff the annotation is a show annotation.
      *
      * If `true` then an item annotated with this annotation (and any contents) will be added to the
      * API.
      *
-     * e.g. if a class is annotated with this then it will also apply (unless overridden by a
-     * closer) annotation to all its contents like nested classes, methods, fields, constructors,
+     * e.g. if a class is annotated with this then it will also apply (unless overridden by a closer
+     * annotation) to all its contents like nested classes, methods, fields, constructors,
      * properties, etc.
      */
     fun isShowAnnotation(): Boolean
+
+    /**
+     * Returns true iff the annotation is a show single annotation.
+     *
+     * If `true` then an item annotated with this annotation and only that item will be added to the
+     * API.
+     *
+     * e.g. if a class is annotated with this then it only applies to that class and not its
+     * contents like nested classes, methods, fields, constructors, properties, etc.
+     */
+    fun isShowSingleAnnotation(): Boolean
+
+    /**
+     * Returns true iff this annotation is a show for stubs purposes annotation.
+     *
+     * If `true` then an item annotated with this annotation (and any contents) which are not
+     * annotated with another [isShowAnnotation] will be added to the stubs but not the API.
+     *
+     * e.g. if a class is annotated with this then it will also apply (unless overridden by a closer
+     * annotation) to all its contents like nested classes, methods, fields, constructors,
+     * properties, etc.
+     */
+    fun isShowForStubPurposes(): Boolean
 
     /** Returns the retention of this annotation */
     val retention: AnnotationRetention
@@ -254,6 +277,10 @@ private constructor(
     }
 
     override fun isShowAnnotation(): Boolean = info.show
+
+    override fun isShowSingleAnnotation(): Boolean = info.showSingle
+
+    override fun isShowForStubPurposes(): Boolean = info.showForStubPurposes
 
     override fun equals(other: Any?): Boolean {
         if (other !is AnnotationItem) return false

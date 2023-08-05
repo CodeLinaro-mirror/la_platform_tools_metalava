@@ -50,10 +50,18 @@ open class AnnotationInfo(
      * API.
      *
      * e.g. if this annotation is used on a class then it will also apply (unless overridden by a
-     * closer) annotation to all its contents like nested classes, methods, fields, constructors,
+     * closer annotation) to all its contents like nested classes, methods, fields, constructors,
      * properties, etc.
      */
     open val show: Boolean
+        get() = false
+
+    /** If true then this annotation will cause annotated items to be added to the API. */
+    open val showSingle: Boolean
+        get() = false
+
+    /** If true then this annotation will cause annotated items to be added to the stubs only. */
+    open val showForStubPurposes: Boolean
         get() = false
 }
 

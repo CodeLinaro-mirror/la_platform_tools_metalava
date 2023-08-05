@@ -17,11 +17,11 @@
 package com.android.tools.metalava.manifest
 
 import com.android.SdkConstants
-import com.android.tools.metalava.Issues
 import com.android.tools.metalava.model.MinSdkVersion
 import com.android.tools.metalava.model.SetMinSdkVersion
 import com.android.tools.metalava.model.UnsetMinSdkVersion
 import com.android.tools.metalava.reporter
+import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.xml.parseDocument
 import com.android.utils.XmlUtils
 import java.io.File
