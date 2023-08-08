@@ -28,12 +28,24 @@ class TextBackedAnnotationItemTest {
     private val placeholderCodebase =
         object : DefaultCodebase(File("").canonicalFile) {
             override fun supportsDocumentation(): Boolean = false
+
             override var description: String = ""
+
             override fun getPackages(): PackageList = unsupported()
+
             override fun size(): Int = unsupported()
+
             override fun findClass(className: String): ClassItem? = unsupported()
+
             override fun findPackage(pkgName: String): PackageItem? = unsupported()
+
             override fun trustedApi(): Boolean = false
+
+            override fun createAnnotation(
+                source: String,
+                context: Item?,
+                mapName: Boolean
+            ): AnnotationItem = unsupported()
         }
 
     @Test

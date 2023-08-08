@@ -251,6 +251,7 @@ internal object FileReadSandbox {
         override fun checkRead(file: String, context: Any?) {
             check(file)
         }
+
         override fun checkRead(p0: FileDescriptor?) {}
 
         override fun checkDelete(p0: String?) {}

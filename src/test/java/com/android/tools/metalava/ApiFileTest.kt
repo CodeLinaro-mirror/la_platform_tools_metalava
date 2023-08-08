@@ -1348,9 +1348,9 @@ class ApiFileTest : DriverTest() {
                 """
                 // Signature format: 3.0
                 package test.pkg {
-                  @kotlin.RequiresOptIn @kotlin.annotation.Retention(kotlin.annotation.AnnotationRetention.BINARY) @kotlin.annotation.Target(allowedTargets={kotlin.annotation.AnnotationTarget.CLASS, kotlin.annotation.AnnotationTarget.FUNCTION}) public @interface ExperimentalBar {
+                  @SuppressCompatibility @kotlin.RequiresOptIn @kotlin.annotation.Retention(kotlin.annotation.AnnotationRetention.BINARY) @kotlin.annotation.Target(allowedTargets={kotlin.annotation.AnnotationTarget.CLASS, kotlin.annotation.AnnotationTarget.FUNCTION}) public @interface ExperimentalBar {
                   }
-                  @test.pkg.ExperimentalBar public final class FancyBar {
+                  @SuppressCompatibility @test.pkg.ExperimentalBar public final class FancyBar {
                     ctor public FancyBar();
                   }
                   public final class SimpleClass {
@@ -1358,7 +1358,8 @@ class ApiFileTest : DriverTest() {
                     method public void methodUsingFancyBar();
                   }
                 }
-            """
+            """,
+            suppressCompatibilityMetaAnnotations = arrayOf("kotlin.RequiresOptIn")
         )
     }
 
@@ -4293,6 +4294,80 @@ class ApiFileTest : DriverTest() {
                 }
             """,
             extraArguments = arrayOf(ARG_HIDE_META_ANNOTATION, "kotlin.RequiresOptIn")
+        )
+    }
+
+    @Test
+    fun `Inline suppress compatibility metadata for experimental annotations from classpath`() {
+        check(
+            format = FileFormat.V3,
+            classpath =
+                arrayOf(
+                    /* The following source file, compiled, then ran
+                    assertEquals("", toBase64gzip(File("path/to/test.jar")))
+
+                        package test.pkg
+                        @RequiresOptIn
+                        annotation class ExternalExperimentalAnnotation
+                     */
+                    base64gzip(
+                        "test.jar",
+                        "" +
+                            "H4sIAAAAAAAAAAvwZmbhYmDg4GCY0GkYxgAETAwQwAnEvq4hjrqefm76zAwB" +
+                            "cIUGHYZhm+qZ3kkDFUgCsQiyQl9HP0831+AQPV+3z75nTvt46+pd5PXW1Tp3" +
+                            "5vzmIIMrxg+ePnrKhGQYuq2sQFySWlyCYiM2p4EVFWSnYyjcr3nzUgYjA0Mo" +
+                            "ULUuskLXipLUorzEHNeKgtSizNzUvJLEHMe8vPySxJLM/Dy95JzE4uLegN1+" +
+                            "TI4ituWCYtfF9zmaZC3eWHj1RqSEr8FNliMPFm+USkxya4tMYW+Snbv/kXmE" +
+                            "RNJLd8n3alpqUqVdxuXvLJ/bPXv69SPnAb1pHK/D3K7lX1v/1+n6qWmCuy7k" +
+                            "npqW5ZHcamegtuXQqgs7FJyeuZW0rG/d+e10uPmmrFgVjtPNa35c+R2/1vNQ" +
+                            "zEa5qLU98RO3516dFLgzk3mze4Tmv4z1HqeFC45MSnF/sU1lzV9FW86tq+5t" +
+                            "PLh2jvx81qVMiZ8W53pGBQqHGbw2seKMm59UwBnyPCT86HrdvqzbNsH7n1f6" +
+                            "Xfs4x+fe6++Xzn/323b/duG2FxvuV9d5WG7Ma98Q+Of5+8JwgUu5cpezIpXX" +
+                            "/Ft3f010U7nUtujQyiUm7+etPvKsbU/AxF2XihR6OX6W6xnMzX8j1d+lmDfP" +
+                            "qUYoIqFkgvO897V9l87weldIHNSYJLHbRelARQOnW0rSDB6D1pfeAS2SZ4zk" +
+                            "E/UO1bToiO306OLecUAaNcrYrBQDhIFRJQHE8sipqTSvJLMkJzVFLzu/JCcz" +
+                            "Lz43P6U0JzU5ISEhDYhZkso0zi44suAoAzAJMDKJMONOLRAgwPDWkQHZfGRt" +
+                            "2JI1DCxp1MSRyPFZzIpk8QvHMlhaJNatLxxnIydfdG3o6RwGFjQeITXVoxuN" +
+                            "Hh8Io8uZCMZOgDcrG0gxGxB2A913HOw3ALXssnFoBAAA"
+                    )
+                ),
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                    package test.pkg
+
+                    @ExternalExperimentalAnnotation
+                    class ClassUsingExternalExperimentalApi
+
+                    @InLibraryExperimentalAnnotation
+                    class ClassUsingInLibraryExperimentalApi
+                """
+                    ),
+                    kotlin(
+                        """
+                        package test.pkg
+                        @RequiresOptIn
+                        annotation class InLibraryExperimentalAnnotation
+                    """
+                    )
+                ),
+            expectedIssues = "",
+            api =
+                """
+                // Signature format: 3.0
+                package test.pkg {
+                  @SuppressCompatibility @test.pkg.ExternalExperimentalAnnotation public final class ClassUsingExternalExperimentalApi {
+                    ctor public ClassUsingExternalExperimentalApi();
+                  }
+                  @SuppressCompatibility @test.pkg.InLibraryExperimentalAnnotation public final class ClassUsingInLibraryExperimentalApi {
+                    ctor public ClassUsingInLibraryExperimentalApi();
+                  }
+                  @SuppressCompatibility @kotlin.RequiresOptIn public @interface InLibraryExperimentalAnnotation {
+                  }
+                }
+            """,
+            suppressCompatibilityMetaAnnotations = arrayOf("kotlin.RequiresOptIn")
         )
     }
 

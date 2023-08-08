@@ -28,5 +28,6 @@ abstract class TextMemberItem(
 ) : TextItem(codebase, position = position, modifiers = modifiers), MemberItem {
 
     override fun name(): String = name
+
     override fun containingClass(): ClassItem = containingClass
 }

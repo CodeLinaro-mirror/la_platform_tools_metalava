@@ -33,11 +33,15 @@ abstract class TextItem(
     override var removed = false
 
     override fun findTagDocumentation(tag: String, value: String?): String? = null
+
     override fun appendDocumentation(comment: String, tagSection: String?, append: Boolean) =
         codebase.unsupported()
+
     override fun mutableModifiers(): MutableModifierList = modifiers
+
     override fun isJava(): Boolean =
         codebase.unsupported() // source language not recorded in signature files
+
     override fun isKotlin(): Boolean =
         codebase.unsupported() // source language not recorded in signature files
 

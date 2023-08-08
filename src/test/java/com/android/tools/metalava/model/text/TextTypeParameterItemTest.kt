@@ -49,7 +49,6 @@ class TextTypeParameterItemTest {
             }
             """
                     .trimIndent(),
-                false
             )
         val cls = codebase.findClass("androidx.navigation.NavDestinationBuilder")
         val method = cls?.findMethod("build", "") as TextMethodItem

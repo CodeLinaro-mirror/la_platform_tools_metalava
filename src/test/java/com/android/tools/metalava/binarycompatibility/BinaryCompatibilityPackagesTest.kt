@@ -45,6 +45,7 @@ class BinaryCompatibilityPackagesTest : DriverTest() {
                     .trimIndent()
         )
     }
+
     @Test
     fun `Delete API Package (Incompatible)`() {
         check(
@@ -73,6 +74,7 @@ class BinaryCompatibilityPackagesTest : DriverTest() {
                     .trimIndent()
         )
     }
+
     @Test
     fun `Add API Type to API Package (Compatible)`() {
         check(
@@ -94,6 +96,7 @@ class BinaryCompatibilityPackagesTest : DriverTest() {
                     .trimIndent()
         )
     }
+
     @Test
     fun `Delete API Type from API Package (Incompatible)`() {
         check(
@@ -120,6 +123,7 @@ class BinaryCompatibilityPackagesTest : DriverTest() {
                     .trimIndent()
         )
     }
+
     @Test
     fun `Add non-public (non-API) type to API package (Compatible)`() {
         check(
@@ -144,6 +148,7 @@ class BinaryCompatibilityPackagesTest : DriverTest() {
                     .trimIndent()
         )
     }
+
     @Test
     fun `Change public type in API package to make non-public (Incompatible)`() {
         check(
@@ -171,6 +176,7 @@ class BinaryCompatibilityPackagesTest : DriverTest() {
                     .trimIndent()
         )
     }
+
     @Test
     fun `Change kind of API type (class, interface, enum, or annotation type) (Incompatible)`() {
         check(

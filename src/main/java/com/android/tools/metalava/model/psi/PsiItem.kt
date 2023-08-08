@@ -67,6 +67,7 @@ abstract class PsiItem(
         override operator fun setValue(thisRef: PsiItem, property: KProperty<*>, value: T) {
             currentValue = value
         }
+
         override operator fun getValue(thisRef: PsiItem, property: KProperty<*>): T {
             if (currentValue == null) {
                 currentValue = defaultValueProvider()

@@ -333,10 +333,6 @@ abstract class DriverTest {
         extraArguments: Array<String> = emptyArray(),
         /** Whether we should emit Kotlin-style null signatures */
         outputKotlinStyleNulls: Boolean = format.useKotlinStyleNulls(),
-        /**
-         * Whether we should interpret API files being read as having Kotlin-style nullness types
-         */
-        inputKotlinStyleNulls: Boolean = false,
         /** Expected output (stdout and stderr combined). If null, don't check. */
         expectedOutput: String? = null,
         /** Expected fail message and state, if any */
@@ -1070,7 +1066,6 @@ abstract class DriverTest {
         val actualOutput =
             runDriver(
                 ARG_NO_COLOR,
-                ARG_NO_BANNER,
 
                 // Tell metalava where to store temp folder: place them under the
                 // test root folder such that we clean up the output strings referencing
@@ -1097,7 +1092,6 @@ abstract class DriverTest {
                 *stubsSourceListArgs,
                 *docStubsSourceListArgs,
                 "$ARG_OUTPUT_KOTLIN_NULLS=${if (outputKotlinStyleNulls) "yes" else "no"}",
-                "$ARG_INPUT_KOTLIN_NULLS=${if (inputKotlinStyleNulls) "yes" else "no"}",
                 "$ARG_INCLUDE_SIG_VERSION=${if (includeSignatureVersion) "yes" else "no"}",
                 *quiet,
                 *mergeAnnotationsArgs,
@@ -1163,7 +1157,7 @@ abstract class DriverTest {
             val actualText = readFile(apiFile, stripBlankLines, trim)
             assertEquals(prepareExpectedApi(api, format), actualText)
             // Make sure we can read back the files we write
-            ApiFile.parseApi(apiFile, options.outputKotlinStyleNulls)
+            ApiFile.parseApi(apiFile)
         }
 
         if (apiXml != null && apiXmlFile != null) {
@@ -1259,7 +1253,7 @@ abstract class DriverTest {
             val actualText = readFile(removedApiFile, stripBlankLines, trim)
             assertEquals(prepareExpectedApi(removedApi, format), actualText)
             // Make sure we can read back the files we write
-            ApiFile.parseApi(removedApiFile, options.outputKotlinStyleNulls)
+            ApiFile.parseApi(removedApiFile)
         }
 
         if (proguard != null && proguardFile != null) {

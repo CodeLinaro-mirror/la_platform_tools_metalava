@@ -54,7 +54,6 @@ class ApiFromTextTest : DriverTest() {
 
         check(
             format = FileFormat.V3,
-            inputKotlinStyleNulls = true,
             signatureSource = source,
             includeSignatureVersion = true,
             api = source
@@ -75,7 +74,6 @@ class ApiFromTextTest : DriverTest() {
 
         check(
             format = FileFormat.V3,
-            inputKotlinStyleNulls = true,
             signatureSource = source,
             includeSignatureVersion = true,
             api = source
@@ -110,7 +108,6 @@ class ApiFromTextTest : DriverTest() {
 
         check(
             format = FileFormat.V3,
-            inputKotlinStyleNulls = true,
             signatureSource = source,
             includeSignatureVersion = true,
             api = source
@@ -144,7 +141,6 @@ class ApiFromTextTest : DriverTest() {
 
         check(
             format = FileFormat.V3,
-            inputKotlinStyleNulls = true,
             signatureSource = source,
             includeSignatureVersion = true,
             api = source
@@ -628,7 +624,6 @@ class ApiFromTextTest : DriverTest() {
 
         check(
             format = FileFormat.V3,
-            inputKotlinStyleNulls = true,
             outputKotlinStyleNulls = true,
             signatureSource = source,
             api = source
@@ -675,7 +670,6 @@ class ApiFromTextTest : DriverTest() {
                 """
         check(
             format = FileFormat.V3,
-            inputKotlinStyleNulls = true,
             outputKotlinStyleNulls = true,
             signatureSource = source,
             api = source

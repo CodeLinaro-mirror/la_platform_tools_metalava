@@ -501,7 +501,8 @@ interface AnnotationItem {
                 val retention = cls.getRetention()
                 if (
                     retention == AnnotationRetention.RUNTIME ||
-                        retention == AnnotationRetention.CLASS
+                        retention == AnnotationRetention.CLASS ||
+                        retention == AnnotationRetention.BINARY
                 ) {
                     return ANNOTATION_IN_ALL_STUBS
                 }

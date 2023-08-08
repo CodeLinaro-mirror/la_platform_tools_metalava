@@ -37,7 +37,6 @@ class VersionCommandTest : DriverTest() {
         Assert.assertEquals("", stderr.toString())
         Assert.assertEquals(
             """
-$BANNER
 
 Usage: metalava version [options]
 
@@ -54,7 +53,7 @@ Options:
 
     @Test
     fun `Test output`() {
-        val args = listOf(ARG_NO_BANNER, "version")
+        val args = listOf("version")
 
         val stdout = StringWriter()
         val stderr = StringWriter()

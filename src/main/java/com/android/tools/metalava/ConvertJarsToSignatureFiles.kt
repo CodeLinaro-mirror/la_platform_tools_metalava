@@ -17,6 +17,7 @@
 package com.android.tools.metalava
 
 import com.android.SdkConstants
+import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
@@ -31,6 +32,7 @@ import java.util.function.Predicate
 import java.util.zip.ZipFile
 import org.objectweb.asm.ClassReader
 import org.objectweb.asm.Opcodes
+import org.objectweb.asm.Type
 import org.objectweb.asm.tree.ClassNode
 import org.objectweb.asm.tree.FieldNode
 import org.objectweb.asm.tree.MethodNode
@@ -65,7 +67,7 @@ class ConvertJarsToSignatureFiles {
             // Treat android.jar file as not filtered since they contain misc stuff that shouldn't
             // be
             // there: package private super classes etc.
-            val jarCodebase = loadFromJarFile(apiJar, null, preFiltered = false)
+            val jarCodebase = loadFromJarFile(apiJar, preFiltered = false)
             val apiEmit = ApiType.PUBLIC_API.getEmitFilter()
             val apiReference = ApiType.PUBLIC_API.getReferenceFilter()
 
@@ -250,5 +252,63 @@ class ConvertJarsToSignatureFiles {
 
     companion object {
         val MATCH_ALL: Predicate<Item> = Predicate { true }
+    }
+}
+
+/** Finds the given class by JVM owner */
+private fun Codebase.findClassByOwner(owner: String, apiFilter: Predicate<Item>): ClassItem? {
+    val className = owner.replace('/', '.').replace('$', '.')
+    val cls = findClass(className)
+    return if (cls != null && apiFilter.test(cls)) {
+        cls
+    } else {
+        null
+    }
+}
+
+private fun Codebase.findClass(node: ClassNode, apiFilter: Predicate<Item>): ClassItem? {
+    return findClassByOwner(node.name, apiFilter)
+}
+
+private fun Codebase.findMethod(
+    classNode: ClassNode,
+    node: MethodNode,
+    apiFilter: Predicate<Item>
+): MethodItem? {
+    val cls = findClass(classNode, apiFilter) ?: return null
+    val types = Type.getArgumentTypes(node.desc)
+    val parameters =
+        if (types.isNotEmpty()) {
+            val sb = StringBuilder()
+            for (type in types) {
+                if (sb.isNotEmpty()) {
+                    sb.append(", ")
+                }
+                sb.append(type.className.replace('/', '.').replace('$', '.'))
+            }
+            sb.toString()
+        } else {
+            ""
+        }
+    val methodName = if (node.name == "<init>") cls.simpleName() else node.name
+    val method = cls.findMethod(methodName, parameters)
+    return if (method != null && apiFilter.test(method)) {
+        method
+    } else {
+        null
+    }
+}
+
+private fun Codebase.findField(
+    classNode: ClassNode,
+    node: FieldNode,
+    apiFilter: Predicate<Item>
+): FieldItem? {
+    val cls = findClass(classNode, apiFilter) ?: return null
+    val field = cls.findField(node.name + 2)
+    return if (field != null && apiFilter.test(field)) {
+        field
+    } else {
+        null
     }
 }

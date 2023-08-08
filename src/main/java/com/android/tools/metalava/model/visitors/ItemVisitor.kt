@@ -53,9 +53,13 @@ open class ItemVisitor(
     open fun visitItem(item: Item) {}
 
     open fun visitCodebase(codebase: Codebase) {}
+
     open fun visitPackage(pkg: PackageItem) {}
+
     open fun visitSourceFile(sourceFile: SourceFileItem) {}
+
     open fun visitClass(cls: ClassItem) {}
+
     open fun visitConstructor(constructor: ConstructorItem) {
         if (visitConstructorsAsMethods) {
             visitMethod(constructor)
@@ -63,15 +67,23 @@ open class ItemVisitor(
     }
 
     open fun visitField(field: FieldItem) {}
+
     open fun visitMethod(method: MethodItem) {}
+
     open fun visitParameter(parameter: ParameterItem) {}
+
     open fun visitProperty(property: PropertyItem) {}
 
     open fun afterVisitItem(item: Item) {}
+
     open fun afterVisitCodebase(codebase: Codebase) {}
+
     open fun afterVisitPackage(pkg: PackageItem) {}
+
     open fun afterVisitSourceFile(sourceFile: SourceFileItem) {}
+
     open fun afterVisitClass(cls: ClassItem) {}
+
     open fun afterVisitConstructor(constructor: ConstructorItem) {
         if (visitConstructorsAsMethods) {
             afterVisitMethod(constructor)
@@ -79,7 +91,10 @@ open class ItemVisitor(
     }
 
     open fun afterVisitField(field: FieldItem) {}
+
     open fun afterVisitMethod(method: MethodItem) {}
+
     open fun afterVisitParameter(parameter: ParameterItem) {}
+
     open fun afterVisitProperty(property: PropertyItem) {}
 }

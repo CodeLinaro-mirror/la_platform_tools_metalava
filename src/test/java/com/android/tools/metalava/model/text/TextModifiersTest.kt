@@ -36,7 +36,6 @@ class TextModifiersTest {
             }
             """
                     .trimIndent(),
-                false
             )
 
         assertTrue {

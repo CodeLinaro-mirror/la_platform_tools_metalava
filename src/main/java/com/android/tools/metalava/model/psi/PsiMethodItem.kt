@@ -82,6 +82,7 @@ open class PsiMethodItem(
     override var property: PsiPropertyItem? = null
 
     override fun name(): String = name
+
     override fun containingClass(): ClassItem = containingClass
 
     override fun equals(other: Any?): Boolean {
@@ -119,6 +120,7 @@ open class PsiMethodItem(
         get() = isEnumSyntheticMethod()
 
     private var superMethods: List<MethodItem>? = null
+
     override fun superMethods(): List<MethodItem> {
         if (superMethods == null) {
             val result = mutableListOf<MethodItem>()

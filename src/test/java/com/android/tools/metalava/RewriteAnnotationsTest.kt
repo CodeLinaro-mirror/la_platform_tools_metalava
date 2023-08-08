@@ -32,7 +32,6 @@ class RewriteAnnotationsTest : DriverTest() {
         val target = temporaryFolder.newFolder()
         runDriver(
             ARG_NO_COLOR,
-            ARG_NO_BANNER,
             ARG_COPY_ANNOTATIONS,
             source.path,
             target.path,
@@ -119,7 +118,6 @@ class RewriteAnnotationsTest : DriverTest() {
         assertThrows(IllegalStateException::class.java) {
             runDriver(
                 ARG_NO_COLOR,
-                ARG_NO_BANNER,
                 ARG_COPY_ANNOTATIONS,
                 source.path,
                 target.path,

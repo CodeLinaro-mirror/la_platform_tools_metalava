@@ -196,10 +196,10 @@ class CompatibilityCheckTest : DriverTest() {
                 src/test/pkg/Outer.kt:8: error: Attempted to change parameter from @Nullable to @NonNull: incompatible change for parameter string in test.pkg.Outer.Inner.method2(String string, String maybeString) [InvalidNullConversion]
                 src/test/pkg/Outer.kt:9: error: Attempted to change parameter from @Nullable to @NonNull: incompatible change for parameter string in test.pkg.Outer.Inner.method3(String maybeString, String string) [InvalidNullConversion]
                 """,
-            inputKotlinStyleNulls = true,
             outputKotlinStyleNulls = true,
             checkCompatibilityApiReleased =
                 """
+                    // Signature format: 3.0
                     package test.pkg {
                       public final class Outer {
                         ctor public Outer();
@@ -280,10 +280,10 @@ class CompatibilityCheckTest : DriverTest() {
                 """
                 src/test/pkg/KotlinClass.kt:4: error: Attempted to change parameter name from prevName to newName in method test.pkg.KotlinClass.method1 [ParameterNameChange]
                 """,
-            inputKotlinStyleNulls = true,
             outputKotlinStyleNulls = true,
             checkCompatibilityApiReleased =
                 """
+                // Signature format: 3.0
                 package test.pkg {
                   public final class KotlinClass {
                     ctor public KotlinClass();
@@ -310,10 +310,10 @@ class CompatibilityCheckTest : DriverTest() {
     fun `Kotlin Coroutines`() {
         check(
             expectedIssues = "",
-            inputKotlinStyleNulls = true,
             outputKotlinStyleNulls = true,
             checkCompatibilityApiReleased =
                 """
+                // Signature format: 3.0
                 package test.pkg {
                   public final class TestKt {
                     ctor public TestKt();
@@ -323,6 +323,7 @@ class CompatibilityCheckTest : DriverTest() {
                 """,
             signatureSource =
                 """
+                // Signature format: 3.0
                 package test.pkg {
                   public final class TestKt {
                     ctor public TestKt();
@@ -715,9 +716,9 @@ class CompatibilityCheckTest : DriverTest() {
                 src/test/pkg/Foo.kt:7: error: Attempted to remove default value from parameter s1 in test.pkg.Foo.method4 [DefaultValueChange] [See https://s.android.com/api-guidelines#default-value-removal]
 
                 """,
-            inputKotlinStyleNulls = true,
             checkCompatibilityApiReleased =
                 """
+                // Signature format: 3.0
                 package test.pkg {
                   public final class Foo {
                     ctor public Foo(String? s1 = null);
@@ -754,10 +755,10 @@ class CompatibilityCheckTest : DriverTest() {
                 src/test/pkg/Foo.kt:3: error: Attempted to remove default value from parameter s1 in test.pkg.Foo [DefaultValueChange] [See https://s.android.com/api-guidelines#default-value-removal]
                 src/test/pkg/Foo.kt:7: error: Attempted to remove default value from parameter s1 in test.pkg.Foo.method4 [DefaultValueChange] [See https://s.android.com/api-guidelines#default-value-removal]
                 """,
-            inputKotlinStyleNulls = true,
             format = FileFormat.V4,
             checkCompatibilityApiReleased =
                 """
+                // Signature format: 3.0
                 package test.pkg {
                   public final class Foo {
                     ctor public Foo(optional String? s1);
@@ -906,7 +907,6 @@ class CompatibilityCheckTest : DriverTest() {
     @Test
     fun `Change annotation default method value change`() {
         check(
-            inputKotlinStyleNulls = true,
             expectedIssues =
                 """
                 src/test/pkg/ExportedProperty.java:15: error: Method test.pkg.ExportedProperty.category has changed value from "" to nothing [ChangedValue]
@@ -915,6 +915,7 @@ class CompatibilityCheckTest : DriverTest() {
                 """,
             checkCompatibilityApiReleased =
                 """
+                // Signature format: 3.0
                 package test.pkg {
                   public @interface ExportedProperty {
                     method public abstract boolean resolveId() default false;
@@ -1694,11 +1695,11 @@ class CompatibilityCheckTest : DriverTest() {
     @Test
     fun `Test Kotlin extensions`() {
         check(
-            inputKotlinStyleNulls = true,
             outputKotlinStyleNulls = true,
             expectedIssues = "",
             checkCompatibilityApiReleased =
                 """
+                // Signature format: 3.0
                 package androidx.content {
                   public final class ContentValuesKt {
                     method public static android.content.ContentValues contentValuesOf(kotlin.Pair<String,?>... pairs);
@@ -1743,11 +1744,11 @@ class CompatibilityCheckTest : DriverTest() {
     @Test
     fun `Test Kotlin type bounds`() {
         check(
-            inputKotlinStyleNulls = false,
             outputKotlinStyleNulls = true,
             expectedIssues = "",
             checkCompatibilityApiReleased =
                 """
+                // Signature format: 3.0
                 package androidx.navigation {
                   public final class NavDestination {
                     ctor public NavDestination();
@@ -2451,7 +2452,6 @@ class CompatibilityCheckTest : DriverTest() {
     @Test
     fun `Implicit nullness`() {
         check(
-            inputKotlinStyleNulls = true,
             checkCompatibilityApiReleased =
                 """
                 // Signature format: 2.0
@@ -2477,9 +2477,9 @@ class CompatibilityCheckTest : DriverTest() {
     @Test
     fun `Java String constants`() {
         check(
-            inputKotlinStyleNulls = true,
             checkCompatibilityApiReleased =
                 """
+                // Signature format: 2.0
                 package androidx.browser.browseractions {
                   public class BrowserActionsIntent {
                     field public static final String EXTRA_APP_ID = "androidx.browser.browseractions.APP_ID";
@@ -2506,7 +2506,6 @@ class CompatibilityCheckTest : DriverTest() {
     @Test
     fun `Classes with maps`() {
         check(
-            inputKotlinStyleNulls = true,
             checkCompatibilityApiReleased =
                 """
                 // Signature format: 2.0
@@ -2534,10 +2533,9 @@ class CompatibilityCheckTest : DriverTest() {
     @Test
     fun `Referencing type parameters in types`() {
         check(
-            inputKotlinStyleNulls = true,
             checkCompatibilityApiReleased =
                 """
-                // Signature format: 2.0
+                // Signature format: 3.0
                 package androidx.collection {
                   public class MyMap<Key, Value> {
                     ctor public MyMap();
@@ -2687,7 +2685,6 @@ class CompatibilityCheckTest : DriverTest() {
     @Test
     fun `Adding and removing reified`() {
         check(
-            inputKotlinStyleNulls = true,
             expectedIssues =
                 """
                 src/test/pkg/test.kt:5: error: Method test.pkg.TestKt.add made type variable T reified: incompatible change [AddedReified]
@@ -2695,6 +2692,7 @@ class CompatibilityCheckTest : DriverTest() {
                 """,
             checkCompatibilityApiReleased =
                 """
+                // Signature format: 3.0
                 package test.pkg {
                   public final class TestKt {
                     method public static inline <T> void add(T! t);
@@ -3658,7 +3656,6 @@ class CompatibilityCheckTest : DriverTest() {
                 """
             TESTROOT/load-api.txt:7: error: Method test.pkg.sample.SampleClass.convert1 has changed return type from Number to java.lang.Number [ChangedType]
             """,
-            inputKotlinStyleNulls = true,
             outputKotlinStyleNulls = true,
             checkCompatibilityApiReleased =
                 """
@@ -3691,7 +3688,6 @@ class CompatibilityCheckTest : DriverTest() {
         check(
             expectedIssues = """
             """,
-            inputKotlinStyleNulls = true,
             outputKotlinStyleNulls = true,
             checkCompatibilityApiReleased =
                 """
@@ -3762,7 +3758,6 @@ class CompatibilityCheckTest : DriverTest() {
                 """
             src/androidx/room/Relation.java:5: error: Added method androidx.room.Relation.IHaveNoDefault() [AddedAbstractMethod]
             """,
-            inputKotlinStyleNulls = true,
             outputKotlinStyleNulls = true,
             checkCompatibilityApiReleased =
                 """
@@ -4423,6 +4418,55 @@ class CompatibilityCheckTest : DriverTest() {
     }
 
     @Test
+    fun `Doesn't crash when checking annotations with BINARY retention`() {
+        check(
+            expectedIssues = "",
+            checkCompatibilityApiReleased =
+                """
+                package androidx.wear.watchface {
+                  @androidx.wear.watchface.complications.data.ComplicationExperimental public final class BoundingArc {
+                    ctor public BoundingArc(float startAngle, float totalAngle, @Px float thickness);
+                    method public float getStartAngle();
+                    method public float getThickness();
+                    method public float getTotalAngle();
+                    method public boolean hitTest(android.graphics.Rect rect, @Px float x, @Px float y);
+                    method public void setStartAngle(float);
+                    method public void setThickness(float);
+                    method public void setTotalAngle(float);
+                    property public final float startAngle;
+                    property public final float thickness;
+                    property public final float totalAngle;
+                  }
+                }
+                package androidx.wear.watchface.complications.data {
+                  @kotlin.RequiresOptIn(message="This is an experimental API that may change or be removed without warning.") @kotlin.annotation.Retention(kotlin.annotation.AnnotationRetention.BINARY) public @interface ComplicationExperimental {
+                  }
+                }
+                """,
+            signatureSource =
+                """
+                package androidx.wear.watchface {
+                  @androidx.wear.watchface.complications.data.ComplicationExperimental public final class BoundingArc {
+                    ctor public BoundingArc(float startAngle, float totalAngle, @Px float thickness);
+                    method public float getStartAngle();
+                    method public float getThickness();
+                    method public float getTotalAngle();
+                    method public boolean hitTest(android.graphics.Rect rect, @Px float x, @Px float y);
+                    property public final float startAngle;
+                    property public final float thickness;
+                    property public final float totalAngle;
+                  }
+                }
+                package androidx.wear.watchface.complications.data {
+                  @kotlin.RequiresOptIn(message="This is an experimental API that may change or be removed without warning.") @kotlin.annotation.Retention(kotlin.annotation.AnnotationRetention.BINARY) public @interface ComplicationExperimental {
+                  }
+                }
+                """,
+            suppressCompatibilityMetaAnnotations = arrayOf("kotlin.RequiresOptIn")
+        )
+    }
+
+    @Test
     fun `Fail when changing API from checked to unchecked`() {
         check(
             expectedIssues =
@@ -4731,8 +4775,38 @@ class CompatibilityCheckTest : DriverTest() {
         )
     }
 
+    @Test
+    fun `Synthetic suppress compatibility annotation allows incompatible changes`() {
+        check(
+            checkCompatibilityApiReleased =
+                """
+                package androidx.benchmark.macro.junit4 {
+                  @RequiresApi(28) @SuppressCompatibility @androidx.benchmark.macro.ExperimentalBaselineProfilesApi public final class BaselineProfileRule implements org.junit.rules.TestRule {
+                    ctor public BaselineProfileRule();
+                    method public org.junit.runners.model.Statement apply(org.junit.runners.model.Statement base, org.junit.runner.Description description);
+                    method public void collectBaselineProfile(String packageName, kotlin.jvm.functions.Function1<? super androidx.benchmark.macro.MacrobenchmarkScope,kotlin.Unit> profileBlock);
+                  }
+                }
+                """,
+            signatureSource =
+                """
+                package androidx.benchmark.macro.junit4 {
+                  @RequiresApi(28) public final class BaselineProfileRule implements org.junit.rules.TestRule {
+                    ctor public BaselineProfileRule();
+                    method public org.junit.runners.model.Statement apply(org.junit.runners.model.Statement base, org.junit.runner.Description description);
+                    method public void collect(String packageName, kotlin.jvm.functions.Function1<? super androidx.benchmark.macro.MacrobenchmarkScope,kotlin.Unit> profileBlock);
+                  }
+                }
+                package androidx.benchmark.macro {
+                  @kotlin.RequiresOptIn(message="The Baseline profile generation API is experimental.") @kotlin.annotation.Retention(kotlin.annotation.AnnotationRetention.BINARY) @kotlin.annotation.Target(allowedTargets={kotlin.annotation.AnnotationTarget.CLASS, kotlin.annotation.AnnotationTarget.FUNCTION}) public @interface ExperimentalBaselineProfilesApi {
+                  }
+                }
+                """,
+            suppressCompatibilityMetaAnnotations = arrayOf("kotlin.RequiresOptIn")
+        )
+    }
+
     // TODO: Check method signatures changing incompatibly (look especially out for adding new
-    // overloaded
-    // methods and comparator getting confused!)
+    // overloaded methods and comparator getting confused!)
     //   ..equals on the method items should actually be very useful!
 }

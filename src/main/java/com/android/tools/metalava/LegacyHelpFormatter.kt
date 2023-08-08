@@ -16,19 +16,19 @@
 
 package com.android.tools.metalava
 
+import com.github.ajalt.clikt.output.HelpFormatter
 import com.github.ajalt.clikt.output.Localization
 
-/** Metalava specific localizations of various help and error messages. */
-class MetalavaLocalization : Localization {
-    override fun optionsMetavar(): String {
-        return "[options]"
-    }
-
-    override fun commandMetavar(): String {
-        return "<sub-command>? ..."
-    }
-
-    override fun commandsTitle(): String {
-        return "Sub-commands:"
+/** Extends [MetalavaHelpFormatter] to append information about the legacy flags. */
+internal class LegacyHelpFormatter(terminalSupplier: () -> Terminal, localization: Localization) :
+    MetalavaHelpFormatter(terminalSupplier, localization) {
+    override fun formatHelp(
+        prolog: String,
+        epilog: String,
+        parameters: List<HelpFormatter.ParameterHelp>,
+        programName: String
+    ): String {
+        val extendedEpilog = "```${options.getUsage(terminal)}```$epilog"
+        return super.formatHelp(prolog, extendedEpilog, parameters, programName)
     }
 }

@@ -46,6 +46,7 @@ class BinaryCompatibilityClassFieldsTest : DriverTest() {
             """
         )
     }
+
     @Test
     fun `Change value of API field, compile-time constant (Incompatible)`() {
         check(
@@ -71,6 +72,7 @@ class BinaryCompatibilityClassFieldsTest : DriverTest() {
             """
         )
     }
+
     @Test
     fun `Decrease access from protected to default or private, or public to protected, default, or private (Incompatible)`() {
         check(
@@ -99,6 +101,7 @@ class BinaryCompatibilityClassFieldsTest : DriverTest() {
             """
         )
     }
+
     @Test
     fun `Increase access, eg from protected to public (Compatible)`() {
         check(
@@ -122,6 +125,7 @@ class BinaryCompatibilityClassFieldsTest : DriverTest() {
             """
         )
     }
+
     @Test
     fun `Change final to non-final, non-static (Compatible)`() {
         check(
@@ -143,6 +147,7 @@ class BinaryCompatibilityClassFieldsTest : DriverTest() {
             """
         )
     }
+
     @Test
     fun `Change final to non-final, static with compile-time constant value (Incompatible)`() {
         check(
@@ -168,6 +173,7 @@ class BinaryCompatibilityClassFieldsTest : DriverTest() {
             """
         )
     }
+
     @Test
     fun `Change non-final to final (Incompatible)`() {
         check(
@@ -193,6 +199,7 @@ class BinaryCompatibilityClassFieldsTest : DriverTest() {
             """
         )
     }
+
     @Test
     fun `Change static to non-static (Incompatible)`() {
         check(
@@ -218,6 +225,7 @@ class BinaryCompatibilityClassFieldsTest : DriverTest() {
             """
         )
     }
+
     @Test
     fun `Change non-static to static (Incompatible)`() {
         check(
@@ -243,6 +251,7 @@ class BinaryCompatibilityClassFieldsTest : DriverTest() {
             """
         )
     }
+
     @Test
     fun `Change transient to non-transient (Compatible)`() {
         check(

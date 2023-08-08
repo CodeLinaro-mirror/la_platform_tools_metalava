@@ -42,8 +42,11 @@ interface TypeParameterList {
         val NONE =
             object : TypeParameterList {
                 override fun toString(): String = ""
+
                 override fun typeParameterNames(): List<String> = emptyList()
+
                 override fun typeParameters(): List<TypeParameterItem> = emptyList()
+
                 override fun typeParameterCount(): Int = 0
             }
     }

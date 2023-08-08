@@ -47,6 +47,7 @@ class PsiFieldItem(
     override var property: PsiPropertyItem? = null
 
     override fun type(): TypeItem = fieldType
+
     override fun initialValue(requireConstant: Boolean): Any? {
         if (initialValue != null) {
             return initialValue
@@ -65,7 +66,9 @@ class PsiFieldItem(
     }
 
     override fun isEnumConstant(): Boolean = isEnumConstant
+
     override fun name(): String = name
+
     override fun containingClass(): ClassItem = containingClass
 
     override fun isCloned(): Boolean {

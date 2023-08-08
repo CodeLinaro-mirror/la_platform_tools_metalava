@@ -47,12 +47,19 @@ class TextParameterItem(
 
     override val synthetic: Boolean
         get() = containingMethod.isEnumSyntheticMethod()
+
     override fun type(): TextTypeItem = type
+
     override fun name(): String = name
+
     override fun publicName(): String? = publicName
+
     override fun hasDefaultValue(): Boolean = hasDefaultValue
+
     override fun isDefaultValueKnown(): Boolean = defaultValueBody != UNKNOWN_DEFAULT_VALUE
+
     override fun defaultValue(): String? = defaultValueBody
+
     override fun containingMethod(): MethodItem = containingMethod
 
     override fun equals(other: Any?): Boolean {

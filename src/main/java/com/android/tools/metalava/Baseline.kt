@@ -340,6 +340,7 @@ class Baseline(
                 }
                 field = value
             }
+
         var merge: Boolean = false
 
         var updateFile: File? = null

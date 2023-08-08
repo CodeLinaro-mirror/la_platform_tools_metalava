@@ -184,9 +184,13 @@ interface Item {
     fun isKotlin() = !isJava()
 
     fun hasShowAnnotation(): Boolean = modifiers.hasShowAnnotation()
+
     fun onlyShowForStubPurposes(): Boolean = modifiers.onlyShowForStubPurposes()
+
     fun hasHideAnnotation(): Boolean = modifiers.hasHideAnnotations()
+
     fun hasHideMetaAnnotation(): Boolean = modifiers.hasHideMetaAnnotations()
+
     fun hasSuppressCompatibilityMetaAnnotation(): Boolean =
         modifiers.hasSuppressCompatibilityMetaAnnotations()
 
@@ -408,12 +412,16 @@ interface Item {
 abstract class DefaultItem(override val sortingRank: Int = nextRank.getAndIncrement()) : Item {
     override val isPublic: Boolean
         get() = modifiers.isPublic()
+
     override val isProtected: Boolean
         get() = modifiers.isProtected()
+
     override val isInternal: Boolean
         get() = modifiers.getVisibilityLevel() == VisibilityLevel.INTERNAL
+
     override val isPackagePrivate: Boolean
         get() = modifiers.isPackagePrivate()
+
     override val isPrivate: Boolean
         get() = modifiers.isPrivate()
 
