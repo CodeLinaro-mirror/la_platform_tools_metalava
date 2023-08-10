@@ -186,11 +186,34 @@ interface Item {
     /** Is this element declared in Kotlin (rather than Java) ? */
     fun isKotlin() = !isJava()
 
-    fun hasShowAnnotation(): Boolean = modifiers.hasShowAnnotation()
+    /** Determines whether this item will be shown as part of the API or not. */
+    val showability: Showability
 
-    fun onlyShowForStubPurposes(): Boolean = modifiers.onlyShowForStubPurposes()
+    /**
+     * Returns true if this item has any show annotations.
+     *
+     * See [Showability.show]
+     */
+    fun hasShowAnnotation(): Boolean = showability.show
 
-    fun hasHideAnnotation(): Boolean = modifiers.hasHideAnnotations()
+    /**
+     * Returns true if this has any show single annotations.
+     *
+     * See [Showability.recursive]
+     */
+    fun hasShowSingleAnnotation(): Boolean = showability.let { it.show && !it.recursive }
+
+    /**
+     * Returns true if this item has any show for stub purposes annotations and that is the only
+     * show annotation.
+     *
+     * See [Showability.forStubsOnly]
+     */
+    fun onlyShowForStubPurposes(): Boolean = showability.forStubsOnly
+
+    /** Returns true if this modifier list contains any hide annotations */
+    fun hasHideAnnotation(): Boolean =
+        modifiers.codebase.annotationManager.hasHideAnnotations(modifiers)
 
     fun hasSuppressCompatibilityMetaAnnotation(): Boolean =
         modifiers.hasSuppressCompatibilityMetaAnnotations()
@@ -409,5 +432,9 @@ abstract class DefaultItem(override val sortingRank: Int = nextRank.getAndIncrem
 
     companion object {
         private var nextRank = AtomicInteger()
+    }
+
+    override val showability: Showability by lazy {
+        codebase.annotationManager.getShowabilityForItem(this)
     }
 }

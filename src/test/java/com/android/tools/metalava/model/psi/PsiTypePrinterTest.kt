@@ -19,8 +19,6 @@ package com.android.tools.metalava.model.psi
 import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.metalava.ARG_CLASS_PATH
 import com.android.tools.metalava.DriverTest
-import com.android.tools.metalava.java
-import com.android.tools.metalava.kotlin
 import com.android.tools.metalava.libcoreNonNullSource
 import com.android.tools.metalava.libcoreNullableSource
 import com.android.tools.metalava.model.AnnotationItem
@@ -28,6 +26,8 @@ import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.nonNullSource
 import com.android.tools.metalava.nullableSource
 import com.android.tools.metalava.parseSources
+import com.android.tools.metalava.testing.java
+import com.android.tools.metalava.testing.kotlin
 import com.android.tools.metalava.updateGlobalOptionsForTest
 import com.intellij.psi.JavaRecursiveElementVisitor
 import com.intellij.psi.PsiAnnotation

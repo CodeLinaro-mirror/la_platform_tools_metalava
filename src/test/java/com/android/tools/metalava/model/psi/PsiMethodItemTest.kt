@@ -16,15 +16,27 @@
 
 package com.android.tools.metalava.model.psi
 
-import com.android.tools.metalava.java
-import com.android.tools.metalava.kotlin
+import com.android.tools.lint.checks.infrastructure.TestFile
+import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.testsuite.CommonMethodItemTest
+import com.android.tools.metalava.testing.java
+import com.android.tools.metalava.testing.kotlin
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertSame
 import org.junit.Test
 
-class PsiMethodItemTest {
+class PsiMethodItemTest : CommonMethodItemTest() {
+
+    override fun createCodebaseAndRun(
+        signature: String,
+        source: TestFile,
+        test: (Codebase) -> Unit,
+    ) {
+        testCodebase(source) { codebase -> test(codebase) }
+    }
+
     @Test
     fun `property accessors have properties`() {
         testCodebase(kotlin("class Foo { var bar: Int = 0 }")) { codebase ->

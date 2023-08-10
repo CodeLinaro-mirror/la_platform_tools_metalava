@@ -43,8 +43,6 @@ interface AnnotationFilter {
     fun isEmpty(): Boolean
     // Returns true if some annotation is matched by this filter
     fun isNotEmpty(): Boolean
-    // Returns the fully-qualified class name of the first annotation matched by this filter
-    fun firstQualifiedName(): String
 
     companion object {
         private val empty = AnnotationFilterBuilder().build()
@@ -84,7 +82,7 @@ private class ImmutableAnnotationFilter(
     }
 
     override fun matches(annotation: AnnotationItem): Boolean {
-        if (annotation.qualifiedName == null) {
+        if (annotation.qualifiedName == null || isEmpty()) {
             return false
         }
         val wrapper = AnnotationFilterEntry.fromAnnotationItem(annotation)
@@ -125,11 +123,6 @@ private class ImmutableAnnotationFilter(
 
     override fun isNotEmpty(): Boolean {
         return !isEmpty()
-    }
-
-    override fun firstQualifiedName(): String {
-        val inclusion = inclusionExpressions.first()
-        return inclusion.qualifiedName
     }
 
     private fun annotationsMatch(

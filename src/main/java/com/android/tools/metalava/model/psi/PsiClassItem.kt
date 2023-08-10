@@ -16,9 +16,7 @@
 
 package com.android.tools.metalava.model.psi
 
-import com.android.tools.metalava.JAVA_RETENTION
-import com.android.tools.metalava.KT_RETENTION
-import com.android.tools.metalava.isRetention
+import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.AnnotationRetention
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ConstructorItem
@@ -30,6 +28,8 @@ import com.android.tools.metalava.model.SourceFileItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VisibilityLevel
+import com.android.tools.metalava.model.hasAnnotation
+import com.android.tools.metalava.model.isRetention
 import com.intellij.lang.jvm.types.JvmReferenceType
 import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiClassType
@@ -425,10 +425,7 @@ open class PsiClassItem(
             psiClass: PsiClass,
             isKotlin: Boolean
         ): Boolean {
-            if (modifiers.findAnnotation(JAVA_RETENTION) != null) {
-                return true
-            }
-            if (modifiers.findAnnotation(KT_RETENTION) != null) {
+            if (modifiers.hasAnnotation(AnnotationItem::isRetention)) {
                 return true
             }
             if (isKotlin && psiClass is UClass) {

@@ -295,9 +295,7 @@ interface ClassItem : Item {
         /** Looks up the retention policy for the given class */
         fun findRetention(cls: ClassItem): AnnotationRetention {
             val modifiers = cls.modifiers
-            val annotation =
-                modifiers.findAnnotation("java.lang.annotation.Retention")
-                    ?: modifiers.findAnnotation("kotlin.annotation.Retention")
+            val annotation = modifiers.findAnnotation(AnnotationItem::isRetention)
             val value = annotation?.findAttribute(ANNOTATION_ATTR_VALUE)
             val source = value?.value?.toSource()
             return when {

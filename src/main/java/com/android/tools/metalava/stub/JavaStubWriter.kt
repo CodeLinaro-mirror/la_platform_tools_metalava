@@ -17,6 +17,7 @@
 package com.android.tools.metalava.stub
 
 import com.android.tools.metalava.model.AnnotationTarget
+import com.android.tools.metalava.model.BaseItemVisitor
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.FieldItem
@@ -24,7 +25,6 @@ import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ModifierList
 import com.android.tools.metalava.model.TypeParameterList
-import com.android.tools.metalava.model.visitors.BaseItemVisitor
 import com.android.tools.metalava.options
 import java.io.PrintWriter
 import java.util.function.Predicate

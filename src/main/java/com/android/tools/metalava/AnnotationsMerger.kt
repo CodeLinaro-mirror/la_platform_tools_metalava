@@ -311,7 +311,7 @@ class AnnotationsMerger(private val codebase: Codebase) {
     }
 
     private fun mergeInclusionAnnotationsFromCodebase(externalCodebase: Codebase) {
-        val showAnnotations = options.showAnnotations
+        val showAnnotations = options.allShowAnnotations
         val hideAnnotations = options.hideAnnotations
         val hideMetaAnnotations = options.hideMetaAnnotations
         if (

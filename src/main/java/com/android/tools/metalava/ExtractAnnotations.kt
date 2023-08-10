@@ -21,6 +21,7 @@ import com.android.tools.metalava.model.ANDROIDX_ANNOTATION_PREFIX
 import com.android.tools.metalava.model.ANDROID_ANNOTATION_PREFIX
 import com.android.tools.metalava.model.ANNOTATION_ATTR_VALUE
 import com.android.tools.metalava.model.AnnotationItem
+import com.android.tools.metalava.model.AnnotationRetention
 import com.android.tools.metalava.model.AnnotationTarget
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
@@ -31,6 +32,7 @@ import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
+import com.android.tools.metalava.model.findAnnotation
 import com.android.tools.metalava.model.psi.CodePrinter
 import com.android.tools.metalava.model.psi.PsiAnnotationItem
 import com.android.tools.metalava.model.psi.PsiClassItem
@@ -40,11 +42,8 @@ import com.android.tools.metalava.model.psi.report
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.reporter.Issues
 import com.google.common.xml.XmlEscapers
-import com.intellij.lang.jvm.annotation.JvmAnnotationConstantValue
-import com.intellij.lang.jvm.annotation.JvmAnnotationEnumFieldValue
 import com.intellij.psi.JavaRecursiveElementVisitor
 import com.intellij.psi.PsiAnnotation
-import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiField
 import com.intellij.psi.PsiModifier
@@ -62,7 +61,6 @@ import kotlin.text.Charsets.UTF_8
 import org.jetbrains.uast.UAnnotation
 import org.jetbrains.uast.UCallExpression
 import org.jetbrains.uast.UExpression
-import org.jetbrains.uast.UReferenceExpression
 import org.jetbrains.uast.USimpleNameReferenceExpression
 import org.jetbrains.uast.UastEmptyExpression
 import org.jetbrains.uast.UastFacade
@@ -234,10 +232,10 @@ class ExtractAnnotations(private val codebase: Codebase, private val outputFile:
                 }
 
                 val typeDefAnnotation =
-                    typeDefClass.modifiers.annotations().firstOrNull { it.isTypeDefAnnotation() }
+                    typeDefClass.modifiers.findAnnotation(AnnotationItem::isTypeDefAnnotation)
                 if (typeDefAnnotation != null) {
                     // Make sure it has the right retention
-                    if (!hasSourceRetention(typeDefClass)) {
+                    if (typeDefClass.getRetention() != AnnotationRetention.SOURCE) {
                         reporter.report(
                             Issues.ANNOTATION_EXTRACTION,
                             typeDefClass,
@@ -357,89 +355,6 @@ class ExtractAnnotations(private val codebase: Codebase, private val outputFile:
         }
 
         return emptyList()
-    }
-
-    private fun hasSourceRetention(annotationClass: ClassItem): Boolean {
-        if (annotationClass is PsiClassItem) {
-            return hasSourceRetention(annotationClass.psiClass)
-        }
-        return false
-    }
-
-    private fun hasSourceRetention(cls: PsiClass): Boolean {
-        val modifierList = cls.modifierList
-        if (modifierList != null) {
-            for (psiAnnotation in modifierList.annotations) {
-                val uAnnotation = psiAnnotation.toUElement(UAnnotation::class.java)
-                val hasSourceRetention =
-                    if (uAnnotation != null) {
-                        hasSourceRetention(uAnnotation)
-                    } else {
-                        // There is a hole in UAST conversion. If so, fall back to using PSI.
-                        hasSourceRetention(psiAnnotation)
-                    }
-                if (hasSourceRetention) {
-                    return true
-                }
-            }
-        }
-
-        return false
-    }
-
-    private fun hasSourceRetention(annotation: UAnnotation): Boolean {
-        val qualifiedName = annotation.qualifiedName
-        if (isRetention(qualifiedName)) {
-            val attributes = annotation.attributeValues
-            if (attributes.size != 1) {
-                reporter.report(
-                    Issues.ANNOTATION_EXTRACTION,
-                    annotation.sourcePsi,
-                    "Expected exactly one parameter passed to @Retention"
-                )
-                return false
-            }
-            val value = attributes[0].expression
-            if (value is UReferenceExpression) {
-                try {
-                    val element = value.resolve()
-                    if (element is PsiField) {
-                        val field = element as PsiField?
-                        if (SOURCE == field!!.name) {
-                            return true
-                        }
-                    }
-                } catch (t: Throwable) {
-                    val s = value.asSourceString()
-                    return s.contains(SOURCE)
-                }
-            }
-        }
-
-        return false
-    }
-
-    private fun hasSourceRetention(psiAnnotation: PsiAnnotation): Boolean {
-        val qualifiedName = psiAnnotation.qualifiedName
-        if (isRetention(qualifiedName)) {
-            val attributes = psiAnnotation.parameterList.attributes
-            if (attributes.size != 1) {
-                reporter.report(
-                    Issues.ANNOTATION_EXTRACTION,
-                    psiAnnotation,
-                    "Expected exactly one parameter passed to @Retention"
-                )
-                return false
-            }
-            return when (val value = attributes[0].attributeValue) {
-                is JvmAnnotationEnumFieldValue -> SOURCE == value.fieldName
-                is JvmAnnotationConstantValue -> (value.constantValue as? String)?.contains(SOURCE)
-                        ?: false
-                else -> false
-            }
-        }
-
-        return false
     }
 
     /**

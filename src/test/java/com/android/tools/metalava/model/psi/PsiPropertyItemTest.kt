@@ -16,9 +16,9 @@
 
 package com.android.tools.metalava.model.psi
 
-import com.android.tools.metalava.kotlin
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.PropertyItem
+import com.android.tools.metalava.testing.kotlin
 import kotlin.test.Test
 import kotlin.test.assertContains
 import kotlin.test.assertEquals

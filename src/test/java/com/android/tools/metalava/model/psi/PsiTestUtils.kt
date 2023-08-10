@@ -24,7 +24,7 @@ import com.android.tools.metalava.DriverTest
 import com.android.tools.metalava.ENV_VAR_METALAVA_TESTS_RUNNING
 import com.android.tools.metalava.findKotlinStdlibPathArgs
 import com.android.tools.metalava.parseSources
-import com.android.tools.metalava.tempDirectory
+import com.android.tools.metalava.testing.tempDirectory
 import com.android.tools.metalava.updateGlobalOptionsForTest
 import com.intellij.openapi.util.Disposer
 import java.io.File

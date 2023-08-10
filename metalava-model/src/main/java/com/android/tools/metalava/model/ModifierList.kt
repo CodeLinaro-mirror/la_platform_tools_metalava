@@ -102,57 +102,16 @@ interface ModifierList {
     }
 
     /** Returns true if this modifier list contains any nullness information */
-    fun hasNullnessInfo(): Boolean {
-        return annotations().any { it.isNonNull() || it.isNullable() }
-    }
+    fun hasNullnessInfo(): Boolean = hasAnnotation(AnnotationItem::isNullnessAnnotation)
 
     /** Returns true if this modifier list contains any a Nullable annotation */
-    fun isNullable(): Boolean {
-        return annotations().any { it.isNullable() }
-    }
+    fun isNullable(): Boolean = hasAnnotation(AnnotationItem::isNullable)
 
     /** Returns true if this modifier list contains any a NonNull annotation */
-    fun isNonNull(): Boolean {
-        return annotations().any { it.isNonNull() }
-    }
+    fun isNonNull(): Boolean = hasAnnotation(AnnotationItem::isNonNull)
 
     /** Returns true if this modifier list contains the `@JvmSynthetic` annotation */
-    fun hasJvmSyntheticAnnotation(): Boolean {
-        return annotations().any { it.isJvmSynthetic() }
-    }
-
-    /**
-     * Returns true if this modifier list contains any show annotations.
-     *
-     * See [AnnotationItem.isShowAnnotation]
-     */
-    fun hasShowAnnotation(): Boolean {
-        return codebase.annotationManager.hasShowAnnotation(this)
-    }
-
-    /**
-     * Returns true if this modifier list contains any show single annotations.
-     *
-     * See [AnnotationItem.isShowSingleAnnotation]
-     */
-    fun hasShowSingleAnnotation(): Boolean {
-        return codebase.annotationManager.hasShowSingleAnnotation(this)
-    }
-
-    /**
-     * Returns true if this modifier list contains any show for stub purposes annotations and that
-     * is the only show annotation.
-     *
-     * See [AnnotationItem.isShowAnnotation] and [AnnotationItem.isShowForStubPurposes]
-     */
-    fun onlyShowForStubPurposes(): Boolean {
-        return codebase.annotationManager.onlyShowForStubPurposes(this)
-    }
-
-    /** Returns true if this modifier list contains any hide annotations */
-    fun hasHideAnnotations(): Boolean {
-        return codebase.annotationManager.hasHideAnnotations(this)
-    }
+    fun hasJvmSyntheticAnnotation(): Boolean = hasAnnotation(AnnotationItem::isJvmSynthetic)
 
     /**
      * Returns true if this modifier list contains any suppress compatibility meta-annotations.
@@ -180,7 +139,7 @@ interface ModifierList {
      */
     fun findAnnotation(qualifiedName: String): AnnotationItem? {
         val mappedName = codebase.annotationManager.normalizeInputName(qualifiedName)
-        return annotations().firstOrNull { mappedName == it.qualifiedName }
+        return findAnnotation { mappedName == it.qualifiedName }
     }
 
     /**
@@ -516,4 +475,19 @@ interface ModifierList {
          */
         const val SUPPRESS_COMPATIBILITY_ANNOTATION = "SuppressCompatibility"
     }
+}
+
+/**
+ * Returns the first annotation in the modifier list that matches the supplied predicate, or null
+ * otherwise.
+ */
+inline fun ModifierList.findAnnotation(predicate: (AnnotationItem) -> Boolean): AnnotationItem? {
+    return annotations().firstOrNull(predicate)
+}
+
+/**
+ * Returns true iff the modifier list contains any annotation that matches the supplied predicate.
+ */
+inline fun ModifierList.hasAnnotation(predicate: (AnnotationItem) -> Boolean): Boolean {
+    return annotations().any(predicate)
 }

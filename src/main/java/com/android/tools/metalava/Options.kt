@@ -198,16 +198,18 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
     private val mutableSourcePath: MutableList<File> = mutableListOf()
     /** Internal list backing [classpath] */
     private val mutableClassPath: MutableList<File> = mutableListOf()
-    /** Internal list backing [showAnnotations] */
+    /** Internal builder backing [allShowAnnotations] */
+    private val allShowAnnotationsBuilder = AnnotationFilterBuilder()
+    /** Internal builder backing [showAnnotations] */
     private val showAnnotationsBuilder = AnnotationFilterBuilder()
-    /** Internal list backing [showSingleAnnotations] */
+    /** Internal builder backing [showSingleAnnotations] */
     private val showSingleAnnotationsBuilder = AnnotationFilterBuilder()
+    /** Internal builder backing [showForStubPurposesAnnotations] */
+    private val showForStubPurposesAnnotationBuilder = AnnotationFilterBuilder()
     /** Internal list backing [hideAnnotations] */
     private val hideAnnotationsBuilder = AnnotationFilterBuilder()
     /** Internal list backing [hideMetaAnnotations] */
     private val mutableHideMetaAnnotations: MutableList<String> = mutableListOf()
-    /** Internal list backing [showForStubPurposesAnnotations] */
-    private val showForStubPurposesAnnotationBuilder = AnnotationFilterBuilder()
     /** Internal list backing [stubImportPackages] */
     private val mutableStubImportPackages: MutableSet<String> = mutableSetOf()
     /** Internal list backing [mergeQualifierAnnotations] */
@@ -307,16 +309,33 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
 
     /**
      * Whether to include APIs with annotations (intended for documentation purposes). This includes
-     * [ARG_SHOW_ANNOTATION], [ARG_SHOW_SINGLE_ANNOTATION] and
-     * [ARG_SHOW_FOR_STUB_PURPOSES_ANNOTATION].
+     * [showAnnotations], [showSingleAnnotations] and [showForStubPurposesAnnotations].
+     */
+    val allShowAnnotations by lazy(allShowAnnotationsBuilder::build)
+
+    /**
+     * A filter that will match annotations which will cause an annotated item (and its enclosed
+     * items unless overridden by a closer annotation) to be included in the API surface.
+     *
+     * @see [allShowAnnotations]
      */
     val showAnnotations by lazy(showAnnotationsBuilder::build)
 
     /**
-     * Like [showAnnotations], but does not work recursively. Note that these annotations are *also*
-     * show annotations and will be added to the above list; this is a subset.
+     * Like [showAnnotations], but does not work recursively.
+     *
+     * @see [allShowAnnotations]
      */
     private val showSingleAnnotations by lazy(showSingleAnnotationsBuilder::build)
+
+    /**
+     * Annotations that defines APIs that are implicitly included in the API surface. These APIs
+     * will be included in certain kinds of output such as stubs, but others (e.g. API lint and the
+     * API signature file) ignore them.
+     *
+     * @see [allShowAnnotations]
+     */
+    private val showForStubPurposesAnnotations by lazy(showForStubPurposesAnnotationBuilder::build)
 
     /**
      * Whether to include unannotated elements if {@link #showAnnotations} is set. Note: This only
@@ -352,8 +371,10 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
 
     val annotationManager: AnnotationManager by lazy {
         DefaultAnnotationManager(
+            reporter = reporter,
             DefaultAnnotationManager.Config(
                 passThroughAnnotations = passThroughAnnotations,
+                allShowAnnotations = allShowAnnotations,
                 showAnnotations = showAnnotations,
                 showSingleAnnotations = showSingleAnnotations,
                 showForStubPurposesAnnotations = showForStubPurposesAnnotations,
@@ -381,13 +402,6 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
             )
             .multiple()
             .unique()
-
-    /**
-     * Annotations that defines APIs that are implicitly included in the API surface. These APIs
-     * will be included in certain kinds of output such as stubs, but others (e.g. API lint and the
-     * API signature file) ignore them.
-     */
-    val showForStubPurposesAnnotations by lazy(showForStubPurposesAnnotationBuilder::build)
 
     /**
      * Whether the generated API can contain classes that are not present in the source but are
@@ -901,20 +915,25 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
                 ARG_REMOVED_API,
                 "-removedApi" -> removedApiFile = stringToNewFile(getValue(args, ++index))
                 ARG_SHOW_ANNOTATION,
-                "-showAnnotation" -> showAnnotationsBuilder.add(getValue(args, ++index))
+                "-showAnnotation" -> {
+                    val annotation = getValue(args, ++index)
+                    showAnnotationsBuilder.add(annotation)
+                    // These should also be counted as allShowAnnotations
+                    allShowAnnotationsBuilder.add(annotation)
+                }
                 ARG_SHOW_SINGLE_ANNOTATION -> {
                     val annotation = getValue(args, ++index)
                     showSingleAnnotationsBuilder.add(annotation)
-                    // These should also be counted as show annotations
-                    showAnnotationsBuilder.add(annotation)
+                    // These should also be counted as allShowAnnotations
+                    allShowAnnotationsBuilder.add(annotation)
                 }
                 ARG_SHOW_FOR_STUB_PURPOSES_ANNOTATION,
                 "--show-for-stub-purposes-annotations",
                 "-show-for-stub-purposes-annotation" -> {
                     val annotation = getValue(args, ++index)
                     showForStubPurposesAnnotationBuilder.add(annotation)
-                    // These should also be counted as show annotations
-                    showAnnotationsBuilder.add(annotation)
+                    // These should also be counted as allShowAnnotations
+                    allShowAnnotationsBuilder.add(annotation)
                 }
                 ARG_SHOW_UNANNOTATED,
                 "-showUnannotated" -> showUnannotated = true
@@ -1359,7 +1378,7 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
         // If the caller has not explicitly requested that unannotated classes and
         // members should be shown in the output then only show them if no annotations were
         // provided.
-        if (!showUnannotated && showAnnotations.isEmpty()) {
+        if (!showUnannotated && allShowAnnotations.isEmpty()) {
             showUnannotated = true
         }
 
@@ -1466,7 +1485,7 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
                 return name.lowercase(Locale.US).removeSuffix("api") + "-"
             }
             val sb = StringBuilder()
-            showAnnotations.getIncludedAnnotationNames().forEach {
+            allShowAnnotations.getIncludedAnnotationNames().forEach {
                 sb.append(annotationToPrefix(it))
             }
             sb.append(DEFAULT_BASELINE_NAME)

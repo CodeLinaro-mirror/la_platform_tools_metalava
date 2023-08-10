@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021 The Android Open Source Project
+ * Copyright (C) 2023 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,19 +14,10 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava.model.psi
-
-import com.android.tools.lint.checks.infrastructure.TestFile
-import com.android.tools.metalava.model.Codebase
-import com.android.tools.metalava.model.CommonTypeItemTest
-
-class PsiTypeItemTest : CommonTypeItemTest() {
-
-    override fun createCodebaseAndRun(
-        signature: String,
-        source: TestFile,
-        test: (Codebase) -> Unit,
-    ) {
-        testCodebase(source) { codebase -> test(codebase) }
-    }
+plugins {
+    `java-library`
+    id("org.jetbrains.kotlin.jvm")
+    id("metalava-build-plugin")
 }
+
+dependencies { implementation(libs.androidLintTests) }

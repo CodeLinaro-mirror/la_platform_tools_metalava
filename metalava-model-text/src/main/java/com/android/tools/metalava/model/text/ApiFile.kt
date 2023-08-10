@@ -129,7 +129,7 @@ class ApiFile(
 
         /** Entry point for testing. Take a filename and content separately. */
         @Throws(ApiParseException::class)
-        internal fun parseApi(
+        fun parseApi(
             filename: String,
             apiText: String,
             classResolver: ClassResolver? = null,

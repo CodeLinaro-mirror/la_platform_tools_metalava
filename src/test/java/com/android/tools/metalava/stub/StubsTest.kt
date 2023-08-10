@@ -21,12 +21,12 @@ import com.android.tools.metalava.ARG_KOTLIN_STUBS
 import com.android.tools.metalava.deprecatedForSdkSource
 import com.android.tools.metalava.extractRoots
 import com.android.tools.metalava.gatherSources
-import com.android.tools.metalava.java
-import com.android.tools.metalava.kotlin
 import com.android.tools.metalava.model.FileFormat
 import com.android.tools.metalava.supportParameterName
 import com.android.tools.metalava.systemApiSource
 import com.android.tools.metalava.testApiSource
+import com.android.tools.metalava.testing.java
+import com.android.tools.metalava.testing.kotlin
 import java.io.File
 import kotlin.test.assertEquals
 import org.junit.Test

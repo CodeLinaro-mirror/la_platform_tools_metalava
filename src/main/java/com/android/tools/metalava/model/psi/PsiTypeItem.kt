@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.psi
 
+import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.JAVA_LANG_STRING
@@ -24,6 +25,7 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterItem
+import com.android.tools.metalava.model.findAnnotation
 import com.intellij.psi.JavaTokenType
 import com.intellij.psi.PsiArrayType
 import com.intellij.psi.PsiCapturedWildcardType
@@ -404,7 +406,7 @@ private constructor(private val codebase: PsiBasedCodebase, var psiType: PsiType
                     // so if we print the type without knowing the nullness annotation on the
                     // element, we'll think it's unannotated and we'll display it as "String!".
                     val nullness =
-                        owner?.modifiers?.annotations()?.firstOrNull { it.isNullnessAnnotation() }
+                        owner?.modifiers?.findAnnotation(AnnotationItem::isNullnessAnnotation)
                     var elementAnnotations =
                         if (nullness != null) {
                             listOf(nullness)

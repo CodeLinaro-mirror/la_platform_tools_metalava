@@ -16,10 +16,13 @@
 
 package com.android.tools.metalava.model.psi
 
+import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.VisibilityLevel
+import com.android.tools.metalava.model.findAnnotation
+import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.model.psi.CodePrinter.Companion.constantToSource
 import com.intellij.psi.LambdaUtil
 import com.intellij.psi.PsiArrayType
@@ -83,7 +86,7 @@ class PsiParameterItem(
             return name
         } else {
             // Java: Look for @ParameterName annotation
-            val annotation = modifiers.annotations().firstOrNull { it.isParameterName() }
+            val annotation = modifiers.findAnnotation(AnnotationItem::isParameterName)
             if (annotation != null) {
                 return annotation.attributes.firstOrNull()?.value?.value()?.toString()
             }
@@ -104,7 +107,7 @@ class PsiParameterItem(
             getKtParameter()?.hasDefaultValue() ?: false && defaultValue() != INVALID_VALUE
         } else {
             // Java: Look for @ParameterName annotation
-            modifiers.annotations().any { it.isDefaultValue() }
+            modifiers.hasAnnotation(AnnotationItem::isDefaultValue)
         }
     }
 
@@ -188,7 +191,7 @@ class PsiParameterItem(
             return INVALID_VALUE
         } else {
             // Java: Look for @ParameterName annotation
-            val annotation = modifiers.annotations().firstOrNull { it.isDefaultValue() }
+            val annotation = modifiers.findAnnotation(AnnotationItem::isDefaultValue)
             if (annotation != null) {
                 return annotation.attributes.firstOrNull()?.value?.value()?.toString()
             }

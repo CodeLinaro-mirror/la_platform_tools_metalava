@@ -2,6 +2,8 @@ package com.android.tools.metalava
 
 import com.android.tools.lint.checks.infrastructure.TestFiles.source
 import com.android.tools.metalava.model.psi.trimDocIndent
+import com.android.tools.metalava.testing.java
+import com.android.tools.metalava.testing.kotlin
 import org.junit.Assert.assertEquals
 import org.junit.Test
 

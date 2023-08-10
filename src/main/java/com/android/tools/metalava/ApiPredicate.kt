@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava
 
+import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MemberItem
@@ -32,7 +33,7 @@ class ApiPredicate(
      * Set if the value of [MemberItem.hasShowAnnotation] should be ignored. That is, this predicate
      * will assume that all encountered members match the "shown" requirement.
      *
-     * This is typically useful when generating "current.txt", when no [Options.showAnnotations]
+     * This is typically useful when generating "current.txt", when no [Options.allShowAnnotations]
      * have been defined.
      */
     val ignoreShown: Boolean = options.showUnannotated,
@@ -60,7 +61,7 @@ class ApiPredicate(
     /** Whether we should include doc-only items */
     private val includeDocOnly: Boolean = false,
 
-    /** Whether to include "for stub purposes" APIs. See [Options.showForStubPurposesAnnotations] */
+    /** Whether to include "for stub purposes" APIs. See [AnnotationItem.isShowForStubPurposes] */
     private val includeApisForStubPurposes: Boolean = true
 ) : Predicate<Item> {
 
@@ -133,11 +134,11 @@ class ApiPredicate(
 
     /**
      * Returns true, if an item should be included only for "stub" purposes; that is, the item does
-     * *not* have a [Options.showAnnotations] annotation but has a
-     * [Options.showForStubPurposesAnnotations] annotation.
+     * have at least one [AnnotationItem.isShowAnnotation] annotation and all those annotations are
+     * also an [AnnotationItem.isShowForStubPurposes] annotation.
      */
     private fun includeOnlyForStubPurposes(item: Item): Boolean {
-        if (options.showForStubPurposesAnnotations.isEmpty()) {
+        if (!item.codebase.annotationManager.hasAnyStubPurposesAnnotations()) {
             return false
         }
 

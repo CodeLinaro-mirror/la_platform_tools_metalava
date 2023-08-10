@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava
 
+import com.android.tools.metalava.testing.java
 import java.io.File
 import org.junit.Test
 

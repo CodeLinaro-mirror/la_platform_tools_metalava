@@ -49,6 +49,7 @@ object Issues {
     val CHANGED_CLASS = Issue(Severity.ERROR, Category.COMPATIBILITY)
     val CHANGED_DEPRECATED = Issue(Severity.HIDDEN, Category.COMPATIBILITY)
     val CHANGED_SYNCHRONIZED = Issue(Severity.HIDDEN, Category.COMPATIBILITY)
+    val CONFLICTING_SHOW_ANNOTATIONS = Issue(Severity.ERROR, Category.UNKNOWN)
     val ADDED_FINAL_UNINSTANTIABLE = Issue(Severity.HIDDEN, Category.COMPATIBILITY)
     val REMOVED_FINAL = Issue(Severity.ERROR, Category.COMPATIBILITY)
     val REMOVED_FINAL_STRICT = Issue(Severity.ERROR, Category.COMPATIBILITY)

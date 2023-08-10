@@ -16,22 +16,10 @@
 
 package com.android.tools.metalava.model.text
 
-import com.android.tools.lint.checks.infrastructure.TestFile
-import com.android.tools.metalava.model.Codebase
-import com.android.tools.metalava.model.CommonTypeItemTest
 import com.google.common.truth.Truth.assertThat
 import org.junit.Test
 
-class TextTypeItemTest : CommonTypeItemTest() {
-
-    override fun createCodebaseAndRun(
-        signature: String,
-        source: TestFile,
-        test: (Codebase) -> Unit,
-    ) {
-        val codebase = ApiFile.parseApi("test", signature.trimIndent())
-        test(codebase)
-    }
+class TextTypeItemTest {
 
     @Test
     fun `test typeString()`() {

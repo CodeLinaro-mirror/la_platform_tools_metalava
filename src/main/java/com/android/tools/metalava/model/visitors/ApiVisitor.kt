@@ -17,7 +17,7 @@
 package com.android.tools.metalava.model.visitors
 
 import com.android.tools.metalava.ApiPredicate
-import com.android.tools.metalava.Options
+import com.android.tools.metalava.model.BaseItemVisitor
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
@@ -99,7 +99,9 @@ open class ApiVisitor(
         fieldComparator: Comparator<FieldItem>? = null,
 
         /**
-         * Whether to include "for stub purposes" APIs. See [Options.showForStubPurposesAnnotations]
+         * Whether to include "for stub purposes" APIs.
+         *
+         * See [ApiPredicate.includeOnlyForStubPurposes]
          */
         includeApisForStubPurposes: Boolean = true
     ) : this(

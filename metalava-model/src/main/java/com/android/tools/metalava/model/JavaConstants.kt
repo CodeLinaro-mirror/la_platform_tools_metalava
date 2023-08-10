@@ -27,3 +27,10 @@ const val JAVA_LANG_ENUM = "java.lang.Enum"
 const val JAVA_LANG_OBJECT = "java.lang.Object"
 const val JAVA_LANG_STRING = "java.lang.String"
 const val JAVA_LANG_THROWABLE = "java.lang.Throwable"
+
+const val JAVA_RETENTION = "java.lang.annotation.Retention"
+const val KT_RETENTION = "kotlin.annotation.Retention"
+
+/** True if the annotation name represents @Retention (either the Java or Kotlin version) */
+fun isRetention(qualifiedName: String?): Boolean =
+    JAVA_RETENTION == qualifiedName || KT_RETENTION == qualifiedName

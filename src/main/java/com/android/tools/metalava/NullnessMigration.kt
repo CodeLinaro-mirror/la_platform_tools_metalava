@@ -24,6 +24,8 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.SUPPORT_TYPE_USE_ANNOTATIONS
 import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.findAnnotation
+import com.android.tools.metalava.model.hasAnnotation
 
 /**
  * Performs null migration analysis, looking at previous API signature files and new signature
@@ -103,15 +105,15 @@ class NullnessMigration : ComparisonVisitor(visitAddedItemsRecursively = true) {
         }
 
         fun findNullnessAnnotation(item: Item): AnnotationItem? {
-            return item.modifiers.annotations().firstOrNull { it.isNullnessAnnotation() }
+            return item.modifiers.findAnnotation(AnnotationItem::isNullnessAnnotation)
         }
 
         fun isNullable(item: Item): Boolean {
-            return item.modifiers.annotations().any { it.isNullable() }
+            return item.modifiers.hasAnnotation(AnnotationItem::isNullable)
         }
 
         private fun isNonNull(item: Item): Boolean {
-            return item.modifiers.annotations().any { it.isNonNull() }
+            return item.modifiers.hasAnnotation(AnnotationItem::isNonNull)
         }
     }
 }

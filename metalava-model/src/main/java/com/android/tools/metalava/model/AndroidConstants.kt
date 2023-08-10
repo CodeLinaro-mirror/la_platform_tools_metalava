@@ -28,3 +28,5 @@ const val ANDROIDX_STRING_DEF = "androidx.annotation.StringDef"
 
 const val ANDROIDX_NONNULL = "androidx.annotation.NonNull"
 const val ANDROIDX_NULLABLE = "androidx.annotation.Nullable"
+
+const val ANDROID_DEPRECATED_FOR_SDK = "android.annotation.DeprecatedForSdk"

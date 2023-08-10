@@ -38,7 +38,7 @@ open class AnnotationInfo(
      * If this is null then the annotation is not a nullability annotation, otherwise this
      * determines whether it is nullable or non-null.
      */
-    val nullability: Nullability? =
+    internal val nullability: Nullability? =
         when {
             isNullableAnnotation(qualifiedName) -> Nullability.NULLABLE
             isNonNullAnnotation(qualifiedName) -> Nullability.NON_NULL
@@ -46,26 +46,39 @@ open class AnnotationInfo(
         }
 
     /**
-     * If true then this annotation will cause annotated items (and any contents) to be added to the
-     * API.
-     *
-     * e.g. if this annotation is used on a class then it will also apply (unless overridden by a
-     * closer annotation) to all its contents like nested classes, methods, fields, constructors,
-     * properties, etc.
+     * Determines whether this annotation affects whether the annotated item is shown and if so how
+     * it is shown.
      */
-    open val show: Boolean
-        get() = false
-
-    /** If true then this annotation will cause annotated items to be added to the API. */
-    open val showSingle: Boolean
-        get() = false
-
-    /** If true then this annotation will cause annotated items to be added to the stubs only. */
-    open val showForStubPurposes: Boolean
-        get() = false
+    open val showability: Showability
+        get() = Showability.NO_EFFECT
 }
 
-enum class Nullability {
+internal enum class Nullability {
     NULLABLE,
     NON_NULL,
+}
+
+/** Available ways in which an annotation can affect whether, and if so how, an item is shown. */
+data class Showability(
+    /**
+     * If true then the annotated item will be shown as part of the API, unless overridden in some
+     * way.
+     */
+    val show: Boolean,
+    /**
+     * If true then the annotated item will recursively affect enclosed items, unless overridden by
+     * a closer annotation.
+     */
+    val recursive: Boolean,
+    /**
+     * If true then the annotated item will only be included in stubs of the API, otherwise it can
+     * appear in all representations of the API, e.g. signature files.
+     */
+    val forStubsOnly: Boolean,
+) {
+
+    companion object {
+        /** The annotation does not affect whether an annotated item is shown. */
+        val NO_EFFECT = Showability(show = false, recursive = false, forStubsOnly = false)
+    }
 }

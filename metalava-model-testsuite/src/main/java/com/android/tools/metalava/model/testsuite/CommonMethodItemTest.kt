@@ -13,17 +13,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.android.tools.metalava.model
+
+package com.android.tools.metalava.model.testsuite
 
 import com.android.tools.lint.checks.infrastructure.TestFile
-import com.android.tools.metalava.apilevels.internalDesc
-import com.android.tools.metalava.java
+import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.testing.java
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import org.junit.Test
 
-/** Common tests for implementations of [TypeItem]. */
-abstract class CommonTypeItemTest {
+/** Common tests for implementations of [MethodItem]. */
+abstract class CommonMethodItemTest {
 
     /**
      * Create a [Codebase] from one of the supplied [signature] or [source] files and then run a
@@ -41,7 +42,7 @@ abstract class CommonTypeItemTest {
     )
 
     @Test
-    fun `MethodItem internalDesc`() {
+    fun `MethodItem type`() {
         createCodebaseAndRun(
             signature =
                 """
@@ -72,14 +73,24 @@ abstract class CommonTypeItemTest {
 
                 val actual = buildString {
                     testClass.methods().forEach {
-                        append(it.name()).append(it.internalDesc()).append("\n")
+                        append(it.returnType())
+                        append(" ")
+                        append(it.name())
+                        append("(")
+                        it.parameters().forEachIndexed { i, p ->
+                            if (i > 0) {
+                                append(", ")
+                            }
+                            append(p.type())
+                        }
+                        append(")\n")
                     }
                 }
 
                 assertEquals(
                     """
-                    foo(Ltest/pkg/Test;[I)Z
-                    bar([Ltest/pkg/Test;)V
+                    boolean foo(test.pkg.Test, int...)
+                    void bar(test.pkg.Test...)
                 """
                         .trimIndent(),
                     actual.trim()

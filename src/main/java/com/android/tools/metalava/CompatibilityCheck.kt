@@ -840,10 +840,10 @@ class CompatibilityCheck(
         // Clarify error message for removed API to make it less ambiguous
         if (apiType == ApiType.REMOVED) {
             message += " to the removed API"
-        } else if (options.showAnnotations.isNotEmpty()) {
-            if (options.showAnnotations.matchesSuffix("SystemApi")) {
+        } else if (options.allShowAnnotations.isNotEmpty()) {
+            if (options.allShowAnnotations.matchesSuffix("SystemApi")) {
                 message += " to the system API"
-            } else if (options.showAnnotations.matchesSuffix("TestApi")) {
+            } else if (options.allShowAnnotations.matchesSuffix("TestApi")) {
                 message += " to the test API"
             }
         }

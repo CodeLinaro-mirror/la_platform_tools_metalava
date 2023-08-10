@@ -25,16 +25,27 @@ java_library_host {
     ],
 }
 
-model_text_files = [
-    "src/main/java/com/android/tools/metalava/model/text/*.java",
-    "src/main/java/com/android/tools/metalava/model/text/*.kt",
-]
-
 java_library_host {
     name: "metalava-model-text",
     visibility: ["//visibility:private"],
-    srcs: model_text_files,
+    srcs: [
+        "metalava-model-text/src/main/java/**/*.java",
+        "metalava-model-text/src/main/java/**/*.kt",
+    ],
     libs: [
+        "metalava-model",
+    ],
+}
+
+java_library_host {
+    name: "metalava-reporter",
+    visibility: ["//visibility:private"],
+    srcs: [
+        "metalava-reporter/src/main/java/**/*.java",
+        "metalava-reporter/src/main/java/**/*.kt",
+    ],
+    libs: [
+        "kotlin-reflect",
         "metalava-model",
     ],
 }
@@ -53,7 +64,6 @@ java_binary_host {
         "src/main/java/**/*.java",
         "src/main/java/**/*.kt",
     ],
-    exclude_srcs: model_text_files,
     java_resource_dirs: ["src/main/resources/"],
     static_libs: [
         "jsr305",
@@ -61,6 +71,7 @@ java_binary_host {
         "kotlin-reflect",
         "metalava-model",
         "metalava-model-text",
+        "metalava-reporter",
         "metalava-tools-common-m2-deps",
         "metalava-gradle-plugin-deps",
         "gson-prebuilt-jar-2.9.1",

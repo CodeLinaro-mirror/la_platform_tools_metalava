@@ -16,10 +16,10 @@
 
 package com.android.tools.metalava.model
 
-import com.android.tools.metalava.java
-import com.android.tools.metalava.kotlin
 import com.android.tools.metalava.model.psi.PsiTypeItem
 import com.android.tools.metalava.model.psi.testCodebase
+import com.android.tools.metalava.testing.java
+import com.android.tools.metalava.testing.kotlin
 import com.google.common.truth.Truth.assertThat
 import org.junit.Rule
 import org.junit.Test

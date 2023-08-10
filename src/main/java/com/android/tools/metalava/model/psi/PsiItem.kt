@@ -82,12 +82,10 @@ abstract class PsiItem(
             (documentation.contains("@hide") ||
                 documentation.contains("@pending") ||
                 // KDoc:
-                documentation.contains("@suppress")) || modifiers.hasHideAnnotations()
+                documentation.contains("@suppress")) || hasHideAnnotation()
     }
 
-    override var hidden: Boolean by LazyDelegate {
-        originallyHidden && !modifiers.hasShowAnnotation()
-    }
+    override var hidden: Boolean by LazyDelegate { originallyHidden && !hasShowAnnotation() }
 
     /** Returns the PSI element for this item */
     open fun psi(): PsiElement = element

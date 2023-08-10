@@ -18,6 +18,8 @@ package com.android.tools.metalava
 
 import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.metalava.model.FileFormat
+import com.android.tools.metalava.testing.java
+import com.android.tools.metalava.testing.kotlin
 import org.intellij.lang.annotations.Language
 
 // Base class to collect test inputs whose behaviors (API/lint) vary depending on UAST versions.

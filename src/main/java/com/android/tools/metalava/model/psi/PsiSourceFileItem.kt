@@ -16,12 +16,12 @@
 
 package com.android.tools.metalava.model.psi
 
+import com.android.tools.metalava.model.BaseItemVisitor
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Import
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.SourceFileItem
-import com.android.tools.metalava.model.visitors.BaseItemVisitor
 import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiClassOwner
 import com.intellij.psi.PsiComment

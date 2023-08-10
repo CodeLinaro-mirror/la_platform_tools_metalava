@@ -19,9 +19,9 @@ package com.android.tools.metalava.stub
 import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.metalava.ARG_EXCLUDE_ANNOTATION
 import com.android.tools.metalava.DriverTest
-import com.android.tools.metalava.java
 import com.android.tools.metalava.model.ANDROIDX_NONNULL
 import com.android.tools.metalava.model.FileFormat
+import com.android.tools.metalava.testing.java
 import org.intellij.lang.annotations.Language
 
 open class AbstractStubsTest : DriverTest() {
