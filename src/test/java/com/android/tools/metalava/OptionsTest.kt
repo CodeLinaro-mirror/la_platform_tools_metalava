@@ -16,10 +16,11 @@
 
 package com.android.tools.metalava
 
+import com.android.tools.metalava.cli.common.ARG_NO_COLOR
+import com.android.tools.metalava.cli.common.FileReadSandbox
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Severity
 import java.io.File
-import java.io.OutputStreamWriter
 import java.io.PrintWriter
 import java.io.StringWriter
 import org.junit.Assert.assertEquals
@@ -27,7 +28,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-@Suppress("PrivatePropertyName")
+@Suppress("PrivatePropertyName", "DEPRECATION")
 class OptionsTest : DriverTest() {
     private val FLAGS =
         """
@@ -603,27 +604,30 @@ $MAIN_HELP_BODY
                     "ArrayReturn"
                 )
         )
-        assertEquals(Severity.HIDDEN, defaultConfiguration.getSeverity(Issues.START_WITH_LOWER))
-        assertEquals(Severity.LINT, defaultConfiguration.getSeverity(Issues.ENDS_WITH_IMPL))
-        assertEquals(Severity.WARNING, defaultConfiguration.getSeverity(Issues.START_WITH_UPPER))
-        assertEquals(Severity.ERROR, defaultConfiguration.getSeverity(Issues.ARRAY_RETURN))
+        val issueConfiguration = options.issueConfiguration
+        assertEquals(Severity.HIDDEN, issueConfiguration.getSeverity(Issues.START_WITH_LOWER))
+        assertEquals(Severity.LINT, issueConfiguration.getSeverity(Issues.ENDS_WITH_IMPL))
+        assertEquals(Severity.WARNING, issueConfiguration.getSeverity(Issues.START_WITH_UPPER))
+        assertEquals(Severity.ERROR, issueConfiguration.getSeverity(Issues.ARRAY_RETURN))
     }
 
     @Test
     fun `Test multiple issue severity options`() {
         check(extraArguments = arrayOf("--hide", "StartWithLower,StartWithUpper,ArrayReturn"))
-        assertEquals(Severity.HIDDEN, defaultConfiguration.getSeverity(Issues.START_WITH_LOWER))
-        assertEquals(Severity.HIDDEN, defaultConfiguration.getSeverity(Issues.START_WITH_UPPER))
-        assertEquals(Severity.HIDDEN, defaultConfiguration.getSeverity(Issues.ARRAY_RETURN))
+        val issueConfiguration = options.issueConfiguration
+        assertEquals(Severity.HIDDEN, issueConfiguration.getSeverity(Issues.START_WITH_LOWER))
+        assertEquals(Severity.HIDDEN, issueConfiguration.getSeverity(Issues.START_WITH_UPPER))
+        assertEquals(Severity.HIDDEN, issueConfiguration.getSeverity(Issues.ARRAY_RETURN))
     }
 
     @Test
     fun `Test issue severity options with inheriting issues`() {
         check(extraArguments = arrayOf("--error", "RemovedClass"))
-        assertEquals(Severity.ERROR, defaultConfiguration.getSeverity(Issues.REMOVED_CLASS))
+        val issueConfiguration = options.issueConfiguration
+        assertEquals(Severity.ERROR, issueConfiguration.getSeverity(Issues.REMOVED_CLASS))
         assertEquals(
             Severity.ERROR,
-            defaultConfiguration.getSeverity(Issues.REMOVED_DEPRECATED_CLASS)
+            issueConfiguration.getSeverity(Issues.REMOVED_DEPRECATED_CLASS)
         )
     }
 
@@ -634,7 +638,8 @@ $MAIN_HELP_BODY
             expectedIssues =
                 "warning: Case-insensitive issue matching is deprecated, use --hide ArrayReturn instead of --hide arrayreturn [DeprecatedOption]"
         )
-        assertEquals(Severity.HIDDEN, defaultConfiguration.getSeverity(Issues.ARRAY_RETURN))
+        val issueConfiguration = options.issueConfiguration
+        assertEquals(Severity.HIDDEN, issueConfiguration.getSeverity(Issues.ARRAY_RETURN))
     }
 
     @Test
@@ -678,23 +683,4 @@ $MAIN_HELP_BODY
     fun `Test for @ usage on command line`() {
         check(showAnnotations = arrayOf("@foo.Show"))
     }
-}
-
-/**
- * Update the global [options] from the supplied arguments.
- *
- * This is for use by tests which do not use [Driver.run]. It does not support any of the
- * [CommonOptions] in the [args] parameter, instead it just uses [defaultCommonOptions].
- */
-internal fun updateGlobalOptionsForTest(
-    args: Array<String>,
-    /** Writer to direct output to */
-    stdout: PrintWriter = PrintWriter(OutputStreamWriter(System.out)),
-    /** Writer to direct error messages to */
-    stderr: PrintWriter = PrintWriter(OutputStreamWriter(System.err)),
-) {
-    // Create a special command that will ensure that the Clikt based properties in Options have
-    // been initialized correctly before updating the global options.
-    val command = MetalavaCommand(stdout, stderr, parseOptionsOnly = true)
-    command.parse(args)
 }

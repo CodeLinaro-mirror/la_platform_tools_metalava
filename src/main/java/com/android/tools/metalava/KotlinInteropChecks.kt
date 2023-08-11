@@ -413,6 +413,6 @@ class KotlinInteropChecks(val reporter: Reporter) {
 
     /** Returns true if the given string is a reserved Java keyword */
     private fun isJavaKeyword(keyword: String): Boolean {
-        return JavaLexer.isKeyword(keyword, options.javaLanguageLevel)
+        @Suppress("DEPRECATION") return JavaLexer.isKeyword(keyword, options.javaLanguageLevel)
     }
 }

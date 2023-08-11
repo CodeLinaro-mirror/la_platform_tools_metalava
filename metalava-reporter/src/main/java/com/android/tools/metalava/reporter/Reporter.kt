@@ -19,6 +19,7 @@ package com.android.tools.metalava.reporter
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.Location
 import java.io.File
+import java.io.PrintWriter
 
 interface Reporter {
 
@@ -92,4 +93,35 @@ interface Reporter {
      * doing something.
      */
     fun showProgressTick()
+}
+
+/**
+ * Basic implementation of a [Reporter] that performs no filtering and simply outputs the message to
+ * the supplied [PrintWriter].
+ */
+class BasicReporter(private val stderr: PrintWriter) : Reporter {
+    override fun report(
+        id: Issues.Issue,
+        item: Item?,
+        message: String,
+        location: Location
+    ): Boolean {
+        stderr.println(
+            buildString {
+                append(item?.location() ?: location)
+                append(": ")
+                append(id.defaultLevel.name.lowercase())
+                append(": ")
+                append(message)
+                append(" [")
+                append(id.name)
+                append("]")
+            }
+        )
+        return true
+    }
+
+    override fun isSuppressed(id: Issues.Issue, item: Item?, message: String?): Boolean = false
+
+    override fun showProgressTick() {}
 }

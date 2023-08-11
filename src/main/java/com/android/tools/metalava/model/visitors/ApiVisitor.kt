@@ -161,7 +161,7 @@ open class ApiVisitor(
         if (skip(cls)) {
             return false
         }
-        val filter = options.stubPackages
+        @Suppress("DEPRECATION") val filter = options.stubPackages
         if (filter != null && !filter.matches(cls.containingPackage())) {
             return false
         }

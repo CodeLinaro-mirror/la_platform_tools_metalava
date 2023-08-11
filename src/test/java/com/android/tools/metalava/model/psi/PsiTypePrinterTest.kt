@@ -17,18 +17,17 @@
 package com.android.tools.metalava.model.psi
 
 import com.android.tools.lint.checks.infrastructure.TestFile
-import com.android.tools.metalava.ARG_CLASS_PATH
-import com.android.tools.metalava.DriverTest
-import com.android.tools.metalava.libcoreNonNullSource
-import com.android.tools.metalava.libcoreNullableSource
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.Item
-import com.android.tools.metalava.nonNullSource
-import com.android.tools.metalava.nullableSource
-import com.android.tools.metalava.parseSources
+import com.android.tools.metalava.reporter.BasicReporter
+import com.android.tools.metalava.testing.KnownSourceFiles.libcoreNonNullSource
+import com.android.tools.metalava.testing.KnownSourceFiles.libcoreNullableSource
+import com.android.tools.metalava.testing.KnownSourceFiles.nonNullSource
+import com.android.tools.metalava.testing.KnownSourceFiles.nullableSource
+import com.android.tools.metalava.testing.TemporaryFolderOwner
+import com.android.tools.metalava.testing.getAndroidJar
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
-import com.android.tools.metalava.updateGlobalOptionsForTest
 import com.intellij.psi.JavaRecursiveElementVisitor
 import com.intellij.psi.PsiAnnotation
 import com.intellij.psi.PsiType
@@ -44,9 +43,37 @@ import org.jetbrains.uast.UVariable
 import org.jetbrains.uast.toUElement
 import org.jetbrains.uast.visitor.AbstractUastVisitor
 import org.junit.Assert.assertEquals
+import org.junit.Rule
 import org.junit.Test
+import org.junit.rules.TemporaryFolder
+import org.junit.rules.TestRule
+import org.junit.runner.Description
+import org.junit.runners.model.Statement
 
-class PsiTypePrinterTest : DriverTest() {
+class PsiTypePrinterTest : TemporaryFolderOwner {
+
+    @get:Rule override val temporaryFolder = TemporaryFolder()
+
+    /** A rule for creating and closing a [PsiEnvironmentManager] */
+    @get:Rule val psiEnvironmentManagerRule = PsiEnvironmentManagerRule()
+
+    class PsiEnvironmentManagerRule : TestRule {
+
+        lateinit var manager: PsiEnvironmentManager
+            private set
+
+        override fun apply(base: Statement, description: Description): Statement {
+            return object : Statement() {
+                override fun evaluate() {
+                    PsiEnvironmentManager().use {
+                        manager = it
+                        base.evaluate()
+                    }
+                }
+            }
+        }
+    }
+
     @Test
     fun `Test class reference types`() {
         assertEquals(
@@ -667,12 +694,12 @@ class PsiTypePrinterTest : DriverTest() {
             """
             Type: PsiClassReferenceType
             Canonical: java.lang.String
-            Merged: [@NonNull]
+            Merged: [@org.jetbrains.annotations.NotNull]
             Printed: java.lang.String
 
             Type: PsiClassReferenceType
             Canonical: java.util.Map<java.lang.String,java.lang.String>
-            Merged: [@Nullable]
+            Merged: [@org.jetbrains.annotations.Nullable]
             Printed: java.util.Map<java.lang.String,java.lang.String>?
 
             Type: PsiPrimitiveType
@@ -681,17 +708,17 @@ class PsiTypePrinterTest : DriverTest() {
 
             Type: PsiPrimitiveType
             Canonical: int
-            Merged: [@NonNull]
+            Merged: [@org.jetbrains.annotations.NotNull]
             Printed: int
 
             Type: PsiClassReferenceType
             Canonical: java.lang.Integer
-            Merged: [@Nullable]
+            Merged: [@org.jetbrains.annotations.Nullable]
             Printed: java.lang.Integer?
 
             Type: PsiEllipsisType
             Canonical: java.lang.String...
-            Merged: [@NonNull]
+            Merged: [@org.jetbrains.annotations.NotNull]
             Printed: java.lang.String!...
             """
                 .trimIndent(),
@@ -824,7 +851,7 @@ class PsiTypePrinterTest : DriverTest() {
         include: Set<String> = emptySet(),
         extraAnnotations: List<String> = emptyList()
     ): String {
-        val dir = createProject(*files.toTypedArray())
+        val dir = createProject(files.toTypedArray())
         val sourcePath = listOf(File(dir, "src"))
 
         val sourceFiles = mutableListOf<File>()
@@ -849,15 +876,16 @@ class PsiTypePrinterTest : DriverTest() {
         }
         classPath.add(getAndroidJar())
 
-        updateGlobalOptionsForTest(arrayOf(ARG_CLASS_PATH, getAndroidJar().path))
+        val reporter = BasicReporter(PrintWriter(System.err))
         // TestDriver#check normally sets this for all the other tests
         val codebase =
-            parseSources(
-                sourceFiles,
-                "test project",
-                sourcePath = sourcePath,
-                classpath = classPath
-            )
+            PsiSourceParser(psiEnvironmentManagerRule.manager, reporter)
+                .parseSources(
+                    sourceFiles,
+                    "test project",
+                    sourcePath = sourcePath,
+                    classpath = classPath,
+                )
 
         val results = LinkedHashMap<String, Entry>()
         fun handleType(type: PsiType, annotations: List<AnnotationItem> = emptyList()) {

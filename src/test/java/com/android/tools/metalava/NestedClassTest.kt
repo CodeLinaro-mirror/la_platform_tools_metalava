@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018 The Android Open Source Project
+ * Copyright (C) 2023 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,15 +14,15 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava.model.psi
+package com.android.tools.metalava
 
-import com.android.tools.lint.checks.infrastructure.TestFiles.base64gzip
-import com.android.tools.metalava.DriverTest
+import com.android.tools.lint.checks.infrastructure.TestFiles
 import com.android.tools.metalava.model.FileFormat
 import com.android.tools.metalava.testing.java
 import org.junit.Test
 
-class PsiBasedCodebaseTest : DriverTest() {
+class NestedClassTest : DriverTest() {
+
     @Test
     fun `Regression test for issue 112931426`() {
         check(
@@ -57,7 +57,7 @@ class PsiBasedCodebaseTest : DriverTest() {
                            }
                        }
                     */
-                    base64gzip(
+                    TestFiles.base64gzip(
                         "test.jar",
                         "" +
                             "H4sIAAAAAAAAAAvwZmYRYeDg4GCYUiXhy4AEOBlYGHxdQxx1Pf3c9P+dYmBg" +
@@ -108,30 +108,6 @@ class PsiBasedCodebaseTest : DriverTest() {
                   }
                 }
                 """
-        )
-    }
-
-    @Test
-    fun `Invalid syntax`() {
-        check(
-            expectedIssues =
-                """
-                src/test/pkg/Foo.java:1: info: Unresolved import: `nonexistent.path` [UnresolvedImport]
-                src/test/pkg/Foo.java:5: error: Syntax error: `'{' or ';' expected` [InvalidSyntax]
-            """,
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
-                    import nonexistent.path;
-
-                    package test.pkg;
-                    public class Foo {
-                        public void foo()
-                    }
-                    """
-                    )
-                )
         )
     }
 }

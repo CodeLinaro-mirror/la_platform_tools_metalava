@@ -173,6 +173,7 @@ class CommandTestConfig(private val test: BaseCommandTest) {
     }
 
     /** Run the test defined by the configuration. */
+    @Suppress("DEPRECATION")
     internal fun runTest() {
         val stdout = StringWriter()
         val stderr = StringWriter()

@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava
 
+import com.android.tools.metalava.cli.common.MetalavaCliException
 import com.android.tools.metalava.model.FileFormat
 import com.android.tools.metalava.model.Location
 import com.android.tools.metalava.reporter.Issues
@@ -26,6 +27,7 @@ import kotlin.text.Charsets.UTF_8
 
 const val DEFAULT_BASELINE_NAME = "baseline.txt"
 
+@Suppress("DEPRECATION")
 class Baseline(
     /** Description of this baseline. e.g. "api-lint. */
     val description: String,
@@ -67,7 +69,7 @@ class Baseline(
                     if (updateFile != null) {
                         if (
                             options.baselineErrorsOnly &&
-                                configuration.getSeverity(issue) != Severity.ERROR
+                                options.issueConfiguration.getSeverity(issue) != Severity.ERROR
                         ) {
                             return true
                         }
@@ -215,11 +217,12 @@ class Baseline(
         val list = counts.entries.toMutableList()
         list.sortWith(compareBy({ -it.value }, { it.key.name }))
         var total = 0
+        val issueConfiguration = options.issueConfiguration
         for (entry in list) {
             val count = entry.value
             val issue = entry.key
             writer.println(
-                "    ${String.format("%5d", count)} ${String.format("%-30s", issue.name)} ${configuration.getSeverity(issue)}"
+                "    ${String.format("%5d", count)} ${String.format("%-30s", issue.name)} ${issueConfiguration.getSeverity(issue)}"
             )
             total += count
         }
@@ -241,7 +244,7 @@ class Baseline(
         var file: File? = null
             set(value) {
                 if (field != null) {
-                    throw DriverException(
+                    throw MetalavaCliException(
                         "Only one baseline is allowed; found both $field and $value"
                     )
                 }
@@ -253,7 +256,7 @@ class Baseline(
         var updateFile: File? = null
             set(value) {
                 if (field != null) {
-                    throw DriverException(
+                    throw MetalavaCliException(
                         "Only one update-baseline is allowed; found both $field and $value"
                     )
                 }
@@ -268,7 +271,7 @@ class Baseline(
                 return null
             }
             if (description.isEmpty()) {
-                throw DriverException("Baseline description must be set")
+                throw MetalavaCliException("Baseline description must be set")
             }
             return Baseline(description, file, updateFile, merge, headerComment)
         }

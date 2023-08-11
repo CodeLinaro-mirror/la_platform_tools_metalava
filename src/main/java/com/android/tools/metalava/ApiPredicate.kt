@@ -36,7 +36,7 @@ class ApiPredicate(
      * This is typically useful when generating "current.txt", when no [Options.allShowAnnotations]
      * have been defined.
      */
-    val ignoreShown: Boolean = options.showUnannotated,
+    val ignoreShown: Boolean = @Suppress("DEPRECATION") options.showUnannotated,
 
     /**
      * Set if the value of [MemberItem.removed] should be ignored. That is, this predicate will
@@ -56,7 +56,8 @@ class ApiPredicate(
     private val matchRemoved: Boolean = false,
 
     /** Whether we allow matching items loaded from jar files instead of sources */
-    private val allowClassesFromClasspath: Boolean = options.allowClassesFromClasspath,
+    private val allowClassesFromClasspath: Boolean =
+        @Suppress("DEPRECATION") options.allowClassesFromClasspath,
 
     /** Whether we should include doc-only items */
     private val includeDocOnly: Boolean = false,
@@ -86,6 +87,21 @@ class ApiPredicate(
         }
         if (!includeApisForStubPurposes && includeOnlyForStubPurposes(member)) {
             return false
+        }
+
+        // If a class item's parent class is an api-only annotation marked class,
+        // the item should be marked visible as well, in order to provide
+        // information about the correct class hierarchy that was concealed for
+        // less restricted APIs.
+        // Only the class definition is marked visible, and class attributes are
+        // not affected.
+        if (
+            member is ClassItem &&
+                member.superClass()?.let {
+                    it.hasShowAnnotation() && !includeOnlyForStubPurposes(it)
+                } == true
+        ) {
+            return member.removed == matchRemoved
         }
 
         var hasShowAnnotation = ignoreShown || member.hasShowAnnotation()

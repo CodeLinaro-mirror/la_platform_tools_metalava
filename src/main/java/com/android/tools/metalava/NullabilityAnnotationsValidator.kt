@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava
 
+import com.android.tools.metalava.cli.common.MetalavaCliException
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.Item
@@ -25,6 +26,7 @@ import com.android.tools.metalava.model.SUPPORT_TYPE_USE_ANNOTATIONS
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.reporter.Issues
+import com.android.tools.metalava.reporter.Reporter
 import com.google.common.io.Files
 import java.io.File
 import java.io.PrintWriter
@@ -33,7 +35,11 @@ import kotlin.text.Charsets.UTF_8
 private const val RETURN_LABEL = "return value"
 
 /** Class that validates nullability annotations in the codebase. */
-class NullabilityAnnotationsValidator {
+class NullabilityAnnotationsValidator(
+    private val reporter: Reporter,
+    private val nullabilityErrorsFatal: Boolean,
+    private val nullabilityWarningsTxt: File?,
+) {
 
     private enum class ErrorType {
         MULTIPLE,
@@ -80,7 +86,7 @@ class NullabilityAnnotationsValidator {
         for (topLevelClassName in topLevelClassNames) {
             val topLevelClass =
                 codebase.findClass(topLevelClassName)
-                    ?: throw DriverException(
+                    ?: throw MetalavaCliException(
                         "Trying to validate nullability annotations for class $topLevelClassName which could not be found in main codebase"
                     )
             // Visit methods to check their return type, and parameters to check them. Don't visit
@@ -124,7 +130,7 @@ class NullabilityAnnotationsValidator {
 
     private fun checkItem(method: MethodItem, label: String, type: TypeItem?, item: Item) {
         if (type == null) {
-            throw DriverException("Missing type on $method item $label")
+            throw MetalavaCliException("Missing type on $method item $label")
         }
         if (method.synthetic) {
             // Don't validate items which don't exist in source such as an enum's valueOf(String)
@@ -192,20 +198,20 @@ class NullabilityAnnotationsValidator {
     fun report() {
         errors.sortBy { it.toString() }
         warnings.sortBy { it.toString() }
-        val warningsTxtFile = options.nullabilityWarningsTxt
+        val warningsTxtFile = nullabilityWarningsTxt
         val fatalIssues = mutableListOf<Issue>()
         val nonFatalIssues = mutableListOf<Issue>()
 
-        // Errors are fatal iff options.nullabilityErrorsFatal is set.
-        if (options.nullabilityErrorsFatal) {
+        // Errors are fatal iff nullabilityErrorsFatal is set.
+        if (nullabilityErrorsFatal) {
             fatalIssues.addAll(errors)
         } else {
             nonFatalIssues.addAll(errors)
         }
 
         // Warnings go to the configured .txt file if present, which means they're not fatal.
-        // Else they're fatal iff options.nullabilityErrorsFatal is set.
-        if (warningsTxtFile == null && options.nullabilityErrorsFatal) {
+        // Else they're fatal iff nullabilityErrorsFatal is set.
+        if (warningsTxtFile == null && nullabilityErrorsFatal) {
             fatalIssues.addAll(warnings)
         } else {
             nonFatalIssues.addAll(warnings)

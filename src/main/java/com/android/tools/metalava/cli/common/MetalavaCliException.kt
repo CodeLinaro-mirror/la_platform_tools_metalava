@@ -14,10 +14,19 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava
+package com.android.tools.metalava.cli.common
 
-class DriverException(
+/** Exceptions thrown by metalava CLI code. */
+class MetalavaCliException(
+    /** The text that must be output to stderr, if it is blank then nothing is to be output. */
     val stderr: String = "",
+
+    /** The text that must be output to stdout, if it is blank then nothing is to be output. */
     val stdout: String = "",
+
+    /**
+     * The exit code for the process to return, defaults to `-1` if [stderr] is not blank, otherwise
+     * defaults to `0`.
+     */
     val exitCode: Int = if (stderr.isBlank()) 0 else -1
 ) : RuntimeException(stdout + stderr)

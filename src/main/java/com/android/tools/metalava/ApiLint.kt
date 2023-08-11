@@ -187,13 +187,13 @@ class ApiLint(
     private val codebase: Codebase,
     private val oldCodebase: Codebase?,
     private val reporter: Reporter,
-    private val manifest: Manifest = options.manifest,
+    private val manifest: Manifest = @Suppress("DEPRECATION") options.manifest,
 ) :
     ApiVisitor(
         // Sort by source order such that warnings follow source line number order
         methodComparator = MethodItem.sourceOrderComparator,
         fieldComparator = FieldItem.comparator,
-        ignoreShown = options.showUnannotated,
+        ignoreShown = @Suppress("DEPRECATION") options.showUnannotated,
         // No need to check "for stubs only APIs" (== "implicit" APIs)
         includeApisForStubPurposes = false
     ) {
@@ -3050,6 +3050,7 @@ class ApiLint(
         }
     }
 
+    @Suppress("DEPRECATION")
     private fun isInteresting(cls: ClassItem): Boolean {
         val name = cls.qualifiedName()
         for (prefix in options.checkApiIgnorePrefix) {

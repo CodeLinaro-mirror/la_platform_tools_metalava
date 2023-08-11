@@ -484,6 +484,9 @@ class DefaultAnnotationManager(
         return ANNOTATION_EXTERNAL
     }
 
+    override fun isShowAnnotationName(annotationName: String): Boolean =
+        config.allShowAnnotations.matchesAnnotationName(annotationName)
+
     override fun hasAnyStubPurposesAnnotations(): Boolean {
         return config.showForStubPurposesAnnotations.isNotEmpty()
     }

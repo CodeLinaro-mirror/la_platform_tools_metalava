@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava
+package com.android.tools.metalava.cli.common
 
 import com.github.ajalt.clikt.completion.CompletionCandidates
 import com.github.ajalt.clikt.core.ParameterHolder
@@ -58,7 +58,7 @@ private fun RawOption.fileConversion(conversion: (String) -> File): NullableOpti
     return convert({ localization.pathMetavar() }, CompletionCandidates.Path) { str ->
         try {
             conversion(str)
-        } catch (e: DriverException) {
+        } catch (e: MetalavaCliException) {
             e.message?.let { fail(it) } ?: throw e
         }
     }
@@ -69,7 +69,7 @@ fun RawArgument.fileConversion(conversion: (String) -> File): ProcessedArgument<
     return convert(CompletionCandidates.Path) { str ->
         try {
             conversion(str)
-        } catch (e: DriverException) {
+        } catch (e: MetalavaCliException) {
             e.message?.let { fail(it) } ?: throw e
         }
     }
@@ -108,7 +108,7 @@ internal fun fileForPathInner(path: String): File {
 internal fun stringToExistingDir(value: String): File {
     val file = fileForPathInner(value)
     if (!file.isDirectory) {
-        throw DriverException("$file is not a directory")
+        throw MetalavaCliException("$file is not a directory")
     }
     return FileReadSandbox.allowAccess(file)
 }
@@ -122,7 +122,7 @@ internal fun stringToExistingDir(value: String): File {
 internal fun stringToExistingFile(value: String): File {
     val file = fileForPathInner(value)
     if (!file.isFile) {
-        throw DriverException("$file is not a file")
+        throw MetalavaCliException("$file is not a file")
     }
     return FileReadSandbox.allowAccess(file)
 }
@@ -140,16 +140,16 @@ internal fun stringToNewFile(value: String): File {
 
     if (output.exists()) {
         if (output.isDirectory) {
-            throw DriverException("$output is a directory")
+            throw MetalavaCliException("$output is a directory")
         }
         val deleted = output.delete()
         if (!deleted) {
-            throw DriverException("Could not delete previous version of $output")
+            throw MetalavaCliException("Could not delete previous version of $output")
         }
     } else if (output.parentFile != null && !output.parentFile.exists()) {
         val ok = output.parentFile.mkdirs()
         if (!ok) {
-            throw DriverException("Could not create ${output.parentFile}")
+            throw MetalavaCliException("Could not create ${output.parentFile}")
         }
     }
 

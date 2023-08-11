@@ -27,10 +27,11 @@ import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.reporter.Issues
+import com.android.tools.metalava.reporter.Reporter
 import java.util.regex.Pattern
 
 /** Misc API suggestions */
-class AndroidApiChecks {
+class AndroidApiChecks(val reporter: Reporter) {
     fun check(codebase: Codebase) {
         codebase.accept(
             object :

@@ -19,9 +19,10 @@ package com.android.tools.metalava.stub
 import com.android.tools.metalava.ARG_EXCLUDE_DOCUMENTATION_FROM_STUBS
 import com.android.tools.metalava.ARG_KOTLIN_STUBS
 import com.android.tools.metalava.deprecatedForSdkSource
-import com.android.tools.metalava.extractRoots
-import com.android.tools.metalava.gatherSources
 import com.android.tools.metalava.model.FileFormat
+import com.android.tools.metalava.model.psi.extractRoots
+import com.android.tools.metalava.model.psi.gatherSources
+import com.android.tools.metalava.options
 import com.android.tools.metalava.supportParameterName
 import com.android.tools.metalava.systemApiSource
 import com.android.tools.metalava.testApiSource
@@ -1178,13 +1179,14 @@ class StubsTest : AbstractStubsTest() {
     }
 
     @Test
+    @Suppress("DEPRECATION")
     fun `Regression test for 124333557`() {
         // Regression test for 124333557: Handle empty java files
         check(
             expectedIssues =
                 """
-            src/test/Something2.java: error: metalava was unable to determine the package name. This usually means that a source file was where the directory does not seem to match the package declaration; we expected the path TESTROOT/src/test/Something2.java to end with /test/wrong/Something2.java [IoError]
-            src/test/Something2.java: error: metalava was unable to determine the package name. This usually means that a source file was where the directory does not seem to match the package declaration; we expected the path TESTROOT/src/test/Something2.java to end with /test/wrong/Something2.java [IoError]
+            src/test/Something2.java: error: Unable to determine the package name. This usually means that a source file was where the directory does not seem to match the package declaration; we expected the path TESTROOT/src/test/Something2.java to end with /test/wrong/Something2.java [IoError]
+            src/test/Something2.java: error: Unable to determine the package name. This usually means that a source file was where the directory does not seem to match the package declaration; we expected the path TESTROOT/src/test/Something2.java to end with /test/wrong/Something2.java [IoError]
             """,
             sourceFiles =
                 arrayOf(
@@ -1227,8 +1229,8 @@ class StubsTest : AbstractStubsTest() {
             projectSetup = { dir ->
                 // Make sure we handle blank/doc-only java doc files in root extraction
                 val src = listOf(File(dir, "src"))
-                val files = gatherSources(src)
-                val roots = extractRoots(files)
+                val files = gatherSources(options.reporter, src)
+                val roots = extractRoots(options.reporter, files)
                 assertEquals(1, roots.size)
                 assertEquals(src[0].path, roots[0].path)
             }

@@ -40,8 +40,10 @@ import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.findAnnotation
 import com.android.tools.metalava.model.psi.PsiClassItem
 import com.android.tools.metalava.model.psi.PsiItem.Companion.isKotlin
+import com.android.tools.metalava.model.psi.PsiSourceParser
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.reporter.Issues
+import com.android.tools.metalava.reporter.Reporter
 import java.util.Locale
 import java.util.function.Predicate
 import org.jetbrains.kotlin.asJava.classes.KtLightClassForFacade
@@ -51,9 +53,12 @@ import org.jetbrains.uast.UClass
  * The [ApiAnalyzer] is responsible for walking over the various classes and members and compute
  * visibility etc of the APIs
  */
+@Suppress("DEPRECATION")
 class ApiAnalyzer(
+    private val psiSourceParser: PsiSourceParser,
     /** The code to analyze */
     private val codebase: Codebase,
+    private val reporter: Reporter,
     private val manifest: Manifest = emptyManifest,
 ) {
     /** All packages in the API */
@@ -561,14 +566,16 @@ class ApiAnalyzer(
      */
     fun mergeExternalQualifierAnnotations() {
         if (options.mergeQualifierAnnotations.isNotEmpty()) {
-            AnnotationsMerger(codebase).mergeQualifierAnnotations(options.mergeQualifierAnnotations)
+            AnnotationsMerger(psiSourceParser, codebase, reporter)
+                .mergeQualifierAnnotations(options.mergeQualifierAnnotations)
         }
     }
 
     /** Merge in external show/hide annotations from all configured sources */
     fun mergeExternalInclusionAnnotations() {
         if (options.mergeInclusionAnnotations.isNotEmpty()) {
-            AnnotationsMerger(codebase).mergeInclusionAnnotations(options.mergeInclusionAnnotations)
+            AnnotationsMerger(psiSourceParser, codebase, reporter)
+                .mergeInclusionAnnotations(options.mergeInclusionAnnotations)
         }
     }
 

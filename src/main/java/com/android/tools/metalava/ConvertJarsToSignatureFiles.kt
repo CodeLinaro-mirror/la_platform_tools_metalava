@@ -26,6 +26,8 @@ import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.SUPPORT_TYPE_USE_ANNOTATIONS
+import com.android.tools.metalava.model.psi.PsiEnvironmentManager
+import com.android.tools.metalava.model.psi.PsiSourceParser
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.google.common.io.ByteStreams
 import java.io.File
@@ -43,8 +45,9 @@ import org.objectweb.asm.tree.MethodNode
  * In an Android source tree, rewrite the signature files in prebuilts/sdk by reading what's
  * actually there in the android.jar files.
  */
+@Suppress("DEPRECATION")
 class ConvertJarsToSignatureFiles {
-    fun convertJars(root: File) {
+    fun convertJars(psiEnvironmentManager: PsiEnvironmentManager, root: File) {
         var api = 1
         while (true) {
             val apiJar =
@@ -70,7 +73,12 @@ class ConvertJarsToSignatureFiles {
             // be
             // there: package private super classes etc.
             val jarCodebase =
-                loadFromJarFile(apiJar, preFiltered = false, DefaultAnnotationManager())
+                loadFromJarFile(
+                    PsiSourceParser(psiEnvironmentManager, options.reporter),
+                    apiJar,
+                    preFiltered = false,
+                    DefaultAnnotationManager()
+                )
             val apiEmit = ApiType.PUBLIC_API.getEmitFilter()
             val apiReference = ApiType.PUBLIC_API.getReferenceFilter()
 

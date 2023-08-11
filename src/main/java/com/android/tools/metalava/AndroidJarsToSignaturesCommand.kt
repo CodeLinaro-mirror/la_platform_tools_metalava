@@ -16,6 +16,10 @@
 
 package com.android.tools.metalava
 
+import com.android.tools.metalava.cli.common.MetalavaCliException
+import com.android.tools.metalava.cli.common.MetalavaSubCommand
+import com.android.tools.metalava.cli.common.existingDir
+import com.android.tools.metalava.model.psi.PsiEnvironmentManager
 import com.github.ajalt.clikt.parameters.arguments.argument
 import com.github.ajalt.clikt.parameters.arguments.validate
 
@@ -44,13 +48,15 @@ class AndroidJarsToSignaturesCommand :
             .existingDir()
             .validate {
                 require(it.resolve("prebuilts/sdk").isDirectory) {
-                    throw DriverException(
+                    throw MetalavaCliException(
                         "$ARG_ANDROID_ROOT_DIR does not point to an Android source tree"
                     )
                 }
             }
 
     override fun run() {
-        ConvertJarsToSignatureFiles().convertJars(androidRootDir)
+        PsiEnvironmentManager(disableStderrDumping()).use { psiEnvironmentManager ->
+            ConvertJarsToSignatureFiles().convertJars(psiEnvironmentManager, androidRootDir)
+        }
     }
 }

@@ -41,6 +41,7 @@ import com.android.tools.lint.annotations.Extractor.IDEA_NULLABLE
 import com.android.tools.lint.annotations.Extractor.SUPPORT_NOTNULL
 import com.android.tools.lint.annotations.Extractor.SUPPORT_NULLABLE
 import com.android.tools.lint.detector.api.getChildren
+import com.android.tools.metalava.cli.common.MetalavaCliException
 import com.android.tools.metalava.model.ANDROIDX_INT_DEF
 import com.android.tools.metalava.model.ANDROIDX_NONNULL
 import com.android.tools.metalava.model.ANDROIDX_NULLABLE
@@ -57,11 +58,14 @@ import com.android.tools.metalava.model.ModifierList
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.psi.PsiAnnotationItem
 import com.android.tools.metalava.model.psi.PsiBasedCodebase
+import com.android.tools.metalava.model.psi.PsiSourceParser
 import com.android.tools.metalava.model.psi.PsiTypeItem
+import com.android.tools.metalava.model.psi.extractRoots
 import com.android.tools.metalava.model.text.ApiFile
 import com.android.tools.metalava.model.text.ApiParseException
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.reporter.Issues
+import com.android.tools.metalava.reporter.Reporter
 import com.android.tools.metalava.xml.parseDocument
 import com.google.common.io.ByteStreams
 import com.google.common.io.Closeables
@@ -79,7 +83,12 @@ import org.w3c.dom.Element
 import org.xml.sax.SAXParseException
 
 /** Merges annotations into classes already registered in the given [Codebase] */
-class AnnotationsMerger(private val codebase: Codebase) {
+@Suppress("DEPRECATION")
+class AnnotationsMerger(
+    private val psiSourceParser: PsiSourceParser,
+    private val codebase: Codebase,
+    private val reporter: Reporter,
+) {
 
     /** Merge annotations which will appear in the output API. */
     fun mergeQualifierAnnotations(files: List<File>) {
@@ -95,7 +104,7 @@ class AnnotationsMerger(private val codebase: Codebase) {
         mergeAll(
             files,
             {
-                throw DriverException(
+                throw MetalavaCliException(
                     "External inclusion annotations files must be .java, found ${it.path}"
                 )
             },
@@ -114,10 +123,10 @@ class AnnotationsMerger(private val codebase: Codebase) {
             // Set up class path to contain our main sources such that we can
             // resolve types in the stubs
             val roots = mutableListOf<File>()
-            extractRoots(options.sources, roots)
+            extractRoots(reporter, options.sources, roots)
             roots.addAll(options.sourcePath)
             val javaStubsCodebase =
-                parseSources(
+                psiSourceParser.parseSources(
                     javaStubFiles,
                     "Codebase loaded from stubs",
                     sourcePath = roots,
@@ -230,7 +239,7 @@ class AnnotationsMerger(private val codebase: Codebase) {
             mergeQualifierAnnotationsFromCodebase(signatureCodebase)
         } catch (ex: ApiParseException) {
             val message = "Unable to parse signature file $path: ${ex.message}"
-            throw DriverException(message)
+            throw MetalavaCliException(message)
         }
     }
 

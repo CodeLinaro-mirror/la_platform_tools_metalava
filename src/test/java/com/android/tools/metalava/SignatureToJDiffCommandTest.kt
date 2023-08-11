@@ -52,6 +52,38 @@ Arguments:
     }
 
     @Test
+    fun `Test invalid option`() {
+
+        commandTest {
+            args += listOf("signature-to-jdiff", "--trip")
+
+            args += inputFile("input.txt", "").path
+            args += outputFile("output.xml").path
+
+            expectedStderr =
+                """
+
+Aborting: Error: no such option: "--trip". (Possible options: --strip, --no-strip)
+
+Usage: metalava signature-to-jdiff [options] <api-file> <xml-file>
+
+Options:
+  --strip / --no-strip                       Determines whether duplicate inherited methods should be stripped from the
+                                             output or not. (default: false)
+  --base-api <base-api-file>                 Optional base API file. If provided then the output will only include API
+                                             items that are not in this file.
+  -h, -?, --help                             Show this message and exit
+
+Arguments:
+  <api-file>                                 API signature file to convert to the JDiff XML format.
+  <xml-file>                                 Output JDiff XML format file.
+
+            """
+                    .trimIndent()
+        }
+    }
+
+    @Test
     fun `Test conversion flag`() {
         jdiffConversionTest {
             strip = true

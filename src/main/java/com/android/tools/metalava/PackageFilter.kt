@@ -1,5 +1,6 @@
 package com.android.tools.metalava
 
+import com.android.tools.metalava.cli.common.MetalavaCliException
 import com.android.tools.metalava.model.PackageItem
 import java.io.File
 import java.util.function.Predicate
@@ -43,7 +44,7 @@ class PackageFilter {
             val index = pkg.indexOf('*')
             if (index != -1) {
                 if (index < pkg.length - 1) {
-                    throw DriverException(
+                    throw MetalavaCliException(
                         stderr =
                             "Wildcards in stub packages must be at the end of the package: $pkg)"
                     )

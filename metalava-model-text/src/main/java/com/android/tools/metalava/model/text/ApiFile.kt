@@ -31,11 +31,11 @@ import com.android.tools.metalava.model.JAVA_LANG_OBJECT
 import com.android.tools.metalava.model.JAVA_LANG_STRING
 import com.android.tools.metalava.model.JAVA_LANG_THROWABLE
 import com.android.tools.metalava.model.MethodItem
-import com.android.tools.metalava.model.NoOpAnnotationManager
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.TypeParameterList.Companion.NONE
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.javaUnescapeString
+import com.android.tools.metalava.model.noOpAnnotationManager
 import com.android.tools.metalava.model.text.TextTypeItem.Companion.isPrimitive
 import com.android.tools.metalava.model.text.TextTypeParameterList.Companion.create
 import java.io.File
@@ -134,7 +134,7 @@ class ApiFile(
             apiText: String,
             classResolver: ClassResolver? = null,
         ): TextCodebase {
-            val api = TextCodebase(File(filename), NoOpAnnotationManager())
+            val api = TextCodebase(File(filename), noOpAnnotationManager)
             api.description = "Codebase loaded from $filename"
             val parser = ApiFile(classResolver)
             parser.parseApiSingleFile(api, false, filename, apiText)

@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava
 
+import com.android.tools.metalava.cli.common.MetalavaCliException
 import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.text.ApiFile
@@ -23,6 +24,7 @@ import com.android.tools.metalava.model.text.ApiParseException
 import com.android.tools.metalava.model.text.TextCodebase
 import java.io.File
 
+@Suppress("DEPRECATION")
 object SignatureFileLoader {
     private val map = mutableMapOf<File, TextCodebase>()
 
@@ -54,7 +56,7 @@ object SignatureFileLoader {
         try {
             return ApiFile.parseApi(files, classResolver, annotationManager)
         } catch (ex: ApiParseException) {
-            throw DriverException("Unable to parse signature file: ${ex.message}")
+            throw MetalavaCliException("Unable to parse signature file: ${ex.message}")
         }
     }
 }

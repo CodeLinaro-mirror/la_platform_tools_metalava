@@ -14,25 +14,21 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava
+package com.android.tools.metalava.cli.common
 
-import com.github.ajalt.clikt.output.CliktConsole
-import java.io.PrintWriter
+import com.github.ajalt.clikt.output.Localization
 
-/** [CliktConsole] that directs output to the supplied output and error writers. */
-class MetalavaConsole(val stdout: PrintWriter, val stderr: PrintWriter) : CliktConsole {
-    override val lineSeparator: String
-        get() = "\n"
-
-    override fun print(text: String, error: Boolean) {
-        if (error) {
-            stderr.print(text)
-        } else {
-            stdout.print(text)
-        }
+/** Metalava specific localizations of various help and error messages. */
+class MetalavaLocalization : Localization {
+    override fun optionsMetavar(): String {
+        return "[options]"
     }
 
-    override fun promptForLine(prompt: String, hideInput: Boolean): String? {
-        TODO("Not required")
+    override fun commandMetavar(): String {
+        return "<sub-command>? ..."
+    }
+
+    override fun commandsTitle(): String {
+        return "Sub-commands:"
     }
 }

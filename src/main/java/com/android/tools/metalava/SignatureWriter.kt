@@ -31,6 +31,7 @@ import com.android.tools.metalava.model.visitors.ApiVisitor
 import java.io.PrintWriter
 import java.util.function.Predicate
 
+@Suppress("DEPRECATION")
 class SignatureWriter(
     private val writer: PrintWriter,
     filterEmit: Predicate<Item>,

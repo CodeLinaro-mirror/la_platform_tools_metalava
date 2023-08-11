@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava
+package com.android.tools.metalava.cli.common
 
 import java.io.BufferedInputStream
 import java.io.IOException

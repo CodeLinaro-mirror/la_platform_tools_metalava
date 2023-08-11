@@ -48,14 +48,4 @@ class IssueConfiguration {
     fun hide(issue: Issues.Issue) {
         setSeverity(issue, Severity.HIDDEN)
     }
-
-    fun reset() {
-        overrides.clear()
-    }
 }
-
-/** Default error configuration: uses the severities as configured in [Options] */
-val defaultConfiguration = IssueConfiguration()
-
-/** Current configuration to apply when reporting errors */
-var configuration = defaultConfiguration

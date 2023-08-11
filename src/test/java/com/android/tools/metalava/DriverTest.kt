@@ -17,7 +17,6 @@
 package com.android.tools.metalava
 
 import com.android.SdkConstants
-import com.android.SdkConstants.DOT_KT
 import com.android.SdkConstants.DOT_TXT
 import com.android.SdkConstants.DOT_XML
 import com.android.ide.common.process.DefaultProcessExecutor
@@ -33,11 +32,18 @@ import com.android.tools.lint.checks.infrastructure.TestFiles.java
 import com.android.tools.lint.checks.infrastructure.TestFiles.kotlin
 import com.android.tools.lint.checks.infrastructure.stripComments
 import com.android.tools.lint.client.api.LintClient
+import com.android.tools.metalava.cli.common.ARG_NO_COLOR
+import com.android.tools.metalava.cli.common.ARG_QUIET
+import com.android.tools.metalava.cli.common.ARG_VERBOSE
 import com.android.tools.metalava.model.FileFormat
-import com.android.tools.metalava.model.SUPPORT_TYPE_USE_ANNOTATIONS
+import com.android.tools.metalava.model.psi.gatherSources
 import com.android.tools.metalava.model.text.ApiClassResolution
 import com.android.tools.metalava.model.text.ApiFile
 import com.android.tools.metalava.reporter.Severity
+import com.android.tools.metalava.testing.KnownSourceFiles
+import com.android.tools.metalava.testing.TemporaryFolderOwner
+import com.android.tools.metalava.testing.findKotlinStdlibPaths
+import com.android.tools.metalava.testing.getAndroidJar
 import com.android.tools.metalava.xml.parseDocument
 import com.android.utils.SdkUtils
 import com.android.utils.StdLogger
@@ -65,8 +71,8 @@ import org.junit.rules.TemporaryFolder
 
 const val CHECK_JDIFF = false
 
-abstract class DriverTest {
-    @get:Rule val temporaryFolder = TemporaryFolder()
+abstract class DriverTest : TemporaryFolderOwner {
+    @get:Rule override val temporaryFolder = TemporaryFolder()
 
     @get:Rule val errorCollector = ErrorCollector()
 
@@ -74,32 +80,6 @@ abstract class DriverTest {
     fun setup() {
         System.setProperty(ENV_VAR_METALAVA_TESTS_RUNNING, SdkConstants.VALUE_TRUE)
         Disposer.setDebugMode(true)
-    }
-
-    protected fun createProject(vararg files: TestFile): File {
-        val dir = newFolder("project")
-
-        files.map { it.createFile(dir) }.forEach { assertNotNull(it) }
-
-        return dir
-    }
-
-    private fun newFolder(children: String = ""): File {
-        var dir = File(temporaryFolder.root.path, children)
-        return if (dir.exists()) {
-            dir
-        } else {
-            temporaryFolder.newFolder(children)
-        }
-    }
-
-    private fun newFile(children: String = ""): File {
-        var dir = File(temporaryFolder.root.path, children)
-        return if (dir.exists()) {
-            dir
-        } else {
-            temporaryFolder.newFile(children)
-        }
     }
 
     // Makes a note to fail the test, but still allows the test to complete before failing
@@ -249,6 +229,7 @@ abstract class DriverTest {
         val strip: Boolean = true,
     )
 
+    @Suppress("DEPRECATION")
     protected fun check(
         /** Any jars to add to the class path */
         classpath: Array<TestFile>? = null,
@@ -436,8 +417,6 @@ abstract class DriverTest {
         // Ensure that lint infrastructure (for UAST) knows it's dealing with a test
         LintCliClient(LintClient.CLIENT_UNIT_TESTS)
 
-        defaultConfiguration.reset()
-
         val actualExpectedFail =
             when {
                 expectedFail != null -> expectedFail
@@ -453,7 +432,7 @@ abstract class DriverTest {
         // Unit test which checks that a signature file is as expected
         val androidJar = getAndroidJar()
 
-        val project = createProject(*sourceFiles)
+        val project = createProject(sourceFiles)
 
         val sourcePathDir = File(project, "src")
         if (!sourcePathDir.isDirectory) {
@@ -1374,7 +1353,11 @@ abstract class DriverTest {
 
         if (checkCompilation && stubsDir != null) {
             val generated =
-                gatherSources(listOf(stubsDir)).asSequence().map { it.path }.toList().toTypedArray()
+                gatherSources(options.reporter, listOf(stubsDir))
+                    .asSequence()
+                    .map { it.path }
+                    .toList()
+                    .toTypedArray()
 
             // Also need to include on the compile path annotation classes referenced in the stubs
             val extraAnnotationsDir = File("stub-annotations/src/main/java")
@@ -1387,7 +1370,7 @@ abstract class DriverTest {
                 )
             }
             val extraAnnotations =
-                gatherSources(listOf(extraAnnotationsDir))
+                gatherSources(options.reporter, listOf(extraAnnotationsDir))
                     .asSequence()
                     .map { it.path }
                     .toList()
@@ -1494,30 +1477,6 @@ abstract class DriverTest {
     }
 
     companion object {
-        private const val API_LEVEL = 31
-
-        private fun getAndroidJarFromEnv(apiLevel: Int): File {
-            val sdkRoot =
-                System.getenv("ANDROID_SDK_ROOT")
-                    ?: System.getenv("ANDROID_HOME") ?: error("Expected ANDROID_SDK_ROOT to be set")
-            val jar = File(sdkRoot, "platforms/android-$apiLevel/android.jar")
-            if (!jar.exists()) {
-                error("Missing ${jar.absolutePath} file in the SDK")
-            }
-            return jar
-        }
-
-        fun getAndroidJar(apiLevel: Int = API_LEVEL): File {
-            val localFile = File("../../prebuilts/sdk/$apiLevel/public/android.jar")
-            if (localFile.exists()) {
-                return localFile
-            } else {
-                val androidJar = File("../../prebuilts/sdk/$apiLevel/android.jar")
-                if (androidJar.exists()) return androidJar
-                return getAndroidJarFromEnv(apiLevel)
-            }
-        }
-
         @JvmStatic
         protected fun readFile(
             file: File,
@@ -1558,34 +1517,16 @@ private fun FileFormat.signatureFormatAsInt(): Int {
     }
 }
 
-/**
- * A slight modification of com.android.tools.lint.checks.infrastructure.findKotlinStdLibPath that
- * prints program name on error. Returns the paths as metalava args expected by Options.
- */
+/** Returns the paths returned by [findKotlinStdlibPaths] as metalava args expected by Options. */
 fun findKotlinStdlibPathArgs(sources: Array<String>): Array<String> {
-    val classPath: String = System.getProperty("java.class.path")
-    val paths = mutableListOf<String>()
-    for (path in classPath.split(':')) {
-        val file = File(path)
-        val name = file.name
-        if (
-            name.startsWith("kotlin-stdlib") ||
-                name.startsWith("kotlin-reflect") ||
-                name.startsWith("kotlin-script-runtime")
-        ) {
-            paths.add(file.path)
-        }
-    }
-    if (paths.isEmpty()) {
-        error("Did not find kotlin-stdlib-jre8 in $PROGRAM_NAME classpath: $classPath")
-    }
-    val kotlinPathArgs =
-        if (paths.isNotEmpty() && sources.asSequence().any { it.endsWith(DOT_KT) }) {
-            arrayOf(ARG_CLASS_PATH, paths.joinToString(separator = File.pathSeparator) { it })
-        } else {
-            emptyArray()
-        }
-    return kotlinPathArgs
+    val kotlinPaths = findKotlinStdlibPaths(sources)
+
+    return if (kotlinPaths.isEmpty()) emptyArray()
+    else
+        arrayOf(
+            ARG_CLASS_PATH,
+            kotlinPaths.joinToString(separator = File.pathSeparator) { it.path }
+        )
 }
 
 val intRangeAnnotationSource: TestFile =
@@ -1643,48 +1584,10 @@ val longDefAnnotationSource: TestFile =
         )
         .indented()
 
-@Suppress("ConstantConditionIf")
-val nonNullSource: TestFile =
-    java(
-            """
-    package android.annotation;
-    import java.lang.annotation.Retention;
-    import java.lang.annotation.Target;
-
-    import static java.lang.annotation.ElementType.FIELD;
-    import static java.lang.annotation.ElementType.METHOD;
-    import static java.lang.annotation.ElementType.PARAMETER;
-    import static java.lang.annotation.RetentionPolicy.SOURCE;
-    /**
-     * Denotes that a parameter, field or method return value can never be null.
-     * @paramDoc This value must never be {@code null}.
-     * @returnDoc This value will never be {@code null}.
-     * @hide
-     */
-    @SuppressWarnings({"WeakerAccess", "JavaDoc"})
-    @Retention(SOURCE)
-    @Target({METHOD, PARAMETER, FIELD${if (SUPPORT_TYPE_USE_ANNOTATIONS) ", TYPE_USE" else ""}})
-    public @interface NonNull {
-    }
-    """
-        )
-        .indented()
-
-val libcoreNonNullSource: TestFile =
-    java(
-            """
-    package libcore.util;
-    import static java.lang.annotation.ElementType.*;
-    import static java.lang.annotation.RetentionPolicy.SOURCE;
-    import java.lang.annotation.*;
-    @Documented
-    @Retention(SOURCE)
-    @Target({TYPE_USE})
-    public @interface NonNull {
-    }
-    """
-        )
-        .indented()
+val nonNullSource = KnownSourceFiles.nonNullSource
+val nullableSource = KnownSourceFiles.nullableSource
+val libcoreNonNullSource = KnownSourceFiles.libcoreNonNullSource
+val libcoreNullableSource = KnownSourceFiles.libcoreNullableSource
 
 val libcoreNullFromTypeParamSource: TestFile =
     java(
@@ -1697,22 +1600,6 @@ val libcoreNullFromTypeParamSource: TestFile =
     @Retention(SOURCE)
     @Target({TYPE_USE})
     public @interface NullFromTypeParam {
-    }
-    """
-        )
-        .indented()
-
-val libcoreNullableSource: TestFile =
-    java(
-            """
-    package libcore.util;
-    import static java.lang.annotation.ElementType.*;
-    import static java.lang.annotation.RetentionPolicy.SOURCE;
-    import java.lang.annotation.*;
-    @Documented
-    @Retention(SOURCE)
-    @Target({TYPE_USE})
-    public @interface Nullable {
     }
     """
         )
@@ -1808,29 +1695,6 @@ val broadcastBehaviorSource: TestFile =
         boolean registeredOnly() default false;
         boolean includeBackground() default false;
         boolean protectedBroadcast() default false;
-    }
-    """
-        )
-        .indented()
-
-@Suppress("ConstantConditionIf")
-val nullableSource: TestFile =
-    java(
-            """
-    package android.annotation;
-    import java.lang.annotation.*;
-    import static java.lang.annotation.ElementType.*;
-    import static java.lang.annotation.RetentionPolicy.SOURCE;
-    /**
-     * Denotes that a parameter, field or method return value can be null.
-     * @paramDoc This value may be {@code null}.
-     * @returnDoc This value may be {@code null}.
-     * @hide
-     */
-    @SuppressWarnings({"WeakerAccess", "JavaDoc"})
-    @Retention(SOURCE)
-    @Target({METHOD, PARAMETER, FIELD${if (SUPPORT_TYPE_USE_ANNOTATIONS) ", TYPE_USE" else ""}})
-    public @interface Nullable {
     }
     """
         )

@@ -14,21 +14,27 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava
+package com.android.tools.metalava.cli.common
 
-import com.github.ajalt.clikt.output.HelpFormatter
+import com.github.ajalt.clikt.output.HelpFormatter.ParameterHelp
 import com.github.ajalt.clikt.output.Localization
 
 /** Extends [MetalavaHelpFormatter] to append information about the legacy flags. */
-internal class LegacyHelpFormatter(terminalSupplier: () -> Terminal, localization: Localization) :
-    MetalavaHelpFormatter(terminalSupplier, localization) {
+internal class LegacyHelpFormatter(
+    terminalSupplier: () -> Terminal,
+    localization: Localization,
+    private val helpListTransform: (List<ParameterHelp>) -> List<ParameterHelp>,
+    /** Provider for additional non-Clikt usage information. */
+    private val nonCliktUsageProvider: (Terminal, Int) -> String,
+) : MetalavaHelpFormatter(terminalSupplier, localization) {
     override fun formatHelp(
         prolog: String,
         epilog: String,
-        parameters: List<HelpFormatter.ParameterHelp>,
+        parameters: List<ParameterHelp>,
         programName: String
     ): String {
-        val extendedEpilog = "```${options.getUsage(terminal, width)}```$epilog"
-        return super.formatHelp(prolog, extendedEpilog, parameters, programName)
+        val extendedEpilog = "```${nonCliktUsageProvider(terminal, width)}```$epilog"
+        val transformedParameters = helpListTransform(parameters)
+        return super.formatHelp(prolog, extendedEpilog, transformedParameters, programName)
     }
 }

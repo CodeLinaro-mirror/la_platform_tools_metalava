@@ -43,6 +43,7 @@ if (!System.getenv("INTEGRATION").isNullOrBlank()) {
 }
 
 include(":metalava-model")
+include(":metalava-model-psi")
 include(":metalava-model-testsuite")
 include(":metalava-model-text")
 include(":metalava-reporter")

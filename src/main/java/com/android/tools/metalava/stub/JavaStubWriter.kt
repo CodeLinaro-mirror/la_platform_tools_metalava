@@ -47,6 +47,7 @@ class JavaStubWriter(
                 writer.println("package $qualifiedName;")
                 writer.println()
             }
+            @Suppress("DEPRECATION")
             if (options.includeDocumentationInStubs) {
                 // All the classes referenced in the stubs are fully qualified, so no imports are
                 // needed. However, in some cases for javadoc, replacement with fully qualified name

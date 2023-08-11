@@ -5680,4 +5680,222 @@ class ApiFileTest : DriverTest() {
             """
         )
     }
+
+    @Test
+    fun `Partial signature files include affected subclass definitions`() {
+        check(
+            format = FileFormat.V2,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                        package test.pkg;
+
+                        public class SomePublicClass {
+                        }
+                    """
+                    ),
+                    java(
+                        """
+                        package test.pkg;
+
+                        import android.annotation.SystemApi;
+
+                        /** @hide */
+                        @SystemApi
+                        public class SystemSubClass extends SomePublicClass {
+                        }
+                    """
+                    ),
+                    java(
+                        """
+                        package test.pkg;
+
+                        public class AnotherPublicClass extends SystemSubClass {
+                        }
+                    """
+                    ),
+                    systemApiSource
+                ),
+            api =
+                """
+                // Signature format: 2.0
+                package test.pkg {
+                  public class AnotherPublicClass extends test.pkg.SystemSubClass {
+                  }
+                  public class SystemSubClass extends test.pkg.SomePublicClass {
+                    ctor public SystemSubClass();
+                  }
+                }
+            """,
+            extraArguments =
+                arrayOf(
+                    ARG_SHOW_ANNOTATION,
+                    "android.annotation.SystemApi",
+                    ARG_HIDE_PACKAGE,
+                    "android.annotation",
+                )
+        )
+    }
+
+    @Test
+    fun `Partial signature files include affected subclass definitions in complex class hierarchy`() {
+        check(
+            format = FileFormat.V2,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                        package test.pkg;
+
+                        public class SomePublicClass {
+                        }
+                    """
+                    ),
+                    java(
+                        """
+                        package test.pkg;
+
+                        import android.annotation.SystemApi;
+
+                        /** @hide */
+                        @SystemApi
+                        public class SystemSubClass extends SomePublicClass {
+                        }
+                    """
+                    ),
+                    java(
+                        """
+                        package test.pkg;
+
+                        import android.annotation.TestApi;
+
+                        /** @hide */
+                        @TestApi
+                        public class TestSubClass extends SystemSubClass {
+                        }
+                    """
+                    ),
+                    java(
+                        """
+                        package test.pkg;
+
+                        import android.annotation.SystemApi;
+
+                        /** @hide */
+                        @SystemApi
+                        public class AnotherSystemSubClass extends TestSubClass {
+                        }
+                    """
+                    ),
+                    java(
+                        """
+                        package test.pkg;
+
+                        import android.annotation.TestApi;
+
+                        /** @hide */
+                        @TestApi
+                        public class AnotherTestSubClass extends AnotherSystemSubClass {
+                        }
+                    """
+                    ),
+                    java(
+                        """
+                        package test.pkg;
+
+                        public class AnotherPublicClass extends AnotherTestSubClass {
+                        }
+                    """
+                    ),
+                    systemApiSource,
+                    testApiSource,
+                ),
+            api =
+                """
+                // Signature format: 2.0
+                package test.pkg {
+                  public class AnotherPublicClass extends test.pkg.AnotherTestSubClass {
+                  }
+                  public class AnotherTestSubClass extends test.pkg.AnotherSystemSubClass {
+                    ctor public AnotherTestSubClass();
+                  }
+                  public class TestSubClass extends test.pkg.SystemSubClass {
+                    ctor public TestSubClass();
+                  }
+                }
+            """,
+            extraArguments =
+                arrayOf(
+                    ARG_SHOW_ANNOTATION,
+                    "android.annotation.TestApi",
+                    ARG_HIDE_PACKAGE,
+                    "android.annotation",
+                    ARG_SHOW_FOR_STUB_PURPOSES_ANNOTATION,
+                    "android.annotation.SystemApi",
+                )
+        )
+    }
+
+    @Test
+    fun `Subclass definition is not included in removed api file`() {
+        check(
+            format = FileFormat.V2,
+            expectedIssues =
+                """
+                src/test/pkg/AnotherPublicClass.java:3: warning: Public class test.pkg.AnotherPublicClass stripped of unavailable superclass test.pkg.SystemSubClass [HiddenSuperclass]
+            """,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                        package test.pkg;
+
+                        public class SomePublicClass {
+                        }
+                    """
+                    ),
+                    java(
+                        """
+                        package test.pkg;
+
+                        import android.annotation.SystemApi;
+
+                        /**
+                         * @hide
+                         * @removed
+                         */
+                        @SystemApi
+                        public class SystemSubClass extends SomePublicClass {
+                        }
+                    """
+                    ),
+                    java(
+                        """
+                        package test.pkg;
+
+                        public class AnotherPublicClass extends SystemSubClass {
+                        }
+                    """
+                    ),
+                    systemApiSource
+                ),
+            removedApi =
+                """
+                // Signature format: 2.0
+                package test.pkg {
+                  public class SystemSubClass extends test.pkg.SomePublicClass {
+                    ctor public SystemSubClass();
+                  }
+                }
+            """,
+            extraArguments =
+                arrayOf(
+                    ARG_SHOW_ANNOTATION,
+                    "android.annotation.SystemApi",
+                    ARG_HIDE_PACKAGE,
+                    "android.annotation",
+                )
+        )
+    }
 }

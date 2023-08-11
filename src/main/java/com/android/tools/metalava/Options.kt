@@ -20,19 +20,39 @@ import com.android.SdkConstants
 import com.android.SdkConstants.FN_FRAMEWORK_LIBRARY
 import com.android.tools.lint.detector.api.isJdkFolder
 import com.android.tools.metalava.CompatibilityCheck.CheckRequest
+import com.android.tools.metalava.cli.common.CommonOptions
+import com.android.tools.metalava.cli.common.FileReadSandbox
+import com.android.tools.metalava.cli.common.MetalavaCliException
+import com.android.tools.metalava.cli.common.MetalavaCommand
+import com.android.tools.metalava.cli.common.Terminal
+import com.android.tools.metalava.cli.common.TerminalColor
+import com.android.tools.metalava.cli.common.defaultCommonOptions
+import com.android.tools.metalava.cli.common.enumOption
+import com.android.tools.metalava.cli.common.fileForPathInner
+import com.android.tools.metalava.cli.common.stderr
+import com.android.tools.metalava.cli.common.stdout
+import com.android.tools.metalava.cli.common.stringToExistingDir
+import com.android.tools.metalava.cli.common.stringToExistingFile
+import com.android.tools.metalava.cli.common.stringToNewFile
 import com.android.tools.metalava.manifest.Manifest
 import com.android.tools.metalava.manifest.emptyManifest
 import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.FileFormat
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.TypedefMode
+import com.android.tools.metalava.model.psi.defaultJavaLanguageLevel
+import com.android.tools.metalava.model.psi.defaultKotlinLanguageLevel
 import com.android.tools.metalava.model.text.ApiClassResolution
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
 import com.android.tools.metalava.reporter.Severity
 import com.android.utils.SdkUtils.wrap
+import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.core.NoSuchOption
+import com.github.ajalt.clikt.parameters.arguments.argument
+import com.github.ajalt.clikt.parameters.arguments.multiple
 import com.github.ajalt.clikt.parameters.groups.OptionGroup
+import com.github.ajalt.clikt.parameters.groups.provideDelegate
 import com.github.ajalt.clikt.parameters.options.convert
 import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.multiple
@@ -49,6 +69,7 @@ import java.io.OutputStreamWriter
 import java.io.PrintWriter
 import java.io.StringWriter
 import java.util.Locale
+import java.util.Optional
 import kotlin.text.Charsets.UTF_8
 import org.jetbrains.jps.model.java.impl.JavaSdkUtil
 import org.jetbrains.kotlin.config.ApiVersion
@@ -63,13 +84,15 @@ import org.jetbrains.kotlin.config.LanguageVersionSettingsImpl
  * the actual options to use, either created from the command line arguments for the main process or
  * with arguments supplied by tests.
  */
-var options =
-    Options().let {
-        // Call parse with an empty array to ensure that the properties are set to the correct
-        // defaults.
-        it.parse(emptyArray())
-        it
-    }
+@Deprecated(
+    """
+    Do not add any more usages of this and please remove any existing uses that you find. Global
+    variables tightly couple all the code that uses them making them hard to test, modularize and
+    reuse. Which is why there is an ongoing process to remove usages of global variables and
+    eventually the global variable itself.
+    """
+)
+var options = Options()
 
 private const val INDENT_WIDTH = 45
 
@@ -110,7 +133,6 @@ const val ARG_MIGRATE_NULLNESS = "--migrate-nullness"
 const val ARG_CHECK_COMPATIBILITY_API_RELEASED = "--check-compatibility:api:released"
 const val ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED = "--check-compatibility:removed:released"
 const val ARG_CHECK_COMPATIBILITY_BASE_API = "--check-compatibility:base"
-const val ARG_NO_NATIVE_DIFF = "--no-native-diff"
 const val ARG_OUTPUT_KOTLIN_NULLS = "--output-kotlin-nulls"
 const val ARG_OUTPUT_DEFAULT_VALUES = "--output-default-values"
 const val ARG_WARNINGS_AS_ERRORS = "--warnings-as-errors"
@@ -230,8 +252,30 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
     /** API to subtract from signature and stub generation. Corresponds to [ARG_SUBTRACT_API]. */
     var subtractApi: File? = null
 
+    /**
+     * Backing property for [nullabilityAnnotationsValidator]
+     *
+     * This uses [Optional] to wrap the value as [lazy] cannot handle nullable values as it uses
+     * `null` as a special value.
+     *
+     * Creates [NullabilityAnnotationsValidator] lazily as it depends on a number of different
+     * options which may be supplied in different orders.
+     */
+    private val optionalNullabilityAnnotationsValidator by lazy {
+        Optional.ofNullable(
+            if (validateNullabilityFromMergedStubs || validateNullabilityFromList != null) {
+                NullabilityAnnotationsValidator(
+                    reporter,
+                    nullabilityErrorsFatal,
+                    nullabilityWarningsTxt
+                )
+            } else null
+        )
+    }
+
     /** Validator for nullability annotations, if validation is enabled. */
-    var nullabilityAnnotationsValidator: NullabilityAnnotationsValidator? = null
+    val nullabilityAnnotationsValidator: NullabilityAnnotationsValidator?
+        get() = optionalNullabilityAnnotationsValidator.orElse(null)
 
     /** Whether nullability validation errors should be considered fatal. */
     var nullabilityErrorsFatal = true
@@ -528,7 +572,7 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
                         .trimIndent()
             )
             .file(mustExist = true, canBeDir = false, mustBeReadable = true)
-            .convert("<file>") { Manifest(it) }
+            .convert("<file>") { Manifest(it, reporter) }
             .default(emptyManifest, defaultForHelp = "no manifest")
 
     /**
@@ -680,14 +724,20 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
      */
     private var errorMessageCompatibilityReleased: String? = null
 
+    /** [IssueConfiguration] used by all reporters. */
+    val issueConfiguration = IssueConfiguration()
+
+    /** [Reporter] for general use. */
+    val reporter: Reporter = DefaultReporter(issueConfiguration)
+
     /** [Reporter] for "api-lint" */
-    var reporterApiLint: Reporter = DefaultReporter(null, null)
+    var reporterApiLint: Reporter = DefaultReporter(issueConfiguration)
 
     /**
      * [Reporter] for "check-compatibility:*:released". (i.e. [ARG_CHECK_COMPATIBILITY_API_RELEASED]
      * and [ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED])
      */
-    var reporterCompatibilityReleased: Reporter = DefaultReporter(null, null)
+    var reporterCompatibilityReleased: Reporter = DefaultReporter(issueConfiguration)
 
     internal var allReporters: List<DefaultReporter> = emptyList()
 
@@ -715,13 +765,10 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
     var omitLocations = false
 
     /** The language level to use for Java files, set with [ARG_JAVA_SOURCE] */
-    var javaLanguageLevel: LanguageLevel = LanguageLevel.JDK_1_8
+    var javaLanguageLevel: LanguageLevel = defaultJavaLanguageLevel
 
     /** The language level to use for Java files, set with [ARG_KOTLIN_SOURCE] */
-    var kotlinLanguageLevel: LanguageVersionSettings =
-        // TODO(b/287343397): use the latest version once MetalavaRunner in androidx is ready
-        // LanguageVersionSettingsImpl.DEFAULT
-        kotlinLanguageVersionSettings("1.8")
+    var kotlinLanguageLevel: LanguageVersionSettings = defaultKotlinLanguageLevel
 
     /**
      * The JDK to use as a platform, if set with [ARG_JDK_HOME]. This is only set when metalava is
@@ -815,7 +862,6 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
 
         var androidJarPatterns: MutableList<String>? = null
         var currentJar: File? = null
-        reporter = DefaultReporter(null, null)
 
         val baselineBuilder = Baseline.Builder().apply { description = "base" }
         val baselineApiLintBuilder = Baseline.Builder().apply { description = "api-lint" }
@@ -856,7 +902,7 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
                         mutableSourcePath.add(File(""))
                     } else {
                         if (path.endsWith(SdkConstants.DOT_JAVA)) {
-                            throw DriverException(
+                            throw MetalavaCliException(
                                 "$arg should point to a source root directory, not a source file ($path)"
                             )
                         }
@@ -871,7 +917,9 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
                 }
                 ARG_SUBTRACT_API -> {
                     if (subtractApi != null) {
-                        throw DriverException(stderr = "Only one $ARG_SUBTRACT_API can be supplied")
+                        throw MetalavaCliException(
+                            stderr = "Only one $ARG_SUBTRACT_API can be supplied"
+                        )
                     }
                     subtractApi = stringToExistingFile(getValue(args, ++index))
                 }
@@ -894,13 +942,9 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
                 }
                 ARG_VALIDATE_NULLABILITY_FROM_MERGED_STUBS -> {
                     validateNullabilityFromMergedStubs = true
-                    nullabilityAnnotationsValidator =
-                        nullabilityAnnotationsValidator ?: NullabilityAnnotationsValidator()
                 }
                 ARG_VALIDATE_NULLABILITY_FROM_LIST -> {
                     validateNullabilityFromList = stringToExistingFile(getValue(args, ++index))
-                    nullabilityAnnotationsValidator =
-                        nullabilityAnnotationsValidator ?: NullabilityAnnotationsValidator()
                 }
                 ARG_NULLABILITY_WARNINGS_TXT ->
                     nullabilityWarningsTxt = stringToNewFile(getValue(args, ++index))
@@ -1013,7 +1057,7 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
                 ARG_REPORT_EVEN_IF_SUPPRESSED -> {
                     val relative = getValue(args, ++index)
                     if (reportEvenIfSuppressed != null) {
-                        throw DriverException(
+                        throw MetalavaCliException(
                             "Only one $ARG_REPORT_EVEN_IF_SUPPRESSED is allowed; found both $reportEvenIfSuppressed and $relative"
                         )
                     }
@@ -1081,7 +1125,6 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
                     val file = stringToExistingFile(getValue(args, ++index))
                     baseApiForCompatCheck = file
                 }
-                ARG_NO_NATIVE_DIFF -> noNativeDiff = true
                 ARG_ERROR,
                 "-error" -> setIssueSeverity(getValue(args, ++index), Severity.ERROR, arg)
                 ARG_WARNING,
@@ -1144,7 +1187,7 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
                 ARG_CURRENT_VERSION -> {
                     currentApiLevel = Integer.parseInt(getValue(args, ++index))
                     if (currentApiLevel <= 26) {
-                        throw DriverException(
+                        throw MetalavaCliException(
                             "Suspicious currentApi=$currentApiLevel, expected at least 27"
                         )
                     }
@@ -1203,7 +1246,7 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
                 "-encoding" -> {
                     val value = getValue(args, ++index)
                     if (value.uppercase(Locale.getDefault()) != "UTF-8") {
-                        throw DriverException("$value: Only UTF-8 encoding is supported")
+                        throw MetalavaCliException("$value: Only UTF-8 encoding is supported")
                     }
                 }
                 ARG_JAVA_SOURCE,
@@ -1212,11 +1255,11 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
                     val level = LanguageLevel.parse(value)
                     when {
                         level == null ->
-                            throw DriverException(
+                            throw MetalavaCliException(
                                 "$value is not a valid or supported Java language level"
                             )
                         level.isLessThan(LanguageLevel.JDK_1_7) ->
-                            throw DriverException("$arg must be at least 1.7")
+                            throw MetalavaCliException("$arg must be at least 1.7")
                         else -> javaLanguageLevel = level
                     }
                 }
@@ -1240,7 +1283,7 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
                 ARG_STRICT_INPUT_FILES_WARN,
                 ARG_STRICT_INPUT_FILES_STACK -> {
                     if (strictInputViolationsFile != null) {
-                        throw DriverException(
+                        throw MetalavaCliException(
                             "$ARG_STRICT_INPUT_FILES, $ARG_STRICT_INPUT_FILES_WARN and $ARG_STRICT_INPUT_FILES_STACK may be specified only once"
                         )
                     }
@@ -1308,7 +1351,7 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
                                 "$ARG_FORMAT=recommended" -> FileFormat.recommended
                                 "$ARG_FORMAT=latest" -> FileFormat.latest
                                 else ->
-                                    throw DriverException(
+                                    throw MetalavaCliException(
                                         stderr =
                                             "Unexpected signature format; expected v1, v2, v3 or v4"
                                     )
@@ -1329,7 +1372,7 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
 
         if (generateApiLevelXml != null) {
             if (currentApiLevel == -1) {
-                throw DriverException(
+                throw MetalavaCliException(
                     stderr = "$ARG_GENERATE_API_LEVELS requires $ARG_CURRENT_VERSION"
                 )
             }
@@ -1352,7 +1395,7 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
         }
 
         if ((sdkJarRoot == null) != (sdkInfoFile == null)) {
-            throw DriverException(
+            throw MetalavaCliException(
                 stderr = "$ARG_SDK_JAR_ROOT and $ARG_SDK_INFO_FILE must both be supplied"
             )
         }
@@ -1362,7 +1405,7 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
         val numVersionNames = apiVersionNames?.size ?: 0
         val numVersionFiles = apiVersionSignatureFiles?.size ?: 0
         if (numVersionNames != 0 && numVersionNames != numVersionFiles + 1) {
-            throw DriverException(
+            throw MetalavaCliException(
                 "$ARG_API_VERSION_NAMES must have one more version than $ARG_API_VERSION_SIGNATURE_FILES to include the current version name"
             )
         }
@@ -1405,11 +1448,17 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
         baselineCompatibilityReleased = baselineCompatibilityReleasedBuilder.build()
 
         // Override the default reporters.
-        reporterApiLint = DefaultReporter(baselineApiLint ?: baseline, errorMessageApiLint)
+        reporterApiLint =
+            DefaultReporter(
+                issueConfiguration,
+                baselineApiLint ?: baseline,
+                errorMessageApiLint,
+            )
         reporterCompatibilityReleased =
             DefaultReporter(
+                issueConfiguration,
                 baselineCompatibilityReleased ?: baseline,
-                errorMessageCompatibilityReleased
+                errorMessageCompatibilityReleased,
             )
 
         // Build "all baselines" and "all reporters"
@@ -1447,14 +1496,14 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
             if (jar.isFile) {
                 mutableClassPath.add(jar)
             } else {
-                throw DriverException(
+                throw MetalavaCliException(
                     stderr =
                         "Could not find android.jar for API level " +
                             "$compileSdkVersion in SDK $sdkHome: $jar does not exist"
                 )
             }
             if (jdkHome != null) {
-                throw DriverException(
+                throw MetalavaCliException(
                     stderr = "Do not specify both $ARG_SDK_HOME and $ARG_JDK_HOME"
                 )
             }
@@ -1463,10 +1512,6 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
             val roots = JavaSdkUtil.getJdkClassesRoots(jdkHome.toPath(), isJre).map { it.toFile() }
             mutableClassPath.addAll(roots)
         }
-    }
-
-    fun isJdkModular(homePath: File): Boolean {
-        return File(homePath, "jmods").isDirectory
     }
 
     /**
@@ -1552,7 +1597,7 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
                                 argList.add(args[index + 1])
                             }
                         }
-                        throw DriverException(
+                        throw MetalavaCliException(
                             stderr =
                                 "Could not find android.jar for API level $apiLevel; the " +
                                     "$ARG_ANDROID_JAR_PATTERN set might be invalid: ${argList.joinToString()}"
@@ -1590,14 +1635,14 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
             "false",
             "disabled",
             "off" -> false
-            else -> throw DriverException(stderr = "Unexpected $answer; expected yes or no")
+            else -> throw MetalavaCliException(stderr = "Unexpected $answer; expected yes or no")
         }
     }
 
     /** Makes sure that the flag combinations make sense */
     private fun checkFlagConsistency() {
         if (apiJar != null && sources.isNotEmpty()) {
-            throw DriverException(
+            throw MetalavaCliException(
                 stderr = "Specify either $ARG_SOURCE_FILES or $ARG_INPUT_API_JAR, not both"
             )
         }
@@ -1605,7 +1650,7 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
 
     private fun getValue(args: Array<String>, index: Int): String {
         if (index >= args.size) {
-            throw DriverException("Missing argument for ${args[index - 1]}")
+            throw MetalavaCliException("Missing argument for ${args[index - 1]}")
         }
         return args[index]
     }
@@ -1616,7 +1661,7 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
         for (path in value.split(File.pathSeparatorChar)) {
             val file = fileForPathInner(path)
             if (!file.isDirectory) {
-                throw DriverException("$file is not a directory")
+                throw MetalavaCliException("$file is not a directory")
             }
             files.add(file)
         }
@@ -1628,7 +1673,7 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
         for (path in value.split(File.pathSeparatorChar)) {
             val file = fileForPathInner(path)
             if (!file.isDirectory && !(file.path.endsWith(SdkConstants.DOT_JAR) && file.isFile)) {
-                throw DriverException("$file is not a jar or directory")
+                throw MetalavaCliException("$file is not a jar or directory")
             }
             files.add(file)
         }
@@ -1643,7 +1688,7 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
         for (path in value.split(File.pathSeparatorChar)) {
             val file = fileForPathInner(path)
             if (!file.exists()) {
-                throw DriverException("$file does not exist")
+                throw MetalavaCliException("$file does not exist")
             }
             files.add(file)
         }
@@ -1654,7 +1699,7 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
     private fun stringToExistingFileOrDir(value: String): File {
         val file = fileForPathInner(value)
         if (!file.exists()) {
-            throw DriverException("$file is not a file or directory")
+            throw MetalavaCliException("$file is not a file or directory")
         }
         return FileReadSandbox.allowAccess(file)
     }
@@ -1679,7 +1724,7 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
                     // which means you can't point to files in paths with spaces)
                     val listFile = File(file.path.substring(1))
                     if (!allowDirs && !listFile.isFile) {
-                        throw DriverException("$listFile is not a file")
+                        throw MetalavaCliException("$listFile is not a file")
                     }
                     val contents = Files.asCharSource(listFile, UTF_8).read()
                     val pathList =
@@ -1692,13 +1737,13 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
                         .map { File(it) }
                         .forEach {
                             if (!allowDirs && !it.isFile) {
-                                throw DriverException("$it is not a file")
+                                throw MetalavaCliException("$it is not a file")
                             }
                             files.add(it)
                         }
                 } else {
                     if (!allowDirs && !file.isFile) {
-                        throw DriverException("$file is not a file")
+                        throw MetalavaCliException("$file is not a file")
                     }
                     files.add(file)
                 }
@@ -1711,7 +1756,7 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
         if (!dir.isDirectory) {
             val ok = dir.mkdirs()
             if (!ok) {
-                throw DriverException("Could not create $dir")
+                throw MetalavaCliException("Could not create $dir")
             }
         }
         return FileReadSandbox.allowAccess(dir)
@@ -1724,7 +1769,7 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
             if (parentFile != null && !parentFile.isDirectory) {
                 val ok = parentFile.mkdirs()
                 if (!ok) {
-                    throw DriverException("Could not create $parentFile")
+                    throw MetalavaCliException("Could not create $parentFile")
                 }
             }
         }
@@ -1747,7 +1792,7 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
                 output.mkdirs()
             }
         if (!ok) {
-            throw DriverException("Could not create $output")
+            throw MetalavaCliException("Could not create $output")
         }
 
         return FileReadSandbox.allowAccess(output)
@@ -2154,43 +2199,43 @@ class Options(commonOptions: CommonOptions = defaultCommonOptions) : OptionGroup
         }
     }
 
+    private fun setIssueSeverity(id: String, severity: Severity, arg: String) {
+        if (id.contains(",")) { // Handle being passed in multiple comma separated id's
+            id.split(",").forEach { setIssueSeverity(it.trim(), severity, arg) }
+            return
+        }
+        val issue =
+            Issues.findIssueById(id)
+                ?: Issues.findIssueByIdIgnoringCase(id)?.also {
+                    reporter.report(
+                        Issues.DEPRECATED_OPTION,
+                        null as File?,
+                        "Case-insensitive issue matching is deprecated, use " +
+                            "$arg ${it.name} instead of $arg $id"
+                    )
+                }
+                    ?: throw MetalavaCliException("Unknown issue id: $arg $id")
+
+        issueConfiguration.setSeverity(issue, severity)
+    }
+
+    private fun setCategorySeverity(id: String, severity: Severity, arg: String) {
+        if (id.contains(",")) { // Handle being passed in multiple comma separated id's
+            id.split(",").forEach { setCategorySeverity(it.trim(), severity, arg) }
+            return
+        }
+        val issues =
+            Issues.findCategoryById(id)?.let { Issues.findIssuesByCategory(it) }
+                ?: throw MetalavaCliException("Unknown category: $arg $id")
+
+        issues.forEach { issueConfiguration.setSeverity(it, severity) }
+    }
+
     companion object {
-        private fun setIssueSeverity(id: String, severity: Severity, arg: String) {
-            if (id.contains(",")) { // Handle being passed in multiple comma separated id's
-                id.split(",").forEach { setIssueSeverity(it.trim(), severity, arg) }
-                return
-            }
-            val issue =
-                Issues.findIssueById(id)
-                    ?: Issues.findIssueByIdIgnoringCase(id)?.also {
-                        reporter.report(
-                            Issues.DEPRECATED_OPTION,
-                            null as File?,
-                            "Case-insensitive issue matching is deprecated, use " +
-                                "$arg ${it.name} instead of $arg $id"
-                        )
-                    }
-                        ?: throw DriverException("Unknown issue id: $arg $id")
-
-            defaultConfiguration.setSeverity(issue, severity)
-        }
-
-        private fun setCategorySeverity(id: String, severity: Severity, arg: String) {
-            if (id.contains(",")) { // Handle being passed in multiple comma separated id's
-                id.split(",").forEach { setCategorySeverity(it.trim(), severity, arg) }
-                return
-            }
-            val issues =
-                Issues.findCategoryById(id)?.let { Issues.findIssuesByCategory(it) }
-                    ?: throw DriverException("Unknown category: $arg $id")
-
-            issues.forEach { defaultConfiguration.setSeverity(it, severity) }
-        }
-
         private fun kotlinLanguageVersionSettings(value: String?): LanguageVersionSettings {
             val languageLevel =
                 LanguageVersion.fromVersionString(value)
-                    ?: throw DriverException(
+                    ?: throw MetalavaCliException(
                         "$value is not a valid or supported Kotlin language level"
                     )
             val apiVersion = ApiVersion.createByLanguageVersion(languageLevel)
@@ -2208,4 +2253,37 @@ private fun FileFormat.configureOptions(options: Options) {
     options.outputKotlinStyleNulls = this >= FileFormat.V3
     options.outputDefaultValues = this >= FileFormat.V2
     options.includeSignatureFormatVersion = this >= FileFormat.V2
+}
+
+/**
+ * A command that is passed to [MetalavaCommand.defaultCommand] when the options need to be
+ * initialized.
+ */
+internal open class OptionsCommand : CliktCommand(treatUnknownOptionsAsArgs = true) {
+
+    /**
+     * Property into which all the arguments (and unknown options) are gathered.
+     *
+     * This does not provide any `help` so that it is excluded from the `help` by
+     * [MetalavaCommand.excludeArgumentsWithNoHelp].
+     */
+    private val flags by argument().multiple()
+
+    /**
+     * Add [Options] (an [OptionGroup]) so that any Clikt defined properties will be processed by
+     * Clikt.
+     */
+    private val optionGroup by Options()
+
+    override fun run() {
+        // Get any remaining arguments/options that were not handled by Clikt.
+        val remainingArgs = flags.toTypedArray()
+
+        // Parse any remaining arguments
+        optionGroup.parse(remainingArgs, stdout, stderr)
+
+        // Update the global options.
+        @Suppress("DEPRECATION")
+        options = optionGroup
+    }
 }

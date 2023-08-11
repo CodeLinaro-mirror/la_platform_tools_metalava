@@ -14,21 +14,19 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava
+package com.android.tools.metalava.cli.common
 
-import com.github.ajalt.clikt.output.Localization
-
-/** Metalava specific localizations of various help and error messages. */
-class MetalavaLocalization : Localization {
-    override fun optionsMetavar(): String {
-        return "[options]"
-    }
-
-    override fun commandMetavar(): String {
-        return "<sub-command>? ..."
-    }
-
-    override fun commandsTitle(): String {
-        return "Sub-commands:"
+/**
+ * Sub-command for outputting the version.
+ *
+ * Similar to running `metalava --version`.
+ */
+class VersionCommand :
+    MetalavaSubCommand(
+        help = "Show the version",
+        printHelpOnEmptyArgs = false,
+    ) {
+    override fun run() {
+        echo("$commandName version: ${Version.VERSION}")
     }
 }

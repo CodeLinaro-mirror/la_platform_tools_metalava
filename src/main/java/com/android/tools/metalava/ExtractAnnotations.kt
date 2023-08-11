@@ -41,6 +41,7 @@ import com.android.tools.metalava.model.psi.UAnnotationItem
 import com.android.tools.metalava.model.psi.report
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.reporter.Issues
+import com.android.tools.metalava.reporter.Reporter
 import com.google.common.xml.XmlEscapers
 import com.intellij.psi.JavaRecursiveElementVisitor
 import com.intellij.psi.PsiAnnotation
@@ -69,8 +70,11 @@ import org.jetbrains.uast.toUElement
 // Like the tools/base Extractor class, but limited to our own (mapped) AnnotationItems,
 // and only those with source retention (and in particular right now that just means the
 // typedef annotations.)
-class ExtractAnnotations(private val codebase: Codebase, private val outputFile: File) :
-    ApiVisitor() {
+class ExtractAnnotations(
+    private val codebase: Codebase,
+    private val reporter: Reporter,
+    private val outputFile: File,
+) : ApiVisitor() {
     // Used linked hash map for order such that we always emit parameters after their surrounding
     // method etc
     private val packageToAnnotationPairs =

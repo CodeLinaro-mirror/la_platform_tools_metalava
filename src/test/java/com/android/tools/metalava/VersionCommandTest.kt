@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava
 
+import com.android.tools.metalava.cli.common.Version
 import com.android.tools.metalava.testing.BaseCommandTest
 import org.junit.Test
 

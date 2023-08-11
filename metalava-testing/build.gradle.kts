@@ -20,4 +20,7 @@ plugins {
     id("metalava-build-plugin")
 }
 
-dependencies { implementation(libs.androidLintTests) }
+dependencies {
+    implementation(libs.androidLintTests)
+    implementation(libs.junit4)
+}

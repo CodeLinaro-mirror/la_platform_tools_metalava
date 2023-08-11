@@ -23,7 +23,6 @@ import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.ModifierList
 import com.android.tools.metalava.model.MutableModifierList
 import com.android.tools.metalava.model.isNullnessAnnotation
-import com.android.tools.metalava.options
 import com.intellij.psi.PsiAnnotation
 import com.intellij.psi.PsiDocCommentOwner
 import com.intellij.psi.PsiModifier
@@ -371,7 +370,7 @@ class PsiModifierItem(
 
             for (api in allowIn.leafValues()) {
                 val annotationName = api.value() as? String ?: continue
-                if (options.allShowAnnotations.matchesAnnotationName(annotationName)) {
+                if (codebase.annotationManager.isShowAnnotationName(annotationName)) {
                     return true
                 }
             }

@@ -14,10 +14,8 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava.model
+package com.android.tools.metalava.model.psi
 
-import com.android.tools.metalava.model.psi.PsiTypeItem
-import com.android.tools.metalava.model.psi.testCodebase
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import com.google.common.truth.Truth.assertThat

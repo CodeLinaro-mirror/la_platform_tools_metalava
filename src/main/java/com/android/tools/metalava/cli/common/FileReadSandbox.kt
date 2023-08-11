@@ -17,7 +17,7 @@
 // still works as expected
 @file:Suppress("DEPRECATION")
 
-package com.android.tools.metalava
+package com.android.tools.metalava.cli.common
 
 import java.io.File
 import java.io.FileDescriptor
@@ -98,7 +98,7 @@ internal object FileReadSandbox {
         previousSecurityManager = System.getSecurityManager()
         @Suppress("DEPRECATION") System.setSecurityManager(mySecurityManager)
         installed = true
-        this.listener = listener
+        FileReadSandbox.listener = listener
     }
 
     /** Deactivate the sandbox. */

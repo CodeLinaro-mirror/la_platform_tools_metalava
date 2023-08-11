@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava
+package com.android.tools.metalava.cli.common
 
 enum class TerminalColor(val value: Int) {
     BLACK(0),

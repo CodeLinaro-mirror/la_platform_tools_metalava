@@ -16,6 +16,9 @@
 
 package com.android.tools.metalava
 
+import com.android.tools.metalava.cli.common.MetalavaSubCommand
+import com.android.tools.metalava.cli.common.existingFile
+import com.android.tools.metalava.cli.common.newFile
 import com.github.ajalt.clikt.parameters.arguments.argument
 import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.option

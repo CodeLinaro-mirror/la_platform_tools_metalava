@@ -1,5 +1,6 @@
 import com.android.tools.metalava.CREATE_ARCHIVE_TASK
 import com.android.tools.metalava.buildinfo.CREATE_BUILD_INFO_TASK
+import com.android.tools.metalava.buildinfo.CreateAggregateLibraryBuildInfoFileTask.Companion.CREATE_AGGREGATE_BUILD_INFO_FILES_TASK
 
 defaultTasks =
     mutableListOf(
@@ -7,6 +8,7 @@ defaultTasks =
         "test",
         CREATE_ARCHIVE_TASK,
         CREATE_BUILD_INFO_TASK,
+        CREATE_AGGREGATE_BUILD_INFO_FILES_TASK,
         "lint",
         "ktCheck",
     )
@@ -25,6 +27,7 @@ application {
 
 dependencies {
     implementation(project(":metalava-model"))
+    implementation(project(":metalava-model-psi"))
     implementation(project(":metalava-model-text"))
     implementation(project(":metalava-reporter"))
     implementation(libs.androidToolsExternalUast)

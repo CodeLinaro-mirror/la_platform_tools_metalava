@@ -14,15 +14,17 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava.model.psi
+package com.android.tools.metalava
 
 import com.android.tools.lint.checks.infrastructure.TestFile
-import com.android.tools.metalava.DriverTest
+import com.android.tools.metalava.model.psi.REPORT_UNRESOLVED_SYMBOLS
+import com.android.tools.metalava.model.psi.packageHtmlToJavadoc
 import com.android.tools.metalava.testing.java
 import org.intellij.lang.annotations.Language
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
+@Suppress("JavadocReference")
 class JavadocTest : DriverTest() {
     private fun checkStubs(
         @Language("JAVA") source: String,
