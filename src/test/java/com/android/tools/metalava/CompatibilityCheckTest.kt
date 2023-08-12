@@ -16,8 +16,8 @@
 
 package com.android.tools.metalava
 
-import com.android.tools.metalava.model.FileFormat
 import com.android.tools.metalava.model.text.ApiClassResolution
+import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.testing.getAndroidJar
 import com.android.tools.metalava.testing.java

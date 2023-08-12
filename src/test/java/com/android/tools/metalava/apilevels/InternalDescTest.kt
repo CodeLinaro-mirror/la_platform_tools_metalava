@@ -16,40 +16,26 @@
 
 package com.android.tools.metalava.apilevels
 
-import com.android.tools.lint.checks.infrastructure.TestFile
-import com.android.tools.metalava.model.Codebase
-import com.android.tools.metalava.model.psi.testCodebase
-import com.android.tools.metalava.testing.java
+import com.android.tools.metalava.model.text.ApiFile
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import org.junit.Test
 
 class InternalDescTest {
 
-    private fun createCodebaseAndRun(
-        source: TestFile,
-        test: (Codebase) -> Unit,
-    ) {
-        testCodebase(source) { codebase -> test(codebase) }
-    }
-
     @Test
     fun `MethodItem internalDesc (psi)`() {
-        createCodebaseAndRun(
-            source =
-                java(
-                    """
-                    package test.pkg;
-
-                    public abstract class Test {
-                        public Test() {}
-
-                        public abstract boolean foo(Test test, int... ints);
-                        public abstract void bar(Test... tests);
-                    }
-                """
-                )
-        ) {
+        val signature =
+            """
+                     package test.pkg {
+                       public class Test {
+                         ctor public Test();
+                         method public abstract boolean foo(test.pkg.Test, int...);
+                         method public abstract void bar(test.pkg.Test... tests);
+                       }
+                     }
+                 """
+        ApiFile.parseApi("test", signature.trimIndent()).let {
             val testClass = it.findClass("test.pkg.Test")
             assertNotNull(testClass)
             val actual = buildString {

@@ -16,9 +16,7 @@
 
 package com.android.tools.metalava.cli.common
 
-import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.parameters.groups.OptionGroup
-import com.github.ajalt.clikt.parameters.groups.provideDelegate
 import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.deprecated
 import com.github.ajalt.clikt.parameters.options.flag
@@ -111,26 +109,4 @@ class CommonOptions : OptionGroup() {
                 ARG_VERBOSE to Verbosity.VERBOSE,
             )
             .default(Verbosity.NORMAL, defaultForHelp = "Neither $ARG_QUIET or $ARG_VERBOSE")
-}
-
-/**
- * A default instance of [CommonOptions]
- *
- * This is needed because it is an error to attempt to access a CLI property before it has been
- * correctly parsed.
- *
- * It is safe to reuse this as once they have been initialized the properties are read only.
- */
-val defaultCommonOptions by lazy {
-    // A fake command that is used to correctly initialize the CommonOptions.
-    class FakeCommand : CliktCommand() {
-        val commonOptions by CommonOptions()
-
-        override fun run() {}
-    }
-    val command = FakeCommand()
-
-    // Initialize the options properly and return them.
-    command.parse(emptyArray())
-    command.commonOptions
 }

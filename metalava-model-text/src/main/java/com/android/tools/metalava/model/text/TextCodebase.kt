@@ -23,7 +23,6 @@ import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.DefaultAnnotationItem
 import com.android.tools.metalava.model.DefaultCodebase
 import com.android.tools.metalava.model.DefaultModifierList
-import com.android.tools.metalava.model.FileFormat
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PackageList
@@ -48,7 +47,7 @@ class TextCodebase(
     override fun trustedApi(): Boolean = true
 
     /** Signature file format version, if found. */
-    var format: FileFormat = FileFormat.V1 // not specifying format: assumed to be doclava, 1.0
+    lateinit var format: FileFormat
 
     override fun getPackages(): PackageList {
         val list = ArrayList<PackageItem>(mPackages.values)

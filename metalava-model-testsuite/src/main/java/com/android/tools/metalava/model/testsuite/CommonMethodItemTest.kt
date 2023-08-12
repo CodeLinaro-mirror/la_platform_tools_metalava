@@ -16,30 +16,16 @@
 
 package com.android.tools.metalava.model.testsuite
 
-import com.android.tools.lint.checks.infrastructure.TestFile
-import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.testing.java
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.junit.runners.Parameterized
 
 /** Common tests for implementations of [MethodItem]. */
-abstract class CommonMethodItemTest {
-
-    /**
-     * Create a [Codebase] from one of the supplied [signature] or [source] files and then run a
-     * test on that [Codebase].
-     *
-     * This must be called with [signature] and [source] contents that are equivalent so that the
-     * test can have the same behavior on models that consume the different formats. Subclasses of
-     * this must implement this method consuming at least one of them to create a [Codebase] on
-     * which the test is run.
-     */
-    abstract fun createCodebaseAndRun(
-        signature: String,
-        source: TestFile,
-        test: (Codebase) -> Unit,
-    )
+@RunWith(Parameterized::class)
+class CommonMethodItemTest(runner: ModelSuiteRunner) : BaseModelTest(runner) {
 
     @Test
     fun `MethodItem type`() {

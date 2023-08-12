@@ -19,11 +19,12 @@ plugins {
     id("org.jetbrains.kotlin.jvm")
     id("metalava-build-plugin")
     id("maven-publish")
+
+    // This project provides an implementation of the metalava-model.
+    id("metalava-model-provider-plugin")
 }
 
 dependencies {
-    implementation(project(":metalava-model"))
-    testImplementation(project(":metalava-model-testsuite"))
     testImplementation(libs.androidLintTests)
     testImplementation(libs.junit4)
     testImplementation(libs.truth)

@@ -14,18 +14,23 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava
+package com.android.tools.metalava.model.text
 
-import com.android.tools.metalava.model.FileFormat
+import java.io.BufferedReader
+import java.io.StringReader
 import org.junit.Assert.assertSame
+import org.junit.Assert.assertThrows
 import org.junit.Test
 
-class FileFormatTest {
+class SignatureFileParseHeaderTest {
+    private fun parseHeader(apiText: String) =
+        ApiFile.parseHeader("api.txt", BufferedReader(StringReader(apiText.trimIndent())))
+
     @Test
-    fun `Check format parsing`() {
+    fun `Check format parsing (v1)`() {
         assertSame(
             FileFormat.V1,
-            FileFormat.parseHeader(
+            parseHeader(
                 """
                 package test.pkg {
                   public class MyTest {
@@ -33,13 +38,15 @@ class FileFormatTest {
                   }
                 }
                 """
-                    .trimIndent()
             )
         )
+    }
 
+    @Test
+    fun `Check format parsing (v2)`() {
         assertSame(
             FileFormat.V2,
-            FileFormat.parseHeader(
+            parseHeader(
                 """
             // Signature format: 2.0
             package libcore.util {
@@ -52,10 +59,13 @@ class FileFormatTest {
                     .trimIndent()
             )
         )
+    }
 
+    @Test
+    fun `Check format parsing (v3)`() {
         assertSame(
             FileFormat.V3,
-            FileFormat.parseHeader(
+            parseHeader(
                 """
             // Signature format: 3.0
             package androidx.collection {
@@ -67,10 +77,13 @@ class FileFormatTest {
                     .trimIndent()
             )
         )
+    }
 
+    @Test
+    fun `Check format parsing (v2 non-unix newlines)`() {
         assertSame(
             FileFormat.V2,
-            FileFormat.parseHeader(
+            parseHeader(
                 "// Signature format: 2.0\r\n" +
                     "package libcore.util {\\r\n" +
                     "  @java.lang.annotation.Documented @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.SOURCE) public @interface NonNull {\r\n" +
@@ -80,85 +93,45 @@ class FileFormatTest {
                     "}\r\n"
             )
         )
+    }
 
-        assertSame(
-            FileFormat.BASELINE,
-            FileFormat.parseHeader(
+    @Test
+    fun `Check format parsing (invalid)`() {
+        assertThrows("Unknown file format of api.txt", ApiParseException::class.java) {
+            parseHeader(
                 """
-                // Baseline format: 1.0
-                BothPackageInfoAndHtml: test/visible/package-info.java:
-                    It is illegal to provide both a package-info.java file and a package.html file for the same package
-                IgnoringSymlink: test/pkg/sub1/sub2/sub3:
-                    Ignoring symlink during package.html discovery directory traversal
+                    blah blah
                 """
                     .trimIndent()
             )
-        )
+        }
+    }
 
-        assertSame(
-            FileFormat.JDIFF,
-            FileFormat.parseHeader(
+    @Test
+    fun `Check format parsing (blank)`() {
+        assertSame(null, parseHeader(""))
+    }
+
+    @Test
+    fun `Check format parsing (blank - multiple lines)`() {
+        assertSame(null, parseHeader("""
+
+
+
+                """))
+    }
+
+    @Test
+    fun `Check format parsing (not blank, multiple lines of white space, then some text)`() {
+        assertThrows("Unknown file format of api.txt", ApiParseException::class.java) {
+            parseHeader(
                 """
-            <api>
-            <package name="test.pkg"
-            >
-            </api>
+
+
+                    blah blah
                 """
                     .trimIndent()
             )
-        )
-
-        assertSame(
-            FileFormat.JDIFF,
-            FileFormat.parseHeader(
-                """
-            <?xml version="1.0" encoding="utf-8"?>
-            <api>
-            <package name="test.pkg"
-            >
-            </api>
-                """
-                    .trimIndent()
-            )
-        )
-
-        assertSame(
-            FileFormat.SINCE_XML,
-            FileFormat.parseHeader(
-                """
-            <?xml version="1.0" encoding="utf-8"?>
-            <api version="2">
-                <class name="android/hardware/Camera" since="1" deprecated="21">
-                    <method name="&lt;init>()V"/>
-                    <method name="addCallbackBuffer([B)V" since="8"/>
-                    <method name="getLogo()Landroid/graphics/drawable/Drawable;"/>
-                    <field name="ACTION_NEW_VIDEO" since="14" deprecated="25"/>
-                </class>
-            </api>
-                """
-                    .trimIndent()
-            )
-        )
-
-        assertSame(
-            FileFormat.UNKNOWN,
-            FileFormat.parseHeader(
-                """
-            blah blah
-                """
-                    .trimIndent()
-            )
-        )
-
-        assertSame(
-            FileFormat.UNKNOWN,
-            FileFormat.parseHeader(
-                """
-            <?xml version="1.0" encoding="utf-8"?>
-            <manifest />
-                """
-                    .trimIndent()
-            )
-        )
+        }
     }
 }

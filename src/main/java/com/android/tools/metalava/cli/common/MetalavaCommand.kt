@@ -46,7 +46,8 @@ internal open class MetalavaCommand(
     private val stderr: PrintWriter,
 
     /**
-     * The default command to run when no subcommand is provided on the command line.
+     * The factory for the default command to run when no subcommand is provided on the command
+     * line.
      *
      * The command itself does not appear in the help but any options that it provides do. The first
      * part is achieved by not adding the command to the list of subcommands, and by ensuring that
@@ -57,7 +58,7 @@ internal open class MetalavaCommand(
      * subcommand to the list from this, filtering out any which are not needed (see
      * [excludeArgumentsWithNoHelp]).
      */
-    private val defaultCommand: CliktCommand,
+    defaultCommandFactory: (CommonOptions) -> CliktCommand,
 
     /** Provider for additional non-Clikt usage information. */
     private val nonCliktUsageProvider: (Terminal, Int) -> String = { _, _ -> "" },
@@ -103,14 +104,19 @@ internal open class MetalavaCommand(
 
         // Print the version number if requested.
         versionOption(
-            Version.VERSION,
+            // Use a fake version here to avoid loading the `/version.properties` file unless
+            // needed.
+            "fake-version",
             names = setOf(ARG_VERSION),
-            message = { "$commandName version: $it" },
+            message = { "$commandName version: ${Version.VERSION}" },
         )
     }
 
     /** Group of common options. */
     val common by CommonOptions()
+
+    /** The default command to run when no subcommand is provided on the command line. */
+    private val defaultCommand: CliktCommand = defaultCommandFactory(common)
 
     /**
      * A custom, non-eager help option that allows [CommonOptions] like [CommonOptions.terminal] to

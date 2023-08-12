@@ -17,7 +17,7 @@
 package com.android.tools.metalava.binarycompatibility
 
 import com.android.tools.metalava.DriverTest
-import com.android.tools.metalava.model.FileFormat
+import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.testing.kotlin
 import org.junit.Test
 

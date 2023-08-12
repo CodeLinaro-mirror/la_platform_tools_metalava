@@ -16,23 +16,11 @@
 
 package com.android.tools.metalava.model.text
 
-import com.android.tools.lint.checks.infrastructure.TestFile
-import com.android.tools.metalava.model.Codebase
-import com.android.tools.metalava.model.testsuite.CommonMethodItemTest
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import org.junit.Test
 
-class TextMethodItemTest : CommonMethodItemTest() {
-
-    override fun createCodebaseAndRun(
-        signature: String,
-        source: TestFile,
-        test: (Codebase) -> Unit,
-    ) {
-        val codebase = ApiFile.parseApi("test", signature.trimIndent())
-        test(codebase)
-    }
+class TextMethodItemTest {
 
     @Test
     fun `text method item return type is non-null`() {

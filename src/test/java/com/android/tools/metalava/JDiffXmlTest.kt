@@ -16,7 +16,7 @@
 
 package com.android.tools.metalava
 
-import com.android.tools.metalava.model.FileFormat
+import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.testing.java
 import org.junit.Test
 
@@ -750,7 +750,7 @@ class JDiffXmlTest : DriverTest() {
     fun `Test default methods from signature files`() {
         // Ensure that we treat not just static but default methods in interfaces as non-abstract
         check(
-            format = FileFormat.V1,
+            format = FileFormat.V2,
             signatureSource =
                 """
                 package test.pkg {
@@ -797,7 +797,7 @@ class JDiffXmlTest : DriverTest() {
         // *diffs* relative to the base API, are tricky: They may for example list just an
         // inner class. See 122926140 for a scenario where this happens.
         check(
-            format = FileFormat.V1,
+            format = FileFormat.V2,
             signatureSource =
                 """
             // Signature format: 2.0

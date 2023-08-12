@@ -22,6 +22,10 @@ import java.io.File
 import kotlin.io.path.createTempDirectory
 import org.intellij.lang.annotations.Language
 
+fun source(to: String, source: String): TestFile {
+    return TestFiles.source(to, source.trimIndent())
+}
+
 fun java(to: String, @Language("JAVA") source: String): TestFile {
     return TestFiles.java(to, source.trimIndent())
 }

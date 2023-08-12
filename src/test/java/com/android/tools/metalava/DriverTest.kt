@@ -35,10 +35,11 @@ import com.android.tools.lint.client.api.LintClient
 import com.android.tools.metalava.cli.common.ARG_NO_COLOR
 import com.android.tools.metalava.cli.common.ARG_QUIET
 import com.android.tools.metalava.cli.common.ARG_VERBOSE
-import com.android.tools.metalava.model.FileFormat
 import com.android.tools.metalava.model.psi.gatherSources
 import com.android.tools.metalava.model.text.ApiClassResolution
 import com.android.tools.metalava.model.text.ApiFile
+import com.android.tools.metalava.model.text.FileFormat
+import com.android.tools.metalava.model.text.FileFormat.OverloadedMethodOrder
 import com.android.tools.metalava.reporter.Severity
 import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.TemporaryFolderOwner
@@ -58,6 +59,7 @@ import java.io.PrintStream
 import java.io.PrintWriter
 import java.io.StringWriter
 import java.net.URL
+import java.util.Locale
 import kotlin.text.Charsets.UTF_8
 import org.intellij.lang.annotations.Language
 import org.junit.Assert.assertEquals
@@ -242,8 +244,7 @@ abstract class DriverTest : TemporaryFolderOwner {
         /** The removed API (corresponds to --removed-api) */
         removedApi: String? = null,
         /** The overloaded method order, defaults to signature. */
-        overloadedMethodOrder: Options.OverloadedMethodOrder? =
-            Options.OverloadedMethodOrder.SIGNATURE,
+        overloadedMethodOrder: OverloadedMethodOrder? = OverloadedMethodOrder.SIGNATURE,
         /** The subtract api signature content (corresponds to --subtract-api) */
         @Language("TEXT") subtractApi: String? = null,
         /** Expected stubs (corresponds to --stubs) */
@@ -259,7 +260,7 @@ abstract class DriverTest : TemporaryFolderOwner {
          */
         docStubs: Boolean = false,
         /** Signature file format */
-        format: FileFormat = FileFormat.latest,
+        format: FileFormat = FileFormat.LATEST,
         /** Whether to trim the output (leading/trailing whitespace removal) */
         trim: Boolean = true,
         /**
@@ -314,7 +315,7 @@ abstract class DriverTest : TemporaryFolderOwner {
         /** Additional arguments to supply */
         extraArguments: Array<String> = emptyArray(),
         /** Whether we should emit Kotlin-style null signatures */
-        outputKotlinStyleNulls: Boolean = format.useKotlinStyleNulls(),
+        outputKotlinStyleNulls: Boolean = format.kotlinStyleNulls,
         /** Expected output (stdout and stderr combined). If null, don't check. */
         expectedOutput: String? = null,
         /** Expected fail message and state, if any */
@@ -364,8 +365,6 @@ abstract class DriverTest : TemporaryFolderOwner {
         validateNullability: Set<String>? = null,
         /** Enable nullability validation for the listed classes */
         validateNullabilityFromList: String? = null,
-        /** Whether to include the signature version in signatures */
-        includeSignatureVersion: Boolean = false,
         /** List of signature files to convert to JDiff XML and the expected XML output. */
         convertToJDiff: List<ConvertData> = emptyList(),
         /** Hook for performing additional initialization of the project directory */
@@ -1067,7 +1066,6 @@ abstract class DriverTest : TemporaryFolderOwner {
                 *stubsSourceListArgs,
                 *docStubsSourceListArgs,
                 "$ARG_OUTPUT_KOTLIN_NULLS=${if (outputKotlinStyleNulls) "yes" else "no"}",
-                "$ARG_INCLUDE_SIG_VERSION=${if (includeSignatureVersion) "yes" else "no"}",
                 *quiet,
                 *mergeAnnotationsArgs,
                 *signatureAnnotationsArgs,
@@ -1497,24 +1495,7 @@ abstract class DriverTest : TemporaryFolderOwner {
 }
 
 private fun FileFormat.outputFlag(): String {
-    return if (isSignatureFormat()) {
-        "$ARG_FORMAT=v${signatureFormatAsInt()}"
-    } else {
-        ""
-    }
-}
-
-private fun FileFormat.signatureFormatAsInt(): Int {
-    return when (this) {
-        FileFormat.V1 -> 1
-        FileFormat.V2 -> 2
-        FileFormat.V3 -> 3
-        FileFormat.V4 -> 4
-        FileFormat.BASELINE,
-        FileFormat.JDIFF,
-        FileFormat.SINCE_XML,
-        FileFormat.UNKNOWN -> error("this method is only allowed on signature formats, was $this")
-    }
+    return "$ARG_FORMAT=${defaultsVersion.name.lowercase(Locale.US)}"
 }
 
 /** Returns the paths returned by [findKotlinStdlibPaths] as metalava args expected by Options. */

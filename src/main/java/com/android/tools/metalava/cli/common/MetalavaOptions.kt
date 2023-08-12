@@ -17,12 +17,14 @@
 package com.android.tools.metalava.cli.common
 
 import com.github.ajalt.clikt.completion.CompletionCandidates
+import com.github.ajalt.clikt.core.GroupableOption
 import com.github.ajalt.clikt.core.ParameterHolder
 import com.github.ajalt.clikt.output.HelpFormatter
 import com.github.ajalt.clikt.parameters.arguments.ProcessedArgument
 import com.github.ajalt.clikt.parameters.arguments.RawArgument
 import com.github.ajalt.clikt.parameters.arguments.convert
 import com.github.ajalt.clikt.parameters.options.NullableOption
+import com.github.ajalt.clikt.parameters.options.OptionDelegate
 import com.github.ajalt.clikt.parameters.options.OptionWithValues
 import com.github.ajalt.clikt.parameters.options.RawOption
 import com.github.ajalt.clikt.parameters.options.convert
@@ -30,6 +32,8 @@ import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.types.choice
 import java.io.File
+import kotlin.properties.ReadOnlyProperty
+import kotlin.reflect.KProperty
 
 // This contains extensions methods for creating custom Clikt options.
 
@@ -46,6 +50,11 @@ fun RawArgument.existingFile(): ProcessedArgument<File, File> {
 /** Convert the argument to a [File] that represents an existing directory. */
 fun RawArgument.existingDir(): ProcessedArgument<File, File> {
     return fileConversion(::stringToExistingDir)
+}
+
+/** Convert the option to a [File] that represents a new file. */
+fun RawOption.newFile(): NullableOption<File, File> {
+    return fileConversion(::stringToNewFile)
 }
 
 /** Convert the argument to a [File] that represents a new file. */
@@ -308,4 +317,40 @@ internal fun styleEnumHelpTextIfNeeded(
     }
 
     return styledHelp
+}
+
+/**
+ * Extension method that allows a transformation to be provided to a Clikt option that will be
+ * applied after Clikt has processed, transformed (including applying defaults) and validated the
+ * value, but before it is returned.
+ */
+fun <I, O> OptionDelegate<I>.map(transform: (I) -> O): OptionDelegate<O> {
+    return PostTransformDelegate(this, transform)
+}
+
+/**
+ * An [OptionDelegate] that delegates to another [OptionDelegate] and applies a transformation to
+ * the value it returns.
+ */
+private class PostTransformDelegate<I, O>(
+    val delegate: OptionDelegate<I>,
+    val transform: (I) -> O,
+) : OptionDelegate<O>, GroupableOption by delegate {
+
+    override val value: O
+        get() = transform(delegate.value)
+
+    override fun provideDelegate(
+        thisRef: ParameterHolder,
+        prop: KProperty<*>
+    ): ReadOnlyProperty<ParameterHolder, O> {
+        // Make sure that the wrapped option has registered itself properly.
+        val providedDelegate = delegate.provideDelegate(thisRef, prop)
+        check(providedDelegate == delegate) {
+            "expected $delegate to return itself but it returned $providedDelegate"
+        }
+
+        // This is the delegate.
+        return this
+    }
 }

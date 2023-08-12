@@ -124,7 +124,7 @@ abstract class KtfmtCheckTask : KtfmtBaseTask() {
                 """Failed check for the following files:
                 |$output
                 |
-                |Run ./gradlew ktfmtFormat to fix it."""
+                |Run ./gradlew ktFormat to fix it."""
                     .trimMargin()
             )
         }

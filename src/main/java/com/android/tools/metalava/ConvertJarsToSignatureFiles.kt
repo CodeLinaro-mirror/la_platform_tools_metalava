@@ -28,6 +28,7 @@ import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.SUPPORT_TYPE_USE_ANNOTATIONS
 import com.android.tools.metalava.model.psi.PsiEnvironmentManager
 import com.android.tools.metalava.model.psi.PsiSourceParser
+import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.google.common.io.ByteStreams
 import java.io.File
@@ -46,7 +47,7 @@ import org.objectweb.asm.tree.MethodNode
  * actually there in the android.jar files.
  */
 @Suppress("DEPRECATION")
-class ConvertJarsToSignatureFiles {
+class ConvertJarsToSignatureFiles(private val fileFormat: FileFormat) {
     fun convertJars(psiEnvironmentManager: PsiEnvironmentManager, root: File) {
         var api = 1
         while (true) {
@@ -160,7 +161,13 @@ class ConvertJarsToSignatureFiles {
             }
 
             createReportFile(jarCodebase, newApiFile, "API") { printWriter ->
-                SignatureWriter(printWriter, apiEmit, apiReference, jarCodebase.preFiltered)
+                SignatureWriter(
+                    printWriter,
+                    apiEmit,
+                    apiReference,
+                    jarCodebase.preFiltered,
+                    fileFormat = fileFormat,
+                )
             }
 
             // Delete older redundant .xml files

@@ -69,7 +69,7 @@ class MetalavaCommandTest {
      * which will cause Clikt to fail in such a way as to generate some help before initializing the
      */
     private class TestCommand(stdout: PrintWriter, stderr: PrintWriter) :
-        MetalavaCommand(stdout, stderr, NoOpCommand()) {
+        MetalavaCommand(stdout, stderr, { NoOpCommand() }) {
         init {
             context { expandArgumentFiles = true }
         }

@@ -20,7 +20,7 @@ package com.android.tools.metalava
 
 import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.lint.checks.infrastructure.TestFiles
-import com.android.tools.metalava.model.FileFormat
+import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.testing.java
 import org.junit.Test
 
@@ -29,7 +29,7 @@ class CoreApiTest : DriverTest() {
     @Test
     fun `Hidden with --hide-annotation`() {
         check(
-            format = FileFormat.V1,
+            format = FileFormat.V2,
             sourceFiles =
                 arrayOf(
                     java(
@@ -129,7 +129,7 @@ class CoreApiTest : DriverTest() {
     @Test
     fun `Hidden with package javadoc and hiding default constructor explicitly`() {
         check(
-            format = FileFormat.V1,
+            format = FileFormat.V2,
             sourceFiles =
                 arrayOf(
                     java(
@@ -229,7 +229,7 @@ class CoreApiTest : DriverTest() {
     @Test
     fun `Complain if annotating a member and the surrounding class is not included`() {
         check(
-            format = FileFormat.V1,
+            format = FileFormat.V2,
             sourceFiles =
                 arrayOf(
                     java(
@@ -296,7 +296,7 @@ class CoreApiTest : DriverTest() {
     @Test
     fun `Hidden with --hide-meta-annotation`() {
         check(
-            format = FileFormat.V1,
+            format = FileFormat.V2,
             sourceFiles =
                 arrayOf(
                     java(

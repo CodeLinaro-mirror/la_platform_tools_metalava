@@ -19,6 +19,7 @@ package com.android.tools.metalava
 import com.android.SdkConstants.VALUE_FALSE
 import com.android.tools.metalava.cli.common.ARG_QUIET
 import com.android.tools.metalava.cli.common.ARG_VERBOSE
+import com.android.tools.metalava.cli.common.Verbosity
 import com.intellij.util.execution.ParametersListUtil
 import java.io.File
 import java.io.IOException
@@ -57,12 +58,10 @@ internal fun preprocessArgv(args: Array<String>): Array<String> {
     modifiedArgs.forEach { arg ->
         when (arg) {
             ARG_QUIET -> {
-                options.quiet = true
-                options.verbose = false
+                options.verbosity = Verbosity.QUIET
             }
             ARG_VERBOSE -> {
-                options.verbose = true
-                options.quiet = false
+                options.verbosity = Verbosity.VERBOSE
             }
         }
     }

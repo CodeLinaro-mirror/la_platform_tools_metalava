@@ -18,7 +18,7 @@
 
 package com.android.tools.metalava
 
-import com.android.tools.metalava.model.FileFormat
+import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.testing.java
 import org.junit.Test
 
@@ -27,7 +27,7 @@ class Java9LanguageFeaturesTest : DriverTest() {
     fun `Private Interface Method`() {
         // Basic class; also checks that default constructor is made explicit
         check(
-            format = FileFormat.V1,
+            format = FileFormat.V2,
             checkCompilation = false, // Not compiling with JDK 9 yet
             sourceFiles =
                 arrayOf(
@@ -60,7 +60,7 @@ class Java9LanguageFeaturesTest : DriverTest() {
     fun `Basic class signature extraction`() {
         // Basic class; also checks that default constructor is made explicit
         check(
-            format = FileFormat.V1,
+            format = FileFormat.V2,
             checkCompilation = false, // Not compiling with JDK 9 yet
             sourceFiles =
                 arrayOf(

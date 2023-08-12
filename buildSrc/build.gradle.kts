@@ -40,3 +40,12 @@ gradlePlugin {
         }
     }
 }
+
+gradlePlugin {
+    plugins {
+        create("metalava-model-provider-plugin") {
+            id = "metalava-model-provider-plugin"
+            implementationClass = "com.android.tools.metalava.MetalavaModelProviderPlugin"
+        }
+    }
+}

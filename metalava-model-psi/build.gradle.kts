@@ -19,6 +19,9 @@ plugins {
     id("org.jetbrains.kotlin.jvm")
     id("metalava-build-plugin")
     id("maven-publish")
+
+    // This project provides an implementation of the metalava-model.
+    id("metalava-model-provider-plugin")
 }
 
 dependencies {

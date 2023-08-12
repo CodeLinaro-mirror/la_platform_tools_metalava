@@ -19,7 +19,7 @@ package com.android.tools.metalava.stub
 import com.android.tools.metalava.ARG_HIDE_PACKAGE
 import com.android.tools.metalava.ARG_PASS_THROUGH_ANNOTATION
 import com.android.tools.metalava.androidxNullableSource
-import com.android.tools.metalava.model.FileFormat
+import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.restrictToSource
 import com.android.tools.metalava.testing.java
 import org.junit.Test

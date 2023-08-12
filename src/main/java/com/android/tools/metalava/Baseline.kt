@@ -17,7 +17,6 @@
 package com.android.tools.metalava
 
 import com.android.tools.metalava.cli.common.MetalavaCliException
-import com.android.tools.metalava.model.FileFormat
 import com.android.tools.metalava.model.Location
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Severity
@@ -26,6 +25,8 @@ import java.io.PrintWriter
 import kotlin.text.Charsets.UTF_8
 
 const val DEFAULT_BASELINE_NAME = "baseline.txt"
+
+private const val BASELINE_FILE_HEADER = "// Baseline format: 1.0\n"
 
 @Suppress("DEPRECATION")
 class Baseline(
@@ -42,7 +43,6 @@ class Baseline(
      * does not contain all issues that would normally fail the run (by default ERROR level).
      */
     var silentUpdate: Boolean = updateFile != null && updateFile.path == file?.path,
-    private var format: FileFormat = FileFormat.BASELINE
 ) {
 
     /** Map from issue id to element id to message */
@@ -170,7 +170,7 @@ class Baseline(
         val updateFile = this.updateFile ?: return false
         if (map.isNotEmpty() || !options.deleteEmptyBaselines) {
             val sb = StringBuilder()
-            sb.append(format.header())
+            sb.append(BASELINE_FILE_HEADER)
             sb.append(headerComment)
 
             map.keys

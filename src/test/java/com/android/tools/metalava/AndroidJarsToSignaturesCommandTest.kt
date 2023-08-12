@@ -40,6 +40,8 @@ Aborting: Usage: metalava android-jars-to-signatures [options] <android-root-dir
 Options:
   -h, -?, --help                             Show this message and exit
 
+$SIGNATURE_FORMAT_OPTIONS_HELP
+
 Arguments:
   <android-root-dir>                         The root directory of the Android source tree. The new signature files will
                                              be generated in the `prebuilts/sdk/<api>/public/api/android.txt`

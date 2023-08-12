@@ -124,31 +124,8 @@ API sources:
 
 
 Extracting Signature Files:
---api <file>
-                                             Generate a signature descriptor file
 --dex-api <file>
                                              Generate a DEX signature descriptor file listing the APIs
---removed-api <file>
-                                             Generate a signature descriptor file for APIs that have been removed
---api-overloaded-method-order <source|signature>
-                                             Specifies the order of overloaded methods in signature files (default
-                                             `signature`). Applies to the contents of the files specified on --api and
-                                             --removed-api. `--api-overloaded-method-order source` will preserve the
-                                             order in which they appear in the source files.
-                                             `--api-overloaded-method-order signature` will sort them based on their
-                                             signature.
---format=<v1,v2,v3,...>
-                                             Sets the output signature file format to be the given version.
---output-kotlin-nulls[=yes|no]
-                                             Controls whether nullness annotations should be formatted as in Kotlin
-                                             (with "?" for nullable types, "" for non nullable types, and "!" for
-                                             unknown. The default is yes.
---output-default-values[=yes|no]
-                                             Controls whether default values should be included in signature files. The
-                                             default is yes.
---include-signature-version[=yes|no]
-                                             Whether the signature files should include a comment listing the format
-                                             version of the signature file.
 --proguard <file>
                                              Write a ProGuard keep file for the API
 --sdk-values <dir>
@@ -438,19 +415,7 @@ Options:
   --suppress-compatibility-meta-annotation <meta-annotation class>
                                              Suppress compatibility checks for any elements within the scope of an
                                              annotation which is itself annotated with the given meta-annotation.
-  --api-overloaded-method-order [source|signature]
-                                             Specifies the order of overloaded methods in signature files. Applies to
-                                             the contents of the files specified on --api and --removed-api.
-
-                                             source - preserves the order in which overloaded methods appear in the
-                                             source files. This means that refactorings of the source files which change
-                                             the order but not the API can cause unnecessary changes in the API
-                                             signature files.
-
-                                             signature (default) - sorts overloaded methods by their signature. This
-                                             means that refactorings of the source files which change the order but not
-                                             the API will have no effect on the API signature files.
-  -manifest, --manifest <file>               A manifest file, used to check permissions to cross check APIs and retrieve
+  --manifest <file>                          A manifest file, used to check permissions to cross check APIs and retrieve
                                              min_sdk_version. (default: no manifest)
   --typedefs-in-signatures [none|ref|inline]
                                              Whether to include typedef annotations in signature files.
@@ -461,7 +426,20 @@ Options:
                                              itself part of the API and is not included as a class
 
                                              inline - will include the constants themselves into each usage site
-    """
+
+Signature File Output:
+
+  Options controlling the signature file output. The format of the generated file is determined by the options in the
+  `Signature Format Output` section.
+
+  --api <file>                               Output file into which the API signature will be generated. If this is not
+                                             specified then no API signature file will be created.
+  --removed-api <file>                       Output file into which the API signatures for removed APIs will be
+                                             generated. If this is not specified then no removed API signature file will
+                                             be created.
+
+$SIGNATURE_FORMAT_OPTIONS_HELP
+"""
             .trimIndent()
 
     private val SUB_COMMANDS =

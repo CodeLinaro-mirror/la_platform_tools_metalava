@@ -22,8 +22,8 @@ import com.android.tools.metalava.ARG_HIDE_PACKAGE
 import com.android.tools.metalava.ARG_PASS_THROUGH_ANNOTATION
 import com.android.tools.metalava.androidxNullableSource
 import com.android.tools.metalava.libcoreNonNullSource
-import com.android.tools.metalava.model.FileFormat
 import com.android.tools.metalava.model.SUPPORT_TYPE_USE_ANNOTATIONS
+import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.requiresApiSource
 import com.android.tools.metalava.supportParameterName
 import com.android.tools.metalava.testing.java

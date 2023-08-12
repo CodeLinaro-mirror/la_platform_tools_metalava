@@ -46,7 +46,6 @@ dependencies {
     implementation(libs.asm)
     implementation(libs.asmTree)
     implementation(libs.gson)
-    testImplementation(project(":metalava-model-testsuite"))
     testImplementation(project(":metalava-testing"))
     testImplementation(libs.androidLintTests)
     testImplementation(libs.junit4)

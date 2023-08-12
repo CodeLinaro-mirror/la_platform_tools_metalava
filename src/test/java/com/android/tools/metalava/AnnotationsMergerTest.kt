@@ -16,7 +16,7 @@
 
 package com.android.tools.metalava
 
-import com.android.tools.metalava.model.FileFormat
+import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.testing.java
 import org.junit.Test
 
@@ -673,7 +673,6 @@ class AnnotationsMergerTest : DriverTest() {
                     """
                     )
                 ),
-            outputKotlinStyleNulls = false,
             mergeXmlAnnotations =
                 """<?xml version="1.0" encoding="UTF-8"?>
                 <root>
