@@ -18,6 +18,7 @@ package com.android.tools.metalava.cli.common
 
 import com.github.ajalt.clikt.output.CliktHelpFormatter
 import com.github.ajalt.clikt.output.HelpFormatter
+import com.github.ajalt.clikt.output.HelpFormatter.ParameterHelp.Option
 import com.github.ajalt.clikt.output.Localization
 import java.util.TreeMap
 
@@ -90,24 +91,34 @@ internal open class MetalavaHelpFormatter(
         // Color the program name, there is no override to do that.
         val formattedProgramName = terminal.colorize(programName, TerminalColor.BLUE)
 
-        // Force all options to belong to a group. This is needed because Clikt will order options
-        // without any group name (options like help and version) after option groups but metalava
-        // help needs those to come first. It is not possible (or at least not easy) to add group
-        // names to some of those options at creation time so it is done here.
         val transformedParameters =
             parameters
+                .asSequence()
+                // Force all options to belong to a group. This is needed because Clikt will order
+                // options without any group name (options like help and version) after option
+                // groups but metalava help needs those to come first. It is not possible (or at
+                // least not easy) to add group names to some of those options at creation time, so
+                // it is done here.
                 .map {
                     when (it) {
-                        is HelpFormatter.ParameterHelp.Option ->
+                        is Option ->
                             if (it.groupName == null) it.copy(groupName = defaultOptionGroupName)
                             else it
                         else -> it
                     }
                 }
-                // Force the options in the default group (like help) to come first.
-                .sortedBy {
-                    (it as? HelpFormatter.ParameterHelp.Option)?.groupName != defaultOptionGroupName
+                // Map a composite option to multiple separate options for the purposes of help
+                // formatting only.
+                .flatMap { v ->
+                    if (v is Option && v.isCompositeOption()) {
+                        v.decompose()
+                    } else {
+                        sequenceOf(v)
+                    }
                 }
+                // Force the options in the default group (like help) to come first.
+                .sortedBy { (it as? Option)?.groupName != defaultOptionGroupName }
+                .toList()
 
         // Use the default help format.
         val help = super.formatHelp(prolog, epilog, transformedParameters, formattedProgramName)

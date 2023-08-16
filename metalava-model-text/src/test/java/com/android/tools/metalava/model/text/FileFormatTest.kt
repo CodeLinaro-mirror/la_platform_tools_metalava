@@ -16,15 +16,14 @@
 
 package com.android.tools.metalava.model.text
 
-import java.io.BufferedReader
 import java.io.StringReader
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertThrows
 import org.junit.Test
 
-class SignatureFileParseHeaderTest {
+class FileFormatTest {
     private fun parseHeader(apiText: String) =
-        ApiFile.parseHeader("api.txt", BufferedReader(StringReader(apiText.trimIndent())))
+        FileFormat.parseHeader("api.txt", StringReader(apiText.trimIndent()))
 
     @Test
     fun `Check format parsing (v1)`() {

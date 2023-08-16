@@ -20,15 +20,20 @@ import com.github.ajalt.clikt.output.Localization
 
 /** Metalava specific localizations of various help and error messages. */
 class MetalavaLocalization : Localization {
+
+    override fun pathMetavar(): String {
+        return "<file>"
+    }
+
+    override fun commandsTitle(): String {
+        return "Sub-commands:"
+    }
+
     override fun optionsMetavar(): String {
         return "[options]"
     }
 
     override fun commandMetavar(): String {
         return "<sub-command>? ..."
-    }
-
-    override fun commandsTitle(): String {
-        return "Sub-commands:"
     }
 }

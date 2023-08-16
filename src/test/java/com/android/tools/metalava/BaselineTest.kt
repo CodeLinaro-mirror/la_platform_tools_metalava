@@ -17,6 +17,8 @@
 package com.android.tools.metalava
 
 import com.android.tools.lint.checks.infrastructure.TestFiles.source
+import com.android.tools.metalava.cli.common.ARG_ERROR
+import com.android.tools.metalava.cli.common.ARG_HIDE
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.testing.java
 import java.io.File

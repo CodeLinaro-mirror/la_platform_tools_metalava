@@ -30,7 +30,6 @@ class SignatureToJDiffCommandTest : BaseCommandTest() {
 
             expectedStdout =
                 """
-
 Usage: metalava signature-to-jdiff [options] <api-file> <xml-file>
 
   Convert an API signature file into a file in the JDiff XML format.
@@ -45,7 +44,6 @@ Options:
 Arguments:
   <api-file>                                 API signature file to convert to the JDiff XML format.
   <xml-file>                                 Output JDiff XML format file.
-
             """
                     .trimIndent()
         }
@@ -62,7 +60,6 @@ Arguments:
 
             expectedStderr =
                 """
-
 Aborting: Error: no such option: "--trip". (Possible options: --strip, --no-strip)
 
 Usage: metalava signature-to-jdiff [options] <api-file> <xml-file>
@@ -77,7 +74,6 @@ Options:
 Arguments:
   <api-file>                                 API signature file to convert to the JDiff XML format.
   <xml-file>                                 Output JDiff XML format file.
-
             """
                     .trimIndent()
         }

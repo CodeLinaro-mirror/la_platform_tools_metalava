@@ -55,4 +55,23 @@ interface TemporaryFolderOwner {
             temporaryFolder.newFile(children)
         }
     }
+
+    /** Hides path prefixes from /tmp folders used by the testing infrastructure */
+    fun cleanupString(
+        string: String,
+        project: File? = null,
+    ): String {
+        var s = string
+
+        if (project != null) {
+            s = s.replace(project.path, "TESTROOT")
+            s = s.replace(project.canonicalPath, "TESTROOT")
+        }
+
+        s = s.replace(temporaryFolder.root.path, "TESTROOT")
+
+        s = s.trim()
+
+        return s
+    }
 }

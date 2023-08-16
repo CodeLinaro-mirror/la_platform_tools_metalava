@@ -38,7 +38,6 @@ class SignatureFileOptions :
     val apiFile by
         option(
                 ARG_API,
-                metavar = "<file>",
                 help =
                     """
                         Output file into which the API signature will be generated. If this is not
@@ -52,7 +51,6 @@ class SignatureFileOptions :
     val removedApiFile by
         option(
                 ARG_REMOVED_API,
-                metavar = "<file>",
                 help =
                     """
                         Output file into which the API signatures for removed APIs will be

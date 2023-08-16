@@ -29,14 +29,12 @@ class VersionCommandTest : BaseCommandTest() {
 
             expectedStdout =
                 """
-
 Usage: metalava version [options]
 
   Show the version
 
 Options:
   -h, -?, --help                             Show this message and exit
-
             """
                     .trimIndent()
         }
@@ -50,7 +48,6 @@ Options:
             expectedStdout =
                 """
 version version: ${Version.VERSION}
-
             """
                     .trimIndent()
         }

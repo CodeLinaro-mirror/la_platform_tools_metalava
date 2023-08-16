@@ -30,6 +30,11 @@ class ApiParseException : Exception {
         line = tokenizer.line
     }
 
+    internal constructor(message: String, position: SourcePositionInfo) : super(message) {
+        file = position.file
+        line = position.line
+    }
+
     override val message: String
         get() {
             val sb = StringBuilder()

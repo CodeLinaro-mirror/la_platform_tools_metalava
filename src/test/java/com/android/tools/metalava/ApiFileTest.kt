@@ -19,6 +19,9 @@
 package com.android.tools.metalava
 
 import com.android.tools.lint.checks.infrastructure.TestFiles.base64gzip
+import com.android.tools.metalava.cli.common.ARG_ERROR
+import com.android.tools.metalava.cli.common.ARG_HIDE
+import com.android.tools.metalava.cli.common.ARG_WARNING
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.model.text.FileFormat.OverloadedMethodOrder
 import com.android.tools.metalava.testing.java
@@ -3853,6 +3856,7 @@ class ApiFileTest : DriverTest() {
         )
     }
 
+    @Deprecated("Copied to [MergeFullSignatureTest]")
     @Test
     fun `Test merging API signature files`() {
         val source1 =
@@ -3931,6 +3935,7 @@ class ApiFileTest : DriverTest() {
             }
             """
 
+    @Deprecated("Copied to [MergeFullSignatureTest]")
     @Test
     fun `Test merging API signature files, one refer to another`() {
         check(
@@ -3939,6 +3944,7 @@ class ApiFileTest : DriverTest() {
         )
     }
 
+    @Deprecated("Copied to [MergeFullSignatureTest]")
     @Test
     fun `Test merging API signature files, one refer to another, in reverse order`() {
         // Exactly the same as the previous test, but read them in the reverse order
@@ -3948,6 +3954,7 @@ class ApiFileTest : DriverTest() {
         )
     }
 
+    @Deprecated("Copied to [MergeFullSignatureTest]")
     @Test
     fun `Test merging API signature files with reverse dependency`() {
         val source1 =
@@ -3978,6 +3985,7 @@ class ApiFileTest : DriverTest() {
         check(format = FileFormat.V2, signatureSources = arrayOf(source1, source2), api = expected)
     }
 
+    @Deprecated("Copied to [MergeFullSignatureTest]")
     @Test
     fun `Test merging 3 API signature files`() {
         val source1 =
@@ -4035,6 +4043,7 @@ class ApiFileTest : DriverTest() {
         check(signatureSources = arrayOf(source1, source2, source3), api = expected)
     }
 
+    @Deprecated("Copied to [MergeFullSignatureTest]")
     @Test
     fun `Test can merge API signature files with duplicate class`() {
         val source1 =
@@ -4157,6 +4166,7 @@ class ApiFileTest : DriverTest() {
         )
     }
 
+    @Deprecated("Copied to [MergeFullSignatureTest]")
     @Test
     fun `Test cannot merge API signature files with incompatible class definitions`() {
         val source1 =
@@ -4178,10 +4188,11 @@ class ApiFileTest : DriverTest() {
         check(
             signatureSources = arrayOf(source1, source2),
             expectedFail =
-                "Aborting: Unable to parse signature file: Incompatible class Test.pkg.Class1 definitions"
+                "Aborting: Unable to parse signature file: TESTROOT/project/load-api2.txt:2: Incompatible class Test.pkg.Class1 definitions"
         )
     }
 
+    @Deprecated("Copied to [MergeFullSignatureTest]")
     @Test
     fun `Test can merge API signature files with different file formats`() {
         val source1 =

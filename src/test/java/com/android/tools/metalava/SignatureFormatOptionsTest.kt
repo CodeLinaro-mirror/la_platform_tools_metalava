@@ -16,19 +16,16 @@
 
 package com.android.tools.metalava
 
+import com.android.tools.metalava.cli.common.BaseOptionGroupTest
 import com.android.tools.metalava.model.text.ApiParseException
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.testing.source
 import com.github.ajalt.clikt.core.BadParameterValue
-import com.github.ajalt.clikt.core.CliktCommand
-import com.github.ajalt.clikt.parameters.groups.provideDelegate
 import com.google.common.truth.Truth.assertThat
 import java.io.File
 import kotlin.test.assertEquals
 import org.junit.Assert.assertThrows
-import org.junit.Rule
 import org.junit.Test
-import org.junit.rules.TemporaryFolder
 
 val SIGNATURE_FORMAT_OPTIONS_HELP =
     """
@@ -88,22 +85,11 @@ Signature Format Output:
     """
         .trimIndent()
 
-class SignatureFormatOptionsTest {
-
-    @get:Rule val temporaryFolder = TemporaryFolder()
-
-    private fun runTest(vararg args: String, test: (SignatureFormatOptions) -> Unit) {
-        val command = MockCommand(test)
-        command.parse(args.toList())
-    }
-
-    private class MockCommand(val test: (SignatureFormatOptions) -> Unit) : CliktCommand() {
-        val options by SignatureFormatOptions()
-
-        override fun run() {
-            test(options)
-        }
-    }
+class SignatureFormatOptionsTest :
+    BaseOptionGroupTest<SignatureFormatOptions>(
+        { SignatureFormatOptions() },
+        SIGNATURE_FORMAT_OPTIONS_HELP
+    ) {
 
     @Test
     fun `V1 not supported`() {

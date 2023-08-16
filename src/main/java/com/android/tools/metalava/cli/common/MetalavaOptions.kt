@@ -20,10 +20,12 @@ import com.github.ajalt.clikt.completion.CompletionCandidates
 import com.github.ajalt.clikt.core.GroupableOption
 import com.github.ajalt.clikt.core.ParameterHolder
 import com.github.ajalt.clikt.output.HelpFormatter
+import com.github.ajalt.clikt.output.HelpFormatter.ParameterHelp.Option
 import com.github.ajalt.clikt.parameters.arguments.ProcessedArgument
 import com.github.ajalt.clikt.parameters.arguments.RawArgument
 import com.github.ajalt.clikt.parameters.arguments.convert
 import com.github.ajalt.clikt.parameters.options.NullableOption
+import com.github.ajalt.clikt.parameters.options.OptionCallTransformContext
 import com.github.ajalt.clikt.parameters.options.OptionDelegate
 import com.github.ajalt.clikt.parameters.options.OptionWithValues
 import com.github.ajalt.clikt.parameters.options.RawOption
@@ -352,5 +354,121 @@ private class PostTransformDelegate<I, O>(
 
         // This is the delegate.
         return this
+    }
+}
+
+/** A block that performs a side effect when provide a value */
+typealias SideEffectAction = OptionCallTransformContext.(String) -> Unit
+
+/** An option that simply performs a [SideEffectAction] */
+typealias SideEffectOption = OptionWithValues<Unit, Unit, Unit>
+
+/** Get the [SideEffectAction] (which is stored in [OptionWithValues.transformValue]). */
+val SideEffectOption.action: SideEffectAction
+    get() = transformValue
+
+/**
+ * Create a special option that performs a side effect.
+ *
+ * @param names names of the option.
+ * @param help the help for the option.
+ * @param action the action to perform, is passed the value associated with the option and is run
+ *   within a [OptionCallTransformContext] context.
+ */
+fun ParameterHolder.sideEffectOption(
+    vararg names: String,
+    help: String,
+    action: SideEffectAction,
+): SideEffectOption {
+    return option(names = names, help = help)
+        .copy(
+            // Perform the side effect when transforming the value.
+            transformValue = { this.action(it) },
+            transformEach = {},
+            transformAll = {},
+            validator = {}
+        )
+}
+
+/**
+ * Create a composite side effect option.
+ *
+ * This option will allow the individual options to be interleaved together and will ensure that the
+ * side effects are applied in the order they appear on the command line. Adding the options
+ * individually would cause them to be separated into groups and each group processed in order which
+ * would mean the side effects were applied in a different order.
+ *
+ * The resulting option will still be displayed as multiple separate options in the help.
+ */
+fun ParameterHolder.compositeSideEffectOption(
+    options: List<SideEffectOption>,
+): OptionDelegate<Unit> {
+    val optionByName =
+        options
+            .asSequence()
+            .flatMap { option -> option.names.map { it to option }.asSequence() }
+            .toMap()
+    val names = optionByName.keys.toTypedArray()
+    val help = constructCompositeOptionHelp(optionByName.values.map { it.optionHelp })
+    return sideEffectOption(
+        names = names,
+        help = help,
+        action = {
+            val option = optionByName[name]!!
+            val action = option.action
+            this.action(it)
+        }
+    )
+}
+
+/**
+ * A marker string that if present at the start of an options help will cause that option to be
+ * split into separate options, one for each name in the [Option.names].
+ *
+ * See [constructCompositeOptionHelp]
+ */
+private const val COMPOSITE_OPTION = "\$COMPOSITE-OPTION\$\n"
+
+/** Separator of help for each item in the string returned by [constructCompositeOptionHelp]. */
+private const val COMPOSITE_SEPARATOR = "\n\$COMPOSITE-SEPARATOR\$\n"
+
+/**
+ * Construct the help for a composite option, which is an option that has multiple names and is
+ * treated like a single option for the purposes of parsing but which needs to be displayed as a
+ * number of separate options.
+ *
+ * @param individualOptionHelp must have an entry for every name in an option's set of names and it
+ *   must be in the same order as that set.
+ */
+private fun constructCompositeOptionHelp(individualOptionHelp: List<String>) =
+    "$COMPOSITE_OPTION${individualOptionHelp.joinToString(COMPOSITE_SEPARATOR)}"
+
+/**
+ * Checks to see if an [Option] is actually a composite option which needs splitting into separate
+ * options for help formatting.
+ */
+internal fun Option.isCompositeOption(): Boolean = help.startsWith(COMPOSITE_OPTION)
+
+/**
+ * Deconstructs the help created by [constructCompositeOptionHelp] checking to make sure that there
+ * is one item for every [Option.names].
+ */
+internal fun Option.deconstructCompositeHelp(): List<String> {
+    val lines = help.removePrefix(COMPOSITE_OPTION).split(COMPOSITE_SEPARATOR)
+    if (lines.size != names.size) {
+        throw IllegalStateException(
+            "Expected ${names.size} blocks of help but found ${lines.size} in ${help}"
+        )
+    }
+    return lines
+}
+
+/** Decompose the [Option] into multiple separate options. */
+internal fun Option.decompose(): Sequence<Option> {
+    val lines = deconstructCompositeHelp()
+    return names.asSequence().mapIndexed { i, name ->
+        val metavar = if (name.endsWith("-category")) "<name>" else "<id>"
+        val help = lines[i]
+        copy(names = setOf(name), metavar = metavar, help = help)
     }
 }

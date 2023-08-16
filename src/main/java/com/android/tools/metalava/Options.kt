@@ -20,10 +20,13 @@ import com.android.SdkConstants
 import com.android.SdkConstants.FN_FRAMEWORK_LIBRARY
 import com.android.tools.lint.detector.api.isJdkFolder
 import com.android.tools.metalava.CompatibilityCheck.CheckRequest
+import com.android.tools.metalava.cli.common.ARG_HIDE
+import com.android.tools.metalava.cli.common.ARG_HIDE_CATEGORY
 import com.android.tools.metalava.cli.common.CommonOptions
 import com.android.tools.metalava.cli.common.FileReadSandbox
 import com.android.tools.metalava.cli.common.MetalavaCliException
 import com.android.tools.metalava.cli.common.MetalavaCommand
+import com.android.tools.metalava.cli.common.ReporterOptions
 import com.android.tools.metalava.cli.common.Terminal
 import com.android.tools.metalava.cli.common.TerminalColor
 import com.android.tools.metalava.cli.common.Verbosity
@@ -43,7 +46,6 @@ import com.android.tools.metalava.model.psi.defaultKotlinLanguageLevel
 import com.android.tools.metalava.model.text.ApiClassResolution
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
-import com.android.tools.metalava.reporter.Severity
 import com.android.utils.SdkUtils.wrap
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.core.NoSuchOption
@@ -137,14 +139,6 @@ const val ARG_HIDE_META_ANNOTATION = "--hide-meta-annotation"
 const val ARG_SUPPRESS_COMPATIBILITY_META_ANNOTATION = "--suppress-compatibility-meta-annotation"
 const val ARG_SHOW_FOR_STUB_PURPOSES_ANNOTATION = "--show-for-stub-purposes-annotation"
 const val ARG_SHOW_UNANNOTATED = "--show-unannotated"
-const val ARG_ERROR = "--error"
-const val ARG_WARNING = "--warning"
-const val ARG_LINT = "--lint"
-const val ARG_HIDE = "--hide"
-const val ARG_ERROR_CATEGORY = "--error-category"
-const val ARG_WARNING_CATEGORY = "--warning-category"
-const val ARG_LINT_CATEGORY = "--lint-category"
-const val ARG_HIDE_CATEGORY = "--hide-category"
 const val ARG_APPLY_API_LEVELS = "--apply-api-levels"
 const val ARG_GENERATE_API_LEVELS = "--generate-api-levels"
 const val ARG_REMOVE_MISSING_CLASS_REFERENCES_IN_API_LEVELS =
@@ -202,6 +196,7 @@ const val ARG_USE_K2_UAST = "--Xuse-k2-uast"
 
 class Options(
     private val commonOptions: CommonOptions = CommonOptions(),
+    reporterOptions: ReporterOptions = ReporterOptions(),
     signatureFileOptions: SignatureFileOptions = SignatureFileOptions(),
     signatureFormatOptions: SignatureFormatOptions = SignatureFormatOptions(),
 ) : OptionGroup() {
@@ -650,10 +645,10 @@ class Options(
     private var errorMessageCompatibilityReleased: String? = null
 
     /** [IssueConfiguration] used by all reporters. */
-    val issueConfiguration = IssueConfiguration()
+    val issueConfiguration by reporterOptions::issueConfiguration
 
     /** [Reporter] for general use. */
-    val reporter: Reporter = DefaultReporter(issueConfiguration)
+    val reporter: Reporter by reporterOptions::reporter
 
     /** [Reporter] for "api-lint" */
     var reporterApiLint: Reporter = DefaultReporter(issueConfiguration)
@@ -1036,18 +1031,6 @@ class Options(
                     val file = stringToExistingFile(getValue(args, ++index))
                     baseApiForCompatCheck = file
                 }
-                ARG_ERROR -> setIssueSeverity(getValue(args, ++index), Severity.ERROR, arg)
-                ARG_WARNING -> setIssueSeverity(getValue(args, ++index), Severity.WARNING, arg)
-                ARG_LINT -> setIssueSeverity(getValue(args, ++index), Severity.LINT, arg)
-                ARG_HIDE -> setIssueSeverity(getValue(args, ++index), Severity.HIDDEN, arg)
-                ARG_ERROR_CATEGORY ->
-                    setCategorySeverity(getValue(args, ++index), Severity.ERROR, arg)
-                ARG_WARNING_CATEGORY ->
-                    setCategorySeverity(getValue(args, ++index), Severity.WARNING, arg)
-                ARG_LINT_CATEGORY ->
-                    setCategorySeverity(getValue(args, ++index), Severity.LINT, arg)
-                ARG_HIDE_CATEGORY ->
-                    setCategorySeverity(getValue(args, ++index), Severity.HIDDEN, arg)
                 ARG_WARNINGS_AS_ERRORS -> warningsAreErrors = true
                 ARG_LINTS_AS_ERRORS -> lintsAreErrors = true
                 ARG_API_LINT -> {
@@ -1798,22 +1781,6 @@ class Options(
                 "Promote all warnings to errors",
                 ARG_LINTS_AS_ERRORS,
                 "Promote all API lint warnings to errors",
-                "$ARG_ERROR <id>",
-                "Report issues of the given id as errors",
-                "$ARG_WARNING <id>",
-                "Report issues of the given id as warnings",
-                "$ARG_LINT <id>",
-                "Report issues of the given id as having lint-severity",
-                "$ARG_HIDE <id>",
-                "Hide/skip issues of the given id",
-                "$ARG_ERROR_CATEGORY <name>",
-                "Report all issues in the given category as errors",
-                "$ARG_WARNING_CATEGORY <name>",
-                "Report all issues in the given category as warnings",
-                "$ARG_LINT_CATEGORY <name>",
-                "Report all issues in the given category as having lint-severity",
-                "$ARG_HIDE_CATEGORY <name>",
-                "Hide/skip all issues in the given category",
                 "$ARG_REPORT_EVEN_IF_SUPPRESSED <file>",
                 "Write all issues into the given file, even if suppressed (via annotation or baseline) but not if hidden (by '$ARG_HIDE' or '$ARG_HIDE_CATEGORY')",
                 "$ARG_BASELINE <file>",
@@ -2010,38 +1977,6 @@ class Options(
         }
     }
 
-    private fun setIssueSeverity(id: String, severity: Severity, arg: String) {
-        if (id.contains(",")) { // Handle being passed in multiple comma separated id's
-            id.split(",").forEach { setIssueSeverity(it.trim(), severity, arg) }
-            return
-        }
-        val issue =
-            Issues.findIssueById(id)
-                ?: Issues.findIssueByIdIgnoringCase(id)?.also {
-                    reporter.report(
-                        Issues.DEPRECATED_OPTION,
-                        null as File?,
-                        "Case-insensitive issue matching is deprecated, use " +
-                            "$arg ${it.name} instead of $arg $id"
-                    )
-                }
-                    ?: throw MetalavaCliException("Unknown issue id: $arg $id")
-
-        issueConfiguration.setSeverity(issue, severity)
-    }
-
-    private fun setCategorySeverity(id: String, severity: Severity, arg: String) {
-        if (id.contains(",")) { // Handle being passed in multiple comma separated id's
-            id.split(",").forEach { setCategorySeverity(it.trim(), severity, arg) }
-            return
-        }
-        val issues =
-            Issues.findCategoryById(id)?.let { Issues.findIssuesByCategory(it) }
-                ?: throw MetalavaCliException("Unknown category: $arg $id")
-
-        issues.forEach { issueConfiguration.setSeverity(it, severity) }
-    }
-
     companion object {
         private fun kotlinLanguageVersionSettings(value: String?): LanguageVersionSettings {
             val languageLevel =
@@ -2070,6 +2005,9 @@ internal open class OptionsCommand(commonOptions: CommonOptions) :
      */
     private val flags by argument().multiple()
 
+    /** Issue reporter configuration. */
+    private val reporterOptions by ReporterOptions()
+
     /** Signature file options. */
     private val signatureFileOptions by SignatureFileOptions()
 
@@ -2083,6 +2021,7 @@ internal open class OptionsCommand(commonOptions: CommonOptions) :
     private val optionGroup by
         Options(
             commonOptions = commonOptions,
+            reporterOptions = reporterOptions,
             signatureFileOptions = signatureFileOptions,
             signatureFormatOptions = signatureFormatOptions,
         )

@@ -19,7 +19,6 @@ package com.android.tools.metalava
 import com.android.tools.metalava.cli.common.enumOption
 import com.android.tools.metalava.cli.common.existingFile
 import com.android.tools.metalava.cli.common.map
-import com.android.tools.metalava.model.text.ApiFile
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.model.text.FileFormat.DefaultsVersion
 import com.android.tools.metalava.model.text.FileFormat.OverloadedMethodOrder
@@ -192,7 +191,6 @@ class SignatureFormatOptions :
     private val useSameFormatAs by
         option(
                 ARG_USE_SAME_FORMAT_AS,
-                metavar = "<file>",
                 help =
                     """
                         Specifies that the output format should be the same as the format used in
@@ -215,9 +213,7 @@ class SignatureFormatOptions :
             )
             .existingFile()
             .map { file ->
-                file?.bufferedReader(Charsets.UTF_8, 128)?.use {
-                    ApiFile.parseHeader(file.path, it)
-                }
+                file?.reader(Charsets.UTF_8)?.use { FileFormat.parseHeader(file.path, it) }
             }
 
     /**

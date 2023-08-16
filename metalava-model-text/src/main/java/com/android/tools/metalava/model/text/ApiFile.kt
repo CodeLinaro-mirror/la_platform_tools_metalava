@@ -36,13 +36,13 @@ import com.android.tools.metalava.model.javaUnescapeString
 import com.android.tools.metalava.model.noOpAnnotationManager
 import com.android.tools.metalava.model.text.TextTypeItem.Companion.isPrimitive
 import com.android.tools.metalava.model.text.TextTypeParameterList.Companion.create
-import java.io.BufferedReader
 import java.io.File
 import java.io.IOException
 import java.io.StringReader
 import kotlin.text.Charsets.UTF_8
 
-class ApiFile(
+class ApiFile
+private constructor(
     /** Implements [ResolverContext] interface */
     override val classResolver: ClassResolver?
 ) : ResolverContext {
@@ -141,30 +141,6 @@ class ApiFile(
             parser.postProcess(api)
             return api
         }
-
-        fun parseHeader(filename: String, reader: BufferedReader): FileFormat? {
-            var line = reader.readLine()
-            while (line != null && line.isBlank()) {
-                line = reader.readLine()
-            }
-            if (line == null) {
-                return null
-            }
-
-            for (format in FileFormat.allDefaults) {
-                val header = format.header()
-                if (header == null) {
-                    if (line.startsWith("package ")) {
-                        // Old signature files
-                        return FileFormat.V1
-                    }
-                } else if (header.startsWith(line)) {
-                    return format
-                }
-            }
-
-            throw ApiParseException("Unknown file format of $filename")
-        }
     }
 
     /**
@@ -182,11 +158,8 @@ class ApiFile(
         filename: String,
         apiText: String,
     ) {
-        // Wrap the body into a small buffer, big enough to read a signature version line.
-        val reader = BufferedReader(StringReader(apiText), 128)
-
-        // Infer the format.
-        format = parseHeader(filename, reader) ?: FileFormat.V2
+        // Parse the header of the signature file to determine the format.
+        format = FileFormat.parseHeader(filename, StringReader(apiText)) ?: FileFormat.V2
         kotlinStyleNulls = format.kotlinStyleNulls
 
         // If it's the first file, set the format. Otherwise, make sure the format is the same as
@@ -366,7 +339,10 @@ class ApiFile(
                 null -> maybeExistingClass
                 else -> {
                     if (!foundClass.isCompatible(maybeExistingClass)) {
-                        throw ApiParseException("Incompatible $foundClass definitions")
+                        throw ApiParseException(
+                            "Incompatible $foundClass definitions",
+                            maybeExistingClass.position
+                        )
                     } else {
                         foundClass
                     }

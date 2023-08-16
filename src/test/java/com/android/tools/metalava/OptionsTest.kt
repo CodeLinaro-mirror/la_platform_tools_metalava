@@ -18,8 +18,7 @@ package com.android.tools.metalava
 
 import com.android.tools.metalava.cli.common.ARG_NO_COLOR
 import com.android.tools.metalava.cli.common.FileReadSandbox
-import com.android.tools.metalava.reporter.Issues
-import com.android.tools.metalava.reporter.Severity
+import com.android.tools.metalava.cli.common.REPORTING_OPTIONS_HELP
 import java.io.File
 import java.io.PrintWriter
 import java.io.StringWriter
@@ -28,7 +27,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-@Suppress("PrivatePropertyName", "DEPRECATION")
+@Suppress("PrivatePropertyName")
 class OptionsTest : DriverTest() {
     private val FLAGS =
         """
@@ -197,22 +196,6 @@ Diffs and Checks:
                                              Promote all warnings to errors
 --lints-as-errors
                                              Promote all API lint warnings to errors
---error <id>
-                                             Report issues of the given id as errors
---warning <id>
-                                             Report issues of the given id as warnings
---lint <id>
-                                             Report issues of the given id as having lint-severity
---hide <id>
-                                             Hide/skip issues of the given id
---error-category <name>
-                                             Report all issues in the given category as errors
---warning-category <name>
-                                             Report all issues in the given category as warnings
---lint-category <name>
-                                             Report all issues in the given category as having lint-severity
---hide-category <name>
-                                             Hide/skip all issues in the given category
 --report-even-if-suppressed <file>
                                              Write all issues into the given file, even if suppressed (via annotation or
                                              baseline) but not if hidden (by '--hide' or '--hide-category')
@@ -427,6 +410,8 @@ Options:
 
                                              inline - will include the constants themselves into each usage site
 
+$REPORTING_OPTIONS_HELP
+
 Signature File Output:
 
   Options controlling the signature file output. The format of the generated file is determined by the options in the
@@ -447,6 +432,7 @@ $SIGNATURE_FORMAT_OPTIONS_HELP
 Sub-commands:
   android-jars-to-signatures                 Rewrite the signature files in the `prebuilts/sdk` directory in the Android
                                              source tree by
+  merge-signatures                           Merge multiple signature files together into a single file.
   signature-to-jdiff                         Convert an API signature file into a file in the JDiff XML format.
   version                                    Show the version
         """
@@ -564,67 +550,6 @@ $MAIN_HELP_BODY
             """
                 .trimIndent(),
             stdout.toString()
-        )
-    }
-
-    @Test
-    fun `Test issue severity options`() {
-        check(
-            extraArguments =
-                arrayOf(
-                    "--hide",
-                    "StartWithLower",
-                    "--lint",
-                    "EndsWithImpl",
-                    "--warning",
-                    "StartWithUpper",
-                    "--error",
-                    "ArrayReturn"
-                )
-        )
-        val issueConfiguration = options.issueConfiguration
-        assertEquals(Severity.HIDDEN, issueConfiguration.getSeverity(Issues.START_WITH_LOWER))
-        assertEquals(Severity.LINT, issueConfiguration.getSeverity(Issues.ENDS_WITH_IMPL))
-        assertEquals(Severity.WARNING, issueConfiguration.getSeverity(Issues.START_WITH_UPPER))
-        assertEquals(Severity.ERROR, issueConfiguration.getSeverity(Issues.ARRAY_RETURN))
-    }
-
-    @Test
-    fun `Test multiple issue severity options`() {
-        check(extraArguments = arrayOf("--hide", "StartWithLower,StartWithUpper,ArrayReturn"))
-        val issueConfiguration = options.issueConfiguration
-        assertEquals(Severity.HIDDEN, issueConfiguration.getSeverity(Issues.START_WITH_LOWER))
-        assertEquals(Severity.HIDDEN, issueConfiguration.getSeverity(Issues.START_WITH_UPPER))
-        assertEquals(Severity.HIDDEN, issueConfiguration.getSeverity(Issues.ARRAY_RETURN))
-    }
-
-    @Test
-    fun `Test issue severity options with inheriting issues`() {
-        check(extraArguments = arrayOf("--error", "RemovedClass"))
-        val issueConfiguration = options.issueConfiguration
-        assertEquals(Severity.ERROR, issueConfiguration.getSeverity(Issues.REMOVED_CLASS))
-        assertEquals(
-            Severity.ERROR,
-            issueConfiguration.getSeverity(Issues.REMOVED_DEPRECATED_CLASS)
-        )
-    }
-
-    @Test
-    fun `Test issue severity options with case insensitive names`() {
-        check(
-            extraArguments = arrayOf("--hide", "arrayreturn"),
-            expectedIssues =
-                "warning: Case-insensitive issue matching is deprecated, use --hide ArrayReturn instead of --hide arrayreturn [DeprecatedOption]"
-        )
-        val issueConfiguration = options.issueConfiguration
-        assertEquals(Severity.HIDDEN, issueConfiguration.getSeverity(Issues.ARRAY_RETURN))
-    }
-
-    @Test
-    fun `Test issue severity options with non-existing issue`() {
-        check(
-            extraArguments = arrayOf("--hide", "ThisIssueDoesNotExist"),
-            expectedFail = "Aborting: Unknown issue id: --hide ThisIssueDoesNotExist"
         )
     }
 

@@ -28,6 +28,7 @@ import com.android.tools.metalava.cli.common.FileReadSandbox
 import com.android.tools.metalava.cli.common.MetalavaCliException
 import com.android.tools.metalava.cli.common.MetalavaCommand
 import com.android.tools.metalava.cli.common.VersionCommand
+import com.android.tools.metalava.cli.signature.MergeSignaturesCommand
 import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassResolver
@@ -963,6 +964,7 @@ private fun createMetalavaCommand(stdout: PrintWriter, stderr: PrintWriter): Met
     val command = MetalavaCommand(stdout, stderr, ::DriverCommand, options::getUsage)
     command.subcommands(
         AndroidJarsToSignaturesCommand(),
+        MergeSignaturesCommand(),
         SignatureToJDiffCommand(),
         VersionCommand(),
     )
