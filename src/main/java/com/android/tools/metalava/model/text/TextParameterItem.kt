@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.text
 
+import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ParameterItem
 
@@ -30,7 +31,7 @@ class TextParameterItem(
     private var defaultValueBody: String? = UNKNOWN_DEFAULT_VALUE,
     override val parameterIndex: Int,
     private var type: TextTypeItem,
-    modifiers: TextModifiers,
+    modifiers: DefaultModifierList,
     position: SourcePositionInfo
 ) :
     // TODO: We need to pass in parameter modifiers here (synchronized etc)

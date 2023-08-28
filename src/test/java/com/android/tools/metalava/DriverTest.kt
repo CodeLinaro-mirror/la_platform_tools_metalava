@@ -33,11 +33,11 @@ import com.android.tools.lint.checks.infrastructure.TestFiles.java
 import com.android.tools.lint.checks.infrastructure.TestFiles.kotlin
 import com.android.tools.lint.checks.infrastructure.stripComments
 import com.android.tools.lint.client.api.LintClient
+import com.android.tools.metalava.model.FileFormat
 import com.android.tools.metalava.model.SUPPORT_TYPE_USE_ANNOTATIONS
-import com.android.tools.metalava.model.defaultConfiguration
-import com.android.tools.metalava.model.parseDocument
 import com.android.tools.metalava.model.text.ApiClassResolution
 import com.android.tools.metalava.model.text.ApiFile
+import com.android.tools.metalava.xml.parseDocument
 import com.android.utils.SdkUtils
 import com.android.utils.StdLogger
 import com.google.common.io.ByteStreams
@@ -826,7 +826,7 @@ abstract class DriverTest {
                 emptyArray()
             }
 
-        val convertFiles = mutableListOf<Options.ConvertFile>()
+        val convertFiles = mutableListOf<ConvertFile>()
         val convertArgs =
             if (convertToJDiff.isNotEmpty()) {
                 val args = mutableListOf<String>()
@@ -836,7 +836,7 @@ abstract class DriverTest {
                     val base = convert.baseApi
                     val convertSig = temporaryFolder.newFile("convert-signatures$index.txt")
                     convertSig.writeText(signature.trimIndent(), UTF_8)
-                    val extension = FileFormat.JDIFF.preferredExtension()
+                    val extension = DOT_XML
                     val output = temporaryFolder.newFile("convert-output$index$extension")
                     val baseFile =
                         if (base != null) {
@@ -847,22 +847,17 @@ abstract class DriverTest {
                         } else {
                             null
                         }
-                    convertFiles += Options.ConvertFile(convertSig, output, baseFile, strip = true)
+                    convertFiles += ConvertFile(convertSig, output, baseFile, strip = true)
                     index++
 
+                    if (convert.strip) {
+                        throw IllegalArgumentException("Stripping not supported: $convert")
+                    }
                     if (baseFile != null) {
-                        args +=
-                            when {
-                                convert.strip -> "-new_api"
-                                else -> ARG_CONVERT_NEW_TO_JDIFF
-                            }
+                        args += ARG_CONVERT_NEW_TO_JDIFF
                         args += baseFile.path
                     } else {
-                        args +=
-                            when {
-                                convert.strip -> "-convert2xml"
-                                else -> ARG_CONVERT_TO_JDIFF
-                            }
+                        args += ARG_CONVERT_TO_JDIFF
                     }
                     args += convertSig.path
                     args += output.path
@@ -1157,7 +1152,7 @@ abstract class DriverTest {
             val actualText = readFile(apiFile, stripBlankLines, trim)
             assertEquals(prepareExpectedApi(api, format), actualText)
             // Make sure we can read back the files we write
-            ApiFile.parseApi(apiFile)
+            ApiFile.parseApi(apiFile, options.annotationManager)
         }
 
         if (apiXml != null && apiXmlFile != null) {
@@ -1253,7 +1248,7 @@ abstract class DriverTest {
             val actualText = readFile(removedApiFile, stripBlankLines, trim)
             assertEquals(prepareExpectedApi(removedApi, format), actualText)
             // Make sure we can read back the files we write
-            ApiFile.parseApi(removedApiFile)
+            ApiFile.parseApi(removedApiFile, options.annotationManager)
         }
 
         if (proguard != null && proguardFile != null) {
@@ -1538,6 +1533,27 @@ abstract class DriverTest {
             }
             return apiText
         }
+    }
+}
+
+private fun FileFormat.outputFlag(): String {
+    return if (isSignatureFormat()) {
+        "$ARG_FORMAT=v${signatureFormatAsInt()}"
+    } else {
+        ""
+    }
+}
+
+private fun FileFormat.signatureFormatAsInt(): Int {
+    return when (this) {
+        FileFormat.V1 -> 1
+        FileFormat.V2 -> 2
+        FileFormat.V3 -> 3
+        FileFormat.V4 -> 4
+        FileFormat.BASELINE,
+        FileFormat.JDIFF,
+        FileFormat.SINCE_XML,
+        FileFormat.UNKNOWN -> error("this method is only allowed on signature formats, was $this")
     }
 }
 

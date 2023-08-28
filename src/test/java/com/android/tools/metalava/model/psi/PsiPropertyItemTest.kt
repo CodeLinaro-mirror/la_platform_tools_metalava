@@ -185,13 +185,31 @@ class PsiPropertyItemTest {
                             get() = ""
 
                         @ExperimentalBarApi("40", "2")
-                        @property:ExperimentalBarApi(values = ["2", "40"])
+                        @property:ExperimentalBarApi(values = ["40", "2"])
                         val withoutFieldOnPropertyAndNoUseSiteSameArg: String
                             get() = ""
 
                         @ExperimentalBarApi("42")
                         @property:ExperimentalBarApi("42", "24")
                         val withoutFieldOnPropertyAndNoUseSiteDiffArg: String
+                            get() = ""
+
+                        // Make sure that when `values` is an array and the arrays are not equal but
+                        // one is a subset of the other, then they are not treated as equal. This
+                        // checks when the first is a subset of the second. The following tests the
+                        // opposite.
+                        @ExperimentalBarApi("42", "24")
+                        @property:ExperimentalBarApi("42", "24", "11")
+                        val withoutFieldOnPropertyAndNoUseSiteDiffArgLists1: String
+                            get() = ""
+
+                        // Make sure that when `values` is an array and the arrays are not equal but
+                        // one is a subset of the other, then they are not treated as equal. This
+                        // checks when the second is a subset of the first. The previous tests the
+                        // opposite.
+                        @ExperimentalBarApi("42", "24", "11")
+                        @property:ExperimentalBarApi("42", "24")
+                        val withoutFieldOnPropertyAndNoUseSiteDiffArgLists2: String
                             get() = ""
                     }
                 """
@@ -214,6 +232,10 @@ class PsiPropertyItemTest {
                 properties.single { it.name() == "withoutFieldOnPropertyAndNoUseSiteSameArg" }
             val withoutFieldOnPropertyAndNoUseSiteDiffArg =
                 properties.single { it.name() == "withoutFieldOnPropertyAndNoUseSiteDiffArg" }
+            val withoutFieldOnPropertyAndNoUseSiteDiffArgLists1 =
+                properties.single { it.name() == "withoutFieldOnPropertyAndNoUseSiteDiffArgLists1" }
+            val withoutFieldOnPropertyAndNoUseSiteDiffArgLists2 =
+                properties.single { it.name() == "withoutFieldOnPropertyAndNoUseSiteDiffArgLists2" }
 
             val withFieldBackingField = withField.backingField
             assertNotNull(withFieldBackingField)
@@ -226,6 +248,8 @@ class PsiPropertyItemTest {
             assertNull(withoutFieldOnPropertyAndNoUseSite.backingField)
             assertNull(withoutFieldOnPropertyAndNoUseSiteSameArg.backingField)
             assertNull(withoutFieldOnPropertyAndNoUseSiteDiffArg.backingField)
+            assertNull(withoutFieldOnPropertyAndNoUseSiteDiffArgLists1.backingField)
+            assertNull(withoutFieldOnPropertyAndNoUseSiteDiffArgLists2.backingField)
 
             val fooApi = "ExperimentalFooApi"
             val barApi = "ExperimentalBarApi"
@@ -264,6 +288,8 @@ class PsiPropertyItemTest {
 
             checkAnnotations(withoutFieldOnGetterAndNoUseSiteDiffArg, 2)
             checkAnnotations(withoutFieldOnPropertyAndNoUseSiteDiffArg, 2)
+            checkAnnotations(withoutFieldOnPropertyAndNoUseSiteDiffArgLists1, 2)
+            checkAnnotations(withoutFieldOnPropertyAndNoUseSiteDiffArgLists2, 2)
         }
     }
 

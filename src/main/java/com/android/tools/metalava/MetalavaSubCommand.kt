@@ -21,7 +21,20 @@ import com.github.ajalt.clikt.core.context
 import com.github.ajalt.clikt.output.HelpFormatter
 
 /** Base class for all sub-commands of [MetalavaCommand]. */
-abstract class MetalavaSubCommand(help: String) : CliktCommand(help = help) {
+abstract class MetalavaSubCommand(
+    help: String,
+    /**
+     * Print help if no arguments are provided to the sub-command.
+     *
+     * This is on by default as most sub-commands are expected to require some arguments, The only
+     * exception is `version`.
+     */
+    printHelpOnEmptyArgs: Boolean = true,
+) :
+    CliktCommand(
+        help = help,
+        printHelpOnEmptyArgs = printHelpOnEmptyArgs,
+    ) {
     /**
      * Return an instance of [HelpFormatter.ParameterHelp.Subcommand]
      *

@@ -16,11 +16,7 @@
 
 package com.android.tools.metalava.model
 
-import com.android.tools.metalava.model.text.TextCodebase
-import com.android.tools.metalava.model.visitors.ItemVisitor
-import com.android.tools.metalava.model.visitors.TypeVisitor
 import java.util.function.Predicate
-import org.jetbrains.kotlin.builtins.StandardNames
 
 interface MethodItem : MemberItem {
     /**
@@ -49,34 +45,6 @@ interface MethodItem : MemberItem {
 
     /** Returns the main documentation for the method (the documentation before any tags). */
     fun findMainDocumentation(): String
-
-    /**
-     * Like [internalName] but is the desc-portion of the internal signature, e.g. for the method
-     * "void create(int x, int y)" the internal name of the constructor is "create" and the desc is
-     * "(II)V"
-     */
-    fun internalDesc(voidConstructorTypes: Boolean = false): String {
-        val sb = StringBuilder()
-        sb.append("(")
-
-        // Non-static inner classes get an implicit constructor parameter for the
-        // outer type
-        if (
-            isConstructor() &&
-                containingClass().containingClass() != null &&
-                !containingClass().modifiers.isStatic()
-        ) {
-            sb.append(containingClass().containingClass()?.toType()?.internalName() ?: "")
-        }
-
-        for (parameter in parameters()) {
-            sb.append(parameter.type().internalName())
-        }
-
-        sb.append(")")
-        sb.append(if (voidConstructorTypes && isConstructor()) "V" else returnType().internalName())
-        return sb.toString()
-    }
 
     fun allSuperMethods(): Sequence<MethodItem> {
         val original = superMethods().firstOrNull() ?: return emptySequence()
@@ -132,13 +100,13 @@ interface MethodItem : MemberItem {
             } else {
                 // Excluded, but it may have super class throwables that are included; if so,
                 // include those
-                var curr = cls.publicSuperClass()
+                var curr = cls.superClass()
                 while (curr != null) {
                     if (predicate.test(curr)) {
                         classes.add(curr)
                         break
                     }
-                    curr = curr.publicSuperClass()
+                    curr = curr.superClass()
                 }
             }
         }
@@ -188,27 +156,7 @@ interface MethodItem : MemberItem {
     }
 
     override fun accept(visitor: ItemVisitor) {
-        if (visitor.skip(this)) {
-            return
-        }
-
-        visitor.visitItem(this)
-        if (isConstructor()) {
-            visitor.visitConstructor(this as ConstructorItem)
-        } else {
-            visitor.visitMethod(this)
-        }
-
-        for (parameter in parameters()) {
-            parameter.accept(visitor)
-        }
-
-        if (isConstructor()) {
-            visitor.afterVisitConstructor(this as ConstructorItem)
-        } else {
-            visitor.afterVisitMethod(this)
-        }
-        visitor.afterVisitItem(this)
+        visitor.visit(this)
     }
 
     override fun acceptTypes(visitor: TypeVisitor) {
@@ -417,6 +365,27 @@ interface MethodItem : MemberItem {
         return true
     }
 
+    override fun implicitNullness(): Boolean? {
+        // Delegate to the super class, only dropping through if it did not determine an implicit
+        // nullness.
+        super.implicitNullness()?.let { nullable ->
+            return nullable
+        }
+
+        if (synthetic && isEnumSyntheticMethod()) {
+            // Workaround the fact that the Kotlin synthetic enum methods
+            // do not have nullness information
+            return false
+        }
+
+        // toString has known nullness
+        if (name() == "toString" && parameters().isEmpty()) {
+            return false
+        }
+
+        return null
+    }
+
     fun isImplicitConstructor(): Boolean {
         return isConstructor() && modifiers.isPublic() && parameters().isEmpty()
     }
@@ -465,30 +434,28 @@ interface MethodItem : MemberItem {
             val type2 = parameter2.type().toErasedTypeString(other)
 
             if (type1 != type2) {
-                // Workaround for signature-based codebase, where we can't always resolve generic
-                // parameters: if we see a mismatch here which looks like a failure to erase say T
-                // into
-                // java.lang.Object, don't treat that as a mismatch. (Similar common case: T[] and
-                // Object[])
-                if (
-                    typeString1[0].isUpperCase() &&
-                        typeString1.length == 1 &&
-                        parameter1.codebase is TextCodebase
-                ) {
-                    continue
+                if (!checkGenericParameterTypes(typeString1, typeString2)) {
+                    return false
                 }
-                if (
-                    typeString2.length >= 2 &&
-                        !typeString2[1].isLetterOrDigit() &&
-                        parameter1.codebase is TextCodebase
-                ) {
-                    continue
-                }
-                return false
             }
         }
         return true
     }
+
+    /**
+     * Perform an additional check on possibly generic parameter types that do not match.
+     *
+     * Workaround for signature-based codebase, where we can't always resolve generic parameters. If
+     * we see a mismatch here which looks like a failure to erase say `T` into `java.lang.Object`,
+     * don't treat that as a mismatch.
+     *
+     * (Similar common case: `T[]` and `Object[]`)
+     *
+     * @param typeString1 the un-erased type for the parameter from this method.
+     * @param typeString2 the un-erased type for the corresponding parameter from another method
+     *   against which this is being matched.
+     */
+    fun checkGenericParameterTypes(typeString1: String, typeString2: String): Boolean = false
 
     /**
      * Returns whether this method has any types in its signature that does not match the given
@@ -555,13 +522,11 @@ interface MethodItem : MemberItem {
     fun isEnumSyntheticMethod(): Boolean = isEnumSyntheticValues() || isEnumSyntheticValueOf()
 
     fun isEnumSyntheticValues(): Boolean =
-        containingClass().isEnum() &&
-            name() == StandardNames.ENUM_VALUES.identifier &&
-            parameters().isEmpty()
+        containingClass().isEnum() && name() == JAVA_ENUM_VALUES && parameters().isEmpty()
 
     fun isEnumSyntheticValueOf(): Boolean =
         containingClass().isEnum() &&
-            name() == StandardNames.ENUM_VALUE_OF.identifier &&
+            name() == JAVA_ENUM_VALUE_OF &&
             parameters().size == 1 &&
             parameters()[0].type().isString()
 }

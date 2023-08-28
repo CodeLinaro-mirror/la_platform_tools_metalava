@@ -38,7 +38,7 @@ class SymlinkTest : DriverTest() {
         try {
             check(
                 expectedIssues =
-                    "TESTROOT/src/test/pkg/sub1/sub2/sub3: info: Ignoring symlink during source file discovery directory traversal [IgnoringSymlink]",
+                    "src/test/pkg/sub1/sub2/sub3: info: Ignoring symlink during source file discovery directory traversal [IgnoringSymlink]",
                 projectSetup = { dir ->
                     // Add a symlink from deep in the source tree back out to the
                     // root, which makes a cycle

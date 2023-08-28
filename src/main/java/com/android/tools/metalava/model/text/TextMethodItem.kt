@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model.text
 
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ParameterItem
@@ -30,7 +31,7 @@ open class TextMethodItem(
     codebase: TextCodebase,
     name: String,
     containingClass: ClassItem,
-    modifiers: TextModifiers,
+    modifiers: DefaultModifierList,
     private val returnType: TextTypeItem,
     position: SourcePositionInfo
 ) :
@@ -226,5 +227,15 @@ open class TextMethodItem(
 
     override fun defaultValue(): String {
         return annotationDefault
+    }
+
+    override fun checkGenericParameterTypes(typeString1: String, typeString2: String): Boolean {
+        if (typeString1[0].isUpperCase() && typeString1.length == 1) {
+            return true
+        }
+        if (typeString2.length >= 2 && !typeString2[1].isLetterOrDigit()) {
+            return true
+        }
+        return false
     }
 }

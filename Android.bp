@@ -16,17 +16,53 @@ package {
     default_applicable_licenses: ["Android-Apache-2.0"],
 }
 
+model_api_files = [
+    "src/main/java/com/android/tools/metalava/model/*.java",
+    "src/main/java/com/android/tools/metalava/model/*.kt",
+]
+
+java_library_host {
+    name: "metalava-model-api",
+    visibility: ["//visibility:private"],
+    srcs: model_api_files,
+}
+
+model_text_files = [
+    "src/main/java/com/android/tools/metalava/model/text/*.java",
+    "src/main/java/com/android/tools/metalava/model/text/*.kt",
+]
+
+java_library_host {
+    name: "metalava-model-text",
+    visibility: ["//visibility:private"],
+    srcs: model_text_files,
+    libs: [
+        "metalava-model-api",
+    ],
+}
+
+java_library_host {
+    name: "metalava-signature-reader",
+    static_libs: [
+        "metalava-model-api",
+        "metalava-model-text",
+    ],
+}
+
 java_binary_host {
     name: "metalava",
     srcs: [
         "src/main/java/**/*.java",
         "src/main/java/**/*.kt",
     ],
+    exclude_srcs: model_api_files + model_text_files,
     java_resource_dirs: ["src/main/resources/"],
     static_libs: [
         "jsr305",
         "jsr330",
         "kotlin-reflect",
+        "metalava-model-api",
+        "metalava-model-text",
         "metalava-tools-common-m2-deps",
         "metalava-gradle-plugin-deps",
         "gson-prebuilt-jar-2.9.1",

@@ -17,6 +17,7 @@
 package com.android.tools.metalava
 
 import com.android.tools.lint.checks.infrastructure.TestFile
+import com.android.tools.metalava.model.FileFormat
 import org.junit.Test
 
 class ShowForStubPurposesAnnotationTest : DriverTest() {
@@ -713,7 +714,7 @@ class ShowForStubPurposesAnnotationTest : DriverTest() {
             expectedFail = DefaultLintErrorMessage,
             expectedIssues =
                 """
-                src/test/pkg/ModuleClassExtendingPublic.java:11: error: Missing nullability on method `method2` return [MissingNullability] [See https://s.android.com/api-guidelines#annotations]
+                src/test/pkg/ModuleClassExtendingPublic.java:11: error: Missing nullability on method `method2` return [MissingNullability]
                 """
         )
     }

@@ -109,7 +109,7 @@ class ApiLintBaselineTest : DriverTest() {
             """,
             expectedIssues =
                 """
-                src/android/pkg/MyEnum.java:3: error: Enums are discouraged in Android APIs [Enum] [See https://s.android.com/api-guidelines#avoid-enum]
+                src/android/pkg/MyEnum.java:3: error: Enums are discouraged in Android APIs [Enum]
                 """,
             expectedFail = DefaultLintErrorMessage,
             sourceFiles =
@@ -135,7 +135,7 @@ class ApiLintBaselineTest : DriverTest() {
             errorMessageApiLint = "*** api-lint failed ***",
             expectedIssues =
                 """
-                src/android/pkg/MyClassImpl.java:3: error: Don't expose your implementation details: `MyClassImpl` ends with `Impl` [EndsWithImpl] [See https://s.android.com/api-guidelines#dont-end-with-impl]
+                src/android/pkg/MyClassImpl.java:3: error: Don't expose your implementation details: `MyClassImpl` ends with `Impl` [EndsWithImpl]
                 """,
             sourceFiles =
                 arrayOf(
@@ -164,7 +164,7 @@ class ApiLintBaselineTest : DriverTest() {
             baselineApiLint = "",
             expectedIssues =
                 """
-                src/android/pkg/MyClassImpl.java:3: error: Don't expose your implementation details: `MyClassImpl` ends with `Impl` [EndsWithImpl] [See https://s.android.com/api-guidelines#dont-end-with-impl]
+                src/android/pkg/MyClassImpl.java:3: error: Don't expose your implementation details: `MyClassImpl` ends with `Impl` [EndsWithImpl]
                 """,
             sourceFiles =
                 arrayOf(
@@ -179,6 +179,92 @@ class ApiLintBaselineTest : DriverTest() {
                 ),
             expectedFail = DefaultLintErrorMessage,
             expectedOutput = DefaultLintErrorMessage
+        )
+    }
+
+    @Test
+    fun `Check generic builders with synthesized setter`() {
+        check(
+            apiLint = "", // enabled
+            baselineApiLint = "",
+            updateBaselineApiLint =
+                """
+                // Baseline format: 1.0
+                MissingGetterMatchingBuilder: test.Foo.Builder#setField(int):
+                    test.Foo does not declare a `getField()` method matching method test.Foo.Builder.setField(int)
+                """,
+            hideAnnotations =
+                arrayOf(
+                    "androidx.annotation.RestrictTo",
+                    "androidx.annotation.RestrictTo(androidx.annotation.RestrictTo.Scope.LIBRARY)"
+                ),
+            extraArguments =
+                arrayOf(
+                    ARG_HIDE_PACKAGE,
+                    "androidx",
+                    ARG_HIDE,
+                    "HiddenSuperclass",
+                    ARG_HIDE,
+                    "ProtectedMember",
+                    ARG_HIDE,
+                    "GetterOnBuilder"
+                ),
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                    package test;
+                    import androidx.annotation.NonNull;
+                    import androidx.annotation.RestrictTo;
+                    @RestrictTo(RestrictTo.Scope.LIBRARY)
+                    public class Base {
+                        public static abstract class BaseBuilder<B extends BaseBuilder<B>> {
+                            protected int field;
+                            
+                            protected BaseBuilder() {}
+                            
+                            @NonNull
+                            protected abstract B getThis();
+                            
+                            @NonNull
+                            public B setField(int i) {
+                                this.field = i;
+                                return getThis();
+                            }
+                        }
+                    }
+                    """
+                    ),
+                    java(
+                        """
+                    package test;
+                    import androidx.annotation.NonNull;
+                    public class Foo extends Base {
+                        private final int field;
+                        private Foo(int i) {
+                            this.field = i;
+                        }
+                        
+                        public static final class Builder extends BaseBuilder<Builder> {
+                            public Builder() {}
+
+                            @RestrictTo(RestrictTo.Scope.LIBRARY)
+                            @NonNull
+                            @Override
+                            protected Builder getThis() { return this; }
+
+                            @NonNull
+                            public Foo build() {
+                                return new Foo(field);
+                            }
+                        }
+                    }
+                    """
+                    ),
+                    androidxNonNullSource,
+                    androidxNullableSource,
+                    restrictToSource,
+                ),
         )
     }
 }

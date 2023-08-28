@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.text
 
+import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.TypeItem
@@ -24,7 +25,7 @@ class TextPropertyItem(
     codebase: TextCodebase,
     name: String,
     containingClass: TextClassItem,
-    modifiers: TextModifiers,
+    modifiers: DefaultModifierList,
     private val type: TextTypeItem,
     position: SourcePositionInfo
 ) : TextMemberItem(codebase, name, containingClass, position, modifiers), PropertyItem {

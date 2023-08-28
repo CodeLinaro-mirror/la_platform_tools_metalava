@@ -17,8 +17,8 @@
 package com.android.tools.metalava.binarycompatibility
 
 import com.android.tools.metalava.DriverTest
-import com.android.tools.metalava.FileFormat
 import com.android.tools.metalava.kotlin
+import com.android.tools.metalava.model.FileFormat
 import org.junit.Test
 
 class BinaryCompatibilityPackagesTest : DriverTest() {
@@ -51,7 +51,7 @@ class BinaryCompatibilityPackagesTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                TESTROOT/released-api.txt:4: error: Removed package test.pkg.removed [RemovedPackage]
+                released-api.txt:4: error: Removed package test.pkg.removed [RemovedPackage]
             """
                     .trimIndent(),
             signatureSource =
@@ -102,7 +102,7 @@ class BinaryCompatibilityPackagesTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                TESTROOT/released-api.txt:3: error: Removed class test.pkg.Bar [RemovedClass]
+                released-api.txt:3: error: Removed class test.pkg.Bar [RemovedClass]
             """
                     .trimIndent(),
             signatureSource =
@@ -154,7 +154,7 @@ class BinaryCompatibilityPackagesTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                TESTROOT/load-api.txt:2: error: Class test.pkg.Foo changed visibility from public to private [ChangedScope]
+                load-api.txt:2: error: Class test.pkg.Foo changed visibility from public to private [ChangedScope]
             """
                     .trimIndent(),
             signatureSource =
@@ -182,18 +182,18 @@ class BinaryCompatibilityPackagesTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                TESTROOT/load-api.txt:11: error: Class test.pkg.AnnotationToClass changed class/interface declaration [ChangedClass]
-                TESTROOT/load-api.txt:13: error: Class test.pkg.AnnotationToEnum changed class/interface declaration [ChangedClass]
-                TESTROOT/load-api.txt:12: error: Class test.pkg.AnnotationToInterface changed class/interface declaration [ChangedClass]
-                TESTROOT/load-api.txt:4: error: Class test.pkg.ClassToAnnotation changed class/interface declaration [ChangedClass]
-                TESTROOT/load-api.txt:2: error: Class test.pkg.ClassToEnum changed class/interface declaration [ChangedClass]
-                TESTROOT/load-api.txt:3: error: Class test.pkg.ClassToInterface changed class/interface declaration [ChangedClass]
-                TESTROOT/load-api.txt:7: error: Class test.pkg.EnumToAnnotation changed class/interface declaration [ChangedClass]
-                TESTROOT/load-api.txt:5: error: Class test.pkg.EnumToClass changed class/interface declaration [ChangedClass]
-                TESTROOT/load-api.txt:6: error: Class test.pkg.EnumToInterface changed class/interface declaration [ChangedClass]
-                TESTROOT/load-api.txt:10: error: Class test.pkg.InterfaceToAnnotation changed class/interface declaration [ChangedClass]
-                TESTROOT/load-api.txt:8: error: Class test.pkg.InterfaceToClass changed class/interface declaration [ChangedClass]
-                TESTROOT/load-api.txt:9: error: Class test.pkg.InterfaceToEnum changed class/interface declaration [ChangedClass]
+                load-api.txt:11: error: Class test.pkg.AnnotationToClass changed class/interface declaration [ChangedClass]
+                load-api.txt:13: error: Class test.pkg.AnnotationToEnum changed class/interface declaration [ChangedClass]
+                load-api.txt:12: error: Class test.pkg.AnnotationToInterface changed class/interface declaration [ChangedClass]
+                load-api.txt:4: error: Class test.pkg.ClassToAnnotation changed class/interface declaration [ChangedClass]
+                load-api.txt:2: error: Class test.pkg.ClassToEnum changed class/interface declaration [ChangedClass]
+                load-api.txt:3: error: Class test.pkg.ClassToInterface changed class/interface declaration [ChangedClass]
+                load-api.txt:7: error: Class test.pkg.EnumToAnnotation changed class/interface declaration [ChangedClass]
+                load-api.txt:5: error: Class test.pkg.EnumToClass changed class/interface declaration [ChangedClass]
+                load-api.txt:6: error: Class test.pkg.EnumToInterface changed class/interface declaration [ChangedClass]
+                load-api.txt:10: error: Class test.pkg.InterfaceToAnnotation changed class/interface declaration [ChangedClass]
+                load-api.txt:8: error: Class test.pkg.InterfaceToClass changed class/interface declaration [ChangedClass]
+                load-api.txt:9: error: Class test.pkg.InterfaceToEnum changed class/interface declaration [ChangedClass]
             """
                     .trimIndent(),
             signatureSource =

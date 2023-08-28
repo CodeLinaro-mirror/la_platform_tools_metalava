@@ -16,15 +16,18 @@
 
 package com.android.tools.metalava
 
-import com.android.SdkConstants.ATTR_VALUE
 import com.android.tools.metalava.manifest.Manifest
 import com.android.tools.metalava.manifest.emptyManifest
+import com.android.tools.metalava.model.ANDROID_ANNOTATION_PREFIX
+import com.android.tools.metalava.model.ANNOTATION_ATTR_VALUE
 import com.android.tools.metalava.model.AnnotationAttributeValue
+import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.model.JAVA_LANG_DEPRECATED
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PackageList
@@ -32,9 +35,10 @@ import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.VisibilityLevel
+import com.android.tools.metalava.model.psi.PsiClassItem
 import com.android.tools.metalava.model.psi.PsiItem.Companion.isKotlin
 import com.android.tools.metalava.model.visitors.ApiVisitor
-import com.android.tools.metalava.model.visitors.ItemVisitor
+import com.android.tools.metalava.model.visitors.BaseItemVisitor
 import java.util.Locale
 import java.util.function.Predicate
 import org.jetbrains.kotlin.asJava.classes.KtLightClassForFacade
@@ -528,7 +532,7 @@ class ApiAnalyzer(
     /** If a file facade class has no public members, don't add it to the api */
     private fun hideEmptyKotlinFileFacadeClasses() {
         codebase.getPackages().allClasses().forEach { cls ->
-            val psi = cls.psi()
+            val psi = (cls as? PsiClassItem)?.psi()
             if (
                 psi != null &&
                     isKotlin(psi) &&
@@ -571,7 +575,7 @@ class ApiAnalyzer(
      */
     private fun propagateHiddenRemovedAndDocOnly(includingFields: Boolean) {
         packages.accept(
-            object : ItemVisitor(visitConstructorsAsMethods = true, nestInnerClasses = true) {
+            object : BaseItemVisitor(visitConstructorsAsMethods = true, nestInnerClasses = true) {
                 override fun visitPackage(pkg: PackageItem) {
                     when {
                         options.hidePackages.contains(pkg.qualifiedName()) -> pkg.hidden = true
@@ -703,9 +707,7 @@ class ApiAnalyzer(
                     }
                     val violatingAnnotation =
                         if (item.modifiers.hasShowAnnotation()) {
-                            item.modifiers.annotations().find {
-                                options.showAnnotations.matches(it)
-                            }
+                            item.modifiers.annotations().find(AnnotationItem::isShowAnnotation)
                                 ?: options.showAnnotations.firstQualifiedName()
                         } else if (item.modifiers.hasShowSingleAnnotation()) {
                             item.modifiers.annotations().find {
@@ -842,7 +844,7 @@ class ApiAnalyzer(
                 override fun visitItem(item: Item) {
                     if (
                         item.deprecated &&
-                            !item.documentation.contains("@deprecated") &&
+                            !item.documentationContainsDeprecated() &&
                             // Don't warn about this in Kotlin; the Kotlin deprecation annotation
                             // includes deprecation
                             // messages (unlike java.lang.Deprecated which has no attributes).
@@ -854,8 +856,7 @@ class ApiAnalyzer(
                             // and expected to *not* combine this with @deprecated in the text;
                             // here,
                             // the text comes from an annotation attribute.
-                            item.modifiers.findAnnotation(JAVA_LANG_DEPRECATED)?.originalName !=
-                                ANDROID_DEPRECATED_FOR_SDK
+                            item.modifiers.isAnnotatedWith(JAVA_LANG_DEPRECATED)
                     ) {
                         reporter.report(
                             Issues.DEPRECATION_MISMATCH,
@@ -865,7 +866,7 @@ class ApiAnalyzer(
                         // TODO: Check opposite (doc tag but no annotation)
                     } else {
                         val deprecatedForSdk =
-                            item.modifiers.findExactAnnotation(ANDROID_DEPRECATED_FOR_SDK)
+                            item.modifiers.findAnnotation(ANDROID_DEPRECATED_FOR_SDK)
                         if (deprecatedForSdk != null) {
                             item.deprecated = true
                             if (item.documentation.contains("@deprecated")) {
@@ -875,7 +876,7 @@ class ApiAnalyzer(
                                     "${item.toString().capitalize()}: Documentation contains `@deprecated` which implies this API is fully deprecated, not just @DeprecatedForSdk"
                                 )
                             } else {
-                                val value = deprecatedForSdk.findAttribute(ATTR_VALUE)
+                                val value = deprecatedForSdk.findAttribute(ANNOTATION_ATTR_VALUE)
                                 val message = value?.value?.value()?.toString() ?: ""
                                 item.appendDocumentation(message, "@deprecated")
                             }
@@ -891,9 +892,7 @@ class ApiAnalyzer(
                         val annotationName =
                             (item.modifiers
                                     .annotations()
-                                    .firstOrNull { annotation ->
-                                        options.showAnnotations.matches(annotation)
-                                    }
+                                    .firstOrNull(AnnotationItem::isShowAnnotation)
                                     ?.qualifiedName
                                     ?: options.showAnnotations.firstQualifiedName())
                                 .removePrefix(ANDROID_ANNOTATION_PREFIX)
@@ -1054,7 +1053,7 @@ class ApiAnalyzer(
         // then we can't strip it
         val allTopLevelClasses = codebase.getPackages().allTopLevelClasses().toList()
         allTopLevelClasses
-            .filter { it.checkLevel() && it.emit && !it.hidden() }
+            .filter { it.isApiCandidate() && it.emit && !it.hidden() }
             .forEach { cantStripThis(it, filter, notStrippable, stubImportPackages, it, "self") }
 
         // complain about anything that looks includeable but is not supposed to
@@ -1062,9 +1061,9 @@ class ApiAnalyzer(
         for (cl in notStrippable) {
             if (!cl.isHiddenOrRemoved()) {
                 val publiclyConstructable =
-                    !cl.modifiers.isSealed() && cl.constructors().any { it.checkLevel() }
+                    !cl.modifiers.isSealed() && cl.constructors().any { it.isApiCandidate() }
                 for (m in cl.methods()) {
-                    if (!m.checkLevel()) {
+                    if (!m.isApiCandidate()) {
                         // TODO: enable this check for options.showSingleAnnotations
                         if (
                             options.showSingleAnnotations.isEmpty() &&
@@ -1226,7 +1225,7 @@ class ApiAnalyzer(
         }
 
         if (
-            (cl.isHiddenOrRemoved() || cl.isPackagePrivate && !cl.checkLevel()) &&
+            (cl.isHiddenOrRemoved() || cl.isPackagePrivate && !cl.isApiCandidate()) &&
                 !cl.isTypeParameter
         ) {
             reporter.report(
@@ -1484,4 +1483,21 @@ private fun String.capitalize(): String {
             it.toString()
         }
     }
+}
+
+/** Returns true if this item is public or protected and so a candidate for inclusion in an API. */
+private fun Item.isApiCandidate(): Boolean {
+    return !isHiddenOrRemoved() && (modifiers.isPublic() || modifiers.isProtected())
+}
+
+/**
+ * Whether documentation for the [Item] has the `@deprecated` tag -- for inherited methods, this
+ * also looks at any inherited documentation.
+ */
+private fun Item.documentationContainsDeprecated(): Boolean {
+    if (documentation.contains("@deprecated")) return true
+    if (this is MethodItem && (documentation == "" || documentation.contains("@inheritDoc"))) {
+        return superMethods().any { it.documentationContainsDeprecated() }
+    }
+    return false
 }

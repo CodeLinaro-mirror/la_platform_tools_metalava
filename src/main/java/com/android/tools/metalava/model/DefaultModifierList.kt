@@ -289,6 +289,17 @@ open class DefaultModifierList(
         return flags and VISIBILITY_MASK == PACKAGE_PRIVATE
     }
 
+    fun duplicate(): DefaultModifierList {
+        val annotations = this.annotations
+        val newAnnotations =
+            if (annotations == null || annotations.isEmpty()) {
+                null
+            } else {
+                annotations.toMutableList()
+            }
+        return DefaultModifierList(codebase, flags, newAnnotations)
+    }
+
     // Rename? It's not a full equality, it's whether an override's modifier set is significant
     override fun equivalentTo(other: ModifierList): Boolean {
         if (other is DefaultModifierList) {
@@ -319,6 +330,24 @@ open class DefaultModifierList(
             }
         }
         return false
+    }
+
+    final override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (javaClass != other?.javaClass) return false
+
+        other as DefaultModifierList
+
+        if (flags != other.flags) return false
+        if (annotations != other.annotations) return false
+
+        return true
+    }
+
+    final override fun hashCode(): Int {
+        var result = flags
+        result = 31 * result + (annotations?.hashCode() ?: 0)
+        return result
     }
 
     companion object {

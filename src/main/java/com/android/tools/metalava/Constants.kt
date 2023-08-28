@@ -16,22 +16,8 @@
 
 package com.android.tools.metalava
 
-const val JAVA_LANG_PREFIX = "java.lang."
-const val JAVA_LANG_OBJECT = "java.lang.Object"
-const val JAVA_LANG_STRING = "java.lang.String"
-const val JAVA_LANG_ENUM = "java.lang.Enum"
-const val JAVA_LANG_THROWABLE = "java.lang.Throwable"
-const val JAVA_LANG_ANNOTATION = "java.lang.annotation.Annotation"
-const val JAVA_LANG_DEPRECATED = "java.lang.Deprecated"
 const val ORG_JETBRAINS_ANNOTATIONS_PREFIX = "org.jetbrains.annotations."
 const val ORG_INTELLIJ_LANG_ANNOTATIONS_PREFIX = "org.intellij.lang.annotations."
-const val ANDROID_ANNOTATION_PREFIX = "android.annotation."
-const val ANDROIDX_ANNOTATION_PREFIX = "androidx.annotation."
-const val ANDROIDX_NONNULL = "androidx.annotation.NonNull"
-const val ANDROIDX_NULLABLE = "androidx.annotation.Nullable"
-const val ANDROIDX_INT_DEF = "androidx.annotation.IntDef"
-const val ANDROIDX_LONG_DEF = "androidx.annotation.LongDef"
-const val ANDROIDX_STRING_DEF = "androidx.annotation.StringDef"
 const val ANDROID_SYSTEM_API = "android.annotation.SystemApi"
 const val ANDROID_REQUIRES_PERMISSION = "android.annotation.RequiresPermission"
 const val ANDROID_DEPRECATED_FOR_SDK = "android.annotation.DeprecatedForSdk"
@@ -53,6 +39,8 @@ const val ENV_VAR_METALAVA_TESTS_RUNNING = "METALAVA_TESTS_RUNNING"
 const val ENV_VAR_METALAVA_DUMP_ARGV = "METALAVA_DUMP_ARGV"
 const val ENV_VAR_METALAVA_PREPEND_ARGS = "METALAVA_PREPEND_ARGS"
 const val ENV_VAR_METALAVA_APPEND_ARGS = "METALAVA_APPEND_ARGS"
+
+const val JVM_DEFAULT_WITH_COMPATIBILITY = "kotlin.jvm.JvmDefaultWithCompatibility"
 
 const val JAVA_RETENTION = "java.lang.annotation.Retention"
 const val KT_RETENTION = "kotlin.annotation.Retention"

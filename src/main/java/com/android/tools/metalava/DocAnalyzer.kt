@@ -1,6 +1,5 @@
 package com.android.tools.metalava
 
-import com.android.SdkConstants.ATTR_VALUE
 import com.android.sdklib.SdkVersionInfo
 import com.android.tools.lint.LintCliClient
 import com.android.tools.lint.checks.ApiLookup
@@ -8,16 +7,22 @@ import com.android.tools.lint.detector.api.ApiConstraint
 import com.android.tools.lint.detector.api.editDistance
 import com.android.tools.lint.helpers.DefaultJavaEvaluator
 import com.android.tools.metalava.apilevels.ApiToExtensionsMap
+import com.android.tools.metalava.model.ANDROIDX_ANNOTATION_PREFIX
+import com.android.tools.metalava.model.ANNOTATION_ATTR_VALUE
 import com.android.tools.metalava.model.AnnotationAttributeValue
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.model.JAVA_LANG_PREFIX
 import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
+import com.android.tools.metalava.model.psi.PsiClassItem
+import com.android.tools.metalava.model.psi.PsiFieldItem
+import com.android.tools.metalava.model.psi.PsiMethodItem
 import com.android.tools.metalava.model.psi.containsLinkTags
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.intellij.psi.PsiClass
@@ -228,7 +233,7 @@ class DocAnalyzer(
                 private fun handleKotlinDeprecation(annotation: AnnotationItem, item: Item) {
                     val text =
                         (annotation.findAttribute("message")
-                                ?: annotation.findAttribute(ATTR_VALUE))
+                                ?: annotation.findAttribute(ANNOTATION_ATTR_VALUE))
                             ?.value
                             ?.value()
                             ?.toString()
@@ -677,7 +682,10 @@ class DocAnalyzer(
         codebase.accept(
             object : ApiVisitor(visitConstructorsAsMethods = true) {
                 override fun visitMethod(method: MethodItem) {
-                    val psiMethod = method.psi() as? PsiMethod ?: return
+                    val psiMethod = (method as PsiMethodItem).psi()
+                    if (psiMethod.containingClass == null) {
+                        return
+                    }
                     @Suppress("DEPRECATION")
                     addApiLevelDocumentation(apiLookup.getMethodVersion(psiMethod), method)
                     elementToSdkExtSinceMap[
@@ -688,7 +696,7 @@ class DocAnalyzer(
                 }
 
                 override fun visitClass(cls: ClassItem) {
-                    val psiClass = cls.psi() as PsiClass
+                    val psiClass = (cls as PsiClassItem).psi()
                     val since = apiLookup.getClassVersion(psiClass)
                     if (since != -1) {
                         addApiLevelDocumentation(since, cls)
@@ -705,7 +713,7 @@ class DocAnalyzer(
                 }
 
                 override fun visitField(field: FieldItem) {
-                    val psiField = field.psi() as PsiField
+                    val psiField = (field as PsiFieldItem).psi()
                     addApiLevelDocumentation(apiLookup.getFieldVersion(psiField), field)
                     elementToSdkExtSinceMap[
                             "${psiField.containingClass!!.qualifiedName}#${psiField.name}"]

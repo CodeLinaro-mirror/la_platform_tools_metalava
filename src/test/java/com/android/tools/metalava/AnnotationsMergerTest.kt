@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava
 
+import com.android.tools.metalava.model.FileFormat
 import org.junit.Test
 
 class AnnotationsMergerTest : DriverTest() {
@@ -179,9 +180,9 @@ class AnnotationsMergerTest : DriverTest() {
                 """,
             expectedIssues =
                 """
-                TESTROOT/merged-annotations.txt:5: warning: qualifier annotations were given for method test.pkg.Appendable.append2(CharSequence) but no matching item was found [UnmatchedMergeAnnotation]
-                TESTROOT/merged-annotations.txt:6: warning: qualifier annotations were given for method test.pkg.Appendable.reverse(String) but no matching item was found [UnmatchedMergeAnnotation]
-                TESTROOT/merged-annotations.txt:8: warning: qualifier annotations were given for class test.pkg.RandomClass but no matching item was found [UnmatchedMergeAnnotation]
+                merged-annotations.txt:5: warning: qualifier annotations were given for method test.pkg.Appendable.append2(CharSequence) but no matching item was found [UnmatchedMergeAnnotation]
+                merged-annotations.txt:6: warning: qualifier annotations were given for method test.pkg.Appendable.reverse(String) but no matching item was found [UnmatchedMergeAnnotation]
+                merged-annotations.txt:8: warning: qualifier annotations were given for class test.pkg.RandomClass but no matching item was found [UnmatchedMergeAnnotation]
             """
         )
     }

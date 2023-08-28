@@ -16,14 +16,6 @@
 
 package com.android.tools.metalava.model
 
-import com.android.tools.metalava.DocLevel
-import com.android.tools.metalava.DocLevel.HIDDEN
-import com.android.tools.metalava.DocLevel.PACKAGE
-import com.android.tools.metalava.DocLevel.PRIVATE
-import com.android.tools.metalava.DocLevel.PROTECTED
-import com.android.tools.metalava.DocLevel.PUBLIC
-import com.android.tools.metalava.Options
-import com.android.tools.metalava.options
 import java.io.Writer
 
 interface ModifierList {
@@ -130,81 +122,34 @@ interface ModifierList {
     }
 
     /**
-     * Returns true if this modifier list contains any annotations explicitly passed in via
-     * [Options.showAnnotations]
+     * Returns true if this modifier list contains any show annotations.
+     *
+     * See [AnnotationItem.isShowAnnotation]
      */
     fun hasShowAnnotation(): Boolean {
-        if (options.showAnnotations.isEmpty()) {
-            return false
-        }
-        return annotations().any { options.showAnnotations.matches(it) }
+        return codebase.annotationManager.hasShowAnnotation(this)
     }
 
-    /**
-     * Returns true if this modifier list contains any annotations explicitly passed in via
-     * [Options.showSingleAnnotations]
-     */
+    /** Returns true if this modifier list contains any show single annotations. */
     fun hasShowSingleAnnotation(): Boolean {
-        if (options.showSingleAnnotations.isEmpty()) {
-            return false
-        }
-        return annotations().any { options.showSingleAnnotations.matches(it) }
+        return codebase.annotationManager.hasShowSingleAnnotation(this)
     }
 
     /**
-     * Returns true if this modifier list contains any annotations explicitly passed in via
-     * [Options.showForStubPurposesAnnotations], and this is the only showAnnotation.
+     * Returns true if this modifier list contains any show for stub purposes annotations and that
+     * is the only show annotation.
      */
     fun onlyShowForStubPurposes(): Boolean {
-        if (options.showForStubPurposesAnnotations.isEmpty()) {
-            return false
-        }
-        return annotations().any { options.showForStubPurposesAnnotations.matches(it) } &&
-            !annotations().any {
-                options.showAnnotations.matches(it) &&
-                    !options.showForStubPurposesAnnotations.matches(it)
-            }
+        return codebase.annotationManager.onlyShowForStubPurposes(this)
     }
 
-    /**
-     * Returns true if this modifier list contains any annotations explicitly passed in via
-     * [Options.hideAnnotations] or any annotations which are themselves annotated with
-     * meta-annotations explicitly passed in via [Options.hideMetaAnnotations]
-     *
-     * @see hasHideMetaAnnotations
-     */
+    /** Returns true if this modifier list contains any hide annotations */
     fun hasHideAnnotations(): Boolean {
-        if (options.hideAnnotations.isEmpty() && options.hideMetaAnnotations.isEmpty()) {
-            return false
-        }
-        return annotations().any { annotation ->
-            options.hideAnnotations.matches(annotation) ||
-                annotation.resolve()?.hasHideMetaAnnotation() ?: false
-        }
+        return codebase.annotationManager.hasHideAnnotations(this)
     }
 
     /**
-     * Returns true if this modifier list contains any meta-annotations explicitly passed in via
-     * [Options.hideMetaAnnotations].
-     *
-     * Hidden meta-annotations allow Metalava to handle concepts like Kotlin's [RequiresOptIn],
-     * which allows developers to create annotations that describe experimental features -- sets of
-     * distinct and potentially overlapping unstable API surfaces. Libraries may wish to exclude
-     * such sets of APIs from tracking and stub JAR generation by passing [RequiresOptIn] as a
-     * hidden meta-annotation.
-     */
-    fun hasHideMetaAnnotations(): Boolean {
-        if (options.hideMetaAnnotations.isEmpty()) {
-            return false
-        }
-        return annotations().any { annotation ->
-            options.hideMetaAnnotations.contains(annotation.qualifiedName)
-        }
-    }
-
-    /**
-     * Returns true if this modifier list contains any meta-annotations explicitly passed in via
-     * [Options.suppressCompatibilityMetaAnnotations].
+     * Returns true if this modifier list contains any suppress compatibility meta-annotations.
      *
      * Metalava will suppress compatibility checks for APIs which are within the scope of a
      * "suppress compatibility" meta-annotation, but they may still be written to API files or stub
@@ -215,14 +160,7 @@ interface ModifierList {
      * feature sets with unstable APIs.
      */
     fun hasSuppressCompatibilityMetaAnnotations(): Boolean {
-        if (options.suppressCompatibilityMetaAnnotations.isEmpty()) {
-            return false
-        }
-        return annotations().any { annotation ->
-            annotation.qualifiedName == SUPPRESS_COMPATIBILITY_ANNOTATION_QUALIFIED ||
-                options.suppressCompatibilityMetaAnnotations.contains(annotation.qualifiedName) ||
-                annotation.resolve()?.hasSuppressCompatibilityMetaAnnotation() ?: false
-        }
+        return codebase.annotationManager.hasSuppressCompatibilityMetaAnnotations(this)
     }
 
     /** Returns true if this modifier list contains the given annotation */
@@ -235,40 +173,8 @@ interface ModifierList {
      * list
      */
     fun findAnnotation(qualifiedName: String): AnnotationItem? {
-        val mappedName = AnnotationItem.mapName(qualifiedName)
+        val mappedName = codebase.annotationManager.normalizeInputName(qualifiedName)
         return annotations().firstOrNull { mappedName == it.qualifiedName }
-    }
-
-    /**
-     * Returns the annotation of the given qualified name if found in this modifier list. Like
-     * [findAnnotation], but where that method translates both the annotations in the source and the
-     * target name to their canonical form (E.g. the androidx name), this method will look at the
-     * original source for the exact name passed in here.
-     */
-    fun findExactAnnotation(qualifiedName: String): AnnotationItem? {
-        return annotations().firstOrNull { qualifiedName == it.originalName }
-    }
-
-    /** Returns true if this modifier list has adequate access */
-    fun checkLevel() = checkLevel(options.docLevel)
-
-    /**
-     * Returns true if this modifier list has access modifiers that are adequate for the given
-     * documentation level
-     */
-    fun checkLevel(level: DocLevel): Boolean {
-        if (level == HIDDEN) {
-            return true
-        } else if (owner().isHiddenOrRemoved()) {
-            return false
-        }
-        return when (level) {
-            PUBLIC -> isPublic()
-            PROTECTED -> isPublic() || isProtected()
-            PACKAGE -> !isPrivate()
-            PRIVATE,
-            HIDDEN -> true
-        }
     }
 
     /**
@@ -535,27 +441,30 @@ interface ModifierList {
                     } else if (annotation.qualifiedName == "java.lang.Deprecated") {
                         // Special cased in stubs and signature files: emitted first
                         continue
-                    } else if (options.typedefMode == Options.TypedefMode.INLINE) {
-                        val typedef = annotation.findTypedefAnnotation()
-                        if (typedef != null) {
-                            printAnnotation = typedef
+                    } else {
+                        val typedefMode = list.codebase.annotationManager.typedefMode
+                        if (typedefMode == TypedefMode.INLINE) {
+                            val typedef = annotation.findTypedefAnnotation()
+                            if (typedef != null) {
+                                printAnnotation = typedef
+                            }
+                        } else if (
+                            typedefMode == TypedefMode.REFERENCE &&
+                                annotation.targets === ANNOTATION_SIGNATURE_ONLY &&
+                                annotation.findTypedefAnnotation() != null
+                        ) {
+                            // For annotation references, only include the simple name
+                            writer.write("@")
+                            writer.write(
+                                annotation.resolve()?.simpleName() ?: annotation.qualifiedName!!
+                            )
+                            if (separateLines) {
+                                writer.write("\n")
+                            } else {
+                                writer.write(" ")
+                            }
+                            continue
                         }
-                    } else if (
-                        options.typedefMode == Options.TypedefMode.REFERENCE &&
-                            annotation.targets === ANNOTATION_SIGNATURE_ONLY &&
-                            annotation.findTypedefAnnotation() != null
-                    ) {
-                        // For annotation references, only include the simple name
-                        writer.write("@")
-                        writer.write(
-                            annotation.resolve()?.simpleName() ?: annotation.qualifiedName!!
-                        )
-                        if (separateLines) {
-                            writer.write("\n")
-                        } else {
-                            writer.write(" ")
-                        }
-                        continue
                     }
 
                     // Optionally filter out duplicates
@@ -599,15 +508,6 @@ interface ModifierList {
          *
          * Because this is used in API files, it needs to maintain compatibility.
          */
-        private const val SUPPRESS_COMPATIBILITY_ANNOTATION = "SuppressCompatibility"
-
-        /**
-         * Fully-qualified version of [SUPPRESS_COMPATIBILITY_ANNOTATION].
-         *
-         * This is only used at run-time for matching against [AnnotationItem.qualifiedName], so it
-         * doesn't need to maintain compatibility.
-         */
-        private val SUPPRESS_COMPATIBILITY_ANNOTATION_QUALIFIED =
-            AnnotationItem.unshortenAnnotation("@$SUPPRESS_COMPATIBILITY_ANNOTATION").substring(1)
+        const val SUPPRESS_COMPATIBILITY_ANNOTATION = "SuppressCompatibility"
     }
 }

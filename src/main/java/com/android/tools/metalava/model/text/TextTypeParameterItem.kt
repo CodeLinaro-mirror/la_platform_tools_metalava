@@ -30,7 +30,7 @@ class TextTypeParameterItem(
 ) :
     TextClassItem(
         codebase = codebase,
-        modifiers = TextModifiers(codebase, DefaultModifierList.PUBLIC),
+        modifiers = DefaultModifierList(codebase, DefaultModifierList.PUBLIC),
         name = name,
         qualifiedName = name
     ),

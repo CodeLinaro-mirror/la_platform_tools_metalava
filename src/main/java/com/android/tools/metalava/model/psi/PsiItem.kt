@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.model.DefaultItem
+import com.android.tools.metalava.model.Location
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.MutableModifierList
 import com.android.tools.metalava.model.ParameterItem
@@ -46,7 +47,6 @@ abstract class PsiItem(
     override val modifiers: PsiModifierItem,
     override var documentation: String
 ) : DefaultItem() {
-
     @Suppress("LeakingThis") override var deprecated: Boolean = modifiers.isDeprecated()
 
     @Suppress(
@@ -89,7 +89,12 @@ abstract class PsiItem(
         originallyHidden && !modifiers.hasShowAnnotation()
     }
 
-    override fun psi(): PsiElement? = element
+    /** Returns the PSI element for this item */
+    open fun psi(): PsiElement = element
+
+    override fun location(): Location {
+        return PsiLocationProvider.elementToLocation(psi(), Location.getBaselineKeyForItem(this))
+    }
 
     override fun isFromClassPath(): Boolean {
         return codebase.fromClasspath || containingClass()?.isFromClassPath() ?: false

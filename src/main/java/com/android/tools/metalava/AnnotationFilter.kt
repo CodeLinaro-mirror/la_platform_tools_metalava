@@ -1,11 +1,29 @@
+/*
+ * Copyright (C) 2023 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.android.tools.metalava
 
-import com.android.SdkConstants.ATTR_VALUE
+import com.android.tools.metalava.model.ANNOTATION_ATTR_VALUE
 import com.android.tools.metalava.model.AnnotationArrayAttributeValue
 import com.android.tools.metalava.model.AnnotationAttribute
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.AnnotationSingleAttributeValue
 import com.android.tools.metalava.model.DefaultAnnotationAttribute
+import kotlinx.collections.immutable.ImmutableList
+import kotlinx.collections.immutable.toImmutableList
 
 interface AnnotationFilter {
     // tells whether an annotation is included by the filter
@@ -27,10 +45,16 @@ interface AnnotationFilter {
     fun isNotEmpty(): Boolean
     // Returns the fully-qualified class name of the first annotation matched by this filter
     fun firstQualifiedName(): String
+
+    companion object {
+        private val empty = AnnotationFilterBuilder().build()
+
+        fun emptyFilter(): AnnotationFilter = empty
+    }
 }
 
-// Mutable implementation of AnnotationFilter
-class MutableAnnotationFilter : AnnotationFilter {
+/** Builder for [AnnotationFilter]s. */
+class AnnotationFilterBuilder {
     private val inclusionExpressions = mutableListOf<AnnotationFilterEntry>()
 
     // Adds the given source as a fully qualified annotation name to match with this filter
@@ -41,6 +65,17 @@ class MutableAnnotationFilter : AnnotationFilter {
     fun add(source: String) {
         inclusionExpressions.add(AnnotationFilterEntry.fromSource(source))
     }
+
+    /** Build the [AnnotationFilter]. */
+    fun build(): AnnotationFilter {
+        return ImmutableAnnotationFilter(inclusionExpressions.toImmutableList())
+    }
+}
+
+// Immutable implementation of AnnotationFilter
+private class ImmutableAnnotationFilter(
+    private val inclusionExpressions: ImmutableList<AnnotationFilterEntry>
+) : AnnotationFilter {
 
     override fun matches(annotationSource: String): Boolean {
         val annotationText = annotationSource.replace("@", "")
@@ -62,20 +97,19 @@ class MutableAnnotationFilter : AnnotationFilter {
         }
     }
 
-    override fun getIncludedAnnotationNames(): List<String> {
-        val annotationNames = mutableListOf<String>()
-        for (expression in inclusionExpressions) {
-            annotationNames.add(expression.qualifiedName)
-        }
-        return annotationNames
-    }
+    override fun getIncludedAnnotationNames(): List<String> = includedNames
 
     /** Cache for [getIncludedAnnotationNames] since we call this method over and over again */
-    private var includedNames: List<String>? = null
+    private val includedNames: List<String> by
+        lazy(LazyThreadSafetyMode.NONE) {
+            val annotationNames = mutableListOf<String>()
+            for (expression in inclusionExpressions) {
+                annotationNames.add(expression.qualifiedName)
+            }
+            annotationNames.toImmutableList()
+        }
 
     override fun matchesAnnotationName(qualifiedName: String): Boolean {
-        val includedNames =
-            includedNames ?: getIncludedAnnotationNames().also { includedNames = it }
         return includedNames.contains(qualifiedName)
     }
 
@@ -146,7 +180,7 @@ private class AnnotationFilterEntry(
     val attributes: List<AnnotationAttribute>
 ) {
     fun findAttribute(name: String?): AnnotationAttribute? {
-        val actualName = name ?: ATTR_VALUE
+        val actualName = name ?: ANNOTATION_ATTR_VALUE
         return attributes.firstOrNull { it.name == actualName }
     }
 
@@ -182,7 +216,7 @@ private class AnnotationFilterEntry(
             // @SystemApi actually is converted into @android.annotation.SystemApi(\
             // client=android.annotation.SystemApi.Client.PRIVILEGED_APPS,\
             // process=android.annotation.SystemApi.Process.ALL)
-            return AnnotationFilterEntry.fromSource(annotationItem.toSource())
+            return fromSource(annotationItem.toSource())
         }
     }
 }

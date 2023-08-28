@@ -16,14 +16,17 @@
 
 package com.android.tools.metalava
 
-import com.android.SdkConstants
 import com.android.tools.lint.annotations.Extractor
+import com.android.tools.metalava.model.ANDROIDX_ANNOTATION_PREFIX
+import com.android.tools.metalava.model.ANDROID_ANNOTATION_PREFIX
+import com.android.tools.metalava.model.ANNOTATION_ATTR_VALUE
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.AnnotationTarget
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.model.JAVA_LANG_PREFIX
 import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
@@ -33,6 +36,7 @@ import com.android.tools.metalava.model.psi.PsiAnnotationItem
 import com.android.tools.metalava.model.psi.PsiClassItem
 import com.android.tools.metalava.model.psi.PsiMethodItem
 import com.android.tools.metalava.model.psi.UAnnotationItem
+import com.android.tools.metalava.model.psi.report
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.google.common.xml.XmlEscapers
 import com.intellij.lang.jvm.annotation.JvmAnnotationConstantValue
@@ -342,7 +346,7 @@ class ExtractAnnotations(private val codebase: Codebase, private val outputFile:
     }
 
     private fun computeValidConstantNames(annotation: UAnnotation): List<String> {
-        val constants = annotation.findAttributeValue(SdkConstants.ATTR_VALUE) ?: return emptyList()
+        val constants = annotation.findAttributeValue(ANNOTATION_ATTR_VALUE) ?: return emptyList()
         if (constants is UCallExpression) {
             return constants.valueArguments
                 .mapNotNull { (it as? USimpleNameReferenceExpression)?.identifier }
@@ -568,7 +572,7 @@ class ExtractAnnotations(private val codebase: Codebase, private val outputFile:
             attributes =
                 attributes.sortedWith(
                     compareBy(
-                        { (it.name ?: SdkConstants.ATTR_VALUE) != SdkConstants.ATTR_VALUE },
+                        { (it.name ?: ANNOTATION_ATTR_VALUE) != ANNOTATION_ATTR_VALUE },
                         { it.name }
                     )
                 )
@@ -614,7 +618,7 @@ class ExtractAnnotations(private val codebase: Codebase, private val outputFile:
             empty = false
             var name = pair.name
             if (name == null) {
-                name = SdkConstants.ATTR_VALUE // default name
+                name = ANNOTATION_ATTR_VALUE // default name
             }
 
             // Platform typedef annotations now declare a prefix attribute for

@@ -53,7 +53,7 @@ class BinaryCompatibilityClassesTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                TESTROOT/load-api.txt:4: error: Added method test.pkg.Foo.bar() [AddedAbstractMethod]
+                load-api.txt:4: error: Added method test.pkg.Foo.bar() [AddedAbstractMethod]
             """,
             signatureSource =
                 """
@@ -80,7 +80,7 @@ class BinaryCompatibilityClassesTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                TESTROOT/released-api.txt:3: error: Removed method test.pkg.Foo.bar() [RemovedMethod]
+                released-api.txt:3: error: Removed method test.pkg.Foo.bar() [RemovedMethod]
             """,
             signatureSource =
                 """
@@ -131,7 +131,7 @@ class BinaryCompatibilityClassesTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                TESTROOT/load-api.txt:4: error: Added method test.pkg.Upper.foo() [AddedAbstractMethod]
+                load-api.txt:4: error: Added method test.pkg.Upper.foo() [AddedAbstractMethod]
             """,
             signatureSource =
                 """
@@ -165,7 +165,7 @@ class BinaryCompatibilityClassesTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                TESTROOT/released-api.txt:3: error: Removed method test.pkg.Upper.foo() [RemovedMethod]
+                released-api.txt:3: error: Removed method test.pkg.Upper.foo() [RemovedMethod]
             """,
             signatureSource =
                 """
@@ -218,7 +218,7 @@ class BinaryCompatibilityClassesTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                TESTROOT/released-api.txt:3: error: Removed constructor test.pkg.Foo() [RemovedMethod]
+                released-api.txt:3: error: Removed constructor test.pkg.Foo() [RemovedMethod]
             """,
             signatureSource =
                 """
@@ -246,7 +246,7 @@ class BinaryCompatibilityClassesTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                TESTROOT/released-api.txt:3: error: Removed constructor test.pkg.Foo() [RemovedMethod]
+                released-api.txt:3: error: Removed constructor test.pkg.Foo() [RemovedMethod]
             """,
             signatureSource =
                 """
@@ -292,7 +292,7 @@ class BinaryCompatibilityClassesTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                TESTROOT/released-api.txt:3: error: Removed field test.pkg.Foo.bar [RemovedField]
+                released-api.txt:3: error: Removed field test.pkg.Foo.bar [RemovedField]
             """,
             signatureSource =
                 """
@@ -345,7 +345,7 @@ class BinaryCompatibilityClassesTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                TESTROOT/load-api.txt:6: error: Class test.pkg.Foo no longer implements test.pkg.Two [RemovedInterface]
+                load-api.txt:6: error: Class test.pkg.Foo no longer implements test.pkg.Two [RemovedInterface]
             """,
             signatureSource =
                 """
@@ -403,7 +403,7 @@ class BinaryCompatibilityClassesTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                TESTROOT/load-api.txt:6: error: Class test.pkg.Foo superclass changed from test.pkg.Baz to test.pkg.Bar [ChangedSuperclass]
+                load-api.txt:6: error: Class test.pkg.Foo superclass changed from test.pkg.Baz to test.pkg.Bar [ChangedSuperclass]
             """,
             signatureSource =
                 """
@@ -457,7 +457,7 @@ class BinaryCompatibilityClassesTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                TESTROOT/released-api.txt:4: error: Removed class test.pkg.Outer.Inner [RemovedClass]
+                released-api.txt:4: error: Removed class test.pkg.Outer.Inner [RemovedClass]
             """,
             signatureSource =
                 """
@@ -503,7 +503,7 @@ class BinaryCompatibilityClassesTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                TESTROOT/load-api.txt:2: error: Class test.pkg.Foo changed 'abstract' qualifier [ChangedAbstract]
+                load-api.txt:2: error: Class test.pkg.Foo changed 'abstract' qualifier [ChangedAbstract]
             """,
             signatureSource =
                 """
@@ -527,7 +527,7 @@ class BinaryCompatibilityClassesTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                TESTROOT/load-api.txt:3: error: Constructor test.pkg.Foo has removed 'final' qualifier [RemovedFinalStrict]
+                load-api.txt:3: error: Constructor test.pkg.Foo has removed 'final' qualifier [RemovedFinalStrict]
             """,
             signatureSource =
                 """
@@ -553,8 +553,8 @@ class BinaryCompatibilityClassesTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                TESTROOT/load-api.txt:2: error: Class test.pkg.Foo added 'final' qualifier [AddedFinal]
-                TESTROOT/load-api.txt:3: error: Constructor test.pkg.Foo has added 'final' qualifier [AddedFinal]
+                load-api.txt:2: error: Class test.pkg.Foo added 'final' qualifier [AddedFinal]
+                load-api.txt:3: error: Constructor test.pkg.Foo has added 'final' qualifier [AddedFinal]
             """,
             signatureSource =
                 """
@@ -600,7 +600,7 @@ class BinaryCompatibilityClassesTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                TESTROOT/load-api.txt:2: error: Class test.pkg.Foo changed number of type parameters from 1 to 2 [ChangedType]
+                load-api.txt:2: error: Class test.pkg.Foo changed number of type parameters from 1 to 2 [ChangedType]
             """,
             signatureSource =
                 """
@@ -624,8 +624,8 @@ class BinaryCompatibilityClassesTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                TESTROOT/load-api.txt:2: error: Class test.pkg.Bar changed number of type parameters from 1 to 0 [ChangedType]
-                TESTROOT/load-api.txt:4: error: Class test.pkg.Foo changed number of type parameters from 2 to 1 [ChangedType]
+                load-api.txt:2: error: Class test.pkg.Bar changed number of type parameters from 1 to 0 [ChangedType]
+                load-api.txt:4: error: Class test.pkg.Foo changed number of type parameters from 2 to 1 [ChangedType]
             """,
             signatureSource =
                 """
@@ -732,7 +732,7 @@ class BinaryCompatibilityClassesTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                TESTROOT/released-api.txt:3: error: Removed enum constant test.pkg.Foo.OLD [RemovedField]
+                released-api.txt:3: error: Removed enum constant test.pkg.Foo.OLD [RemovedField]
             """,
             signatureSource =
                 """
@@ -781,7 +781,7 @@ class BinaryCompatibilityClassesTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                TESTROOT/released-api.txt:4: error: Removed enum constant test.pkg.Foo.TWO [RemovedField]
+                released-api.txt:4: error: Removed enum constant test.pkg.Foo.TWO [RemovedField]
             """,
             signatureSource =
                 """

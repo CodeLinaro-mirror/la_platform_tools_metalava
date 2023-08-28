@@ -9,7 +9,9 @@
          <trust group="com.google.testing.platform"/>
          <trust file=".*-javadoc[.]jar" regex="true"/>
          <trust file=".*-sources[.]jar" regex="true"/>
+         <trust group="^androidx($|([.].*))" regex="true" reason="not signed yet"/>
          <trust group="^com.android($|([.].*))" regex="true"/>
+         <trust group="gradle" name="gradle"/>
       </trusted-artifacts>
       <trusted-keys>
          <trusted-key id="03c123038c20aae9e286c857479d601f3a7b5c1a" group="com.github.ajalt.clikt" name="clikt-jvm"/>

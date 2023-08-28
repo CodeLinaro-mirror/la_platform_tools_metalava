@@ -512,5 +512,5 @@ the previous API levels. Metalava can regenerate these for a new format.
 For example, to update all the signature files to v3, run this command:
 
 ```
-$ metalava --write-android-jar-signatures *<android source dir>* --format=v3
+$ metalava android-jars-to-signatures *<android source dir>* --format=v3
 ```

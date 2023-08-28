@@ -16,8 +16,6 @@
 
 package com.android.tools.metalava.model
 
-import com.android.tools.metalava.model.visitors.ItemVisitor
-import com.android.tools.metalava.model.visitors.TypeVisitor
 import java.util.function.Predicate
 
 /** Represents a Kotlin/Java source file */
@@ -36,15 +34,7 @@ interface SourceFileItem : Item {
     override fun type(): TypeItem? = null
 
     override fun accept(visitor: ItemVisitor) {
-        if (visitor.skip(this)) return
-
-        visitor.visitItem(this)
-        visitor.visitSourceFile(this)
-
-        classes().forEach { it.accept(visitor) }
-
-        visitor.afterVisitSourceFile(this)
-        visitor.afterVisitItem(this)
+        visitor.visit(this)
     }
 
     override fun acceptTypes(visitor: TypeVisitor) {

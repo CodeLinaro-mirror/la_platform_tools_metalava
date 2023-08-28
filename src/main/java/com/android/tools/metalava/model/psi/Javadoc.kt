@@ -620,13 +620,14 @@ private fun expand(owner: PsiItem, element: PsiElement, sb: StringBuilder) {
                         val fieldName = text.substring(1, end)
                         val field = owner.findField(fieldName)
                         if (field != null) {
-                            resolved = field.psi()
+                            resolved = (field as? PsiFieldItem)?.psi()
                         }
                     }
                     if (resolved == null) {
                         val methodName = text.substring(1, end)
                         resolved =
-                            (owner.psi() as PsiClass)
+                            (owner as PsiClassItem)
+                                .psi()
                                 .findMethodsByName(methodName, true)
                                 .firstOrNull()
                     }
@@ -804,13 +805,13 @@ fun handleTag(element: PsiInlineDocTag, owner: PsiItem, sb: StringBuilder): Bool
                 val fieldName = referenceText.substring(1, end)
                 val field = owner.findField(fieldName)
                 if (field != null) {
-                    resolved = field.psi()
+                    resolved = (field as? PsiFieldItem)?.psi()
                 }
             }
             if (resolved == null) {
                 val methodName = referenceText.substring(1, end)
                 resolved =
-                    (owner.psi() as PsiClass).findMethodsByName(methodName, true).firstOrNull()
+                    (owner as PsiClassItem).psi().findMethodsByName(methodName, true).firstOrNull()
             }
         }
     }

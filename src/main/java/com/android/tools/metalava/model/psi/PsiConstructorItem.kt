@@ -18,6 +18,7 @@ package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.DefaultModifierList.Companion.PACKAGE_PRIVATE
+import com.android.tools.metalava.model.Location
 import com.android.tools.metalava.model.MethodItem
 import com.intellij.psi.JavaPsiFacade
 import com.intellij.psi.PsiClass
@@ -104,14 +105,21 @@ class PsiConstructorItem(
         return _superMethods!!
     }
 
-    override fun psi(): PsiElement? {
+    /**
+     * Override to handle providing the location for a synthetic/implicit constructor which has no
+     * associated file.
+     */
+    override fun location(): Location {
         // If no PSI element, is this a synthetic/implicit constructor? If so
         // grab the parent class' PSI element instead for file/location purposes
-        if (implicitConstructor && element.containingFile?.virtualFile == null) {
-            return containingClass().psi()
-        }
+        val element =
+            if (implicitConstructor && element.containingFile?.virtualFile == null) {
+                (containingClass() as PsiClassItem).psi()
+            } else {
+                element
+            }
 
-        return element
+        return PsiLocationProvider.elementToLocation(element, Location.getBaselineKeyForItem(this))
     }
 
     companion object {

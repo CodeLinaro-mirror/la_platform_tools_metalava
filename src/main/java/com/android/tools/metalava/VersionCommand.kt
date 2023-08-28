@@ -21,7 +21,11 @@ package com.android.tools.metalava
  *
  * Similar to running `metalava --version`.
  */
-class VersionCommand : MetalavaSubCommand(help = "Show the version") {
+class VersionCommand :
+    MetalavaSubCommand(
+        help = "Show the version",
+        printHelpOnEmptyArgs = false,
+    ) {
     override fun run() {
         echo("$commandName version: ${Version.VERSION}")
     }

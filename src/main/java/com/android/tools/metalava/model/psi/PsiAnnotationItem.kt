@@ -16,18 +16,17 @@
 
 package com.android.tools.metalava.model.psi
 
-import com.android.SdkConstants.ATTR_VALUE
 import com.android.tools.lint.detector.api.ConstantEvaluator
-import com.android.tools.metalava.XmlBackedAnnotationItem
-import com.android.tools.metalava.model.AnnotationArrayAttributeValue
+import com.android.tools.metalava.model.ANNOTATION_ATTR_VALUE
 import com.android.tools.metalava.model.AnnotationAttribute
 import com.android.tools.metalava.model.AnnotationAttributeValue
-import com.android.tools.metalava.model.AnnotationItem
-import com.android.tools.metalava.model.AnnotationSingleAttributeValue
 import com.android.tools.metalava.model.AnnotationTarget
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.DefaultAnnotationArrayAttributeValue
+import com.android.tools.metalava.model.DefaultAnnotationAttribute
 import com.android.tools.metalava.model.DefaultAnnotationItem
+import com.android.tools.metalava.model.DefaultAnnotationSingleAttributeValue
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.psi.CodePrinter.Companion.constantToExpression
 import com.android.tools.metalava.model.psi.CodePrinter.Companion.constantToSource
@@ -50,15 +49,17 @@ class PsiAnnotationItem
 private constructor(
     override val codebase: PsiBasedCodebase,
     val psiAnnotation: PsiAnnotation,
-    override val originalName: String?
-) : DefaultAnnotationItem(codebase) {
-    override val qualifiedName: String? = AnnotationItem.mapName(originalName)
-
-    override fun toString(): String = toSource()
+    originalName: String?
+) :
+    DefaultAnnotationItem(
+        codebase,
+        originalName,
+        { getAnnotationAttributes(codebase, psiAnnotation) }
+    ) {
 
     override fun toSource(target: AnnotationTarget, showDefaultAttrs: Boolean): String {
         val sb = StringBuilder(60)
-        appendAnnotation(codebase, sb, psiAnnotation, originalName, target, showDefaultAttrs)
+        appendAnnotation(codebase, sb, psiAnnotation, qualifiedName, target, showDefaultAttrs)
         return sb.toString()
     }
 
@@ -74,21 +75,26 @@ private constructor(
         return super.isNonNull()
     }
 
-    override val attributes: List<PsiAnnotationAttribute> by lazy {
-        psiAnnotation.parameterList.attributes
-            .mapNotNull { attribute ->
-                attribute.value?.let { value ->
-                    PsiAnnotationAttribute(codebase, attribute.name ?: ATTR_VALUE, value)
-                }
-            }
-            .toList()
-    }
-
     override val targets: Set<AnnotationTarget> by lazy {
-        AnnotationItem.computeTargets(this, codebase::findOrCreateClass)
+        codebase.annotationManager.computeTargets(this, codebase::findOrCreateClass)
     }
 
     companion object {
+        private fun getAnnotationAttributes(
+            codebase: PsiBasedCodebase,
+            psiAnnotation: PsiAnnotation
+        ): List<AnnotationAttribute> =
+            psiAnnotation.parameterList.attributes
+                .mapNotNull { attribute ->
+                    attribute.value?.let { value ->
+                        DefaultAnnotationAttribute(
+                            attribute.name ?: ANNOTATION_ATTR_VALUE,
+                            createValue(codebase, value),
+                        )
+                    }
+                }
+                .toList()
+
         fun create(
             codebase: PsiBasedCodebase,
             psiAnnotation: PsiAnnotation,
@@ -101,15 +107,15 @@ private constructor(
             return PsiAnnotationItem(codebase, original.psiAnnotation, original.originalName)
         }
 
-        // TODO: Inline this such that instead of constructing XmlBackedAnnotationItem
-        // and then producing source and parsing it, produce source directly
         fun create(
             codebase: Codebase,
-            xmlAnnotation: XmlBackedAnnotationItem,
+            originalName: String,
+            attributes: List<AnnotationAttribute> = emptyList(),
             context: Item? = null
         ): PsiAnnotationItem {
             if (codebase is PsiBasedCodebase) {
-                return codebase.createAnnotation(xmlAnnotation.toSource(), context)
+                val source = formatAnnotationItem(originalName, attributes)
+                return codebase.createAnnotation(source, context)
             } else {
                 codebase.unsupported("Converting to PSI annotation requires PSI codebase")
             }
@@ -144,7 +150,8 @@ private constructor(
             target: AnnotationTarget,
             showDefaultAttrs: Boolean
         ) {
-            val qualifiedName = AnnotationItem.mapName(originalName, target) ?: return
+            val qualifiedName =
+                codebase.annotationManager.normalizeOutputName(originalName, target) ?: return
 
             val attributes = getAttributes(psiAnnotation, showDefaultAttrs)
             if (attributes.isEmpty()) {
@@ -157,7 +164,7 @@ private constructor(
             sb.append("(")
             if (
                 attributes.size == 1 &&
-                    (attributes[0].first == null || attributes[0].first == ATTR_VALUE)
+                    (attributes[0].first == null || attributes[0].first == ANNOTATION_ATTR_VALUE)
             ) {
                 // Special case: omit "value" if it's the only attribute
                 appendValue(codebase, sb, attributes[0].second, target, showDefaultAttrs)
@@ -169,7 +176,7 @@ private constructor(
                     } else {
                         sb.append(", ")
                     }
-                    sb.append(attribute.first ?: ATTR_VALUE)
+                    sb.append(attribute.first ?: ANNOTATION_ATTR_VALUE)
                     sb.append('=')
                     appendValue(codebase, sb, attribute.second, target, showDefaultAttrs)
                 }
@@ -254,7 +261,8 @@ private constructor(
                         codebase,
                         sb,
                         value,
-                        value.qualifiedName,
+                        // Normalize the input name of the annotation.
+                        codebase.annotationManager.normalizeInputName(value.qualifiedName),
                         target,
                         showDefaultAttrs
                     )
@@ -279,43 +287,27 @@ private constructor(
     }
 }
 
-class PsiAnnotationAttribute(
+private fun createValue(
     codebase: PsiBasedCodebase,
-    override val name: String,
-    psiValue: PsiAnnotationMemberValue
-) : AnnotationAttribute {
-    override val value: AnnotationAttributeValue = PsiAnnotationValue.create(codebase, psiValue)
-
-    override fun equals(other: Any?): Boolean {
-        if (other !is AnnotationAttribute) return false
-        return name == other.name && value == other.value
+    value: PsiAnnotationMemberValue
+): AnnotationAttributeValue {
+    return if (value is PsiArrayInitializerMemberValue) {
+        DefaultAnnotationArrayAttributeValue(
+            { value.text },
+            { value.initializers.map { createValue(codebase, it) }.toList() }
+        )
+    } else {
+        PsiAnnotationSingleAttributeValue(codebase, value)
     }
-}
-
-abstract class PsiAnnotationValue : AnnotationAttributeValue {
-    companion object {
-        fun create(
-            codebase: PsiBasedCodebase,
-            value: PsiAnnotationMemberValue
-        ): PsiAnnotationValue {
-            return if (value is PsiArrayInitializerMemberValue) {
-                PsiAnnotationArrayAttributeValue(codebase, value)
-            } else {
-                PsiAnnotationSingleAttributeValue(codebase, value)
-            }
-        }
-    }
-
-    override fun toString(): String = toSource()
 }
 
 class PsiAnnotationSingleAttributeValue(
     private val codebase: PsiBasedCodebase,
     private val psiValue: PsiAnnotationMemberValue
-) : PsiAnnotationValue(), AnnotationSingleAttributeValue {
-    override val valueSource: String = psiValue.text
-    override val value: Any?
-        get() {
+) : DefaultAnnotationSingleAttributeValue({ psiValue.text }, { getValue(psiValue) }) {
+
+    companion object {
+        private fun getValue(psiValue: PsiAnnotationMemberValue): Any {
             if (psiValue is PsiLiteral) {
                 return psiValue.value ?: psiValue.text.removeSurrounding("\"")
             }
@@ -333,10 +325,7 @@ class PsiAnnotationSingleAttributeValue(
 
             return psiValue.text ?: psiValue.text.removeSurrounding("\"")
         }
-
-    override fun value(): Any? = value
-
-    override fun toSource(): String = psiValue.text
+    }
 
     override fun resolve(): Item? {
         if (psiValue is PsiReference) {
@@ -347,24 +336,5 @@ class PsiAnnotationSingleAttributeValue(
             }
         }
         return null
-    }
-
-    override fun equals(other: Any?): Boolean {
-        if (other !is AnnotationSingleAttributeValue) return false
-        return value == other.value
-    }
-}
-
-class PsiAnnotationArrayAttributeValue(
-    codebase: PsiBasedCodebase,
-    private val value: PsiArrayInitializerMemberValue
-) : PsiAnnotationValue(), AnnotationArrayAttributeValue {
-    override val values = value.initializers.map { create(codebase, it) }.toList()
-
-    override fun toSource(): String = value.text
-
-    override fun equals(other: Any?): Boolean {
-        if (other !is AnnotationArrayAttributeValue) return false
-        return values.containsAll(other.values)
     }
 }

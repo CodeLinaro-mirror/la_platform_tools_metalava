@@ -27,7 +27,7 @@ import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.psi.PsiClassItem
-import com.android.tools.metalava.model.visitors.ItemVisitor
+import com.android.tools.metalava.model.visitors.BaseItemVisitor
 import java.io.PrintWriter
 import java.util.function.Predicate
 
@@ -38,7 +38,7 @@ class KotlinStubWriter(
     private val generateAnnotations: Boolean = false,
     private val preFiltered: Boolean = true,
     private val docStubs: Boolean
-) : ItemVisitor() {
+) : BaseItemVisitor() {
     private val annotationTarget =
         if (docStubs) AnnotationTarget.DOC_STUBS_FILE else AnnotationTarget.SDK_STUBS_FILE
 

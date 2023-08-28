@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.model
 
-import com.android.tools.metalava.JAVA_LANG_STRING
 import com.google.common.truth.Truth.assertThat
 import org.junit.Test
 

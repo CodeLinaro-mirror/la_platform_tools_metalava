@@ -16,10 +16,6 @@
 
 package com.android.tools.metalava.model
 
-import com.android.tools.lint.detector.api.ClassContext
-import com.android.tools.metalava.JAVA_LANG_OBJECT
-import com.android.tools.metalava.JAVA_LANG_PREFIX
-import com.android.tools.metalava.JAVA_LANG_STRING
 import java.util.function.Predicate
 
 /**
@@ -56,16 +52,6 @@ interface TypeItem {
 
     /** Alias for [toTypeString] with erased=true */
     fun toErasedTypeString(context: Item? = null): String
-
-    /**
-     * Returns the internal name of the type, as seen in bytecode. The optional [context] provides
-     * the method or class where this type appears, and can be used for example to resolve the
-     * bounds for a type variable used in a method that was specified on the class.
-     */
-    fun internalName(context: Item? = null): String {
-        // Default implementation; PSI subclass is more accurate
-        return toSlashFormat(toErasedTypeString(context))
-    }
 
     /** Array dimensions of this type; for example, for String it's 0 and for String[][] it's 2. */
     fun arrayDimensions(): Int
@@ -411,33 +397,6 @@ interface TypeItem {
 
         /** Prefix of Kotlin JVM function types, used for lambdas. */
         private const val KOTLIN_FUNCTION_PREFIX = "kotlin.jvm.functions.Function"
-
-        // Copied from doclava1
-        fun toSlashFormat(typeName: String): String {
-            var name = typeName
-            var dimension = ""
-            while (name.endsWith("[]")) {
-                dimension += "["
-                name = name.substring(0, name.length - 2)
-            }
-
-            val base: String
-            base =
-                when (name) {
-                    "void" -> "V"
-                    "byte" -> "B"
-                    "boolean" -> "Z"
-                    "char" -> "C"
-                    "short" -> "S"
-                    "int" -> "I"
-                    "long" -> "J"
-                    "float" -> "F"
-                    "double" -> "D"
-                    else -> "L" + ClassContext.getInternalName(name) + ";"
-                }
-
-            return dimension + base
-        }
 
         /** Compares two strings, ignoring space diffs (spaces, not whitespace in general) */
         fun equalsWithoutSpace(s1: String, s2: String): Boolean {

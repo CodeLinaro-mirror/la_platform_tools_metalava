@@ -17,6 +17,8 @@
 package com.android.tools.metalava
 
 import com.android.SdkConstants
+import com.android.tools.metalava.model.ANDROIDX_NONNULL
+import com.android.tools.metalava.model.ANDROIDX_NULLABLE
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.FieldItem
@@ -67,7 +69,8 @@ class ConvertJarsToSignatureFiles {
             // Treat android.jar file as not filtered since they contain misc stuff that shouldn't
             // be
             // there: package private super classes etc.
-            val jarCodebase = loadFromJarFile(apiJar, preFiltered = false)
+            val jarCodebase =
+                loadFromJarFile(apiJar, preFiltered = false, DefaultAnnotationManager())
             val apiEmit = ApiType.PUBLIC_API.getEmitFilter()
             val apiReference = ApiType.PUBLIC_API.getReferenceFilter()
 
@@ -91,13 +94,10 @@ class ConvertJarsToSignatureFiles {
                             val modifiers = new.mutableModifiers()
                             modifiers.removeAnnotation(annotation)
 
-                            // Don't map annotation names - this would turn newly non null back into
-                            // non null
                             modifiers.addAnnotation(
                                 new.codebase.createAnnotation(
                                     "@$annotationClass",
                                     new,
-                                    mapName = false
                                 )
                             )
                         }

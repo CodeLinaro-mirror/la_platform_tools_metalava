@@ -35,10 +35,10 @@ import java.util.function.Predicate
 open class TextClassItem(
     override val codebase: TextCodebase,
     position: SourcePositionInfo = SourcePositionInfo.UNKNOWN,
-    modifiers: TextModifiers,
+    modifiers: DefaultModifierList,
     private var isInterface: Boolean = false,
     private var isEnum: Boolean = false,
-    private var isAnnotation: Boolean = false,
+    internal var isAnnotation: Boolean = false,
     val qualifiedName: String = "",
     private val qualifiedTypeName: String = qualifiedName,
     var name: String = qualifiedName.substring(qualifiedName.lastIndexOf('.') + 1),
@@ -232,31 +232,6 @@ open class TextClassItem(
         innerClasses.add(cls)
     }
 
-    /**
-     * Checks if the [cls] from different signature file can be merged with this [TextClassItem].
-     * For instance, `current.txt` and `system-current.txt` may contain equal class definitions with
-     * different class methods. This method is used to determine if the two [TextClassItem]s can be
-     * safely merged in such scenarios.
-     *
-     * @param cls [TextClassItem] to be checked if it is compatible with [this] and can be merged
-     * @return a Boolean value representing if [cls] is compatible with [this]
-     */
-    fun isCompatible(cls: TextClassItem): Boolean {
-        if (this === cls) {
-            return true
-        }
-        if (fullName != cls.fullName) {
-            return false
-        }
-
-        return modifiers.toString() == cls.modifiers.toString() &&
-            isInterface == cls.isInterface &&
-            isEnum == cls.isEnum &&
-            isAnnotation == cls.isAnnotation &&
-            superClass == cls.superClass &&
-            allInterfaces().toSet() == cls.allInterfaces().toSet()
-    }
-
     override fun filteredSuperClassType(predicate: Predicate<Item>): TypeItem? {
         // No filtering in signature files: we assume signature APIs
         // have already been filtered and all items should match.
@@ -380,7 +355,7 @@ open class TextClassItem(
                     name = fullName,
                     qualifiedName = qualifiedName,
                     isInterface = isInterface,
-                    modifiers = TextModifiers(codebase, DefaultModifierList.PUBLIC)
+                    modifiers = DefaultModifierList(codebase, DefaultModifierList.PUBLIC)
                 )
             cls.emit = false // it's a stub
 

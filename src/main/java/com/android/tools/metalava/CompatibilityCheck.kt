@@ -23,6 +23,7 @@ import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.FieldItem
+import com.android.tools.metalava.model.FileFormat
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.Item.Companion.describe
 import com.android.tools.metalava.model.MergedCodebase
@@ -30,10 +31,8 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.TypeItem
-import com.android.tools.metalava.model.configuration
 import com.android.tools.metalava.model.psi.PsiItem
 import com.android.tools.metalava.model.text.TextCodebase
-import com.android.tools.metalava.model.text.classpath.TextCodebaseWithClasspath
 import com.intellij.psi.PsiField
 import java.io.File
 import java.util.function.Predicate
@@ -63,9 +62,7 @@ class CompatibilityCheck(
         }
     }
 
-    val oldFormat =
-        (oldCodebase as? TextCodebase)?.format
-            ?: (oldCodebase as? TextCodebaseWithClasspath)?.format
+    val oldFormat = (oldCodebase as? TextCodebase)?.format
     /**
      * In old signature files, methods inherited from hidden super classes are not included. An
      * example of this is StringBuilder.setLength. More details about this are listed in
@@ -112,7 +109,7 @@ class CompatibilityCheck(
         if (oldNullnessAnnotation != null) {
             val newNullnessAnnotation = findNullnessAnnotation(new)
             if (newNullnessAnnotation == null) {
-                val implicitNullness = AnnotationItem.getImplicitNullness(new)
+                val implicitNullness = new.implicitNullness()
                 if (implicitNullness == true && isNullable(old)) {
                     return
                 }
@@ -384,6 +381,18 @@ class CompatibilityCheck(
                     )} changed number of type parameters from $oldTypeParamsCount to $newTypeParamsCount"
                 )
             }
+        }
+
+        if (
+            old.modifiers.isAnnotatedWith(JVM_DEFAULT_WITH_COMPATIBILITY) &&
+                !new.modifiers.isAnnotatedWith(JVM_DEFAULT_WITH_COMPATIBILITY)
+        ) {
+            report(
+                Issues.REMOVED_JVM_DEFAULT_WITH_COMPATIBILITY,
+                new,
+                "Cannot remove @$JVM_DEFAULT_WITH_COMPATIBILITY annotation from " +
+                    "${describe(new)}: Incompatible change"
+            )
         }
     }
 
