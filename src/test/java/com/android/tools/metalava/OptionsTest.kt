@@ -17,25 +17,17 @@
 package com.android.tools.metalava
 
 import com.android.tools.metalava.cli.common.ARG_NO_COLOR
-import com.android.tools.metalava.cli.common.FileReadSandbox
 import com.android.tools.metalava.cli.common.REPORTING_OPTIONS_HELP
-import java.io.File
+import com.android.tools.metalava.cli.signature.SIGNATURE_FORMAT_OPTIONS_HELP
 import java.io.PrintWriter
 import java.io.StringWriter
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
-import org.junit.Assert.assertTrue
 import org.junit.Test
 
 @Suppress("PrivatePropertyName")
 class OptionsTest : DriverTest() {
     private val FLAGS =
         """
-General:
---repeat-errors-max <N>
-                                             When specified, repeat at most N errors before finishing.
-
-
 API sources:
 --source-files <files>
                                              A comma separated list of source files to be parsed. Can also be @ followed
@@ -43,10 +35,7 @@ API sources:
                                              parse.
 --source-path <paths>
                                              One or more directories (separated by `:`) containing source files (within
-                                             a package hierarchy). If --strict-input-files, --strict-input-files:warn,
-                                             or --strict-input-files:stack are used, files accessed under --source-path
-                                             that are not explicitly specified in --source-files are reported as
-                                             violations.
+                                             a package hierarchy).
 --classpath <paths>
                                              One or more directories or jars (separated by `:`) containing classes that
                                              should be on the classpath when parsing the source files
@@ -92,9 +81,6 @@ API sources:
                                              signature file and API lint
 --hide-annotation <annotation class>
                                              Treat any elements annotated with the given annotation as hidden
---hide-meta-annotation <meta-annotation class>
-                                             Treat as hidden any elements annotated with an annotation which is itself
-                                             annotated with the given meta-annotation
 --show-unannotated
                                              Include un-annotated public APIs in the signature file as well
 --java-source <level>
@@ -132,8 +118,6 @@ Extracting Signature Files:
 
 
 Generating Stubs:
---stubs <dir>
-                                             Generate stub source files for the API
 --doc-stubs <dir>
                                              Generate documentation stub source files for the API. Documentation stub
                                              files are similar to regular stub files, but there are some differences.
@@ -145,10 +129,6 @@ Generating Stubs:
 --kotlin-stubs
                                              [CURRENTLY EXPERIMENTAL] If specified, stubs generated from Kotlin source
                                              code will be written in Kotlin rather than the Java programming language.
---include-annotations
-                                             Include annotations such as @Nullable in the stub files.
---exclude-all-annotations
-                                             Exclude annotations such as @Nullable from the stub files; the default.
 --pass-through-annotation <annotation classes>
                                              A comma separated list of fully qualified names of annotation classes that
                                              must be passed through unchanged.
@@ -251,11 +231,6 @@ Extracting Annotations:
 --extract-annotations <zipfile>
                                              Extracts source annotations from the source files and writes them into the
                                              given zip file
---force-convert-to-warning-nullability-annotations <package1:-package2:...>
-                                             On every API declared in a class referenced by the given filter, makes
-                                             nullability issues appear to callers as warnings rather than errors by
-                                             replacing @Nullable/@NonNull in these APIs with
-                                             @RecentlyNullable/@RecentlyNonNull
 --copy-annotations <source> <dest>
                                              For a source folder full of annotation sources, generates corresponding
                                              package private versions of the same annotations.
@@ -331,27 +306,6 @@ Generating API version history:
                                              Required to generate API version JSON.
 
 
-Sandboxing:
---no-implicit-root
-                                             Disable implicit root directory detection. Otherwise, metalava adds in
-                                             source roots implied by the source files
---strict-input-files <file>
-                                             Do not read files that are not explicitly specified in the command line.
-                                             All violations are written to the given file. Reads on directories are
-                                             always allowed, but metalava still tracks reads on directories that are not
-                                             specified in the command line, and write them to the file.
---strict-input-files:warn <file>
-                                             Warn when files not explicitly specified on the command line are read. All
-                                             violations are written to the given file. Reads on directories not
-                                             specified in the command line are allowed but also logged.
---strict-input-files:stack <file>
-                                             Same as --strict-input-files but also print stacktraces.
---strict-input-files-exempt <files or dirs>
-                                             Used with --strict-input-files. Explicitly allow access to files and/or
-                                             directories (separated by `:). Can also be @ followed by a path to a text
-                                             file containing paths to the full set of files and/or directories.
-
-
 Environment Variables:
 METALAVA_DUMP_ARGV
                                              Set to true to have metalava emit all the arguments it was invoked with.
@@ -373,7 +327,10 @@ Usage: metalava [options] [flags]... <sub-command>? ...
         """
             .trimIndent()
 
-    /** The options from [CommonOptions] plus Clikt defined opiotns from [Options]. */
+    /**
+     * The options from [com.android.tools.metalava.cli.common.CommonOptions] plus Clikt defined
+     * options from [Options].
+     */
     private val CLIKT_OPTIONS =
         """
 Options:
@@ -424,6 +381,8 @@ Signature File Output:
                                              be created.
 
 $SIGNATURE_FORMAT_OPTIONS_HELP
+
+$STUB_GENERATION_OPTIONS_HELP
 """
             .trimIndent()
 
@@ -431,9 +390,11 @@ $SIGNATURE_FORMAT_OPTIONS_HELP
         """
 Sub-commands:
   android-jars-to-signatures                 Rewrite the signature files in the `prebuilts/sdk` directory in the Android
-                                             source tree by
+                                             source tree.
+  help                                       Provides help for general metalava concepts
   merge-signatures                           Merge multiple signature files together into a single file.
   signature-to-jdiff                         Convert an API signature file into a file in the JDiff XML format.
+  update-signature-header                    Updates the header of signature files to a different format.
   version                                    Show the version
         """
             .trimIndent()
@@ -551,35 +512,6 @@ $MAIN_HELP_BODY
                 .trimIndent(),
             stdout.toString()
         )
-    }
-
-    @Test
-    fun `Test for --strict-input-files-exempt`() {
-        val top = temporaryFolder.newFolder()
-
-        val dir = File(top, "childdir").apply { mkdirs() }
-        val grandchild1 = File(dir, "grandchiild1").apply { createNewFile() }
-        val grandchild2 = File(dir, "grandchiild2").apply { createNewFile() }
-        val file1 = File(top, "file1").apply { createNewFile() }
-        val file2 = File(top, "file2").apply { createNewFile() }
-
-        try {
-            check(
-                extraArguments =
-                    arrayOf(
-                        "--strict-input-files-exempt",
-                        file1.path + File.pathSeparatorChar + dir.path
-                    )
-            )
-
-            assertTrue(FileReadSandbox.isAccessAllowed(file1))
-            assertTrue(FileReadSandbox.isAccessAllowed(grandchild1))
-            assertTrue(FileReadSandbox.isAccessAllowed(grandchild2))
-
-            assertFalse(FileReadSandbox.isAccessAllowed(file2)) // Access *not* allowed
-        } finally {
-            FileReadSandbox.reset()
-        }
     }
 
     @Test

@@ -18,7 +18,6 @@ package com.android.tools.metalava.cli.common
 
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.core.context
-import com.github.ajalt.clikt.output.HelpFormatter
 
 /** Base class for all sub-commands of [MetalavaCommand]. */
 abstract class MetalavaSubCommand(
@@ -35,14 +34,6 @@ abstract class MetalavaSubCommand(
         help = help,
         printHelpOnEmptyArgs = printHelpOnEmptyArgs,
     ) {
-    /**
-     * Return an instance of [HelpFormatter.ParameterHelp.Subcommand]
-     *
-     * This needs to be implemented on a subclass of [CliktCommand] as [shortHelp] is protected.
-     */
-    fun parameterHelp(): HelpFormatter.ParameterHelp {
-        return HelpFormatter.ParameterHelp.Subcommand(commandName, shortHelp(), helpTags)
-    }
 
     init {
         context {
@@ -55,9 +46,7 @@ abstract class MetalavaSubCommand(
             // Override the help formatter to use metalava styling of the help.
             helpFormatter =
                 MetalavaHelpFormatter(
-                    // Retrieve the terminal from the CommonOptions that is made available by the
-                    // containing MetalavaCommand.
-                    { currentContext.findObject<CommonOptions>()?.terminal ?: plainTerminal },
+                    this@MetalavaSubCommand::terminal,
                     localization,
                 )
         }

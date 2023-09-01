@@ -695,6 +695,7 @@ class ApiGeneratorTest : DriverTest() {
                 createTextFile(
                     "1.1.0",
                     """
+                    // Signature format: 2.0
                     package test.pkg {
                       public class Foo {
                         method public <T extends java.lang.String> void methodV1(T);
@@ -709,6 +710,7 @@ class ApiGeneratorTest : DriverTest() {
                 createTextFile(
                     "1.2.0",
                     """
+                    // Signature format: 2.0
                     package test.pkg {
                       public class Foo {
                         method public <T extends java.lang.String> void methodV1(T);
@@ -725,6 +727,7 @@ class ApiGeneratorTest : DriverTest() {
                 createTextFile(
                     "1.3.0",
                     """
+                    // Signature format: 2.0
                     package test.pkg {
                       public class Foo {
                         method @Deprecated public <T extends java.lang.String> void methodV1(T);

@@ -16,15 +16,15 @@
 
 package com.android.tools.metalava.cli.signature
 
-import com.android.tools.metalava.SIGNATURE_FORMAT_OPTIONS_HELP
+import com.android.tools.metalava.cli.common.BaseCommandTest
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.model.text.assertSignatureFilesMatch
-import com.android.tools.metalava.testing.BaseCommandTest
+import com.android.tools.metalava.model.text.prepareSignatureFileForTest
 import java.util.Locale
 import org.junit.Assert.fail
 import org.junit.Test
 
-class MergeSignaturesCommandTest : BaseCommandTest() {
+class MergeSignaturesCommandTest : BaseCommandTest(::MergeSignaturesCommand) {
 
     private fun checkMergeSignatures(
         vararg files: String,
@@ -35,7 +35,11 @@ class MergeSignaturesCommandTest : BaseCommandTest() {
         commandTest {
             args += "merge-signatures"
             files.forEachIndexed { i, contents ->
-                val input = inputFile("api${i + 1}.txt", contents.trimIndent())
+                val input =
+                    inputFile(
+                        "api${i + 1}.txt",
+                        prepareSignatureFileForTest(contents.trimIndent(), FileFormat.V2)
+                    )
                 args += input.path
             }
 
@@ -348,7 +352,7 @@ Arguments:
             source1,
             source2,
             expectedStderr =
-                "Aborting: TESTROOT/api2.txt:2: Incompatible class Test.pkg.Class1 definitions",
+                "Aborting: TESTROOT/api2.txt:3: Incompatible class Test.pkg.Class1 definitions",
         )
     }
 

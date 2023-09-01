@@ -38,7 +38,7 @@ class MetalavaCommandTest {
         val command = TestCommand(stdout = PrintWriter(stdout), stderr = PrintWriter(stderr))
 
         try {
-            command.process(args.toTypedArray())
+            command.processThrowCliException(args.toTypedArray())
         } catch (e: MetalavaCliException) {
             Assert.assertEquals(
                 """

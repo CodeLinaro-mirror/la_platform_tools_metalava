@@ -23,8 +23,6 @@ open class DefaultModifierList(
 ) : MutableModifierList {
     private lateinit var owner: Item
 
-    private var isComputingSuppressCompatibilityMetaAnnotations: Boolean = false
-
     private operator fun set(mask: Int, set: Boolean) {
         flags =
             if (set) {
@@ -264,21 +262,6 @@ open class DefaultModifierList(
 
     override fun clearAnnotations(annotation: AnnotationItem) {
         annotations?.clear()
-    }
-
-    override fun hasSuppressCompatibilityMetaAnnotations(): Boolean {
-        if (isComputingSuppressCompatibilityMetaAnnotations) {
-            // Re-entrant call, abort.
-            return false
-        }
-        val result =
-            try {
-                isComputingSuppressCompatibilityMetaAnnotations = true
-                super.hasSuppressCompatibilityMetaAnnotations()
-            } finally {
-                isComputingSuppressCompatibilityMetaAnnotations = false
-            }
-        return result
     }
 
     override fun isEmpty(): Boolean {

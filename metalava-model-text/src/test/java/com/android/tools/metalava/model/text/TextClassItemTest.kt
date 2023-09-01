@@ -26,6 +26,7 @@ class TextClassItemTest {
             ApiFile.parseApi(
                 "test",
                 """
+            // Signature format: 2.0
             package java.lang {
               public final class Float extends java.lang.Number implements java.lang.Comparable<java.lang.Float> {
               }
@@ -148,6 +149,7 @@ class TextClassItemTest {
             ApiFile.parseApi(
                 "test",
                 """
+            // Signature format: 2.0
             package java.lang {
               public final class Class<T> implements java.lang.reflect.AnnotatedElement {
                 method @Nullable public <A extends java.lang.annotation.Annotation> A getAnnotation(@NonNull Class<A>);
@@ -178,6 +180,7 @@ class TextClassItemTest {
             ApiFile.parseApi(
                 "test",
                 """
+            // Signature format: 2.0
             package android.widget {
               public abstract class AdapterView<T extends android.widget.Adapter> extends android.view.ViewGroup {
                 method public abstract T getAdapter();
@@ -210,6 +213,7 @@ class TextClassItemTest {
             ApiFile.parseApi(
                 "test",
                 """
+            // Signature format: 2.0
             package java.lang {
               public interface Comparable<T> {
                 method public int compareTo(T);

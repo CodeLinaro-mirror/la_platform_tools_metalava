@@ -35,13 +35,17 @@ import com.android.tools.lint.client.api.LintClient
 import com.android.tools.metalava.cli.common.ARG_HIDE
 import com.android.tools.metalava.cli.common.ARG_NO_COLOR
 import com.android.tools.metalava.cli.common.ARG_QUIET
+import com.android.tools.metalava.cli.common.ARG_REPEAT_ERRORS_MAX
 import com.android.tools.metalava.cli.common.ARG_VERBOSE
+import com.android.tools.metalava.cli.signature.ARG_API_OVERLOADED_METHOD_ORDER
+import com.android.tools.metalava.cli.signature.ARG_FORMAT
 import com.android.tools.metalava.model.psi.gatherSources
 import com.android.tools.metalava.model.text.ApiClassResolution
 import com.android.tools.metalava.model.text.ApiFile
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.model.text.FileFormat.OverloadedMethodOrder
 import com.android.tools.metalava.model.text.assertSignatureFilesMatch
+import com.android.tools.metalava.model.text.prepareSignatureFileForTest
 import com.android.tools.metalava.reporter.Severity
 import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.TemporaryFolderOwner
@@ -73,8 +77,6 @@ import org.junit.Rule
 import org.junit.rules.ErrorCollector
 import org.junit.rules.TemporaryFolder
 
-const val CHECK_JDIFF = false
-
 abstract class DriverTest : TemporaryFolderOwner {
     @get:Rule override val temporaryFolder = TemporaryFolder()
 
@@ -95,12 +97,18 @@ abstract class DriverTest : TemporaryFolderOwner {
         return File(temporaryFolder.root.path, "public-api.txt")
     }
 
-    protected fun runDriver(vararg args: String, expectedFail: String = ""): String {
+    protected fun runDriver(
+        // The SameParameterValue check reports that this is passed the same value because the first
+        // value that is passed is always the same but this is a varargs parameter so other values
+        // that are passed matter, and they are not the same.
+        @Suppress("SameParameterValue") vararg args: String,
+        expectedFail: String = "",
+    ): String {
         resetTicker()
 
-        // Capture the actual input and output from System.out/err and compare it
-        // to the output printed through the official writer; they should be the same,
-        // otherwise we have stray println's littered in the code!
+        // Capture the actual input and output from System.out/err and compare it to the output
+        // printed through the official writer; they should be the same, otherwise we have stray
+        // print calls littered in the code!
         val previousOut = System.out
         val previousErr = System.err
         try {
@@ -114,7 +122,8 @@ abstract class DriverTest : TemporaryFolderOwner {
 
             Disposer.setDebugMode(true)
 
-            if (run(arrayOf(*args), writer, writer)) {
+            val exitCode = run(arrayOf(*args), writer, writer)
+            if (exitCode == 0) {
                 assertTrue(
                     "Test expected to fail but didn't. Expected failure: $expectedFail",
                     expectedFail.isEmpty()
@@ -140,7 +149,7 @@ abstract class DriverTest : TemporaryFolderOwner {
                     } else {
                         if (reportedCompatError) {
                             // if a compatibility error was unexpectedly reported, then mark that as
-                            // an error but keep going so we can see the actual compatibility error
+                            // an error but keep going, so we can see the actual compatibility error
                             if (expectedFail.trimIndent() != actualFail) {
                                 addError(
                                     "ComparisonFailure: expected failure $expectedFail, actual $actualFail"
@@ -179,16 +188,16 @@ abstract class DriverTest : TemporaryFolderOwner {
         }
     }
 
-    // This is here so we can keep a record of what was printed, to make sure we
-    // don't have any unexpected printlns in the source that are left behind after
-    // debugging and pollute the production output
+    // This is here, so we can keep a record of what was printed, to make sure we don't have any
+    // unexpected print calls in the source that are left behind after debugging and pollute the
+    // production output
     class TeeWriter(private val otherStream: PrintStream) : ByteArrayOutputStream() {
-        override fun write(b: ByteArray?, off: Int, len: Int) {
+        override fun write(b: ByteArray, off: Int, len: Int) {
             otherStream.write(b, off, len)
             super.write(b, off, len)
         }
 
-        override fun write(b: ByteArray?) {
+        override fun write(b: ByteArray) {
             otherStream.write(b)
             super.write(b)
         }
@@ -199,7 +208,7 @@ abstract class DriverTest : TemporaryFolderOwner {
         }
     }
 
-    protected fun getJdkPath(): String? {
+    private fun getJdkPath(): String? {
         val javaHome = System.getProperty("java.home")
         if (javaHome != null) {
             var javaHomeFile = File(javaHome)
@@ -207,9 +216,7 @@ abstract class DriverTest : TemporaryFolderOwner {
                 return javaHome
             } else if (javaHomeFile.name == "jre") {
                 javaHomeFile = javaHomeFile.parentFile
-                if (
-                    javaHomeFile != null && File(javaHomeFile, "bin${File.separator}javac").exists()
-                ) {
+                if (File(javaHomeFile, "bin${File.separator}javac").exists()) {
                     return javaHomeFile.path
                 }
             }
@@ -301,16 +308,12 @@ abstract class DriverTest : TemporaryFolderOwner {
         showForStubPurposesAnnotations: Array<String> = emptyArray(),
         /** Hide annotations (--hide-annotation arguments) */
         hideAnnotations: Array<String> = emptyArray(),
-        /** Hide meta-annotations (--hide-meta-annotation arguments) */
-        hideMetaAnnotations: Array<String> = emptyArray(),
         /** No compat check meta-annotations (--no-compat-check-meta-annotation arguments) */
         suppressCompatibilityMetaAnnotations: Array<String> = emptyArray(),
         /** If using [showAnnotations], whether to include unannotated */
         showUnannotated: Boolean = false,
         /** Additional arguments to supply */
         extraArguments: Array<String> = emptyArray(),
-        /** Whether we should emit Kotlin-style null signatures */
-        outputKotlinStyleNulls: Boolean = format.kotlinStyleNulls,
         /** Expected output (stdout and stderr combined). If null, don't check. */
         expectedOutput: String? = null,
         /** Expected fail message and state, if any */
@@ -323,7 +326,7 @@ abstract class DriverTest : TemporaryFolderOwner {
          */
         importedPackages: List<String> = emptyList(),
         /**
-         * Packages to skip emitting signatures/stubs for even if public (typically used for unit
+         * Packages to skip emitting signatures/stubs for even if public. Typically used for unit
          * tests referencing to classpath classes that aren't part of the definitions and shouldn't
          * be part of the test output; e.g. a test may reference java.lang.Enum but we don't want to
          * start reporting all the public APIs in the java.lang package just because it's indirectly
@@ -337,17 +340,17 @@ abstract class DriverTest : TemporaryFolderOwner {
         /** Apply level to XML */
         applyApiLevelsXml: String? = null,
         /** Corresponds to SDK constants file broadcast_actions.txt */
-        sdk_broadcast_actions: String? = null,
+        sdkBroadcastActions: String? = null,
         /** Corresponds to SDK constants file activity_actions.txt */
-        sdk_activity_actions: String? = null,
+        sdkActivityActions: String? = null,
         /** Corresponds to SDK constants file service_actions.txt */
-        sdk_service_actions: String? = null,
+        sdkServiceActions: String? = null,
         /** Corresponds to SDK constants file categories.txt */
-        sdk_categories: String? = null,
+        sdkCategories: String? = null,
         /** Corresponds to SDK constants file features.txt */
-        sdk_features: String? = null,
+        sdkFeatures: String? = null,
         /** Corresponds to SDK constants file widgets.txt */
-        sdk_widgets: String? = null,
+        sdkWidgets: String? = null,
         /**
          * Extract annotations and check that the given packages contain the given extracted XML
          * files
@@ -390,7 +393,7 @@ abstract class DriverTest : TemporaryFolderOwner {
         errorMessageCheckCompatibilityReleased: String? = null,
 
         /**
-         * If non null, enable API lint. If non-blank, a codebase where only new APIs not in the
+         * If non-null, enable API lint. If non-blank, a codebase where only new APIs not in the
          * codebase are linted.
          */
         @Language("TEXT") apiLint: String? = null,
@@ -456,7 +459,7 @@ abstract class DriverTest : TemporaryFolderOwner {
                 sources.forEach { file ->
                     val signatureFile =
                         File(project, "load-api${ if (++num == 1) "" else num.toString() }.txt")
-                    signatureFile.writeText(file.trimIndent())
+                    signatureFile.writeSignatureText(file.trimIndent())
                     args.add(signatureFile.path)
                 }
                 if (!includeStrippedSuperclassWarnings) {
@@ -554,7 +557,7 @@ abstract class DriverTest : TemporaryFolderOwner {
                     arrayOf(ARG_API_LINT)
                 } else {
                     val file = File(project, "prev-api-lint.txt")
-                    file.writeText(apiLint.trimIndent())
+                    file.writeSignatureText(apiLint.trimIndent())
                     arrayOf(ARG_API_LINT, file.path)
                 }
             } else {
@@ -568,7 +571,7 @@ abstract class DriverTest : TemporaryFolderOwner {
                     jar
                 } else {
                     val file = File(project, "released-api.txt")
-                    file.writeText(checkCompatibilityApiReleased.trimIndent())
+                    file.writeSignatureText(checkCompatibilityApiReleased.trimIndent())
                     file
                 }
             } else {
@@ -582,7 +585,7 @@ abstract class DriverTest : TemporaryFolderOwner {
                     jar
                 } else {
                     val file = File(project, "removed-released-api.txt")
-                    file.writeText(checkCompatibilityRemovedApiReleased.trimIndent())
+                    file.writeSignatureText(checkCompatibilityRemovedApiReleased)
                     file
                 }
             } else {
@@ -596,7 +599,7 @@ abstract class DriverTest : TemporaryFolderOwner {
                     maybeFile
                 } else {
                     val file = File(project, "compatibility-base-api.txt")
-                    file.writeText(checkCompatibilityBaseApi.trimIndent())
+                    file.writeSignatureText(checkCompatibilityBaseApi.trimIndent())
                     file
                 }
             } else {
@@ -610,7 +613,7 @@ abstract class DriverTest : TemporaryFolderOwner {
                     jar
                 } else {
                     val file = File(project, "stable-api.txt")
-                    file.writeText(migrateNullsApi.trimIndent())
+                    file.writeSignatureText(migrateNullsApi.trimIndent())
                     file
                 }
             } else {
@@ -721,18 +724,6 @@ abstract class DriverTest : TemporaryFolderOwner {
                 emptyArray()
             }
 
-        val hideMetaAnnotationArguments =
-            if (hideMetaAnnotations.isNotEmpty()) {
-                val args = mutableListOf<String>()
-                for (annotation in hideMetaAnnotations) {
-                    args.add(ARG_HIDE_META_ANNOTATION)
-                    args.add(annotation)
-                }
-                args.toTypedArray()
-            } else {
-                emptyArray()
-            }
-
         val suppressCompatMetaAnnotationArguments =
             if (suppressCompatibilityMetaAnnotations.isNotEmpty()) {
                 val args = mutableListOf<String>()
@@ -762,7 +753,7 @@ abstract class DriverTest : TemporaryFolderOwner {
             }
 
         // Always pass apiArgs and generate API text file in runDriver
-        var apiFile: File = newFile("public-api.txt")
+        val apiFile: File = newFile("public-api.txt")
         val apiArgs = arrayOf(ARG_API, apiFile.path)
 
         val overloadedMethodArgs =
@@ -794,7 +785,7 @@ abstract class DriverTest : TemporaryFolderOwner {
         val subtractApiArgs =
             if (subtractApi != null) {
                 subtractApiFile = temporaryFolder.newFile("subtract-api.txt")
-                subtractApiFile.writeText(subtractApi.trimIndent())
+                subtractApiFile.writeSignatureText(subtractApi.trimIndent())
                 arrayOf(ARG_SUBTRACT_API, subtractApiFile.path)
             } else {
                 emptyArray()
@@ -899,10 +890,10 @@ abstract class DriverTest : TemporaryFolderOwner {
             if (baselineContent != null) {
                 val baselineFile = temporaryFolder.newFile(filename)
                 baselineFile?.writeText(baselineContent.trimIndent())
-                if (!(updateContent != null || merge)) {
-                    return Pair(arrayOf(argBaseline, baselineFile.path), baselineFile)
+                return if (!(updateContent != null || merge)) {
+                    Pair(arrayOf(argBaseline, baselineFile.path), baselineFile)
                 } else {
-                    return Pair(
+                    Pair(
                         arrayOf(
                             argBaseline,
                             baselineFile.path,
@@ -965,12 +956,12 @@ abstract class DriverTest : TemporaryFolderOwner {
         val sdkFilesDir: File?
         val sdkFilesArgs: Array<String>
         if (
-            sdk_broadcast_actions != null ||
-                sdk_activity_actions != null ||
-                sdk_service_actions != null ||
-                sdk_categories != null ||
-                sdk_features != null ||
-                sdk_widgets != null
+            sdkBroadcastActions != null ||
+                sdkActivityActions != null ||
+                sdkServiceActions != null ||
+                sdkCategories != null ||
+                sdkFeatures != null ||
+                sdkWidgets != null
         ) {
             val dir = File(project, "sdk-files")
             sdkFilesArgs = arrayOf(ARG_SDK_VALUES, dir.path)
@@ -1060,7 +1051,6 @@ abstract class DriverTest : TemporaryFolderOwner {
                 *stubsArgs,
                 *stubsSourceListArgs,
                 *docStubsSourceListArgs,
-                "$ARG_OUTPUT_KOTLIN_NULLS=${if (outputKotlinStyleNulls) "yes" else "no"}",
                 *quiet,
                 *mergeAnnotationsArgs,
                 *signatureAnnotationsArgs,
@@ -1079,7 +1069,6 @@ abstract class DriverTest : TemporaryFolderOwner {
                 *baselineCheckCompatibilityReleasedArgs,
                 *showAnnotationArguments,
                 *hideAnnotationArguments,
-                *hideMetaAnnotationArguments,
                 *suppressCompatMetaAnnotationArguments,
                 *showForStubPurposesAnnotationArguments,
                 *showUnannotatedArgs,
@@ -1117,16 +1106,24 @@ abstract class DriverTest : TemporaryFolderOwner {
             assertEquals(expectedOutput.trimIndent().trim(), actualOutput.trim())
         }
 
+        // Calculate the effective output format from the different parameters provided. This is
+        // used to construct the signature header to prepend to the expected signature output for
+        // those tests which do not provide a signature header. Usually tests should not use code
+        // under test in preparing the expected test output but in this case it does not matter as
+        // this is only provided as a convenience for those tests that are not testing the signature
+        // format specifically. Tests that are testing that will just provide their own header and
+        // this will just be ignored.
+        val effectiveFormat =
+            format.applyOptionalCommandLineSuppliedOverrides(
+                overloadedMethodOrder = overloadedMethodOrder,
+            )
+
         if (api != null) {
             assertTrue(
                 "${apiFile.path} does not exist even though --api was used",
                 apiFile.exists()
             )
-            assertSignatureFilesMatch(
-                api,
-                apiFile.readText(Charsets.UTF_8),
-                expectedFormat = format
-            )
+            assertSignatureFilesMatch(api, apiFile.readText(), expectedFormat = effectiveFormat)
             // Make sure we can read back the files we write
             ApiFile.parseApi(apiFile, options.annotationManager)
         }
@@ -1221,8 +1218,11 @@ abstract class DriverTest : TemporaryFolderOwner {
                 "${removedApiFile.path} does not exist even though --removed-api was used",
                 removedApiFile.exists()
             )
-            val actualText = readFile(removedApiFile)
-            assertEquals(prepareExpectedApi(removedApi, format), actualText)
+            assertSignatureFilesMatch(
+                removedApi,
+                removedApiFile.readText(),
+                expectedFormat = effectiveFormat
+            )
             // Make sure we can read back the files we write
             ApiFile.parseApi(removedApiFile, options.annotationManager)
         }
@@ -1239,34 +1239,34 @@ abstract class DriverTest : TemporaryFolderOwner {
             )
         }
 
-        if (sdk_broadcast_actions != null) {
+        if (sdkBroadcastActions != null) {
             val actual = readFile(File(sdkFilesDir, "broadcast_actions.txt"))
-            assertEquals(sdk_broadcast_actions.trimIndent().trim(), actual.trim())
+            assertEquals(sdkBroadcastActions.trimIndent().trim(), actual.trim())
         }
 
-        if (sdk_activity_actions != null) {
+        if (sdkActivityActions != null) {
             val actual = readFile(File(sdkFilesDir, "activity_actions.txt"))
-            assertEquals(sdk_activity_actions.trimIndent().trim(), actual.trim())
+            assertEquals(sdkActivityActions.trimIndent().trim(), actual.trim())
         }
 
-        if (sdk_service_actions != null) {
+        if (sdkServiceActions != null) {
             val actual = readFile(File(sdkFilesDir, "service_actions.txt"))
-            assertEquals(sdk_service_actions.trimIndent().trim(), actual.trim())
+            assertEquals(sdkServiceActions.trimIndent().trim(), actual.trim())
         }
 
-        if (sdk_categories != null) {
+        if (sdkCategories != null) {
             val actual = readFile(File(sdkFilesDir, "categories.txt"))
-            assertEquals(sdk_categories.trimIndent().trim(), actual.trim())
+            assertEquals(sdkCategories.trimIndent().trim(), actual.trim())
         }
 
-        if (sdk_features != null) {
+        if (sdkFeatures != null) {
             val actual = readFile(File(sdkFilesDir, "features.txt"))
-            assertEquals(sdk_features.trimIndent().trim(), actual.trim())
+            assertEquals(sdkFeatures.trimIndent().trim(), actual.trim())
         }
 
-        if (sdk_widgets != null) {
+        if (sdkWidgets != null) {
             val actual = readFile(File(sdkFilesDir, "widgets.txt"))
-            assertEquals(sdk_widgets.trimIndent().trim(), actual.trim())
+            assertEquals(sdkWidgets.trimIndent().trim(), actual.trim())
         }
 
         if (extractAnnotations != null && extractedAnnotationsZip != null) {
@@ -1382,10 +1382,27 @@ abstract class DriverTest : TemporaryFolderOwner {
                 return
             }
         }
+    }
 
-        if (CHECK_JDIFF && apiXmlFile != null && convertToJDiff.isNotEmpty()) {
-            // TODO: Parse the XML file with jdiff too
-        }
+    protected fun uastCheck(
+        isK2: Boolean,
+        @Language("TEXT") api: String? = null,
+        format: FileFormat = FileFormat.LATEST,
+        expectedIssues: String? = "",
+        extraArguments: Array<String> = emptyArray(),
+        expectedFail: String? = null,
+        @Language("TEXT") apiLint: String? = null,
+        sourceFiles: Array<TestFile> = emptyArray(),
+    ) {
+        check(
+            api = api,
+            format = format,
+            extraArguments = extraArguments + listOfNotNull(ARG_USE_K2_UAST.takeIf { isK2 }),
+            expectedIssues = expectedIssues,
+            expectedFail = expectedFail,
+            apiLint = apiLint,
+            sourceFiles = sourceFiles,
+        )
     }
 
     /** Checks that the given zip annotations file contains the given XML package contents */
@@ -1431,18 +1448,6 @@ abstract class DriverTest : TemporaryFolderOwner {
         return true
     }
 
-    /** Strip comments, trim indent, and add a signature format version header if one is missing */
-    private fun prepareExpectedApi(expectedApi: String, format: FileFormat): String {
-        val header = format.header()
-
-        return stripComments(expectedApi, DOT_TXT, stripLineComments = false)
-            .trimIndent()
-            .let {
-                if (header != null && !it.startsWith("// Signature format:")) header + it else it
-            }
-            .trim()
-    }
-
     companion object {
         @JvmStatic
         protected fun readFile(file: File): String {
@@ -1455,6 +1460,10 @@ abstract class DriverTest : TemporaryFolderOwner {
 
 private fun FileFormat.outputFlag(): String {
     return "$ARG_FORMAT=${defaultsVersion.name.lowercase(Locale.US)}"
+}
+
+private fun File.writeSignatureText(contents: String) {
+    writeText(prepareSignatureFileForTest(contents, FileFormat.V2))
 }
 
 /** Returns the paths returned by [findKotlinStdlibPaths] as metalava args expected by Options. */
@@ -1886,7 +1895,7 @@ val restrictToSource: TestFile =
     import java.lang.annotation.ElementType.*
 
     @MustBeDocumented
-    @kotlin.annotation.Retention(AnnotationRetention.BINARY)
+    @Retention(AnnotationRetention.BINARY)
     @Target(
         AnnotationTarget.ANNOTATION_CLASS,
         AnnotationTarget.CLASS,
@@ -1901,8 +1910,8 @@ val restrictToSource: TestFile =
     // https://youtrack.jetbrains.com/issue/KT-45921
     @Suppress("DEPRECATED_JAVA_ANNOTATION")
     @java.lang.annotation.Target(ANNOTATION_TYPE, TYPE, METHOD, CONSTRUCTOR, FIELD, PACKAGE)
-    public annotation class RestrictTo(vararg val value: Scope) {
-        public enum class Scope {
+    annotation class RestrictTo(vararg val value: Scope) {
+        enum class Scope {
             LIBRARY,
             LIBRARY_GROUP,
             LIBRARY_GROUP_PREFIX,
@@ -1980,7 +1989,7 @@ val publishedApiSource: TestFile =
     @Retention(AnnotationRetention.BINARY)
     @MustBeDocumented
     @SinceKotlin("1.1")
-    public annotation class PublishedApi
+    annotation class PublishedApi
     """
         )
         .indented()

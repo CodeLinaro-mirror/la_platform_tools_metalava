@@ -1001,7 +1001,6 @@ class ApiFileTest : DriverTest() {
         // nullness for: annotation type members, equals-parameters, initialized constants, etc.
         check(
             format = FileFormat.V3,
-            outputKotlinStyleNulls = true,
             sourceFiles =
                 arrayOf(
                     java(
@@ -2011,7 +2010,6 @@ class ApiFileTest : DriverTest() {
         // promoted to public.
         check(
             format = FileFormat.V2,
-            outputKotlinStyleNulls = false,
             sourceFiles =
                 arrayOf(
                     java(
@@ -4078,19 +4076,6 @@ class ApiFileTest : DriverTest() {
         val source1 =
             """
             package Test.pkg {
-              public class IpcDataCache<Query, Result> extends android.app.PropertyInvalidatedCache<Query,Result> {
-                ctor public IpcDataCache(int, @NonNull String, @NonNull String, @NonNull String, @NonNull android.os.IpcDataCache.QueryHandler<Query,Result>);
-                method public static void disableForCurrentProcess(@NonNull String);
-                method public static void invalidateCache(@NonNull String, @NonNull String);
-                field public static final String MODULE_BLUETOOTH = "bluetooth";
-                field public static final String MODULE_SYSTEM = "system_server";
-                field public static final String MODULE_TEST = "test";
-              }
-            }
-                    """
-        val source2 =
-            """
-            package Test.pkg {
               public class IpcDataCache<Query, Result> {
                 ctor public IpcDataCache(int, @NonNull String, @NonNull String, @NonNull String, @NonNull android.os.IpcDataCache.QueryHandler<Query,Result>);
                 method public void disableForCurrentProcess();
@@ -4099,6 +4084,19 @@ class ApiFileTest : DriverTest() {
                 method public static void invalidateCache(@NonNull String, @NonNull String);
                 method @Nullable public Result query(@NonNull Query);
                 field public static final String MODULE_BLUETOOTH = "bluetooth";
+              }
+            }
+                    """
+        val source2 =
+            """
+            package Test.pkg {
+              public class IpcDataCache<Query, Result> extends android.app.PropertyInvalidatedCache<Query,Result> {
+                ctor public IpcDataCache(int, @NonNull String, @NonNull String, @NonNull String, @NonNull android.os.IpcDataCache.QueryHandler<Query,Result>);
+                method public static void disableForCurrentProcess(@NonNull String);
+                method public static void invalidateCache(@NonNull String, @NonNull String);
+                field public static final String MODULE_BLUETOOTH = "bluetooth";
+                field public static final String MODULE_SYSTEM = "system_server";
+                field public static final String MODULE_TEST = "test";
               }
             }
                     """
@@ -4118,7 +4116,10 @@ class ApiFileTest : DriverTest() {
               }
             }
                     """
-        check(signatureSources = arrayOf(source1, source2), api = expected)
+        check(
+            signatureSources = arrayOf(source1, source2),
+            api = expected,
+        )
     }
 
     @Test
@@ -4188,7 +4189,7 @@ class ApiFileTest : DriverTest() {
         check(
             signatureSources = arrayOf(source1, source2),
             expectedFail =
-                "Aborting: Unable to parse signature file: TESTROOT/project/load-api2.txt:2: Incompatible class Test.pkg.Class1 definitions"
+                "Aborting: Unable to parse signature file: TESTROOT/project/load-api2.txt:3: Incompatible class Test.pkg.Class1 definitions"
         )
     }
 
@@ -4347,11 +4348,18 @@ class ApiFileTest : DriverTest() {
                 """
                 // Signature format: 3.0
                 package test.pkg {
-                  @kotlin.RequiresOptIn public @interface InLibraryExperimentalAnnotation {
+                  @SuppressCompatibility @test.pkg.ExternalExperimentalAnnotation public final class ClassUsingExternalExperimentalApi {
+                    ctor public ClassUsingExternalExperimentalApi();
+                  }
+                  @SuppressCompatibility @test.pkg.InLibraryExperimentalAnnotation public final class ClassUsingInLibraryExperimentalApi {
+                    ctor public ClassUsingInLibraryExperimentalApi();
+                  }
+                  @SuppressCompatibility @kotlin.RequiresOptIn public @interface InLibraryExperimentalAnnotation {
                   }
                 }
-            """,
-            extraArguments = arrayOf(ARG_HIDE_META_ANNOTATION, "kotlin.RequiresOptIn")
+                """,
+            extraArguments =
+                arrayOf(ARG_SUPPRESS_COMPATIBILITY_META_ANNOTATION, "kotlin.RequiresOptIn")
         )
     }
 
@@ -5120,6 +5128,7 @@ class ApiFileTest : DriverTest() {
                     restrictToSource
                 ),
             extraArguments = arrayOf(ARG_HIDE_PACKAGE, "androidx.annotation"),
+            format = FileFormat.V4,
             api =
                 """
                 // Signature format: 4.0
@@ -5545,6 +5554,7 @@ class ApiFileTest : DriverTest() {
                     ARG_HIDE_PACKAGE,
                     "androidx.annotation"
                 ),
+            format = FileFormat.V4,
             api =
                 """
                 // Signature format: 4.0
@@ -5593,6 +5603,7 @@ class ApiFileTest : DriverTest() {
                     """
                     )
                 ),
+            format = FileFormat.V4,
             api =
                 """
                 // Signature format: 4.0

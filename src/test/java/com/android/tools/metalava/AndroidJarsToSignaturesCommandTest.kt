@@ -16,13 +16,14 @@
 
 package com.android.tools.metalava
 
-import com.android.tools.metalava.testing.BaseCommandTest
+import com.android.tools.metalava.cli.common.BaseCommandTest
+import com.android.tools.metalava.cli.signature.SIGNATURE_FORMAT_OPTIONS_HELP
 import java.io.File
 import kotlin.test.assertEquals
 import org.junit.Assert
 import org.junit.Test
 
-class AndroidJarsToSignaturesCommandTest : BaseCommandTest() {
+class AndroidJarsToSignaturesCommandTest : BaseCommandTest(::AndroidJarsToSignaturesCommand) {
 
     @Test
     fun `Test help`() {
@@ -33,8 +34,9 @@ class AndroidJarsToSignaturesCommandTest : BaseCommandTest() {
                 """
 Aborting: Usage: metalava android-jars-to-signatures [options] <android-root-dir>
 
-  Rewrite the signature files in the `prebuilts/sdk` directory in the Android source tree by reading the API defined in
-  the `android.jar` files.
+  Rewrite the signature files in the `prebuilts/sdk` directory in the Android source tree.
+
+  It does this by reading the API defined in the corresponding `android.jar` files.
 
 Options:
   -h, -?, --help                             Show this message and exit

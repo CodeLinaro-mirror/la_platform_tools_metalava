@@ -19,6 +19,7 @@ package com.android.tools.metalava
 import com.android.tools.metalava.cli.common.MetalavaCliException
 import com.android.tools.metalava.cli.common.MetalavaSubCommand
 import com.android.tools.metalava.cli.common.existingDir
+import com.android.tools.metalava.cli.signature.SignatureFormatOptions
 import com.android.tools.metalava.model.psi.PsiEnvironmentManager
 import com.github.ajalt.clikt.parameters.arguments.argument
 import com.github.ajalt.clikt.parameters.arguments.validate
@@ -30,8 +31,9 @@ class AndroidJarsToSignaturesCommand :
     MetalavaSubCommand(
         help =
             """
-    Rewrite the signature files in the `prebuilts/sdk` directory in the Android source tree by
-    reading the API defined in the `android.jar` files.
+    Rewrite the signature files in the `prebuilts/sdk` directory in the Android source tree.
+
+    It does this by reading the API defined in the corresponding `android.jar` files.
 """
                 .trimIndent(),
     ) {

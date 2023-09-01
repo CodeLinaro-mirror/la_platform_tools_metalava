@@ -66,7 +66,6 @@ class NullnessMigrationTest : DriverTest() {
     fun `Method which is now marked null should be marked as recently migrated null`() {
         check(
             format = FileFormat.V2,
-            outputKotlinStyleNulls = false,
             sourceFiles =
                 arrayOf(
                     java(
@@ -121,7 +120,6 @@ class NullnessMigrationTest : DriverTest() {
     fun `Parameter which is now marked null should be marked as recently migrated null`() {
         check(
             format = FileFormat.V2,
-            outputKotlinStyleNulls = false,
             sourceFiles =
                 arrayOf(
                     java(
@@ -174,7 +172,6 @@ class NullnessMigrationTest : DriverTest() {
     fun `Comprehensive check of migration`() {
         check(
             format = FileFormat.V2,
-            outputKotlinStyleNulls = false,
             sourceFiles =
                 arrayOf(
                     java(
@@ -249,7 +246,6 @@ class NullnessMigrationTest : DriverTest() {
     fun `Comprehensive check of migration, Kotlin-style output`() {
         check(
             format = FileFormat.V3,
-            outputKotlinStyleNulls = true,
             sourceFiles =
                 arrayOf(
                     java(
@@ -304,7 +300,6 @@ class NullnessMigrationTest : DriverTest() {
     fun `Convert libcore nullness annotations to support`() {
         check(
             format = FileFormat.V2,
-            outputKotlinStyleNulls = false,
             sourceFiles =
                 arrayOf(
                     java(
@@ -415,7 +410,6 @@ class NullnessMigrationTest : DriverTest() {
     fun `Check androidx package annotation`() {
         check(
             format = FileFormat.V2,
-            outputKotlinStyleNulls = false,
             sourceFiles =
                 arrayOf(
                     java(
@@ -466,7 +460,7 @@ class NullnessMigrationTest : DriverTest() {
     @Test
     fun `Migrate nullness for type-use annotations`() {
         check(
-            outputKotlinStyleNulls = false,
+            format = FileFormat.V2,
             sourceFiles =
                 arrayOf(
                     java(
@@ -541,7 +535,7 @@ class NullnessMigrationTest : DriverTest() {
     @Test
     fun `Do not migrate type-use annotations when not changed`() {
         check(
-            outputKotlinStyleNulls = false,
+            format = FileFormat.V2,
             sourceFiles =
                 arrayOf(
                     java(
@@ -610,7 +604,7 @@ class NullnessMigrationTest : DriverTest() {
     @Test
     fun `Regression test for issue 111054266, type use annotations`() {
         check(
-            outputKotlinStyleNulls = false,
+            format = FileFormat.V2,
             sourceFiles =
                 arrayOf(
                     java(

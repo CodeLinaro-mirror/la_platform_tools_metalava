@@ -322,12 +322,7 @@ class AnnotationsMerger(
     private fun mergeInclusionAnnotationsFromCodebase(externalCodebase: Codebase) {
         val showAnnotations = options.allShowAnnotations
         val hideAnnotations = options.hideAnnotations
-        val hideMetaAnnotations = options.hideMetaAnnotations
-        if (
-            showAnnotations.isNotEmpty() ||
-                hideAnnotations.isNotEmpty() ||
-                hideMetaAnnotations.isNotEmpty()
-        ) {
+        if (showAnnotations.isNotEmpty() || hideAnnotations.isNotEmpty()) {
             val visitor =
                 object : ComparisonVisitor() {
                     override fun compare(old: Item, new: Item) {
@@ -336,9 +331,7 @@ class AnnotationsMerger(
                         for (annotation in old.modifiers.annotations()) {
                             val qualifiedName = annotation.qualifiedName ?: continue
                             if (
-                                (annotation.isShowAnnotation() ||
-                                    hideAnnotations.matches(annotation) ||
-                                    hideMetaAnnotations.contains(qualifiedName)) &&
+                                (annotation.isShowAnnotation() || annotation.isHideAnnotation()) &&
                                     new.modifiers.findAnnotation(qualifiedName) == null
                             ) {
                                 new.mutableModifiers().addAnnotation(annotation)

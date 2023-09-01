@@ -16,11 +16,12 @@
 
 package com.android.tools.metalava
 
+import com.android.tools.metalava.cli.common.BaseCommandTest
 import com.android.tools.metalava.cli.common.Version
-import com.android.tools.metalava.testing.BaseCommandTest
+import com.android.tools.metalava.cli.common.VersionCommand
 import org.junit.Test
 
-class VersionCommandTest : BaseCommandTest() {
+class VersionCommandTest : BaseCommandTest(::VersionCommand) {
 
     @Test
     fun `Test help`() {

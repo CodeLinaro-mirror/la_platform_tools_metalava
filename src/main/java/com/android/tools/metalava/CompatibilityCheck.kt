@@ -31,7 +31,6 @@ import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.psi.PsiItem
-import com.android.tools.metalava.model.text.TextCodebase
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Issues.Issue
 import com.android.tools.metalava.reporter.Reporter
@@ -64,12 +63,6 @@ class CompatibilityCheck(
         override fun toString(): String {
             return "--check-compatibility:${apiType.flagName}:released $file"
         }
-    }
-
-    /** See [com.android.tools.metalava.model.SignatureFileFormat.hasPartialSignatures]. */
-    private val comparingWithPartialSignatures = let {
-        val oldFormat = (oldCodebase as? TextCodebase)?.format
-        oldFormat?.hasPartialSignatures ?: false
     }
 
     var foundProblems = false
@@ -519,28 +512,7 @@ class CompatibilityCheck(
         // Check for changes in abstract, but only for regular classes; older signature files
         // sometimes describe interface methods as abstract
         if (new.containingClass().isClass()) {
-            if (
-                !oldModifiers.isAbstract() &&
-                    newModifiers.isAbstract() &&
-                    // In old signature files, overridden methods of abstract methods declared
-                    // in super classes are sometimes omitted by doclava. This means that the method
-                    // looks (from the signature file perspective) like it has not been implemented,
-                    // whereas in reality it has. For just one example of this, consider
-                    // FragmentBreadCrumbs.onLayout: it's a concrete implementation in that class
-                    // of the inherited method from ViewGroup. However, in the signature file,
-                    // FragmentBreadCrumbs does not list this method; it's only listed (as abstract)
-                    // in the super class. In this scenario, the compatibility check would believe
-                    // the old method in FragmentBreadCrumbs is abstract and the new method is not,
-                    // which is not the case. Therefore, if the old method is coming from a
-                    // signature
-                    // file based codebase with an old format, we omit abstract change warnings.
-                    // The reverse situation can also happen: AbstractSequentialList defines
-                    // listIterator
-                    // as abstract, but it's not recorded as abstract in the signature files
-                    // anywhere,
-                    // so we treat this as a nearly abstract method, which it is not.
-                    (old.inheritedFrom == null || !comparingWithPartialSignatures)
-            ) {
+            if (!oldModifiers.isAbstract() && newModifiers.isAbstract()) {
                 report(
                     Issues.CHANGED_ABSTRACT,
                     new,
@@ -571,45 +543,39 @@ class CompatibilityCheck(
         // and PSI
         // whether the methods are considered final.
         if (!new.containingClass().isEnum() && !oldModifiers.isStatic()) {
-            // Skip changes in final; modifier change could come from inherited
-            // implementation from hidden super class. An example of this
-            // is SpannableString.charAt whose implementation comes from
-            // SpannableStringInternal.
-            if (old.inheritedFrom == null || !comparingWithPartialSignatures) {
-                // Compiler-generated methods vary in their 'final' qualifier between versions of
-                // the compiler, so this check needs to be quite narrow. A change in 'final'
-                // status of a method is only relevant if (a) the method is not declared 'static'
-                // and (b) the method is not already inferred to be 'final' by virtue of its class.
-                if (!old.isEffectivelyFinal() && new.isEffectivelyFinal()) {
-                    if (!old.containingClass().isExtensible()) {
-                        report(
-                            Issues.ADDED_FINAL_UNINSTANTIABLE,
-                            new,
-                            "${
-                                describe(
-                                    new,
-                                    capitalize = true
-                                )
-                            } added 'final' qualifier but containing ${old.containingClass().describe()} was previously uninstantiable and therefore could not be subclassed"
-                        )
-                    } else {
-                        report(
-                            Issues.ADDED_FINAL,
-                            new,
-                            "${describe(new, capitalize = true)} has added 'final' qualifier"
-                        )
-                    }
-                } else if (old.isEffectivelyFinal() && !new.isEffectivelyFinal()) {
-                    // Disallowed removing final: If an app inherits the class and starts overriding
-                    // the method it's going to crash on earlier versions where the method is final
-                    // It doesn't break compatibility in the strict sense, but does make it very
-                    // difficult to extend this method in practice.
+            // Compiler-generated methods vary in their 'final' qualifier between versions of
+            // the compiler, so this check needs to be quite narrow. A change in 'final'
+            // status of a method is only relevant if (a) the method is not declared 'static'
+            // and (b) the method is not already inferred to be 'final' by virtue of its class.
+            if (!old.isEffectivelyFinal() && new.isEffectivelyFinal()) {
+                if (!old.containingClass().isExtensible()) {
                     report(
-                        Issues.REMOVED_FINAL_STRICT,
+                        Issues.ADDED_FINAL_UNINSTANTIABLE,
                         new,
-                        "${describe(new, capitalize = true)} has removed 'final' qualifier"
+                        "${
+                            describe(
+                                new,
+                                capitalize = true
+                            )
+                        } added 'final' qualifier but containing ${old.containingClass().describe()} was previously uninstantiable and therefore could not be subclassed"
+                    )
+                } else {
+                    report(
+                        Issues.ADDED_FINAL,
+                        new,
+                        "${describe(new, capitalize = true)} has added 'final' qualifier"
                     )
                 }
+            } else if (old.isEffectivelyFinal() && !new.isEffectivelyFinal()) {
+                // Disallowed removing final: If an app inherits the class and starts overriding
+                // the method it's going to crash on earlier versions where the method is final
+                // It doesn't break compatibility in the strict sense, but does make it very
+                // difficult to extend this method in practice.
+                report(
+                    Issues.REMOVED_FINAL_STRICT,
+                    new,
+                    "${describe(new, capitalize = true)} has removed 'final' qualifier"
+                )
             }
         }
 
@@ -904,15 +870,6 @@ class CompatibilityCheck(
     }
 
     override fun added(new: MethodItem) {
-        // In old signature files, methods inherited from hidden super classes
-        // are not included. An example of this is StringBuilder.setLength.
-        // More details about this are listed in Compatibility.skipInheritedMethods.
-        // We may see these in the codebase but not in the (old) signature files,
-        // so skip these -- they're not really "added".
-        if (new.inheritedFrom != null && comparingWithPartialSignatures) {
-            return
-        }
-
         // *Overriding* methods from super classes that are outside the
         // API is OK (e.g. overriding toString() from java.lang.Object)
         val superMethods = new.superMethods()
@@ -936,12 +893,6 @@ class CompatibilityCheck(
 
         // Builtin annotation methods: just a difference in signature file
         if (new.isEnumSyntheticMethod()) {
-            return
-        }
-
-        // In old signature files, annotation methods are missing! This will show up as an added
-        // method.
-        if (new.containingClass().isAnnotationType() && comparingWithPartialSignatures) {
             return
         }
 
@@ -993,10 +944,6 @@ class CompatibilityCheck(
     }
 
     override fun added(new: FieldItem) {
-        if (new.inheritedFrom != null && comparingWithPartialSignatures) {
-            return
-        }
-
         handleAdded(Issues.ADDED_FIELD, new)
     }
 

@@ -34,15 +34,6 @@ class HideAnnotationTest : DriverTest() {
                     kotlin(
                         """
                     package test.pkg
-                    @Retention(AnnotationRetention.BINARY)
-                    @Target(AnnotationTarget.ANNOTATION_CLASS)
-                    annotation class MetaHide
-                """
-                    ),
-                    kotlin(
-                        """
-                    package test.pkg
-                    @MetaHide
                     annotation class RegularHide
                 """
                     ),
@@ -65,15 +56,14 @@ class HideAnnotationTest : DriverTest() {
                 """
                     )
                 ),
-            hideAnnotations = arrayOf("test.pkg.MetaHide"),
-            hideMetaAnnotations = arrayOf("test.pkg.MetaHide"),
+            hideAnnotations = arrayOf("test.pkg.RegularHide"),
             api =
                 """
                 package test.pkg {
                   public class ExtendingMyHiddenClass<Float> {
                     ctor public ExtendingMyHiddenClass();
                   }
-                  @kotlin.annotation.Retention(kotlin.annotation.AnnotationRetention.BINARY) @kotlin.annotation.Target(allowedTargets=kotlin.annotation.AnnotationTarget.ANNOTATION_CLASS) public @interface MetaHide {
+                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) public @interface RegularHide {
                   }
                 }
                 """

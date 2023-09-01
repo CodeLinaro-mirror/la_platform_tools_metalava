@@ -52,7 +52,7 @@ class BinaryCompatibilityInterfacesTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                load-api.txt:3: error: Added method test.pkg.Foo.bar() [AddedAbstractMethod]
+                load-api.txt:4: error: Added method test.pkg.Foo.bar() [AddedAbstractMethod]
             """,
             signatureSource =
                 """
@@ -145,9 +145,9 @@ class BinaryCompatibilityInterfacesTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                released-api.txt:3: error: Removed method test.pkg.Foo.bar() [RemovedMethod]
-                released-api.txt:5: error: Removed method test.pkg.Foo.bax() [RemovedMethod]
-                released-api.txt:4: error: Removed method test.pkg.Foo.baz() [RemovedMethod]
+                released-api.txt:4: error: Removed method test.pkg.Foo.bar() [RemovedMethod]
+                released-api.txt:6: error: Removed method test.pkg.Foo.bax() [RemovedMethod]
+                released-api.txt:5: error: Removed method test.pkg.Foo.baz() [RemovedMethod]
             """,
             signatureSource =
                 """
@@ -201,7 +201,7 @@ class BinaryCompatibilityInterfacesTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                load-api.txt:3: error: Added method test.pkg.Upper.bar() [AddedAbstractMethod]
+                load-api.txt:4: error: Added method test.pkg.Upper.bar() [AddedAbstractMethod]
             """,
             signatureSource =
                 """
@@ -231,7 +231,7 @@ class BinaryCompatibilityInterfacesTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                released-api.txt:3: error: Removed method test.pkg.Upper.bar() [RemovedMethod]
+                released-api.txt:4: error: Removed method test.pkg.Upper.bar() [RemovedMethod]
             """,
             signatureSource =
                 """
@@ -282,7 +282,7 @@ class BinaryCompatibilityInterfacesTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                released-api.txt:3: error: Removed field test.pkg.Foo.BAR [RemovedField]
+                released-api.txt:4: error: Removed field test.pkg.Foo.BAR [RemovedField]
             """,
             signatureSource =
                 """
@@ -335,7 +335,7 @@ class BinaryCompatibilityInterfacesTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                load-api.txt:6: error: Class test.pkg.Foo no longer implements test.pkg.Two [RemovedInterface]
+                load-api.txt:7: error: Class test.pkg.Foo no longer implements test.pkg.Two [RemovedInterface]
             """,
             signatureSource =
                 """
@@ -389,7 +389,7 @@ class BinaryCompatibilityInterfacesTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                released-api.txt:4: error: Removed class test.pkg.Outer.Inner [RemovedInterface]
+                released-api.txt:5: error: Removed class test.pkg.Outer.Inner [RemovedInterface]
             """,
             signatureSource =
                 """
@@ -435,7 +435,7 @@ class BinaryCompatibilityInterfacesTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                load-api.txt:2: error: Class test.pkg.Foo changed number of type parameters from 1 to 2 [ChangedType]
+                load-api.txt:3: error: Class test.pkg.Foo changed number of type parameters from 1 to 2 [ChangedType]
             """,
             signatureSource =
                 """
@@ -459,7 +459,7 @@ class BinaryCompatibilityInterfacesTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                load-api.txt:2: error: Class test.pkg.Foo changed number of type parameters from 1 to 0 [ChangedType]
+                load-api.txt:3: error: Class test.pkg.Foo changed number of type parameters from 1 to 0 [ChangedType]
             """,
             signatureSource =
                 """
@@ -587,7 +587,7 @@ class BinaryCompatibilityInterfacesTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                load-api.txt:3: error: Added method test.pkg.Foo.bar() [AddedAbstractMethod]
+                load-api.txt:4: error: Added method test.pkg.Foo.bar() [AddedAbstractMethod]
             """,
             signatureSource =
                 """
@@ -612,8 +612,8 @@ class BinaryCompatibilityInterfacesTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                released-api.txt:3: error: Removed method test.pkg.Foo.bar() [RemovedMethod]
-                released-api.txt:4: error: Removed method test.pkg.Foo.baz() [RemovedMethod]
+                released-api.txt:4: error: Removed method test.pkg.Foo.bar() [RemovedMethod]
+                released-api.txt:5: error: Removed method test.pkg.Foo.baz() [RemovedMethod]
             """,
             signatureSource =
                 """

@@ -32,6 +32,7 @@ class CommonMethodItemTest(runner: ModelSuiteRunner) : BaseModelTest(runner) {
         createCodebaseAndRun(
             signature =
                 """
+                    // Signature format: 2.0
                     package test.pkg {
                       public class Test {
                         ctor public Test();

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava
+package com.android.tools.metalava.cli.signature
 
 import com.android.tools.metalava.cli.common.BaseOptionGroupTest
 import com.android.tools.metalava.model.text.ApiParseException
@@ -33,6 +33,8 @@ Signature Format Output:
 
   Options controlling the format of the generated signature files.
 
+  See `metalava help signature-file-formats` for more information.
+
   --api-overloaded-method-order [source|signature]
                                              Specifies the order of overloaded methods in signature files. Applies to
                                              the contents of the files specified on --api and --removed-api.
@@ -45,7 +47,28 @@ Signature Format Output:
                                              signature (default) - sorts overloaded methods by their signature. This
                                              means that refactorings of the source files which change the order but not
                                              the API will have no effect on the API signature files.
-  --format [v2|v3|v4|latest|recommended]     Sets the output signature file format to be the given version.
+  --format [v2|v3|v4|latest|recommended|<specifier>]
+                                             Specifies the output signature file format.
+
+                                             The preferred way of specifying the format is to use one of the following
+                                             values (in no particular order):
+
+                                             latest - The latest in the supported versions. Only use this if you want to
+                                             have the very latest and are prepared to update signature files on a
+                                             continuous basis.
+
+                                             recommended (default) - The recommended version to use. This is currently
+                                             set to `v2` and will only change very infrequently so can be considered
+                                             stable.
+
+                                             <specifier> - which has the following syntax:
+
+                                             <version>[:<property>=<value>[,<property>=<value>]*]
+
+                                             Where:
+
+                                             The following values are still supported but should be considered
+                                             deprecated.
 
                                              v2 - The main version used in Android.
 
@@ -55,18 +78,7 @@ Signature Format Output:
 
                                              v4 - Adds support for using concise default values in parameters. Instead
                                              of specifying the actual default values it just uses the `default` keyword.
-
-                                             latest - The latest in the supported versions. Only use this if you want to
-                                             have the very latest and are prepared to update signature files on a
-                                             continuous basis.
-
-                                             recommended (default) - The recommended version to use. This is currently
-                                             set to `v2` and will only change very infrequently so can be considered
-                                             stable.
-  --output-kotlin-nulls [yes|no]             Controls whether nullness annotations should be formatted as in Kotlin
-                                             (with "?" for nullable types, "" for non nullable types, and "!" for
-                                             unknown. The default is `yes` if --format >= v3 and must be `no` (or
-                                             unspecified) if --format < v3."
+                                             (default: recommended)
   --use-same-format-as <file>                Specifies that the output format should be the same as the format used in
                                              the specified file. It is an error if the file does not exist. If the file
                                              is empty then this will behave as if it was not specified. If the file is
@@ -94,38 +106,10 @@ class SignatureFormatOptionsTest :
     @Test
     fun `V1 not supported`() {
         val e = assertThrows(BadParameterValue::class.java) { runTest("--format=v1") {} }
-        assertThat(e.message).startsWith("""Invalid value for "--format": invalid choice: v1.""")
-    }
-
-    @Test
-    fun `V2 not compatible with --output-kotlin-nulls=yes (format first)`() {
-        val e =
-            assertThrows(BadParameterValue::class.java) {
-                runTest("--format=v2", "--output-kotlin-nulls=yes") {}
-            }
         assertThat(e.message)
             .startsWith(
-                """Invalid value for "--output-kotlin-nulls": '--output-kotlin-nulls=yes' requires '--format=v3'"""
+                """Invalid value for "--format": invalid version, found 'v1', expected one of '2.0', '3.0', '4.0', 'v2', 'v3', 'v4', 'latest', 'recommended'"""
             )
-    }
-
-    @Test
-    fun `V2 not compatible with --output-kotlin-nulls=yes (format last)`() {
-        val e =
-            assertThrows(BadParameterValue::class.java) {
-                runTest("--output-kotlin-nulls=yes", "--format=v2") {}
-            }
-        assertThat(e.message)
-            .startsWith(
-                """Invalid value for "--output-kotlin-nulls": '--output-kotlin-nulls=yes' requires '--format=v3'"""
-            )
-    }
-
-    @Test
-    fun `Can override format default with --output-kotlin-nulls=no`() {
-        runTest("--output-kotlin-nulls=no", "--format=v3") {
-            assertThat(it.fileFormat.kotlinStyleNulls).isFalse()
-        }
     }
 
     @Test
@@ -151,7 +135,7 @@ class SignatureFormatOptionsTest :
             assertThat(it.fileFormat)
                 .isEqualTo(
                     FileFormat.V2.copy(
-                        overloadedMethodOrder = FileFormat.OverloadedMethodOrder.SOURCE
+                        specifiedOverloadedMethodOrder = FileFormat.OverloadedMethodOrder.SOURCE
                     )
                 )
         }
@@ -178,6 +162,129 @@ class SignatureFormatOptionsTest :
                     it.fileFormat
                 }
             }
-        assertEquals("""Unknown file format of $path""", e.message)
+        assertEquals(
+            """Unknown file format of $path: invalid prefix, found '// Not a signature fi', expected '// Signature format: '""",
+            e.message
+        )
+    }
+
+    @Test
+    fun `--format with no properties`() {
+        runTest("--format", "2.0") { assertEquals(FileFormat.V2, it.fileFormat) }
+    }
+
+    @Test
+    fun `--format with no properties and --api-overloaded-method-order=source`() {
+        runTest("--format", "2.0", "--api-overloaded-method-order=source") {
+            assertEquals(
+                FileFormat.V2.copy(
+                    specifiedOverloadedMethodOrder = FileFormat.OverloadedMethodOrder.SOURCE,
+                ),
+                it.fileFormat
+            )
+        }
+    }
+
+    @Test
+    fun `--format with overloaded-method-order=signature`() {
+        runTest("--format", "2.0:overloaded-method-order=signature") {
+            assertEquals(
+                FileFormat.V2.copy(
+                    specifiedOverloadedMethodOrder = FileFormat.OverloadedMethodOrder.SIGNATURE,
+                ),
+                it.fileFormat
+            )
+        }
+    }
+
+    @Test
+    fun `--format with overloaded-method-order=signature and --api-overloaded-method-order=source`() {
+        runTest(
+            "--format",
+            "2.0:overloaded-method-order=signature",
+            "--api-overloaded-method-order=source",
+        ) {
+            assertEquals(
+                FileFormat.V2.copy(
+                    specifiedOverloadedMethodOrder = FileFormat.OverloadedMethodOrder.SIGNATURE,
+                ),
+                it.fileFormat
+            )
+        }
+    }
+
+    @Test
+    fun `--format specifier with all the supported properties`() {
+        runTest(
+            "--format",
+            "2.0:kotlin-style-nulls=yes,concise-default-values=yes,overloaded-method-order=source",
+        ) {
+            assertEquals(
+                FileFormat.V2.copy(
+                    specifiedOverloadedMethodOrder = FileFormat.OverloadedMethodOrder.SOURCE,
+                    kotlinStyleNulls = true,
+                    conciseDefaultValues = true,
+                ),
+                it.fileFormat
+            )
+        }
+    }
+
+    @Test
+    fun `--format-properties gibberish`() {
+        val e =
+            assertThrows(BadParameterValue::class.java) { runTest("--format", "2.0:gibberish") {} }
+        assertEquals(
+            """Invalid value for "--format": expected <property>=<value> but found 'gibberish'""",
+            e.message
+        )
+    }
+
+    @Test
+    fun `--format specifier unknown property`() {
+        val e =
+            assertThrows(BadParameterValue::class.java) {
+                runTest("--format", "2.0:property=value") {}
+            }
+        assertEquals(
+            """Invalid value for "--format": unknown format property name `property`, expected one of 'concise-default-values', 'kotlin-style-nulls', 'overloaded-method-order'""",
+            e.message
+        )
+    }
+
+    @Test
+    fun `--format specifier unknown value (concise-default-values)`() {
+        val e =
+            assertThrows(BadParameterValue::class.java) {
+                runTest("--format", "2.0:concise-default-values=barf") {}
+            }
+        assertEquals(
+            """Invalid value for "--format": unexpected value for concise-default-values, found 'barf', expected one of 'yes' or 'no'""",
+            e.message
+        )
+    }
+
+    @Test
+    fun `--format specifier unknown value (kotlin-style-nulls)`() {
+        val e =
+            assertThrows(BadParameterValue::class.java) {
+                runTest("--format", "2.0:kotlin-style-nulls=barf") {}
+            }
+        assertEquals(
+            """Invalid value for "--format": unexpected value for kotlin-style-nulls, found 'barf', expected one of 'yes' or 'no'""",
+            e.message
+        )
+    }
+
+    @Test
+    fun `--format specifier unknown value (overloaded-method-order)`() {
+        val e =
+            assertThrows(BadParameterValue::class.java) {
+                runTest("--format", "2.0:overloaded-method-order=barf") {}
+            }
+        assertEquals(
+            """Invalid value for "--format": unexpected value for overloaded-method-order, found 'barf', expected one of 'source' or 'signature'""",
+            e.message
+        )
     }
 }

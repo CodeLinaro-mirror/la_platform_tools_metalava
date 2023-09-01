@@ -152,12 +152,7 @@ class ApiFromTextTest : DriverTest() {
                   }
                 }
                 """
-        check(
-            format = FileFormat.V2,
-            outputKotlinStyleNulls = false,
-            signatureSource = source,
-            api = source
-        )
+        check(format = FileFormat.V2, signatureSource = source, api = source)
     }
 
     @Test
@@ -172,13 +167,13 @@ class ApiFromTextTest : DriverTest() {
                   }
                 }
                 """
-        check(outputKotlinStyleNulls = false, signatureSource = source, api = source)
+        check(format = FileFormat.V2, signatureSource = source, api = source)
     }
 
     @Test
     fun `Native and strictfp keywords`() {
         check(
-            outputKotlinStyleNulls = false,
+            format = FileFormat.V2,
             signatureSource =
                 """
                     package test.pkg {
@@ -204,7 +199,6 @@ class ApiFromTextTest : DriverTest() {
     fun `Type use annotations`() {
         check(
             format = FileFormat.V2,
-            outputKotlinStyleNulls = false,
             signatureSource =
                 """
                 package test.pkg {
@@ -245,7 +239,7 @@ class ApiFromTextTest : DriverTest() {
                   }
                 }
                 """
-        check(outputKotlinStyleNulls = false, signatureSource = source)
+        check(format = FileFormat.V2, signatureSource = source)
     }
 
     @Test
@@ -446,7 +440,7 @@ class ApiFromTextTest : DriverTest() {
                 }
                 """
 
-        check(outputKotlinStyleNulls = false, signatureSource = source, api = source)
+        check(format = FileFormat.V2, signatureSource = source, api = source)
     }
 
     @Test
@@ -460,7 +454,7 @@ class ApiFromTextTest : DriverTest() {
                 }
                 """
 
-        check(outputKotlinStyleNulls = false, signatureSource = source, api = source)
+        check(format = FileFormat.V2, signatureSource = source, api = source)
     }
 
     @Test
@@ -474,7 +468,7 @@ class ApiFromTextTest : DriverTest() {
                 }
                 """
 
-        check(outputKotlinStyleNulls = false, signatureSource = source, api = source)
+        check(format = FileFormat.V2, signatureSource = source, api = source)
     }
 
     @Test
@@ -615,12 +609,7 @@ class ApiFromTextTest : DriverTest() {
                 }
                 """
 
-        check(
-            format = FileFormat.V3,
-            outputKotlinStyleNulls = true,
-            signatureSource = source,
-            api = source
-        )
+        check(format = FileFormat.V3, signatureSource = source, api = source)
     }
 
     @Test
@@ -661,12 +650,7 @@ class ApiFromTextTest : DriverTest() {
                   }
                 }
                 """
-        check(
-            format = FileFormat.V3,
-            outputKotlinStyleNulls = true,
-            signatureSource = source,
-            api = source
-        )
+        check(format = FileFormat.V3, signatureSource = source, api = source)
     }
 
     @Test

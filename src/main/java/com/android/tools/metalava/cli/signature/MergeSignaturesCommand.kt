@@ -16,8 +16,6 @@
 
 package com.android.tools.metalava.cli.signature
 
-import com.android.tools.metalava.SIGNATURE_FORMAT_OUTPUT_GROUP
-import com.android.tools.metalava.SignatureFormatOptions
 import com.android.tools.metalava.SignatureWriter
 import com.android.tools.metalava.cli.common.MetalavaCliException
 import com.android.tools.metalava.cli.common.MetalavaSubCommand

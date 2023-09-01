@@ -14,11 +14,14 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava.testing
+package com.android.tools.metalava.cli.common
 
 import com.android.tools.metalava.Options
 import com.android.tools.metalava.options
 import com.android.tools.metalava.run
+import com.android.tools.metalava.testing.TemporaryFolderOwner
+import com.github.ajalt.clikt.core.CliktCommand
+import com.github.ajalt.clikt.core.subcommands
 import java.io.File
 import java.io.PrintWriter
 import java.io.StringWriter
@@ -33,7 +36,8 @@ import org.junit.rules.TemporaryFolder
  * Tests that need to run command tests must extend this and call [commandTest] to configure the
  * test.
  */
-abstract class BaseCommandTest : TemporaryFolderOwner {
+abstract class BaseCommandTest(internal val commandFactory: () -> CliktCommand) :
+    TemporaryFolderOwner {
 
     /**
      * Collects errors during the running of the test and reports them at the end.
@@ -190,8 +194,8 @@ class CommandTestConfig(private val test: BaseCommandTest) {
         options = Options()
         options.parse(emptyArray(), printOut, printErr)
 
-        // Runs Driver.run as that is the entrypoint that makes the test as realistic as possible.
-        run(originalArgs = args.toTypedArray(), stdout = printOut, stderr = printErr)
+        // Runs the command
+        runCommand(printOut, printErr)
 
         // Add checks of the expected stderr and stdout at the head of the list of verifiers.
         verify(0) { Assert.assertEquals(expectedStderr, test.cleanupString(stderr.toString())) }
@@ -201,6 +205,26 @@ class CommandTestConfig(private val test: BaseCommandTest) {
         for (verifier in verifiers) {
             // A failing verifier will not break the
             check { verifier() }
+        }
+    }
+
+    private fun runCommand(printOut: PrintWriter, printErr: PrintWriter) {
+        val metalavaCommand =
+            MetalavaCommand(
+                stdout = printOut,
+                stderr = printErr,
+                defaultCommandFactory = { FakeDefaultCommand() },
+            )
+
+        val command = test.commandFactory()
+        metalavaCommand.subcommands(command)
+
+        metalavaCommand.process(args.toTypedArray())
+    }
+
+    private class FakeDefaultCommand : CliktCommand() {
+        override fun run() {
+            throw NotImplementedError("Should never be called")
         }
     }
 }

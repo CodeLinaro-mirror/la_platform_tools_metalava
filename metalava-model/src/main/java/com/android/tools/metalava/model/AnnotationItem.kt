@@ -140,6 +140,23 @@ interface AnnotationItem {
      */
     fun isShowForStubPurposes(): Boolean
 
+    /**
+     * Returns true iff this annotation is a hide annotation.
+     *
+     * Hide annotations can either be explicitly specified when creating the [Codebase] or they can
+     * be any annotation that is annotated with a hide meta-annotation (see [isHideMetaAnnotation]).
+     *
+     * If `true` then an item annotated with this annotation (and any contents) will be excluded
+     * from the API.
+     *
+     * e.g. if a class is annotated with this then it will also apply (unless overridden by a closer
+     * annotation) to all its contents like nested classes, methods, fields, constructors,
+     * properties, etc.
+     */
+    fun isHideAnnotation(): Boolean
+
+    fun isSuppressCompatibilityAnnotation(): Boolean
+
     /** Returns the retention of this annotation */
     val retention: AnnotationRetention
         get() {
@@ -278,9 +295,13 @@ private constructor(
             ?.findAnnotation(AnnotationItem::isTypeDefAnnotation)
     }
 
-    override fun isShowAnnotation(): Boolean = info.showability.show
+    override fun isShowAnnotation(): Boolean = info.showability.show()
 
-    override fun isShowForStubPurposes(): Boolean = info.showability.forStubsOnly
+    override fun isShowForStubPurposes(): Boolean = info.showability.showForStubsOnly()
+
+    override fun isHideAnnotation(): Boolean = info.hide
+
+    override fun isSuppressCompatibilityAnnotation(): Boolean = info.suppressCompatibility
 
     override fun equals(other: Any?): Boolean {
         if (other !is AnnotationItem) return false

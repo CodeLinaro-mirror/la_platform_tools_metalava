@@ -29,6 +29,7 @@ class ConvertTest : DriverTest() {
                         strip = false,
                         fromApi =
                             """
+                    // Signature format: 2.0
                     package test.pkg {
                       public class MyTest1 {
                         ctor public MyTest1();
@@ -53,6 +54,7 @@ class ConvertTest : DriverTest() {
                     """,
                         baseApi =
                             """
+                    // Signature format: 2.0
                     package test.pkg {
                       public class MyTest1 {
                         ctor public MyTest1();

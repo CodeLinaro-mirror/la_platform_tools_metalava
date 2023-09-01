@@ -352,7 +352,7 @@ class ExtractAnnotationsTest : DriverTest() {
     @Test
     fun `Include merged annotations in exported source annotations`() {
         check(
-            outputKotlinStyleNulls = false,
+            format = FileFormat.V2,
             includeSystemApiAnnotations = false,
             expectedIssues = "error: Unexpected reference to Nonexistent.Field [InternalError]",
             sourceFiles =
@@ -419,7 +419,7 @@ class ExtractAnnotationsTest : DriverTest() {
     @Test
     fun `Only including class retention annotations in stubs`() {
         check(
-            outputKotlinStyleNulls = false,
+            format = FileFormat.V2,
             includeSystemApiAnnotations = false,
             sourceFiles =
                 arrayOf(
@@ -659,7 +659,7 @@ class ExtractAnnotationsTest : DriverTest() {
     @Test
     fun `Test generics in XML attributes are encoded`() {
         check(
-            outputKotlinStyleNulls = false,
+            format = FileFormat.V2,
             includeSystemApiAnnotations = false,
             sourceFiles =
                 arrayOf(

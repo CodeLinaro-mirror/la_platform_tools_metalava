@@ -31,7 +31,6 @@ class AnnotationsMergerTest : DriverTest() {
     fun `Signature files contain annotations`() {
         check(
             format = FileFormat.V2,
-            outputKotlinStyleNulls = false,
             includeSystemApiAnnotations = false,
             sourceFiles =
                 arrayOf(
@@ -96,7 +95,6 @@ class AnnotationsMergerTest : DriverTest() {
                     """
                     )
                 ),
-            outputKotlinStyleNulls = false,
             mergeXmlAnnotations =
                 """<?xml version="1.0" encoding="UTF-8"?>
                 <root>
@@ -156,7 +154,6 @@ class AnnotationsMergerTest : DriverTest() {
                     """
                     )
                 ),
-            outputKotlinStyleNulls = false,
             mergeSignatureAnnotations =
                 """
                 // Signature format: 3.0
@@ -206,7 +203,6 @@ class AnnotationsMergerTest : DriverTest() {
                     libcoreNonNullSource,
                     libcoreNullableSource
                 ),
-            outputKotlinStyleNulls = false,
             mergeJavaStubAnnotations =
                 """
                 package test.pkg;
@@ -233,6 +229,7 @@ class AnnotationsMergerTest : DriverTest() {
     @Test
     fun `Merge qualifier annotations from Java stub files onto stubs that are not in the API signature file`() {
         check(
+            format = FileFormat.V2,
             includeSystemApiAnnotations = true,
             sourceFiles =
                 arrayOf(
@@ -259,7 +256,6 @@ class AnnotationsMergerTest : DriverTest() {
                     libcoreNonNullSource,
                     libcoreNullableSource
                 ),
-            outputKotlinStyleNulls = false,
             mergeJavaStubAnnotations =
                 """
                 package test.pkg;
@@ -326,7 +322,6 @@ class AnnotationsMergerTest : DriverTest() {
                     libcoreNonNullSource,
                     libcoreNullableSource
                 ),
-            outputKotlinStyleNulls = false,
             mergeJavaStubAnnotations =
                 """
                 package test.pkg;
@@ -372,7 +367,6 @@ class AnnotationsMergerTest : DriverTest() {
                     libcoreNonNullSource,
                     libcoreNullableSource
                 ),
-            outputKotlinStyleNulls = false,
             mergeJavaStubAnnotations =
                 """
                 package test.pkg;
@@ -400,6 +394,7 @@ class AnnotationsMergerTest : DriverTest() {
     @Test
     fun `Merge inclusion annotations from Java stub files`() {
         check(
+            format = FileFormat.V2,
             expectedIssues = "",
             sourceFiles =
                 arrayOf(
@@ -426,7 +421,6 @@ class AnnotationsMergerTest : DriverTest() {
                     """
                     )
                 ),
-            outputKotlinStyleNulls = false,
             hideAnnotations = arrayOf("test.annotation.Hide"),
             showAnnotations = arrayOf("test.annotation.Show"),
             showUnannotated = true,
@@ -460,6 +454,7 @@ class AnnotationsMergerTest : DriverTest() {
     @Test
     fun `Merge inclusion annotations from Java stub files using --show-single-annotation`() {
         check(
+            format = FileFormat.V2,
             sourceFiles =
                 arrayOf(
                     java(
@@ -474,7 +469,6 @@ class AnnotationsMergerTest : DriverTest() {
                     """
                     )
                 ),
-            outputKotlinStyleNulls = false,
             extraArguments =
                 arrayOf(
                     ARG_HIDE_ANNOTATION,
@@ -508,6 +502,7 @@ class AnnotationsMergerTest : DriverTest() {
     @Test
     fun `Merge inclusion annotations on api in java namespace`() {
         check(
+            format = FileFormat.V2,
             sourceFiles =
                 arrayOf(
                     java(
@@ -522,7 +517,6 @@ class AnnotationsMergerTest : DriverTest() {
                     """
                     )
                 ),
-            outputKotlinStyleNulls = false,
             extraArguments = arrayOf(ARG_SHOW_SINGLE_ANNOTATION, "test.annotation.Show"),
             mergeInclusionAnnotations =
                 """
@@ -696,6 +690,7 @@ class AnnotationsMergerTest : DriverTest() {
                   </item>
                 </root>
                 """,
+            format = FileFormat.V4,
             api =
                 """
                 // Signature format: 4.0
@@ -765,7 +760,7 @@ class AnnotationsMergerTest : DriverTest() {
                     """
                     )
                 ),
-            outputKotlinStyleNulls = false,
+            format = FileFormat.V4,
             mergeSignatureAnnotations =
                 """
                 // Signature format: 4.0

@@ -64,7 +64,6 @@ class PsiSourceParser(
     private val annotationManager: AnnotationManager = noOpAnnotationManager,
     private val javaLanguageLevel: LanguageLevel = defaultJavaLanguageLevel,
     private val kotlinLanguageLevel: LanguageVersionSettings = defaultKotlinLanguageLevel,
-    private val allowImplicitRoot: Boolean = true,
     private val useK2Uast: Boolean = false,
     private val jdkHome: File? = null,
 ) {
@@ -84,10 +83,9 @@ class PsiSourceParser(
 
         val absoluteSourceRoots =
             sourcePath.filter { it.path.isNotBlank() }.map { it.absoluteFile }.toMutableList()
+
         // Add in source roots implied by the source files
-        if (allowImplicitRoot) {
-            extractRoots(reporter, absoluteSources, absoluteSourceRoots)
-        }
+        extractRoots(reporter, absoluteSources, absoluteSourceRoots)
 
         val absoluteClasspath = classpath.map { it.absoluteFile }
 

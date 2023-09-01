@@ -162,12 +162,7 @@ private constructor(
         format = FileFormat.parseHeader(filename, StringReader(apiText)) ?: FileFormat.V2
         kotlinStyleNulls = format.kotlinStyleNulls
 
-        // If it's the first file, set the format. Otherwise, make sure the format is the same as
-        // the prior files.
-        if (!appending) {
-            // This is the first file to process.
-            api.format = format
-        } else {
+        if (appending) {
             // When we're appending, and the content is empty, nothing to do.
             if (apiText.isBlank()) {
                 return
@@ -321,7 +316,7 @@ private constructor(
             rawName = rawName.substring(0, variableIndex)
         }
         token = tokenizer.requireToken()
-        val maybeExistingClass =
+        var cl =
             TextClassItem(
                 api,
                 tokenizer.pos(),
@@ -334,20 +329,6 @@ private constructor(
                 rawName,
                 annotations
             )
-        val cl =
-            when (val foundClass = api.findClass(maybeExistingClass.qualifiedName())) {
-                null -> maybeExistingClass
-                else -> {
-                    if (!foundClass.isCompatible(maybeExistingClass)) {
-                        throw ApiParseException(
-                            "Incompatible $foundClass definitions",
-                            maybeExistingClass.position
-                        )
-                    } else {
-                        foundClass
-                    }
-                }
-            }
 
         cl.setContainingPackage(pkg)
         cl.setTypeInfo(typeInfo)
@@ -358,8 +339,6 @@ private constructor(
             ext = token
             token = tokenizer.requireToken()
         }
-        // Resolve superclass after done parsing
-        mapClassToSuper(cl, ext)
         if (
             "implements" == token ||
                 "extends" == token ||
@@ -395,6 +374,30 @@ private constructor(
             throw ApiParseException("expected {, was $token", tokenizer)
         }
         token = tokenizer.requireToken()
+        cl =
+            when (val foundClass = api.findClass(cl.qualifiedName())) {
+                null -> {
+                    // Duplicate class is not found, thus update super class string
+                    // and keep cl
+                    mapClassToSuper(cl, ext)
+                    cl
+                }
+                else -> {
+                    if (!foundClass.isCompatible(cl)) {
+                        throw ApiParseException("Incompatible $foundClass definitions", cl.position)
+                    } else if (mClassToSuper[foundClass] != ext) {
+                        // Duplicate class with conflicting superclass names are found.
+                        // Since the clas definition found later should be prioritized,
+                        // overwrite the superclass name as ext but set cl as
+                        // foundClass, where the class attributes are stored
+                        // and continue to add methods/fields in foundClass
+                        mapClassToSuper(cl, ext)
+                        foundClass
+                    } else {
+                        foundClass
+                    }
+                }
+            }
         while (true) {
             if ("}" == token) {
                 break
@@ -433,7 +436,9 @@ private constructor(
             varArgs = true
         }
         if (kotlinStyleNulls) {
-            if (type.endsWith("?")) {
+            if (varArgs) {
+                mergeAnnotations(annotations, ANDROIDX_NONNULL)
+            } else if (type.endsWith("?")) {
                 type = type.substring(0, type.length - 1)
                 mergeAnnotations(annotations, ANDROIDX_NULLABLE)
             } else if (type.endsWith("!")) {
@@ -1486,6 +1491,5 @@ private fun TextClassItem.isCompatible(cls: TextClassItem): Boolean {
         isInterface() == cls.isInterface() &&
         isEnum() == cls.isEnum() &&
         isAnnotation == cls.isAnnotation &&
-        superClass() == cls.superClass() &&
         allInterfaces().toSet() == cls.allInterfaces().toSet()
 }
