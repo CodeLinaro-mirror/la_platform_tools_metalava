@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model.visitors
 
 import com.android.tools.metalava.ApiPredicate
+import com.android.tools.metalava.PackageFilter
 import com.android.tools.metalava.model.BaseItemVisitor
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.FieldItem
@@ -25,7 +26,6 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.options
-import com.android.tools.metalava.tick
 import java.util.function.Predicate
 
 open class ApiVisitor(
@@ -67,10 +67,11 @@ open class ApiVisitor(
     /**
      * Whether this visitor should visit elements that have not been annotated with one of the
      * annotations passed in using the --show-annotation flag. This is normally true, but signature
-     * files sometimes sets this to false to make the signature file only contain the "diff" of the
+     * files sometimes sets this to false so the signature file only contains the "diff" of the
      * annotated API relative to the base API.
      */
-    val showUnannotated: Boolean = true
+    val showUnannotated: Boolean = true,
+    @Suppress("DEPRECATION") val packageFilter: PackageFilter? = options.stubPackages,
 ) : BaseItemVisitor(visitConstructorsAsMethods, nestInnerClasses) {
     constructor(
         /**
@@ -145,7 +146,6 @@ open class ApiVisitor(
         // For the API visitor packages are visited lazily; only when we encounter
         // an unfiltered item within the class
         pkg.topLevelClasses().asSequence().sortedWith(ClassItem.classNameSorter()).forEach {
-            tick()
             it.accept(this)
         }
 
@@ -161,8 +161,7 @@ open class ApiVisitor(
         if (skip(cls)) {
             return false
         }
-        @Suppress("DEPRECATION") val filter = options.stubPackages
-        if (filter != null && !filter.matches(cls.containingPackage())) {
+        if (packageFilter != null && !packageFilter.matches(cls.containingPackage())) {
             return false
         }
 

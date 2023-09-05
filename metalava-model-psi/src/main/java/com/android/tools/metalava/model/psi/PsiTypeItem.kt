@@ -342,7 +342,7 @@ private constructor(private val codebase: PsiBasedCodebase, var psiType: PsiType
     }
 
     companion object {
-        fun toTypeString(
+        private fun toTypeString(
             codebase: PsiBasedCodebase,
             type: PsiType,
             outerAnnotations: Boolean,

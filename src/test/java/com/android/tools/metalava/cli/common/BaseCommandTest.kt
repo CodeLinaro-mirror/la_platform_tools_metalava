@@ -17,6 +17,7 @@
 package com.android.tools.metalava.cli.common
 
 import com.android.tools.metalava.Options
+import com.android.tools.metalava.ProgressTracker
 import com.android.tools.metalava.options
 import com.android.tools.metalava.run
 import com.android.tools.metalava.testing.TemporaryFolderOwner
@@ -209,11 +210,14 @@ class CommandTestConfig(private val test: BaseCommandTest) {
     }
 
     private fun runCommand(printOut: PrintWriter, printErr: PrintWriter) {
+        val progressTracker = ProgressTracker(stdout = printOut)
+
         val metalavaCommand =
             MetalavaCommand(
                 stdout = printOut,
                 stderr = printErr,
                 defaultCommandFactory = { FakeDefaultCommand() },
+                progressTracker,
             )
 
         val command = test.commandFactory()

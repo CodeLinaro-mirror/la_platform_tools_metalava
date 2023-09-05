@@ -26,7 +26,7 @@ import com.intellij.psi.JavaPsiFacade
 import com.intellij.psi.search.GlobalSearchScope
 import java.io.File
 
-class PsiBasedClassResolver(
+internal class PsiBasedClassResolver(
     uastEnvironment: UastEnvironment,
     annotationManager: AnnotationManager,
     reporter: Reporter

@@ -102,7 +102,11 @@ private constructor(
                     try {
                         file.readText(UTF_8)
                     } catch (ex: IOException) {
-                        throw ApiParseException("Error reading API file", file.path, ex)
+                        throw ApiParseException(
+                            "Error reading API file",
+                            file = file.path,
+                            cause = ex
+                        )
                     }
                 parser.parseApiSingleFile(api, !first, file.path, apiText)
                 first = false

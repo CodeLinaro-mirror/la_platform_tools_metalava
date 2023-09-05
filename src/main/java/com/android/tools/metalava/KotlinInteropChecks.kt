@@ -22,6 +22,7 @@ import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ParameterItem
+import com.android.tools.metalava.model.psi.PsiEnvironmentManager
 import com.android.tools.metalava.model.psi.PsiFieldItem
 import com.android.tools.metalava.model.psi.PsiParameterItem
 import com.android.tools.metalava.model.psi.report
@@ -41,6 +42,11 @@ import org.jetbrains.uast.UField
 //
 // Also potentially makes other API suggestions.
 class KotlinInteropChecks(val reporter: Reporter) {
+
+    @Suppress("DEPRECATION")
+    private val javaLanguageLevel =
+        PsiEnvironmentManager.javaLanguageLevelFromString(options.javaLanguageLevelAsString)
+
     fun check(codebase: Codebase) {
         codebase.accept(
             object :
@@ -413,6 +419,6 @@ class KotlinInteropChecks(val reporter: Reporter) {
 
     /** Returns true if the given string is a reserved Java keyword */
     private fun isJavaKeyword(keyword: String): Boolean {
-        @Suppress("DEPRECATION") return JavaLexer.isKeyword(keyword, options.javaLanguageLevel)
+        return JavaLexer.isKeyword(keyword, javaLanguageLevel)
     }
 }

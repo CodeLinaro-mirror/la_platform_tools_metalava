@@ -24,7 +24,7 @@ import org.jetbrains.kotlin.asJava.elements.KtLightDeclaration
 import org.jetbrains.kotlin.lexer.KtTokens
 import org.jetbrains.kotlin.psi.KtTypeParameter
 
-class PsiTypeParameterItem(
+internal class PsiTypeParameterItem(
     codebase: PsiBasedCodebase,
     psiClass: PsiTypeParameter,
     name: String,

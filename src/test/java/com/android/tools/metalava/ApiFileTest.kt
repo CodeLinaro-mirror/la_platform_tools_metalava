@@ -4162,8 +4162,10 @@ class ApiFileTest : DriverTest() {
         check(
             signatureSources = arrayOf(source1, source2),
             api = expected,
-            overloadedMethodOrder = OverloadedMethodOrder.SOURCE,
-            format = FileFormat.V2,
+            format =
+                FileFormat.V2.copy(
+                    specifiedOverloadedMethodOrder = OverloadedMethodOrder.SOURCE,
+                ),
         )
     }
 

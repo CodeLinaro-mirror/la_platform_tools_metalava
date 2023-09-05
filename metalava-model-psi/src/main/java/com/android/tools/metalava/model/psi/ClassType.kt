@@ -19,7 +19,7 @@ package com.android.tools.metalava.model.psi
 import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiTypeParameter
 
-enum class ClassType {
+internal enum class ClassType {
     INTERFACE,
     ENUM,
     ANNOTATION_TYPE,

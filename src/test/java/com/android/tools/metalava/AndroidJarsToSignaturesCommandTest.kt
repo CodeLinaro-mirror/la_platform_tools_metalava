@@ -18,6 +18,7 @@ package com.android.tools.metalava
 
 import com.android.tools.metalava.cli.common.BaseCommandTest
 import com.android.tools.metalava.cli.signature.SIGNATURE_FORMAT_OPTIONS_HELP
+import com.android.tools.metalava.model.text.FileFormat
 import java.io.File
 import kotlin.test.assertEquals
 import org.junit.Assert
@@ -97,7 +98,11 @@ Arguments:
                 return "${currentApiDir(apiVersion)}/android.txt"
             }
 
-            data class ApiVersionInfo(val version: Int, val inputAndroidJarFile: File)
+            data class ApiVersionInfo(
+                val version: Int,
+                val inputAndroidJarFile: File,
+                val inputAndroidTxtFile: File? = null,
+            )
             val apiVersionsInfo = mutableListOf<ApiVersionInfo>()
 
             // The first few android.jars are not in prebuilts/sdk
@@ -110,14 +115,26 @@ Arguments:
             // The remaining android.jars are in prebuilts/sdk/<N>/public/android.jar.
             for (apiVersion in 4..5) {
                 val versionJar = androidRootDir.resolve(currentAndroidJarFile(apiVersion))
+
+                // Some android.jar files already have a corresponding android.txt file.
+                val androidTxtFile =
+                    if (apiVersion == 5) androidRootDir.resolve(currentApiTxtFile(apiVersion))
+                    else null
+
                 // Add to the list of api versions.
-                apiVersionsInfo.add(ApiVersionInfo(apiVersion, versionJar))
+                apiVersionsInfo.add(ApiVersionInfo(apiVersion, versionJar, androidTxtFile))
             }
 
             // Set up the input file structure.
             for (apiVersionInfo in apiVersionsInfo) {
                 // Copy the android.jar created in the build.gradle.kts file.
                 androidJar.copyTo(apiVersionInfo.inputAndroidJarFile, overwrite = true)
+
+                // Create an android.txt file, if provided.
+                apiVersionInfo.inputAndroidTxtFile?.apply {
+                    parentFile.mkdirs()
+                    writeText(FileFormat.V2.header())
+                }
 
                 // Make sure the directory for the android.txt file exists.
                 androidRootDir.resolve(currentApiDir(apiVersionInfo.version)).mkdirs()

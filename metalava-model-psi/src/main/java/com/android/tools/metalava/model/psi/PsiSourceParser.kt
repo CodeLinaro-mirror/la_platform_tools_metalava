@@ -22,8 +22,13 @@ import com.android.tools.lint.annotations.Extractor
 import com.android.tools.lint.checks.infrastructure.ClassName
 import com.android.tools.lint.detector.api.Project
 import com.android.tools.metalava.model.AnnotationManager
+import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.PackageDocs
 import com.android.tools.metalava.model.noOpAnnotationManager
+import com.android.tools.metalava.model.source.DEFAULT_JAVA_LANGUAGE_LEVEL
+import com.android.tools.metalava.model.source.DEFAULT_KOTLIN_LANGUAGE_LEVEL
+import com.android.tools.metalava.model.source.SourceCodebase
+import com.android.tools.metalava.model.source.SourceParser
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
 import com.google.common.collect.Lists
@@ -36,11 +41,11 @@ import org.jetbrains.kotlin.config.LanguageVersion
 import org.jetbrains.kotlin.config.LanguageVersionSettings
 import org.jetbrains.kotlin.config.LanguageVersionSettingsImpl
 
-val defaultJavaLanguageLevel = LanguageLevel.JDK_1_8
+val defaultJavaLanguageLevel = LanguageLevel.parse(DEFAULT_JAVA_LANGUAGE_LEVEL)!!
 
 // TODO(b/287343397): use the latest version once MetalavaRunner in androidx is ready
 // LanguageVersionSettingsImpl.DEFAULT
-val defaultKotlinLanguageLevel = kotlinLanguageVersionSettings("1.8")
+val defaultKotlinLanguageLevel = kotlinLanguageVersionSettings(DEFAULT_KOTLIN_LANGUAGE_LEVEL)
 
 fun kotlinLanguageVersionSettings(value: String?): LanguageVersionSettings {
     val languageLevel =
@@ -58,7 +63,7 @@ fun kotlinLanguageVersionSettings(value: String?): LanguageVersionSettings {
  * The codebases will use a project environment initialized according to the properties passed to
  * the constructor and the paths passed to [parseSources].
  */
-class PsiSourceParser(
+internal class PsiSourceParser(
     private val psiEnvironmentManager: PsiEnvironmentManager,
     private val reporter: Reporter,
     private val annotationManager: AnnotationManager = noOpAnnotationManager,
@@ -66,18 +71,24 @@ class PsiSourceParser(
     private val kotlinLanguageLevel: LanguageVersionSettings = defaultKotlinLanguageLevel,
     private val useK2Uast: Boolean = false,
     private val jdkHome: File? = null,
-) {
+) : SourceParser {
+
+    override fun getClassResolver(classPath: List<File>): ClassResolver {
+        val uastEnvironment = loadUastFromJars(classPath)
+        return PsiBasedClassResolver(uastEnvironment, annotationManager, reporter)
+    }
+
     /**
      * Returns a codebase initialized from the given Java or Kotlin source files, with the given
      * description.
      *
      * All supplied [File] objects will be mapped to [File.getAbsoluteFile].
      */
-    fun parseSources(
+    override fun parseSources(
         sources: List<File>,
         description: String,
         sourcePath: List<File>,
-        classpath: List<File>,
+        classPath: List<File>,
     ): PsiBasedCodebase {
         val absoluteSources = sources.map { it.absoluteFile }
 
@@ -87,7 +98,7 @@ class PsiSourceParser(
         // Add in source roots implied by the source files
         extractRoots(reporter, absoluteSources, absoluteSourceRoots)
 
-        val absoluteClasspath = classpath.map { it.absoluteFile }
+        val absoluteClasspath = classPath.map { it.absoluteFile }
 
         return parseAbsoluteSources(
             absoluteSources,
@@ -154,6 +165,14 @@ class PsiSourceParser(
 
     private fun isJdkModular(homePath: File): Boolean {
         return File(homePath, "jmods").isDirectory
+    }
+
+    override fun loadFromJar(apiJar: File, preFiltered: Boolean): SourceCodebase {
+        val environment = loadUastFromJars(listOf(apiJar))
+        val codebase =
+            PsiBasedCodebase(apiJar, "Codebase loaded from $apiJar", annotationManager, reporter)
+        codebase.initialize(environment, apiJar, preFiltered)
+        return codebase
     }
 
     /** Initializes a UAST environment using the [apiJars] as classpath roots. */

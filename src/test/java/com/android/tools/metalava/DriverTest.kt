@@ -37,13 +37,11 @@ import com.android.tools.metalava.cli.common.ARG_NO_COLOR
 import com.android.tools.metalava.cli.common.ARG_QUIET
 import com.android.tools.metalava.cli.common.ARG_REPEAT_ERRORS_MAX
 import com.android.tools.metalava.cli.common.ARG_VERBOSE
-import com.android.tools.metalava.cli.signature.ARG_API_OVERLOADED_METHOD_ORDER
 import com.android.tools.metalava.cli.signature.ARG_FORMAT
 import com.android.tools.metalava.model.psi.gatherSources
 import com.android.tools.metalava.model.text.ApiClassResolution
 import com.android.tools.metalava.model.text.ApiFile
 import com.android.tools.metalava.model.text.FileFormat
-import com.android.tools.metalava.model.text.FileFormat.OverloadedMethodOrder
 import com.android.tools.metalava.model.text.assertSignatureFilesMatch
 import com.android.tools.metalava.model.text.prepareSignatureFileForTest
 import com.android.tools.metalava.reporter.Severity
@@ -65,7 +63,6 @@ import java.io.PrintStream
 import java.io.PrintWriter
 import java.io.StringWriter
 import java.net.URL
-import java.util.Locale
 import kotlin.text.Charsets.UTF_8
 import org.intellij.lang.annotations.Language
 import org.junit.Assert.assertEquals
@@ -104,8 +101,6 @@ abstract class DriverTest : TemporaryFolderOwner {
         @Suppress("SameParameterValue") vararg args: String,
         expectedFail: String = "",
     ): String {
-        resetTicker()
-
         // Capture the actual input and output from System.out/err and compare it to the output
         // printed through the official writer; they should be the same, otherwise we have stray
         // print calls littered in the code!
@@ -252,8 +247,6 @@ abstract class DriverTest : TemporaryFolderOwner {
         dexApi: String? = null,
         /** The removed API (corresponds to --removed-api) */
         removedApi: String? = null,
-        /** The overloaded method order, defaults to signature. */
-        overloadedMethodOrder: OverloadedMethodOrder? = OverloadedMethodOrder.SIGNATURE,
         /** The subtract api signature content (corresponds to --subtract-api) */
         @Language("TEXT") subtractApi: String? = null,
         /** Expected stubs (corresponds to --stubs) */
@@ -756,13 +749,6 @@ abstract class DriverTest : TemporaryFolderOwner {
         val apiFile: File = newFile("public-api.txt")
         val apiArgs = arrayOf(ARG_API, apiFile.path)
 
-        val overloadedMethodArgs =
-            if (overloadedMethodOrder == null) {
-                emptyArray()
-            } else {
-                arrayOf(ARG_API_OVERLOADED_METHOD_ORDER, overloadedMethodOrder.name.lowercase())
-            }
-
         var apiXmlFile: File? = null
         val apiXmlArgs =
             if (apiXml != null) {
@@ -1044,7 +1030,6 @@ abstract class DriverTest : TemporaryFolderOwner {
                 *kotlinPathArgs,
                 *removedArgs,
                 *apiArgs,
-                *overloadedMethodArgs,
                 *apiXmlArgs,
                 *dexApiArgs,
                 *subtractApiArgs,
@@ -1079,7 +1064,7 @@ abstract class DriverTest : TemporaryFolderOwner {
                 *extractAnnotationsArgs,
                 *validateNullabilityArgs,
                 *validateNullabilityFromListArgs,
-                format.outputFlag(),
+                format.outputFlags(),
                 *apiClassResolutionArgs,
                 *sourceList,
                 *extraArguments,
@@ -1106,24 +1091,12 @@ abstract class DriverTest : TemporaryFolderOwner {
             assertEquals(expectedOutput.trimIndent().trim(), actualOutput.trim())
         }
 
-        // Calculate the effective output format from the different parameters provided. This is
-        // used to construct the signature header to prepend to the expected signature output for
-        // those tests which do not provide a signature header. Usually tests should not use code
-        // under test in preparing the expected test output but in this case it does not matter as
-        // this is only provided as a convenience for those tests that are not testing the signature
-        // format specifically. Tests that are testing that will just provide their own header and
-        // this will just be ignored.
-        val effectiveFormat =
-            format.applyOptionalCommandLineSuppliedOverrides(
-                overloadedMethodOrder = overloadedMethodOrder,
-            )
-
         if (api != null) {
             assertTrue(
                 "${apiFile.path} does not exist even though --api was used",
                 apiFile.exists()
             )
-            assertSignatureFilesMatch(api, apiFile.readText(), expectedFormat = effectiveFormat)
+            assertSignatureFilesMatch(api, apiFile.readText(), expectedFormat = format)
             // Make sure we can read back the files we write
             ApiFile.parseApi(apiFile, options.annotationManager)
         }
@@ -1221,7 +1194,7 @@ abstract class DriverTest : TemporaryFolderOwner {
             assertSignatureFilesMatch(
                 removedApi,
                 removedApiFile.readText(),
-                expectedFormat = effectiveFormat
+                expectedFormat = format
             )
             // Make sure we can read back the files we write
             ApiFile.parseApi(removedApiFile, options.annotationManager)
@@ -1458,8 +1431,8 @@ abstract class DriverTest : TemporaryFolderOwner {
     }
 }
 
-private fun FileFormat.outputFlag(): String {
-    return "$ARG_FORMAT=${defaultsVersion.name.lowercase(Locale.US)}"
+private fun FileFormat.outputFlags(): String {
+    return "$ARG_FORMAT=${specifier()}"
 }
 
 private fun File.writeSignatureText(contents: String) {

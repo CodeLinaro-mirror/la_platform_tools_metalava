@@ -108,7 +108,7 @@ class SignatureFormatOptionsTest :
         val e = assertThrows(BadParameterValue::class.java) { runTest("--format=v1") {} }
         assertThat(e.message)
             .startsWith(
-                """Invalid value for "--format": invalid version, found 'v1', expected one of '2.0', '3.0', '4.0', 'v2', 'v3', 'v4', 'latest', 'recommended'"""
+                """Invalid value for "--format": invalid version, found 'v1', expected one of '2.0', '3.0', '4.0', '5.0', 'v2', 'v3', 'v4', 'latest', 'recommended'"""
             )
     }
 
@@ -163,7 +163,7 @@ class SignatureFormatOptionsTest :
                 }
             }
         assertEquals(
-            """Unknown file format of $path: invalid prefix, found '// Not a signature fi', expected '// Signature format: '""",
+            """$path:1: Signature format error - invalid prefix, found '// Not a signature fi', expected '// Signature format: '""",
             e.message
         )
     }
@@ -247,7 +247,7 @@ class SignatureFormatOptionsTest :
                 runTest("--format", "2.0:property=value") {}
             }
         assertEquals(
-            """Invalid value for "--format": unknown format property name `property`, expected one of 'concise-default-values', 'kotlin-style-nulls', 'overloaded-method-order'""",
+            """Invalid value for "--format": unknown format property name `property`, expected one of 'concise-default-values', 'kotlin-style-nulls', 'migrating', 'overloaded-method-order'""",
             e.message
         )
     }

@@ -35,7 +35,6 @@ import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiClassType
 import com.intellij.psi.PsiCompiledFile
 import com.intellij.psi.PsiModifier
-import com.intellij.psi.PsiModifierListOwner
 import com.intellij.psi.PsiType
 import com.intellij.psi.PsiTypeParameter
 import com.intellij.psi.SyntheticElement
@@ -49,14 +48,15 @@ import org.jetbrains.uast.UClass
 import org.jetbrains.uast.UFile
 import org.jetbrains.uast.getParentOfType
 
-open class PsiClassItem(
+open class PsiClassItem
+internal constructor(
     override val codebase: PsiBasedCodebase,
     val psiClass: PsiClass,
     private val name: String,
     private val fullName: String,
     private val qualifiedName: String,
     private val hasImplicitDefaultConstructor: Boolean,
-    val classType: ClassType,
+    internal val classType: ClassType,
     modifiers: PsiModifierItem,
     documentation: String,
     /** True if this class is from the class path (dependencies). Exposed in [isFromClassPath]. */
@@ -180,7 +180,7 @@ open class PsiClassItem(
 
     override fun innerClasses(): List<PsiClassItem> = innerClasses
 
-    override fun constructors(): List<PsiConstructorItem> = constructors
+    override fun constructors(): List<ConstructorItem> = constructors
 
     override fun methods(): List<PsiMethodItem> = methods
 
@@ -227,7 +227,7 @@ open class PsiClassItem(
 
         val uFile =
             if (psiClass is UClass) {
-                psiClass.getParentOfType<UFile>(UFile::class.java)
+                psiClass.getParentOfType(UFile::class.java)
             } else {
                 null
             }
@@ -302,7 +302,7 @@ open class PsiClassItem(
         }
     }
 
-    protected fun initialize(
+    internal fun initialize(
         innerClasses: List<PsiClassItem>,
         interfaceTypes: List<TypeItem>,
         constructors: List<PsiConstructorItem>,
@@ -457,7 +457,7 @@ open class PsiClassItem(
             val hasImplicitDefaultConstructor = hasImplicitDefaultConstructor(psiClass)
             val classType = ClassType.getClassType(psiClass)
 
-            val commentText = PsiItem.javadoc(psiClass)
+            val commentText = javadoc(psiClass)
             val modifiers = PsiModifierItem.create(codebase, psiClass, commentText)
 
             val item =
@@ -526,7 +526,7 @@ open class PsiClassItem(
                         constructor.modifiers.setVisibilityLevel(VisibilityLevel.PRIVATE)
                     }
                     if (constructor.areAllParametersOptional()) {
-                        if (constructor.parameters().count() > 0) {
+                        if (constructor.parameters().isNotEmpty()) {
                             constructors.add(constructor)
                             // uast reported a constructor having only optional arguments, so if we
                             // later find an explicit no-arg constructor, we can skip it because
@@ -686,7 +686,7 @@ open class PsiClassItem(
                             break
                         }
                 }
-                return list.asReversed().asSequence().joinToString(separator = ".") { it }
+                return list.asReversed().joinToString(separator = ".") { it }
             }
         }
 
@@ -844,13 +844,4 @@ open class PsiClassItem(
             return map
         }
     }
-}
-
-fun PsiModifierListOwner.isPrivate(): Boolean =
-    modifierList?.hasExplicitModifier(PsiModifier.PRIVATE) == true
-
-fun PsiModifierListOwner.isPackagePrivate(): Boolean {
-    val modifiers = modifierList ?: return false
-    return !(modifiers.hasModifierProperty(PsiModifier.PUBLIC) ||
-        modifiers.hasModifierProperty(PsiModifier.PROTECTED))
 }

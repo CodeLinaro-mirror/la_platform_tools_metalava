@@ -31,8 +31,33 @@ data class FileFormat(
     val defaultsVersion: DefaultsVersion,
     val specifiedOverloadedMethodOrder: OverloadedMethodOrder? = null,
     val kotlinStyleNulls: Boolean,
+    /**
+     * If non-null then it indicates that the file format is being used to migrate a signature file
+     * to fix a bug that causes a change in the signature file contents but not a change in version.
+     * e.g. This would be used when migrating a 2.0 file format that currently uses source order for
+     * overloaded methods (using a command line parameter to override the default order of
+     * signature) to a 2.0 file that uses signature order.
+     *
+     * This should be used to provide an explanation as to what is being migrated and why. It should
+     * be relatively concise, e.g. something like:
+     * ```
+     * "See <short-url> for details"
+     * ```
+     *
+     * This value cannot use `,` (because it is a separator between properties in [specifier]) or
+     * `\n` (because it is the terminator of the signature format line).
+     */
+    val migrating: String? = null,
     val conciseDefaultValues: Boolean,
 ) {
+    init {
+        if (migrating != null && "[,\n]".toRegex().find(migrating) != null) {
+            throw IllegalStateException(
+                """invalid value for property 'migrating': '$migrating' contains at least one invalid character from the set {',', '\n'}"""
+            )
+        }
+    }
+
     // This defaults to SIGNATURE but can be overridden on the command line.
     val overloadedMethodOrder
         get() = specifiedOverloadedMethodOrder ?: OverloadedMethodOrder.SIGNATURE
@@ -40,6 +65,15 @@ data class FileFormat(
     /** The base version of the file format. */
     enum class DefaultsVersion(
         internal val version: String,
+        /**
+         * Indicates whether the version supports properties.
+         *
+         * If this is `false` then the version only supports properties being temporarily specified
+         * in the version line to aid migration. If this is `true` then the version only supports
+         * properties being specified in the signature format header, with each property on its own
+         * line.
+         */
+        internal val supportsProperties: Boolean = false,
         factory: (DefaultsVersion) -> FileFormat,
     ) {
         V2(
@@ -64,6 +98,17 @@ data class FileFormat(
         ),
         V4(
             version = "4.0",
+            factory = { defaultsVersion ->
+                FileFormat(
+                    defaultsVersion = defaultsVersion,
+                    kotlinStyleNulls = true,
+                    conciseDefaultValues = true,
+                )
+            }
+        ),
+        V5(
+            version = "5.0",
+            supportsProperties = true,
             factory = { defaultsVersion ->
                 FileFormat(
                     defaultsVersion = defaultsVersion,
@@ -110,9 +155,87 @@ data class FileFormat(
         )
     }
 
+    /**
+     * Get the header for the signature file that corresponds to this format.
+     *
+     * This always starts with the signature format prefix, and the version number.
+     *
+     * For versions < 5.0 this also includes some optional properties added on the same line as, and
+     * just after, the version number to aid with migrating signature files to fix bugs.
+     *
+     * For version >= 5.0 this also includes some optional properties specified after the version
+     * line with one property per line, prefixed with [PROPERTY_LINE_PREFIX].
+     */
     fun header(): String {
-        val prefix = SIGNATURE_FORMAT_PREFIX
-        return prefix + defaultsVersion.version + "\n"
+        val supportsProperties = defaultsVersion.supportsProperties
+        // Only include the full specifier in the header when explicitly migrating and when the
+        // format version does not support properties. Otherwise, just include the version.
+        val specifier =
+            if (migrating != null && !supportsProperties) specifier() else defaultsVersion.version
+
+        // Only add properties when the version supports them.
+        val properties = if (supportsProperties) properties() else ""
+
+        return "$SIGNATURE_FORMAT_PREFIX$specifier\n$properties"
+    }
+
+    /**
+     * Get the specifier for this format.
+     *
+     * It starts with the version number followed by an optional `:` followed by at least one comma
+     * separate `property=value` pair. This can be used either on the command line for the
+     * `--format` option or, if version < 5.0 after the signature format prefix in the header of a
+     * signature file.
+     */
+    fun specifier(): String {
+        return buildString {
+            append(defaultsVersion.version)
+
+            var separator = VERSION_PROPERTIES_SEPARATOR
+            iterateOverOverridingProperties { property, value ->
+                append(separator)
+                separator = ","
+                append(property)
+                append("=")
+                append(value)
+            }
+        }
+    }
+
+    /**
+     * Get the properties for this version.
+     *
+     * This is only called when [DefaultsVersion.supportsProperties] is true.
+     *
+     * This produces a possibly empty, multi-line string containing one `property=value` pair per
+     * line, prefixed by [PROPERTY_LINE_PREFIX].
+     */
+    private fun properties() = buildString {
+        iterateOverOverridingProperties { property, value ->
+            append(PROPERTY_LINE_PREFIX)
+            append(property)
+            append("=")
+            append(value)
+            append("\n")
+        }
+    }
+
+    /**
+     * Iterate over all the properties of this format which have different values to the values in
+     * this format's [DefaultsVersion.defaults], invoking the [consumer] with each property, value
+     * pair.
+     */
+    private fun iterateOverOverridingProperties(consumer: (String, String) -> Unit) {
+        val defaults = defaultsVersion.defaults
+        if (this@FileFormat != defaults) {
+            OverrideableProperty.values().forEach { prop ->
+                val thisValue = prop.stringFromFormat(this@FileFormat)
+                val defaultValue = prop.stringFromFormat(defaults)
+                if (thisValue != defaultValue) {
+                    consumer(prop.propertyName, thisValue)
+                }
+            }
+        }
     }
 
     companion object {
@@ -128,6 +251,9 @@ data class FileFormat(
 
         // The defaults associated with version 4.0.
         val V4 = DefaultsVersion.V4.defaults
+
+        // The defaults associated with version 5.0.
+        val V5 = DefaultsVersion.V5.defaults
 
         // The defaults associated with the latest version.
         val LATEST = allDefaults.last()
@@ -149,7 +275,20 @@ data class FileFormat(
         fun parseHeader(filename: String, reader: Reader): FileFormat? {
             val lineNumberReader =
                 if (reader is LineNumberReader) reader else LineNumberReader(reader, BUFFER_SIZE)
-            return parseHeader(filename, lineNumberReader)
+
+            try {
+                return parseHeader(lineNumberReader)
+            } catch (cause: ApiParseException) {
+                // Wrap the exception and add contextual information to help user identify and fix
+                // the problem. This is done here instead of when throwing the exception as the
+                // original thrower does not have that context.
+                throw ApiParseException(
+                    "Signature format error - ${cause.message}",
+                    filename,
+                    lineNumberReader.lineNumber,
+                    cause,
+                )
+            }
         }
 
         /**
@@ -160,7 +299,7 @@ data class FileFormat(
          *
          * @return the [FileFormat] or null if the reader was blank.
          */
-        private fun parseHeader(filename: String, reader: LineNumberReader): FileFormat? {
+        private fun parseHeader(reader: LineNumberReader): FileFormat? {
             // This reads the minimal amount to determine whether this is likely to be a
             // signature file.
             val prefixLength = SIGNATURE_FORMAT_PREFIX.length
@@ -194,21 +333,22 @@ data class FileFormat(
                 // a single line for error reporting. The LineNumberReader has translated non-unix
                 // newline characters into `\n` so this is safe.
                 val firstLine = prefix.substringBefore("\n")
+                // As the error is going to be reported for the first line, even though possibly
+                // multiple lines have been read set the line number to 1.
+                reader.lineNumber = 1
                 throw ApiParseException(
-                    "Unknown file format of $filename: invalid prefix, found '$firstLine', expected '$SIGNATURE_FORMAT_PREFIX'"
+                    "invalid prefix, found '$firstLine', expected '$SIGNATURE_FORMAT_PREFIX'"
                 )
             }
 
-            val version = reader.readLine()
+            val specifier = reader.readLine()
+            val format = parseSpecifier(specifier = specifier, migratingAllowed = true)
 
-            return versionToDefaults[version]
-                ?: throw ApiParseException(
-                    "Unknown file format of $filename: invalid version, found '$version', expected one of '${
-                        versionToDefaults.keys.joinToString(
-                            "', '"
-                        )
-                    }'"
-                )
+            if (format.defaultsVersion.supportsProperties) {
+                return parseProperties(reader, format)
+            }
+
+            return format
         }
 
         private const val VERSION_PROPERTIES_SEPARATOR = ":"
@@ -220,11 +360,17 @@ data class FileFormat(
          * properties and values and then returns a new copy of this with its values overridden by
          * the values from the properties string.
          *
+         * @param migratingAllowed indicates whether the `migrating` property is allowed in the
+         *   specifier.
          * @param extraVersions extra versions to add to the error message if a version is not
          *   recommended but otherwise ignored. This allows the caller to handle some additional
          *   versions first but still report a helpful message.
          */
-        fun parseSpecifier(specifier: String, extraVersions: Set<String> = emptySet()): FileFormat {
+        fun parseSpecifier(
+            specifier: String,
+            migratingAllowed: Boolean,
+            extraVersions: Set<String> = emptySet(),
+        ): FileFormat {
             val specifierParts = specifier.split(VERSION_PROPERTIES_SEPARATOR, limit = 2)
             val version = specifierParts[0]
             val versionDefaults =
@@ -240,19 +386,86 @@ data class FileFormat(
                 return versionDefaults
             }
 
+            if (versionDefaults.defaultsVersion.supportsProperties) {
+                throw ApiParseException(
+                    "invalid specifier, '$specifier' version $version does not support properties on the version line"
+                )
+            }
+
             val properties = specifierParts[1]
 
             val builder = Builder(versionDefaults)
-            properties.trim().split(",").forEach {
-                val propertyParts = it.split("=")
-                if (propertyParts.size != 2) {
-                    throw ApiParseException("expected <property>=<value> but found '$it'")
-                }
-                val name = propertyParts[0]
-                val value = propertyParts[1]
-                val overrideable = OverrideableProperty.getByName(name)
-                overrideable.setFromString(builder, value)
+            properties.trim().split(",").forEach { parsePropertyAssignment(builder, it) }
+            val format = builder.build()
+
+            // If after applying all the properties the format matches its version defaults then
+            // there is nothing else to do.
+            if (format == versionDefaults) {
+                return format
             }
+
+            if (migratingAllowed) {
+                // At the moment if migrating is allowed and the version defaults have been
+                // overridden then `migrating` is mandatory as no existing version supports
+                // overriding properties except for migrating.
+                if (format.migrating == null) {
+                    throw ApiParseException(
+                        "invalid format specifier: '$specifier' - must provide a 'migrating' property when customizing version $version"
+                    )
+                }
+            } else if (format.migrating != null) {
+                throw ApiParseException(
+                    "invalid format specifier: '$specifier' - must not contain a 'migrating' property"
+                )
+            }
+
+            return format
+        }
+
+        /**
+         * Parse a property assignment of the form `property=value`, updating the appropriate
+         * property in [builder], or throwing an exception if there was a problem.
+         */
+        private fun parsePropertyAssignment(
+            builder: Builder,
+            assignment: String,
+        ) {
+            val propertyParts = assignment.split("=")
+            if (propertyParts.size != 2) {
+                throw ApiParseException("expected <property>=<value> but found '$assignment'")
+            }
+            val name = propertyParts[0]
+            val value = propertyParts[1]
+            val overrideable = OverrideableProperty.getByName(name)
+            overrideable.setFromString(builder, value)
+        }
+
+        private const val PROPERTY_LINE_PREFIX = "// - "
+
+        /**
+         * Parse property pairs, one per line, each of which must be prefixed with
+         * [PROPERTY_LINE_PREFIX], apply them to the supplied [format] and returning the result.
+         */
+        private fun parseProperties(reader: LineNumberReader, format: FileFormat): FileFormat {
+            val builder = Builder(format)
+            do {
+                reader.mark(1024)
+                val line = reader.readLine() ?: break
+                if (line.startsWith("package ")) {
+                    reader.reset()
+                    break
+                }
+
+                val remainder = line.removePrefix(PROPERTY_LINE_PREFIX)
+                if (remainder == line) {
+                    throw ApiParseException(
+                        "invalid property prefix, expected '$PROPERTY_LINE_PREFIX', found '$line'"
+                    )
+                }
+
+                parsePropertyAssignment(builder, remainder)
+            } while (true)
+
             return builder.build()
         }
     }
@@ -261,12 +474,14 @@ data class FileFormat(
     private class Builder(private val base: FileFormat) {
         var conciseDefaultValues: Boolean? = null
         var kotlinStyleNulls: Boolean? = null
+        var migrating: String? = null
         var overloadedMethodOrder: OverloadedMethodOrder? = null
 
         fun build(): FileFormat =
             base.copy(
                 conciseDefaultValues = conciseDefaultValues ?: base.conciseDefaultValues,
                 kotlinStyleNulls = kotlinStyleNulls ?: base.kotlinStyleNulls,
+                migrating = migrating ?: base.migrating,
                 specifiedOverloadedMethodOrder = overloadedMethodOrder
                         ?: base.specifiedOverloadedMethodOrder,
             )
@@ -279,12 +494,25 @@ data class FileFormat(
             override fun setFromString(builder: Builder, value: String) {
                 builder.conciseDefaultValues = yesNo(value)
             }
+
+            override fun stringFromFormat(format: FileFormat): String =
+                yesNo(format.conciseDefaultValues)
         },
         /** kotlin-style-nulls=[yes|no] */
         KOTLIN_STYLE_NULLS {
             override fun setFromString(builder: Builder, value: String) {
                 builder.kotlinStyleNulls = yesNo(value)
             }
+
+            override fun stringFromFormat(format: FileFormat): String =
+                yesNo(format.kotlinStyleNulls)
+        },
+        MIGRATING {
+            override fun setFromString(builder: Builder, value: String) {
+                builder.migrating = value
+            }
+
+            override fun stringFromFormat(format: FileFormat): String = format.migrating ?: ""
         },
         /** overloaded-method-other=[source|signature] */
         OVERLOADED_METHOD_ORDER {
@@ -299,6 +527,9 @@ data class FileFormat(
                             )
                     }
             }
+
+            override fun stringFromFormat(format: FileFormat): String =
+                format.overloadedMethodOrder.name.lowercase(Locale.US)
         };
 
         /** The property name in the [parseSpecifier] input. */
@@ -309,6 +540,12 @@ data class FileFormat(
          * the string representation [value].
          */
         abstract fun setFromString(builder: Builder, value: String)
+
+        /**
+         * Get the string representation of the corresponding property from the supplied
+         * [FileFormat].
+         */
+        abstract fun stringFromFormat(format: FileFormat): String
 
         /** Convert a "yes|no" string into a boolean. */
         fun yesNo(value: String): Boolean {
@@ -321,6 +558,9 @@ data class FileFormat(
                     )
             }
         }
+
+        /** Convert a boolean into a `yes|no` string. */
+        fun yesNo(value: Boolean): String = if (value) "yes" else "no"
 
         companion object {
             val byPropertyName = values().associateBy { it.propertyName }

@@ -58,9 +58,10 @@ import com.android.tools.metalava.model.ModifierList
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.psi.PsiAnnotationItem
 import com.android.tools.metalava.model.psi.PsiBasedCodebase
-import com.android.tools.metalava.model.psi.PsiSourceParser
 import com.android.tools.metalava.model.psi.PsiTypeItem
 import com.android.tools.metalava.model.psi.extractRoots
+import com.android.tools.metalava.model.source.SourceCodebase
+import com.android.tools.metalava.model.source.SourceParser
 import com.android.tools.metalava.model.text.ApiFile
 import com.android.tools.metalava.model.text.ApiParseException
 import com.android.tools.metalava.model.visitors.ApiVisitor
@@ -85,7 +86,7 @@ import org.xml.sax.SAXParseException
 /** Merges annotations into classes already registered in the given [Codebase] */
 @Suppress("DEPRECATION")
 class AnnotationsMerger(
-    private val psiSourceParser: PsiSourceParser,
+    private val sourceParser: SourceParser,
     private val codebase: Codebase,
     private val reporter: Reporter,
 ) {
@@ -115,7 +116,7 @@ class AnnotationsMerger(
     private fun mergeAll(
         mergeAnnotations: List<File>,
         mergeFile: (File) -> Unit,
-        mergeJavaStubsCodebase: (PsiBasedCodebase) -> Unit
+        mergeJavaStubsCodebase: (SourceCodebase) -> Unit
     ) {
         val javaStubFiles = mutableListOf<File>()
         mergeAnnotations.forEach { mergeFileOrDir(it, mergeFile, javaStubFiles) }
@@ -126,11 +127,11 @@ class AnnotationsMerger(
             extractRoots(reporter, options.sources, roots)
             roots.addAll(options.sourcePath)
             val javaStubsCodebase =
-                psiSourceParser.parseSources(
+                sourceParser.parseSources(
                     javaStubFiles,
                     "Codebase loaded from stubs",
                     sourcePath = roots,
-                    classpath = options.classpath
+                    classPath = options.classpath
                 )
             mergeJavaStubsCodebase(javaStubsCodebase)
         }
@@ -244,7 +245,7 @@ class AnnotationsMerger(
     }
 
     private fun mergeAndValidateQualifierAnnotationsFromJavaStubsCodebase(
-        javaStubsCodebase: PsiBasedCodebase
+        javaStubsCodebase: SourceCodebase
     ) {
         mergeQualifierAnnotationsFromCodebase(javaStubsCodebase)
         if (options.validateNullabilityFromMergedStubs) {

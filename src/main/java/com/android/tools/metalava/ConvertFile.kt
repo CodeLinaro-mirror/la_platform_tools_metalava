@@ -46,7 +46,7 @@ internal data class ConvertFile(
 )
 
 /** Perform the file conversion described by the [ConvertFile] on which this is called. */
-internal fun ConvertFile.process() {
+internal fun ConvertFile.process(progressTracker: ProgressTracker) {
     val annotationManager = DefaultAnnotationManager()
     val signatureApi = SignatureFileLoader.load(fromApiFile, annotationManager = annotationManager)
 
@@ -67,7 +67,7 @@ internal fun ConvertFile.process() {
 
     // See JDiff's XMLToAPI#nameAPI
     val apiName = outputFile.nameWithoutExtension.replace(' ', '_')
-    createReportFile(outputApi, outputFile, "JDiff File") { printWriter ->
+    createReportFile(progressTracker, outputApi, outputFile, "JDiff File") { printWriter ->
         JDiffXmlWriter(
             printWriter,
             apiEmit,

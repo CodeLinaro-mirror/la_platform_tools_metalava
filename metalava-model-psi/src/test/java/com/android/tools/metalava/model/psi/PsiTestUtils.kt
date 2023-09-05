@@ -56,7 +56,7 @@ fun createTestCodebase(
             sources = sources.map { it.createFile(directory) },
             description = "Test Codebase",
             sourcePath = listOf(directory),
-            classpath = kotlinStdlibPaths + listOf(getAndroidJar()),
+            classPath = kotlinStdlibPaths + listOf(getAndroidJar()),
         )
 }
 

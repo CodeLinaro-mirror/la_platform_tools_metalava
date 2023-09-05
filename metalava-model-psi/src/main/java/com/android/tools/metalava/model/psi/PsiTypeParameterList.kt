@@ -19,7 +19,7 @@ package com.android.tools.metalava.model.psi
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.TypeParameterList
 
-class PsiTypeParameterList(
+internal class PsiTypeParameterList(
     val codebase: PsiBasedCodebase,
     private val psiTypeParameterList: com.intellij.psi.PsiTypeParameterList
 ) : TypeParameterList {

@@ -40,7 +40,7 @@ import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.findAnnotation
 import com.android.tools.metalava.model.psi.PsiClassItem
 import com.android.tools.metalava.model.psi.PsiItem.Companion.isKotlin
-import com.android.tools.metalava.model.psi.PsiSourceParser
+import com.android.tools.metalava.model.source.SourceParser
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
@@ -55,7 +55,7 @@ import org.jetbrains.uast.UClass
  */
 @Suppress("DEPRECATION")
 class ApiAnalyzer(
-    private val psiSourceParser: PsiSourceParser,
+    private val sourceParser: SourceParser,
     /** The code to analyze */
     private val codebase: Codebase,
     private val reporter: Reporter,
@@ -566,7 +566,7 @@ class ApiAnalyzer(
      */
     fun mergeExternalQualifierAnnotations() {
         if (options.mergeQualifierAnnotations.isNotEmpty()) {
-            AnnotationsMerger(psiSourceParser, codebase, reporter)
+            AnnotationsMerger(sourceParser, codebase, reporter)
                 .mergeQualifierAnnotations(options.mergeQualifierAnnotations)
         }
     }
@@ -574,7 +574,7 @@ class ApiAnalyzer(
     /** Merge in external show/hide annotations from all configured sources */
     fun mergeExternalInclusionAnnotations() {
         if (options.mergeInclusionAnnotations.isNotEmpty()) {
-            AnnotationsMerger(psiSourceParser, codebase, reporter)
+            AnnotationsMerger(sourceParser, codebase, reporter)
                 .mergeInclusionAnnotations(options.mergeInclusionAnnotations)
         }
     }

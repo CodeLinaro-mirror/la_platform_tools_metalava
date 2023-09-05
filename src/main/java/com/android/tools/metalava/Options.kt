@@ -30,8 +30,6 @@ import com.android.tools.metalava.cli.common.TerminalColor
 import com.android.tools.metalava.cli.common.Verbosity
 import com.android.tools.metalava.cli.common.enumOption
 import com.android.tools.metalava.cli.common.fileForPathInner
-import com.android.tools.metalava.cli.common.stderr
-import com.android.tools.metalava.cli.common.stdout
 import com.android.tools.metalava.cli.common.stringToExistingDir
 import com.android.tools.metalava.cli.common.stringToExistingFile
 import com.android.tools.metalava.cli.common.stringToNewDir
@@ -41,15 +39,13 @@ import com.android.tools.metalava.manifest.Manifest
 import com.android.tools.metalava.manifest.emptyManifest
 import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.TypedefMode
-import com.android.tools.metalava.model.psi.defaultJavaLanguageLevel
-import com.android.tools.metalava.model.psi.defaultKotlinLanguageLevel
+import com.android.tools.metalava.model.source.DEFAULT_JAVA_LANGUAGE_LEVEL
+import com.android.tools.metalava.model.source.DEFAULT_KOTLIN_LANGUAGE_LEVEL
 import com.android.tools.metalava.model.text.ApiClassResolution
 import com.android.tools.metalava.reporter.Reporter
 import com.android.utils.SdkUtils.wrap
 import com.github.ajalt.clikt.core.NoSuchOption
-import com.github.ajalt.clikt.parameters.arguments.multiple
 import com.github.ajalt.clikt.parameters.groups.OptionGroup
-import com.github.ajalt.clikt.parameters.groups.provideDelegate
 import com.github.ajalt.clikt.parameters.options.convert
 import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.deprecated
@@ -60,7 +56,6 @@ import com.github.ajalt.clikt.parameters.types.file
 import com.google.common.base.CharMatcher
 import com.google.common.base.Splitter
 import com.google.common.io.Files
-import com.intellij.pom.java.LanguageLevel
 import java.io.File
 import java.io.IOException
 import java.io.OutputStreamWriter
@@ -70,10 +65,6 @@ import java.util.Locale
 import java.util.Optional
 import kotlin.text.Charsets.UTF_8
 import org.jetbrains.jps.model.java.impl.JavaSdkUtil
-import org.jetbrains.kotlin.config.ApiVersion
-import org.jetbrains.kotlin.config.LanguageVersion
-import org.jetbrains.kotlin.config.LanguageVersionSettings
-import org.jetbrains.kotlin.config.LanguageVersionSettingsImpl
 
 /**
  * Global options for the metadata extraction tool
@@ -655,10 +646,10 @@ class Options(
     var omitLocations = false
 
     /** The language level to use for Java files, set with [ARG_JAVA_SOURCE] */
-    var javaLanguageLevel: LanguageLevel = defaultJavaLanguageLevel
+    var javaLanguageLevelAsString: String = DEFAULT_JAVA_LANGUAGE_LEVEL
 
-    /** The language level to use for Java files, set with [ARG_KOTLIN_SOURCE] */
-    var kotlinLanguageLevel: LanguageVersionSettings = defaultKotlinLanguageLevel
+    /** The language level to use for Kotlin files, set with [ARG_KOTLIN_SOURCE] */
+    var kotlinLanguageLevelAsString: String = DEFAULT_KOTLIN_LANGUAGE_LEVEL
 
     /**
      * The JDK to use as a platform, if set with [ARG_JDK_HOME]. This is only set when metalava is
@@ -1022,20 +1013,11 @@ class Options(
                 ARG_JAVA_SOURCE,
                 "-source" -> {
                     val value = getValue(args, ++index)
-                    val level = LanguageLevel.parse(value)
-                    when {
-                        level == null ->
-                            throw MetalavaCliException(
-                                "$value is not a valid or supported Java language level"
-                            )
-                        level.isLessThan(LanguageLevel.JDK_1_7) ->
-                            throw MetalavaCliException("$arg must be at least 1.7")
-                        else -> javaLanguageLevel = level
-                    }
+                    javaLanguageLevelAsString = value
                 }
                 ARG_KOTLIN_SOURCE -> {
                     val value = getValue(args, ++index)
-                    kotlinLanguageLevel = kotlinLanguageVersionSettings(value)
+                    kotlinLanguageLevelAsString = value
                 }
                 ARG_JDK_HOME -> {
                     jdkHome = stringToExistingDir(getValue(args, ++index))
@@ -1519,9 +1501,9 @@ class Options(
                 ARG_SHOW_UNANNOTATED,
                 "Include un-annotated public APIs in the signature file as well",
                 "$ARG_JAVA_SOURCE <level>",
-                "Sets the source level for Java source files; default is 1.8.",
+                "Sets the source level for Java source files; default is $DEFAULT_JAVA_LANGUAGE_LEVEL.",
                 "$ARG_KOTLIN_SOURCE <level>",
-                "Sets the source level for Kotlin source files; default is ${LanguageVersionSettingsImpl.DEFAULT.languageVersion}.",
+                "Sets the source level for Kotlin source files; default is $DEFAULT_KOTLIN_LANGUAGE_LEVEL.",
                 "$ARG_SDK_HOME <dir>",
                 "If set, locate the `android.jar` file from the given Android SDK",
                 "$ARG_COMPILE_SDK_VERSION <api>",
@@ -1774,18 +1756,6 @@ class Options(
                 }
             }
             i += 2
-        }
-    }
-
-    companion object {
-        private fun kotlinLanguageVersionSettings(value: String?): LanguageVersionSettings {
-            val languageLevel =
-                LanguageVersion.fromVersionString(value)
-                    ?: throw MetalavaCliException(
-                        "$value is not a valid or supported Kotlin language level"
-                    )
-            val apiVersion = ApiVersion.createByLanguageVersion(languageLevel)
-            return LanguageVersionSettingsImpl(languageLevel, apiVersion)
         }
     }
 }

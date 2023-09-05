@@ -54,7 +54,8 @@ import org.jetbrains.uast.UMethod
 import org.jetbrains.uast.UVariable
 import org.jetbrains.uast.kotlin.KotlinUMethodWithFakeLightDelegate
 
-class PsiModifierItem(
+class PsiModifierItem
+internal constructor(
     codebase: Codebase,
     flags: Int = PACKAGE_PRIVATE,
     annotations: MutableList<AnnotationItem>? = null

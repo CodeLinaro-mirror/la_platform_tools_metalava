@@ -32,13 +32,28 @@ java_library_host {
         "metalava-model-psi/src/main/java/**/*.java",
         "metalava-model-psi/src/main/java/**/*.kt",
     ],
+    java_resource_dirs: ["metalava-model-psi/src/main/resources/"],
     libs: [
         "kotlin-reflect",
         "metalava-model",
         "metalava-reporter",
+        "metalava-model-source",
         "metalava-tools-common-m2-deps",
         // Needed for guava stuff
         "metalava-gradle-plugin-deps",
+    ],
+}
+
+java_library_host {
+    name: "metalava-model-source",
+    visibility: ["//visibility:private"],
+    srcs: [
+        "metalava-model-source/src/main/java/**/*.java",
+        "metalava-model-source/src/main/java/**/*.kt",
+    ],
+    libs: [
+        "metalava-model",
+        "metalava-reporter",
     ],
 }
 
@@ -88,6 +103,7 @@ java_binary_host {
         "kotlin-reflect",
         "metalava-model",
         "metalava-model-psi",
+        "metalava-model-source",
         "metalava-model-text",
         "metalava-reporter",
         "metalava-tools-common-m2-deps",

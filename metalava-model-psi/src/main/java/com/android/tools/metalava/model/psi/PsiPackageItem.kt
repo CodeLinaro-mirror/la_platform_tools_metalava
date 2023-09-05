@@ -21,7 +21,8 @@ import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.VisibilityLevel
 import com.intellij.psi.PsiPackage
 
-class PsiPackageItem(
+class PsiPackageItem
+internal constructor(
     override val codebase: PsiBasedCodebase,
     private val psiPackage: PsiPackage,
     private val qualifiedName: String,

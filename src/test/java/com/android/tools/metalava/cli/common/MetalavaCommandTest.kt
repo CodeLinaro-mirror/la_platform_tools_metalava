@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.cli.common
 
+import com.android.tools.metalava.ProgressTracker
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.core.context
 import java.io.PrintWriter
@@ -69,7 +70,7 @@ class MetalavaCommandTest {
      * which will cause Clikt to fail in such a way as to generate some help before initializing the
      */
     private class TestCommand(stdout: PrintWriter, stderr: PrintWriter) :
-        MetalavaCommand(stdout, stderr, { NoOpCommand() }) {
+        MetalavaCommand(stdout, stderr, { NoOpCommand() }, ProgressTracker()) {
         init {
             context { expandArgumentFiles = true }
         }

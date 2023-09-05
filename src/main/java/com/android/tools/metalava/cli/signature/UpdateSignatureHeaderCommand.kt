@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.cli.signature
 
-import com.android.tools.metalava.cli.common.MetalavaCliException
 import com.android.tools.metalava.cli.common.MetalavaSubCommand
 import com.android.tools.metalava.cli.common.existingFile
 import com.android.tools.metalava.cli.common.stderr
@@ -67,7 +66,7 @@ class UpdateSignatureHeaderCommand :
                 .trimIndent()
     ) {
 
-    private val formatOptions by SignatureFormatOptions()
+    private val formatOptions by SignatureFormatOptions(migratingAllowed = true)
 
     private val files by
         argument(
@@ -84,15 +83,6 @@ class UpdateSignatureHeaderCommand :
 
     override fun run() {
         val outputFormat = formatOptions.fileFormat
-
-        // At the moment this does not support updating to a format whose defaults have been
-        // overridden by command line options because there is no way to encode that information
-        // into the file.
-        if (outputFormat != outputFormat.defaultsVersion.defaults) {
-            throw MetalavaCliException(
-                stderr = "Cannot update header to a customized version format"
-            )
-        }
 
         files.forEach { updateHeader(outputFormat, it) }
     }

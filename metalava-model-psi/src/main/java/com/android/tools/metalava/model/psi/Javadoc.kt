@@ -54,10 +54,10 @@ import org.intellij.lang.annotations.Language
  * be necessary, but doclava has problems finding classes without it. Consider turning this off when
  * we switch to Dokka.
  */
-const val INCLUDE_SAME_PACKAGE = true
+internal const val INCLUDE_SAME_PACKAGE = true
 
 /** If documentation starts with hash, insert the implicit class? */
-const val PREPEND_LOCAL_CLASS = false
+internal const val PREPEND_LOCAL_CLASS = false
 
 /**
  * Whether we should report unresolved symbols. This is typically a bug in the documentation. It
@@ -77,11 +77,11 @@ const val REPORT_UNRESOLVED_SYMBOLS = false
  * full documentation node, including the surrounding comment start and end tokens.)
  *
  * If the [tagSection] is null, add the comment to the initial text block of the description.
- * Otherwise if it is "@return", add the comment to the return value. Otherwise the [tagSection] is
+ * Otherwise, if it is "@return", add the comment to the return value. Otherwise the [tagSection] is
  * taken to be the parameter name, and the comment added as parameter documentation for the given
  * parameter.
  */
-fun mergeDocumentation(
+internal fun mergeDocumentation(
     existingDoc: String,
     psiElement: PsiElement,
     newText: String,
@@ -185,19 +185,19 @@ fun mergeDocumentation(
     }
 }
 
-fun findParamTag(docComment: PsiDocComment, paramName: String): PsiDocTag? {
+internal fun findParamTag(docComment: PsiDocComment, paramName: String): PsiDocTag? {
     return docComment.findTagsByName("param").firstOrNull { it.valueElement?.text == paramName }
 }
 
-fun findFirstTag(docComment: PsiDocComment): PsiDocTag? {
+internal fun findFirstTag(docComment: PsiDocComment): PsiDocTag? {
     return docComment.tags.asSequence().minByOrNull { it.textRange.startOffset }
 }
 
-fun findLastTag(docComment: PsiDocComment): PsiDocTag? {
+internal fun findLastTag(docComment: PsiDocComment): PsiDocTag? {
     return docComment.tags.asSequence().maxByOrNull { it.textRange.startOffset }
 }
 
-fun findTagEnd(tag: PsiDocTag): Int {
+internal fun findTagEnd(tag: PsiDocTag): Int {
     var curr: PsiElement? = tag.nextSibling
     while (curr != null) {
         if (curr is PsiDocToken && curr.tokenType == JavaDocTokenType.DOC_COMMENT_END) {
@@ -228,7 +228,7 @@ fun trimDocIndent(existingDoc: String): String {
         }
 }
 
-fun insertInto(existingDoc: String, newText: String, initialOffset: Int): String {
+internal fun insertInto(existingDoc: String, newText: String, initialOffset: Int): String {
     // TODO: Insert "." between existing documentation and new documentation, if necessary.
 
     val offset =

@@ -34,7 +34,7 @@ fun configurePublishingArchive(
         it.description = "Create a zip of the library in a maven format"
         it.group = "publishing"
 
-        it.from("${distributionDirectory.canonicalPath}/repo")
+        it.from("${distributionDirectory.canonicalPath}/repo/${project.name}")
         it.archiveFileName.set(
             project.provider {
                 "per-project-zips/${project.group}-${project.name}-all-$buildId-${
