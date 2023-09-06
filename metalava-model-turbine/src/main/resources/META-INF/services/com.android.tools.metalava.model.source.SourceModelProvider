@@ -14,4 +14,4 @@
 # limitations under the License.
 #
 
-com.android.tools.metalava.model.turbine.TurbineModelSuiteRunner
+com.android.tools.metalava.model.turbine.TurbineSourceModelProvider

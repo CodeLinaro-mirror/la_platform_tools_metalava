@@ -22,7 +22,7 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertSame
 
-class PsiParameterItemTest {
+class PsiParameterItemTest : BasePsiTest() {
     @Test
     fun `primary constructor parameters have properties`() {
         testCodebase(kotlin("class Foo(val property: Int, parameter: Int)")) { codebase ->

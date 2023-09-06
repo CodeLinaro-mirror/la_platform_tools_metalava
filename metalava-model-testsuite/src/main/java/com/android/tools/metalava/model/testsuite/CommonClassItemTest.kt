@@ -22,13 +22,13 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 
-/** Common tests for implementations of [MethodItem]. */
+/** Common tests for implementations of [ClassItem]. */
 @RunWith(Parameterized::class)
-class CommonMethodItemTest(runner: ModelSuiteRunner) : BaseModelTest(runner) {
+class CommonClassItemTest(runner: ModelSuiteRunner) : BaseModelTest(runner) {
 
     @IgnoreForRunner("turbine")
     @Test
-    fun `MethodItem type`() {
+    fun `empty class`() {
         createCodebaseAndRun(
             signature =
                 """
@@ -36,8 +36,6 @@ class CommonMethodItemTest(runner: ModelSuiteRunner) : BaseModelTest(runner) {
                     package test.pkg {
                       public class Test {
                         ctor public Test();
-                        method public abstract boolean foo(test.pkg.Test, int...);
-                        method public abstract void bar(test.pkg.Test... tests);
                       }
                     }
             """,
@@ -46,41 +44,21 @@ class CommonMethodItemTest(runner: ModelSuiteRunner) : BaseModelTest(runner) {
                     """
                     package test.pkg;
 
-                    public abstract class Test {
+                    public class Test {
                         public Test() {}
-
-                        public abstract boolean foo(Test test, int... ints);
-                        public abstract void bar(Test... tests);
                     }
                 """
                 ),
             test = { codebase ->
                 val testClass = codebase.assertClass("test.pkg.Test")
-
-                val actual = buildString {
-                    testClass.methods().forEach {
-                        append(it.returnType())
-                        append(" ")
-                        append(it.name())
-                        append("(")
-                        it.parameters().forEachIndexed { i, p ->
-                            if (i > 0) {
-                                append(", ")
-                            }
-                            append(p.type())
-                        }
-                        append(")\n")
-                    }
-                }
-
-                assertEquals(
-                    """
-                    boolean foo(test.pkg.Test, int...)
-                    void bar(test.pkg.Test...)
-                """
-                        .trimIndent(),
-                    actual.trim()
-                )
+                assertEquals("Test", testClass.fullName())
+                assertEquals("test/pkg/Test", testClass.internalName())
+                assertEquals("test.pkg.Test", testClass.qualifiedName())
+                assertEquals("test.pkg.Test", testClass.qualifiedNameWithDollarInnerClasses())
+                assertEquals(1, testClass.constructors().size)
+                assertEquals(emptyList(), testClass.methods())
+                assertEquals(emptyList(), testClass.fields())
+                assertEquals(emptyList(), testClass.properties())
             }
         )
     }

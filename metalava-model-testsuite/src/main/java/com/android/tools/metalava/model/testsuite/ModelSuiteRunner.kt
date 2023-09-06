@@ -18,6 +18,7 @@ package com.android.tools.metalava.model.testsuite
 
 import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.metalava.model.Codebase
+import java.io.File
 
 /**
  * An API that defines a service which model test implementations must provide.
@@ -35,6 +36,7 @@ interface ModelSuiteRunner {
      * of this must consume at least one of them to create a [Codebase] on which the test is run.
      */
     fun createCodebaseAndRun(
+        tempDir: File,
         signature: String,
         source: TestFile,
         test: (Codebase) -> Unit,

@@ -37,6 +37,8 @@ dependencies {
     implementation(libs.androidLint)
     implementation(libs.androidToolsCommon)
 
+    // Pick up the SourceModelSuiteRunner service to run the `metalava-model-testsuite`.
+    testImplementation(testFixtures(project(":metalava-model-source")))
     testImplementation(project(":metalava-model-testsuite"))
     testImplementation(project(":metalava-testing"))
     testImplementation(libs.androidLintTests)

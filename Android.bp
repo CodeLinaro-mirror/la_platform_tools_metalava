@@ -70,6 +70,21 @@ java_library_host {
 }
 
 java_library_host {
+    name: "metalava-model-turbine",
+    visibility: ["//visibility:private"],
+    srcs: [
+        "metalava-model-turbine/src/main/java/**/*.java",
+        "metalava-model-turbine/src/main/java/**/*.kt",
+    ],
+    java_resource_dirs: ["metalava-model-turbine/src/main/resources/"],
+    libs: [
+        "metalava-model",
+        "metalava-reporter",
+        "metalava-model-source",
+    ],
+}
+
+java_library_host {
     name: "metalava-reporter",
     visibility: ["//visibility:private"],
     srcs: [
@@ -105,6 +120,7 @@ java_binary_host {
         "metalava-model-psi",
         "metalava-model-source",
         "metalava-model-text",
+        "metalava-model-turbine",
         "metalava-reporter",
         "metalava-tools-common-m2-deps",
         "metalava-gradle-plugin-deps",

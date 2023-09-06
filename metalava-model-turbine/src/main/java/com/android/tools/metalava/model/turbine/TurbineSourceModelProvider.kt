@@ -16,17 +16,14 @@
 
 package com.android.tools.metalava.model.turbine
 
-import com.android.tools.lint.checks.infrastructure.TestFile
-import com.android.tools.metalava.model.Codebase
-import com.android.tools.metalava.model.testsuite.ModelSuiteRunner
+// @AutoService(SourceModelProvider::class)
+internal class TurbineSourceModelProvider :
+    com.android.tools.metalava.model.source.SourceModelProvider {
 
-// @AutoService(ModelSuiteRunner.class)
-class TurbineModelSuiteRunner : ModelSuiteRunner {
-    override fun createCodebaseAndRun(
-        signature: String,
-        source: TestFile,
-        test: (Codebase) -> Unit
-    ) {}
+    override val providerName: String = "turbine"
 
-    override fun toString(): String = "turbine"
+    override fun createEnvironmentManager(
+        disableStderrDumping: Boolean,
+        forTesting: Boolean,
+    ): com.android.tools.metalava.model.source.EnvironmentManager = TODO("will be done eventually")
 }

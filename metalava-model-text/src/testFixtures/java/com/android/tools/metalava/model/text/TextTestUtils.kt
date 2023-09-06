@@ -16,8 +16,6 @@
 
 package com.android.tools.metalava.model.text
 
-import com.android.SdkConstants
-import com.android.tools.lint.checks.infrastructure.stripComments
 import org.junit.Assert.assertEquals
 
 /** Verify that two signature files match. */
@@ -36,7 +34,7 @@ fun assertSignatureFilesMatch(
 fun prepareSignatureFileForTest(expectedApi: String, format: FileFormat): String {
     val header = format.header()
 
-    return stripComments(expectedApi, SdkConstants.DOT_TXT, stripLineComments = false)
+    return expectedApi
         .trimIndent()
         .let { if (!it.startsWith(FileFormat.SIGNATURE_FORMAT_PREFIX)) header + it else it }
         .trim()

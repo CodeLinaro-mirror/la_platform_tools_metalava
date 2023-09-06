@@ -16,58 +16,52 @@
 
 package com.android.tools.metalava.model.psi
 
-import com.android.tools.lint.UastEnvironment
 import com.android.tools.lint.checks.infrastructure.TestFile
+import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.noOpAnnotationManager
+import com.android.tools.metalava.model.source.EnvironmentManager
 import com.android.tools.metalava.reporter.BasicReporter
-import com.android.tools.metalava.testing.findKotlinStdlibPaths
-import com.android.tools.metalava.testing.getAndroidJar
-import com.android.tools.metalava.testing.tempDirectory
-import com.intellij.openapi.util.Disposer
 import java.io.File
 import java.io.PrintWriter
 import kotlin.test.assertNotNull
 
-inline fun testCodebase(vararg sources: TestFile, action: (PsiBasedCodebase) -> Unit) {
-    tempDirectory { tempDirectory ->
-        PsiEnvironmentManager().use { psiEnvironmentManager ->
-            val codebase = createTestCodebase(psiEnvironmentManager, tempDirectory, *sources)
-            try {
-                action(codebase)
-            } finally {
-                destroyTestCodebase(codebase)
-            }
-        }
+internal fun testCodebaseInTempDirectory(
+    tempDirectory: File,
+    sources: List<TestFile>,
+    classPath: List<File>,
+    action: (Codebase) -> Unit
+) {
+    PsiEnvironmentManager().use { environmentManager ->
+        val codebase =
+            createTestCodebase(
+                environmentManager,
+                tempDirectory,
+                sources,
+                classPath,
+            )
+        action(codebase)
     }
 }
 
-fun createTestCodebase(
-    psiEnvironmentManager: PsiEnvironmentManager,
+private fun createTestCodebase(
+    environmentManager: EnvironmentManager,
     directory: File,
-    vararg sources: TestFile,
-): PsiBasedCodebase {
-    Disposer.setDebugMode(true)
-
-    val sourcePaths = sources.map { it.targetPath }.toTypedArray()
-    val kotlinStdlibPaths = findKotlinStdlibPaths(sourcePaths)
-
+    sources: List<TestFile>,
+    classPath: List<File>,
+): Codebase {
     val reporter = BasicReporter(PrintWriter(System.err))
-    return PsiSourceParser(psiEnvironmentManager, reporter)
+    return environmentManager
+        .createSourceParser(reporter, noOpAnnotationManager)
         .parseSources(
             sources = sources.map { it.createFile(directory) },
             description = "Test Codebase",
             sourcePath = listOf(directory),
-            classPath = kotlinStdlibPaths + listOf(getAndroidJar()),
+            classPath = classPath,
         )
 }
 
-fun destroyTestCodebase(codebase: PsiBasedCodebase) {
-    codebase.dispose()
-
-    UastEnvironment.disposeApplicationEnvironment()
-    Disposer.assertIsEmpty(true)
-}
-
-fun PsiBasedCodebase.assertClass(qualifiedName: String): PsiClassItem {
+fun Codebase.assertClass(qualifiedName: String): ClassItem {
     val classItem = this.findClass(qualifiedName)
     assertNotNull(classItem) { "Expected $qualifiedName to be defined" }
     return classItem

@@ -14,4 +14,4 @@
 # limitations under the License.
 #
 
-com.android.tools.metalava.model.psi.PsiModelSuiteRunner
+com.android.tools.metalava.model.source.SourceModelSuiteRunner

@@ -139,6 +139,8 @@ class MetalavaBuildPlugin : Plugin<Project> {
             publications {
                 it.create<MavenPublication>(publicationName) {
                     from(project.components["java"])
+                    suppressPomMetadataWarningsFor("testFixturesApiElements")
+                    suppressPomMetadataWarningsFor("testFixturesRuntimeElements")
                     pom { pom ->
                         pom.licenses { spec ->
                             spec.license { license ->

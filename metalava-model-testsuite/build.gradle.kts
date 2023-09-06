@@ -16,6 +16,7 @@
 
 plugins {
     `java-library`
+    `java-test-fixtures`
     id("org.jetbrains.kotlin.jvm")
     id("metalava-build-plugin")
 }

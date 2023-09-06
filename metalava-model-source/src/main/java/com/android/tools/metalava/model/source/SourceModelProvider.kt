@@ -30,10 +30,33 @@ interface SourceModelProvider {
      *
      * @param disableStderrDumping if false then the manager will output useful information to
      *   stderr, otherwise it will suppress the errors.
+     * @param forTesting if true then the manager is being used in tests and should behave
+     *   appropriately.
      */
-    fun createEnvironmentManager(disableStderrDumping: Boolean = false): EnvironmentManager
+    fun createEnvironmentManager(
+        disableStderrDumping: Boolean = false,
+        forTesting: Boolean = false,
+    ): EnvironmentManager
 
     companion object {
+        /**
+         * Get an implementation of this interface that matches the [filter].
+         *
+         * @param filter the filter that selects the required provider.
+         * @throws IllegalStateException if there is not exactly one provider that matches.
+         */
+        fun getImplementation(
+            filter: (SourceModelProvider) -> Boolean,
+            filterDescription: String
+        ): SourceModelProvider {
+            val unfiltered = ServiceLoader.load(SourceModelProvider::class.java).toList()
+            val sourceModelProviders = unfiltered.filter(filter).toList()
+            return sourceModelProviders.singleOrNull()
+                ?: throw IllegalStateException(
+                    "Expected exactly one SourceModelProvider $filterDescription but found $unfiltered of which $sourceModelProviders matched"
+                )
+        }
+
         /**
          * Get an implementation of this interface that matches the [requiredProvider].
          *
@@ -41,14 +64,10 @@ interface SourceModelProvider {
          * @throws IllegalStateException if there is not exactly one provider that matches.
          */
         fun getImplementation(requiredProvider: String): SourceModelProvider {
-            val sourceModelProviders =
-                ServiceLoader.load(SourceModelProvider::class.java)
-                    .filter { it.providerName == requiredProvider }
-                    .toList()
-            return sourceModelProviders.singleOrNull()
-                ?: throw IllegalStateException(
-                    "Expected exactly one SourceModelProvider called $requiredProvider but found $sourceModelProviders"
-                )
+            return getImplementation(
+                { it.providerName == requiredProvider },
+                "called $requiredProvider"
+            )
         }
     }
 }

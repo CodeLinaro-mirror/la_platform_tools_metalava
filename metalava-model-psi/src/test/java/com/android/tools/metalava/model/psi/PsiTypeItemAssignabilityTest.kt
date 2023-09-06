@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.psi
 
+import com.android.tools.metalava.testing.getAndroidJar
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import com.google.common.truth.Truth.assertThat
@@ -23,7 +24,7 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
 
-class PsiTypeItemAssignabilityTest {
+class PsiTypeItemAssignabilityTest : BasePsiTest() {
     @get:Rule val tmpFolder = TemporaryFolder()
 
     @Test
@@ -75,7 +76,7 @@ class PsiTypeItemAssignabilityTest {
                 )
             )
 
-        testCodebase(sources = sourceFiles) { codebase ->
+        testCodebase(sources = sourceFiles, classPath = listOf(getAndroidJar())) { codebase ->
             val javaSubject =
                 codebase.findClass("test.foo.JavaSubject") ?: error("Cannot find java subject")
             val kotlinSubject =

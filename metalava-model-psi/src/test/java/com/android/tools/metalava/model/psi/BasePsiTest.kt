@@ -18,17 +18,20 @@ package com.android.tools.metalava.model.psi
 
 import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.metalava.model.Codebase
-import com.android.tools.metalava.model.testsuite.ModelSuiteRunner
+import java.io.File
+import org.junit.Rule
+import org.junit.rules.TemporaryFolder
 
-// @AutoService(ModelSuiteRunner.class)
-class PsiModelSuiteRunner : ModelSuiteRunner {
-    override fun createCodebaseAndRun(
-        signature: String,
-        source: TestFile,
-        test: (Codebase) -> Unit
+open class BasePsiTest {
+
+    @get:Rule val temporaryFolder = TemporaryFolder()
+
+    fun testCodebase(
+        vararg sources: TestFile,
+        classPath: List<File> = emptyList(),
+        action: (Codebase) -> Unit,
     ) {
-        testCodebase(source) { codebase -> test(codebase) }
+        val tempDirectory = temporaryFolder.newFolder()
+        testCodebaseInTempDirectory(tempDirectory, sources.toList(), classPath, action)
     }
-
-    override fun toString(): String = "psi"
 }

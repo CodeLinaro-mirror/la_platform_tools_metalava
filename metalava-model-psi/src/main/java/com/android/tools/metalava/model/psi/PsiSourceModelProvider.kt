@@ -24,6 +24,8 @@ internal class PsiSourceModelProvider : SourceModelProvider {
 
     override val providerName: String = "psi"
 
-    override fun createEnvironmentManager(disableStderrDumping: Boolean): EnvironmentManager =
-        PsiEnvironmentManager(disableStderrDumping)
+    override fun createEnvironmentManager(
+        disableStderrDumping: Boolean,
+        forTesting: Boolean,
+    ): EnvironmentManager = PsiEnvironmentManager(disableStderrDumping, forTesting)
 }

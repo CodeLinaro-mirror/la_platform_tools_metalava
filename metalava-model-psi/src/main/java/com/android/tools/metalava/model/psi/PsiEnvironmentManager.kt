@@ -23,6 +23,7 @@ import com.android.tools.metalava.model.source.SourceParser
 import com.android.tools.metalava.reporter.Reporter
 import com.intellij.core.CoreApplicationEnvironment
 import com.intellij.openapi.diagnostic.DefaultLogger
+import com.intellij.openapi.util.Disposer
 import com.intellij.pom.java.LanguageLevel
 import com.intellij.psi.javadoc.CustomJavadocTagProvider
 import com.intellij.psi.javadoc.JavadocTagInfo
@@ -30,8 +31,10 @@ import java.io.File
 import org.jetbrains.kotlin.config.CommonConfigurationKeys
 
 /** Manages the [UastEnvironment] objects created when processing sources. */
-class PsiEnvironmentManager(private val disableStderrDumping: Boolean = false) :
-    EnvironmentManager {
+class PsiEnvironmentManager(
+    private val disableStderrDumping: Boolean = false,
+    private val forTesting: Boolean = false,
+) : EnvironmentManager {
 
     /**
      * Determines whether the manager has been closed. Used to prevent creating new environments
@@ -41,6 +44,12 @@ class PsiEnvironmentManager(private val disableStderrDumping: Boolean = false) :
 
     /** The list of available environments. */
     private val uastEnvironments = mutableListOf<UastEnvironment>()
+
+    init {
+        if (forTesting) {
+            Disposer.setDebugMode(true)
+        }
+    }
 
     /**
      * Create a [UastEnvironment] with the supplied configuration.
@@ -122,6 +131,10 @@ class PsiEnvironmentManager(private val disableStderrDumping: Boolean = false) :
         }
         uastEnvironments.clear()
         UastEnvironment.disposeApplicationEnvironment()
+
+        if (forTesting) {
+            Disposer.assertIsEmpty(true)
+        }
     }
 
     companion object {
