@@ -24,7 +24,8 @@ import kotlin.test.assertEquals
 import org.junit.Assert
 import org.junit.Test
 
-class AndroidJarsToSignaturesCommandTest : BaseCommandTest(::AndroidJarsToSignaturesCommand) {
+class AndroidJarsToSignaturesCommandTest :
+    BaseCommandTest<AndroidJarsToSignaturesCommand>(::AndroidJarsToSignaturesCommand) {
 
     @Test
     fun `Test help`() {

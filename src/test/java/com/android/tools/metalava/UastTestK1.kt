@@ -91,12 +91,42 @@ class UastTestK1 : UastTestBase() {
     }
 
     @Test
-    fun `Upper bound wildcards -- K1`() {
-        `Upper bound wildcards`(isK2 = false)
+    fun `Upper bound wildcards -- enum members -- K1`() {
+        `Upper bound wildcards -- enum members`(isK2 = false)
+    }
+
+    @Test
+    fun `Upper bound wildcards -- type alias -- K1`() {
+        `Upper bound wildcards -- type alias`(isK2 = false)
+    }
+
+    @Test
+    fun `Upper bound wildcards -- extension function type -- K1`() {
+        `Upper bound wildcards -- extension function type`(isK2 = false)
     }
 
     @Test
     fun `boxed type argument as method return type -- K1`() {
         `boxed type argument as method return type`(isK2 = false)
+    }
+
+    @Test
+    fun `setter returns this with type cast -- K1`() {
+        `setter returns this with type cast`(isK2 = false)
+    }
+
+    @Test
+    fun `suspend fun in interface -- K1`() {
+        `suspend fun in interface`(isK2 = false)
+    }
+
+    @Test
+    fun `nullable return type via type alias -- K1`() {
+        `nullable return type via type alias`(isK2 = false)
+    }
+
+    @Test
+    fun `IntDef with constant in companion object -- K1`() {
+        `IntDef with constant in companion object`(isK2 = false)
     }
 }

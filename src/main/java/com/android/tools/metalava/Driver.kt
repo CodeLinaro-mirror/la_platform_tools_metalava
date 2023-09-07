@@ -155,7 +155,7 @@ internal fun processFlags(
 ) {
     val stopwatch = Stopwatch.createStarted()
 
-    processNonCodebaseFlags(progressTracker)
+    processNonCodebaseFlags()
 
     val sourceParser =
         environmentManager.createSourceParser(
@@ -204,6 +204,10 @@ internal fun processFlags(
     options.subtractApi?.let {
         progressTracker.progress("Subtracting API: ")
         subtractApi(progressTracker, sourceParser, codebase, it)
+    }
+
+    if (options.hideAnnotations.matchesAnnotationName(ANDROID_FLAGGED_API)) {
+        reallyHideFlaggedSystemApis(codebase)
     }
 
     val androidApiLevelXml = options.generateApiLevelXml
@@ -556,7 +560,24 @@ fun subtractApi(
         )
 }
 
-fun processNonCodebaseFlags(progressTracker: ProgressTracker) {
+fun reallyHideFlaggedSystemApis(codebase: Codebase) {
+    codebase.accept(
+        object :
+            ApiVisitor(
+                filterEmit = ApiPredicate(ignoreShown = true),
+                filterReference = ApiPredicate(ignoreShown = true),
+                includeEmptyOuterClasses = true
+            ) {
+            override fun visitItem(item: Item) {
+                item.modifiers.findAnnotation(ANDROID_FLAGGED_API) ?: return
+                item.hidden = true
+                item.mutableModifiers().removeAnnotations { it.isShowAnnotation() }
+            }
+        }
+    )
+}
+
+fun processNonCodebaseFlags() {
     // --copy-annotations?
     val privateAnnotationsSource = options.privateAnnotationsSource
     val privateAnnotationsTarget = options.privateAnnotationsTarget
@@ -568,10 +589,6 @@ fun processNonCodebaseFlags(progressTracker: ProgressTracker) {
         source.listFiles()?.forEach { file ->
             rewrite.modifyAnnotationSources(null, file, File(privateAnnotationsTarget, file.name))
         }
-    }
-
-    for (convert in options.convertToXmlFiles) {
-        convert.process(progressTracker)
     }
 }
 

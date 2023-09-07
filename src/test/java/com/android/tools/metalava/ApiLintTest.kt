@@ -3742,6 +3742,93 @@ class ApiLintTest : DriverTest() {
     }
 
     @Test
+    fun `Require @FlaggedApi on new APIs`() {
+        check(
+            expectedIssues =
+                """
+                src/android/foobar/Bad.java:3: warning: New API must be flagged with @FlaggedApi: class android.foobar.Bad [UnflaggedApi]
+                src/android/foobar/Bad.java:3: warning: New API must be flagged with @FlaggedApi: constructor android.foobar.Bad() [UnflaggedApi]
+                src/android/foobar/Bad.java:5: warning: New API must be flagged with @FlaggedApi: method android.foobar.Bad.bad() [UnflaggedApi]
+                src/android/foobar/Bad.java:4: warning: New API must be flagged with @FlaggedApi: field android.foobar.Bad.BAD [UnflaggedApi]
+                src/android/foobar/Bad.java:7: warning: New API must be flagged with @FlaggedApi: class android.foobar.Bad.BadAnnotation [UnflaggedApi]
+                src/android/foobar/Bad.java:6: warning: New API must be flagged with @FlaggedApi: class android.foobar.Bad.BadInterface [UnflaggedApi]
+                src/android/foobar/ExistingClass.java:10: warning: New API must be flagged with @FlaggedApi: method android.foobar.ExistingClass.bad() [UnflaggedApi]
+                src/android/foobar/ExistingClass.java:9: warning: New API must be flagged with @FlaggedApi: field android.foobar.ExistingClass.BAD [UnflaggedApi]
+                """
+                    .trimIndent(),
+            apiLint =
+                """
+                package android.foobar {
+                  public class ExistingClass {
+                      ctor ExistingClass();
+                      field public static final String EXISTING_FIELD = "foo";
+                      method public void existingMethod();
+                  }
+                }
+                """,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                        package android.foobar;
+
+                        import android.annotation.FlaggedApi;
+
+                        public class ExistingClass {
+                            public static final String EXISTING_FIELD = "foo";
+                            public void existingMethod() {}
+
+                            public static final String BAD = "bar";
+                            public void bad() {}
+
+                            @FlaggedApi("foo/bar")
+                            public static final String OK = "baz";
+
+                            @FlaggedApi("foo/bar")
+                            public void ok() {}
+                        }
+                    """
+                    ),
+                    java(
+                        """
+                        package android.foobar;
+
+                        public class Bad {
+                            public static final String BAD = "bar";
+                            public void bad() {}
+                            public interface BadInterface {}
+                            public @interface BadAnnotation {}
+                        }
+                    """
+                    ),
+                    java(
+                        """
+                        package android.foobar;
+
+                        import android.annotation.FlaggedApi;
+
+                        @FlaggedApi("foo/bar")
+                        public class Ok {
+                            @FlaggedApi("foo/bar")
+                            Ok() {}
+                            @FlaggedApi("foo/bar")
+                            public static final String OK = "bar";
+                            @FlaggedApi("foo/bar")
+                            public void ok() {}
+                            @FlaggedApi("foo/bar")
+                            public interface OkInterface {}
+                            @FlaggedApi("foo/bar")
+                            public @interface OkAnnotation {}
+                        }
+                    """
+                    ),
+                    flaggedApiSource
+                ),
+            extraArguments = arrayOf("--warning", "UnflaggedApi")
+        )
+    }
+
+    @Test
     fun `No warnings about nullability on private constructor getters`() {
         check(
             expectedIssues = "",

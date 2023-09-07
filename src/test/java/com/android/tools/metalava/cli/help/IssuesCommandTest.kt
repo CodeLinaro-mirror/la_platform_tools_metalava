@@ -19,7 +19,7 @@ package com.android.tools.metalava.cli.help
 import com.android.tools.metalava.cli.common.BaseCommandTest
 import org.junit.Test
 
-class IssuesCommandTest : BaseCommandTest(::HelpCommand) {
+class IssuesCommandTest : BaseCommandTest<HelpCommand>(::HelpCommand) {
 
     @Test
     fun `Test help`() {
@@ -207,6 +207,7 @@ Available Issues                             |  Category                |   Defa
   Todo                                       |  documentation           |   lint
   TopLevelBuilder                            |  api_lint                |   warning
   UnavailableSymbol                          |  documentation           |   warning
+  UnflaggedApi                               |  api_lint                |   hidden
   UnhiddenSystemApi                          |  unknown                 |   error
   UniqueKotlinOperator                       |  api_lint                |   error
   UnmatchedMergeAnnotation                   |  unknown                 |   warning

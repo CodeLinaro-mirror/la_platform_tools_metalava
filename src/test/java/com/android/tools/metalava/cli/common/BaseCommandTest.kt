@@ -37,7 +37,7 @@ import org.junit.rules.TemporaryFolder
  * Tests that need to run command tests must extend this and call [commandTest] to configure the
  * test.
  */
-abstract class BaseCommandTest(internal val commandFactory: () -> CliktCommand) :
+abstract class BaseCommandTest<C : CliktCommand>(internal val commandFactory: () -> C) :
     TemporaryFolderOwner {
 
     /**
@@ -59,7 +59,7 @@ abstract class BaseCommandTest(internal val commandFactory: () -> CliktCommand) 
      * This creates an instance of [CommandTestConfig], passes it to lambda expression for
      * modification and then calls [CommandTestConfig.runTest].
      */
-    fun commandTest(init: CommandTestConfig.() -> Unit) {
+    fun commandTest(init: CommandTestConfig<C>.() -> Unit) {
         val config = CommandTestConfig(this)
         config.init()
 
@@ -77,7 +77,7 @@ abstract class BaseCommandTest(internal val commandFactory: () -> CliktCommand) 
  * * Extension functions could also be added for groups of options that are common to a number of
  *   different sub-commands.
  */
-class CommandTestConfig(private val test: BaseCommandTest) {
+class CommandTestConfig<C : CliktCommand>(private val test: BaseCommandTest<C>) {
 
     /**
      * The args that will be passed to `Driver.`[run].
@@ -101,6 +101,13 @@ class CommandTestConfig(private val test: BaseCommandTest) {
      * This will be checked after running the test.
      */
     var expectedStderr: String = ""
+
+    /**
+     * The command that is being tested.
+     *
+     * This must only be accessed in a [verify] block.
+     */
+    lateinit var command: C
 
     /** The list of lambdas that are invoked after the command has been run. */
     val verifiers = mutableListOf<() -> Unit>()
@@ -196,7 +203,8 @@ class CommandTestConfig(private val test: BaseCommandTest) {
         options.parse(emptyArray(), printOut, printErr)
 
         // Runs the command
-        runCommand(printOut, printErr)
+        command = test.commandFactory()
+        runCommand(printOut, printErr, command)
 
         // Add checks of the expected stderr and stdout at the head of the list of verifiers.
         verify(0) { Assert.assertEquals(expectedStderr, test.cleanupString(stderr.toString())) }
@@ -209,7 +217,7 @@ class CommandTestConfig(private val test: BaseCommandTest) {
         }
     }
 
-    private fun runCommand(printOut: PrintWriter, printErr: PrintWriter) {
+    private fun runCommand(printOut: PrintWriter, printErr: PrintWriter, command: C) {
         val progressTracker = ProgressTracker(stdout = printOut)
 
         val metalavaCommand =
@@ -220,7 +228,6 @@ class CommandTestConfig(private val test: BaseCommandTest) {
                 progressTracker,
             )
 
-        val command = test.commandFactory()
         metalavaCommand.subcommands(command)
 
         metalavaCommand.process(args.toTypedArray())

@@ -567,7 +567,7 @@ abstract class UastTestBase : DriverTest() {
         )
     }
 
-    protected fun `Upper bound wildcards`(isK2: Boolean) {
+    protected fun `Upper bound wildcards -- enum members`(isK2: Boolean) {
         // https://youtrack.jetbrains.com/issue/KT-57578
         val upperBound = "? extends "
         // TODO(b/287343397): restore Enum.entries output
@@ -670,6 +670,84 @@ abstract class UastTestBase : DriverTest() {
         )
     }
 
+    protected fun `Upper bound wildcards -- type alias`(isK2: Boolean) {
+        // TODO: https://youtrack.jetbrains.com/issue/KT-61460
+        val upperBound = if (isK2) "? extends " else ""
+        uastCheck(
+            isK2,
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                        package test.pkg
+
+                        class PerfettoSdkHandshake(
+                          private val targetPackage: String,
+                          private val parseJsonMap: (jsonString: String) -> Map<String, String>,
+                          private val executeShellCommand: ShellCommandExecutor,
+                        )
+
+                        internal typealias ShellCommandExecutor = (command: String) -> String
+                        """
+                    )
+                ),
+            api =
+                """
+                package test.pkg {
+                  public final class PerfettoSdkHandshake {
+                    ctor public PerfettoSdkHandshake(String targetPackage, kotlin.jvm.functions.Function1<? super java.lang.String,? extends java.util.Map<java.lang.String,java.lang.String>> parseJsonMap, kotlin.jvm.functions.Function1<? super java.lang.String,${upperBound}java.lang.String> executeShellCommand);
+                  }
+                }
+                """
+        )
+    }
+
+    protected fun `Upper bound wildcards -- extension function type`(isK2: Boolean) {
+        // TODO: https://youtrack.jetbrains.com/issue/KT-61734
+        val wildcard1 = if (isK2) "? super " else ""
+        val wildcard2 = if (isK2) "? extends " else ""
+        uastCheck(
+            isK2,
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                        package test.pkg
+
+                        interface NavGraphBuilder
+
+                        interface AnimatedContentTransitionScope<S>
+
+                        interface NavBackStackEntry
+
+                        interface EnterTransition
+
+                        fun NavGraphBuilder.compose(
+                          enterTransition: (@JvmSuppressWildcards
+                              AnimatedContentTransitionScope<NavBackStackEntry>.() -> EnterTransition?)? = null,
+                        ) = TODO()
+                        """
+                    )
+                ),
+            api =
+                """
+                package test.pkg {
+                  public interface AnimatedContentTransitionScope<S> {
+                  }
+                  public interface EnterTransition {
+                  }
+                  public interface NavBackStackEntry {
+                  }
+                  public interface NavGraphBuilder {
+                  }
+                  public final class NavGraphBuilderKt {
+                    method public static Void compose(test.pkg.NavGraphBuilder, optional kotlin.jvm.functions.Function1<${wildcard1}test.pkg.AnimatedContentTransitionScope<test.pkg.NavBackStackEntry>,${wildcard2}test.pkg.EnterTransition>? enterTransition);
+                  }
+                }
+                """
+        )
+    }
+
     protected fun `boxed type argument as method return type`(isK2: Boolean) {
         // TODO: https://youtrack.jetbrains.com/issue/KT-57579 nullity missed...
         val n = if (isK2) "!" else ""
@@ -709,6 +787,196 @@ abstract class UastTestBase : DriverTest() {
                   }
                 }
             """
+        )
+    }
+
+    protected fun `setter returns this with type cast`(isK2: Boolean) {
+        // TODO: https://youtrack.jetbrains.com/issue/KT-61459
+        val extends = if (isK2) "" else " extends test.pkg.AbstractAlarm.Builder<Self, Built>"
+        uastCheck(
+            isK2,
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                        package test.pkg
+
+                        interface Alarm {
+                          interface Builder<Self : Builder<Self>> {
+                            fun build(): Alarm
+                          }
+                        }
+
+                        abstract class AbstractAlarm<
+                          Self : AbstractAlarm<Self, Builder>, Builder : AbstractAlarm.Builder<Builder, Self>>
+                        internal constructor(
+                          val identifier: String,
+                        ) : Alarm {
+                          abstract class Builder<Self : Builder<Self, Built>, Built : AbstractAlarm<Built, Self>> : Alarm.Builder<Self> {
+                            private var identifier: String = ""
+
+                            fun setIdentifier(text: String): Self {
+                              this.identifier = text
+                              return this as Self
+                            }
+
+                            final override fun build(): Built = TODO()
+                          }
+                        }
+                    """
+                    )
+                ),
+            api =
+                """
+                package test.pkg {
+                  public abstract class AbstractAlarm<Self extends test.pkg.AbstractAlarm<Self, Builder>, Builder extends test.pkg.AbstractAlarm.Builder<Builder, Self>> implements test.pkg.Alarm {
+                    method public final String getIdentifier();
+                    property public final String identifier;
+                  }
+                  public abstract static class AbstractAlarm.Builder<Self$extends, Built extends test.pkg.AbstractAlarm<Built, Self>> implements test.pkg.Alarm.Builder<Self> {
+                    ctor public AbstractAlarm.Builder();
+                    method public final Built build();
+                    method public final Self setIdentifier(String text);
+                  }
+                  public interface Alarm {
+                  }
+                  public static interface Alarm.Builder<Self extends test.pkg.Alarm.Builder<Self>> {
+                    method public test.pkg.Alarm build();
+                  }
+                }
+            """
+        )
+    }
+
+    protected fun `suspend fun in interface`(isK2: Boolean) {
+        // https://youtrack.jetbrains.com/issue/KT-61544
+        // TODO(b/297113621)
+        val n = if (isK2) "" else "?"
+        val contByte =
+            if (isK2) ""
+            else ", kotlin.coroutines.Continuation<? super kotlin.Result<? extends byte[]>>"
+        val contUnit =
+            if (isK2) ""
+            else ", kotlin.coroutines.Continuation<? super kotlin.Result<? extends kotlin.Unit>>"
+        uastCheck(
+            isK2,
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                        package test.pkg
+
+                        interface MyInterface
+
+                        interface GattClientScope {
+                          suspend fun await(block: () -> Unit)
+                          suspend fun readCharacteristic(p: MyInterface): Result<ByteArray>
+                          suspend fun writeCharacteristic(p: MyInterface, value: ByteArray): Result<Unit>
+                        }
+                        """
+                    )
+                ),
+            api =
+                """
+                package test.pkg {
+                  public interface GattClientScope {
+                    method public suspend Object? await(kotlin.jvm.functions.Function0<kotlin.Unit> block, kotlin.coroutines.Continuation<? super kotlin.Unit>);
+                    method public suspend Object$n readCharacteristic(test.pkg.MyInterface p$contByte);
+                    method public suspend Object$n writeCharacteristic(test.pkg.MyInterface p, byte[] value$contUnit);
+                  }
+                  public interface MyInterface {
+                  }
+                }
+                """
+        )
+    }
+
+    protected fun `nullable return type via type alias`(isK2: Boolean) {
+        // TODO: https://youtrack.jetbrains.com/issue/KT-61460
+        val extends = if (isK2) "? extends " else ""
+        uastCheck(
+            isK2,
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                        package test.pkg
+
+                        typealias HasAuthenticationResultsDelegate = () -> Boolean
+
+                        class PrepareGetCredentialResponse private constructor(
+                          val hasAuthResultsDelegate: HasAuthenticationResultsDelegate?,
+                        )
+                        """
+                    )
+                ),
+            api =
+                """
+                package test.pkg {
+                  public final class PrepareGetCredentialResponse {
+                    method public kotlin.jvm.functions.Function0<${extends}java.lang.Boolean>? getHasAuthResultsDelegate();
+                    property public final kotlin.jvm.functions.Function0<${extends}java.lang.Boolean>? hasAuthResultsDelegate;
+                  }
+                }
+            """
+        )
+    }
+
+    protected fun `IntDef with constant in companion object`(isK2: Boolean) {
+        // TODO: https://youtrack.jetbrains.com/issue/KT-61497
+        val fq = if (isK2) "" else "test.pkg.RemoteAuthClient."
+        uastCheck(
+            isK2,
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                        package test.pkg
+
+                        @Retention(AnnotationRetention.SOURCE)
+                        @Target(AnnotationTarget.ANNOTATION_CLASS)
+                        annotation class MyIntDef(
+                          vararg val value: Int = [],
+                          val flag: Boolean = false,
+                        )
+
+                        class RemoteAuthClient internal constructor(
+                          private val packageName: String,
+                        ) {
+                          companion object {
+                            const val NO_ERROR: Int = -1
+                            const val ERROR_UNSUPPORTED: Int = 0
+                            const val ERROR_PHONE_UNAVAILABLE: Int = 1
+
+                            @MyIntDef(NO_ERROR, ERROR_UNSUPPORTED, ERROR_PHONE_UNAVAILABLE)
+                            @Retention(AnnotationRetention.SOURCE)
+                            annotation class ErrorCode
+                          }
+                        }
+                        """
+                    ),
+                ),
+            api =
+                """
+                package test.pkg {
+                  @kotlin.annotation.Retention(kotlin.annotation.AnnotationRetention.SOURCE) @kotlin.annotation.Target(allowedTargets=kotlin.annotation.AnnotationTarget.ANNOTATION_CLASS) public @interface MyIntDef {
+                    method public abstract boolean flag() default false;
+                    method public abstract int[] value();
+                    property public abstract boolean flag;
+                    property public abstract int[] value;
+                  }
+                  public final class RemoteAuthClient {
+                    field public static final test.pkg.RemoteAuthClient.Companion Companion;
+                    field public static final int ERROR_PHONE_UNAVAILABLE = 1; // 0x1
+                    field public static final int ERROR_UNSUPPORTED = 0; // 0x0
+                    field public static final int NO_ERROR = -1; // 0xffffffff
+                  }
+                  public static final class RemoteAuthClient.Companion {
+                  }
+                  @kotlin.annotation.Retention(kotlin.annotation.AnnotationRetention.SOURCE) @test.pkg.MyIntDef({${fq}NO_ERROR, ${fq}ERROR_UNSUPPORTED, ${fq}ERROR_PHONE_UNAVAILABLE}) public static @interface RemoteAuthClient.Companion.ErrorCode {
+                  }
+                }
+                """
         )
     }
 }

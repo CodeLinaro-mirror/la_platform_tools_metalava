@@ -35,9 +35,19 @@ abstract class BaseOptionGroupTest<O : OptionGroup>(
 
     @get:Rule override val temporaryFolder = TemporaryFolder()
 
-    /** Run a test on the [OptionGroup] of type [O]. */
-    protected fun runTest(vararg args: String, test: (O) -> Unit) {
-        val command = MockCommand(factory, test)
+    /**
+     * Run a test on the [OptionGroup] of type [O].
+     *
+     * Generally this will use the [OptionGroup] created by [factory] but that can be overridden on
+     * for a test by providing an [optionGroup] parameter directly.
+     */
+    protected fun runTest(
+        vararg args: String,
+        optionGroup: O? = null,
+        test: (O) -> Unit,
+    ) {
+        val testFactory = { optionGroup ?: factory() }
+        val command = MockCommand(testFactory, test)
         command.parse(args.toList())
     }
 

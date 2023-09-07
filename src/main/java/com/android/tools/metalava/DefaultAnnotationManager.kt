@@ -260,7 +260,7 @@ class DefaultAnnotationManager(
             // Should not be mapped to a different package name:
             "android.annotation.TargetApi",
             "android.annotation.SuppressLint" -> return qualifiedName
-            "android.annotation.FlaggedApi" -> return qualifiedName
+            ANDROID_FLAGGED_API -> return qualifiedName
             else -> {
                 // Some new annotations added to the platform: assume they are support
                 // annotations?
@@ -356,7 +356,7 @@ class DefaultAnnotationManager(
             // from those. This is useful for modularizing the main SDK stubs without having to
             // add a separate module SDK artifact for sdk constants.
             "android.annotation.SdkConstant" -> return ANNOTATION_SDK_STUBS_ONLY
-            "android.annotation.FlaggedApi" -> return ANNOTATION_SIGNATURE_ONLY
+            ANDROID_FLAGGED_API -> return ANNOTATION_SIGNATURE_ONLY
 
             // Skip known annotations that we (a) never want in external annotations and (b) we
             // are

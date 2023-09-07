@@ -23,7 +23,8 @@ import com.android.tools.metalava.model.text.prepareSignatureFileForTest
 import kotlin.test.assertEquals
 import org.junit.Test
 
-class SignatureToJDiffCommandTest : BaseCommandTest(::SignatureToJDiffCommand) {
+class SignatureToJDiffCommandTest :
+    BaseCommandTest<SignatureToJDiffCommand>(::SignatureToJDiffCommand) {
 
     @Test
     fun `Test help`() {
@@ -499,7 +500,7 @@ Arguments:
     }
 }
 
-fun BaseCommandTest.jdiffConversionTest(body: JDiffTestConfig.() -> Unit) {
+fun BaseCommandTest<SignatureToJDiffCommand>.jdiffConversionTest(body: JDiffTestConfig.() -> Unit) {
     commandTest {
         val config = JDiffTestConfig(this)
         config.body()
@@ -507,7 +508,7 @@ fun BaseCommandTest.jdiffConversionTest(body: JDiffTestConfig.() -> Unit) {
     }
 }
 
-class JDiffTestConfig(val commandTestConfig: CommandTestConfig) {
+class JDiffTestConfig(val commandTestConfig: CommandTestConfig<SignatureToJDiffCommand>) {
     var strip = false
     var api = ""
     var baseApi: String? = null

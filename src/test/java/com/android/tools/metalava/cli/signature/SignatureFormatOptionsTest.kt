@@ -287,4 +287,105 @@ class SignatureFormatOptionsTest :
             e.message
         )
     }
+
+    @Test
+    fun `--format specifier with v2 some properties, excluding 'migrating' when migratingAllowed=true`() {
+        val e =
+            assertThrows(BadParameterValue::class.java) {
+                runTest(
+                    "--format",
+                    "2.0:kotlin-style-nulls=yes,concise-default-values=yes",
+                    optionGroup = SignatureFormatOptions(migratingAllowed = true),
+                ) {}
+            }
+        assertEquals(
+            """Invalid value for "--format": invalid format specifier: '2.0:kotlin-style-nulls=yes,concise-default-values=yes' - must provide a 'migrating' property when customizing version 2.0""",
+            e.message
+        )
+    }
+
+    @Test
+    fun `--format specifier with v2 some properties, including 'migrating' when migratingAllowed=true`() {
+        runTest(
+            "--format",
+            "2.0:kotlin-style-nulls=yes,concise-default-values=yes,migrating=See b/295577788",
+            optionGroup = SignatureFormatOptions(migratingAllowed = true),
+        ) {
+            assertEquals(
+                FileFormat.V2.copy(
+                    kotlinStyleNulls = true,
+                    conciseDefaultValues = true,
+                    migrating = "See b/295577788"
+                ),
+                it.fileFormat
+            )
+        }
+    }
+
+    @Test
+    fun `--format specifier with v2 some properties, including 'migrating' when migratingAllowed=false`() {
+        val e =
+            assertThrows(BadParameterValue::class.java) {
+                runTest(
+                    "--format",
+                    "2.0:kotlin-style-nulls=yes,concise-default-values=yes,migrating=See b/295577788",
+                    optionGroup = SignatureFormatOptions(migratingAllowed = false),
+                ) {}
+            }
+        assertEquals(
+            """Invalid value for "--format": invalid format specifier: '2.0:kotlin-style-nulls=yes,concise-default-values=yes,migrating=See b/295577788' - must not contain a 'migrating' property""",
+            e.message
+        )
+    }
+
+    @Test
+    fun `--format specifier with v5, some properties, excluding 'migrating' when migratingAllowed=true`() {
+        runTest(
+            "--format",
+            "5.0:kotlin-style-nulls=no,concise-default-values=no",
+            optionGroup = SignatureFormatOptions(migratingAllowed = true),
+        ) {
+            assertEquals(
+                FileFormat.V5.copy(
+                    kotlinStyleNulls = false,
+                    conciseDefaultValues = false,
+                ),
+                it.fileFormat
+            )
+        }
+    }
+
+    @Test
+    fun `--format specifier with v5, some properties, including 'migrating' when migratingAllowed=true`() {
+        runTest(
+            "--format",
+            "5.0:kotlin-style-nulls=no,concise-default-values=no,migrating=See b/295577788",
+            optionGroup = SignatureFormatOptions(migratingAllowed = true),
+        ) {
+            assertEquals(
+                FileFormat.V5.copy(
+                    kotlinStyleNulls = false,
+                    conciseDefaultValues = false,
+                    migrating = "See b/295577788",
+                ),
+                it.fileFormat
+            )
+        }
+    }
+
+    @Test
+    fun `--format specifier with v5, some properties, including 'migrating' when migratingAllowed=false`() {
+        val e =
+            assertThrows(BadParameterValue::class.java) {
+                runTest(
+                    "--format",
+                    "5.0:kotlin-style-nulls=no,concise-default-values=no,migrating=See b/295577788",
+                    optionGroup = SignatureFormatOptions(migratingAllowed = false),
+                ) {}
+            }
+        assertEquals(
+            """Invalid value for "--format": invalid format specifier: '5.0:kotlin-style-nulls=no,concise-default-values=no,migrating=See b/295577788' - must not contain a 'migrating' property""",
+            e.message
+        )
+    }
 }

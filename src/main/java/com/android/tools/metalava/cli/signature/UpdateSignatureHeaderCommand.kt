@@ -100,7 +100,7 @@ class UpdateSignatureHeaderCommand :
                 }
 
                 // Create a temporary file and write the updated contents into it.
-                val temp = createTempFile("${file.name}-${outputFormat.defaultsVersion.name}")
+                val temp = createTempFile("${file.name}-${outputFormat.version.name}")
                 temp.bufferedWriter().use { writer ->
                     // Write the new header.
                     writer.write(outputFormat.header())

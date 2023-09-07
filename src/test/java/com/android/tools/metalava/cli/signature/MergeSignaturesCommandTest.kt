@@ -23,7 +23,8 @@ import com.android.tools.metalava.model.text.prepareSignatureFileForTest
 import org.junit.Assert.fail
 import org.junit.Test
 
-class MergeSignaturesCommandTest : BaseCommandTest(::MergeSignaturesCommand) {
+class MergeSignaturesCommandTest :
+    BaseCommandTest<MergeSignaturesCommand>(::MergeSignaturesCommand) {
 
     private fun checkMergeSignatures(
         vararg files: String,

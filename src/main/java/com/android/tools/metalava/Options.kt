@@ -90,8 +90,6 @@ const val ARG_SOURCE_PATH = "--source-path"
 const val ARG_SOURCE_FILES = "--source-files"
 const val ARG_XML_API = "--api-xml"
 const val ARG_API_CLASS_RESOLUTION = "--api-class-resolution"
-const val ARG_CONVERT_TO_JDIFF = "--convert-to-jdiff"
-const val ARG_CONVERT_NEW_TO_JDIFF = "--convert-new-to-jdiff"
 const val ARG_DEX_API = "--dex-api"
 const val ARG_SDK_VALUES = "--sdk-values"
 const val ARG_MERGE_QUALIFIER_ANNOTATIONS = "--merge-qualifier-annotations"
@@ -208,8 +206,6 @@ class Options(
     private val mutableHidePackages: MutableList<String> = mutableListOf()
     /** Internal list backing [skipEmitPackages] */
     private val mutableSkipEmitPackages: MutableList<String> = mutableListOf()
-    /** Internal list backing [convertToXmlFiles] */
-    private val mutableConvertToXmlFiles: MutableList<ConvertFile> = mutableListOf()
     /** Internal list backing [passThroughAnnotations] */
     private val mutablePassThroughAnnotations: MutableSet<String> = mutableSetOf()
     /** Internal list backing [excludeAnnotations] */
@@ -670,9 +666,6 @@ class Options(
      */
     private var compileSdkVersion: String? = null
 
-    /** List of signature files to export as JDiff files */
-    internal val convertToXmlFiles: List<ConvertFile> = mutableConvertToXmlFiles
-
     /**
      * How to handle typedef annotations in signature files; corresponds to
      * $ARG_TYPEDEFS_IN_SIGNATURES
@@ -994,21 +987,6 @@ class Options(
                 }
                 ARG_API_VERSION_NAMES -> {
                     apiVersionNames = getValue(args, ++index).split(' ')
-                }
-                ARG_CONVERT_TO_JDIFF -> {
-                    val signatureFile = stringToExistingFile(getValue(args, ++index))
-                    val outputFile = stringToNewFile(getValue(args, ++index))
-                    mutableConvertToXmlFiles.add(
-                        ConvertFile(signatureFile, outputFile, null, false)
-                    )
-                }
-                ARG_CONVERT_NEW_TO_JDIFF -> {
-                    val baseFile = stringToExistingFile(getValue(args, ++index))
-                    val signatureFile = stringToExistingFile(getValue(args, ++index))
-                    val jDiffFile = stringToNewFile(getValue(args, ++index))
-                    mutableConvertToXmlFiles.add(
-                        ConvertFile(signatureFile, jDiffFile, baseFile, false)
-                    )
                 }
                 ARG_JAVA_SOURCE,
                 "-source" -> {
@@ -1627,12 +1605,6 @@ class Options(
                 "JDiff:",
                 "$ARG_XML_API <file>",
                 "Like $ARG_API, but emits the API in the JDiff XML format instead",
-                "$ARG_CONVERT_TO_JDIFF <sig> <xml>",
-                "Reads in the given signature file, and writes it out " +
-                    "in the JDiff XML format. Can be specified multiple times.",
-                "$ARG_CONVERT_NEW_TO_JDIFF <old> <new> <xml>",
-                "Reads in the given old and new api files, " +
-                    "computes the difference, and writes out only the new parts of the API in the JDiff XML format.",
                 "",
                 "Extracting Annotations:",
                 "$ARG_EXTRACT_ANNOTATIONS <zipfile>",

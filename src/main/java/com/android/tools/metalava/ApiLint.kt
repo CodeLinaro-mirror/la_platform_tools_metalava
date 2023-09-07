@@ -158,6 +158,7 @@ import com.android.tools.metalava.reporter.Issues.STATIC_FINAL_BUILDER
 import com.android.tools.metalava.reporter.Issues.STATIC_UTILS
 import com.android.tools.metalava.reporter.Issues.STREAM_FILES
 import com.android.tools.metalava.reporter.Issues.TOP_LEVEL_BUILDER
+import com.android.tools.metalava.reporter.Issues.UNFLAGGED_API
 import com.android.tools.metalava.reporter.Issues.UNIQUE_KOTLIN_OPERATOR
 import com.android.tools.metalava.reporter.Issues.USER_HANDLE
 import com.android.tools.metalava.reporter.Issues.USER_HANDLE_NAME
@@ -334,6 +335,7 @@ class ApiLint(
         checkSingleton(cls, methods, constructors)
         checkExtends(cls)
         checkTypedef(cls)
+        checkHasFlaggedApi(cls)
 
         // TODO: Not yet working
         // checkOverloadArgs(cls, methods)
@@ -351,6 +353,7 @@ class ApiLint(
         checkFieldName(field)
         checkSettingKeys(field)
         checkNullableCollections(field.type(), field)
+        checkHasFlaggedApi(field)
     }
 
     private fun checkMethod(method: MethodItem, filterReference: Predicate<Item>) {
@@ -367,6 +370,7 @@ class ApiLint(
         checkExceptions(method, filterReference)
         checkContextFirst(method)
         checkListenerLast(method)
+        checkHasFlaggedApi(method)
     }
 
     private fun checkEnums(cls: ClassItem) {
@@ -1746,6 +1750,16 @@ class ApiLint(
         }
     }
 
+    private fun checkHasFlaggedApi(item: Item) {
+        if (!item.modifiers.hasAnnotation { it.qualifiedName == flaggedApi }) {
+            report(
+                UNFLAGGED_API,
+                item,
+                "New API must be flagged with @FlaggedApi: ${item.describe()}"
+            )
+        }
+    }
+
     private fun checkHasNullability(item: Item) {
         if (!item.requiresNullnessInfo()) return
         if (!item.hasNullnessInfo() && item.implicitNullness() == null) {
@@ -3110,6 +3124,8 @@ class ApiLint(
             listOf("java.util.concurrent.CompletableFuture", "java.util.concurrent.Future")
 
         private val listenableFuture = "com.google.common.util.concurrent.ListenableFuture"
+
+        private val flaggedApi = "android.annotation.FlaggedApi"
 
         /**
          * Classes for manipulating file descriptors directly, where using ParcelFileDescriptor
