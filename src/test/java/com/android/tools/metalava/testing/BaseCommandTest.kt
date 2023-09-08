@@ -33,7 +33,7 @@ import org.junit.rules.TemporaryFolder
  * Tests that need to run command tests must extend this and call [commandTest] to configure the
  * test.
  */
-abstract class BaseCommandTest {
+abstract class BaseCommandTest : TemporaryFolderOwner {
 
     /**
      * Collects errors during the running of the test and reports them at the end.
@@ -46,7 +46,7 @@ abstract class BaseCommandTest {
     @get:Rule val errorCollector = ErrorCollector()
 
     /** Provides access to temporary files. */
-    @get:Rule val temporaryFolder = TemporaryFolder()
+    @get:Rule override val temporaryFolder = TemporaryFolder()
 
     /**
      * Type safe builder for configuring and running a command related test.
@@ -173,6 +173,7 @@ class CommandTestConfig(private val test: BaseCommandTest) {
     }
 
     /** Run the test defined by the configuration. */
+    @Suppress("DEPRECATION")
     internal fun runTest() {
         val stdout = StringWriter()
         val stderr = StringWriter()
@@ -193,8 +194,8 @@ class CommandTestConfig(private val test: BaseCommandTest) {
         run(originalArgs = args.toTypedArray(), stdout = printOut, stderr = printErr)
 
         // Add checks of the expected stderr and stdout at the head of the list of verifiers.
-        verify(0) { Assert.assertEquals(expectedStderr, stderr.toString()) }
-        verify(1) { Assert.assertEquals(expectedStdout, stdout.toString()) }
+        verify(0) { Assert.assertEquals(expectedStderr, test.cleanupString(stderr.toString())) }
+        verify(1) { Assert.assertEquals(expectedStdout, test.cleanupString(stdout.toString())) }
 
         // Invoke all the verifiers.
         for (verifier in verifiers) {

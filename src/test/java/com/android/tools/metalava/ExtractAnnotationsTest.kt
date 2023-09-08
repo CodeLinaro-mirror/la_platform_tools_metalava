@@ -16,7 +16,9 @@
 
 package com.android.tools.metalava
 
-import com.android.tools.metalava.model.FileFormat
+import com.android.tools.metalava.model.text.FileFormat
+import com.android.tools.metalava.testing.java
+import com.android.tools.metalava.testing.kotlin
 import org.junit.Test
 
 @SuppressWarnings("ALL") // Sample code
@@ -682,6 +684,43 @@ class ExtractAnnotationsTest : DriverTest() {
                   <item name="test.pkg.MyTest void test(List&lt;Integer&gt;, int) 1">
                     <annotation name="androidx.annotation.IntRange">
                       <val name="from" val="10" />
+                    </annotation>
+                  </item>
+                </root>
+                """
+                )
+        )
+    }
+
+    @Test
+    fun `Test string literal encoding`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    java(
+                            """
+                    package test.pkg;
+
+                    import android.annotation.RequiresPermission;
+
+                    public class PermissionsTest {
+                        @RequiresPermission("'&\"")
+                        public static final String CONTENT_URI = "";
+                    }
+                    """
+                        )
+                        .indented(),
+                    requiresPermissionSource,
+                ),
+            extractAnnotations =
+                mapOf(
+                    "test.pkg" to
+                        """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <root>
+                  <item name="test.pkg.PermissionsTest CONTENT_URI">
+                    <annotation name="androidx.annotation.RequiresPermission">
+                      <val name="value" val="&quot;\&apos;&amp;\&quot;&quot;" />
                     </annotation>
                   </item>
                 </root>

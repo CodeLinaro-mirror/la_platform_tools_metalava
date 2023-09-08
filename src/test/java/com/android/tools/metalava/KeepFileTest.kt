@@ -16,6 +16,8 @@
 
 package com.android.tools.metalava
 
+import com.android.tools.metalava.cli.common.ARG_HIDE
+import com.android.tools.metalava.testing.java
 import org.junit.Test
 
 class KeepFileTest : DriverTest() {

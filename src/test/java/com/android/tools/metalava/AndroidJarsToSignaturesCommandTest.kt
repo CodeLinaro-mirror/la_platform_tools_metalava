@@ -31,7 +31,6 @@ class AndroidJarsToSignaturesCommandTest : BaseCommandTest() {
 
             expectedStdout =
                 """
-
 Aborting: Usage: metalava android-jars-to-signatures [options] <android-root-dir>
 
   Rewrite the signature files in the `prebuilts/sdk` directory in the Android source tree by reading the API defined in
@@ -40,11 +39,12 @@ Aborting: Usage: metalava android-jars-to-signatures [options] <android-root-dir
 Options:
   -h, -?, --help                             Show this message and exit
 
+$SIGNATURE_FORMAT_OPTIONS_HELP
+
 Arguments:
   <android-root-dir>                         The root directory of the Android source tree. The new signature files will
                                              be generated in the `prebuilts/sdk/<api>/public/api/android.txt`
                                              sub-directories.
-
             """
                     .trimIndent()
         }
@@ -60,10 +60,8 @@ Arguments:
 
             expectedStderr =
                 """
-
-                Aborting: <android-root-dir> does not point to an Android source tree
-
-            """
+                    Aborting: <android-root-dir> does not point to an Android source tree
+                """
                     .trimIndent()
         }
     }

@@ -57,7 +57,7 @@ class JDiffXmlWriter(
         fieldComparator = FieldItem.comparator,
         filterEmit = filterEmit,
         filterReference = filterReference,
-        showUnannotated = options.showUnannotated
+        showUnannotated = @Suppress("DEPRECATION") options.showUnannotated
     ) {
     override fun visitCodebase(codebase: Codebase) {
         writer.print("<api")

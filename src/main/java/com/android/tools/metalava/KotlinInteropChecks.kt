@@ -26,6 +26,8 @@ import com.android.tools.metalava.model.psi.PsiFieldItem
 import com.android.tools.metalava.model.psi.PsiParameterItem
 import com.android.tools.metalava.model.psi.report
 import com.android.tools.metalava.model.visitors.ApiVisitor
+import com.android.tools.metalava.reporter.Issues
+import com.android.tools.metalava.reporter.Reporter
 import com.intellij.lang.java.lexer.JavaLexer
 import org.jetbrains.kotlin.lexer.KtTokens
 import org.jetbrains.kotlin.psi.KtObjectDeclaration
@@ -411,6 +413,6 @@ class KotlinInteropChecks(val reporter: Reporter) {
 
     /** Returns true if the given string is a reserved Java keyword */
     private fun isJavaKeyword(keyword: String): Boolean {
-        return JavaLexer.isKeyword(keyword, options.javaLanguageLevel)
+        @Suppress("DEPRECATION") return JavaLexer.isKeyword(keyword, options.javaLanguageLevel)
     }
 }

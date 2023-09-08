@@ -17,10 +17,10 @@
 package com.android.tools.metalava.stub
 
 import com.android.tools.metalava.ARG_KOTLIN_STUBS
-import com.android.tools.metalava.java
-import com.android.tools.metalava.kotlin
-import com.android.tools.metalava.model.FileFormat
 import com.android.tools.metalava.model.SUPPORT_TYPE_USE_ANNOTATIONS
+import com.android.tools.metalava.model.text.FileFormat
+import com.android.tools.metalava.testing.java
+import com.android.tools.metalava.testing.kotlin
 import org.junit.Test
 
 @SuppressWarnings("ALL")
@@ -292,7 +292,7 @@ class StubsInterfaceTest : AbstractStubsTest() {
     @Test
     fun `Rewriting type parameters in interfaces from hidden super classes and in throws lists`() {
         checkStubs(
-            format = FileFormat.V1,
+            format = FileFormat.V2,
             sourceFiles =
                 arrayOf(
                     java(

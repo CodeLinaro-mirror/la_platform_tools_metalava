@@ -48,101 +48,6 @@ import com.android.resources.ResourceType.STYLE_ITEM
 import com.android.resources.ResourceType.TRANSITION
 import com.android.resources.ResourceType.XML
 import com.android.sdklib.SdkVersionInfo
-import com.android.tools.metalava.Issues.ABSTRACT_INNER
-import com.android.tools.metalava.Issues.ACRONYM_NAME
-import com.android.tools.metalava.Issues.ACTION_VALUE
-import com.android.tools.metalava.Issues.ALL_UPPER
-import com.android.tools.metalava.Issues.ANDROID_URI
-import com.android.tools.metalava.Issues.ARRAY_RETURN
-import com.android.tools.metalava.Issues.ASYNC_SUFFIX_FUTURE
-import com.android.tools.metalava.Issues.AUTO_BOXING
-import com.android.tools.metalava.Issues.BAD_FUTURE
-import com.android.tools.metalava.Issues.BANNED_THROW
-import com.android.tools.metalava.Issues.BUILDER_SET_STYLE
-import com.android.tools.metalava.Issues.CALLBACK_INTERFACE
-import com.android.tools.metalava.Issues.CALLBACK_METHOD_NAME
-import com.android.tools.metalava.Issues.CALLBACK_NAME
-import com.android.tools.metalava.Issues.COMMON_ARGS_FIRST
-import com.android.tools.metalava.Issues.COMPILE_TIME_CONSTANT
-import com.android.tools.metalava.Issues.CONCRETE_COLLECTION
-import com.android.tools.metalava.Issues.CONFIG_FIELD_NAME
-import com.android.tools.metalava.Issues.CONSISTENT_ARGUMENT_ORDER
-import com.android.tools.metalava.Issues.CONTEXT_FIRST
-import com.android.tools.metalava.Issues.CONTEXT_NAME_SUFFIX
-import com.android.tools.metalava.Issues.ENDS_WITH_IMPL
-import com.android.tools.metalava.Issues.ENUM
-import com.android.tools.metalava.Issues.EQUALS_AND_HASH_CODE
-import com.android.tools.metalava.Issues.EXCEPTION_NAME
-import com.android.tools.metalava.Issues.EXECUTOR_REGISTRATION
-import com.android.tools.metalava.Issues.EXTENDS_ERROR
-import com.android.tools.metalava.Issues.FORBIDDEN_SUPER_CLASS
-import com.android.tools.metalava.Issues.FRACTION_FLOAT
-import com.android.tools.metalava.Issues.GENERIC_CALLBACKS
-import com.android.tools.metalava.Issues.GENERIC_EXCEPTION
-import com.android.tools.metalava.Issues.GETTER_ON_BUILDER
-import com.android.tools.metalava.Issues.GETTER_SETTER_NAMES
-import com.android.tools.metalava.Issues.HEAVY_BIT_SET
-import com.android.tools.metalava.Issues.INTENT_BUILDER_NAME
-import com.android.tools.metalava.Issues.INTENT_NAME
-import com.android.tools.metalava.Issues.INTERFACE_CONSTANT
-import com.android.tools.metalava.Issues.INTERNAL_CLASSES
-import com.android.tools.metalava.Issues.INTERNAL_FIELD
-import com.android.tools.metalava.Issues.INVALID_NULLABILITY_OVERRIDE
-import com.android.tools.metalava.Issues.Issue
-import com.android.tools.metalava.Issues.KOTLIN_DEFAULT_PARAMETER_ORDER
-import com.android.tools.metalava.Issues.KOTLIN_OPERATOR
-import com.android.tools.metalava.Issues.LISTENER_INTERFACE
-import com.android.tools.metalava.Issues.LISTENER_LAST
-import com.android.tools.metalava.Issues.MANAGER_CONSTRUCTOR
-import com.android.tools.metalava.Issues.MANAGER_LOOKUP
-import com.android.tools.metalava.Issues.MENTIONS_GOOGLE
-import com.android.tools.metalava.Issues.METHOD_NAME_TENSE
-import com.android.tools.metalava.Issues.METHOD_NAME_UNITS
-import com.android.tools.metalava.Issues.MIN_MAX_CONSTANT
-import com.android.tools.metalava.Issues.MISSING_BUILD_METHOD
-import com.android.tools.metalava.Issues.MISSING_GETTER_MATCHING_BUILDER
-import com.android.tools.metalava.Issues.MISSING_NULLABILITY
-import com.android.tools.metalava.Issues.MUTABLE_BARE_FIELD
-import com.android.tools.metalava.Issues.NOT_CLOSEABLE
-import com.android.tools.metalava.Issues.NO_BYTE_OR_SHORT
-import com.android.tools.metalava.Issues.NO_CLONE
-import com.android.tools.metalava.Issues.NO_SETTINGS_PROVIDER
-import com.android.tools.metalava.Issues.NULLABLE_COLLECTION
-import com.android.tools.metalava.Issues.ON_NAME_EXPECTED
-import com.android.tools.metalava.Issues.OPTIONAL_BUILDER_CONSTRUCTOR_ARGUMENT
-import com.android.tools.metalava.Issues.OVERLAPPING_CONSTANTS
-import com.android.tools.metalava.Issues.PACKAGE_LAYERING
-import com.android.tools.metalava.Issues.PAIRED_REGISTRATION
-import com.android.tools.metalava.Issues.PARCELABLE_LIST
-import com.android.tools.metalava.Issues.PARCEL_CONSTRUCTOR
-import com.android.tools.metalava.Issues.PARCEL_CREATOR
-import com.android.tools.metalava.Issues.PARCEL_NOT_FINAL
-import com.android.tools.metalava.Issues.PERCENTAGE_INT
-import com.android.tools.metalava.Issues.PROTECTED_MEMBER
-import com.android.tools.metalava.Issues.PUBLIC_TYPEDEF
-import com.android.tools.metalava.Issues.RAW_AIDL
-import com.android.tools.metalava.Issues.REGISTRATION_NAME
-import com.android.tools.metalava.Issues.RESOURCE_FIELD_NAME
-import com.android.tools.metalava.Issues.RESOURCE_STYLE_FIELD_NAME
-import com.android.tools.metalava.Issues.RESOURCE_VALUE_FIELD_NAME
-import com.android.tools.metalava.Issues.RETHROW_REMOTE_EXCEPTION
-import com.android.tools.metalava.Issues.SERVICE_NAME
-import com.android.tools.metalava.Issues.SETTER_RETURNS_THIS
-import com.android.tools.metalava.Issues.SINGLETON_CONSTRUCTOR
-import com.android.tools.metalava.Issues.SINGLE_METHOD_INTERFACE
-import com.android.tools.metalava.Issues.SINGULAR_CALLBACK
-import com.android.tools.metalava.Issues.START_WITH_LOWER
-import com.android.tools.metalava.Issues.START_WITH_UPPER
-import com.android.tools.metalava.Issues.STATIC_FINAL_BUILDER
-import com.android.tools.metalava.Issues.STATIC_UTILS
-import com.android.tools.metalava.Issues.STREAM_FILES
-import com.android.tools.metalava.Issues.TOP_LEVEL_BUILDER
-import com.android.tools.metalava.Issues.UNIQUE_KOTLIN_OPERATOR
-import com.android.tools.metalava.Issues.USER_HANDLE
-import com.android.tools.metalava.Issues.USER_HANDLE_NAME
-import com.android.tools.metalava.Issues.USE_ICU
-import com.android.tools.metalava.Issues.USE_PARCEL_FILE_DESCRIPTOR
-import com.android.tools.metalava.Issues.VISIBLY_SYNCHRONIZED
 import com.android.tools.metalava.manifest.Manifest
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ClassItem
@@ -158,10 +63,108 @@ import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.SetMinSdkVersion
 import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.findAnnotation
+import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.model.psi.PsiLocationProvider
 import com.android.tools.metalava.model.psi.PsiMethodItem
 import com.android.tools.metalava.model.psi.PsiTypeItem
 import com.android.tools.metalava.model.visitors.ApiVisitor
+import com.android.tools.metalava.reporter.Issues.ABSTRACT_INNER
+import com.android.tools.metalava.reporter.Issues.ACRONYM_NAME
+import com.android.tools.metalava.reporter.Issues.ACTION_VALUE
+import com.android.tools.metalava.reporter.Issues.ALL_UPPER
+import com.android.tools.metalava.reporter.Issues.ANDROID_URI
+import com.android.tools.metalava.reporter.Issues.ARRAY_RETURN
+import com.android.tools.metalava.reporter.Issues.ASYNC_SUFFIX_FUTURE
+import com.android.tools.metalava.reporter.Issues.AUTO_BOXING
+import com.android.tools.metalava.reporter.Issues.BAD_FUTURE
+import com.android.tools.metalava.reporter.Issues.BANNED_THROW
+import com.android.tools.metalava.reporter.Issues.BUILDER_SET_STYLE
+import com.android.tools.metalava.reporter.Issues.CALLBACK_INTERFACE
+import com.android.tools.metalava.reporter.Issues.CALLBACK_METHOD_NAME
+import com.android.tools.metalava.reporter.Issues.CALLBACK_NAME
+import com.android.tools.metalava.reporter.Issues.COMMON_ARGS_FIRST
+import com.android.tools.metalava.reporter.Issues.COMPILE_TIME_CONSTANT
+import com.android.tools.metalava.reporter.Issues.CONCRETE_COLLECTION
+import com.android.tools.metalava.reporter.Issues.CONFIG_FIELD_NAME
+import com.android.tools.metalava.reporter.Issues.CONSISTENT_ARGUMENT_ORDER
+import com.android.tools.metalava.reporter.Issues.CONTEXT_FIRST
+import com.android.tools.metalava.reporter.Issues.CONTEXT_NAME_SUFFIX
+import com.android.tools.metalava.reporter.Issues.ENDS_WITH_IMPL
+import com.android.tools.metalava.reporter.Issues.ENUM
+import com.android.tools.metalava.reporter.Issues.EQUALS_AND_HASH_CODE
+import com.android.tools.metalava.reporter.Issues.EXCEPTION_NAME
+import com.android.tools.metalava.reporter.Issues.EXECUTOR_REGISTRATION
+import com.android.tools.metalava.reporter.Issues.EXTENDS_ERROR
+import com.android.tools.metalava.reporter.Issues.FORBIDDEN_SUPER_CLASS
+import com.android.tools.metalava.reporter.Issues.FRACTION_FLOAT
+import com.android.tools.metalava.reporter.Issues.GENERIC_CALLBACKS
+import com.android.tools.metalava.reporter.Issues.GENERIC_EXCEPTION
+import com.android.tools.metalava.reporter.Issues.GETTER_ON_BUILDER
+import com.android.tools.metalava.reporter.Issues.GETTER_SETTER_NAMES
+import com.android.tools.metalava.reporter.Issues.HEAVY_BIT_SET
+import com.android.tools.metalava.reporter.Issues.INTENT_BUILDER_NAME
+import com.android.tools.metalava.reporter.Issues.INTENT_NAME
+import com.android.tools.metalava.reporter.Issues.INTERFACE_CONSTANT
+import com.android.tools.metalava.reporter.Issues.INTERNAL_CLASSES
+import com.android.tools.metalava.reporter.Issues.INTERNAL_FIELD
+import com.android.tools.metalava.reporter.Issues.INVALID_NULLABILITY_OVERRIDE
+import com.android.tools.metalava.reporter.Issues.Issue
+import com.android.tools.metalava.reporter.Issues.KOTLIN_DEFAULT_PARAMETER_ORDER
+import com.android.tools.metalava.reporter.Issues.KOTLIN_OPERATOR
+import com.android.tools.metalava.reporter.Issues.LISTENER_INTERFACE
+import com.android.tools.metalava.reporter.Issues.LISTENER_LAST
+import com.android.tools.metalava.reporter.Issues.MANAGER_CONSTRUCTOR
+import com.android.tools.metalava.reporter.Issues.MANAGER_LOOKUP
+import com.android.tools.metalava.reporter.Issues.MENTIONS_GOOGLE
+import com.android.tools.metalava.reporter.Issues.METHOD_NAME_TENSE
+import com.android.tools.metalava.reporter.Issues.METHOD_NAME_UNITS
+import com.android.tools.metalava.reporter.Issues.MIN_MAX_CONSTANT
+import com.android.tools.metalava.reporter.Issues.MISSING_BUILD_METHOD
+import com.android.tools.metalava.reporter.Issues.MISSING_GETTER_MATCHING_BUILDER
+import com.android.tools.metalava.reporter.Issues.MISSING_NULLABILITY
+import com.android.tools.metalava.reporter.Issues.MUTABLE_BARE_FIELD
+import com.android.tools.metalava.reporter.Issues.NOT_CLOSEABLE
+import com.android.tools.metalava.reporter.Issues.NO_BYTE_OR_SHORT
+import com.android.tools.metalava.reporter.Issues.NO_CLONE
+import com.android.tools.metalava.reporter.Issues.NO_SETTINGS_PROVIDER
+import com.android.tools.metalava.reporter.Issues.NULLABLE_COLLECTION
+import com.android.tools.metalava.reporter.Issues.ON_NAME_EXPECTED
+import com.android.tools.metalava.reporter.Issues.OPTIONAL_BUILDER_CONSTRUCTOR_ARGUMENT
+import com.android.tools.metalava.reporter.Issues.OVERLAPPING_CONSTANTS
+import com.android.tools.metalava.reporter.Issues.PACKAGE_LAYERING
+import com.android.tools.metalava.reporter.Issues.PAIRED_REGISTRATION
+import com.android.tools.metalava.reporter.Issues.PARCELABLE_LIST
+import com.android.tools.metalava.reporter.Issues.PARCEL_CONSTRUCTOR
+import com.android.tools.metalava.reporter.Issues.PARCEL_CREATOR
+import com.android.tools.metalava.reporter.Issues.PARCEL_NOT_FINAL
+import com.android.tools.metalava.reporter.Issues.PERCENTAGE_INT
+import com.android.tools.metalava.reporter.Issues.PROTECTED_MEMBER
+import com.android.tools.metalava.reporter.Issues.PUBLIC_TYPEDEF
+import com.android.tools.metalava.reporter.Issues.RAW_AIDL
+import com.android.tools.metalava.reporter.Issues.REGISTRATION_NAME
+import com.android.tools.metalava.reporter.Issues.RESOURCE_FIELD_NAME
+import com.android.tools.metalava.reporter.Issues.RESOURCE_STYLE_FIELD_NAME
+import com.android.tools.metalava.reporter.Issues.RESOURCE_VALUE_FIELD_NAME
+import com.android.tools.metalava.reporter.Issues.RETHROW_REMOTE_EXCEPTION
+import com.android.tools.metalava.reporter.Issues.SERVICE_NAME
+import com.android.tools.metalava.reporter.Issues.SETTER_RETURNS_THIS
+import com.android.tools.metalava.reporter.Issues.SINGLETON_CONSTRUCTOR
+import com.android.tools.metalava.reporter.Issues.SINGLE_METHOD_INTERFACE
+import com.android.tools.metalava.reporter.Issues.SINGULAR_CALLBACK
+import com.android.tools.metalava.reporter.Issues.START_WITH_LOWER
+import com.android.tools.metalava.reporter.Issues.START_WITH_UPPER
+import com.android.tools.metalava.reporter.Issues.STATIC_FINAL_BUILDER
+import com.android.tools.metalava.reporter.Issues.STATIC_UTILS
+import com.android.tools.metalava.reporter.Issues.STREAM_FILES
+import com.android.tools.metalava.reporter.Issues.TOP_LEVEL_BUILDER
+import com.android.tools.metalava.reporter.Issues.UNIQUE_KOTLIN_OPERATOR
+import com.android.tools.metalava.reporter.Issues.USER_HANDLE
+import com.android.tools.metalava.reporter.Issues.USER_HANDLE_NAME
+import com.android.tools.metalava.reporter.Issues.USE_ICU
+import com.android.tools.metalava.reporter.Issues.USE_PARCEL_FILE_DESCRIPTOR
+import com.android.tools.metalava.reporter.Issues.VISIBLY_SYNCHRONIZED
+import com.android.tools.metalava.reporter.Reporter
 import com.intellij.psi.JavaRecursiveElementVisitor
 import com.intellij.psi.PsiClassObjectAccessExpression
 import com.intellij.psi.PsiElement
@@ -184,13 +187,13 @@ class ApiLint(
     private val codebase: Codebase,
     private val oldCodebase: Codebase?,
     private val reporter: Reporter,
-    private val manifest: Manifest = options.manifest,
+    private val manifest: Manifest = @Suppress("DEPRECATION") options.manifest,
 ) :
     ApiVisitor(
         // Sort by source order such that warnings follow source line number order
         methodComparator = MethodItem.sourceOrderComparator,
         fieldComparator = FieldItem.comparator,
-        ignoreShown = options.showUnannotated,
+        ignoreShown = @Suppress("DEPRECATION") options.showUnannotated,
         // No need to check "for stubs only APIs" (== "implicit" APIs)
         includeApisForStubPurposes = false
     ) {
@@ -2429,9 +2432,9 @@ class ApiLint(
         if (type == "int" || type == "long" || type == "short") {
             if (badUnits.any { name.endsWith(it.key) }) {
                 val typeIsTypeDef =
-                    method.modifiers.annotations().any { annotation ->
-                        val annotationClass = annotation.resolve() ?: return@any false
-                        annotationClass.modifiers.annotations().any { it.isTypeDefAnnotation() }
+                    method.modifiers.hasAnnotation { annotation ->
+                        val annotationClass = annotation.resolve() ?: return@hasAnnotation false
+                        annotationClass.modifiers.hasAnnotation(AnnotationItem::isTypeDefAnnotation)
                     }
                 if (!typeIsTypeDef) {
                     val badUnit = badUnits.keys.find { name.endsWith(it) }
@@ -2957,16 +2960,13 @@ class ApiLint(
 
     private fun checkTypedef(cls: ClassItem) {
         if (cls.isAnnotationType()) {
-            cls.modifiers
-                .annotations()
-                .firstOrNull { it.isTypeDefAnnotation() }
-                ?.let {
-                    report(
-                        PUBLIC_TYPEDEF,
-                        cls,
-                        "Don't expose ${AnnotationItem.simpleName(it)}: ${cls.simpleName()} must be hidden."
-                    )
-                }
+            cls.modifiers.findAnnotation(AnnotationItem::isTypeDefAnnotation)?.let {
+                report(
+                    PUBLIC_TYPEDEF,
+                    cls,
+                    "Don't expose ${AnnotationItem.simpleName(it)}: ${cls.simpleName()} must be hidden."
+                )
+            }
         }
     }
 
@@ -3050,6 +3050,7 @@ class ApiLint(
         }
     }
 
+    @Suppress("DEPRECATION")
     private fun isInteresting(cls: ClassItem): Boolean {
         val name = cls.qualifiedName()
         for (prefix in options.checkApiIgnorePrefix) {

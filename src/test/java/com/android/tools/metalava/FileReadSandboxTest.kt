@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava
 
+import com.android.tools.metalava.cli.common.FileReadSandbox
 import java.io.File
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue

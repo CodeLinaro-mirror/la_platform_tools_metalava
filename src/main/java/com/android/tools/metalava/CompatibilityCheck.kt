@@ -16,14 +16,13 @@
 
 package com.android.tools.metalava
 
-import com.android.tools.metalava.Issues.Issue
 import com.android.tools.metalava.NullnessMigration.Companion.findNullnessAnnotation
 import com.android.tools.metalava.NullnessMigration.Companion.isNullable
+import com.android.tools.metalava.cli.common.MetalavaCliException
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.FieldItem
-import com.android.tools.metalava.model.FileFormat
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.Item.Companion.describe
 import com.android.tools.metalava.model.MergedCodebase
@@ -33,6 +32,10 @@ import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.psi.PsiItem
 import com.android.tools.metalava.model.text.TextCodebase
+import com.android.tools.metalava.reporter.Issues
+import com.android.tools.metalava.reporter.Issues.Issue
+import com.android.tools.metalava.reporter.Reporter
+import com.android.tools.metalava.reporter.Severity
 import com.intellij.psi.PsiField
 import java.io.File
 import java.util.function.Predicate
@@ -48,7 +51,8 @@ class CompatibilityCheck(
     private val oldCodebase: Codebase,
     private val apiType: ApiType,
     private val base: Codebase? = null,
-    private val reporter: Reporter
+    private val reporter: Reporter,
+    private val issueConfiguration: IssueConfiguration,
 ) : ComparisonVisitor() {
 
     /**
@@ -62,15 +66,11 @@ class CompatibilityCheck(
         }
     }
 
-    val oldFormat = (oldCodebase as? TextCodebase)?.format
-    /**
-     * In old signature files, methods inherited from hidden super classes are not included. An
-     * example of this is StringBuilder.setLength. More details about this are listed in
-     * Compatibility.skipInheritedMethods. We may see these in the codebase but not in the (old)
-     * signature files, so in these cases we want to ignore certain changes such as considering
-     * StringBuilder.setLength a newly added method.
-     */
-    private val comparingWithPartialSignatures = oldFormat == FileFormat.V1
+    /** See [com.android.tools.metalava.model.SignatureFileFormat.hasPartialSignatures]. */
+    private val comparingWithPartialSignatures = let {
+        val oldFormat = (oldCodebase as? TextCodebase)?.format
+        oldFormat?.hasPartialSignatures ?: false
+    }
 
     var foundProblems = false
 
@@ -295,16 +295,18 @@ class CompatibilityCheck(
         // a bit in whether they include these for enums
         if (!new.isEnum()) {
             if (!oldModifiers.isFinal() && newModifiers.isFinal()) {
-                // It is safe to make a class final if it did not previously have any public
-                // constructors because it was impossible for an application to create a subclass.
-                if (old.constructors().filter { it.isPublic || it.isProtected }.none()) {
+                // It is safe to make a class final if was impossible for an application to create a
+                // subclass.
+                if (!old.isExtensible()) {
                     report(
                         Issues.ADDED_FINAL_UNINSTANTIABLE,
                         new,
-                        "${describe(
-                            new,
-                            capitalize = true
-                        )} added 'final' qualifier but was previously uninstantiable and therefore could not be subclassed"
+                        "${
+                            describe(
+                                new,
+                                capitalize = true
+                            )
+                        } added 'final' qualifier but was previously uninstantiable and therefore could not be subclassed"
                     )
                 } else {
                     report(
@@ -395,6 +397,15 @@ class CompatibilityCheck(
             )
         }
     }
+
+    /**
+     * Return true if a [ClassItem] loaded from a signature file could be subclassed, i.e. is not
+     * final, or sealed and has at least one accessible constructor.
+     */
+    private fun ClassItem.isExtensible() =
+        !modifiers.isFinal() &&
+            !modifiers.isSealed() &&
+            constructors().any { it.isPublic || it.isProtected }
 
     override fun compare(old: MethodItem, new: MethodItem) {
         val oldModifiers = old.modifiers
@@ -570,11 +581,24 @@ class CompatibilityCheck(
                 // status of a method is only relevant if (a) the method is not declared 'static'
                 // and (b) the method is not already inferred to be 'final' by virtue of its class.
                 if (!old.isEffectivelyFinal() && new.isEffectivelyFinal()) {
-                    report(
-                        Issues.ADDED_FINAL,
-                        new,
-                        "${describe(new, capitalize = true)} has added 'final' qualifier"
-                    )
+                    if (!old.containingClass().isExtensible()) {
+                        report(
+                            Issues.ADDED_FINAL_UNINSTANTIABLE,
+                            new,
+                            "${
+                                describe(
+                                    new,
+                                    capitalize = true
+                                )
+                            } added 'final' qualifier but containing ${old.containingClass().describe()} was previously uninstantiable and therefore could not be subclassed"
+                        )
+                    } else {
+                        report(
+                            Issues.ADDED_FINAL,
+                            new,
+                            "${describe(new, capitalize = true)} has added 'final' qualifier"
+                        )
+                    }
                 } else if (old.isEffectivelyFinal() && !new.isEffectivelyFinal()) {
                     // Disallowed removing final: If an app inherits the class and starts overriding
                     // the method it's going to crash on earlier versions where the method is final
@@ -795,6 +819,7 @@ class CompatibilityCheck(
         }
     }
 
+    @Suppress("DEPRECATION")
     private fun handleAdded(issue: Issue, item: Item) {
         if (item.originallyHidden) {
             // This is an element which is hidden but is referenced from
@@ -813,10 +838,10 @@ class CompatibilityCheck(
         // Clarify error message for removed API to make it less ambiguous
         if (apiType == ApiType.REMOVED) {
             message += " to the removed API"
-        } else if (options.showAnnotations.isNotEmpty()) {
-            if (options.showAnnotations.matchesSuffix("SystemApi")) {
+        } else if (options.allShowAnnotations.isNotEmpty()) {
+            if (options.allShowAnnotations.matchesSuffix("SystemApi")) {
                 message += " to the system API"
-            } else if (options.showAnnotations.matchesSuffix("TestApi")) {
+            } else if (options.allShowAnnotations.matchesSuffix("TestApi")) {
                 message += " to the test API"
             }
         }
@@ -1033,18 +1058,21 @@ class CompatibilityCheck(
         }
         if (
             reporter.report(issue, item, message) &&
-                configuration.getSeverity(issue) == Severity.ERROR
+                issueConfiguration.getSeverity(issue) == Severity.ERROR
         ) {
             foundProblems = true
         }
     }
 
     companion object {
+        @Suppress("DEPRECATION")
         fun checkCompatibility(
             newCodebase: Codebase,
             oldCodebase: Codebase,
             apiType: ApiType,
-            baseApi: Codebase? = null,
+            baseApi: Codebase?,
+            reporter: Reporter,
+            issueConfiguration: IssueConfiguration,
         ) {
             val filter =
                 apiType
@@ -1059,7 +1087,8 @@ class CompatibilityCheck(
                     oldCodebase,
                     apiType,
                     baseApi,
-                    options.reporterCompatibilityReleased
+                    reporter,
+                    issueConfiguration,
                 )
 
             val oldFullCodebase =
@@ -1079,7 +1108,7 @@ class CompatibilityCheck(
                     "the ${apiType.displayName} API (${newCodebase.location}) against the API in ${oldCodebase.location}"
 
             if (checker.foundProblems) {
-                throw DriverException(exitCode = -1, stderr = message)
+                throw MetalavaCliException(exitCode = -1, stderr = message)
             }
         }
     }

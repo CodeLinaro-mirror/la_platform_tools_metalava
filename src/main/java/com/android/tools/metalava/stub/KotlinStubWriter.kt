@@ -17,17 +17,15 @@
 package com.android.tools.metalava.stub
 
 import com.android.tools.metalava.model.AnnotationTarget
+import com.android.tools.metalava.model.BaseItemVisitor
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.Language
-import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ModifierList
-import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.psi.PsiClassItem
-import com.android.tools.metalava.model.visitors.BaseItemVisitor
 import java.io.PrintWriter
 import java.util.function.Predicate
 
@@ -49,16 +47,9 @@ class KotlinStubWriter(
                 writer.println("package $qualifiedName")
                 writer.println()
             }
-            cls.getSourceFile()?.getImportStatements(filterReference)?.let {
+            cls.getSourceFile()?.getImports(filterReference)?.let {
                 for (item in it) {
-                    when (item) {
-                        is PackageItem -> writer.println("import ${item.qualifiedName()}.*")
-                        is ClassItem -> writer.println("import ${item.qualifiedName()}")
-                        is MemberItem ->
-                            writer.println(
-                                "import static ${item.containingClass().qualifiedName()}.${item.name()}"
-                            )
-                    }
+                    writer.println("import ${item.pattern}")
                 }
                 writer.println()
             }

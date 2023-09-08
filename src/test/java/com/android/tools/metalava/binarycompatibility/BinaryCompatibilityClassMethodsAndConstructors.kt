@@ -376,12 +376,13 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
         check(
             expectedIssues =
                 """
-               load-api.txt:3: error: Method test.pkg.Foo.bar has added 'final' qualifier [AddedFinal]
+               load-api.txt:4: error: Method test.pkg.Foo.bar has added 'final' qualifier [AddedFinal]
             """,
             signatureSource =
                 """
                 package test.pkg {
                   class Foo {
+                    ctor public Foo();
                     method final public void bar(Int);
                   }
                 }
@@ -390,6 +391,7 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
                 """
                 package test.pkg {
                   class Foo {
+                    ctor public Foo();
                     method public void bar(Int);
                   }
                 }

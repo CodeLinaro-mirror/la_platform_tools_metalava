@@ -14,12 +14,14 @@
  * limitations under the License.
  */
 
+@file:Suppress("DEPRECATION")
+
 package com.android.tools.metalava.stub
 
 import com.android.tools.metalava.ApiPredicate
 import com.android.tools.metalava.FilterPredicate
-import com.android.tools.metalava.Issues
 import com.android.tools.metalava.model.AnnotationTarget
+import com.android.tools.metalava.model.BaseItemVisitor
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ConstructorItem
@@ -30,9 +32,9 @@ import com.android.tools.metalava.model.ModifierList
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.psi.trimDocIndent
 import com.android.tools.metalava.model.visitors.ApiVisitor
-import com.android.tools.metalava.model.visitors.BaseItemVisitor
 import com.android.tools.metalava.options
-import com.android.tools.metalava.reporter
+import com.android.tools.metalava.reporter.Issues
+import com.android.tools.metalava.reporter.Reporter
 import java.io.BufferedWriter
 import java.io.File
 import java.io.FileWriter
@@ -44,7 +46,8 @@ class StubWriter(
     private val stubsDir: File,
     private val generateAnnotations: Boolean = false,
     private val preFiltered: Boolean = true,
-    private val docStubs: Boolean
+    private val docStubs: Boolean,
+    private val reporter: Reporter,
 ) :
     ApiVisitor(
         visitConstructorsAsMethods = false,

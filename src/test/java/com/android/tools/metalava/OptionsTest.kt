@@ -16,8 +16,10 @@
 
 package com.android.tools.metalava
 
+import com.android.tools.metalava.cli.common.ARG_NO_COLOR
+import com.android.tools.metalava.cli.common.FileReadSandbox
+import com.android.tools.metalava.cli.common.REPORTING_OPTIONS_HELP
 import java.io.File
-import java.io.OutputStreamWriter
 import java.io.PrintWriter
 import java.io.StringWriter
 import org.junit.Assert.assertEquals
@@ -121,31 +123,8 @@ API sources:
 
 
 Extracting Signature Files:
---api <file>
-                                             Generate a signature descriptor file
 --dex-api <file>
                                              Generate a DEX signature descriptor file listing the APIs
---removed-api <file>
-                                             Generate a signature descriptor file for APIs that have been removed
---api-overloaded-method-order <source|signature>
-                                             Specifies the order of overloaded methods in signature files (default
-                                             `signature`). Applies to the contents of the files specified on --api and
-                                             --removed-api. `--api-overloaded-method-order source` will preserve the
-                                             order in which they appear in the source files.
-                                             `--api-overloaded-method-order signature` will sort them based on their
-                                             signature.
---format=<v1,v2,v3,...>
-                                             Sets the output signature file format to be the given version.
---output-kotlin-nulls[=yes|no]
-                                             Controls whether nullness annotations should be formatted as in Kotlin
-                                             (with "?" for nullable types, "" for non nullable types, and "!" for
-                                             unknown. The default is yes.
---output-default-values[=yes|no]
-                                             Controls whether default values should be included in signature files. The
-                                             default is yes.
---include-signature-version[=yes|no]
-                                             Whether the signature files should include a comment listing the format
-                                             version of the signature file.
 --proguard <file>
                                              Write a ProGuard keep file for the API
 --sdk-values <dir>
@@ -217,22 +196,6 @@ Diffs and Checks:
                                              Promote all warnings to errors
 --lints-as-errors
                                              Promote all API lint warnings to errors
---error <id>
-                                             Report issues of the given id as errors
---warning <id>
-                                             Report issues of the given id as warnings
---lint <id>
-                                             Report issues of the given id as having lint-severity
---hide <id>
-                                             Hide/skip issues of the given id
---error-category <name>
-                                             Report all issues in the given category as errors
---warning-category <name>
-                                             Report all issues in the given category as warnings
---lint-category <name>
-                                             Report all issues in the given category as having lint-severity
---hide-category <name>
-                                             Hide/skip all issues in the given category
 --report-even-if-suppressed <file>
                                              Write all issues into the given file, even if suppressed (via annotation or
                                              baseline) but not if hidden (by '--hide' or '--hide-category')
@@ -435,19 +398,7 @@ Options:
   --suppress-compatibility-meta-annotation <meta-annotation class>
                                              Suppress compatibility checks for any elements within the scope of an
                                              annotation which is itself annotated with the given meta-annotation.
-  --api-overloaded-method-order [source|signature]
-                                             Specifies the order of overloaded methods in signature files. Applies to
-                                             the contents of the files specified on --api and --removed-api.
-
-                                             source - preserves the order in which overloaded methods appear in the
-                                             source files. This means that refactorings of the source files which change
-                                             the order but not the API can cause unnecessary changes in the API
-                                             signature files.
-
-                                             signature (default) - sorts overloaded methods by their signature. This
-                                             means that refactorings of the source files which change the order but not
-                                             the API will have no effect on the API signature files.
-  -manifest, --manifest <file>               A manifest file, used to check permissions to cross check APIs and retrieve
+  --manifest <file>                          A manifest file, used to check permissions to cross check APIs and retrieve
                                              min_sdk_version. (default: no manifest)
   --typedefs-in-signatures [none|ref|inline]
                                              Whether to include typedef annotations in signature files.
@@ -458,7 +409,22 @@ Options:
                                              itself part of the API and is not included as a class
 
                                              inline - will include the constants themselves into each usage site
-    """
+
+$REPORTING_OPTIONS_HELP
+
+Signature File Output:
+
+  Options controlling the signature file output. The format of the generated file is determined by the options in the
+  `Signature Format Output` section.
+
+  --api <file>                               Output file into which the API signature will be generated. If this is not
+                                             specified then no API signature file will be created.
+  --removed-api <file>                       Output file into which the API signatures for removed APIs will be
+                                             generated. If this is not specified then no removed API signature file will
+                                             be created.
+
+$SIGNATURE_FORMAT_OPTIONS_HELP
+"""
             .trimIndent()
 
     private val SUB_COMMANDS =
@@ -466,6 +432,7 @@ Options:
 Sub-commands:
   android-jars-to-signatures                 Rewrite the signature files in the `prebuilts/sdk` directory in the Android
                                              source tree by
+  merge-signatures                           Merge multiple signature files together into a single file.
   signature-to-jdiff                         Convert an API signature file into a file in the JDiff XML format.
   version                                    Show the version
         """
@@ -587,63 +554,6 @@ $MAIN_HELP_BODY
     }
 
     @Test
-    fun `Test issue severity options`() {
-        check(
-            extraArguments =
-                arrayOf(
-                    "--hide",
-                    "StartWithLower",
-                    "--lint",
-                    "EndsWithImpl",
-                    "--warning",
-                    "StartWithUpper",
-                    "--error",
-                    "ArrayReturn"
-                )
-        )
-        assertEquals(Severity.HIDDEN, defaultConfiguration.getSeverity(Issues.START_WITH_LOWER))
-        assertEquals(Severity.LINT, defaultConfiguration.getSeverity(Issues.ENDS_WITH_IMPL))
-        assertEquals(Severity.WARNING, defaultConfiguration.getSeverity(Issues.START_WITH_UPPER))
-        assertEquals(Severity.ERROR, defaultConfiguration.getSeverity(Issues.ARRAY_RETURN))
-    }
-
-    @Test
-    fun `Test multiple issue severity options`() {
-        check(extraArguments = arrayOf("--hide", "StartWithLower,StartWithUpper,ArrayReturn"))
-        assertEquals(Severity.HIDDEN, defaultConfiguration.getSeverity(Issues.START_WITH_LOWER))
-        assertEquals(Severity.HIDDEN, defaultConfiguration.getSeverity(Issues.START_WITH_UPPER))
-        assertEquals(Severity.HIDDEN, defaultConfiguration.getSeverity(Issues.ARRAY_RETURN))
-    }
-
-    @Test
-    fun `Test issue severity options with inheriting issues`() {
-        check(extraArguments = arrayOf("--error", "RemovedClass"))
-        assertEquals(Severity.ERROR, defaultConfiguration.getSeverity(Issues.REMOVED_CLASS))
-        assertEquals(
-            Severity.ERROR,
-            defaultConfiguration.getSeverity(Issues.REMOVED_DEPRECATED_CLASS)
-        )
-    }
-
-    @Test
-    fun `Test issue severity options with case insensitive names`() {
-        check(
-            extraArguments = arrayOf("--hide", "arrayreturn"),
-            expectedIssues =
-                "warning: Case-insensitive issue matching is deprecated, use --hide ArrayReturn instead of --hide arrayreturn [DeprecatedOption]"
-        )
-        assertEquals(Severity.HIDDEN, defaultConfiguration.getSeverity(Issues.ARRAY_RETURN))
-    }
-
-    @Test
-    fun `Test issue severity options with non-existing issue`() {
-        check(
-            extraArguments = arrayOf("--hide", "ThisIssueDoesNotExist"),
-            expectedFail = "Aborting: Unknown issue id: --hide ThisIssueDoesNotExist"
-        )
-    }
-
-    @Test
     fun `Test for --strict-input-files-exempt`() {
         val top = temporaryFolder.newFolder()
 
@@ -676,23 +586,4 @@ $MAIN_HELP_BODY
     fun `Test for @ usage on command line`() {
         check(showAnnotations = arrayOf("@foo.Show"))
     }
-}
-
-/**
- * Update the global [options] from the supplied arguments.
- *
- * This is for use by tests which do not use [Driver.run]. It does not support any of the
- * [CommonOptions] in the [args] parameter, instead it just uses [defaultCommonOptions].
- */
-internal fun updateGlobalOptionsForTest(
-    args: Array<String>,
-    /** Writer to direct output to */
-    stdout: PrintWriter = PrintWriter(OutputStreamWriter(System.out)),
-    /** Writer to direct error messages to */
-    stderr: PrintWriter = PrintWriter(OutputStreamWriter(System.err)),
-) {
-    // Create a special command that will ensure that the Clikt based properties in Options have
-    // been initialized correctly before updating the global options.
-    val command = MetalavaCommand(stdout, stderr, parseOptionsOnly = true)
-    command.parse(args)
 }

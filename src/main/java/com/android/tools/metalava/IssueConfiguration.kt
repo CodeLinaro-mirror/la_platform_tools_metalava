@@ -16,6 +16,9 @@
 
 package com.android.tools.metalava
 
+import com.android.tools.metalava.reporter.Issues
+import com.android.tools.metalava.reporter.Severity
+
 /** An issue configuration is a set of overrides for severities for various [Issues.Issue] */
 class IssueConfiguration {
     private val overrides = mutableMapOf<Issues.Issue, Severity>()
@@ -45,14 +48,4 @@ class IssueConfiguration {
     fun hide(issue: Issues.Issue) {
         setSeverity(issue, Severity.HIDDEN)
     }
-
-    fun reset() {
-        overrides.clear()
-    }
 }
-
-/** Default error configuration: uses the severities as configured in [Options] */
-val defaultConfiguration = IssueConfiguration()
-
-/** Current configuration to apply when reporting errors */
-var configuration = defaultConfiguration

@@ -20,15 +20,11 @@ const val ORG_JETBRAINS_ANNOTATIONS_PREFIX = "org.jetbrains.annotations."
 const val ORG_INTELLIJ_LANG_ANNOTATIONS_PREFIX = "org.intellij.lang.annotations."
 const val ANDROID_SYSTEM_API = "android.annotation.SystemApi"
 const val ANDROID_REQUIRES_PERMISSION = "android.annotation.RequiresPermission"
-const val ANDROID_DEPRECATED_FOR_SDK = "android.annotation.DeprecatedForSdk"
 const val RECENTLY_NULLABLE = "androidx.annotation.RecentlyNullable"
 const val RECENTLY_NONNULL = "androidx.annotation.RecentlyNonNull"
 const val ANDROID_NULLABLE = "android.annotation.Nullable"
 const val ANDROID_NONNULL = "android.annotation.NonNull"
 const val ANDROID_SDK_CONSTANT = "android.annotation.SdkConstant"
-const val ANDROIDX_VISIBLE_FOR_TESTING = "androidx.annotation.VisibleForTesting"
-const val ATTR_OTHERWISE = "otherwise"
-const val ATTR_ALLOW_IN = "allowIn"
 const val CARRIER_PRIVILEGES_MARKER = "carrier privileges"
 
 const val ANDROID_SUPPRESS_LINT = "android.annotation.SuppressLint"
@@ -41,9 +37,3 @@ const val ENV_VAR_METALAVA_PREPEND_ARGS = "METALAVA_PREPEND_ARGS"
 const val ENV_VAR_METALAVA_APPEND_ARGS = "METALAVA_APPEND_ARGS"
 
 const val JVM_DEFAULT_WITH_COMPATIBILITY = "kotlin.jvm.JvmDefaultWithCompatibility"
-
-const val JAVA_RETENTION = "java.lang.annotation.Retention"
-const val KT_RETENTION = "kotlin.annotation.Retention"
-
-fun isRetention(qualifiedName: String?): Boolean =
-    JAVA_RETENTION == qualifiedName || KT_RETENTION == qualifiedName

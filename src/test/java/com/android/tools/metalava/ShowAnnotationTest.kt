@@ -1,7 +1,9 @@
 package com.android.tools.metalava
 
 import com.android.tools.lint.checks.infrastructure.TestFiles.base64gzip
-import com.android.tools.metalava.model.FileFormat
+import com.android.tools.metalava.model.text.FileFormat
+import com.android.tools.metalava.testing.java
+import com.android.tools.metalava.testing.kotlin
 import org.junit.Test
 
 /** Tests for the --show-annotation functionality */
@@ -384,7 +386,7 @@ class ShowAnnotationTest : DriverTest() {
     @Test
     fun `showAnnotation with parameters`() {
         check(
-            format = FileFormat.V1,
+            format = FileFormat.V2,
             sourceFiles =
                 arrayOf(
                     java(
@@ -728,7 +730,7 @@ class ShowAnnotationTest : DriverTest() {
         // and if a client refers to Class2.FIELD, that resolves to Class*1*.FIELD.
         // - Class3 is (very naturally) hidden even though the super class is visible.
         check(
-            format = FileFormat.V1,
+            format = FileFormat.V2,
             sourceFiles =
                 arrayOf(
                     java(
@@ -822,6 +824,84 @@ class ShowAnnotationTest : DriverTest() {
                     """
                     )
                 )
+        )
+    }
+
+    @Test
+    fun `Conflicting for stubs and single show annotations`() {
+        check(
+            expectedIssues =
+                """
+                src/test/pkg/Foo.java:10: error: Method test.pkg.Foo.method1() has conflicting show annotations @android.annotation.SystemApi (Showability(show=true, recursive=false, forStubsOnly=false)) and @android.annotation.TestApi (Showability(show=true, recursive=true, forStubsOnly=true)) [ConflictingShowAnnotations]
+                src/test/pkg/Foo.java:17: error: Method test.pkg.Foo.method2() has conflicting show annotations @android.annotation.TestApi (Showability(show=true, recursive=true, forStubsOnly=true)) and @android.annotation.SystemApi (Showability(show=true, recursive=false, forStubsOnly=false)) [ConflictingShowAnnotations]
+            """
+                    .trimIndent(),
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                    package test.pkg;
+                    import android.annotation.SystemApi;
+                    import android.annotation.TestApi;
+                    public class Foo {
+                        /**
+                         * @hide
+                         */
+                        @SystemApi
+                        @TestApi
+                        public void method1() { }
+
+                        /**
+                         * @hide
+                         */
+                        @TestApi
+                        @SystemApi
+                        public void method2() { }
+                    }
+                    """
+                    ),
+                    systemApiSource,
+                    testApiSource,
+                ),
+            extraArguments =
+                arrayOf(
+                    ARG_SHOW_SINGLE_ANNOTATION,
+                    "android.annotation.SystemApi",
+                    ARG_SHOW_FOR_STUB_PURPOSES_ANNOTATION,
+                    "android.annotation.TestApi",
+                    ARG_HIDE_PACKAGE,
+                    "android.annotation",
+                ),
+            api =
+                """
+                package test.pkg {
+                  public class Foo {
+                    method public void method1();
+                  }
+                }
+                """,
+            stubFiles =
+                arrayOf(
+                    java(
+                        "test/pkg/Foo.java",
+                        """
+                  package test.pkg;
+                  @SuppressWarnings({"unchecked", "deprecation", "all"})
+                  public class Foo {
+                  public Foo() { throw new RuntimeException("Stub!"); }
+                  /**
+                   * @hide
+                   */
+                  public void method1() { throw new RuntimeException("Stub!"); }
+                  /**
+                   * @hide
+                   */
+                  public void method2() { throw new RuntimeException("Stub!"); }
+                  }
+              """
+                            .trimIndent()
+                    ),
+                ),
         )
     }
 }

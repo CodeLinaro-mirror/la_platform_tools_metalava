@@ -1,5 +1,6 @@
 package com.android.tools.metalava
 
+import com.android.tools.metalava.testing.java
 import org.junit.Test
 
 /** Tests for the [DocAnalyzer] which check the handling of ranges in the docs */

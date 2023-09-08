@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava
 
+import com.android.tools.metalava.cli.common.Version
 import com.android.tools.metalava.testing.BaseCommandTest
 import org.junit.Test
 
@@ -28,14 +29,12 @@ class VersionCommandTest : BaseCommandTest() {
 
             expectedStdout =
                 """
-
 Usage: metalava version [options]
 
   Show the version
 
 Options:
   -h, -?, --help                             Show this message and exit
-
             """
                     .trimIndent()
         }
@@ -49,7 +48,6 @@ Options:
             expectedStdout =
                 """
 version version: ${Version.VERSION}
-
             """
                     .trimIndent()
         }

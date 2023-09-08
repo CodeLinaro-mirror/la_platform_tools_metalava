@@ -31,8 +31,8 @@ import com.android.tools.metalava.ARG_SDK_INFO_FILE
 import com.android.tools.metalava.ARG_SDK_JAR_ROOT
 import com.android.tools.metalava.DriverTest
 import com.android.tools.metalava.getApiLookup
-import com.android.tools.metalava.java
 import com.android.tools.metalava.minApiLevel
+import com.android.tools.metalava.testing.java
 import com.google.common.truth.Truth.assertThat
 import com.google.gson.GsonBuilder
 import com.google.gson.JsonElement

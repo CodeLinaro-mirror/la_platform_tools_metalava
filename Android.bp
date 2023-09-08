@@ -16,35 +16,61 @@ package {
     default_applicable_licenses: ["Android-Apache-2.0"],
 }
 
-model_api_files = [
-    "src/main/java/com/android/tools/metalava/model/*.java",
-    "src/main/java/com/android/tools/metalava/model/*.kt",
-]
-
 java_library_host {
-    name: "metalava-model-api",
+    name: "metalava-model",
     visibility: ["//visibility:private"],
-    srcs: model_api_files,
+    srcs: [
+        "metalava-model/src/main/java/**/*.java",
+        "metalava-model/src/main/java/**/*.kt",
+    ],
 }
 
-model_text_files = [
-    "src/main/java/com/android/tools/metalava/model/text/*.java",
-    "src/main/java/com/android/tools/metalava/model/text/*.kt",
-]
+java_library_host {
+    name: "metalava-model-psi",
+    visibility: ["//visibility:private"],
+    srcs: [
+        "metalava-model-psi/src/main/java/**/*.java",
+        "metalava-model-psi/src/main/java/**/*.kt",
+    ],
+    libs: [
+        "kotlin-reflect",
+        "metalava-model",
+        "metalava-reporter",
+        "metalava-tools-common-m2-deps",
+        // Needed for guava stuff
+        "metalava-gradle-plugin-deps",
+    ],
+}
 
 java_library_host {
     name: "metalava-model-text",
     visibility: ["//visibility:private"],
-    srcs: model_text_files,
+    srcs: [
+        "metalava-model-text/src/main/java/**/*.java",
+        "metalava-model-text/src/main/java/**/*.kt",
+    ],
     libs: [
-        "metalava-model-api",
+        "metalava-model",
+    ],
+}
+
+java_library_host {
+    name: "metalava-reporter",
+    visibility: ["//visibility:private"],
+    srcs: [
+        "metalava-reporter/src/main/java/**/*.java",
+        "metalava-reporter/src/main/java/**/*.kt",
+    ],
+    libs: [
+        "kotlin-reflect",
+        "metalava-model",
     ],
 }
 
 java_library_host {
     name: "metalava-signature-reader",
     static_libs: [
-        "metalava-model-api",
+        "metalava-model",
         "metalava-model-text",
     ],
 }
@@ -55,14 +81,15 @@ java_binary_host {
         "src/main/java/**/*.java",
         "src/main/java/**/*.kt",
     ],
-    exclude_srcs: model_api_files + model_text_files,
     java_resource_dirs: ["src/main/resources/"],
     static_libs: [
         "jsr305",
         "jsr330",
         "kotlin-reflect",
-        "metalava-model-api",
+        "metalava-model",
+        "metalava-model-psi",
         "metalava-model-text",
+        "metalava-reporter",
         "metalava-tools-common-m2-deps",
         "metalava-gradle-plugin-deps",
         "gson-prebuilt-jar-2.9.1",

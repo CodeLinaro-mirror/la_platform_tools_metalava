@@ -17,11 +17,11 @@
 package com.android.tools.metalava.manifest
 
 import com.android.SdkConstants
-import com.android.tools.metalava.Issues
 import com.android.tools.metalava.model.MinSdkVersion
 import com.android.tools.metalava.model.SetMinSdkVersion
 import com.android.tools.metalava.model.UnsetMinSdkVersion
-import com.android.tools.metalava.reporter
+import com.android.tools.metalava.reporter.Issues
+import com.android.tools.metalava.reporter.Reporter
 import com.android.tools.metalava.xml.parseDocument
 import com.android.utils.XmlUtils
 import java.io.File
@@ -30,7 +30,7 @@ import java.io.File
  * An empty manifest. This is safe to share as while it is not strictly immutable it only mutates
  * the object when lazily initializing [Manifest.info].
  */
-val emptyManifest: Manifest by lazy { Manifest(null) }
+val emptyManifest: Manifest by lazy { Manifest(null, null) }
 
 private data class ManifestInfo(
     val permissions: Map<String, String>,
@@ -40,7 +40,7 @@ private data class ManifestInfo(
 private val defaultInfo = ManifestInfo(emptyMap(), UnsetMinSdkVersion)
 
 /** Provides access to information from an `AndroidManifest.xml` file. */
-class Manifest(private val manifest: File?) {
+class Manifest(private val manifest: File?, private val reporter: Reporter?) {
 
     private val info: ManifestInfo by lazy { readManifestInfo() }
 
@@ -83,11 +83,12 @@ class Manifest(private val manifest: File?) {
 
             ManifestInfo(map, min)
         } catch (error: Throwable) {
-            reporter.report(
+            reporter?.report(
                 Issues.PARSE_ERROR,
                 manifest,
                 "Failed to parse $manifest: ${error.message}"
             )
+                ?: throw error
             defaultInfo
         }
     }

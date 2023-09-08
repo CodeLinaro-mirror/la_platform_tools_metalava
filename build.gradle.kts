@@ -1,10 +1,6 @@
 import com.android.tools.metalava.CREATE_ARCHIVE_TASK
-import com.android.tools.metalava.CREATE_BUILD_INFO_TASK
-
-/** Take a copy of the original [buildDir] for use by [testPrebuiltsSdkDir] */
-val originalBuildDir = buildDir
-
-buildDir = getBuildDirectory()
+import com.android.tools.metalava.buildinfo.CREATE_BUILD_INFO_TASK
+import com.android.tools.metalava.buildinfo.CreateAggregateLibraryBuildInfoFileTask.Companion.CREATE_AGGREGATE_BUILD_INFO_FILES_TASK
 
 defaultTasks =
     mutableListOf(
@@ -12,8 +8,9 @@ defaultTasks =
         "test",
         CREATE_ARCHIVE_TASK,
         CREATE_BUILD_INFO_TASK,
+        CREATE_AGGREGATE_BUILD_INFO_FILES_TASK,
         "lint",
-        "ktfmtCheck",
+        "ktCheck",
     )
 
 plugins {
@@ -29,6 +26,10 @@ application {
 }
 
 dependencies {
+    implementation(project(":metalava-model"))
+    implementation(project(":metalava-model-psi"))
+    implementation(project(":metalava-model-text"))
+    implementation(project(":metalava-reporter"))
     implementation(libs.androidToolsExternalUast)
     implementation(libs.androidToolsExternalKotlinCompiler)
     implementation(libs.androidToolsExternalIntellijCore)
@@ -45,21 +46,15 @@ dependencies {
     implementation(libs.asm)
     implementation(libs.asmTree)
     implementation(libs.gson)
+    testImplementation(project(":metalava-testing"))
     testImplementation(libs.androidLintTests)
     testImplementation(libs.junit4)
     testImplementation(libs.truth)
     testImplementation(libs.kotlinTest)
 }
 
-/**
- * The location into which a fake representation of the prebuilts/sdk directory will be written.
- *
- * This uses [originalBuildDir] rather than [buildDir] as the latter depends on the `OUT_DIR`
- * environment variable. As this value is passed in to the tests this would make the tests dependent
- * on the `OUT_DIR` which as it varies from build to build would reduce the benefit of remote
- * caching.
- */
-val testPrebuiltsSdkDir = originalBuildDir.resolve("prebuilts/sdk")
+/** The location into which a fake representation of the prebuilts/sdk directory will be written. */
+val testPrebuiltsSdkDir = layout.buildDirectory.dir("prebuilts/sdk")
 
 /**
  * Register tasks to emulate parts of the prebuilts/sdk repository using source from this directory.
@@ -83,7 +78,7 @@ fun registerTestPrebuiltsSdkTasks(sourceDir: String, destJar: String): TaskProvi
             options.compilerArgs = listOf("--patch-module", "java.base=" + file(sourceDir))
             source = fileTree(sourceDir)
             classpath = project.files()
-            destinationDirectory.set(originalBuildDir.resolve(javaCompileTaskName))
+            destinationDirectory.set(layout.buildDirectory.dir(javaCompileTaskName))
         }
 
     val destJarFile = File(destJar)
@@ -97,7 +92,7 @@ fun registerTestPrebuiltsSdkTasks(sourceDir: String, destJar: String): TaskProvi
         project.tasks.register(jarTaskName, Jar::class) {
             from(compileTask.flatMap { it.destinationDirectory })
             archiveFileName.set(filename)
-            destinationDirectory.set(testPrebuiltsSdkDir.resolve(dir))
+            destinationDirectory.set(testPrebuiltsSdkDir.map { it.dir(dir) })
         }
 
     return jarTask
@@ -139,13 +134,7 @@ project.tasks.register("test-prebuilts-sdk") {
 
 tasks.named<Test>("test").configure {
     dependsOn("test-prebuilts-sdk")
-    setEnvironment("METALAVA_TEST_PREBUILTS_SDK_ROOT" to testPrebuiltsSdkDir)
-}
-
-fun getBuildDirectory(): File {
-    return if (System.getenv("OUT_DIR") != null) {
-        File(System.getenv("OUT_DIR"), "metalava")
-    } else {
-        File(projectDir, "../../out/metalava")
-    }
+    setEnvironment(
+        "METALAVA_TEST_PREBUILTS_SDK_ROOT" to testPrebuiltsSdkDir.get().asFile.absolutePath
+    )
 }
