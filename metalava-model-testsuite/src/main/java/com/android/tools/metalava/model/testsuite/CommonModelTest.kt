@@ -22,7 +22,6 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 
-@IgnoreForRunner("turbine")
 @RunWith(Parameterized::class)
 class CommonModelTest(runner: ModelSuiteRunner) : BaseModelTest(runner) {
     @Test

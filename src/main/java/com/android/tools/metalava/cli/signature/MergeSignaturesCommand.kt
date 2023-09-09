@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.cli.signature
 
+import com.android.tools.metalava.OptionsDelegate
 import com.android.tools.metalava.SignatureWriter
 import com.android.tools.metalava.cli.common.MetalavaCliException
 import com.android.tools.metalava.cli.common.MetalavaSubCommand
@@ -75,6 +76,10 @@ class MergeSignaturesCommand :
             .required()
 
     override fun run() {
+        // Make sure that none of the code called by this command accesses the global `options`
+        // property.
+        OptionsDelegate.disallowAccess()
+
         try {
             val codebase = ApiFile.parseApi(files, annotationManager = noOpAnnotationManager)
             createReportFile(progressTracker, codebase, out, description = "Merged file") {

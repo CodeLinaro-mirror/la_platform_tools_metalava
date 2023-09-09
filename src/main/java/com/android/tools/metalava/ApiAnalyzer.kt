@@ -44,6 +44,7 @@ import com.android.tools.metalava.model.source.SourceParser
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
+import java.io.File
 import java.util.Locale
 import java.util.function.Predicate
 import org.jetbrains.kotlin.asJava.classes.KtLightClassForFacade
@@ -53,14 +54,48 @@ import org.jetbrains.uast.UClass
  * The [ApiAnalyzer] is responsible for walking over the various classes and members and compute
  * visibility etc of the APIs
  */
-@Suppress("DEPRECATION")
 class ApiAnalyzer(
     private val sourceParser: SourceParser,
     /** The code to analyze */
     private val codebase: Codebase,
     private val reporter: Reporter,
-    private val manifest: Manifest = emptyManifest,
+    private val config: Config = Config(),
 ) {
+
+    data class Config(
+        val manifest: Manifest = emptyManifest,
+
+        /** Packages to exclude/hide */
+        val hidePackages: List<String> = emptyList(),
+
+        /**
+         * Packages that we should skip generating even if not hidden; typically only used by tests
+         */
+        val skipEmitPackages: List<String> = emptyList(),
+
+        /**
+         * External annotation files that contain non-inclusion annotations which will appear in the
+         * generated API.
+         *
+         * These will be merged into the codebase.
+         */
+        val mergeQualifierAnnotations: List<File> = emptyList(),
+
+        /**
+         * External annotation files that contain annotations which affect inclusion of items in the
+         * API.
+         *
+         * These will be merged into the codebase.
+         */
+        val mergeInclusionAnnotations: List<File> = emptyList(),
+
+        /** Packages to import (if empty, include all) */
+        val stubImportPackages: Set<String> = emptySet(),
+
+        /** The filter for all the show annotations. */
+        val allShowAnnotations: AnnotationFilter = AnnotationFilter.emptyFilter(),
+    )
+
     /** All packages in the API */
     private val packages: PackageList = codebase.getPackages()
 
@@ -523,7 +558,7 @@ class ApiAnalyzer(
 
     /** Hide packages explicitly listed in [Options.hidePackages] */
     private fun hidePackages() {
-        for (pkgName in options.hidePackages) {
+        for (pkgName in config.hidePackages) {
             val pkg = codebase.findPackage(pkgName) ?: continue
             pkg.hidden = true
         }
@@ -531,7 +566,7 @@ class ApiAnalyzer(
 
     /** Apply emit filters listed in [Options.skipEmitPackages] */
     private fun skipEmitPackages() {
-        for (pkgName in options.skipEmitPackages) {
+        for (pkgName in config.skipEmitPackages) {
             val pkg = codebase.findPackage(pkgName) ?: continue
             pkg.emit = false
         }
@@ -565,17 +600,19 @@ class ApiAnalyzer(
      * from all configured sources.
      */
     fun mergeExternalQualifierAnnotations() {
-        if (options.mergeQualifierAnnotations.isNotEmpty()) {
+        val mergeQualifierAnnotations = config.mergeQualifierAnnotations
+        if (mergeQualifierAnnotations.isNotEmpty()) {
             AnnotationsMerger(sourceParser, codebase, reporter)
-                .mergeQualifierAnnotations(options.mergeQualifierAnnotations)
+                .mergeQualifierAnnotations(mergeQualifierAnnotations)
         }
     }
 
     /** Merge in external show/hide annotations from all configured sources */
     fun mergeExternalInclusionAnnotations() {
-        if (options.mergeInclusionAnnotations.isNotEmpty()) {
+        val mergeInclusionAnnotations = config.mergeInclusionAnnotations
+        if (mergeInclusionAnnotations.isNotEmpty()) {
             AnnotationsMerger(sourceParser, codebase, reporter)
-                .mergeInclusionAnnotations(options.mergeInclusionAnnotations)
+                .mergeInclusionAnnotations(mergeInclusionAnnotations)
         }
     }
 
@@ -588,7 +625,7 @@ class ApiAnalyzer(
             object : BaseItemVisitor(visitConstructorsAsMethods = true, nestInnerClasses = true) {
                 override fun visitPackage(pkg: PackageItem) {
                     when {
-                        options.hidePackages.contains(pkg.qualifiedName()) -> pkg.hidden = true
+                        config.hidePackages.contains(pkg.qualifiedName()) -> pkg.hidden = true
                         pkg.hasShowAnnotation() -> pkg.hidden = false
                         pkg.hasHideAnnotation() -> pkg.hidden = true
                     }
@@ -762,7 +799,7 @@ class ApiAnalyzer(
                 val missing = ArrayList<String>()
                 for (value in values) {
                     val perm = (value.value() ?: value.toSource()).toString()
-                    val level = manifest.getPermissionLevel(perm)
+                    val level = config.manifest.getPermissionLevel(perm)
                     if (level == null) {
                         if (any) {
                             missing.add(perm)
@@ -772,7 +809,7 @@ class ApiAnalyzer(
                         reporter.report(
                             Issues.REQUIRES_PERMISSION,
                             method,
-                            "Permission '$perm' is not defined by manifest ${manifest}."
+                            "Permission '$perm' is not defined by manifest ${config.manifest}."
                         )
                         continue
                     }
@@ -791,7 +828,7 @@ class ApiAnalyzer(
                         Issues.REQUIRES_PERMISSION,
                         method,
                         "None of the permissions ${missing.joinToString()} are defined by manifest " +
-                            "${manifest}."
+                            "${config.manifest}."
                     )
                 }
 
@@ -828,11 +865,11 @@ class ApiAnalyzer(
 
         val checkSystemApi =
             !reporter.isSuppressed(Issues.REQUIRES_PERMISSION) &&
-                options.allShowAnnotations.matches(ANDROID_SYSTEM_API) &&
-                !options.manifest.isEmpty()
+                config.allShowAnnotations.matches(ANDROID_SYSTEM_API) &&
+                !config.manifest.isEmpty()
         val checkHiddenShowAnnotations =
             !reporter.isSuppressed(Issues.UNHIDDEN_SYSTEM_API) &&
-                options.allShowAnnotations.isNotEmpty()
+                config.allShowAnnotations.isNotEmpty()
 
         packages.accept(
             object : ApiVisitor() {
@@ -1041,8 +1078,7 @@ class ApiAnalyzer(
 
     fun handleStripping() {
         // TODO: Switch to visitor iteration
-        // val stubPackages = options.stubPackages
-        val stubImportPackages = options.stubImportPackages
+        val stubImportPackages = config.stubImportPackages
         handleStripping(stubImportPackages)
     }
 

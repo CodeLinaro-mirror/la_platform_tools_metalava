@@ -34,8 +34,8 @@ import com.android.tools.metalava.model.TypeParameterList.Companion.NONE
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.javaUnescapeString
 import com.android.tools.metalava.model.noOpAnnotationManager
-import com.android.tools.metalava.model.text.TextTypeItem.Companion.isPrimitive
 import com.android.tools.metalava.model.text.TextTypeParameterList.Companion.create
+import com.android.tools.metalava.model.text.TextTypeParser.Companion.isPrimitive
 import java.io.File
 import java.io.IOException
 import java.io.StringReader
@@ -312,7 +312,7 @@ private constructor(
         assertIdent(tokenizer, token)
         val name: String = token
         val qualifiedName = qualifiedName(pkg.name(), name)
-        val typeInfo = api.obtainTypeFromString(qualifiedName)
+        val typeInfo = api.typeResolver.obtainTypeFromString(qualifiedName)
         // Simple type info excludes the package name (but includes enclosing class names)
         var rawName = name
         val variableIndex = rawName.indexOf('<')
@@ -603,7 +603,7 @@ private constructor(
                 break
             }
         }
-        returnType = api.obtainTypeFromString(returnTypeString, cl, typeParameterList)
+        returnType = api.typeResolver.obtainTypeFromString(returnTypeString, cl, typeParameterList)
         assertIdent(tokenizer, token)
         val name: String = token
         method = TextMethodItem(api, name, cl, modifiers, returnType, tokenizer.pos())
@@ -665,7 +665,7 @@ private constructor(
         annotations = second
         modifiers.addAnnotations(annotations)
         val type = token
-        val typeInfo = api.obtainTypeFromString(type)
+        val typeInfo = api.typeResolver.obtainTypeFromString(type)
         token = tokenizer.requireToken()
         assertIdent(tokenizer, token)
         val name = token
@@ -864,7 +864,7 @@ private constructor(
         annotations = second
         modifiers.addAnnotations(annotations)
         val type: String = token
-        val typeInfo = api.obtainTypeFromString(type)
+        val typeInfo = api.typeResolver.obtainTypeFromString(type)
         token = tokenizer.requireToken()
         assertIdent(tokenizer, token)
         val name: String = token
@@ -953,7 +953,7 @@ private constructor(
                 modifiers.setVarArg(true)
             }
             val typeInfo =
-                api.obtainTypeFromString(
+                api.typeResolver.obtainTypeFromString(
                     typeString,
                     (method.containingClass() as TextClassItem),
                     method.typeParameterList()
@@ -1376,7 +1376,7 @@ class ReferenceResolver(
             }
 
             val superclass = getOrCreateClass(scName)
-            cl.setSuperClass(superclass, codebase.obtainTypeFromString(scName))
+            cl.setSuperClass(superclass, codebase.typeResolver.obtainTypeFromString(scName))
         }
     }
 
@@ -1385,7 +1385,7 @@ class ReferenceResolver(
             val interfaces = context.namesOfInterfaces(cl) ?: continue
             for (interfaceName in interfaces) {
                 getOrCreateClass(interfaceName, isInterface = true)
-                cl.addInterface(codebase.obtainTypeFromString(interfaceName))
+                cl.addInterface(codebase.typeResolver.obtainTypeFromString(interfaceName))
             }
         }
     }

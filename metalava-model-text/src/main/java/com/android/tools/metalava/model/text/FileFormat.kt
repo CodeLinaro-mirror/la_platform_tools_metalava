@@ -49,6 +49,7 @@ data class FileFormat(
      */
     val migrating: String? = null,
     val conciseDefaultValues: Boolean,
+    val specifiedAddAdditionalOverrides: Boolean? = null,
 ) {
     init {
         if (migrating != null && "[,\n]".toRegex().find(migrating) != null) {
@@ -61,6 +62,10 @@ data class FileFormat(
     // This defaults to SIGNATURE but can be overridden on the command line.
     val overloadedMethodOrder
         get() = specifiedOverloadedMethodOrder ?: OverloadedMethodOrder.SIGNATURE
+
+    // This defaults to false but can be overridden on the command line.
+    val addAdditionalOverrides
+        get() = specifiedAddAdditionalOverrides ?: false
 
     /** The base version of the file format. */
     enum class Version(
@@ -497,6 +502,7 @@ data class FileFormat(
 
     /** A builder for [FileFormat] that applies some optional values to a base [FileFormat]. */
     private class Builder(private val base: FileFormat) {
+        var addAdditionalOverrides: Boolean? = null
         var conciseDefaultValues: Boolean? = null
         var kotlinStyleNulls: Boolean? = null
         var migrating: String? = null
@@ -507,6 +513,8 @@ data class FileFormat(
                 conciseDefaultValues = conciseDefaultValues ?: base.conciseDefaultValues,
                 kotlinStyleNulls = kotlinStyleNulls ?: base.kotlinStyleNulls,
                 migrating = migrating ?: base.migrating,
+                specifiedAddAdditionalOverrides = addAdditionalOverrides
+                        ?: base.specifiedAddAdditionalOverrides,
                 specifiedOverloadedMethodOrder = overloadedMethodOrder
                         ?: base.specifiedOverloadedMethodOrder,
             )
@@ -514,6 +522,15 @@ data class FileFormat(
 
     /** Information about the different overrideable properties in [FileFormat]. */
     private enum class OverrideableProperty {
+        /** add-additional-overrides=[yes|no] */
+        ADD_ADDITIONAL_OVERRIDES {
+            override fun setFromString(builder: Builder, value: String) {
+                builder.addAdditionalOverrides = yesNo(value)
+            }
+
+            override fun stringFromFormat(format: FileFormat): String =
+                yesNo(format.addAdditionalOverrides)
+        },
         /** concise-default-values=[yes|no] */
         CONCISE_DEFAULT_VALUES {
             override fun setFromString(builder: Builder, value: String) {

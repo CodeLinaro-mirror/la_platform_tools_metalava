@@ -19,22 +19,16 @@ package com.android.tools.metalava.model.text
 import com.google.common.truth.Truth
 import org.junit.Test
 
-class TextTypeParameterListTest {
+class TextTypeParserTest {
     @Test
     fun testTypeParameterStrings() {
-        Truth.assertThat(TextTypeParameterList.typeParameterStrings(null).toString())
-            .isEqualTo("[]")
-        Truth.assertThat(TextTypeParameterList.typeParameterStrings("").toString()).isEqualTo("[]")
-        Truth.assertThat(TextTypeParameterList.typeParameterStrings("<X>").toString())
-            .isEqualTo("[X]")
-        Truth.assertThat(
-                TextTypeParameterList.typeParameterStrings("<ABC,DEF extends T>").toString()
-            )
+        Truth.assertThat(TextTypeParser.typeParameterStrings(null).toString()).isEqualTo("[]")
+        Truth.assertThat(TextTypeParser.typeParameterStrings("").toString()).isEqualTo("[]")
+        Truth.assertThat(TextTypeParser.typeParameterStrings("<X>").toString()).isEqualTo("[X]")
+        Truth.assertThat(TextTypeParser.typeParameterStrings("<ABC,DEF extends T>").toString())
             .isEqualTo("[ABC, DEF extends T]")
         Truth.assertThat(
-                TextTypeParameterList.typeParameterStrings(
-                        "<T extends java.lang.Comparable<? super T>>"
-                    )
+                TextTypeParser.typeParameterStrings("<T extends java.lang.Comparable<? super T>>")
                     .toString()
             )
             .isEqualTo("[T extends java.lang.Comparable<? super T>]")

@@ -155,8 +155,6 @@ open class PsiBasedCodebase(
      */
     private var initializing = false
 
-    override fun trustedApi(): Boolean = false
-
     private var packageDocs: PackageDocs? = null
 
     private var hideClassesFromJars = true

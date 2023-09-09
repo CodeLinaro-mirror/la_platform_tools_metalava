@@ -25,5 +25,5 @@ internal class TurbineSourceModelProvider :
     override fun createEnvironmentManager(
         disableStderrDumping: Boolean,
         forTesting: Boolean,
-    ): com.android.tools.metalava.model.source.EnvironmentManager = TODO("will be done eventually")
+    ): com.android.tools.metalava.model.source.EnvironmentManager = TurbineEnvironmentManager()
 }

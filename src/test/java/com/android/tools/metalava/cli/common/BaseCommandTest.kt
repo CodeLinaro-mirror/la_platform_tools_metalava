@@ -125,6 +125,7 @@ class CommandTestConfig<C : CliktCommand>(private val test: BaseCommandTest<C>) 
      */
     fun inputFile(name: String, contents: String, parentDir: File? = null): File {
         val f = parentDir?.resolve(name) ?: test.temporaryFolder.newFile(name)
+        f.parentFile.mkdirs()
         f.writeText(contents)
         return f
     }

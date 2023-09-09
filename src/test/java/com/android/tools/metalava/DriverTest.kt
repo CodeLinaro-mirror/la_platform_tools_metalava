@@ -966,6 +966,10 @@ abstract class DriverTest : TemporaryFolderOwner {
         // Run optional additional setup steps on the project directory
         projectSetup?.invoke(project)
 
+        // Make sure that the options is initialized. Just in case access was disallowed by another
+        // test.
+        options = Options()
+
         val actualOutput =
             runDriver(
                 ARG_NO_COLOR,

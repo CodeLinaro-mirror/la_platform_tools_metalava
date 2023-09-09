@@ -81,6 +81,9 @@ open class PsiMethodItem(
 
     override var property: PsiPropertyItem? = null
 
+    @Deprecated("This property should not be accessed directly.")
+    override var _requiresOverride: Boolean? = null
+
     override fun name(): String = name
 
     override fun containingClass(): ClassItem = containingClass

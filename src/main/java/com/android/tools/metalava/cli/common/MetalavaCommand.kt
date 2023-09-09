@@ -59,7 +59,7 @@ internal open class MetalavaCommand(
      * [excludeArgumentsWithNoHelp]).
      */
     defaultCommandFactory: (CommonOptions) -> CliktCommand,
-    private val progressTracker: ProgressTracker,
+    internal val progressTracker: ProgressTracker,
 
     /** Provider for additional non-Clikt usage information. */
     private val nonCliktUsageProvider: ((Terminal, Int) -> String)? = null,
@@ -142,6 +142,9 @@ internal open class MetalavaCommand(
             )
             .multiple()
 
+    /** A list of actions to perform after the command has been executed. */
+    private val postCommandActions = mutableListOf<() -> Unit>()
+
     /** Process the command, handling [MetalavaCliException]s. */
     fun process(args: Array<String>): Int {
         var exitCode = 0
@@ -167,7 +170,23 @@ internal open class MetalavaCommand(
             exitCode = e.exitCode
         }
 
+        // Perform any subcommand specific actions, e.g. flushing files they have opened, etc.
+        performPostCommandActions()
+
         return exitCode
+    }
+
+    /**
+     * Register a command to run after the command has been executed and after any thrown
+     * [MetalavaCliException]s have been caught.
+     */
+    fun registerPostCommandAction(action: () -> Unit) {
+        postCommandActions.add(action)
+    }
+
+    /** Perform actions registered by [registerPostCommandAction]. */
+    fun performPostCommandActions() {
+        postCommandActions.forEach { it() }
     }
 
     /** Process the command, throwing [MetalavaCliException]s. */
@@ -219,10 +238,28 @@ internal open class MetalavaCommand(
      * visible to callers of this command.
      */
     private fun mergeDefaultParameterHelp(parameters: List<ParameterHelp>): List<ParameterHelp> {
-        return if (currentContext.command === this)
-            parameters +
-                defaultCommand.allHelpParams(currentContext).filter(::excludeArgumentsWithNoHelp)
-        else {
+        return if (currentContext.command === this) {
+            // If this is called because help was requested from the main command, i.e. using
+            // `metalava -h` then the default command will not have been parsed and so its context
+            // will not have been initialized properly and so the allHelpParams() method will fail.
+            // To prevent that this ensures that the default command is parsed first. It passes an
+            // invalid option so that the command is not actually run.
+            try {
+                defaultCommand.parse(arrayOf("--invalid-option"), currentContext)
+            } catch (e: UsageError) {
+                // The caught error is of type UsageError as the exact error that is thrown depends
+                // on how the command is configured. If the message contains mention of the invalid
+                // option then ignore the error as it is expected. Otherwise, rethrow as something
+                // else has happened.
+                if (e.message?.contains("--invalid-option") != true) {
+                    throw e
+                }
+            }
+
+            // Get the combined parameters from this command and the default command, excluding any
+            // that are not needed.
+            parameters + defaultCommand.allHelpParams().filter(::excludeArgumentsWithNoHelp)
+        } else {
             parameters
         }
     }
@@ -251,7 +288,7 @@ internal open class MetalavaCommand(
             e.message?.let { append(errorContext.localization.usageError(it)).append("\n\n") }
             e.context?.let {
                 val programName = it.commandNameWithParents().joinToString(" ")
-                val helpParams = it.command.allHelpParams(currentContext)
+                val helpParams = it.command.allHelpParams()
                 val commandHelp = it.helpFormatter.formatHelp("", "", helpParams, programName)
                 append(commandHelp)
             }
@@ -265,8 +302,8 @@ internal open class MetalavaCommand(
      * invoked then this is called before the sub-commands parameters are parsed.
      */
     override fun run() {
-        // Make the CommonOptions available to all sub-commands.
-        currentContext.obj = SubCommandContext(common, progressTracker)
+        // Make this available to all sub-commands.
+        currentContext.obj = this
 
         val subcommand = currentContext.invokedSubcommand
         if (subcommand == null) {
@@ -294,12 +331,6 @@ internal open class MetalavaCommand(
     }
 }
 
-/** Encapsulates information that this command makes available to all the subcommands. */
-private data class SubCommandContext(
-    val commonOptions: CommonOptions,
-    val progressTracker: ProgressTracker,
-)
-
 /** The [PrintWriter] to use for error output from the command. */
 val CliktCommand.stderr: PrintWriter
     get() {
@@ -315,16 +346,16 @@ val CliktCommand.stdout: PrintWriter
     }
 
 /**
- * Get the [SubCommandContext] made available by the containing MetalavaCommand.
+ * Get the containing [MetalavaCommand].
  *
  * It will always be set.
  */
-private val CliktCommand.subCommandContext
-    get() = currentContext.findObject<SubCommandContext>()!!
+private val CliktCommand.metalavaCommand
+    get() = currentContext.findObject<MetalavaCommand>()!!
 
 val CliktCommand.commonOptions
     // Retrieve the CommonOptions that is made available by the containing MetalavaCommand.
-    get() = subCommandContext.commonOptions
+    get() = metalavaCommand.common
 
 val CliktCommand.terminal
     // Retrieve the terminal from the CommonOptions.
@@ -332,4 +363,8 @@ val CliktCommand.terminal
 
 val CliktCommand.progressTracker
     // Retrieve the ProgressTracker that is made available by the containing MetalavaCommand.
-    get() = subCommandContext.progressTracker
+    get() = metalavaCommand.progressTracker
+
+fun CliktCommand.registerPostCommandAction(action: () -> Unit) {
+    metalavaCommand.registerPostCommandAction(action)
+}

@@ -69,6 +69,11 @@ fun RawArgument.newFile(): ProcessedArgument<File, File> {
     return fileConversion(::stringToNewFile)
 }
 
+/** Convert the argument to a [File] that represents a new directory. */
+fun RawArgument.newDir(): ProcessedArgument<File, File> {
+    return fileConversion(::stringToNewDir)
+}
+
 /** Convert the option to a [File] using the supplied conversion function.. */
 private fun RawOption.fileConversion(conversion: (String) -> File): NullableOption<File, File> {
     return convert({ localization.pathMetavar() }, CompletionCandidates.Path) { str ->

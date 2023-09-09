@@ -202,7 +202,7 @@ class TextTypeItem(val codebase: TextCodebase, val type: String) : TypeItem {
     }
 
     override val primitive: Boolean
-        get() = isPrimitive(type)
+        get() = TextTypeParser.isPrimitive(type)
 
     override fun typeArgumentClasses(): List<ClassItem> = codebase.unsupported()
 
@@ -384,7 +384,7 @@ class TextTypeItem(val codebase: TextCodebase, val type: String) : TypeItem {
                 }
 
                 // Find end
-                val end = findAnnotationEnd(s, index + 1)
+                val end = TextTypeParser.findAnnotationEnd(s, index + 1)
                 val oldLength = s.length
                 s = s.substring(0, index).trim() + s.substring(end).trim()
                 val newLength = s.length
@@ -401,7 +401,7 @@ class TextTypeItem(val codebase: TextCodebase, val type: String) : TypeItem {
                     continue
                 } else if (c == '@') {
                     // Found embedded annotation within the type
-                    val end = findAnnotationEnd(s, i + 1)
+                    val end = TextTypeParser.findAnnotationEnd(s, i + 1)
                     if (end == -1 || end == length) {
                         break
                     }
@@ -414,45 +414,6 @@ class TextTypeItem(val codebase: TextCodebase, val type: String) : TypeItem {
             }
 
             return s
-        }
-
-        private fun findAnnotationEnd(type: String, start: Int): Int {
-            var index = start
-            val length = type.length
-            var balance = 0
-            while (index < length) {
-                val c = type[index]
-                if (c == '(') {
-                    balance++
-                } else if (c == ')') {
-                    balance--
-                    if (balance == 0) {
-                        return index + 1
-                    }
-                } else if (c == '.') {} else if (Character.isJavaIdentifierPart(c)) {} else if (
-                    balance == 0
-                ) {
-                    break
-                }
-                index++
-            }
-            return index
-        }
-
-        fun isPrimitive(type: String): Boolean {
-            return when (type) {
-                "byte",
-                "char",
-                "double",
-                "float",
-                "int",
-                "long",
-                "short",
-                "boolean",
-                "void",
-                "null" -> true
-                else -> false
-            }
         }
     }
 }

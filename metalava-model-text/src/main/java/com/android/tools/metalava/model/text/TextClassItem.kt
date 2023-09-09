@@ -114,7 +114,7 @@ open class TextClassItem(
 
     override fun toType(): TypeItem {
         val typeParameterListString = typeParameterList().toString()
-        return codebase.obtainTypeFromString(
+        return codebase.typeResolver.obtainTypeFromString(
             if (typeParameterListString.isNotEmpty()) {
                 // TODO: No, handle List<String>[], though this is highly unlikely in a class
                 qualifiedName() + typeParameterListString
@@ -184,7 +184,7 @@ open class TextClassItem(
 
     fun asTypeInfo(): TextTypeItem {
         if (typeInfo == null) {
-            typeInfo = codebase.obtainTypeFromString(qualifiedTypeName)
+            typeInfo = codebase.typeResolver.obtainTypeFromString(qualifiedTypeName)
         }
         return typeInfo!!
     }

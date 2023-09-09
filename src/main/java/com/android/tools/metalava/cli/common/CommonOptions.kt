@@ -16,34 +16,28 @@
 
 package com.android.tools.metalava.cli.common
 
-import com.github.ajalt.clikt.parameters.groups.OptionGroup
-import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.deprecated
 import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.switch
 
-const val ARG_QUIET = "--quiet"
-const val ARG_VERBOSE = "--verbose"
 const val ARG_COLOR = "--color"
 const val ARG_NO_COLOR = "--no-color"
 const val ARG_NO_BANNER = "--no-banner"
 
 const val ARG_REPEAT_ERRORS_MAX = "--repeat-errors-max"
 
-enum class Verbosity(val quiet: Boolean = false, val verbose: Boolean = false) {
-    /** Whether to report warnings and other diagnostics along the way. */
-    QUIET(quiet = true),
-
-    /** Standard output level. */
-    NORMAL,
-
-    /** Whether to report extra diagnostics along the way. */
-    VERBOSE(verbose = true)
-}
-
-/** Options that are common to all metalava sub-commands. */
-class CommonOptions : OptionGroup() {
+/**
+ * Options that are common to all metalava sub-commands.
+ *
+ * This extends [EarlyOptions] for a couple of reasons:
+ * 1. [EarlyOptions] does not consume any arguments when parsing so, they need to be parsed again.
+ * 2. The options in [EarlyOptions] need to be added to the help just as if they were part of this
+ *    class.
+ *
+ * Extending [EarlyOptions] solves both of those issues.
+ */
+class CommonOptions : EarlyOptions() {
 
     /**
      * Whether output should use terminal capabilities.
@@ -96,26 +90,4 @@ class CommonOptions : OptionGroup() {
                 "WARNING: option `$ARG_NO_BANNER` is deprecated; it has no effect please remove",
                 tagValue = "please remove"
             )
-
-    /**
-     * This is unused but needs to be here to consume the --quiet and --verbose options that are
-     * handled earlier (to allow them to affect the behavior of code that runs before this) but
-     * which are kept in the arguments so that they can be used by new subcommands eventually.
-     */
-    @Suppress("unused")
-    val verbosity: Verbosity by
-        option(
-                help =
-                    """
-            Set the verbosity of the output.$HARD_NEWLINE
-                $ARG_QUIET - Only include vital output.$HARD_NEWLINE
-                $ARG_VERBOSE - Include extra diagnostic output.$HARD_NEWLINE
-            """
-                        .trimIndent()
-            )
-            .switch(
-                ARG_QUIET to Verbosity.QUIET,
-                ARG_VERBOSE to Verbosity.VERBOSE,
-            )
-            .default(Verbosity.NORMAL, defaultForHelp = "Neither $ARG_QUIET or $ARG_VERBOSE")
 }

@@ -19,6 +19,7 @@ package com.android.tools.metalava.model.psi
 import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.noOpAnnotationManager
 import com.android.tools.metalava.model.source.EnvironmentManager
 import com.android.tools.metalava.reporter.BasicReporter
@@ -65,4 +66,10 @@ fun Codebase.assertClass(qualifiedName: String): ClassItem {
     val classItem = this.findClass(qualifiedName)
     assertNotNull(classItem) { "Expected $qualifiedName to be defined" }
     return classItem
+}
+
+fun ClassItem.assertMethod(methodName: String, parameters: String): MethodItem {
+    val methodItem = this.findMethod(methodName, parameters)
+    assertNotNull(methodItem) { "Expected $methodName to be defined" }
+    return methodItem
 }

@@ -46,7 +46,7 @@ abstract class BaseModelTest(private val runner: ModelSuiteRunner) {
 
     @get:Rule val temporaryFolder = TemporaryFolder()
 
-    @get:Rule val selectTestsForRunner: TestRule = SelectTestsForRunner(runner)
+    @get:Rule val baselineTestRule: TestRule = BaselineTestRule(runner)
 
     companion object {
         @JvmStatic
@@ -87,37 +87,51 @@ abstract class BaseModelTest(private val runner: ModelSuiteRunner) {
     }
 }
 
-/**
- * Annotation which can be used to ignore tests on any runner whose name matches one of the values
- * in [value].
- *
- * An empty list means that the test will not be ignored on any runner.
- *
- * If the annotation is present on a test method than it will just affect that one method. If it is
- * present on a test class then it will affect all tests in that class which do not have their own
- * annotation. If they do have their own then that will be used and the class annotation will be
- * ignored.
- */
-@Target(AnnotationTarget.CLASS, AnnotationTarget.FUNCTION)
-annotation class IgnoreForRunner(
-    /** A list of runner names on which the test should be ignored. */
-    vararg val value: String,
-)
+private const val GRADLEW_UPDATE_MODEL_TEST_SUITE_BASELINE =
+    "`./gradlew updateModelTestSuiteBaseline` to update the baseline"
 
-/** A JUnit [TestRule] that implements the behavior of [IgnoreForRunner]. */
-private class SelectTestsForRunner(private val runner: ModelSuiteRunner) : TestRule {
+/** A JUnit [TestRule] that uses information from the [ModelTestSuiteBaseline] to ignore tests. */
+private class BaselineTestRule(private val runner: ModelSuiteRunner) : TestRule {
+
+    /**
+     * The [ModelTestSuiteBaseline] that indicates whether the tests are expected to fail or not.
+     */
+    private val baseline = ModelTestSuiteBaseline.fromResource
+
     override fun apply(base: Statement, description: Description): Statement {
-        val ignore =
-            description.getAnnotation(IgnoreForRunner::class.java)
-                ?: description.testClass.getAnnotation(IgnoreForRunner::class.java)
-        if (ignore != null && ignore.value.contains(runner.toString())) {
-            return object : Statement() {
-                override fun evaluate() {
-                    throw AssumptionViolatedException("Not supported by runner $runner")
+        return object : Statement() {
+            override fun evaluate() {
+                val expectedFailure =
+                    baseline.isExpectedFailure(description.className, description.methodName)
+                try {
+                    // Run the test even if it is expected to fail as a change that fixes one test
+                    // may fix more. Instead, this will just discard any failure.
+                    base.evaluate()
+                    if (expectedFailure) {
+                        // If a test that was expected to fail passes then updating the baseline
+                        // will remove that test from the expected test failures.
+                        System.err.println(
+                            "Test was expected to fail but passed, please run $GRADLEW_UPDATE_MODEL_TEST_SUITE_BASELINE"
+                        )
+                    }
+                } catch (e: Throwable) {
+                    if (expectedFailure) {
+                        // If this was expected to fail then throw an AssumptionViolatedException
+                        // so it is not treated as either a pass or fail.
+                        throw AssumptionViolatedException(
+                            "Test skipped since it is listed in the baseline file for $runner"
+                        )
+                    } else {
+                        // Inform the developer on how to ignore this failing test.
+                        System.err.println(
+                            "Failing tests can be ignored by running $GRADLEW_UPDATE_MODEL_TEST_SUITE_BASELINE"
+                        )
+
+                        // Rethrow the error
+                        throw e
+                    }
                 }
             }
         }
-
-        return base
     }
 }

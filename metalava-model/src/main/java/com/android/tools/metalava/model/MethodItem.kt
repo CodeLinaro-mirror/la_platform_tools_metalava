@@ -129,6 +129,11 @@ interface MethodItem : MemberItem {
     var inheritedFrom: ClassItem?
 
     /**
+     * If this method requires override in the child class to prevent error when compiling the stubs
+     */
+    @Deprecated("This property should not be accessed directly.") var _requiresOverride: Boolean?
+
+    /**
      * Duplicates this field item. Used when we need to insert inherited fields from interfaces etc.
      */
     fun duplicate(targetContainingClass: ClassItem): MethodItem
@@ -529,4 +534,73 @@ interface MethodItem : MemberItem {
             name() == JAVA_ENUM_VALUE_OF &&
             parameters().size == 1 &&
             parameters()[0].type().isString()
+
+    /**
+     * Determines if the method is a method that needs to be overridden in any child classes that
+     * extend this [MethodItem] in order to prevent errors when compiling the stubs or the reverse
+     * dependencies of stubs.
+     *
+     * @return Boolean value indicating whether the method needs to be overridden in the child
+     *   classes
+     */
+    @Suppress("DEPRECATION")
+    private fun requiresOverride(): Boolean {
+        _requiresOverride?.let {
+            return _requiresOverride as Boolean
+        }
+
+        _requiresOverride = computeRequiresOverride()
+
+        return _requiresOverride as Boolean
+    }
+
+    private fun computeRequiresOverride(): Boolean {
+        val isVisible = !hidden || hasShowAnnotation()
+        return if (!modifiers.isAbstract()) {
+            false
+        } else if (superMethods().isEmpty()) {
+            // If the method is abstract and is not overriding any parent methods,
+            // it requires override in the child class if it is visible
+            isVisible
+        } else {
+            // If the method is abstract and is overriding any visible parent methods:
+            // it needs to be overridden if:
+            // - it is visible or
+            // - all super methods are either java.lang.Object method or requires override
+            isVisible ||
+                superMethods().all {
+                    it.containingClass().isJavaLangObject() || it.requiresOverride()
+                }
+        }
+    }
+
+    /**
+     * Determines if the method needs to be added to the signature file in order to prevent errors
+     * when compiling the stubs or the reverse dependencies of the stubs.
+     *
+     * @return Boolean value indicating whether the method needs to be added to the signature file
+     */
+    fun isRequiredOverridingMethodForTextStub(): Boolean {
+        return (containingClass().isClass() &&
+            !modifiers.isAbstract() &&
+            superMethods().isNotEmpty() &&
+            superMethods().let {
+                if (it.size == 1 && it.first().containingClass().isJavaLangObject()) {
+                    // If the method is extending a java.lang.Object method,
+                    // it only required override when it is directly (not transitively) overriding
+                    // it and the signature differs (e.g. visibility or modifier
+                    // changes)
+                    !sameSignature(this, it.first())
+                } else {
+                    it.all { superMethod ->
+                        superMethod.containingClass().isJavaLangObject() ||
+                            superMethod.requiresOverride()
+                    }
+                }
+            }) ||
+            // To inherit methods with override-equivalent signatures
+            // See https://docs.oracle.com/javase/specs/jls/se8/html/jls-9.html#jls-9.4.1.3
+            (containingClass().isInterface() &&
+                superMethods().count { it.modifiers.isAbstract() || it.modifiers.isDefault() } > 1)
+    }
 }

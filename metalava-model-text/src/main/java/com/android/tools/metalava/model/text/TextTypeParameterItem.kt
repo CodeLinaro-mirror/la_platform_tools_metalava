@@ -44,7 +44,7 @@ class TextTypeParameterItem(
                     emptyList()
                 } else {
                     boundsString
-                        .mapNotNull { codebase.obtainTypeFromString(it) }
+                        .map { codebase.typeResolver.obtainTypeFromString(it) }
                         .filter { !it.isJavaLangObject() }
                 }
         }

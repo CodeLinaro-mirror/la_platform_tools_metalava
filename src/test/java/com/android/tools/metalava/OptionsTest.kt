@@ -225,9 +225,6 @@ Extracting Annotations:
 --extract-annotations <zipfile>
                                              Extracts source annotations from the source files and writes them into the
                                              given zip file
---copy-annotations <source> <dest>
-                                             For a source folder full of annotation sources, generates corresponding
-                                             package private versions of the same annotations.
 --include-source-retention
                                              If true, include source-retention annotations in the stub files. Does not
                                              apply to signature files. Source retention annotations are extracted into
@@ -329,14 +326,14 @@ Usage: metalava [options] [flags]... <sub-command>? ...
         """
 Options:
   --version                                  Show the version and exit
-  --color, --no-color                        Determine whether to use terminal capabilities to colorize and otherwise
-                                             style the output. (default: true if ${"$"}TERM starts with `xterm` or ${"$"}COLORTERM
-                                             is set)
-  --no-banner                                A banner is never output so this has no effect (deprecated: please remove)
   --quiet, --verbose                         Set the verbosity of the output.
                                              --quiet - Only include vital output.
                                              --verbose - Include extra diagnostic output.
                                              (default: Neither --quiet or --verbose)
+  --color, --no-color                        Determine whether to use terminal capabilities to colorize and otherwise
+                                             style the output. (default: true if ${"$"}TERM starts with `xterm` or ${"$"}COLORTERM
+                                             is set)
+  --no-banner                                A banner is never output so this has no effect (deprecated: please remove)
   -h, --help                                 Show this message and exit
   --api-class-resolution [api|api:classpath]
                                              Determines how class resolution is performed when loading API signature
@@ -360,6 +357,12 @@ Options:
                                              itself part of the API and is not included as a class
 
                                              inline - will include the constants themselves into each usage site
+  --add-nonessential-overrides-classes TEXT  Specifies a list of qualified class names where all visible overriding
+                                             methods are added to signature files. This is a no-op when --format does
+                                             not specify --add-additional-overrides=yes.
+
+                                             The list of qualified class names should be separated with ':'(colon).
+                                             (default: [])
 
 $REPORTING_OPTIONS_HELP
 

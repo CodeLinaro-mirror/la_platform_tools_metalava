@@ -1,0 +1,8 @@
+com.android.tools.metalava.model.testsuite.CommonClassItemTest
+  empty class[turbine]
+
+com.android.tools.metalava.model.testsuite.CommonMethodItemTest
+  MethodItem type[turbine]
+
+com.android.tools.metalava.model.testsuite.CommonModelTest
+  empty file[turbine]

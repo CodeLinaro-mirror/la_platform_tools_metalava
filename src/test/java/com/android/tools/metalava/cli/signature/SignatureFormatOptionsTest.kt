@@ -231,6 +231,21 @@ class SignatureFormatOptionsTest :
     }
 
     @Test
+    fun `--format specifier with add additional overrides property`() {
+        runTest(
+            "--format",
+            "2.0:add-additional-overrides=yes",
+        ) {
+            assertEquals(
+                FileFormat.V2.copy(
+                    specifiedAddAdditionalOverrides = true,
+                ),
+                it.fileFormat
+            )
+        }
+    }
+
+    @Test
     fun `--format-properties gibberish`() {
         val e =
             assertThrows(BadParameterValue::class.java) { runTest("--format", "2.0:gibberish") {} }
@@ -247,7 +262,7 @@ class SignatureFormatOptionsTest :
                 runTest("--format", "2.0:property=value") {}
             }
         assertEquals(
-            """Invalid value for "--format": unknown format property name `property`, expected one of 'concise-default-values', 'kotlin-style-nulls', 'migrating', 'overloaded-method-order'""",
+            """Invalid value for "--format": unknown format property name `property`, expected one of 'add-additional-overrides', 'concise-default-values', 'kotlin-style-nulls', 'migrating', 'overloaded-method-order'""",
             e.message
         )
     }

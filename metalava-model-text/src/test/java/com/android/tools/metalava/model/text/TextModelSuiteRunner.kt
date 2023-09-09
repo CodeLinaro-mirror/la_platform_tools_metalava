@@ -25,10 +25,11 @@ import java.io.File
 class TextModelSuiteRunner : ModelSuiteRunner {
     override fun createCodebaseAndRun(
         tempDir: File,
-        signature: String,
+        signature: String?,
         source: TestFile,
         test: (Codebase) -> Unit
     ) {
+        signature ?: return
         val codebase = ApiFile.parseApi("test", signature.trimIndent())
         test(codebase)
     }

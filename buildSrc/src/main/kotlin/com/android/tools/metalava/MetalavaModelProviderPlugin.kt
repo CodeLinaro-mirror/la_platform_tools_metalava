@@ -16,8 +16,11 @@
 
 package com.android.tools.metalava
 
+import java.io.File
+import java.io.FileFilter
 import org.gradle.api.Plugin
 import org.gradle.api.Project
+import org.gradle.api.tasks.JavaExec
 import org.gradle.api.tasks.testing.Test
 import org.gradle.kotlin.dsl.named
 
@@ -50,6 +53,33 @@ class MetalavaModelProviderPlugin : Plugin<Project> {
             // needed to add the testsuite classes to the list of test classes to run.
             dependencies.add(modelTestSuite.name, testSuiteProject)
             dependencies.add("testImplementation", testSuiteProject)
+
+            // Register a task that will update the model test suite baseline file using information
+            // extracted from test report files.
+            tasks.register("updateModelTestSuiteBaseline", JavaExec::class.java).configure { exec ->
+                exec.apply {
+                    description =
+                        "Updates the metalava model test suite baseline file for project `${project.name}`"
+
+                    // The class path must include the jar and the runtimeClasspath for the
+                    // metalava-model-testsuite-cli project.
+                    val testSuiteCliProject = project(":metalava-model-testsuite-cli")
+                    classpath =
+                        files(
+                            testSuiteCliProject.tasks.named("jar"),
+                            testSuiteCliProject.configurations.named("runtimeClasspath"),
+                        )
+
+                    mainClass.set("com.android.tools.metalava.model.testsuite.cli.UpdateBaseline")
+
+                    val propertyTestResultsDir = project.property("testResultsDir") as File
+                    val testTaskResultsDir = propertyTestResultsDir.resolve("test")
+                    val testReportFiles =
+                        testTaskResultsDir.listFiles(FileFilter { it.isFile })?.map { it.path }
+                            ?: emptyList()
+                    args = testReportFiles + listOf("--project-dir", project.projectDir.path)
+                }
+            }
         }
     }
 }

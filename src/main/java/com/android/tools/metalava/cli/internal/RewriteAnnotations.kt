@@ -14,9 +14,14 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava
+package com.android.tools.metalava.cli.internal
 
 import com.android.SdkConstants
+import com.android.tools.metalava.ANDROID_NONNULL
+import com.android.tools.metalava.ANDROID_NULLABLE
+import com.android.tools.metalava.ANDROID_SDK_CONSTANT
+import com.android.tools.metalava.RECENTLY_NONNULL
+import com.android.tools.metalava.RECENTLY_NULLABLE
 import com.android.tools.metalava.model.AnnotationRetention
 import com.android.tools.metalava.model.Codebase
 import java.io.File
@@ -28,14 +33,14 @@ import kotlin.text.Charsets.UTF_8
  * need to be public during compilation, and (b) they need to be package private when compiled and
  * packaged on their own such that annotation processors can find them. See b/110532131 for details.
  */
-class RewriteAnnotations {
+internal class RewriteAnnotations {
     /** Modifies annotation source files such that they are package private */
     fun modifyAnnotationSources(codebase: Codebase?, source: File, target: File, pkg: String = "") {
         val fileName = source.name
         if (fileName.endsWith(SdkConstants.DOT_JAVA)) {
             // Only copy non-source retention annotation classes
             val qualifiedName = pkg + "." + fileName.substring(0, fileName.indexOf('.'))
-            if (hasSourceRetention(codebase, qualifiedName)) {
+            if (hasSourceRetention(source, codebase, qualifiedName)) {
                 return
             }
 
@@ -54,13 +59,17 @@ class RewriteAnnotations {
      * Returns true if the given annotation class name has source retention as far as the stub
      * annotations are concerned.
      */
-    private fun hasSourceRetention(codebase: Codebase?, qualifiedName: String): Boolean {
+    private fun hasSourceRetention(
+        source: File,
+        codebase: Codebase?,
+        qualifiedName: String
+    ): Boolean {
         when {
             qualifiedName == RECENTLY_NULLABLE ||
                 qualifiedName == RECENTLY_NONNULL ||
                 qualifiedName == ANDROID_NULLABLE ||
                 qualifiedName == ANDROID_NONNULL -> return false
-            qualifiedName.equals(ANDROID_SDK_CONSTANT) -> return true
+            qualifiedName == ANDROID_SDK_CONSTANT -> return true
             qualifiedName.startsWith("androidx.annotation.") -> return true
         }
 
@@ -70,7 +79,7 @@ class RewriteAnnotations {
             val cls = codebase.findClass(qualifiedName) ?: return true
             return cls.isAnnotationType() && cls.getRetention() == AnnotationRetention.SOURCE
         } else {
-            error("Found annotation with unknown desired retention: " + qualifiedName)
+            error("$source: Found annotation with unknown desired retention: $qualifiedName")
         }
     }
 }

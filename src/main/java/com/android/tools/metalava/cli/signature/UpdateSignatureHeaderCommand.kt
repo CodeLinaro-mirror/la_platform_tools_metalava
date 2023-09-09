@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.cli.signature
 
+import com.android.tools.metalava.OptionsDelegate
 import com.android.tools.metalava.cli.common.MetalavaSubCommand
 import com.android.tools.metalava.cli.common.existingFile
 import com.android.tools.metalava.cli.common.stderr
@@ -82,6 +83,10 @@ class UpdateSignatureHeaderCommand :
             .multiple(required = true)
 
     override fun run() {
+        // Make sure that none of the code called by this command accesses the global `options`
+        // property.
+        OptionsDelegate.disallowAccess()
+
         val outputFormat = formatOptions.fileFormat
 
         files.forEach { updateHeader(outputFormat, it) }

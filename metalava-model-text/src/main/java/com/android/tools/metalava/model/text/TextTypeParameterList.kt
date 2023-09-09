@@ -46,7 +46,7 @@ class TextTypeParameterList(
 
     override fun typeParameters(): List<TypeParameterItem> {
         if (typeParameters == null) {
-            val strings = typeParameterStrings(typeListString)
+            val strings = TextTypeParser.typeParameterStrings(typeListString)
             val list = ArrayList<TypeParameterItem>(strings.size)
             strings.mapTo(list) { TextTypeParameterItem.create(codebase, owner, it) }
             typeParameters = list
@@ -61,51 +61,6 @@ class TextTypeParameterList(
             typeListString: String
         ): TypeParameterList {
             return TextTypeParameterList(codebase, owner, typeListString)
-        }
-
-        fun typeParameterStrings(typeString: String?): List<String> {
-            val s = typeString ?: return emptyList()
-            val list = mutableListOf<String>()
-            var balance = 0
-            var expect = false
-            var start = 0
-            for (i in s.indices) {
-                val c = s[i]
-                if (c == '<') {
-                    balance++
-                    expect = balance == 1
-                } else if (c == '>') {
-                    balance--
-                    if (balance == 1) {
-                        add(list, s, start, i + 1)
-                        start = i + 1
-                    } else if (balance == 0) {
-                        add(list, s, start, i)
-                        return list
-                    }
-                } else if (c == ',') {
-                    expect =
-                        if (balance == 1) {
-                            add(list, s, start, i)
-                            true
-                        } else {
-                            false
-                        }
-                } else if (expect && balance == 1) {
-                    start = i
-                    expect = false
-                }
-            }
-            return list
-        }
-
-        private fun add(list: MutableList<String>, s: String, from: Int, to: Int) {
-            for (i in from until to) {
-                if (!Character.isWhitespace(s[i])) {
-                    list.add(s.substring(i, to))
-                    return
-                }
-            }
         }
     }
 }
