@@ -179,7 +179,7 @@ class MetalavaBuildPlugin : Plugin<Project> {
                         project.uri(
                             "file://${
                                 getDistributionDirectory(project).canonicalPath
-                            }/repo/${project.name}/m2repository"
+                            }/repo/m2repository"
                         )
                 }
             }

@@ -80,6 +80,10 @@ class SignatureToJDiffCommand :
             .newFile()
 
     override fun run() {
+        // Some code that this calls still accesses options, but it only needs the default values.
+        @Suppress("DEPRECATION")
+        options = Options()
+
         val convertFile = ConvertFile(apiFile, xmlFile, baseApiFile, strip)
         convertFile.process(progressTracker)
     }

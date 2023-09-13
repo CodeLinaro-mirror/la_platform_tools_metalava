@@ -66,29 +66,27 @@ class ApiPredicate(
     /** Whether to include "for stub purposes" APIs. See [AnnotationItem.isShowForStubPurposes] */
     private val includeApisForStubPurposes: Boolean = true,
 
-    /**
-     * Whether if overriding methods essential for compiling the stubs should be considered as APIs
-     * or not.
-     */
-    private val addAdditionalOverrides: Boolean =
-        try {
-            @Suppress("DEPRECATION")
-            options.signatureFileFormat.specifiedAddAdditionalOverrides == true
-        } catch (e: IllegalStateException) {
-            false
-        },
+    /** Configuration that may be provided by command line options. */
+    private val config: Config = @Suppress("DEPRECATION") options.apiPredicateConfig,
+) : Predicate<Item> {
 
     /**
-     * List of qualified names of classes where all visible overriding methods are considered as
-     * APIs.
+     * Contains configuration for [ApiPredicate] that can, or at least could, come from command line
+     * options.
      */
-    private val additionalNonessentialOverridesClasses: Set<String> =
-        try {
-            @Suppress("DEPRECATION") options.additionalNonessentialOverridesClasses.toSet()
-        } catch (e: IllegalStateException) {
-            emptySet()
-        },
-) : Predicate<Item> {
+    data class Config(
+        /**
+         * Whether overriding methods essential for compiling the stubs should be considered as APIs
+         * or not.
+         */
+        val addAdditionalOverrides: Boolean = false,
+
+        /**
+         * Set of qualified names of classes where all visible overriding methods are considered as
+         * APIs.
+         */
+        val additionalNonessentialOverridesClasses: Set<String> = emptySet(),
+    )
 
     override fun test(member: Item): Boolean {
         // Type Parameter references (e.g. T) aren't actual types, skip all visibility checks
@@ -102,12 +100,12 @@ class ApiPredicate(
 
         val isVisible = { method: MethodItem -> !method.hidden || method.hasShowAnnotation() }
         val visibleForAdditionalOverridePurpose =
-            if (addAdditionalOverrides) {
+            if (config.addAdditionalOverrides) {
                 member is MethodItem &&
                     !member.isConstructor() &&
                     (member.isRequiredOverridingMethodForTextStub() ||
                         (member.containingClass().qualifiedName() in
-                            additionalNonessentialOverridesClasses &&
+                            config.additionalNonessentialOverridesClasses &&
                             isVisible(member) &&
                             member.superMethods().all { isVisible(it) }))
             } else {

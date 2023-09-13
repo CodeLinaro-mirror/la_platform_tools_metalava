@@ -423,7 +423,7 @@ class Options(
                 suppressCompatibilityMetaAnnotations = suppressCompatibilityMetaAnnotations,
                 excludeAnnotations = excludeAnnotations,
                 typedefMode = typedefMode,
-                apiPredicate = ApiPredicate(),
+                apiPredicate = ApiPredicate(config = apiPredicateConfig),
             )
         )
     }
@@ -464,6 +464,13 @@ class Options(
             mergeInclusionAnnotations = mergeInclusionAnnotations,
             stubImportPackages = stubImportPackages,
             allShowAnnotations = allShowAnnotations,
+        )
+    }
+
+    val apiPredicateConfig by lazy {
+        ApiPredicate.Config(
+            addAdditionalOverrides = signatureFileFormat.addAdditionalOverrides,
+            additionalNonessentialOverridesClasses = additionalNonessentialOverridesClasses.toSet(),
         )
     }
 

@@ -27,22 +27,11 @@ import java.util.function.Predicate
 class ElidingPredicate(
     private val wrapped: Predicate<Item>,
 
-    /** Whether if overriding methods essential for compiling the stubs should be elided or not. */
-    private val addAdditionalOverrides: Boolean =
-        try {
-            @Suppress("DEPRECATION")
-            options.signatureFileFormat.specifiedAddAdditionalOverrides == true
-        } catch (e: IllegalStateException) {
-            false
-        },
+    /** Whether overriding methods essential for compiling the stubs should be elided or not. */
+    private val addAdditionalOverrides: Boolean,
 
-    /** List of qualified names of classes where all visible overriding methods are not elided. */
-    private val additionalNonessentialOverridesClasses: Set<String> =
-        try {
-            @Suppress("DEPRECATION") options.additionalNonessentialOverridesClasses.toSet()
-        } catch (e: IllegalStateException) {
-            emptySet()
-        },
+    /** Set of qualified names of classes where all visible overriding methods are not elided. */
+    private val additionalNonessentialOverridesClasses: Set<String>,
 ) : Predicate<Item> {
 
     // Returning true means we are keeping this item

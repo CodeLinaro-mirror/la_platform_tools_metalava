@@ -310,15 +310,12 @@ private constructor(
             }
         }
         assertIdent(tokenizer, token)
-        val name: String = token
-        val qualifiedName = qualifiedName(pkg.name(), name)
-        val typeInfo = api.typeResolver.obtainTypeFromString(qualifiedName)
-        // Simple type info excludes the package name (but includes enclosing class names)
-        var rawName = name
-        val variableIndex = rawName.indexOf('<')
-        if (variableIndex != -1) {
-            rawName = rawName.substring(0, variableIndex)
-        }
+        // The classType and qualifiedClassType include the type parameter string, the className and
+        // qualifiedClassName are just the name without type parameters.
+        val classType: String = token
+        val (className, typeParameters) = parseClassName(api, classType)
+        val qualifiedClassType = qualifiedName(pkg.name(), classType)
+        val qualifiedClassName = qualifiedName(pkg.name(), className)
         token = tokenizer.requireToken()
         var cl =
             TextClassItem(
@@ -328,14 +325,14 @@ private constructor(
                 isInterface,
                 isEnum,
                 isAnnotation,
-                typeInfo.toErasedTypeString(null),
-                typeInfo.qualifiedTypeName(),
-                rawName,
-                annotations
+                qualifiedClassName,
+                qualifiedClassType,
+                className,
+                annotations,
+                typeParameters
             )
 
         cl.setContainingPackage(pkg)
-        cl.setTypeInfo(typeInfo)
         cl.deprecated = modifiers.isDeprecated()
         if ("extends" == token) {
             token = tokenizer.requireToken()
@@ -426,6 +423,22 @@ private constructor(
             token = tokenizer.requireToken()
         }
         pkg.addClass(cl)
+    }
+
+    /**
+     * Splits the class type into its name and type parameter list.
+     *
+     * For example "Foo" would split into name "Foo" and an empty type parameter list, while "Foo<A,
+     * B extends java.lang.String, C>" would split into name "Foo" and type parameter list with "A",
+     * "B extends java.lang.String", and "C" as type parameters.
+     */
+    private fun parseClassName(api: TextCodebase, type: String): Pair<String, TypeParameterList> {
+        val paramIndex = type.indexOf('<')
+        return if (paramIndex == -1) {
+            Pair(type, NONE)
+        } else {
+            Pair(type.substring(0, paramIndex), create(api, type.substring(paramIndex)))
+        }
     }
 
     @Throws(ApiParseException::class)
@@ -530,7 +543,7 @@ private constructor(
         if ("(" != token) {
             throw ApiParseException("expected (", tokenizer)
         }
-        method = TextConstructorItem(api, name, cl, modifiers, cl.asTypeInfo(), tokenizer.pos())
+        method = TextConstructorItem(api, name, cl, modifiers, cl.toType(), tokenizer.pos())
         method.deprecated = modifiers.isDeprecated()
         parseParameterList(api, tokenizer, method)
         method.setTypeParameterList(typeParameterList)
@@ -897,7 +910,7 @@ private constructor(
         return if (typeParameterList.isEmpty()) {
             NONE
         } else {
-            create(codebase, null, typeParameterList)
+            create(codebase, typeParameterList)
         }
     }
 

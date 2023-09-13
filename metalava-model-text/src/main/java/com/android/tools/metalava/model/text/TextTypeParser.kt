@@ -24,6 +24,14 @@ import kotlin.math.min
 internal class TextTypeParser(val codebase: TextCodebase) {
     private val typeCache = Cache<String, TextTypeItem>()
 
+    /**
+     * Creates a [TextTypeItem] representing the type of [cl]. Since this is definitely a class
+     * type, the steps in [obtainTypeFromString] aren't needed.
+     */
+    fun obtainTypeFromClass(cl: TextClassItem): TextTypeItem {
+        return TextTypeItem(codebase, cl.qualifiedTypeName)
+    }
+
     fun obtainTypeFromString(
         type: String,
         cl: TextClassItem,

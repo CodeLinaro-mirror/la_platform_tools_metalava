@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 @file:JvmName("Driver")
-@file:Suppress("DEPRECATION")
 
 package com.android.tools.metalava
 
@@ -144,6 +143,7 @@ private fun repeatErrors(writer: PrintWriter, reporters: List<DefaultReporter>, 
     }
 }
 
+@Suppress("DEPRECATION")
 internal fun processFlags(
     environmentManager: EnvironmentManager,
     progressTracker: ProgressTracker
@@ -269,8 +269,8 @@ internal fun processFlags(
     // as signature files and/or stubs files
     options.apiFile?.let { apiFile ->
         val apiType = ApiType.PUBLIC_API
-        val apiEmit = apiType.getEmitFilter()
-        val apiReference = apiType.getReferenceFilter()
+        val apiEmit = apiType.getEmitFilter(options.apiPredicateConfig)
+        val apiReference = apiType.getReferenceFilter(options.apiPredicateConfig)
 
         createReportFile(progressTracker, codebase, apiFile, "API") { printWriter ->
             SignatureWriter(
@@ -287,8 +287,8 @@ internal fun processFlags(
 
     options.apiXmlFile?.let { apiFile ->
         val apiType = ApiType.PUBLIC_API
-        val apiEmit = apiType.getEmitFilter()
-        val apiReference = apiType.getReferenceFilter()
+        val apiEmit = apiType.getEmitFilter(options.apiPredicateConfig)
+        val apiReference = apiType.getReferenceFilter(options.apiPredicateConfig)
 
         createReportFile(progressTracker, codebase, apiFile, "XML API") { printWriter ->
             JDiffXmlWriter(printWriter, apiEmit, apiReference, codebase.preFiltered)
@@ -299,8 +299,8 @@ internal fun processFlags(
         val unfiltered = codebase.original ?: codebase
 
         val apiType = ApiType.REMOVED
-        val removedEmit = apiType.getEmitFilter()
-        val removedReference = apiType.getReferenceFilter()
+        val removedEmit = apiType.getEmitFilter(options.apiPredicateConfig)
+        val removedReference = apiType.getReferenceFilter(options.apiPredicateConfig)
 
         createReportFile(
             progressTracker,
@@ -421,6 +421,7 @@ internal fun processFlags(
  * * Concrete methods - in the signature file concrete implementations of inherited abstract methods
  *   are not listed on concrete classes but the stub concrete classes need those implementations.
  */
+@Suppress("DEPRECATION")
 private fun addMissingItemsRequiredForGeneratingStubs(
     sourceParser: SourceParser,
     textCodebase: TextCodebase,
@@ -543,6 +544,7 @@ fun subtractApi(
                 )
         }
 
+    @Suppress("DEPRECATION")
     CodebaseComparator()
         .compare(
             object : ComparisonVisitor() {
@@ -552,7 +554,7 @@ fun subtractApi(
             },
             oldCodebase,
             codebase,
-            ApiType.ALL.getReferenceFilter()
+            ApiType.ALL.getReferenceFilter(options.apiPredicateConfig)
         )
 }
 
@@ -574,6 +576,7 @@ fun reallyHideFlaggedSystemApis(codebase: Codebase) {
 }
 
 /** Checks compatibility of the given codebase with the codebase described in the signature file. */
+@Suppress("DEPRECATION")
 fun checkCompatibility(
     progressTracker: ProgressTracker,
     reporter: Reporter,
@@ -636,6 +639,7 @@ private fun convertToWarningNullabilityAnnotations(codebase: Codebase, filter: P
     }
 }
 
+@Suppress("DEPRECATION")
 private fun loadFromSources(
     progressTracker: ProgressTracker,
     reporter: Reporter,
@@ -722,6 +726,7 @@ private fun loadFromSources(
     return codebase
 }
 
+@Suppress("DEPRECATION")
 private fun getClassResolver(sourceParser: SourceParser): ClassResolver? {
     val apiClassResolution = options.apiClassResolution
     val classpath = options.classpath
@@ -732,6 +737,7 @@ private fun getClassResolver(sourceParser: SourceParser): ClassResolver? {
     }
 }
 
+@Suppress("DEPRECATION")
 fun loadFromJarFile(
     progressTracker: ProgressTracker,
     reporter: Reporter,
@@ -740,22 +746,30 @@ fun loadFromJarFile(
     preFiltered: Boolean = false,
     allowClassesFromClasspath: Boolean = options.allowClassesFromClasspath,
     apiAnalyzerConfig: ApiAnalyzer.Config = options.apiAnalyzerConfig,
+    codebaseValidator: (Codebase) -> Unit = { codebase ->
+        options.nullabilityAnnotationsValidator?.validateAllFrom(
+            codebase,
+            options.validateNullabilityFromList
+        )
+        options.nullabilityAnnotationsValidator?.report()
+    },
+    apiPredicateConfig: ApiPredicate.Config = options.apiPredicateConfig,
 ): Codebase {
     progressTracker.progress("Processing jar file: ")
 
     val codebase = sourceParser.loadFromJar(apiJar, preFiltered)
     val apiEmit =
-        ApiPredicate(ignoreShown = true, allowClassesFromClasspath = allowClassesFromClasspath)
+        ApiPredicate(
+            ignoreShown = true,
+            allowClassesFromClasspath = allowClassesFromClasspath,
+            config = apiPredicateConfig,
+        )
     val apiReference = apiEmit
     val analyzer = ApiAnalyzer(sourceParser, codebase, reporter, apiAnalyzerConfig)
     analyzer.mergeExternalInclusionAnnotations()
     analyzer.computeApi()
     analyzer.mergeExternalQualifierAnnotations()
-    options.nullabilityAnnotationsValidator?.validateAllFrom(
-        codebase,
-        options.validateNullabilityFromList
-    )
-    options.nullabilityAnnotationsValidator?.report()
+    codebaseValidator(codebase)
     analyzer.generateInheritedStubs(apiEmit, apiReference)
     return codebase
 }
@@ -766,6 +780,7 @@ internal fun disableStderrDumping(): Boolean {
         !isUnderTest()
 }
 
+@Suppress("DEPRECATION")
 private fun extractAnnotations(progressTracker: ProgressTracker, codebase: Codebase, file: File) {
     val localTimer = Stopwatch.createStarted()
 
@@ -779,6 +794,7 @@ private fun extractAnnotations(progressTracker: ProgressTracker, codebase: Codeb
     }
 }
 
+@Suppress("DEPRECATION")
 private fun createStubFiles(
     progressTracker: ProgressTracker,
     stubDir: File,
@@ -851,6 +867,7 @@ private fun createStubFiles(
     )
 }
 
+@Suppress("DEPRECATION")
 fun createReportFile(
     progressTracker: ProgressTracker,
     codebase: Codebase,

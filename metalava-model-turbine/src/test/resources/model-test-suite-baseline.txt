@@ -1,8 +1,12 @@
+com.android.tools.metalava.model.testsuite.BootstrapSourceModelProviderTest
+  030 - check simplest class[turbine]
+  040 - check package exists[turbine]
+  050 - check field exists[turbine]
+  060 - check method exists[turbine]
+  070 - check constructor exists[turbine]
+
 com.android.tools.metalava.model.testsuite.CommonClassItemTest
   empty class[turbine]
 
 com.android.tools.metalava.model.testsuite.CommonMethodItemTest
   MethodItem type[turbine]
-
-com.android.tools.metalava.model.testsuite.CommonModelTest
-  empty file[turbine]

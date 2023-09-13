@@ -55,12 +55,15 @@ class TextTypeParameterList(
     }
 
     companion object {
-        fun create(
-            codebase: TextCodebase,
-            owner: TypeParameterListOwner?,
-            typeListString: String
-        ): TypeParameterList {
-            return TextTypeParameterList(codebase, owner, typeListString)
+        /**
+         * Creates a [TextTypeParameterList] without a set owner, for type parameters created before
+         * their owners are. The owner should be set after it is created.
+         *
+         * The [typeListString] should be the string representation of a list of type parameters,
+         * like "<A>" or "<A, B extends java.lang.String, C>".
+         */
+        fun create(codebase: TextCodebase, typeListString: String): TypeParameterList {
+            return TextTypeParameterList(codebase, owner = null, typeListString)
         }
     }
 }

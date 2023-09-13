@@ -1023,10 +1023,10 @@ class CompatibilityCheck(
         ) {
             val filter =
                 apiType
-                    .getReferenceFilter()
-                    .or(apiType.getEmitFilter())
-                    .or(ApiType.PUBLIC_API.getReferenceFilter())
-                    .or(ApiType.PUBLIC_API.getEmitFilter())
+                    .getReferenceFilter(options.apiPredicateConfig)
+                    .or(apiType.getEmitFilter(options.apiPredicateConfig))
+                    .or(ApiType.PUBLIC_API.getReferenceFilter(options.apiPredicateConfig))
+                    .or(ApiType.PUBLIC_API.getEmitFilter(options.apiPredicateConfig))
 
             val checker =
                 CompatibilityCheck(

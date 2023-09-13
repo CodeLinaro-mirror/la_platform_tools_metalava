@@ -19,6 +19,7 @@ package com.android.tools.metalava.model.text
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterItem
+import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.TypeParameterListOwner
 
 class TextTypeParameterItem(
@@ -32,7 +33,8 @@ class TextTypeParameterItem(
         codebase = codebase,
         modifiers = DefaultModifierList(codebase, DefaultModifierList.PUBLIC),
         name = name,
-        qualifiedName = name
+        qualifiedName = name,
+        typeParameterList = TypeParameterList.NONE
     ),
     TypeParameterItem {
 

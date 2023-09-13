@@ -16,9 +16,8 @@
 
 package com.android.tools.metalava.cli.common
 
-import com.android.tools.metalava.Options
+import com.android.tools.metalava.OptionsDelegate
 import com.android.tools.metalava.ProgressTracker
-import com.android.tools.metalava.options
 import com.android.tools.metalava.run
 import com.android.tools.metalava.testing.TemporaryFolderOwner
 import com.github.ajalt.clikt.core.CliktCommand
@@ -26,7 +25,9 @@ import com.github.ajalt.clikt.core.subcommands
 import java.io.File
 import java.io.PrintWriter
 import java.io.StringWriter
+import org.junit.After
 import org.junit.Assert
+import org.junit.Before
 import org.junit.Rule
 import org.junit.rules.ErrorCollector
 import org.junit.rules.TemporaryFolder
@@ -52,6 +53,16 @@ abstract class BaseCommandTest<C : CliktCommand>(internal val commandFactory: ()
 
     /** Provides access to temporary files. */
     @get:Rule override val temporaryFolder = TemporaryFolder()
+
+    @Before
+    fun ensureTestDoesNotAccessOptionsLeakedFromAnotherTest() {
+        OptionsDelegate.disallowAccess()
+    }
+
+    @After
+    fun ensureTestDoesNotLeakOptionsToAnotherTest() {
+        OptionsDelegate.disallowAccess()
+    }
 
     /**
      * Type safe builder for configuring and running a command related test.
@@ -186,22 +197,12 @@ class CommandTestConfig<C : CliktCommand>(private val test: BaseCommandTest<C>) 
     }
 
     /** Run the test defined by the configuration. */
-    @Suppress("DEPRECATION")
     internal fun runTest() {
         val stdout = StringWriter()
         val stderr = StringWriter()
 
         val printOut = PrintWriter(stdout)
         val printErr = PrintWriter(stderr)
-
-        // Make sure that the global options is reset before each test. This is needed because the
-        // options are used throughout the code and extracting it is a time-consuming process. As a
-        // result even though some code being tested does not require options being parsed they do
-        // use code that accesses the options and so the code being tested relies on the options
-        // being set to their default value. This ensures that even if another test that modifies
-        // the global options is run that it does not affect this code.
-        options = Options()
-        options.parse(emptyArray(), printOut, printErr)
 
         // Runs the command
         command = test.commandFactory()

@@ -19,7 +19,13 @@ package com.android.tools.metalava.model.testsuite
 import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.ConstructorItem
+import com.android.tools.metalava.model.FieldItem
+import com.android.tools.metalava.model.MethodItem
+import com.android.tools.metalava.model.PackageItem
+import com.android.tools.metalava.model.source.SourceCodebase
 import java.util.ServiceLoader
+import kotlin.test.assertIs
 import kotlin.test.assertNotNull
 import kotlin.test.fail
 import org.junit.AssumptionViolatedException
@@ -79,16 +85,56 @@ abstract class BaseModelTest(private val runner: ModelSuiteRunner) {
         runner.createCodebaseAndRun(tempDir, signature, source, test)
     }
 
+    /**
+     * Create a [SourceCodebase] from one of the supplied [signature] or [source] files and then run
+     * a test on that [SourceCodebase].
+     */
+    fun runSourceCodebaseTest(
+        source: TestFile,
+        test: (SourceCodebase) -> Unit,
+    ) {
+        val tempDir = temporaryFolder.newFolder()
+        runner.createCodebaseAndRun(tempDir, null, source) { test(it as SourceCodebase) }
+    }
+
     /** Get the class from the [Codebase], failing if it does not exist. */
     fun Codebase.assertClass(qualifiedName: String): ClassItem {
         val classItem = findClass(qualifiedName)
         assertNotNull(classItem) { "Expected $qualifiedName to be defined" }
         return classItem
     }
+
+    /** Get the package from the [Codebase], failing if it does not exist. */
+    fun Codebase.assertPackage(pkgName: String): PackageItem {
+        val packageItem = findPackage(pkgName)
+        assertNotNull(packageItem) { "Expected $pkgName to be defined" }
+        return packageItem
+    }
+
+    /** Get the field from the [ClassItem], failing if it does not exist. */
+    fun ClassItem.assertField(fieldName: String): FieldItem {
+        val fieldItem = findField(fieldName)
+        assertNotNull(fieldItem) { "Expected $fieldName to be defined" }
+        return fieldItem
+    }
+
+    /** Get the method from the [ClassItem], failing if it does not exist. */
+    fun ClassItem.assertMethod(methodName: String, parameters: String): MethodItem {
+        val methodItem = findMethod(methodName, parameters)
+        assertNotNull(methodItem) { "Expected $methodName($parameters) to be defined" }
+        return methodItem
+    }
+
+    /** Get the constructor from the [ClassItem], failing if it does not exist. */
+    fun ClassItem.assertConstructor(parameters: String): ConstructorItem {
+        val methodItem = findMethod(simpleName(), parameters)
+        assertNotNull(methodItem) { "Expected ${simpleName()}($parameters) to be defined" }
+        return assertIs(methodItem)
+    }
 }
 
 private const val GRADLEW_UPDATE_MODEL_TEST_SUITE_BASELINE =
-    "`./gradlew updateModelTestSuiteBaseline` to update the baseline"
+    "`scripts/refresh-testsuite-baselines.sh` to update the baseline"
 
 /** A JUnit [TestRule] that uses information from the [ModelTestSuiteBaseline] to ignore tests. */
 private class BaselineTestRule(private val runner: ModelSuiteRunner) : TestRule {

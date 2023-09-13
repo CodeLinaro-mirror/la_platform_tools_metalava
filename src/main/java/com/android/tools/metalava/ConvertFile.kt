@@ -50,17 +50,20 @@ internal fun ConvertFile.process(progressTracker: ProgressTracker) {
     val annotationManager = DefaultAnnotationManager()
     val signatureApi = SignatureFileLoader.load(fromApiFile, annotationManager = annotationManager)
 
+    val apiPredicateConfig = ApiPredicate.Config()
     val apiType = ApiType.ALL
-    val apiEmit = apiType.getEmitFilter()
+    val apiEmit = apiType.getEmitFilter(apiPredicateConfig)
     val strip = strip
-    val apiReference = if (strip) apiType.getEmitFilter() else apiType.getReferenceFilter()
+    val apiReference =
+        if (strip) apiType.getEmitFilter(apiPredicateConfig)
+        else apiType.getReferenceFilter(apiPredicateConfig)
     val baseFile = baseApiFile
 
     val outputApi =
         if (baseFile != null) {
             // Convert base on a diff
             val baseApi = SignatureFileLoader.load(baseFile, annotationManager = annotationManager)
-            computeDelta(baseFile, baseApi, signatureApi)
+            computeDelta(baseFile, baseApi, signatureApi, apiPredicateConfig)
         } else {
             signatureApi
         }
@@ -96,7 +99,12 @@ internal fun ConvertFile.process(progressTracker: ProgressTracker) {
  * @param signatureApi the extending [Codebase] whose [Item]s will appear in the delta as long as
  *   they are not part of [baseApi].
  */
-fun computeDelta(baseFile: File, baseApi: Codebase, signatureApi: Codebase): TextCodebase {
+private fun computeDelta(
+    baseFile: File,
+    baseApi: Codebase,
+    signatureApi: Codebase,
+    apiPredicateConfig: ApiPredicate.Config,
+): TextCodebase {
     // Compute just the delta
     val delta = TextCodebase(baseFile, signatureApi.annotationManager)
     delta.description = "Delta between $baseApi and $signatureApi"
@@ -150,7 +158,8 @@ fun computeDelta(baseFile: File, baseApi: Codebase, signatureApi: Codebase): Tex
                             textClass.qualifiedName,
                             textClass.qualifiedName,
                             textClass.name,
-                            textClass.annotations
+                            textClass.annotations,
+                            textClass.typeParameterList
                         )
                     val pkg = getOrAddPackage(fullClass.containingPackage().qualifiedName())
                     pkg.addClass(newClass)
@@ -177,7 +186,7 @@ fun computeDelta(baseFile: File, baseApi: Codebase, signatureApi: Codebase): Tex
             },
             baseApi,
             signatureApi,
-            ApiType.ALL.getReferenceFilter()
+            ApiType.ALL.getReferenceFilter(apiPredicateConfig)
         )
 
     // As the delta has not been created by the parser there is no parser provided

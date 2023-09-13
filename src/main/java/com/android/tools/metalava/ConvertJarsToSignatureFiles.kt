@@ -91,9 +91,12 @@ class ConvertJarsToSignatureFiles(
                     preFiltered = false,
                     allowClassesFromClasspath = true,
                     apiAnalyzerConfig = ApiAnalyzer.Config(),
+                    codebaseValidator = {},
+                    apiPredicateConfig = ApiPredicate.Config(),
                 )
-            val apiEmit = ApiType.PUBLIC_API.getEmitFilter()
-            val apiReference = ApiType.PUBLIC_API.getReferenceFilter()
+            val apiPredicateConfig = ApiPredicate.Config()
+            val apiEmit = ApiType.PUBLIC_API.getEmitFilter(apiPredicateConfig)
+            val apiReference = ApiType.PUBLIC_API.getReferenceFilter(apiPredicateConfig)
 
             if (api >= 28) {
                 // As of API 28 we'll put nullness annotations into the jar but some of them

@@ -68,6 +68,12 @@ class AndroidJarsToSignaturesCommand :
         val sourceModelProvider = SourceModelProvider.getImplementation("psi")
         sourceModelProvider.createEnvironmentManager(disableStderrDumping()).use {
             environmentManager ->
+
+            // Some code that this calls still accesses options, but it only needs the default
+            // values apart from `showUnannotated` which it requires to be `true`.
+            @Suppress("DEPRECATION")
+            options = Options().apply { showUnannotated = true }
+
             ConvertJarsToSignatureFiles(
                     stderr,
                     stdout,
