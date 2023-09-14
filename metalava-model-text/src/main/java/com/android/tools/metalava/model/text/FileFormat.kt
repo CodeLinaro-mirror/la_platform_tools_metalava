@@ -29,6 +29,15 @@ import java.util.Locale
  */
 data class FileFormat(
     val version: Version,
+    /**
+     * If specified then it contains property defaults that have been specified on the command line
+     * and whose value should be used as the default for any property that has not been specified in
+     * this format.
+     *
+     * Not every property is eligible to have its default overridden on the command line. Only those
+     * that have a property getter to provide the default.
+     */
+    val formatDefaults: FileFormat? = null,
     val specifiedOverloadedMethodOrder: OverloadedMethodOrder? = null,
     val kotlinStyleNulls: Boolean,
     /**
@@ -59,13 +68,28 @@ data class FileFormat(
         }
     }
 
+    /**
+     * Compute the effective value of an optional property whose default can be overridden.
+     *
+     * This returns the first non-null value in the following:
+     * 1. This [FileFormat]'s property value.
+     * 2. The [formatDefaults]'s property value
+     * 3. The [default] value.
+     *
+     * @param getter a getter for the optional property's value.
+     * @param default the default value.
+     */
+    private inline fun <T> effectiveValue(getter: FileFormat.() -> T?, default: T): T {
+        return this.getter() ?: formatDefaults?.getter() ?: default
+    }
+
     // This defaults to SIGNATURE but can be overridden on the command line.
     val overloadedMethodOrder
-        get() = specifiedOverloadedMethodOrder ?: OverloadedMethodOrder.SIGNATURE
+        get() = effectiveValue({ specifiedOverloadedMethodOrder }, OverloadedMethodOrder.SIGNATURE)
 
     // This defaults to false but can be overridden on the command line.
     val addAdditionalOverrides
-        get() = specifiedAddAdditionalOverrides ?: false
+        get() = effectiveValue({ specifiedAddAdditionalOverrides }, false)
 
     /** The base version of the file format. */
     enum class Version(
@@ -155,26 +179,6 @@ data class FileFormat(
     }
 
     /**
-     * Apply some optional overrides, provided from the command line, to this format, returning a
-     * new format.
-     *
-     * @param overloadedMethodOrder If non-null then override the [overloadedMethodOrder] property.
-     * @return a format with the overrides applied.
-     */
-    fun applyOptionalCommandLineSuppliedOverrides(
-        overloadedMethodOrder: OverloadedMethodOrder? = null,
-    ): FileFormat {
-        // Only apply the overloadedMethodOrder command line override to the format if it has not
-        // already been specified.
-        val effectiveOverloadedMethodOrder =
-            this.specifiedOverloadedMethodOrder ?: overloadedMethodOrder
-
-        return copy(
-            specifiedOverloadedMethodOrder = effectiveOverloadedMethodOrder,
-        )
-    }
-
-    /**
      * Get the header for the signature file that corresponds to this format.
      *
      * This always starts with the signature format prefix, and the version number, following by a
@@ -188,7 +192,7 @@ data class FileFormat(
             append("\n")
             // Only output properties if the version supports them fully or it is migrating.
             if (version.propertySupport == PropertySupport.FULL || migrating != null) {
-                iterateOverOverridingProperties { property, value ->
+                iterateOverCustomizableProperties { property, value ->
                     append(PROPERTY_LINE_PREFIX)
                     append(property)
                     append("=")
@@ -210,7 +214,7 @@ data class FileFormat(
             append(version.versionNumber)
 
             var separator = VERSION_PROPERTIES_SEPARATOR
-            iterateOverOverridingProperties { property, value ->
+            iterateOverCustomizableProperties { property, value ->
                 append(separator)
                 separator = ","
                 append(property)
@@ -224,10 +228,10 @@ data class FileFormat(
      * Iterate over all the properties of this format which have different values to the values in
      * this format's [Version.defaults], invoking the [consumer] with each property, value pair.
      */
-    private fun iterateOverOverridingProperties(consumer: (String, String) -> Unit) {
+    private fun iterateOverCustomizableProperties(consumer: (String, String) -> Unit) {
         val defaults = version.defaults
         if (this@FileFormat != defaults) {
-            OverrideableProperty.values().forEach { prop ->
+            CustomizableProperty.values().forEach { prop ->
                 val thisValue = prop.stringFromFormat(this@FileFormat)
                 val defaultValue = prop.stringFromFormat(defaults)
                 if (thisValue != defaultValue) {
@@ -453,10 +457,16 @@ data class FileFormat(
         /**
          * Parse a property assignment of the form `property=value`, updating the appropriate
          * property in [builder], or throwing an exception if there was a problem.
+         *
+         * @param builder the [Builder] into which the property's value will be added.
+         * @param assignment the string of the form `property=value`.
+         * @param propertyFilter optional filter that determines the set of allowable properties;
+         *   defaults to all properties.
          */
         private fun parsePropertyAssignment(
             builder: Builder,
             assignment: String,
+            propertyFilter: (CustomizableProperty) -> Boolean = { true },
         ) {
             val propertyParts = assignment.split("=")
             if (propertyParts.size != 2) {
@@ -464,8 +474,8 @@ data class FileFormat(
             }
             val name = propertyParts[0]
             val value = propertyParts[1]
-            val overrideable = OverrideableProperty.getByName(name)
-            overrideable.setFromString(builder, value)
+            val customizable = CustomizableProperty.getByName(name, propertyFilter)
+            customizable.setFromString(builder, value)
         }
 
         private const val PROPERTY_LINE_PREFIX = "// - "
@@ -498,6 +508,34 @@ data class FileFormat(
 
             return builder.build()
         }
+
+        /**
+         * Parse the supplied set of defaults and construct a [FileFormat].
+         *
+         * @param defaults comma separated list of property assignments that
+         */
+        fun parseDefaults(defaults: String): FileFormat {
+            val builder = Builder(V2)
+            defaults.trim().split(",").forEach {
+                parsePropertyAssignment(
+                    builder,
+                    it,
+                    { it.defaultable },
+                )
+            }
+            return builder.build()
+        }
+
+        /**
+         * Get the names of the [CustomizableProperty] that are [CustomizableProperty.defaultable].
+         */
+        fun defaultableProperties(): List<String> {
+            return CustomizableProperty.values()
+                .filter { it.defaultable }
+                .map { it.propertyName }
+                .sorted()
+                .toList()
+        }
     }
 
     /** A builder for [FileFormat] that applies some optional values to a base [FileFormat]. */
@@ -520,10 +558,10 @@ data class FileFormat(
             )
     }
 
-    /** Information about the different overrideable properties in [FileFormat]. */
-    private enum class OverrideableProperty {
+    /** Information about the different customizable properties in [FileFormat]. */
+    private enum class CustomizableProperty(val defaultable: Boolean = false) {
         /** add-additional-overrides=[yes|no] */
-        ADD_ADDITIONAL_OVERRIDES {
+        ADD_ADDITIONAL_OVERRIDES(defaultable = true) {
             override fun setFromString(builder: Builder, value: String) {
                 builder.addAdditionalOverrides = yesNo(value)
             }
@@ -557,7 +595,7 @@ data class FileFormat(
             override fun stringFromFormat(format: FileFormat): String = format.migrating ?: ""
         },
         /** overloaded-method-other=[source|signature] */
-        OVERLOADED_METHOD_ORDER {
+        OVERLOADED_METHOD_ORDER(defaultable = true) {
             override fun setFromString(builder: Builder, value: String) {
                 builder.overloadedMethodOrder = enumFromString<OverloadedMethodOrder>(value)
             }
@@ -631,11 +669,29 @@ data class FileFormat(
         companion object {
             val byPropertyName = values().associateBy { it.propertyName }
 
-            fun getByName(name: String): OverrideableProperty =
-                byPropertyName[name]
-                    ?: throw ApiParseException(
-                        "unknown format property name `$name`, expected one of '${byPropertyName.keys.joinToString("', '")}'"
-                    )
+            /**
+             * Get the [CustomizableProperty] by name, throwing an [ApiParseException] if it could
+             * not be found.
+             *
+             * @param name the name of the property.
+             * @param propertyFilter optional filter that determines the set of allowable
+             *   properties.
+             */
+            fun getByName(
+                name: String,
+                propertyFilter: (CustomizableProperty) -> Boolean,
+            ): CustomizableProperty =
+                byPropertyName[name]?.let { if (propertyFilter(it)) it else null }
+                    ?: let {
+                        val possibilities =
+                            byPropertyName
+                                .filter { (_, property) -> propertyFilter(property) }
+                                .keys
+                                .joinToString("', '")
+                        throw ApiParseException(
+                            "unknown format property name `$name`, expected one of '$possibilities'"
+                        )
+                    }
         }
     }
 }

@@ -431,4 +431,42 @@ class FileFormatTest {
                 ),
         )
     }
+
+    @Test
+    fun `Check defaultable properties`() {
+        assertEquals(
+            listOf("add-additional-overrides", "overloaded-method-order"),
+            FileFormat.defaultableProperties()
+        )
+    }
+
+    @Test
+    fun `Check parseDefaults overloaded-method-order=source`() {
+        val defaults = FileFormat.parseDefaults("overloaded-method-order=source")
+        assertEquals(
+            FileFormat.OverloadedMethodOrder.SOURCE,
+            defaults.specifiedOverloadedMethodOrder
+        )
+    }
+
+    @Test
+    fun `Check parseDefaults kotlin-style-nulls=yes`() {
+        val e =
+            assertThrows(ApiParseException::class.java) {
+                FileFormat.parseDefaults("kotlin-style-nulls=yes")
+            }
+        assertEquals(
+            "unknown format property name `kotlin-style-nulls`, expected one of 'add-additional-overrides', 'overloaded-method-order'",
+            e.message
+        )
+    }
+
+    @Test
+    fun `Check parseDefaults foo=bar`() {
+        val e = assertThrows(ApiParseException::class.java) { FileFormat.parseDefaults("foo=bar") }
+        assertEquals(
+            "unknown format property name `foo`, expected one of 'add-additional-overrides', 'overloaded-method-order'",
+            e.message
+        )
+    }
 }

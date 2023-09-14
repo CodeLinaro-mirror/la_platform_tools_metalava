@@ -3249,6 +3249,50 @@ class CompatibilityCheckTest : DriverTest() {
     }
 
     @Test
+    fun `Change item in nested SystemApi`() {
+        check(
+            checkCompatibilityApiReleased =
+                """
+                package android.foobar {
+                  public static class Foo.Nested {
+                    ctor public Foo.Nested();
+                    method public void existing();
+                  }
+                }
+                """,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                    package android.foobar;
+
+                    import android.annotation.SystemApi;
+
+                    public class Foo {
+                        /** @hide */
+                        @SystemApi
+                        public static final class Nested {
+                            public final int existing();
+                        }
+                    }
+                    """
+                    ),
+                    systemApiSource
+                ),
+            showAnnotations = arrayOf(ANDROID_SYSTEM_API),
+            expectedIssues = ""
+            /* TODO(b/299675771): The following issues aren't currently found by CompatibilityCheck:
+            """
+            src/android/foobar/Foo.java:8: error: Class android.foobar.Foo.Nested added 'final' qualifier [AddedFinal]
+            src/android/foobar/Foo.java:8: error: Constructor android.foobar.Foo.Nested has added 'final' qualifier [AddedFinal]
+            src/android/foobar/Foo.java:9: error: Method android.foobar.Foo.Nested.existing has changed return type from void to int [ChangedType]
+            src/android/foobar/Foo.java:9: error: Method android.foobar.Foo.Nested.existing has added 'final' qualifier [AddedFinal]
+            """
+            */
+        )
+    }
+
+    @Test
     fun `Moving a field from SystemApi to public`() {
         check(
             checkCompatibilityApiReleased =
