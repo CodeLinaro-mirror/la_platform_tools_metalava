@@ -3742,6 +3742,67 @@ class ApiLintTest : DriverTest() {
     }
 
     @Test
+    fun `Dont require @FlaggedApi on methods that get elided from signature files`() {
+        check(
+            showAnnotations = arrayOf("android.annotation.SystemApi"),
+            expectedIssues = "",
+            apiLint =
+                """
+                package android.foobar {
+                  public class ExistingSystemApi {
+                      ctor public ExistingSystemApi();
+                  }
+                  public class Existing {
+                      method public int existingSystemApi();
+                  }
+                }
+            """,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                        package android.foobar;
+
+                        import android.annotation.SystemApi;
+                        import android.annotation.FlaggedApi;
+
+                        /** @hide */
+                        @SystemApi
+                        public class ExistingSystemApi extends Existing {
+                            /** exactly matches Object.hashCode, not emitted */
+                            @Override
+                            public int hashCode() { return 0; }
+                            /** exactly matches ExistingPublicApi.existingPublicApi, not emitted */
+                            @Override
+                            public int existingPublicApi() { return 0; }
+                            @Override
+                            public int existingSystemApi() { return 0; }
+                        }
+                    """
+                    ),
+                    java(
+                        """
+                        package android.foobar;
+
+                        import android.annotation.SystemApi;
+                        import android.annotation.FlaggedApi;
+
+                        public class Existing {
+                            public int existingPublicApi() { return 0; }
+                            /** @hide */
+                            @SystemApi
+                            public int existingSystemApi() { return 0; }
+                        }
+                    """
+                    ),
+                    flaggedApiSource,
+                    systemApiSource,
+                ),
+            extraArguments = arrayOf("--warning", "UnflaggedApi")
+        )
+    }
+
+    @Test
     fun `Require @FlaggedApi on new APIs`() {
         check(
             expectedIssues =
@@ -3832,13 +3893,7 @@ class ApiLintTest : DriverTest() {
     fun `Dont require @FlaggedApi on existing items in nested SystemApi classes`() {
         check(
             showAnnotations = arrayOf("android.annotation.SystemApi"),
-            expectedIssues =
-                // TODO: (b/299675771): This warning is erroneous. It appears because the
-                //  ComparisonVisitor treats Existing as added, so ApiLint visits it and all its
-                //  contained classes, even though Existing.Inner isn't new.
-                """
-                src/android/foobar/Existing.java:9: warning: New API must be flagged with @FlaggedApi: method android.foobar.Existing.Inner.existing() [UnflaggedApi]
-            """,
+            expectedIssues = "",
             apiLint =
                 """
                 package android.foobar {

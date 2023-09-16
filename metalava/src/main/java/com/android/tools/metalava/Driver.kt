@@ -716,7 +716,8 @@ private fun loadFromSources(
                 else -> SignatureFileLoader.load(file = previousApiFile)
             }
         val apiLintReporter = options.reporterApiLint as DefaultReporter
-        ApiLint.check(codebase, previous, apiLintReporter)
+        ApiLint(codebase, previous, apiLintReporter, options.manifest, options.apiVisitorConfig)
+            .check()
         progressTracker.progress(
             "$PROGRAM_NAME ran api-lint in ${localTimer.elapsed(SECONDS)} seconds with ${apiLintReporter.getBaselineDescription()}"
         )

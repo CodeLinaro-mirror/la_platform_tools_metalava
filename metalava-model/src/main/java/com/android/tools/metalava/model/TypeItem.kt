@@ -440,3 +440,61 @@ interface TypeItem {
         }
     }
 }
+
+/** Represents a primitive type, like int or boolean. */
+interface PrimitiveTypeItem : TypeItem {
+    /** The kind of [Primitive] this type is. */
+    val kind: Primitive
+
+    /** The possible kinds of primitives. */
+    enum class Primitive(val primitiveName: String) {
+        BOOLEAN("boolean"),
+        BYTE("byte"),
+        CHAR("char"),
+        DOUBLE("double"),
+        FLOAT("float"),
+        INT("int"),
+        LONG("long"),
+        SHORT("short"),
+        VOID("void")
+    }
+}
+
+/** Represents an array type, including vararg types. */
+interface ArrayTypeItem : TypeItem {
+    /** The array's inner type (which for multidimensional arrays is another array type). */
+    val componentType: TypeItem
+
+    /** Whether this array type represents a varargs parameter. */
+    val isVarargs: Boolean
+}
+
+/** Represents a class type. */
+interface ClassTypeItem : TypeItem {
+    /** The qualified name of this class, e.g. "java.lang.String". */
+    val qualifiedName: String
+
+    /** The class's parameter types, empty if it has none. */
+    val parameters: List<TypeItem>
+}
+
+/** Represents a type variable type. */
+interface VariableTypeItem : TypeItem {
+    /** The name of the type variable */
+    val name: String
+
+    /** The corresponding type parameter for this type variable. */
+    val asTypeParameter: TypeParameterItem
+}
+
+/**
+ * Represents a wildcard type, like `?`, `? extends String`, and `? super String` in Java, or `*`,
+ * `out String`, and `in String` in Kotlin.
+ */
+interface WildcardTypeItem : TypeItem {
+    /** The type this wildcard must extend. If null, the extends bound is implicitly `Object`. */
+    val extendsBound: TypeItem?
+
+    /** The type this wildcard must be a super class of. */
+    val superBound: TypeItem?
+}

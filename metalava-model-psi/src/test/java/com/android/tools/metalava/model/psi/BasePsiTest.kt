@@ -34,4 +34,15 @@ open class BasePsiTest {
         val tempDirectory = temporaryFolder.newFolder()
         testCodebaseInTempDirectory(tempDirectory, sources.toList(), classPath, action)
     }
+
+    /** Runs the [action] for both a Java and Kotlin version of a codebase. */
+    fun testJavaAndKotlin(
+        javaSource: TestFile,
+        kotlinSource: TestFile,
+        classPath: List<File> = emptyList(),
+        action: (Codebase) -> Unit
+    ) {
+        testCodebase(javaSource, classPath = classPath, action = action)
+        testCodebase(kotlinSource, classPath = classPath, action = action)
+    }
 }

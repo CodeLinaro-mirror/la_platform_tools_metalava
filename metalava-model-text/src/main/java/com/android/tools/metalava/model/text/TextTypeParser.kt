@@ -142,8 +142,7 @@ internal class TextTypeParser(val codebase: TextCodebase) {
                 "long",
                 "short",
                 "boolean",
-                "void",
-                "null" -> true
+                "void" -> true
                 else -> false
             }
         }
