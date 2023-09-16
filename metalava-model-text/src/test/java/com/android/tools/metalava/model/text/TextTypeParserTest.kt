@@ -16,21 +16,56 @@
 
 package com.android.tools.metalava.model.text
 
-import com.google.common.truth.Truth
+import com.google.common.truth.Truth.assertThat
 import org.junit.Test
 
 class TextTypeParserTest {
     @Test
     fun testTypeParameterStrings() {
-        Truth.assertThat(TextTypeParser.typeParameterStrings(null).toString()).isEqualTo("[]")
-        Truth.assertThat(TextTypeParser.typeParameterStrings("").toString()).isEqualTo("[]")
-        Truth.assertThat(TextTypeParser.typeParameterStrings("<X>").toString()).isEqualTo("[X]")
-        Truth.assertThat(TextTypeParser.typeParameterStrings("<ABC,DEF extends T>").toString())
+        assertThat(TextTypeParser.typeParameterStrings(null).toString()).isEqualTo("[]")
+        assertThat(TextTypeParser.typeParameterStrings("").toString()).isEqualTo("[]")
+        assertThat(TextTypeParser.typeParameterStrings("<X>").toString()).isEqualTo("[X]")
+        assertThat(TextTypeParser.typeParameterStrings("<ABC,DEF extends T>").toString())
             .isEqualTo("[ABC, DEF extends T]")
-        Truth.assertThat(
+        assertThat(
                 TextTypeParser.typeParameterStrings("<T extends java.lang.Comparable<? super T>>")
                     .toString()
             )
             .isEqualTo("[T extends java.lang.Comparable<? super T>]")
+    }
+
+    @Test
+    fun `Test caching of type variables`() {
+        val codebase =
+            ApiFile.parseApi(
+                "test",
+                """
+                    // Signature format: 4.0
+                    package test.pkg {
+                      public class Foo<A> {
+                        method public void bar1<B extends java.lang.String>(B p0);
+                        method public void bar2<B extends java.lang.String>(B p0);
+                        method public void bar3<C>(java.util.List<C> p0);
+                        method public void bar4<C>(java.util.List<C> p0);
+                      }
+                    }
+                """
+                    .trimIndent()
+            )
+        val foo = codebase.findClass("test.pkg.Foo")
+        assertThat(foo).isNotNull()
+        assertThat(foo!!.methods()).hasSize(4)
+
+        val bar1Param = foo.methods()[0].parameters()[0].type()
+        val bar2Param = foo.methods()[1].parameters()[0].type()
+
+        // The type variable should not be reused between methods
+        assertThat(bar1Param).isNotSameInstanceAs(bar2Param)
+
+        val bar3Param = foo.methods()[2].parameters()[0].type()
+        val bar4Param = foo.methods()[3].parameters()[0].type()
+
+        // The type referencing a type variable should not be reused between methods
+        assertThat(bar3Param).isNotSameInstanceAs(bar4Param)
     }
 }

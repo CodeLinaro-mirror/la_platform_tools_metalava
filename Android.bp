@@ -24,43 +24,14 @@ java_library_host {
     ],
 }
 
-java_binary_host {
-    name: "metalava",
-    srcs: [
-        "src/main/java/**/*.java",
-        "src/main/java/**/*.kt",
-    ],
-    java_resource_dirs: ["src/main/resources/"],
-    static_libs: [
-        "jsr305",
-        "jsr330",
-        "kotlin-reflect",
-        "metalava-model",
-        "metalava-model-psi",
-        "metalava-model-source",
-        "metalava-model-text",
-        "metalava-model-turbine",
-        "metalava-reporter",
-        "metalava-tools-common-m2-deps",
-        "metalava-gradle-plugin-deps",
-        "gson-prebuilt-jar-2.9.1",
-    ],
-    main_class: "com.android.tools.metalava.Driver",
-    target: {
-        host: {
-            dist: {
-                targets: ["sdk"],
-            },
-        },
-    },
+// Make the version.properties file available for `metalava-main` in `metalava`
+// directory.
+filegroup {
+    name: "metalava-version",
     visibility: [
-        // Metalava is linked by //vendor/xts/gts-tests/hostsidetests/api, but because it's a
-        // make project, soong's visibility won't apply. Soong also won't let you specify a
-        // subpackage of //vendor/ here. So let's just make it private.
-        // When //vendor/xts/gts-tests/hostsidetests/api migrates to Android.bp, we need to
-        // open metalava to //vendor:__subpackages__.
-        "//visibility:private",
+        "//tools/metalava:__subpackages__",
     ],
+    srcs: ["version.properties"],
 }
 
 java_library {

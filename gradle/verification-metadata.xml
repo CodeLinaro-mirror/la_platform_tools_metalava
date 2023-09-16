@@ -162,6 +162,11 @@
          <trusted-key id="e82d2eaf2e83830ce1f7f6be571a5291e827e1c7" group="net.java"/>
          <trusted-key id="e85aed155021af8a6c6b7a4a7c7d8456294423ba" group="org.objenesis"/>
          <trusted-key id="ea23db1360d9029481e7f2efecdfea3cb4493b94" group="jline"/>
+         <trusted-key id="eb1b3de71713c9ec2e87cc26ee92349ad86de446" group="com.google.j2objc"/>
+         <trusted-key id="ee0ca873074092f806f59b65d364abaa39a47320">
+            <trusting group="com.google.errorprone"/>
+            <trusting group="com.google.turbine"/>
+         </trusted-key>
          <trusted-key id="f1a51e051f527e0c8e24d54d4b1e11d5a4b91e89" group="com.google.protobuf"/>
          <trusted-key id="f254b35617dc255d9344bcfa873a8e86b4372146">
             <trusting group="org.apache"/>

@@ -313,7 +313,7 @@ class FileFormatTest {
                 package fred {
             """,
             expectedError =
-                "api.txt:2: Signature format error - unknown format property name `foo`, expected one of 'add-additional-overrides', 'concise-default-values', 'kotlin-style-nulls', 'migrating', 'overloaded-method-order'"
+                "api.txt:2: Signature format error - unknown format property name `foo`, expected one of $FILE_FORMAT_PROPERTIES"
         )
     }
 
@@ -433,6 +433,165 @@ class FileFormatTest {
     }
 
     @Test
+    fun `Check header and specifier (v5 + language=java)`() {
+        headerAndSpecifierTest(
+            header =
+                """
+                // Signature format: 5.0
+                // - language=java
+
+            """,
+            specifier = "5.0:language=java",
+            format =
+                FileFormat.V5.copy(
+                    language = FileFormat.Language.JAVA,
+                    conciseDefaultValues = false,
+                    kotlinStyleNulls = false,
+                ),
+        )
+    }
+
+    @Test
+    fun `Check header and specifier (v5 + kotlin-style-nulls=yes,language=java)`() {
+        headerAndSpecifierTest(
+            header =
+                """
+                // Signature format: 5.0
+                // - language=java
+                // - kotlin-style-nulls=yes
+
+            """,
+            specifier = "5.0:language=java,kotlin-style-nulls=yes",
+            format =
+                FileFormat.V5.copy(
+                    language = FileFormat.Language.JAVA,
+                    conciseDefaultValues = false,
+                    kotlinStyleNulls = true,
+                ),
+        )
+    }
+
+    @Test
+    fun `Check header and specifier (v5 + language=kotlin)`() {
+        headerAndSpecifierTest(
+            header =
+                """
+                // Signature format: 5.0
+                // - language=kotlin
+
+            """,
+            specifier = "5.0:language=kotlin",
+            format =
+                FileFormat.V5.copy(
+                    language = FileFormat.Language.KOTLIN,
+                ),
+        )
+    }
+
+    @Test
+    fun `Check header and specifier (v5 + concise-default-values=no,language=kotlin)`() {
+        headerAndSpecifierTest(
+            header =
+                """
+                // Signature format: 5.0
+                // - language=kotlin
+                // - concise-default-values=no
+
+            """,
+            specifier = "5.0:language=kotlin,concise-default-values=no",
+            format =
+                FileFormat.V5.copy(
+                    language = FileFormat.Language.KOTLIN,
+                    conciseDefaultValues = false,
+                ),
+        )
+    }
+
+    @Test
+    fun `Check name with valid and invalid values`() {
+        fun checkValidName(name: String) {
+            headerAndSpecifierTest(
+                header =
+                    """
+                // Signature format: 5.0
+                // - name=$name
+
+            """,
+                specifier = "5.0:name=$name",
+                format =
+                    FileFormat.V5.copy(
+                        name = name,
+                    ),
+            )
+        }
+
+        fun checkInvalidName(name: String) {
+            val e =
+                assertThrows(IllegalStateException::class.java) {
+                    @Suppress("UnusedDataClassCopyResult") FileFormat.V5.copy(name = name)
+                }
+
+            assertEquals(
+                """invalid value for property 'name': '$name' must start with a lower case letter, contain any number of lower case letters, numbers and hyphens, and end with either a lowercase letter or number""",
+                e.message
+            )
+        }
+
+        checkValidName("a")
+        checkValidName("a1")
+        checkValidName("a--1")
+        checkValidName("large-name")
+
+        checkInvalidName("")
+        checkInvalidName("1")
+        checkInvalidName("-")
+        checkInvalidName("a-")
+        checkInvalidName("aBa")
+    }
+
+    @Test
+    fun `Check surface with valid and invalid values`() {
+        fun checkValidSurface(surface: String) {
+            headerAndSpecifierTest(
+                header =
+                    """
+                // Signature format: 5.0
+                // - surface=$surface
+
+            """,
+                specifier = "5.0:surface=$surface",
+                format =
+                    FileFormat.V5.copy(
+                        surface = surface,
+                    ),
+            )
+        }
+
+        fun checkInvalidSurface(surface: String) {
+            val e =
+                assertThrows(IllegalStateException::class.java) {
+                    @Suppress("UnusedDataClassCopyResult") FileFormat.V5.copy(surface = surface)
+                }
+
+            assertEquals(
+                """invalid value for property 'surface': '$surface' must start with a lower case letter, contain any number of lower case letters, numbers and hyphens, and end with either a lowercase letter or number""",
+                e.message
+            )
+        }
+
+        checkValidSurface("a")
+        checkValidSurface("a1")
+        checkValidSurface("a--1")
+        checkValidSurface("large-surface")
+
+        checkInvalidSurface("")
+        checkInvalidSurface("1")
+        checkInvalidSurface("-")
+        checkInvalidSurface("a-")
+        checkInvalidSurface("aBa")
+    }
+
+    @Test
     fun `Check defaultable properties`() {
         assertEquals(
             listOf("add-additional-overrides", "overloaded-method-order"),
@@ -468,5 +627,21 @@ class FileFormatTest {
             "unknown format property name `foo`, expected one of 'add-additional-overrides', 'overloaded-method-order'",
             e.message
         )
+    }
+
+    @Test
+    fun `Check defaults are not written to header or specifier`() {
+        val defaults = FileFormat.parseDefaults("add-additional-overrides=yes")
+        val format = FileFormat.V5.copy(formatDefaults = defaults)
+        // Defaults should not be written to the header or specifier.
+        assertEquals(
+            """
+                // Signature format: 5.0
+
+            """
+                .trimIndent(),
+            format.header()
+        )
+        assertEquals("5.0", format.specifier())
     }
 }

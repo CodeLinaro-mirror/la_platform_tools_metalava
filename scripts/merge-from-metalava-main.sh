@@ -3,7 +3,7 @@
 # 'strict' mode
 set -euo pipefail
 
-SOURCE_BRANCH=aosp/metalava-main
+SOURCE_BRANCH=${1-aosp/metalava-main}
 
 echo -n "Checking status"
 STATUS=$(git status -s | grep -v "??" || true)
@@ -27,6 +27,10 @@ else
   echo "No branch found, please run 'repo start <branch>'."
   exit 1
 fi
+
+echo -n "Current upstream branch"
+CURRENT_BRANCH=$(git rev-parse --abbrev-ref --symbolic-full-name @{u})
+echo " - ${CURRENT_BRANCH}"
 
 function output_only_on_failure() {
   set +e
@@ -65,10 +69,10 @@ MESSAGE_FILE=$(mktemp)
 trap "rm -f ${MESSAGE_FILE}" EXIT
 
 cat > ${MESSAGE_FILE} <<EOF
-Merge remote-tracking branch 'aosp/metalava-main' into aosp/main
+Merge remote-tracking branch '${SOURCE_BRANCH}' into '${CURRENT_BRANCH}'
 
 Merge performed by:
-  $0
+  $0${1+ $@}
 
 This merge includes a number of changes so this contains a list of all
 the affected bugs.
