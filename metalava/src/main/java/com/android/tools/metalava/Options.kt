@@ -57,6 +57,7 @@ import com.github.ajalt.clikt.parameters.options.split
 import com.github.ajalt.clikt.parameters.options.unique
 import com.github.ajalt.clikt.parameters.types.choice
 import com.github.ajalt.clikt.parameters.types.file
+import com.github.ajalt.clikt.parameters.types.int
 import com.google.common.base.CharMatcher
 import com.google.common.base.Splitter
 import com.google.common.io.Files
@@ -630,6 +631,21 @@ class Options(
      * that are kept
      */
     var sdkInfoFile: File? = null
+
+    /**
+     * The latest publicly released SDK extension version. When generating docs for d.android.com,
+     * the SDK extensions that have been finalized but not yet publicly released should be excluded
+     * from the docs.
+     *
+     * If null, the docs will include all SDK extensions.
+     */
+    val latestReleasedSdkExtension by
+        option(
+                "--hide-sdk-extensions-newer-than",
+                help =
+                    "Ignore SDK extensions version INT and above. Used to exclude finalized but not yet released SDK extensions."
+            )
+            .int()
 
     /** API version history JSON file to generate */
     var generateApiVersionsJson: File? = null

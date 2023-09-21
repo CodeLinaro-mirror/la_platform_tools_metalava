@@ -14,22 +14,27 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava.model.psi
+package com.android.tools.metalava.model.testsuite.typeitem
 
 import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.WildcardTypeItem
+import com.android.tools.metalava.model.testsuite.BaseModelTest
+import com.android.tools.metalava.model.testsuite.TestParameters
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import com.google.common.truth.Truth.assertThat
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.junit.runners.Parameterized
 
-class PsiTypeItemTest : BasePsiTest() {
+@RunWith(Parameterized::class)
+class CommonTypeItemTest(parameters: TestParameters) : BaseModelTest(parameters) {
     @Test
     fun `Test primitive types`() {
-        testJavaAndKotlin(
+        runCodebaseTest(
             java(
                 """
                     public class Foo {
@@ -93,7 +98,7 @@ class PsiTypeItemTest : BasePsiTest() {
 
     @Test
     fun `Test array types`() {
-        testJavaAndKotlin(
+        runCodebaseTest(
             java(
                 """
                     public class Foo {
@@ -147,7 +152,7 @@ class PsiTypeItemTest : BasePsiTest() {
 
     @Test
     fun `Test wildcard types`() {
-        testJavaAndKotlin(
+        runCodebaseTest(
             java(
                 """
                     public class Foo<T> {
@@ -214,7 +219,7 @@ class PsiTypeItemTest : BasePsiTest() {
 
     @Test
     fun `Test variable types`() {
-        testJavaAndKotlin(
+        runCodebaseTest(
             java(
                 """
                     public class Foo<C> {
@@ -250,8 +255,8 @@ class PsiTypeItemTest : BasePsiTest() {
     }
 
     @Test
-    fun `Text class types`() {
-        testJavaAndKotlin(
+    fun `Test class types`() {
+        runCodebaseTest(
             java(
                 """
                     public class Foo {
@@ -312,6 +317,45 @@ class PsiTypeItemTest : BasePsiTest() {
             val mapValueType = mapType.parameters.last()
             assertThat(mapValueType).isInstanceOf(ClassTypeItem::class.java)
             assertThat((mapValueType as ClassTypeItem).qualifiedName).isEqualTo("Foo")
+        }
+    }
+
+    @Test
+    fun `Test inner types`() {
+        runCodebaseTest(
+            java(
+                """
+                    public class Outer<O> {
+                        public class Inner<I> {
+                        }
+
+                        public <P1, P2> Outer<P1>.Inner<P2> foo() {
+                            return new Outer<P1>.Inner<P2>();
+                        }
+                    }
+                """
+            ),
+            kotlin(
+                """
+                    class Outer<O> {
+                        inner class Inner<I>
+
+                        fun <P1, P2> foo(): Outer<P1>.Inner<P2> {
+                            return Outer<P1>.Inner<P2>()
+                        }
+                    }
+                """
+            )
+        ) { codebase ->
+            val method = codebase.assertClass("Outer").methods().single()
+            // Outer<P1>.Inner<P2>
+            val innerType = method.returnType()
+            assertThat(innerType).isInstanceOf(ClassTypeItem::class.java)
+            assertThat(innerType.toCanonicalType()).isEqualTo("Outer<P1>.Inner<P2>")
+            assertThat((innerType as ClassTypeItem).qualifiedName).isEqualTo("Outer.Inner")
+            assertThat(innerType.parameters).hasSize(1)
+            val innerTypeParameter = innerType.parameters.single()
+            assertThat((innerTypeParameter as VariableTypeItem).name).isEqualTo("P2")
         }
     }
 }

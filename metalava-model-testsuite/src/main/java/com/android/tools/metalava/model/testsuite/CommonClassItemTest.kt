@@ -24,12 +24,12 @@ import org.junit.runners.Parameterized
 
 /** Common tests for implementations of [ClassItem]. */
 @RunWith(Parameterized::class)
-class CommonClassItemTest(runner: ModelSuiteRunner) : BaseModelTest(runner) {
+class CommonClassItemTest(parameters: TestParameters) : BaseModelTest(parameters) {
 
     @Test
     fun `empty class`() {
-        createCodebaseAndRun(
-            signature =
+        runCodebaseTest(
+            signature(
                 """
                     // Signature format: 2.0
                     package test.pkg {
@@ -37,28 +37,27 @@ class CommonClassItemTest(runner: ModelSuiteRunner) : BaseModelTest(runner) {
                         ctor public Test();
                       }
                     }
-            """,
-            source =
-                java(
-                    """
+                """
+            ),
+            java(
+                """
                     package test.pkg;
 
                     public class Test {
                         public Test() {}
                     }
                 """
-                ),
-            test = { codebase ->
-                val testClass = codebase.assertClass("test.pkg.Test")
-                assertEquals("Test", testClass.fullName())
-                assertEquals("test/pkg/Test", testClass.internalName())
-                assertEquals("test.pkg.Test", testClass.qualifiedName())
-                assertEquals("test.pkg.Test", testClass.qualifiedNameWithDollarInnerClasses())
-                assertEquals(1, testClass.constructors().size)
-                assertEquals(emptyList(), testClass.methods())
-                assertEquals(emptyList(), testClass.fields())
-                assertEquals(emptyList(), testClass.properties())
-            }
-        )
+            ),
+        ) { codebase ->
+            val testClass = codebase.assertClass("test.pkg.Test")
+            assertEquals("Test", testClass.fullName())
+            assertEquals("test/pkg/Test", testClass.internalName())
+            assertEquals("test.pkg.Test", testClass.qualifiedName())
+            assertEquals("test.pkg.Test", testClass.qualifiedNameWithDollarInnerClasses())
+            assertEquals(1, testClass.constructors().size)
+            assertEquals(emptyList(), testClass.methods())
+            assertEquals(emptyList(), testClass.fields())
+            assertEquals(emptyList(), testClass.properties())
+        }
     }
 }

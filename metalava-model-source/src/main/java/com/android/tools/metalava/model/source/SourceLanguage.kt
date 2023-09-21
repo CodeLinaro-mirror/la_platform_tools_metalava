@@ -14,20 +14,10 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava.model.turbine
+package com.android.tools.metalava.model.source
 
-import com.android.tools.metalava.model.source.SourceLanguage
-
-// @AutoService(SourceModelProvider::class)
-internal class TurbineSourceModelProvider :
-    com.android.tools.metalava.model.source.SourceModelProvider {
-
-    override val providerName: String = "turbine"
-
-    override val supportedLanguages: Set<SourceLanguage> = setOf(SourceLanguage.JAVA)
-
-    override fun createEnvironmentManager(
-        disableStderrDumping: Boolean,
-        forTesting: Boolean,
-    ): com.android.tools.metalava.model.source.EnvironmentManager = TurbineEnvironmentManager()
+/** The source languages that may be supported by a [SourceModelProvider]. */
+enum class SourceLanguage {
+    JAVA,
+    KOTLIN
 }

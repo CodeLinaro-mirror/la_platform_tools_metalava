@@ -24,12 +24,12 @@ import org.junit.runners.Parameterized
 
 /** Common tests for implementations of [MethodItem]. */
 @RunWith(Parameterized::class)
-class CommonMethodItemTest(runner: ModelSuiteRunner) : BaseModelTest(runner) {
+class CommonMethodItemTest(parameters: TestParameters) : BaseModelTest(parameters) {
 
     @Test
     fun `MethodItem type`() {
-        createCodebaseAndRun(
-            signature =
+        runCodebaseTest(
+            signature(
                 """
                     // Signature format: 2.0
                     package test.pkg {
@@ -39,10 +39,10 @@ class CommonMethodItemTest(runner: ModelSuiteRunner) : BaseModelTest(runner) {
                         method public abstract void bar(test.pkg.Test... tests);
                       }
                     }
-            """,
-            source =
-                java(
-                    """
+                """
+            ),
+            java(
+                """
                     package test.pkg;
 
                     public abstract class Test {
@@ -52,35 +52,34 @@ class CommonMethodItemTest(runner: ModelSuiteRunner) : BaseModelTest(runner) {
                         public abstract void bar(Test... tests);
                     }
                 """
-                ),
-            test = { codebase ->
-                val testClass = codebase.assertClass("test.pkg.Test")
+            ),
+        ) { codebase ->
+            val testClass = codebase.assertClass("test.pkg.Test")
 
-                val actual = buildString {
-                    testClass.methods().forEach {
-                        append(it.returnType())
-                        append(" ")
-                        append(it.name())
-                        append("(")
-                        it.parameters().forEachIndexed { i, p ->
-                            if (i > 0) {
-                                append(", ")
-                            }
-                            append(p.type())
+            val actual = buildString {
+                testClass.methods().forEach {
+                    append(it.returnType())
+                    append(" ")
+                    append(it.name())
+                    append("(")
+                    it.parameters().forEachIndexed { i, p ->
+                        if (i > 0) {
+                            append(", ")
                         }
-                        append(")\n")
+                        append(p.type())
                     }
+                    append(")\n")
                 }
+            }
 
-                assertEquals(
-                    """
+            assertEquals(
+                """
                     boolean foo(test.pkg.Test, int...)
                     void bar(test.pkg.Test...)
                 """
-                        .trimIndent(),
-                    actual.trim()
-                )
-            }
-        )
+                    .trimIndent(),
+                actual.trim()
+            )
+        }
     }
 }

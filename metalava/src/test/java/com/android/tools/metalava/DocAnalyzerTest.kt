@@ -1337,54 +1337,6 @@ class DocAnalyzerTest : DriverTest() {
     }
 
     @Test
-    fun `Check RequiresFeature handling`() {
-        check(
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
-                    package test.pkg;
-                    import android.annotation.RequiresFeature;
-                    import android.content.pm.PackageManager;
-                    @SuppressWarnings("WeakerAccess")
-                    @RequiresFeature(PackageManager.FEATURE_LOCATION)
-                    public class LocationManager {
-                    }
-                    """
-                    ),
-                    java(
-                        """
-                    package android.content.pm;
-                    public abstract class PackageManager {
-                        public static final String FEATURE_LOCATION = "android.hardware.location";
-                        public boolean hasSystemFeature(String feature) { return false; }
-                    }
-                    """
-                    ),
-                    requiresFeatureSource
-                ),
-            checkCompilation = true,
-            docStubs = true,
-            stubFiles =
-                arrayOf(
-                    java(
-                        """
-                    package test.pkg;
-                    import android.content.pm.PackageManager;
-                    /**
-                     * Requires the {@link android.content.pm.PackageManager#FEATURE_LOCATION PackageManager#FEATURE_LOCATION} feature which can be detected using {@link android.content.pm.PackageManager#hasSystemFeature(String) PackageManager.hasSystemFeature(String)}.
-                     */
-                    @SuppressWarnings({"unchecked", "deprecation", "all"})
-                    public class LocationManager {
-                    public LocationManager() { throw new RuntimeException("Stub!"); }
-                    }
-                    """
-                    )
-                )
-        )
-    }
-
-    @Test
     fun `Check RequiresApi handling`() {
         check(
             sourceFiles =

@@ -27,6 +27,7 @@ import com.android.tools.metalava.model.PackageList
 import com.android.tools.metalava.model.source.SourceCodebase
 import java.io.File
 
+const val PACKAGE_ESTIMATE = 500
 const val CLASS_ESTIMATE = 15000
 
 open class TurbineBasedCodebase(
@@ -36,10 +37,10 @@ open class TurbineBasedCodebase(
 ) : DefaultCodebase(location, description, false, annotationManager), SourceCodebase {
 
     /**
-     * Map from class name to class item. Classes are added via [registerClass] while initialising
+     * Map from class name to class item. Classes are added via [populateClasses] while initialising
      * the codebase
      */
-    private val classMap: MutableMap<String, ClassItem> = HashMap(CLASS_ESTIMATE)
+    private lateinit var classMap: MutableMap<String, ClassItem>
 
     /** Map from package name to the corresponding package item */
     private lateinit var packageMap: MutableMap<String, PackageItem>
@@ -80,5 +81,16 @@ open class TurbineBasedCodebase(
 
     override fun getTopLevelClassesFromSource(): List<ClassItem> {
         return topLevelClassesFromSource
+    }
+
+    fun addTopClass(classItem: ClassItem) {
+        topLevelClassesFromSource.add(classItem)
+        classMap.put(classItem.qualifiedName(), classItem)
+    }
+
+    fun initialize() {
+        topLevelClassesFromSource = ArrayList(CLASS_ESTIMATE)
+        classMap = HashMap(CLASS_ESTIMATE)
+        packageMap = HashMap(PACKAGE_ESTIMATE)
     }
 }

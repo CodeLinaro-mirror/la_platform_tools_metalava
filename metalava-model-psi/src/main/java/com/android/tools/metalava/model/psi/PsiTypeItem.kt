@@ -44,6 +44,7 @@ import com.intellij.psi.PsiIntersectionType
 import com.intellij.psi.PsiJavaCodeReferenceElement
 import com.intellij.psi.PsiJavaToken
 import com.intellij.psi.PsiLambdaExpressionType
+import com.intellij.psi.PsiNameHelper
 import com.intellij.psi.PsiPrimitiveType
 import com.intellij.psi.PsiRecursiveElementVisitor
 import com.intellij.psi.PsiReferenceList
@@ -882,7 +883,9 @@ class PsiClassTypeItem(
 ) : ClassTypeItem, PsiTypeItem(codebase, psiType) {
     // It should be possible to do `psiType.rawType().canonicalText` instead, but this doesn't
     // always work if psi is unable to resolve the reference.
-    override val qualifiedName: String = psiType.canonicalText.substringBefore("<")
+    // See https://youtrack.jetbrains.com/issue/KTIJ-27093 for more details.
+    override val qualifiedName: String =
+        PsiNameHelper.getQualifiedClassName(psiType.canonicalText, true)
     override val parameters: List<TypeItem> = psiType.parameters.map { create(codebase, it) }
 }
 

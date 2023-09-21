@@ -29,6 +29,7 @@ import com.android.tools.metalava.cli.common.MetalavaCommand
 import com.android.tools.metalava.cli.common.MetalavaLocalization
 import com.android.tools.metalava.cli.common.ReporterOptions
 import com.android.tools.metalava.cli.common.VersionCommand
+import com.android.tools.metalava.cli.common.progressTracker
 import com.android.tools.metalava.cli.common.registerPostCommandAction
 import com.android.tools.metalava.cli.common.stderr
 import com.android.tools.metalava.cli.common.stdout
@@ -212,6 +213,19 @@ internal fun processFlags(
         progressTracker.progress(
             "Generating API levels XML descriptor file, ${androidApiLevelXml.name}: "
         )
+        val sdkJarRoot = options.sdkJarRoot
+        val sdkInfoFile = options.sdkInfoFile
+        var sdkExtArgs: ApiGenerator.SdkExtensionsArguments? =
+            if (sdkJarRoot != null && sdkInfoFile != null) {
+                ApiGenerator()
+                    .SdkExtensionsArguments(
+                        sdkJarRoot,
+                        sdkInfoFile,
+                        options.latestReleasedSdkExtension
+                    )
+            } else {
+                null
+            }
         ApiGenerator.generateXml(
             apiLevelJars,
             options.firstApiLevel,
@@ -219,8 +233,7 @@ internal fun processFlags(
             options.isDeveloperPreviewBuild(),
             androidApiLevelXml,
             codebase,
-            options.sdkJarRoot,
-            options.sdkInfoFile,
+            sdkExtArgs,
             options.removeMissingClassesInApiLevels
         )
     }
@@ -924,12 +937,7 @@ private fun createMetalavaCommand(
         MetalavaCommand(
             stdout,
             stderr,
-            { commonOptions ->
-                DriverCommand(
-                    commonOptions,
-                    progressTracker,
-                )
-            },
+            ::DriverCommand,
             progressTracker,
             OptionsHelp::getUsage,
         )
@@ -951,7 +959,6 @@ private fun createMetalavaCommand(
  */
 private class DriverCommand(
     commonOptions: CommonOptions,
-    private val progressTracker: ProgressTracker,
 ) : CliktCommand(treatUnknownOptionsAsArgs = true) {
 
     init {

@@ -2748,7 +2748,7 @@ class ApiLintTest : DriverTest() {
             apiLint = "", // enabled
             expectedIssues =
                 """
-                src/android/pkg/MyErrorClass1.java:8: warning: Type `java.util.TimeZone` should be replaced with richer ICU type `android.icu.util.TimeZone` [UseIcu]
+                src/android/pkg/MyErrorClass1.java:8: warning: Type `java.text.NumberFormat` should be replaced with richer ICU type `android.icu.text.NumberFormat` [UseIcu]
             """,
             manifest =
                 """<?xml version="1.0" encoding="UTF-8"?>
@@ -2764,12 +2764,12 @@ class ApiLintTest : DriverTest() {
                     package android.pkg;
 
                     import android.annotation.NonNull;
-                    import java.util.TimeZone;
+                    import java.text.NumberFormat;
 
                     public abstract class MyErrorClass1 {
                         @NonNull
-                        public TimeZone getDefaultTimeZone() {
-                            return TimeZone.getDefault();
+                        public NumberFormat getDefaultNumberFormat() {
+                           return NumberFormat.getInstance();
                         }
                     }
                     """
@@ -2798,12 +2798,12 @@ class ApiLintTest : DriverTest() {
                     package android.pkg;
 
                     import android.annotation.NonNull;
-                    import java.util.TimeZone;
+                    import java.text.NumberFormat;
 
                     public abstract class MyErrorClass1 {
                         @NonNull
-                        public TimeZone getDefaultTimeZone() {
-                            return TimeZone.getDefault();
+                        public NumberFormat getDefaultNumberFormat() {
+                            return NumberFormat.getInstance();
                         }
                     }
                     """
@@ -3103,7 +3103,7 @@ class ApiLintTest : DriverTest() {
             apiLint = "", // enabled
             expectedIssues =
                 """
-                src/android/pkg/IcuTest.java:6: warning: Type `java.util.TimeZone` should be replaced with richer ICU type `android.icu.util.TimeZone` [UseIcu]
+                src/android/pkg/IcuTest.java:6: warning: Type `java.text.NumberFormat` should be replaced with richer ICU type `android.icu.text.NumberFormat` [UseIcu]
                 src/android/pkg/IcuTest.java:8: warning: Type `java.text.BreakIterator` should be replaced with richer ICU type `android.icu.text.BreakIterator` [UseIcu]
                 src/android/pkg/IcuTest.java:8: warning: Type `java.text.Collator` should be replaced with richer ICU type `android.icu.text.Collator` [UseIcu]
                 """,
@@ -3116,7 +3116,7 @@ class ApiLintTest : DriverTest() {
                     import androidx.annotation.Nullable;
 
                     public abstract class IcuTest {
-                        public IcuTest(@Nullable java.util.TimeZone timeZone) { }
+                        public IcuTest(@Nullable java.text.NumberFormat nf) { }
                         @Nullable
                         public abstract java.text.BreakIterator foo(@Nullable java.text.Collator collator);
                     }

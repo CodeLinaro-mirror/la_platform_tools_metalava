@@ -226,6 +226,16 @@ interface AnnotationItem {
     }
 }
 
+/**
+ * Get the value of the named attribute as an object of the specified type or null if the attribute
+ * could not be found.
+ */
+inline fun <reified T : Any> AnnotationItem.getAttributeValue(name: String): T? {
+    val attributeValue = findAttribute(name)?.value ?: return null
+    val value = attributeValue.value() ?: return null
+    return value as T
+}
+
 /** Default implementation of an annotation item */
 open class DefaultAnnotationItem
 /** The primary constructor is private to force sub-classes to use the secondary constructor. */

@@ -2873,14 +2873,8 @@ class ApiLint(
         }
         val better =
             when (typeString) {
-                "java.util.TimeZone" -> "android.icu.util.TimeZone"
                 "java.util.Calendar" -> "android.icu.util.Calendar"
-                "java.util.Locale" -> "android.icu.util.ULocale"
-                "java.util.ResourceBundle" -> "android.icu.util.UResourceBundle"
-                "java.util.SimpleTimeZone" -> "android.icu.util.SimpleTimeZone"
-                "java.util.StringTokenizer" -> "android.icu.util.StringTokenizer"
                 "java.util.GregorianCalendar" -> "android.icu.util.GregorianCalendar"
-                "java.lang.Character" -> "android.icu.lang.UCharacter"
                 "java.text.BreakIterator" -> "android.icu.text.BreakIterator"
                 "java.text.Collator" -> "android.icu.text.Collator"
                 "java.text.DecimalFormatSymbols" -> "android.icu.text.DecimalFormatSymbols"

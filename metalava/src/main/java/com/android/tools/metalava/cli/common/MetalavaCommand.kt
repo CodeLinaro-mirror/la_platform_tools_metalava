@@ -205,7 +205,7 @@ internal open class MetalavaCommand(
             throw MetalavaCliException(stdout = e.message ?: "", exitCode = if (e.error) 1 else 0)
         } catch (e: NoSuchOption) {
             correctContextInUsageError(e)
-            val message = createUsageErrorMessage(e)
+            val message = createNoSuchOptionErrorMessage(e)
             throw MetalavaCliException(stderr = message, exitCode = e.statusCode)
         } catch (e: UsageError) {
             correctContextInUsageError(e)
@@ -282,16 +282,11 @@ internal open class MetalavaCommand(
      * Create an error message that incorporates the specific usage error as well as providing
      * documentation for all the available options.
      */
-    private fun createUsageErrorMessage(e: UsageError): String {
+    private fun createNoSuchOptionErrorMessage(e: UsageError): String {
         return buildString {
             val errorContext = e.context ?: currentContext
             e.message?.let { append(errorContext.localization.usageError(it)).append("\n\n") }
-            e.context?.let {
-                val programName = it.commandNameWithParents().joinToString(" ")
-                val helpParams = it.command.allHelpParams()
-                val commandHelp = it.helpFormatter.formatHelp("", "", helpParams, programName)
-                append(commandHelp)
-            }
+            append(errorContext.command.getFormattedHelp())
         }
     }
 

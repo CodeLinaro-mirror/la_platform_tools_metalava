@@ -348,6 +348,8 @@ Options:
                                              annotation which is itself annotated with the given meta-annotation.
   --manifest <file>                          A manifest file, used to check permissions to cross check APIs and retrieve
                                              min_sdk_version. (default: no manifest)
+  --hide-sdk-extensions-newer-than INT       Ignore SDK extensions version INT and above. Used to exclude finalized but
+                                             not yet released SDK extensions.
   --typedefs-in-signatures [none|ref|inline]
                                              Whether to include typedef annotations in signature files.
 
@@ -410,17 +412,22 @@ $FLAGS
         """
             .trimIndent()
 
-    @Test
-    fun `Test invalid arguments`() {
-        val args = listOf(ARG_NO_COLOR, "--blah-blah-blah")
-
+    private fun runTest(args: List<String>): Pair<StringWriter, StringWriter> {
         val stdout = StringWriter()
         val stderr = StringWriter()
         run(
             originalArgs = args.toTypedArray(),
             stdout = PrintWriter(stdout),
-            stderr = PrintWriter(stderr)
+            stderr = PrintWriter(stderr),
         )
+        return Pair(stdout, stderr)
+    }
+
+    @Test
+    fun `Test invalid arguments`() {
+        val args = listOf(ARG_NO_COLOR, "--blah-blah-blah")
+
+        val (stdout, stderr) = runTest(args)
         assertEquals("", stdout.toString())
         assertEquals(
             """
@@ -428,6 +435,9 @@ $FLAGS
 Aborting: Error: no such option: "--blah-blah-blah"
 
 $USAGE
+
+  Extracts metadata from source code to generate artifacts such as the signature files, the SDK stub files, external
+  annotations etc.
 
 $MAIN_HELP_BODY
             """
@@ -440,13 +450,7 @@ $MAIN_HELP_BODY
     fun `Test invalid value`() {
         val args = listOf(ARG_NO_COLOR, "--api-class-resolution", "foo")
 
-        val stdout = StringWriter()
-        val stderr = StringWriter()
-        run(
-            originalArgs = args.toTypedArray(),
-            stdout = PrintWriter(stdout),
-            stderr = PrintWriter(stderr)
-        )
+        val (stdout, stderr) = runTest(args)
         assertEquals("", stdout.toString())
         assertEquals(
             """
@@ -465,13 +469,7 @@ Error: Invalid value for "--api-class-resolution": invalid choice: foo. (choose 
     fun `Test help`() {
         val args = listOf(ARG_NO_COLOR, "--help")
 
-        val stdout = StringWriter()
-        val stderr = StringWriter()
-        run(
-            originalArgs = args.toTypedArray(),
-            stdout = PrintWriter(stdout),
-            stderr = PrintWriter(stderr)
-        )
+        val (stdout, stderr) = runTest(args)
         assertEquals("", stderr.toString())
         assertEquals(
             """
@@ -492,13 +490,7 @@ $MAIN_HELP_BODY
     fun `Test version`() {
         val args = listOf(ARG_NO_COLOR, "--version")
 
-        val stdout = StringWriter()
-        val stderr = StringWriter()
-        run(
-            originalArgs = args.toTypedArray(),
-            stdout = PrintWriter(stdout),
-            stderr = PrintWriter(stderr)
-        )
+        val (stdout, stderr) = runTest(args)
         assertEquals("", stderr.toString())
         assertEquals(
             """

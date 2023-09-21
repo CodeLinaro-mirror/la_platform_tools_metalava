@@ -84,6 +84,8 @@ object Issues {
 
     // Metalava warnings (not from doclava)
 
+    val INVALID_FEATURE_ENFORCEMENT = Issue(Severity.LINT, Category.DOCUMENTATION)
+
     val MISSING_PERMISSION = Issue(Severity.LINT, Category.DOCUMENTATION)
     val MULTIPLE_THREAD_ANNOTATIONS = Issue(Severity.LINT, Category.DOCUMENTATION)
     val UNRESOLVED_CLASS = Issue(Severity.LINT, Category.DOCUMENTATION)

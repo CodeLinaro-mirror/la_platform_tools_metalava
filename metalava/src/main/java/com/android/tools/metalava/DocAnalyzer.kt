@@ -20,6 +20,7 @@ import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
+import com.android.tools.metalava.model.getAttributeValue
 import com.android.tools.metalava.model.psi.PsiClassItem
 import com.android.tools.metalava.model.psi.PsiFieldItem
 import com.android.tools.metalava.model.psi.PsiMethodItem
@@ -47,6 +48,8 @@ import org.xml.sax.helpers.DefaultHandler
  */
 const val ADD_API_LEVEL_TEXT = false
 const val ADD_DEPRECATED_IN_TEXT = false
+
+private const val DEFAULT_ENFORCEMENT = "android.content.pm.PackageManager#hasSystemFeature"
 
 /**
  * Walk over the API and apply tweaks to the documentation, such as
@@ -464,36 +467,54 @@ class DocAnalyzer(
                 private fun handleRequiresFeature(annotation: AnnotationItem, item: Item) {
                     val value =
                         annotation.findAttribute("value")?.leafValues()?.firstOrNull() ?: return
-                    val sb = StringBuilder(100)
                     val resolved = value.resolve()
                     val field = resolved as? FieldItem
-                    sb.append("Requires the ")
-                    if (field == null) {
-                        reporter.report(
-                            Issues.MISSING_PERMISSION,
-                            item,
-                            "Cannot find feature field for $value required by $item (may be hidden or removed)"
-                        )
-                        sb.append("{@link ${value.toSource()}}")
-                    } else {
-                        if (filterReference.test(field)) {
-                            sb.append(
-                                "{@link ${field.containingClass().qualifiedName()}#${field.name()} ${field.containingClass().simpleName()}#${field.name()}} "
-                            )
-                        } else {
+                    val featureField =
+                        if (field == null) {
                             reporter.report(
                                 Issues.MISSING_PERMISSION,
                                 item,
-                                "Feature field $value required by $item is hidden or removed"
+                                "Cannot find feature field for $value required by $item (may be hidden or removed)"
                             )
-                            sb.append("${field.containingClass().simpleName()}#${field.name()} ")
+                            "{@link ${value.toSource()}}"
+                        } else {
+                            if (filterReference.test(field)) {
+                                "{@link ${field.containingClass().qualifiedName()}#${field.name()} ${field.containingClass().simpleName()}#${field.name()}}"
+                            } else {
+                                reporter.report(
+                                    Issues.MISSING_PERMISSION,
+                                    item,
+                                    "Feature field $value required by $item is hidden or removed"
+                                )
+                                "${field.containingClass().simpleName()}#${field.name()}"
+                            }
                         }
-                    }
 
-                    sb.append("feature which can be detected using ")
-                    sb.append("{@link android.content.pm.PackageManager#hasSystemFeature(String) ")
-                    sb.append("PackageManager.hasSystemFeature(String)}.")
-                    appendDocumentation(sb.toString(), item, false)
+                    val enforcement =
+                        annotation.getAttributeValue("enforcement") ?: DEFAULT_ENFORCEMENT
+
+                    // Compute the link uri and text from the enforcement setting.
+                    val regexp = """(?:.*\.)?([^.#]+)#(.*)""".toRegex()
+                    val match = regexp.matchEntire(enforcement)
+                    val (className, methodName, methodRef) =
+                        if (match == null) {
+                            reporter.report(
+                                Issues.INVALID_FEATURE_ENFORCEMENT,
+                                item,
+                                "Invalid 'enforcement' value '$enforcement', must be of the form <qualified-class>#<method-name>, using default"
+                            )
+                            Triple("PackageManager", "hasSystemFeature", DEFAULT_ENFORCEMENT)
+                        } else {
+                            val (className, methodName) = match.destructured
+                            Triple(className, methodName, enforcement)
+                        }
+
+                    val linkUri = "$methodRef(String)"
+                    val linkText = "$className.$methodName(String)"
+
+                    val doc =
+                        "Requires the $featureField feature which can be detected using {@link $linkUri $linkText}."
+                    appendDocumentation(doc, item, false)
                 }
 
                 private fun handleRequiresApi(annotation: AnnotationItem, item: Item) {

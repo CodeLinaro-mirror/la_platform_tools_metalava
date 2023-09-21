@@ -28,5 +28,6 @@ java_library_host {
         "metalava-model",
         "metalava-reporter",
         "metalava-model-source",
+        "metalava-tools-common-m2-deps",
     ],
 }

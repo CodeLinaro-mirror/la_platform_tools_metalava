@@ -14,20 +14,16 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava.model.turbine
+package com.android.tools.metalava.model.testsuite
 
-import com.android.tools.metalava.model.source.SourceLanguage
+import java.util.Locale
 
-// @AutoService(SourceModelProvider::class)
-internal class TurbineSourceModelProvider :
-    com.android.tools.metalava.model.source.SourceModelProvider {
-
-    override val providerName: String = "turbine"
-
-    override val supportedLanguages: Set<SourceLanguage> = setOf(SourceLanguage.JAVA)
-
-    override fun createEnvironmentManager(
-        disableStderrDumping: Boolean,
-        forTesting: Boolean,
-    ): com.android.tools.metalava.model.source.EnvironmentManager = TurbineEnvironmentManager()
+/** Encapsulates all the parameters for the [BaseModelTest] */
+data class TestParameters(
+    /** The [ModelSuiteRunner] to use. */
+    val runner: ModelSuiteRunner,
+    val inputFormat: InputFormat,
+) {
+    /** Override this to return the string that will be used in the test name. */
+    override fun toString(): String = "$runner,${inputFormat.name.lowercase(Locale.US)}"
 }
