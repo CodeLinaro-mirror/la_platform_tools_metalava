@@ -14,40 +14,44 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava
+package com.android.tools.metalava.lint
 
-import com.android.resources.ResourceType
-import com.android.resources.ResourceType.AAPT
-import com.android.resources.ResourceType.ANIM
-import com.android.resources.ResourceType.ANIMATOR
-import com.android.resources.ResourceType.ARRAY
-import com.android.resources.ResourceType.ATTR
-import com.android.resources.ResourceType.BOOL
-import com.android.resources.ResourceType.COLOR
-import com.android.resources.ResourceType.DIMEN
-import com.android.resources.ResourceType.DRAWABLE
-import com.android.resources.ResourceType.FONT
-import com.android.resources.ResourceType.FRACTION
-import com.android.resources.ResourceType.ID
-import com.android.resources.ResourceType.INTEGER
-import com.android.resources.ResourceType.INTERPOLATOR
-import com.android.resources.ResourceType.LAYOUT
-import com.android.resources.ResourceType.MACRO
-import com.android.resources.ResourceType.MENU
-import com.android.resources.ResourceType.MIPMAP
-import com.android.resources.ResourceType.NAVIGATION
-import com.android.resources.ResourceType.OVERLAYABLE
-import com.android.resources.ResourceType.PLURALS
-import com.android.resources.ResourceType.PUBLIC
-import com.android.resources.ResourceType.RAW
-import com.android.resources.ResourceType.SAMPLE_DATA
-import com.android.resources.ResourceType.STRING
-import com.android.resources.ResourceType.STYLE
-import com.android.resources.ResourceType.STYLEABLE
-import com.android.resources.ResourceType.STYLE_ITEM
-import com.android.resources.ResourceType.TRANSITION
-import com.android.resources.ResourceType.XML
 import com.android.sdklib.SdkVersionInfo
+import com.android.tools.metalava.ApiPredicate
+import com.android.tools.metalava.ApiType
+import com.android.tools.metalava.CodebaseComparator
+import com.android.tools.metalava.ComparisonVisitor
+import com.android.tools.metalava.KotlinInteropChecks
+import com.android.tools.metalava.lint.ResourceType.AAPT
+import com.android.tools.metalava.lint.ResourceType.ANIM
+import com.android.tools.metalava.lint.ResourceType.ANIMATOR
+import com.android.tools.metalava.lint.ResourceType.ARRAY
+import com.android.tools.metalava.lint.ResourceType.ATTR
+import com.android.tools.metalava.lint.ResourceType.BOOL
+import com.android.tools.metalava.lint.ResourceType.COLOR
+import com.android.tools.metalava.lint.ResourceType.DIMEN
+import com.android.tools.metalava.lint.ResourceType.DRAWABLE
+import com.android.tools.metalava.lint.ResourceType.FONT
+import com.android.tools.metalava.lint.ResourceType.FRACTION
+import com.android.tools.metalava.lint.ResourceType.ID
+import com.android.tools.metalava.lint.ResourceType.INTEGER
+import com.android.tools.metalava.lint.ResourceType.INTERPOLATOR
+import com.android.tools.metalava.lint.ResourceType.LAYOUT
+import com.android.tools.metalava.lint.ResourceType.MACRO
+import com.android.tools.metalava.lint.ResourceType.MENU
+import com.android.tools.metalava.lint.ResourceType.MIPMAP
+import com.android.tools.metalava.lint.ResourceType.NAVIGATION
+import com.android.tools.metalava.lint.ResourceType.OVERLAYABLE
+import com.android.tools.metalava.lint.ResourceType.PLURALS
+import com.android.tools.metalava.lint.ResourceType.PUBLIC
+import com.android.tools.metalava.lint.ResourceType.RAW
+import com.android.tools.metalava.lint.ResourceType.SAMPLE_DATA
+import com.android.tools.metalava.lint.ResourceType.STRING
+import com.android.tools.metalava.lint.ResourceType.STYLE
+import com.android.tools.metalava.lint.ResourceType.STYLEABLE
+import com.android.tools.metalava.lint.ResourceType.STYLE_ITEM
+import com.android.tools.metalava.lint.ResourceType.TRANSITION
+import com.android.tools.metalava.lint.ResourceType.XML
 import com.android.tools.metalava.manifest.Manifest
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ClassItem
@@ -69,6 +73,7 @@ import com.android.tools.metalava.model.psi.PsiLocationProvider
 import com.android.tools.metalava.model.psi.PsiMethodItem
 import com.android.tools.metalava.model.psi.PsiTypeItem
 import com.android.tools.metalava.model.visitors.ApiVisitor
+import com.android.tools.metalava.options
 import com.android.tools.metalava.reporter.Issues.ABSTRACT_INNER
 import com.android.tools.metalava.reporter.Issues.ACRONYM_NAME
 import com.android.tools.metalava.reporter.Issues.ACTION_VALUE
@@ -434,9 +439,11 @@ class ApiLint(
                 report(
                     ACRONYM_NAME,
                     method,
-                    "Acronyms should not be capitalized in method names: was `$name`, should this be `${decapitalizeAcronyms(
+                    "Acronyms should not be capitalized in method names: was `$name`, should this be `${
+                        decapitalizeAcronyms(
                         name
-                    )}`?"
+                    )
+                    }`?"
                 )
             }
         }
@@ -464,9 +471,11 @@ class ApiLint(
                 report(
                     ACRONYM_NAME,
                     cls,
-                    "Acronyms should not be capitalized in class names: was `$name`, should this be `${decapitalizeAcronyms(
+                    "Acronyms should not be capitalized in class names: was `$name`, should this be `${
+                        decapitalizeAcronyms(
                         name
-                    )}`?"
+                    )
+                    }`?"
                 )
             }
             name.endsWith("Impl") -> {
@@ -1773,7 +1782,20 @@ class ApiLint(
 
     private fun checkHasFlaggedApi(item: Item) {
         if (!item.modifiers.hasAnnotation { it.qualifiedName == flaggedApi }) {
-            if (!elidingFilterEmit.test(item)) {
+            val elidedField =
+                if (item is FieldItem) {
+                    val inheritedFrom = item.inheritedFrom
+                    // The field gets elided if we're able to reference the original class, but not
+                    // emit it; this happens e.g. when inheriting from a public API interface into
+                    // an @SystemApi class.
+                    // The only edge-case we don't handle well here is if the inheritance itself is
+                    // new, because that can't be flagged.
+                    // TODO(b/299659989): adjust comment once flagging inheritance is possible.
+                    inheritedFrom != null && filterReference.test(inheritedFrom)
+                } else {
+                    false
+                }
+            if (!elidingFilterEmit.test(item) || elidedField) {
                 // This API wouldn't appear in the signature file, so we don't know here if the API
                 // is pre-existing.
                 // Since the base API is either new and subject to flagging rules, or preexisting

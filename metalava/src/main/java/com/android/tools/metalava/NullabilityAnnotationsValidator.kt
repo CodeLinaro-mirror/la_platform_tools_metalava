@@ -27,10 +27,8 @@ import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
-import com.google.common.io.Files
 import java.io.File
 import java.io.PrintWriter
-import kotlin.text.Charsets.UTF_8
 
 private const val RETURN_LABEL = "return value"
 
@@ -120,7 +118,8 @@ class NullabilityAnnotationsValidator(
     fun validateAllFrom(codebase: Codebase, topLevelClassesList: File?) {
         if (topLevelClassesList != null) {
             val classes =
-                Files.readLines(topLevelClassesList, UTF_8)
+                topLevelClassesList
+                    .readLines()
                     .filterNot { it.isBlank() }
                     .map { it.trim() }
                     .filterNot { it.startsWith("#") }
@@ -226,7 +225,7 @@ class NullabilityAnnotationsValidator(
 
         // Non-fatal issues are written to the warnings .txt file if present, else logged.
         if (warningsTxtFile != null) {
-            PrintWriter(Files.asCharSink(warningsTxtFile, UTF_8).openBufferedStream()).use { w ->
+            PrintWriter(warningsTxtFile.bufferedWriter()).use { w ->
                 nonFatalIssues.forEach { w.println(it) }
             }
         } else {

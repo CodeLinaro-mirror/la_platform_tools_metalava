@@ -16,11 +16,14 @@
 
 package com.android.tools.metalava.cli.common
 
+import com.android.tools.metalava.ExecutionEnvironment
 import com.github.ajalt.clikt.output.CliktConsole
-import java.io.PrintWriter
 
 /** [CliktConsole] that directs output to the supplied output and error writers. */
-class MetalavaConsole(val stdout: PrintWriter, val stderr: PrintWriter) : CliktConsole {
+class MetalavaConsole(executionEnvironment: ExecutionEnvironment) : CliktConsole {
+    private val stdout = executionEnvironment.stdout
+    private val stderr = executionEnvironment.stderr
+
     override val lineSeparator: String
         get() = "\n"
 

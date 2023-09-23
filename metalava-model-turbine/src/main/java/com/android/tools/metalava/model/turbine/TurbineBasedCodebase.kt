@@ -40,7 +40,7 @@ open class TurbineBasedCodebase(
      * Map from class name to class item. Classes are added via [populateClasses] while initialising
      * the codebase
      */
-    private lateinit var classMap: MutableMap<String, ClassItem>
+    private lateinit var classMap: MutableMap<String, TurbineClassItem>
 
     /** Map from package name to the corresponding package item */
     private lateinit var packageMap: MutableMap<String, PackageItem>
@@ -58,7 +58,7 @@ open class TurbineBasedCodebase(
         return DefaultAnnotationItem.create(this, source)
     }
 
-    override fun findClass(className: String): ClassItem? {
+    override fun findClass(className: String): TurbineClassItem? {
         return classMap[className]
     }
 
@@ -83,8 +83,10 @@ open class TurbineBasedCodebase(
         return topLevelClassesFromSource
     }
 
-    fun addTopClass(classItem: ClassItem) {
-        topLevelClassesFromSource.add(classItem)
+    fun addClass(classItem: TurbineClassItem, isTopClass: Boolean) {
+        if (isTopClass) {
+            topLevelClassesFromSource.add(classItem)
+        }
         classMap.put(classItem.qualifiedName(), classItem)
     }
 

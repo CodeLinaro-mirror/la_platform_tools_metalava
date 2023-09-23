@@ -17,7 +17,9 @@
 package com.android.tools.metalava.cli.common
 
 import com.android.tools.metalava.DefaultReporter
+import com.android.tools.metalava.DefaultReporterEnvironment
 import com.android.tools.metalava.IssueConfiguration
+import com.android.tools.metalava.ReporterEnvironment
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
 import com.android.tools.metalava.reporter.Severity
@@ -40,7 +42,7 @@ const val ARG_HIDE_CATEGORY = "--hide-category"
 /** The name of the group, can be used in help text to refer to the options in this group. */
 const val REPORTING_OPTIONS_GROUP = "Issue Reporting"
 
-class ReporterOptions :
+class ReporterOptions(reporterEnvironment: ReporterEnvironment = DefaultReporterEnvironment()) :
     OptionGroup(
         name = REPORTING_OPTIONS_GROUP,
         help =
@@ -63,7 +65,11 @@ class ReporterOptions :
      * A slight complexity is that this [Reporter] and its [IssueConfiguration] are both modified
      * and used during the process of processing the options.
      */
-    val reporter: Reporter = DefaultReporter(issueConfiguration)
+    val reporter: Reporter =
+        DefaultReporter(
+            reporterEnvironment,
+            issueConfiguration,
+        )
 
     init {
         // Create a Clikt option for handling the issue options and updating them as a side effect.

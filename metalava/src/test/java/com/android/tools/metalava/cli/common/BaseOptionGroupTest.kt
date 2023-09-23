@@ -29,24 +29,25 @@ import org.junit.rules.TemporaryFolder
 
 /** Base class for tests of [OptionGroup] classes. */
 abstract class BaseOptionGroupTest<O : OptionGroup>(
-    private val factory: () -> O,
-    private val expectedHelp: String
+    private val expectedHelp: String,
 ) : TemporaryFolderOwner {
 
     @get:Rule override val temporaryFolder = TemporaryFolder()
 
+    protected abstract fun createOptions(): O
+
     /**
      * Run a test on the [OptionGroup] of type [O].
      *
-     * Generally this will use the [OptionGroup] created by [factory] but that can be overridden on
-     * for a test by providing an [optionGroup] parameter directly.
+     * Generally this will use the [OptionGroup] created by [createOptions] but that can be
+     * overridden for a test by providing an [optionGroup] parameter directly.
      */
     protected fun runTest(
         vararg args: String,
         optionGroup: O? = null,
         test: (O) -> Unit,
     ) {
-        val testFactory = { optionGroup ?: factory() }
+        val testFactory = { optionGroup ?: createOptions() }
         val command = MockCommand(testFactory, test)
         command.parse(args.toList())
     }

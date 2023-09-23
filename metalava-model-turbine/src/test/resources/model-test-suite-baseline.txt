@@ -3,7 +3,7 @@ com.android.tools.metalava.model.testsuite.BootstrapSourceModelProviderTest
   050 - check field exists[turbine,java]
   060 - check method exists[turbine,java]
   070 - check constructor exists[turbine,java]
-  080 - check inner class[turbine,java]
+  090 - check class hierarchy[turbine,java]
 
 com.android.tools.metalava.model.testsuite.CommonClassItemTest
   empty class[turbine,java]
@@ -12,9 +12,15 @@ com.android.tools.metalava.model.testsuite.CommonMethodItemTest
   MethodItem type[turbine,java]
 
 com.android.tools.metalava.model.testsuite.typeitem.CommonTypeItemTest
-  Test array types[turbine,java]
+  Test class array types[turbine,java]
   Test class types[turbine,java]
   Test inner types[turbine,java]
+  Test multidimensional primitive array types[turbine,java]
+  Test primitive array types[turbine,java]
   Test primitive types[turbine,java]
+  Test primitive vararg types[turbine,java]
   Test variable types[turbine,java]
   Test wildcard types[turbine,java]
+  Test field type variable types[turbine,java]
+  Test method parameter type variable types[turbine,java]
+  Test method return type variable types[turbine,java]

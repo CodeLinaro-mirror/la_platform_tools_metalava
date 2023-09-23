@@ -33,8 +33,10 @@ import com.android.tools.metalava.model.TypeVisitor
 open class TurbineClassItem(
     override val codebase: Codebase,
     private val name: String,
+    private val fullName: String,
     private val qualifiedName: String,
-    override val modifiers: ModifierList
+    private val containingClass: TurbineClassItem?,
+    override val modifiers: ModifierList,
 ) : ClassItem, TurbineItem(codebase = codebase, modifiers = modifiers) {
 
     override var artifact: String? = null
@@ -45,6 +47,8 @@ open class TurbineClassItem(
 
     override var stubConstructor: ConstructorItem? = null
 
+    internal lateinit var innerClasses: List<TurbineClassItem>
+
     override fun allInterfaces(): Sequence<ClassItem> {
         TODO("b/295800205")
     }
@@ -53,9 +57,7 @@ open class TurbineClassItem(
         TODO("b/295800205")
     }
 
-    override fun containingClass(): ClassItem? {
-        TODO("b/295800205")
-    }
+    override fun containingClass(): ClassItem? = containingClass
 
     override fun containingPackage(): PackageItem {
         TODO("b/295800205")
@@ -77,9 +79,7 @@ open class TurbineClassItem(
         TODO("b/295800205")
     }
 
-    override fun innerClasses(): List<ClassItem> {
-        TODO("b/295800205")
-    }
+    override fun innerClasses(): List<ClassItem> = innerClasses
 
     override fun interfaceTypes(): List<TypeItem> {
         TODO("b/295800205")
@@ -113,9 +113,7 @@ open class TurbineClassItem(
 
     override fun qualifiedName(): String = qualifiedName
 
-    override fun fullName(): String {
-        TODO("b/295800205")
-    }
+    override fun fullName(): String = fullName
 
     override fun setInterfaceTypes(interfaceTypes: List<TypeItem>) {
         TODO("b/295800205")

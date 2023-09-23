@@ -1429,10 +1429,8 @@ class ReferenceResolver(
                     exceptionClass = getOrCreateClass(exception)
                     // Set super class to throwable?
                     if (exception != JAVA_LANG_THROWABLE) {
-                        exceptionClass.setSuperClass(
-                            getOrCreateClass(JAVA_LANG_THROWABLE),
-                            TextTypeItem(codebase, JAVA_LANG_THROWABLE)
-                        )
+                        val throwableClass = getOrCreateClass(JAVA_LANG_THROWABLE)
+                        exceptionClass.setSuperClass(throwableClass, throwableClass.toType())
                     }
                 }
                 result.add(exceptionClass)

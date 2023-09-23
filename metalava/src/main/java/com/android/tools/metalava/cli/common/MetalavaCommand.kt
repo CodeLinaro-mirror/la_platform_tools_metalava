@@ -16,15 +16,14 @@
 
 package com.android.tools.metalava.cli.common
 
+import com.android.tools.metalava.ExecutionEnvironment
 import com.android.tools.metalava.ProgressTracker
-import com.android.tools.metalava.cli.clikt.allHelpParams
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.core.NoSuchOption
 import com.github.ajalt.clikt.core.PrintHelpMessage
 import com.github.ajalt.clikt.core.PrintMessage
 import com.github.ajalt.clikt.core.UsageError
 import com.github.ajalt.clikt.core.context
-import com.github.ajalt.clikt.output.HelpFormatter.ParameterHelp
 import com.github.ajalt.clikt.parameters.arguments.argument
 import com.github.ajalt.clikt.parameters.arguments.multiple
 import com.github.ajalt.clikt.parameters.groups.provideDelegate
@@ -39,36 +38,24 @@ const val ARG_VERSION = "--version"
  * Main metalava command.
  *
  * If no subcommand is specified in the arguments that are passed to [parse] then this will invoke
- * the [defaultCommand] passing in all the arguments not already consumed by Clikt options.
+ * the subcommand called [defaultCommandName] passing in all the arguments not already consumed by
+ * Clikt options.
  */
 internal open class MetalavaCommand(
-    private val stdout: PrintWriter,
-    private val stderr: PrintWriter,
+    internal val executionEnvironment: ExecutionEnvironment,
 
     /**
-     * The factory for the default command to run when no subcommand is provided on the command
-     * line.
-     *
-     * The command itself does not appear in the help but any options that it provides do. The first
-     * part is achieved by not adding the command to the list of subcommands, and by ensuring that
-     * when an exception is processed that requests help for the default command that it reports the
-     * help for this command instead.
-     *
-     * The second part is achieved by appending the list of [ParameterHelp] from the default
-     * subcommand to the list from this, filtering out any which are not needed (see
-     * [excludeArgumentsWithNoHelp]).
+     * The optional name of the default subcommand to run if no subcommand is provided in the
+     * command line arguments.
      */
-    defaultCommandFactory: (CommonOptions) -> CliktCommand,
+    private val defaultCommandName: String? = null,
     internal val progressTracker: ProgressTracker,
-
-    /** Provider for additional non-Clikt usage information. */
-    private val nonCliktUsageProvider: ((Terminal, Int) -> String)? = null,
 ) :
     CliktCommand(
         // Gather all the options and arguments into a list so that they can be handled by some
-        // non-Clikt option processor which it is assumed that this command has iff this is passed a
-        // non-null nonCliktUsageProvider.
-        treatUnknownOptionsAsArgs = nonCliktUsageProvider != null,
+        // non-Clikt option processor which it is assumed that the default command, if specified,
+        // has.
+        treatUnknownOptionsAsArgs = defaultCommandName != null,
         // Call run on this command even if no sub-command is provided.
         invokeWithoutSubcommand = true,
         help =
@@ -78,9 +65,13 @@ internal open class MetalavaCommand(
         """
                 .trimIndent()
     ) {
+
+    private val stdout = executionEnvironment.stdout
+    private val stderr = executionEnvironment.stderr
+
     init {
         context {
-            console = MetalavaConsole(stdout, stderr)
+            console = MetalavaConsole(executionEnvironment)
 
             localization = MetalavaLocalization()
 
@@ -91,13 +82,11 @@ internal open class MetalavaCommand(
              */
             helpOptionNames = emptySet()
 
-            // Override the help formatter to add in documentation for the legacy flags.
+            // Override the help formatter to use Metalava's special formatter.
             helpFormatter =
-                LegacyHelpFormatter(
+                MetalavaHelpFormatter(
                     { common.terminal },
                     localization,
-                    ::mergeDefaultParameterHelp,
-                    nonCliktUsageProvider ?: { _, _ -> "" },
                 )
 
             // Disable argument file expansion (i.e. @argfile) as it causes issues with some uses
@@ -117,9 +106,6 @@ internal open class MetalavaCommand(
 
     /** Group of common options. */
     val common by CommonOptions()
-
-    /** The default command to run when no subcommand is provided on the command line. */
-    private val defaultCommand: CliktCommand = defaultCommandFactory(common)
 
     /**
      * A custom, non-eager help option that allows [CommonOptions] like [CommonOptions.terminal] to
@@ -194,88 +180,19 @@ internal open class MetalavaCommand(
         try {
             parse(args)
         } catch (e: PrintHelpMessage) {
-            // If the command in the message is the default command then use this command instead as
-            // the default command should not appear in the help.
-            val command = if (e.command == defaultCommand) this else e.command
             throw MetalavaCliException(
-                stdout = command.getFormattedHelp(),
+                stdout = e.command.getFormattedHelp(),
                 exitCode = if (e.error) 1 else 0
             )
         } catch (e: PrintMessage) {
             throw MetalavaCliException(stdout = e.message ?: "", exitCode = if (e.error) 1 else 0)
         } catch (e: NoSuchOption) {
-            correctContextInUsageError(e)
             val message = createNoSuchOptionErrorMessage(e)
             throw MetalavaCliException(stderr = message, exitCode = e.statusCode)
         } catch (e: UsageError) {
-            correctContextInUsageError(e)
             val message = e.helpMessage()
             throw MetalavaCliException(stderr = message, exitCode = e.statusCode)
         }
-    }
-
-    /**
-     * Ensure that any [UsageError] thrown by the [defaultCommand] is output as if it came from this
-     * command.
-     *
-     * This is needed because the [defaultCommand] is an implementation detail and so should not be
-     * visible to callers of this command.
-     */
-    private fun correctContextInUsageError(e: UsageError) {
-        // If no subcommand was specified (in which case the default command was used) then
-        // update the exception to use the current context so that it will display the help for
-        // this command, not the default command.
-        if (e.context?.command == defaultCommand) {
-            e.context = currentContext
-        }
-    }
-
-    /**
-     * Merge help for command line parameters provided by the [defaultCommand] into the list of
-     * parameters provided by this command.
-     *
-     * This is needed because the [defaultCommand] is an implementation detail and so should not be
-     * visible to callers of this command.
-     */
-    private fun mergeDefaultParameterHelp(parameters: List<ParameterHelp>): List<ParameterHelp> {
-        return if (currentContext.command === this) {
-            // If this is called because help was requested from the main command, i.e. using
-            // `metalava -h` then the default command will not have been parsed and so its context
-            // will not have been initialized properly and so the allHelpParams() method will fail.
-            // To prevent that this ensures that the default command is parsed first. It passes an
-            // invalid option so that the command is not actually run.
-            try {
-                defaultCommand.parse(arrayOf("--invalid-option"), currentContext)
-            } catch (e: UsageError) {
-                // The caught error is of type UsageError as the exact error that is thrown depends
-                // on how the command is configured. If the message contains mention of the invalid
-                // option then ignore the error as it is expected. Otherwise, rethrow as something
-                // else has happened.
-                if (e.message?.contains("--invalid-option") != true) {
-                    throw e
-                }
-            }
-
-            // Get the combined parameters from this command and the default command, excluding any
-            // that are not needed.
-            parameters + defaultCommand.allHelpParams().filter(::excludeArgumentsWithNoHelp)
-        } else {
-            parameters
-        }
-    }
-
-    /**
-     * Exclude any arguments that do not provide [ParameterHelp.Argument.help] from the list of
-     * arguments for which help will be displayed. That allows the [defaultCommand] to use an
-     * argument property to collate any unknown options (just like [flags] does here) without that
-     * appearing in the help, duplicating the help for [flags].
-     */
-    private fun excludeArgumentsWithNoHelp(p: ParameterHelp): Boolean {
-        if (p is ParameterHelp.Argument) {
-            return p.help != ""
-        }
-
-        return true
     }
 
     /**
@@ -304,11 +221,20 @@ internal open class MetalavaCommand(
         if (subcommand == null) {
             showHelpAndExitIfRequested()
 
-            // Get any remaining arguments/options that were not handled by Clikt.
-            val remainingArgs = flags.toTypedArray()
+            if (defaultCommandName != null) {
+                // Get any remaining arguments/options that were not handled by Clikt.
+                val remainingArgs = flags.toTypedArray()
 
-            // No sub-command was provided so use the default subcommand.
-            defaultCommand.parse(remainingArgs, currentContext)
+                // Get the default command.
+                val defaultCommand =
+                    registeredSubcommands().singleOrNull { it.commandName == defaultCommandName }
+                        ?: throw MetalavaCliException(
+                            "Invalid default command name '$defaultCommandName', expected one of '${registeredSubcommandNames().joinToString("', '")}'"
+                        )
+
+                // No sub-command was provided so use the default subcommand.
+                defaultCommand.parse(remainingArgs, currentContext)
+            }
         }
     }
 
@@ -326,27 +252,25 @@ internal open class MetalavaCommand(
     }
 }
 
-/** The [PrintWriter] to use for error output from the command. */
-val CliktCommand.stderr: PrintWriter
-    get() {
-        val metalavaConsole = currentContext.console as MetalavaConsole
-        return metalavaConsole.stderr
-    }
-
-/** The [PrintWriter] to use for non-error output from the command. */
-val CliktCommand.stdout: PrintWriter
-    get() {
-        val metalavaConsole = currentContext.console as MetalavaConsole
-        return metalavaConsole.stdout
-    }
-
 /**
  * Get the containing [MetalavaCommand].
  *
  * It will always be set.
  */
 private val CliktCommand.metalavaCommand
-    get() = currentContext.findObject<MetalavaCommand>()!!
+    get() = if (this is MetalavaCommand) this else currentContext.findObject()!!
+
+/** The [ExecutionEnvironment] within which the command is being run. */
+val CliktCommand.executionEnvironment: ExecutionEnvironment
+    get() = metalavaCommand.executionEnvironment
+
+/** The [PrintWriter] to use for error output from the command. */
+val CliktCommand.stderr: PrintWriter
+    get() = executionEnvironment.stderr
+
+/** The [PrintWriter] to use for non-error output from the command. */
+val CliktCommand.stdout: PrintWriter
+    get() = executionEnvironment.stdout
 
 val CliktCommand.commonOptions
     // Retrieve the CommonOptions that is made available by the containing MetalavaCommand.

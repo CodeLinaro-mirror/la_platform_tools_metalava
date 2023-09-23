@@ -14,10 +14,20 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava
+package com.android.tools.metalava.lint
 
+import com.android.tools.metalava.ARG_API_LINT
+import com.android.tools.metalava.ARG_API_LINT_IGNORE_PREFIX
+import com.android.tools.metalava.DriverTest
+import com.android.tools.metalava.androidxNonNullSource
+import com.android.tools.metalava.androidxNullableSource
 import com.android.tools.metalava.cli.common.ARG_ERROR
 import com.android.tools.metalava.cli.common.ARG_HIDE
+import com.android.tools.metalava.cli.common.ARG_WARNING
+import com.android.tools.metalava.flaggedApiSource
+import com.android.tools.metalava.nonNullSource
+import com.android.tools.metalava.nullableSource
+import com.android.tools.metalava.systemApiSource
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import org.junit.Test
@@ -3810,11 +3820,15 @@ class ApiLintTest : DriverTest() {
                 src/android/foobar/Bad.java:3: warning: New API must be flagged with @FlaggedApi: class android.foobar.Bad [UnflaggedApi]
                 src/android/foobar/Bad.java:3: warning: New API must be flagged with @FlaggedApi: constructor android.foobar.Bad() [UnflaggedApi]
                 src/android/foobar/Bad.java:5: warning: New API must be flagged with @FlaggedApi: method android.foobar.Bad.bad() [UnflaggedApi]
+                src/android/foobar/BadHiddenSuperClass.java:5: warning: New API must be flagged with @FlaggedApi: method android.foobar.Bad.inheritedBad() [UnflaggedApi]
                 src/android/foobar/Bad.java:4: warning: New API must be flagged with @FlaggedApi: field android.foobar.Bad.BAD [UnflaggedApi]
+                src/android/foobar/BadHiddenSuperClass.java:4: warning: New API must be flagged with @FlaggedApi: field android.foobar.Bad.INHERITED_BAD [UnflaggedApi]
                 src/android/foobar/Bad.java:7: warning: New API must be flagged with @FlaggedApi: class android.foobar.Bad.BadAnnotation [UnflaggedApi]
                 src/android/foobar/Bad.java:6: warning: New API must be flagged with @FlaggedApi: class android.foobar.Bad.BadInterface [UnflaggedApi]
                 src/android/foobar/ExistingClass.java:10: warning: New API must be flagged with @FlaggedApi: method android.foobar.ExistingClass.bad() [UnflaggedApi]
+                src/android/foobar/BadHiddenSuperClass.java:5: warning: New API must be flagged with @FlaggedApi: method android.foobar.ExistingClass.inheritedBad() [UnflaggedApi]
                 src/android/foobar/ExistingClass.java:9: warning: New API must be flagged with @FlaggedApi: field android.foobar.ExistingClass.BAD [UnflaggedApi]
+                src/android/foobar/BadHiddenSuperClass.java:4: warning: New API must be flagged with @FlaggedApi: field android.foobar.ExistingClass.INHERITED_BAD [UnflaggedApi]
                 """
                     .trimIndent(),
             apiLint =
@@ -3824,6 +3838,15 @@ class ApiLintTest : DriverTest() {
                       ctor ExistingClass();
                       field public static final String EXISTING_FIELD = "foo";
                       method public void existingMethod();
+                  }
+                  public interface ExistingInterface {
+                      field public static final String EXISTING_INTERFACE_FIELD = "foo";
+                      method public void existingInterfaceMethod();
+                  }
+                  public class ExistingSuperClass {
+                      ctor public ExistingSuperClass();
+                      field public static final String EXISTING_SUPER_FIELD = "foo";
+                      method public void existingSuperMethod();
                   }
                 }
                 """,
@@ -3835,7 +3858,31 @@ class ApiLintTest : DriverTest() {
 
                         import android.annotation.FlaggedApi;
 
-                        public class ExistingClass {
+                        public interface ExistingInterface {
+                            public static final String EXISTING_INTERFACE_FIELD = "foo";
+                            public default void existingInterfaceMethod() {}
+                        }
+                    """
+                    ),
+                    java(
+                        """
+                        package android.foobar;
+
+                        import android.annotation.FlaggedApi;
+
+                        public class ExistingSuperClass {
+                            public static final String EXISTING_SUPER_FIELD = "foo";
+                            public void existingSuperMethod() {}
+                        }
+                    """
+                    ),
+                    java(
+                        """
+                        package android.foobar;
+
+                        import android.annotation.FlaggedApi;
+
+                        public class ExistingClass extends BadHiddenSuperClass implements BadHiddenSuperInterface {
                             public static final String EXISTING_FIELD = "foo";
                             public void existingMethod() {}
 
@@ -3854,7 +3901,27 @@ class ApiLintTest : DriverTest() {
                         """
                         package android.foobar;
 
-                        public class Bad {
+                        class BadHiddenSuperClass {
+                            public static final String INHERITED_BAD = "bar";
+                            public void inheritedBad() {}
+                        }
+                    """
+                    ),
+                    java(
+                        """
+                        package android.foobar;
+
+                        interface BadHiddenSuperInterface {
+                            public static final String INHERITED_BAD = "bar";
+                            public void inheritedBad() {}
+                        }
+                    """
+                    ),
+                    java(
+                        """
+                        package android.foobar;
+
+                        public class Bad extends BadHiddenSuperClass implements BadHiddenSuperInterface {
                             public static final String BAD = "bar";
                             public void bad() {}
                             public interface BadInterface {}
@@ -3869,7 +3936,7 @@ class ApiLintTest : DriverTest() {
                         import android.annotation.FlaggedApi;
 
                         @FlaggedApi("foo/bar")
-                        public class Ok {
+                        public class Ok extends ExistingSuperClass implements ExistingInterface {
                             @FlaggedApi("foo/bar")
                             Ok() {}
                             @FlaggedApi("foo/bar")
@@ -3885,7 +3952,7 @@ class ApiLintTest : DriverTest() {
                     ),
                     flaggedApiSource
                 ),
-            extraArguments = arrayOf("--warning", "UnflaggedApi")
+            extraArguments = arrayOf(ARG_WARNING, "UnflaggedApi", ARG_HIDE, "HiddenSuperclass")
         )
     }
 
@@ -3923,6 +3990,168 @@ class ApiLintTest : DriverTest() {
                     systemApiSource,
                 ),
             extraArguments = arrayOf("--warning", "UnflaggedApi")
+        )
+    }
+
+    @Test
+    fun `Dont require @FlaggedApi on existing items inherited into new SystemApi classes`() {
+        check(
+            showAnnotations = arrayOf("android.annotation.SystemApi"),
+            expectedIssues =
+                """
+                src/android/foobar/BadHiddenSuperClass.java:7: warning: New API must be flagged with @FlaggedApi: method android.foobar.Bad.badInherited() [UnflaggedApi]
+                src/android/foobar/BadHiddenSuperClass.java:6: warning: New API must be flagged with @FlaggedApi: field android.foobar.Bad.BAD_INHERITED [UnflaggedApi]
+            """,
+            apiLint =
+                """
+                package android.foobar {
+                  public interface ExistingSystemInterface {
+                      field public static final String EXISTING_SYSTEM_INTERFACE_FIELD = "foo";
+                      method public void existingSystemInterfaceMethod();
+                  }
+                  public class ExistingSystemSuperClass {
+                      ctor public ExistingSystemSuperClass();
+                      field public static final String EXISTING_SYSTEM_SUPER_FIELD = "foo";
+                      method public void existingSystemSuperMethod();
+                  }
+                  public class Existing {
+                  }
+                }
+            """,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                        package android.foobar;
+
+                        import android.annotation.FlaggedApi;
+                        import android.annotation.SystemApi;
+
+                        /** @hide */
+                        @SystemApi
+                        public interface ExistingSystemInterface {
+                            public static final String EXISTING_SYSTEM_INTERFACE_FIELD = "foo";
+                            public default void existingSystemInterfaceMethod() {}
+                        }
+                    """
+                    ),
+                    java(
+                        """
+                        package android.foobar;
+
+                        import android.annotation.FlaggedApi;
+                        import android.annotation.SystemApi;
+
+                        /** @hide */
+                        @SystemApi
+                        public class ExistingSystemSuperClass {
+                            public static final String EXISTING_SYSTEM_SUPER_FIELD = "foo";
+                            public void existingSystemSuperMethod() {}
+                        }
+                    """
+                    ),
+                    java(
+                        """
+                        package android.foobar;
+
+                        import android.annotation.FlaggedApi;
+
+                        public interface ExistingPublicInterface {
+                            public static final String EXISTING_PUBLIC_INTERFACE_FIELD = "foo";
+                            public default void existingPublicInterfaceMethod() {}
+                        }
+                    """
+                    ),
+                    java(
+                        """
+                        package android.foobar;
+
+                        import android.annotation.FlaggedApi;
+
+                        class BadHiddenSuperClass {
+                            public static final String BAD_INHERITED = "foo";
+                            public default void badInherited() {}
+                        }
+                    """
+                    ),
+                    java(
+                        """
+                        package android.foobar;
+
+                        import android.annotation.FlaggedApi;
+
+                        public class ExistingPublicSuperClass {
+                            public static final String EXISTING_PUBLIC_SUPER_FIELD = "foo";
+                            public void existingPublicSuperMethod() {}
+                        }
+                    """
+                    ),
+                    java(
+                        """
+                        package android.foobar;
+
+                        import android.annotation.FlaggedApi;
+
+                        import android.annotation.SystemApi;
+
+                        /** @hide */
+                        @SystemApi
+                        @FlaggedApi("namespace/flag")
+                        public class Ok extends ExistingSystemSuperClass implements ExistingSystemInterface {
+                            private Ok() {}
+                        }
+                    """
+                    ),
+                    java(
+                        """
+                        package android.foobar;
+
+                        import android.annotation.FlaggedApi;
+
+                        import android.annotation.SystemApi;
+
+                        /** @hide */
+                        @SystemApi
+                        @FlaggedApi("namespace/flag")
+                        public class Bad extends BadHiddenSuperClass {
+                            private Bad() {}
+                        }
+                    """
+                    ),
+                    java(
+                        """
+                        package android.foobar;
+
+                        import android.annotation.FlaggedApi;
+                        import android.annotation.SystemApi;
+
+                        /** @hide */
+                        @SystemApi
+                        @FlaggedApi("namespace/flag")
+                        public class Ok2 extends ExistingPublicSuperClass implements ExistingPublicInterface {
+                            private Ok2() {}
+                        }
+                    """
+                    ),
+                    java(
+                        """
+                        package android.foobar;
+
+                        import android.annotation.FlaggedApi;
+                        import android.annotation.SystemApi;
+
+                        /** @hide */
+                        @SystemApi
+                        public class Existing extends ExistingPublicSuperClass implements ExistingPublicInterface {
+                            private Existing() {}
+                        }
+                    """
+                    ),
+                    flaggedApiSource,
+                    systemApiSource,
+                ),
+            extraArguments = arrayOf(ARG_WARNING, "UnflaggedApi", ARG_HIDE, "HiddenSuperclass"),
+            checkCompilation = true
         )
     }
 

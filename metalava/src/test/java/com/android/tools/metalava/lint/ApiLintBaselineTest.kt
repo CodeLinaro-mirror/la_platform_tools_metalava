@@ -14,9 +14,14 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava
+package com.android.tools.metalava.lint
 
+import com.android.tools.metalava.ARG_HIDE_PACKAGE
+import com.android.tools.metalava.DriverTest
+import com.android.tools.metalava.androidxNonNullSource
+import com.android.tools.metalava.androidxNullableSource
 import com.android.tools.metalava.cli.common.ARG_HIDE
+import com.android.tools.metalava.restrictToSource
 import com.android.tools.metalava.testing.java
 import org.junit.Test
 

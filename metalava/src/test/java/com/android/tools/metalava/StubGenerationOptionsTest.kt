@@ -41,6 +41,7 @@ Stub Generation:
 
 class StubGenerationOptionsTest :
     BaseOptionGroupTest<StubGenerationOptions>(
-        { StubGenerationOptions() },
-        STUB_GENERATION_OPTIONS_HELP
-    )
+        STUB_GENERATION_OPTIONS_HELP,
+    ) {
+    override fun createOptions(): StubGenerationOptions = StubGenerationOptions()
+}

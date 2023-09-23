@@ -36,6 +36,7 @@ import com.android.tools.metalava.cli.common.stringToNewDir
 import com.android.tools.metalava.cli.common.stringToNewFile
 import com.android.tools.metalava.cli.signature.ARG_FORMAT
 import com.android.tools.metalava.cli.signature.SignatureFormatOptions
+import com.android.tools.metalava.lint.DefaultLintErrorMessage
 import com.android.tools.metalava.manifest.Manifest
 import com.android.tools.metalava.manifest.emptyManifest
 import com.android.tools.metalava.model.AnnotationManager
@@ -58,19 +59,14 @@ import com.github.ajalt.clikt.parameters.options.unique
 import com.github.ajalt.clikt.parameters.types.choice
 import com.github.ajalt.clikt.parameters.types.file
 import com.github.ajalt.clikt.parameters.types.int
-import com.google.common.base.CharMatcher
-import com.google.common.base.Splitter
-import com.google.common.io.Files
 import java.io.File
 import java.io.IOException
-import java.io.OutputStreamWriter
 import java.io.PrintWriter
 import java.io.StringWriter
 import java.util.Locale
 import java.util.Optional
 import kotlin.properties.ReadWriteProperty
 import kotlin.reflect.KProperty
-import kotlin.text.Charsets.UTF_8
 import org.jetbrains.jps.model.java.impl.JavaSdkUtil
 
 /**
@@ -227,10 +223,15 @@ class Options(
     signatureFormatOptions: SignatureFormatOptions = SignatureFormatOptions(),
     stubGenerationOptions: StubGenerationOptions = StubGenerationOptions(),
 ) : OptionGroup() {
-    /** Writer to direct output to */
-    var stdout: PrintWriter = PrintWriter(OutputStreamWriter(System.out))
-    /** Writer to direct error messages to */
-    var stderr: PrintWriter = PrintWriter(OutputStreamWriter(System.err))
+    /** Execution environment; initialized in [parse]. */
+    private lateinit var executionEnvironment: ExecutionEnvironment
+
+    /** Writer to direct output to. */
+    val stdout: PrintWriter
+        get() = executionEnvironment.stdout
+    /** Writer to direct error messages to. */
+    val stderr: PrintWriter
+        get() = executionEnvironment.stderr
 
     /** Internal list backing [sources] */
     private val mutableSources: MutableList<File> = mutableListOf()
@@ -699,14 +700,20 @@ class Options(
     /** [Reporter] for general use. */
     val reporter: Reporter by reporterOptions::reporter
 
-    /** [Reporter] for "api-lint" */
-    var reporterApiLint: Reporter = DefaultReporter(issueConfiguration)
+    /**
+     * [Reporter] for "api-lint".
+     *
+     * Initialized in [parse].
+     */
+    lateinit var reporterApiLint: Reporter
 
     /**
      * [Reporter] for "check-compatibility:*:released". (i.e. [ARG_CHECK_COMPATIBILITY_API_RELEASED]
-     * and [ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED])
+     * and [ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED]).
+     *
+     * Initialized in [parse].
      */
-    var reporterCompatibilityReleased: Reporter = DefaultReporter(issueConfiguration)
+    lateinit var reporterCompatibilityReleased: Reporter
 
     internal var allReporters: List<DefaultReporter> = emptyList()
 
@@ -811,14 +818,10 @@ class Options(
             )
 
     fun parse(
+        executionEnvironment: ExecutionEnvironment,
         args: Array<String>,
-        /** Writer to direct output to */
-        stdout: PrintWriter = PrintWriter(OutputStreamWriter(System.out)),
-        /** Writer to direct error messages to */
-        stderr: PrintWriter = PrintWriter(OutputStreamWriter(System.err)),
     ) {
-        this.stdout = stdout
-        this.stderr = stderr
+        this.executionEnvironment = executionEnvironment
 
         var androidJarPatterns: MutableList<String>? = null
         var currentJar: File? = null
@@ -1225,12 +1228,14 @@ class Options(
         // Override the default reporters.
         reporterApiLint =
             DefaultReporter(
+                executionEnvironment.reporterEnvironment,
                 issueConfiguration,
                 baselineApiLint ?: baseline,
                 errorMessageApiLint,
             )
         reporterCompatibilityReleased =
             DefaultReporter(
+                executionEnvironment.reporterEnvironment,
                 issueConfiguration,
                 baselineCompatibilityReleased ?: baseline,
                 errorMessageCompatibilityReleased,
@@ -1479,12 +1484,13 @@ class Options(
                     if (!allowDirs && !listFile.isFile) {
                         throw MetalavaCliException("$listFile is not a file")
                     }
-                    val contents = Files.asCharSource(listFile, UTF_8).read()
+                    val contents = listFile.readText()
                     val pathList =
-                        Splitter.on(CharMatcher.whitespace())
-                            .trimResults()
-                            .omitEmptyStrings()
-                            .split(contents)
+                        contents
+                            .split("""\s""".toRegex())
+                            .map { it.trim() }
+                            .filter { it.isNotEmpty() }
+                            .toList()
                     pathList
                         .asSequence()
                         .map { File(it) }

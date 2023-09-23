@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018 The Android Open Source Project
+ * Copyright (C) 2023 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,39 +16,26 @@
 
 package com.android.tools.metalava
 
-import com.android.tools.metalava.cli.common.MetalavaCliException
 import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.ClassResolver
-import com.android.tools.metalava.model.text.ApiFile
-import com.android.tools.metalava.model.text.ApiParseException
 import com.android.tools.metalava.model.text.TextCodebase
 import java.io.File
 
-/**
- * Helper object to load signature files and rethrow any [ApiParseException] as a
- * [MetalavaCliException].
- */
+/** Loads signature files, caching them for reuse where appropriate. */
 @Suppress("DEPRECATION")
-object SignatureFileLoader {
+class SignatureFileCache {
+    private val map = mutableMapOf<File, TextCodebase>()
+
     fun load(
         file: File,
         classResolver: ClassResolver? = null,
         annotationManager: AnnotationManager = options.annotationManager,
     ): TextCodebase {
-        return loadFiles(listOf(file), classResolver, annotationManager)
-    }
-
-    fun loadFiles(
-        files: List<File>,
-        classResolver: ClassResolver? = null,
-        annotationManager: AnnotationManager = options.annotationManager,
-    ): TextCodebase {
-        require(files.isNotEmpty()) { "files must not be empty" }
-
-        try {
-            return ApiFile.parseApi(files, classResolver, annotationManager)
-        } catch (ex: ApiParseException) {
-            throw MetalavaCliException("Unable to parse signature file: ${ex.message}")
-        }
+        return map[file]
+            ?: run {
+                val loaded = SignatureFileLoader.load(file, classResolver, annotationManager)
+                map[file] = loaded
+                loaded
+            }
     }
 }

@@ -3247,7 +3247,7 @@ class CompatibilityCheckTest : DriverTest() {
                     import android.annotation.SystemApi;
 
                     public class LightsRequest {
-                        public static class Builder {
+                        public static final class Builder {
                             void clearLight() { }
                         }
                     }
@@ -3315,15 +3315,13 @@ class CompatibilityCheckTest : DriverTest() {
                     systemApiSource
                 ),
             showAnnotations = arrayOf(ANDROID_SYSTEM_API),
-            expectedIssues = ""
-            /* TODO(b/299675771): The following issues aren't currently found by CompatibilityCheck:
-            """
-            src/android/foobar/Foo.java:8: error: Class android.foobar.Foo.Nested added 'final' qualifier [AddedFinal]
-            src/android/foobar/Foo.java:8: error: Constructor android.foobar.Foo.Nested has added 'final' qualifier [AddedFinal]
-            src/android/foobar/Foo.java:9: error: Method android.foobar.Foo.Nested.existing has changed return type from void to int [ChangedType]
-            src/android/foobar/Foo.java:9: error: Method android.foobar.Foo.Nested.existing has added 'final' qualifier [AddedFinal]
-            """
-            */
+            expectedIssues =
+                """
+                src/android/foobar/Foo.java:8: error: Class android.foobar.Foo.Nested added 'final' qualifier [AddedFinal]
+                src/android/foobar/Foo.java:8: error: Constructor android.foobar.Foo.Nested has added 'final' qualifier [AddedFinal]
+                src/android/foobar/Foo.java:9: error: Method android.foobar.Foo.Nested.existing has changed return type from void to int [ChangedType]
+                src/android/foobar/Foo.java:9: error: Method android.foobar.Foo.Nested.existing has added 'final' qualifier [AddedFinal]
+                """
         )
     }
 
