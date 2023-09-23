@@ -22,6 +22,7 @@ import com.android.tools.metalava.model.noOpAnnotationManager
 import com.android.tools.metalava.model.testsuite.InputFormat
 import com.android.tools.metalava.model.testsuite.ModelSuiteRunner
 import com.android.tools.metalava.reporter.BasicReporter
+import com.android.tools.metalava.testing.getAndroidJar
 import java.io.File
 import java.io.PrintWriter
 
@@ -53,7 +54,7 @@ class SourceModelSuiteRunner : ModelSuiteRunner {
                     environmentManager,
                     tempDir,
                     listOf(input),
-                    emptyList(),
+                    listOf(getAndroidJar()),
                 )
             test(codebase)
         }

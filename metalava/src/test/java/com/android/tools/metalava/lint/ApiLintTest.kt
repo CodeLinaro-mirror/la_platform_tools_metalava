@@ -3449,6 +3449,32 @@ class ApiLintTest : DriverTest() {
     }
 
     @Test
+    fun `Test type variable array requires nullability`() {
+        check(
+            apiLint = "", // enabled
+            extraArguments = arrayOf(ARG_API_LINT, ARG_HIDE, "ArrayReturn"),
+            expectedIssues =
+                """
+                src/test/pkg/Foo.java:4: error: Missing nullability on method `badTypeVarArrayReturn` return [MissingNullability]
+            """,
+            expectedFail = DefaultLintErrorMessage,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                        package test.pkg;
+                        public class Foo<T> {
+                            public T goodTypeVarReturn() { return null; }
+                            public T[] badTypeVarArrayReturn() { return null; }
+                        }
+                    """
+                            .trimIndent()
+                    )
+                )
+        )
+    }
+
+    @Test
     fun `Test equals, toString, non-null constants, enums and annotation members don't require nullability`() {
         check(
             apiLint = "", // enabled

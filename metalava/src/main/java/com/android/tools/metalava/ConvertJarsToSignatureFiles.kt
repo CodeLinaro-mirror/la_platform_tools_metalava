@@ -139,7 +139,11 @@ class ConvertJarsToSignatureFiles(
 
             val oldRemovedFile = File(root, "prebuilts/sdk/$api/public/api/removed.txt")
             if (oldRemovedFile.isFile) {
-                val oldCodebase = SignatureFileLoader.load(oldRemovedFile)
+                val oldCodebase =
+                    SignatureFileLoader.load(
+                        oldRemovedFile,
+                        annotationManager = annotationManager,
+                    )
                 val visitor =
                     object : ComparisonVisitor() {
                         override fun compare(old: MethodItem, new: MethodItem) {

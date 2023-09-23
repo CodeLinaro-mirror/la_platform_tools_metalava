@@ -14,8 +14,9 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava
+package com.android.tools.metalava.compatibility
 
+import com.android.tools.metalava.DriverTest
 import org.junit.Test
 
 class CompatibilityCheckBaselineTest : DriverTest() {

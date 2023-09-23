@@ -21,21 +21,16 @@ import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.text.TextCodebase
 import java.io.File
 
-/** Loads signature files, caching them for reuse where appropriate. */
-@Suppress("DEPRECATION")
-class SignatureFileCache {
-    private val map = mutableMapOf<File, TextCodebase>()
+private typealias CacheKey = Pair<File, ClassResolver?>
 
-    fun load(
-        file: File,
-        classResolver: ClassResolver? = null,
-        annotationManager: AnnotationManager = options.annotationManager,
-    ): TextCodebase {
-        return map[file]
-            ?: run {
-                val loaded = SignatureFileLoader.load(file, classResolver, annotationManager)
-                map[file] = loaded
-                loaded
-            }
+/** Loads signature files, caching them for reuse where appropriate. */
+class SignatureFileCache(private val annotationManager: AnnotationManager) {
+    private val map = mutableMapOf<CacheKey, TextCodebase>()
+
+    fun load(file: File, classResolver: ClassResolver? = null): TextCodebase {
+        val key = CacheKey(file, classResolver)
+        return map.computeIfAbsent(key) { k ->
+            SignatureFileLoader.load(k.first, k.second, annotationManager)
+        }
     }
 }

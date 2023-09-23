@@ -19,7 +19,6 @@ package com.android.tools.metalava
 import com.android.SdkConstants
 import com.android.SdkConstants.FN_FRAMEWORK_LIBRARY
 import com.android.tools.lint.detector.api.isJdkFolder
-import com.android.tools.metalava.CompatibilityCheck.CheckRequest
 import com.android.tools.metalava.cli.common.ARG_HIDE
 import com.android.tools.metalava.cli.common.ARG_HIDE_CATEGORY
 import com.android.tools.metalava.cli.common.CommonOptions
@@ -36,6 +35,7 @@ import com.android.tools.metalava.cli.common.stringToNewDir
 import com.android.tools.metalava.cli.common.stringToNewFile
 import com.android.tools.metalava.cli.signature.ARG_FORMAT
 import com.android.tools.metalava.cli.signature.SignatureFormatOptions
+import com.android.tools.metalava.compatibility.CompatibilityCheck.CheckRequest
 import com.android.tools.metalava.lint.DefaultLintErrorMessage
 import com.android.tools.metalava.manifest.Manifest
 import com.android.tools.metalava.manifest.emptyManifest

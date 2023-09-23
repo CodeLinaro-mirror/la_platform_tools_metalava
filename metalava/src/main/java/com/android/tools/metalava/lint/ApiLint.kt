@@ -67,6 +67,7 @@ import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.SetMinSdkVersion
 import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.findAnnotation
 import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.model.psi.PsiLocationProvider
@@ -1827,7 +1828,7 @@ class ApiLint(
             if (inherited) {
                 return // Do not enforce nullability on inherited items (non-overridden)
             }
-            if (type != null && type.isTypeParameter()) {
+            if (type != null && type is VariableTypeItem) {
                 // Generic types should have declarations of nullability set at the site of where
                 // the type is set, so that for Foo<T>, T does not need to specify nullability, but
                 // for Foo<Bar>, Bar does.
@@ -1916,7 +1917,7 @@ class ApiLint(
     private fun anySuperMethodIsNonNull(method: MethodItem): Boolean {
         return method.superMethods().any { superMethod ->
             // Disable check for generics
-            superMethod.modifiers.isNonNull() && !superMethod.returnType().isTypeParameter()
+            superMethod.modifiers.isNonNull() && superMethod.returnType() !is VariableTypeItem
         }
     }
 
@@ -1924,7 +1925,7 @@ class ApiLint(
         val supers = parameter.containingMethod().superMethods()
         return supers.all { superMethod ->
             // Disable check for generics
-            superMethod.parameters().none { it.type().isTypeParameter() }
+            superMethod.parameters().none { it.type() is VariableTypeItem }
         } &&
             supers.any { superMethod ->
                 superMethod
@@ -1939,7 +1940,7 @@ class ApiLint(
     private fun anySuperMethodLacksNullnessInfo(method: MethodItem): Boolean {
         return method.superMethods().any { superMethod ->
             // Disable check for generics
-            !superMethod.hasNullnessInfo() && !superMethod.returnType().isTypeParameter()
+            !superMethod.hasNullnessInfo() && superMethod.returnType() !is VariableTypeItem
         }
     }
 
@@ -1947,7 +1948,7 @@ class ApiLint(
         val supers = parameter.containingMethod().superMethods()
         return supers.all { superMethod ->
             // Disable check for generics
-            superMethod.parameters().none { it.type().isTypeParameter() }
+            superMethod.parameters().none { it.type() is VariableTypeItem }
         } &&
             supers.any { superMethod ->
                 !(superMethod
