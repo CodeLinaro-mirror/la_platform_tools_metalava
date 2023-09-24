@@ -44,8 +44,10 @@ if (!System.getenv("INTEGRATION").isNullOrBlank()) {
 
 include(":metalava-model")
 include(":metalava-model-psi")
+include(":metalava-model-source")
 include(":metalava-model-testsuite")
 include(":metalava-model-text")
+include(":metalava-model-turbine")
 include(":metalava-reporter")
 include(":metalava-testing")
 include(":stub-annotations")

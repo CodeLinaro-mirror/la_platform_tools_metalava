@@ -25,7 +25,7 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
         check(
             expectedIssues =
                 """
-                released-api.txt:3: error: Removed method test.pkg.Foo.bar(Int) [RemovedMethod]
+                released-api.txt:4: error: Removed method test.pkg.Foo.bar(Int) [RemovedMethod]
             """,
             signatureSource =
                 """
@@ -51,7 +51,7 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
         check(
             expectedIssues =
                 """
-                load-api.txt:3: error: Attempted to change parameter name from bread to toast in method test.pkg.Foo.bar [ParameterNameChange]
+                load-api.txt:4: error: Attempted to change parameter name from bread to toast in method test.pkg.Foo.bar [ParameterNameChange]
             """,
             signatureSource =
                 """
@@ -77,7 +77,7 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
         check(
             expectedIssues =
                 """
-                released-api.txt:3: error: Removed method test.pkg.Foo.bar(Int) [RemovedMethod]
+                released-api.txt:4: error: Removed method test.pkg.Foo.bar(Int) [RemovedMethod]
             """,
             signatureSource =
                 """
@@ -103,7 +103,7 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
         check(
             expectedIssues =
                 """
-                released-api.txt:3: error: Removed method test.pkg.Foo.bar(Int) [RemovedMethod]
+                released-api.txt:4: error: Removed method test.pkg.Foo.bar(Int) [RemovedMethod]
             """,
             signatureSource =
                 """
@@ -129,7 +129,7 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
         check(
             expectedIssues =
                 """
-                load-api.txt:3: error: Method test.pkg.Foo.bar has changed return type from void to Int [ChangedType]
+                load-api.txt:4: error: Method test.pkg.Foo.bar has changed return type from void to Int [ChangedType]
             """,
             signatureSource =
                 """
@@ -155,7 +155,7 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
         check(
             expectedIssues =
                 """
-                load-api.txt:3: error: Method test.pkg.Foo.bar added thrown exception java.lang.Throwable [ChangedThrows]
+                load-api.txt:4: error: Method test.pkg.Foo.bar added thrown exception java.lang.Throwable [ChangedThrows]
             """,
             signatureSource =
                 """
@@ -181,7 +181,7 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
         check(
             expectedIssues =
                 """
-                load-api.txt:3: error: Method test.pkg.Foo.bar no longer throws exception java.lang.Throwable [ChangedThrows]
+                load-api.txt:4: error: Method test.pkg.Foo.bar no longer throws exception java.lang.Throwable [ChangedThrows]
             """,
             signatureSource =
                 """
@@ -232,7 +232,7 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
         check(
             expectedIssues =
                 """
-               load-api.txt:3: error: Method test.pkg.Foo.bar changed visibility from public to protected [ChangedScope]
+               load-api.txt:4: error: Method test.pkg.Foo.bar changed visibility from public to protected [ChangedScope]
             """,
             signatureSource =
                 """
@@ -302,7 +302,7 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
         check(
             expectedIssues =
                 """
-               load-api.txt:3: error: Method test.pkg.Foo.bar has changed 'abstract' qualifier [ChangedAbstract]
+               load-api.txt:4: error: Method test.pkg.Foo.bar has changed 'abstract' qualifier [ChangedAbstract]
             """,
             signatureSource =
                 """
@@ -328,7 +328,7 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
         check(
             expectedIssues =
                 """
-               load-api.txt:3: error: Method test.pkg.Foo.bar has removed 'final' qualifier [RemovedFinalStrict]
+               load-api.txt:4: error: Method test.pkg.Foo.bar has removed 'final' qualifier [RemovedFinalStrict]
             """,
             signatureSource =
                 """
@@ -376,7 +376,7 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
         check(
             expectedIssues =
                 """
-               load-api.txt:4: error: Method test.pkg.Foo.bar has added 'final' qualifier [AddedFinal]
+               load-api.txt:5: error: Method test.pkg.Foo.bar has added 'final' qualifier [AddedFinal]
             """,
             signatureSource =
                 """
@@ -404,7 +404,7 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
         check(
             expectedIssues =
                 """
-                load-api.txt:3: error: Method test.pkg.Foo.bar has changed 'static' qualifier [ChangedStatic]
+                load-api.txt:4: error: Method test.pkg.Foo.bar has changed 'static' qualifier [ChangedStatic]
             """,
             signatureSource =
                 """
@@ -430,7 +430,7 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
         check(
             expectedIssues =
                 """
-                load-api.txt:3: error: Method test.pkg.Foo.bar has changed 'static' qualifier [ChangedStatic]
+                load-api.txt:4: error: Method test.pkg.Foo.bar has changed 'static' qualifier [ChangedStatic]
             """,
             signatureSource =
                 """
@@ -685,7 +685,7 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
         check(
             expectedIssues =
                 """
-                load-api.txt:3: error: Changing from varargs to array is an incompatible change: parameter arg1 in test.pkg.Foo.bar(T[] arg1) [VarargRemoval]
+                load-api.txt:4: error: Changing from varargs to array is an incompatible change: parameter arg1 in test.pkg.Foo.bar(T[] arg1) [VarargRemoval]
             """,
             signatureSource =
                 """

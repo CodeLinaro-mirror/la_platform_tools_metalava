@@ -20,6 +20,10 @@ import kotlin.reflect.full.declaredMemberProperties
 
 object Issues {
     private val allIssues: MutableList<Issue> = ArrayList(300)
+
+    /** A list of all the issues. */
+    val all: List<Issue> by this::allIssues
+
     private val nameToIssue: MutableMap<String, Issue> = HashMap(300)
 
     val PARSE_ERROR = Issue(Severity.ERROR)

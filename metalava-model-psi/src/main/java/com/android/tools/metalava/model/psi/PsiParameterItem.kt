@@ -38,7 +38,8 @@ import org.jetbrains.uast.UMethod
 import org.jetbrains.uast.UParameter
 import org.jetbrains.uast.UastFacade
 
-class PsiParameterItem(
+class PsiParameterItem
+internal constructor(
     override val codebase: PsiBasedCodebase,
     private val psiParameter: PsiParameter,
     private val name: String,

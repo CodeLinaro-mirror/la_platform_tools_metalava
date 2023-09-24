@@ -155,10 +155,6 @@ internal class DefaultReporter(
         return false
     }
 
-    override fun showProgressTick() {
-        tick()
-    }
-
     private fun suppressMatches(value: String, id: String?, message: String?): Boolean {
         id ?: return false
 

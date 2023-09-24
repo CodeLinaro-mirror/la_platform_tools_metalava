@@ -23,7 +23,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
-class PsiModifierItemTest {
+class PsiModifierItemTest : BasePsiTest() {
     @Test
     fun `Kotlin implicit internal visibility inheritance`() {
         testCodebase(

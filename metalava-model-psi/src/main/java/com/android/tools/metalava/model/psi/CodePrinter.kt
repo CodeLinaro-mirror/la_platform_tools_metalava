@@ -72,16 +72,16 @@ class CodePrinter(
     /** An optional filter to use to determine if we should emit a reference to an item */
     private val filterReference: Predicate<Item>? = null
 ) {
-    fun warning(message: String, psiElement: PsiElement? = null) {
+    private fun warning(message: String, psiElement: PsiElement? = null) {
         reporter.report(Issues.INTERNAL_ERROR, psiElement, message)
     }
 
-    fun warning(message: String, uElement: UElement) {
+    private fun warning(message: String, uElement: UElement) {
         warning(message, uElement.sourcePsi ?: uElement.javaPsi)
     }
 
     /** Given an annotation member value, returns the corresponding Java source expression */
-    fun toSourceExpression(value: PsiAnnotationMemberValue, owner: Item): String {
+    internal fun toSourceExpression(value: PsiAnnotationMemberValue, owner: Item): String {
         val sb = StringBuilder()
         appendSourceExpression(value, sb, owner)
         return sb.toString()
@@ -541,7 +541,7 @@ class CodePrinter(
             return value.toString()
         }
 
-        fun constantToExpression(constant: Any?): String? {
+        internal fun constantToExpression(constant: Any?): String? {
             return when (constant) {
                 is Int -> "0x${Integer.toHexString(constant)}"
                 is String -> "\"${javaEscapeString(constant)}\""

@@ -24,7 +24,7 @@ import kotlin.test.assertNull
 import kotlin.test.assertSame
 import org.junit.Test
 
-class PsiMethodItemTest {
+class PsiMethodItemTest : BasePsiTest() {
 
     @Test
     fun `property accessors have properties`() {

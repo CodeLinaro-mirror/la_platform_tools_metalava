@@ -46,9 +46,6 @@ class TextCodebase(
 
     override fun trustedApi(): Boolean = true
 
-    /** Signature file format version, if found. */
-    lateinit var format: FileFormat
-
     override fun getPackages(): PackageList {
         val list = ArrayList<PackageItem>(mPackages.values)
         list.sortWith(PackageItem.comparator)

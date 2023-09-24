@@ -16,12 +16,14 @@
 
 package com.android.tools.metalava
 
-import com.android.tools.metalava.testing.BaseCommandTest
-import com.android.tools.metalava.testing.CommandTestConfig
+import com.android.tools.metalava.cli.common.BaseCommandTest
+import com.android.tools.metalava.cli.common.CommandTestConfig
+import com.android.tools.metalava.model.text.FileFormat
+import com.android.tools.metalava.model.text.prepareSignatureFileForTest
 import kotlin.test.assertEquals
 import org.junit.Test
 
-class SignatureToJDiffCommandTest : BaseCommandTest() {
+class SignatureToJDiffCommandTest : BaseCommandTest(::SignatureToJDiffCommand) {
 
     @Test
     fun `Test help`() {
@@ -522,11 +524,21 @@ class JDiffTestConfig(val commandTestConfig: CommandTestConfig) {
             // Create a unique folder to allow multiple configs to be run in the same test.
             val folder = commandTestConfig.folder()
 
-            val apiFile = inputFile("api.txt", api.trimIndent(), parentDir = folder)
+            val apiFile =
+                inputFile(
+                    "api.txt",
+                    prepareSignatureFileForTest(api.trimIndent(), FileFormat.V2),
+                    parentDir = folder
+                )
             args += apiFile.path
 
             baseApi?.let {
-                val baseApiFile = inputFile("base-api.txt", it.trimIndent(), parentDir = folder)
+                val baseApiFile =
+                    inputFile(
+                        "base-api.txt",
+                        prepareSignatureFileForTest(it.trimIndent(), FileFormat.V2),
+                        parentDir = folder
+                    )
                 args += "--base-api"
                 args += baseApiFile.path
             }

@@ -61,8 +61,8 @@ class UastTestK1 : UastTestBase() {
     }
 
     @Test
-    fun `Member of companion object in value class -- K1`() {
-        `Member of companion object in value class`(isK2 = false)
+    fun `declarations with value class in its signature -- K1`() {
+        `declarations with value class in its signature`(isK2 = false)
     }
 
     @Test

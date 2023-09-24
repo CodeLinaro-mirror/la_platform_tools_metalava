@@ -29,6 +29,8 @@ const val ARG_COLOR = "--color"
 const val ARG_NO_COLOR = "--no-color"
 const val ARG_NO_BANNER = "--no-banner"
 
+const val ARG_REPEAT_ERRORS_MAX = "--repeat-errors-max"
+
 enum class Verbosity(val quiet: Boolean = false, val verbose: Boolean = false) {
     /** Whether to report warnings and other diagnostics along the way. */
     QUIET(quiet = true),
@@ -86,6 +88,7 @@ class CommonOptions : OptionGroup() {
             }
     }
 
+    @Suppress("unused")
     val noBanner by
         option(ARG_NO_BANNER, help = "A banner is never output so this has no effect")
             .flag(default = true)
@@ -94,6 +97,12 @@ class CommonOptions : OptionGroup() {
                 tagValue = "please remove"
             )
 
+    /**
+     * This is unused but needs to be here to consume the --quiet and --verbose options that are
+     * handled earlier (to allow them to affect the behavior of code that runs before this) but
+     * which are kept in the arguments so that they can be used by new subcommands eventually.
+     */
+    @Suppress("unused")
     val verbosity: Verbosity by
         option(
                 help =

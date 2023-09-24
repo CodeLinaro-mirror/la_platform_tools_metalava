@@ -28,7 +28,9 @@ application {
 dependencies {
     implementation(project(":metalava-model"))
     implementation(project(":metalava-model-psi"))
+    implementation(project(":metalava-model-source"))
     implementation(project(":metalava-model-text"))
+    implementation(project(":metalava-model-turbine"))
     implementation(project(":metalava-reporter"))
     implementation(libs.androidToolsExternalUast)
     implementation(libs.androidToolsExternalKotlinCompiler)
@@ -47,6 +49,7 @@ dependencies {
     implementation(libs.asmTree)
     implementation(libs.gson)
     testImplementation(project(":metalava-testing"))
+    testImplementation(testFixtures(project(":metalava-model-text")))
     testImplementation(libs.androidLintTests)
     testImplementation(libs.junit4)
     testImplementation(libs.truth)

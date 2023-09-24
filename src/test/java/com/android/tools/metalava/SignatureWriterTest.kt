@@ -39,6 +39,8 @@ class SignatureWriterTest {
                             preFiltered = false,
                             emitHeader = EmitFileHeader.IF_NONEMPTY_FILE,
                             fileFormat = fileFormat,
+                            showUnannotated = false,
+                            packageFilter = null,
                         )
                     body(writer)
                 }

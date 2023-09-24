@@ -150,9 +150,16 @@ internal open class MetalavaHelpFormatter(
                 // If the name and first line of the description can fit on the same line then merge
                 // them together.
                 if (length < MAX_WIDTH_FOR_DESCRIPTION_ON_SAME_LINE) {
-                    val nextLine = iterator.next()
-                    val reducedIndent = nextLine.substring(length)
-                    append(reducedIndent)
+                    // Make sure that there is a next line. This will happen if no help is provided
+                    // and this is the last option/argument.
+                    if (iterator.hasNext()) {
+                        val nextLine = iterator.next()
+                        // Make sure that it is indented as much as the current line.
+                        if (nextLine.length >= length) {
+                            val reducedIndent = nextLine.substring(length)
+                            append(reducedIndent)
+                        }
+                    }
                 }
             } else {
                 append(line.trimEnd())

@@ -22,6 +22,10 @@ import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
 import com.android.tools.metalava.reporter.Severity
 import com.github.ajalt.clikt.parameters.groups.OptionGroup
+import com.github.ajalt.clikt.parameters.options.default
+import com.github.ajalt.clikt.parameters.options.option
+import com.github.ajalt.clikt.parameters.types.int
+import com.github.ajalt.clikt.parameters.types.restrictTo
 import java.io.File
 
 const val ARG_ERROR = "--error"
@@ -39,7 +43,15 @@ const val REPORTING_OPTIONS_GROUP = "Issue Reporting"
 class ReporterOptions :
     OptionGroup(
         name = REPORTING_OPTIONS_GROUP,
-        help = "Options that control which issues are reported and the severity of the reports."
+        help =
+            """
+            Options that control which issues are reported, the severity of the reports, how, when
+            and where they are reported.
+
+            See `metalava help issues` for more help including a table of the available issues and
+            their category and default severity.
+        """
+                .trimIndent()
     ) {
 
     /** The [IssueConfiguration] that is configured by these options. */
@@ -103,6 +115,17 @@ class ReporterOptions :
         // Register the option so that Clikt will process it.
         registerOption(issueOption)
     }
+
+    /** When non-0, metalava repeats all the errors at the end of the run, at most this many. */
+    val repeatErrorsMax by
+        option(
+                ARG_REPEAT_ERRORS_MAX,
+                metavar = "<n>",
+                help = """When specified, repeat at most N errors before finishing."""
+            )
+            .int()
+            .restrictTo(min = 0)
+            .default(0)
 }
 
 /** The different configurable aspects of [IssueConfiguration]. */

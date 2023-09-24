@@ -32,14 +32,15 @@ import com.android.tools.metalava.model.visitors.ApiVisitor
 import java.io.PrintWriter
 import java.util.function.Predicate
 
-@Suppress("DEPRECATION")
 class SignatureWriter(
     private val writer: PrintWriter,
     filterEmit: Predicate<Item>,
     filterReference: Predicate<Item>,
     private val preFiltered: Boolean,
     private var emitHeader: EmitFileHeader = EmitFileHeader.ALWAYS,
-    private val fileFormat: FileFormat = options.signatureFileFormat,
+    private val fileFormat: FileFormat,
+    showUnannotated: Boolean,
+    packageFilter: PackageFilter?,
 ) :
     ApiVisitor(
         visitConstructorsAsMethods = false,
@@ -49,7 +50,8 @@ class SignatureWriter(
         fieldComparator = FieldItem.comparator,
         filterEmit = filterEmit,
         filterReference = filterReference,
-        showUnannotated = options.showUnannotated
+        showUnannotated = showUnannotated,
+        packageFilter = packageFilter,
     ) {
     init {
         // If a header must always be written out (even if the file is empty) then write it here.

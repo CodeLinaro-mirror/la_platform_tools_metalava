@@ -884,7 +884,7 @@ class PsiTypePrinterTest : TemporaryFolderOwner {
                     sourceFiles,
                     "test project",
                     sourcePath = sourcePath,
-                    classpath = classPath,
+                    classPath = classPath,
                 )
 
         val results = LinkedHashMap<String, Entry>()

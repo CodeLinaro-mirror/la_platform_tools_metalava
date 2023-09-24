@@ -16,29 +16,12 @@
 
 package com.android.tools.metalava
 
-import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
-import org.intellij.lang.annotations.Language
 
 // Base class to collect test inputs whose behaviors (API/lint) vary depending on UAST versions.
 abstract class UastTestBase : DriverTest() {
-
-    private fun uastCheck(
-        isK2: Boolean,
-        format: FileFormat = FileFormat.LATEST,
-        sourceFiles: Array<TestFile> = emptyArray(),
-        @Language("TEXT") api: String? = null,
-        extraArguments: Array<String> = emptyArray(),
-    ) {
-        check(
-            format = format,
-            sourceFiles = sourceFiles,
-            api = api,
-            extraArguments = extraArguments + listOfNotNull(ARG_USE_K2_UAST.takeIf { isK2 })
-        )
-    }
 
     protected fun `Test RequiresOptIn and OptIn`(isK2: Boolean) {
         // See http://b/248341155 for more details
@@ -157,7 +140,8 @@ abstract class UastTestBase : DriverTest() {
                     """
                     )
                 ),
-            api = api
+            format = FileFormat.V4,
+            api = api,
         )
     }
 
@@ -244,9 +228,59 @@ abstract class UastTestBase : DriverTest() {
         )
     }
 
-    protected fun `Member of companion object in value class`(isK2: Boolean) {
+    protected fun `declarations with value class in its signature`(isK2: Boolean) {
         // https://youtrack.jetbrains.com/issue/KT-57546
-        // TODO: https://youtrack.jetbrains.com/issue/KT-57577
+        // https://youtrack.jetbrains.com/issue/KT-57577
+        // TODO(b/297113621)
+        val alignmentMembersDelegateToCompanion =
+            if (isK2) ""
+            else
+                """
+                    method public int getHorizontal();
+                    method public int getVertical();
+                    property public final int horizontal;
+                    property public final int vertical;"""
+        val alignmentCompanionAccessors =
+            if (isK2) ""
+            else
+                """
+                    method public int getStart();
+                    method public int getTop();"""
+        val alignmentCompanionProperties =
+            if (isK2) ""
+            else
+                """
+                    property public final int Start;
+                    property public final int Top;"""
+        val alignmentHorizontalCompanionMembers =
+            if (isK2) ""
+            else
+                """
+                    method public int getCenterHorizontally();
+                    method public int getEnd();
+                    method public int getStart();
+                    property public final int CenterHorizontally;
+                    property public final int End;
+                    property public final int Start;"""
+        val alignmentVerticalCompanionMembers =
+            if (isK2) ""
+            else
+                """
+                    method public int getBottom();
+                    method public int getCenterVertically();
+                    method public int getTop();
+                    property public final int Bottom;
+                    property public final int CenterVertically;
+                    property public final int Top;"""
+        val userPropertyAndAccessors =
+            if (isK2) ""
+            else
+                """
+                    method public float getP();
+                    method public float getQ();
+                    method public void setQ(float);
+                    property public final float p;
+                    property public final float q;"""
         uastCheck(
             isK2,
             sourceFiles =
@@ -262,12 +296,63 @@ abstract class UastTestBase : DriverTest() {
                                 val End = AnchorType(1f)
                             }
                         }
+                        class User(
+                          val p : AnchorType,
+                          var q : AnchorType,
+                        ) {
+                          fun foo() = p
+                          fun bar(): () -> AnchorType = { foo() }
+                        }
+
+                        class Alignment(val horizontal: Horizontal, val vertical: Vertical) {
+                          @kotlin.jvm.JvmInline
+                          value class Horizontal private constructor(private val value: Int) {
+                            companion object {
+                              val Start: Horizontal = Horizontal(0)
+                              val CenterHorizontally: Horizontal = Horizontal(1)
+                              val End: Horizontal = Horizontal(2)
+                            }
+                          }
+
+                          @kotlin.jvm.JvmInline
+                          value class Vertical private constructor(private val value: Int) {
+                            companion object {
+                              val Top: Vertical = Vertical(0)
+                              val CenterVertically: Vertical = Vertical(1)
+                              val Bottom: Vertical = Vertical(2)
+                            }
+                          }
+
+                          companion object {
+                            val TopStart: Alignment = Alignment(Horizontal.Start, Vertical.Top)
+                            val Top: Vertical = Vertical.Top
+                            val Start: Horizontal = Horizontal.Start
+                          }
+                        }
                     """
                     )
                 ),
             api =
                 """
                 package test.pkg {
+                  public final class Alignment {
+                    ctor public Alignment(int horizontal, int vertical);$alignmentMembersDelegateToCompanion
+                    field public static final test.pkg.Alignment.Companion Companion;
+                  }
+                  public static final class Alignment.Companion {$alignmentCompanionAccessors
+                    method public test.pkg.Alignment getTopStart();$alignmentCompanionProperties
+                    property public final test.pkg.Alignment TopStart;
+                  }
+                  @kotlin.jvm.JvmInline public static final value class Alignment.Horizontal {
+                    field public static final test.pkg.Alignment.Horizontal.Companion Companion;
+                  }
+                  public static final class Alignment.Horizontal.Companion {$alignmentHorizontalCompanionMembers
+                  }
+                  @kotlin.jvm.JvmInline public static final value class Alignment.Vertical {
+                    field public static final test.pkg.Alignment.Vertical.Companion Companion;
+                  }
+                  public static final class Alignment.Vertical.Companion {$alignmentVerticalCompanionMembers
+                  }
                   @kotlin.jvm.JvmInline public final value class AnchorType {
                     field public static final test.pkg.AnchorType.Companion Companion;
                   }
@@ -278,6 +363,11 @@ abstract class UastTestBase : DriverTest() {
                     property public final float Center;
                     property public final float End;
                     property public final float Start;
+                  }
+                  public final class User {
+                    ctor public User(float p, float q);
+                    method public kotlin.jvm.functions.Function0<test.pkg.AnchorType> bar();
+                    method public float foo();$userPropertyAndAccessors
                   }
                 }
         """

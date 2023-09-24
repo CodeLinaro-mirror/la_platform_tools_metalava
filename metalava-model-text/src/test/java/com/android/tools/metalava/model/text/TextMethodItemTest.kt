@@ -28,6 +28,7 @@ class TextMethodItemTest {
             ApiFile.parseApi(
                 "test",
                 """
+            // Signature format: 2.0
             package test.pkg {
               public class Foo {
                 ctor public Foo();

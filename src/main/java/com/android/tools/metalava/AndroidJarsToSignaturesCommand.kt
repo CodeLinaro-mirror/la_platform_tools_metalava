@@ -19,7 +19,12 @@ package com.android.tools.metalava
 import com.android.tools.metalava.cli.common.MetalavaCliException
 import com.android.tools.metalava.cli.common.MetalavaSubCommand
 import com.android.tools.metalava.cli.common.existingDir
-import com.android.tools.metalava.model.psi.PsiEnvironmentManager
+import com.android.tools.metalava.cli.common.progressTracker
+import com.android.tools.metalava.cli.common.stderr
+import com.android.tools.metalava.cli.common.stdout
+import com.android.tools.metalava.cli.signature.SignatureFormatOptions
+import com.android.tools.metalava.model.source.SourceModelProvider
+import com.android.tools.metalava.reporter.BasicReporter
 import com.github.ajalt.clikt.parameters.arguments.argument
 import com.github.ajalt.clikt.parameters.arguments.validate
 import com.github.ajalt.clikt.parameters.groups.provideDelegate
@@ -30,8 +35,9 @@ class AndroidJarsToSignaturesCommand :
     MetalavaSubCommand(
         help =
             """
-    Rewrite the signature files in the `prebuilts/sdk` directory in the Android source tree by
-    reading the API defined in the `android.jar` files.
+    Rewrite the signature files in the `prebuilts/sdk` directory in the Android source tree.
+
+    It does this by reading the API defined in the corresponding `android.jar` files.
 """
                 .trimIndent(),
     ) {
@@ -59,9 +65,17 @@ class AndroidJarsToSignaturesCommand :
     private val signatureFormat by SignatureFormatOptions()
 
     override fun run() {
-        PsiEnvironmentManager(disableStderrDumping()).use { psiEnvironmentManager ->
-            ConvertJarsToSignatureFiles(signatureFormat.fileFormat)
-                .convertJars(psiEnvironmentManager, androidRootDir)
+        val sourceModelProvider = SourceModelProvider.getImplementation("psi")
+        sourceModelProvider.createEnvironmentManager(disableStderrDumping()).use {
+            environmentManager ->
+            ConvertJarsToSignatureFiles(
+                    stderr,
+                    stdout,
+                    progressTracker,
+                    BasicReporter(stderr),
+                    signatureFormat.fileFormat
+                )
+                .convertJars(environmentManager, androidRootDir)
         }
     }
 }

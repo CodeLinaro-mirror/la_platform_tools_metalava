@@ -66,7 +66,7 @@ import java.util.function.Predicate
  * cannot be done by simple replacements of @Nullable->? etc since the annotations and the suffixes
  * appear in different places.
  */
-class PsiTypePrinter(
+internal class PsiTypePrinter(
     private val codebase: PsiBasedCodebase,
     private val filter: Predicate<Item>?,
     private val mapAnnotations: Boolean,

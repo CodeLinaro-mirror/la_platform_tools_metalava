@@ -17,6 +17,7 @@
 package com.android.tools.metalava
 
 import com.android.tools.metalava.cli.common.newFile
+import com.android.tools.metalava.cli.signature.SIGNATURE_FORMAT_OUTPUT_GROUP
 import com.github.ajalt.clikt.parameters.groups.OptionGroup
 import com.github.ajalt.clikt.parameters.options.option
 

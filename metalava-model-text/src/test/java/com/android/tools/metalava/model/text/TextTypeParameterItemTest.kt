@@ -38,6 +38,7 @@ class TextTypeParameterItemTest {
             ApiFile.parseApi(
                 "test",
                 """
+            // Signature format: 2.0
             package androidx.navigation {
               public final class NavDestination {
                 ctor public NavDestination();

@@ -57,6 +57,7 @@ class TextTypeItemTest {
             ApiFile.parseApi(
                 "test",
                 """
+            // Signature format: 2.0
             package androidx.navigation {
               public final class NavDestination {
                 ctor public NavDestination();
@@ -90,6 +91,7 @@ class TextTypeItemTest {
             ApiFile.parseApi(
                 "test",
                 """
+            // Signature format: 2.0
             package test.pkg {
               public final class TestClass<D> {
                 method public D build();
@@ -119,6 +121,7 @@ class TextTypeItemTest {
             ApiFile.parseApi(
                 "test",
                 """
+            // Signature format: 2.0
             package test.pkg {
               public class EnumMap<K extends java.lang.Enum<K>, V> extends java.util.AbstractMap implements java.lang.Cloneable java.io.Serializable {
                 method public java.util.EnumMap<K, V> clone();

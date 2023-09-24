@@ -27,7 +27,7 @@ import kotlin.test.assertNull
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
-class PsiPropertyItemTest {
+class PsiPropertyItemTest : BasePsiTest() {
     @Test
     fun `primary constructor properties have constructor parameters`() {
         testCodebase(kotlin("class Foo(val myVal: Int)")) { codebase ->

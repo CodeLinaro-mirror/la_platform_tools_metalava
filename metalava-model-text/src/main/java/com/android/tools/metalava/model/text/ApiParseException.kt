@@ -15,25 +15,24 @@
  */
 package com.android.tools.metalava.model.text
 
-class ApiParseException : Exception {
-    private var file: String? = null
-    private var line = 0
+class ApiParseException(
+    message: String,
+    private val file: String? = null,
+    private val line: Int = 0,
+    cause: Exception? = null,
+) : Exception(message, cause) {
 
-    internal constructor(message: String) : super(message)
+    internal constructor(
+        message: String,
+        tokenizer: ApiFile.Tokenizer,
+        cause: Exception? = null,
+    ) : this(message, file = tokenizer.fileName, line = tokenizer.line, cause = cause)
 
-    internal constructor(message: String, file: String, cause: Exception?) : super(message, cause) {
-        this.file = file
-    }
-
-    internal constructor(message: String, tokenizer: ApiFile.Tokenizer) : super(message) {
-        file = tokenizer.fileName
-        line = tokenizer.line
-    }
-
-    internal constructor(message: String, position: SourcePositionInfo) : super(message) {
-        file = position.file
-        line = position.line
-    }
+    internal constructor(
+        message: String,
+        position: SourcePositionInfo,
+        cause: Exception? = null,
+    ) : this(message, file = position.file, line = position.line, cause = cause)
 
     override val message: String
         get() {

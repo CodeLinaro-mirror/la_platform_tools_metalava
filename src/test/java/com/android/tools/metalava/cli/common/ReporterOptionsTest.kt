@@ -32,7 +32,10 @@ val REPORTING_OPTIONS_HELP =
     """
 Issue Reporting:
 
-  Options that control which issues are reported and the severity of the reports.
+  Options that control which issues are reported, the severity of the reports, how, when and where they are reported.
+
+  See `metalava help issues` for more help including a table of the available issues and their category and default
+  severity.
 
   --error <id>                               Report issues of the given id as errors
   --warning <id>                             Report issues of the given id as warnings
@@ -42,6 +45,7 @@ Issue Reporting:
   --warning-category <name>                  Report all issues in the given category as warnings
   --lint-category <name>                     Report all issues in the given category as having lint-severity
   --hide-category <name>                     Hide/skip all issues in the given category
+  --repeat-errors-max <n>                    When specified, repeat at most N errors before finishing. (default: 0)
     """
         .trimIndent()
 

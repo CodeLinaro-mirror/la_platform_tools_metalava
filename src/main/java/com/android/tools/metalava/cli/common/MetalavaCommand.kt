@@ -16,15 +16,15 @@
 
 package com.android.tools.metalava.cli.common
 
+import com.android.tools.metalava.ProgressTracker
+import com.android.tools.metalava.cli.clikt.allHelpParams
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.core.NoSuchOption
 import com.github.ajalt.clikt.core.PrintHelpMessage
 import com.github.ajalt.clikt.core.PrintMessage
 import com.github.ajalt.clikt.core.UsageError
 import com.github.ajalt.clikt.core.context
-import com.github.ajalt.clikt.output.HelpFormatter
 import com.github.ajalt.clikt.output.HelpFormatter.ParameterHelp
-import com.github.ajalt.clikt.parameters.arguments.Argument
 import com.github.ajalt.clikt.parameters.arguments.argument
 import com.github.ajalt.clikt.parameters.arguments.multiple
 import com.github.ajalt.clikt.parameters.groups.provideDelegate
@@ -59,13 +59,16 @@ internal open class MetalavaCommand(
      * [excludeArgumentsWithNoHelp]).
      */
     defaultCommandFactory: (CommonOptions) -> CliktCommand,
+    private val progressTracker: ProgressTracker,
 
     /** Provider for additional non-Clikt usage information. */
-    private val nonCliktUsageProvider: (Terminal, Int) -> String = { _, _ -> "" },
+    private val nonCliktUsageProvider: ((Terminal, Int) -> String)? = null,
 ) :
     CliktCommand(
-        // Gather all the options and arguments into a list so that they can be passed to Options().
-        treatUnknownOptionsAsArgs = true,
+        // Gather all the options and arguments into a list so that they can be handled by some
+        // non-Clikt option processor which it is assumed that this command has iff this is passed a
+        // non-null nonCliktUsageProvider.
+        treatUnknownOptionsAsArgs = nonCliktUsageProvider != null,
         // Call run on this command even if no sub-command is provided.
         invokeWithoutSubcommand = true,
         help =
@@ -94,7 +97,7 @@ internal open class MetalavaCommand(
                     { common.terminal },
                     localization,
                     ::mergeDefaultParameterHelp,
-                    nonCliktUsageProvider,
+                    nonCliktUsageProvider ?: { _, _ -> "" },
                 )
 
             // Disable argument file expansion (i.e. @argfile) as it causes issues with some uses
@@ -139,8 +142,36 @@ internal open class MetalavaCommand(
             )
             .multiple()
 
-    /** Process the command. */
-    fun process(args: Array<String>) {
+    /** Process the command, handling [MetalavaCliException]s. */
+    fun process(args: Array<String>): Int {
+        var exitCode = 0
+        try {
+            processThrowCliException(args)
+        } catch (e: MetalavaCliException) {
+            stdout.flush()
+            stderr.flush()
+
+            val prefix =
+                if (e.exitCode != 0) {
+                    "Aborting: "
+                } else {
+                    ""
+                }
+
+            if (e.stderr.isNotBlank()) {
+                stderr.println("\n${prefix}${e.stderr}")
+            }
+            if (e.stdout.isNotBlank()) {
+                stdout.println("\n${prefix}${e.stdout}")
+            }
+            exitCode = e.exitCode
+        }
+
+        return exitCode
+    }
+
+    /** Process the command, throwing [MetalavaCliException]s. */
+    fun processThrowCliException(args: Array<String>) {
         try {
             parse(args)
         } catch (e: PrintHelpMessage) {
@@ -189,7 +220,8 @@ internal open class MetalavaCommand(
      */
     private fun mergeDefaultParameterHelp(parameters: List<ParameterHelp>): List<ParameterHelp> {
         return if (currentContext.command === this)
-            parameters + allHelpParams(defaultCommand).filter(::excludeArgumentsWithNoHelp)
+            parameters +
+                defaultCommand.allHelpParams(currentContext).filter(::excludeArgumentsWithNoHelp)
         else {
             parameters
         }
@@ -209,14 +241,6 @@ internal open class MetalavaCommand(
         return true
     }
 
-    /** Get a list of all the parameter related help information. */
-    private fun allHelpParams(command: CliktCommand): List<ParameterHelp> {
-        return command.registeredOptions().mapNotNull { it.parameterHelp(currentContext) } +
-            command.registeredArguments().mapNotNull { it.parameterHelp(currentContext) } +
-            command.registeredParameterGroups().mapNotNull { it.parameterHelp(currentContext) } +
-            command.registeredSubcommands().mapNotNull { it.parameterHelp() }
-    }
-
     /**
      * Create an error message that incorporates the specific usage error as well as providing
      * documentation for all the available options.
@@ -227,7 +251,7 @@ internal open class MetalavaCommand(
             e.message?.let { append(errorContext.localization.usageError(it)).append("\n\n") }
             e.context?.let {
                 val programName = it.commandNameWithParents().joinToString(" ")
-                val helpParams = allHelpParams(it.command)
+                val helpParams = it.command.allHelpParams(currentContext)
                 val commandHelp = it.helpFormatter.formatHelp("", "", helpParams, programName)
                 append(commandHelp)
             }
@@ -242,7 +266,7 @@ internal open class MetalavaCommand(
      */
     override fun run() {
         // Make the CommonOptions available to all sub-commands.
-        currentContext.obj = common
+        currentContext.obj = SubCommandContext(common, progressTracker)
 
         val subcommand = currentContext.invokedSubcommand
         if (subcommand == null) {
@@ -270,20 +294,11 @@ internal open class MetalavaCommand(
     }
 }
 
-/**
- * Add a method to get a [HelpFormatter.ParameterHelp] instance from a [CliktCommand].
- *
- * Other classes that contribute to the help provide `parameterHelp` methods that return an instance
- * of the appropriate sub-class of [HelpFormatter.ParameterHelp], e.g. [Argument.parameterHelp].
- */
-fun CliktCommand.parameterHelp(): ParameterHelp? {
-    return if (this is MetalavaSubCommand) {
-        // Can only work
-        parameterHelp()
-    } else {
-        null
-    }
-}
+/** Encapsulates information that this command makes available to all the subcommands. */
+private data class SubCommandContext(
+    val commonOptions: CommonOptions,
+    val progressTracker: ProgressTracker,
+)
 
 /** The [PrintWriter] to use for error output from the command. */
 val CliktCommand.stderr: PrintWriter
@@ -298,3 +313,23 @@ val CliktCommand.stdout: PrintWriter
         val metalavaConsole = currentContext.console as MetalavaConsole
         return metalavaConsole.stdout
     }
+
+/**
+ * Get the [SubCommandContext] made available by the containing MetalavaCommand.
+ *
+ * It will always be set.
+ */
+private val CliktCommand.subCommandContext
+    get() = currentContext.findObject<SubCommandContext>()!!
+
+val CliktCommand.commonOptions
+    // Retrieve the CommonOptions that is made available by the containing MetalavaCommand.
+    get() = subCommandContext.commonOptions
+
+val CliktCommand.terminal
+    // Retrieve the terminal from the CommonOptions.
+    get() = commonOptions.terminal
+
+val CliktCommand.progressTracker
+    // Retrieve the ProgressTracker that is made available by the containing MetalavaCommand.
+    get() = subCommandContext.progressTracker

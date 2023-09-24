@@ -27,14 +27,15 @@ class InternalDescTest {
     fun `MethodItem internalDesc (psi)`() {
         val signature =
             """
-                     package test.pkg {
-                       public class Test {
-                         ctor public Test();
-                         method public abstract boolean foo(test.pkg.Test, int...);
-                         method public abstract void bar(test.pkg.Test... tests);
-                       }
-                     }
-                 """
+                // Signature format: 2.0
+                 package test.pkg {
+                   public class Test {
+                     ctor public Test();
+                     method public abstract boolean foo(test.pkg.Test, int...);
+                     method public abstract void bar(test.pkg.Test... tests);
+                   }
+                 }
+             """
         ApiFile.parseApi("test", signature.trimIndent()).let {
             val testClass = it.findClass("test.pkg.Test")
             assertNotNull(testClass)

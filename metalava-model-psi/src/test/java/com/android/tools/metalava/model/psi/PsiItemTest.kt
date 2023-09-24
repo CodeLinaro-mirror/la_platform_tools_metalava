@@ -21,7 +21,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 
-class PsiItemTest {
+class PsiItemTest : BasePsiTest() {
     @Test
     fun `Documentation tags extraction`() {
         testCodebase(
