@@ -22,6 +22,8 @@ import com.android.tools.metalava.cli.common.plainTerminal
 import com.android.tools.metalava.model.AnnotationArrayAttributeValue
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.Location
+import com.android.tools.metalava.reporter.Baseline
+import com.android.tools.metalava.reporter.IssueConfiguration
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
 import com.android.tools.metalava.reporter.Severity
@@ -41,15 +43,17 @@ internal class DefaultReporter(
     private val environment: ReporterEnvironment,
     private val issueConfiguration: IssueConfiguration,
 
-    /** [Baseline] file associated with this [Reporter]. If null, the global baseline is used. */
-    // See the comment on [getBaseline] for why it's nullable.
-    private val customBaseline: Baseline? = null,
+    /** [Baseline] file associated with this [Reporter]. */
+    private val baseline: Baseline? = null,
 
     /**
      * An error message associated with this [Reporter], which should be shown to the user when
      * metalava finishes with errors.
      */
     private val errorMessage: String? = null,
+
+    /** Filter to hide issues reported in packages which are not part of the API. */
+    private val packageFilter: PackageFilter? = null,
 ) : Reporter {
     private var errors = mutableListOf<String>()
     private var warningCount = 0
@@ -60,10 +64,6 @@ internal class DefaultReporter(
 
     /** Returns whether any errors have been detected. */
     fun hasErrors(): Boolean = errors.size > 0
-
-    // Note we can't set [options.baseline] as the default for [customBaseline], because
-    // options.baseline will be initialized after the global [Reporter] is instantiated.
-    private fun getBaseline(): Baseline? = customBaseline ?: options.baseline
 
     override fun report(
         id: Issues.Issue,
@@ -98,7 +98,6 @@ internal class DefaultReporter(
         // If we are only emitting some packages (--stub-packages), don't report
         // issues from other packages
         if (item != null) {
-            val packageFilter = options.stubPackages
             if (packageFilter != null) {
                 val pkg = item.containingPackage(false)
                 if (pkg != null && !packageFilter.matches(pkg)) {
@@ -107,7 +106,6 @@ internal class DefaultReporter(
             }
         }
 
-        val baseline = getBaseline()
         if (item != null && baseline != null && baseline.mark(item.location(), message, id)) {
             return false
         } else if (
@@ -218,8 +216,7 @@ internal class DefaultReporter(
             }
 
         val terminal: Terminal = options.terminal
-        val formattedMessage =
-            format(effectiveSeverity, location, message, id, terminal, options.omitLocations)
+        val formattedMessage = format(effectiveSeverity, location, message, id, terminal)
         if (effectiveSeverity == ERROR) {
             errors.add(formattedMessage)
         } else if (severity == WARNING) {
@@ -236,14 +233,11 @@ internal class DefaultReporter(
         message: String,
         id: Issues.Issue?,
         terminal: Terminal,
-        omitLocations: Boolean
     ): String {
         val sb = StringBuilder(100)
 
         sb.append(terminal.attributes(bold = true))
-        if (!omitLocations) {
-            location?.let { sb.append(it).append(": ") }
-        }
+        location?.let { sb.append(it).append(": ") }
         when (severity) {
             LINT -> sb.append(terminal.attributes(foreground = TerminalColor.CYAN)).append("lint: ")
             INFO -> sb.append(terminal.attributes(foreground = TerminalColor.CYAN)).append("info: ")
@@ -268,7 +262,7 @@ internal class DefaultReporter(
         id: Issues.Issue
     ): Boolean {
         options.reportEvenIfSuppressedWriter?.println(
-            format(severity, location, message, id, terminal = plainTerminal, omitLocations = false)
+            format(severity, location, message, id, terminal = plainTerminal)
         )
         return true
     }
@@ -294,7 +288,7 @@ internal class DefaultReporter(
     }
 
     fun getBaselineDescription(): String {
-        val file = getBaseline()?.file
+        val file = baseline?.file
         return if (file != null) {
             "baseline ${file.path}"
         } else {

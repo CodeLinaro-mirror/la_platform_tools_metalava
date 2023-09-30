@@ -34,6 +34,7 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PackageList
 import com.android.tools.metalava.model.ParameterItem
+import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.VisibilityLevel
@@ -1032,7 +1033,7 @@ class ApiAnalyzer(
                 }
 
                 private fun checkTypeReferencesHidden(item: Item, type: TypeItem) {
-                    if (type.primitive) {
+                    if (type is PrimitiveTypeItem) {
                         return
                     }
 
@@ -1166,7 +1167,7 @@ class ApiAnalyzer(
 
                     for (p in m.parameters()) {
                         val t = p.type()
-                        if (!t.primitive) {
+                        if (t !is PrimitiveTypeItem) {
                             if (
                                 !m.deprecated && !cl.deprecated && t.asClass()?.deprecated == true
                             ) {
@@ -1200,7 +1201,7 @@ class ApiAnalyzer(
 
                     val t = m.returnType()
                     if (
-                        !t.primitive &&
+                        t !is PrimitiveTypeItem &&
                             !m.deprecated &&
                             !cl.deprecated &&
                             t.asClass()?.deprecated == true
@@ -1285,7 +1286,7 @@ class ApiAnalyzer(
                 continue
             }
             val fieldType = field.type()
-            if (!fieldType.primitive) {
+            if (fieldType !is PrimitiveTypeItem) {
                 val typeClass = fieldType.asClass()
                 if (typeClass != null) {
                     cantStripThis(
@@ -1442,7 +1443,7 @@ class ApiAnalyzer(
                 )
             }
             val returnType = method.returnType()
-            if (!returnType.primitive) {
+            if (returnType !is PrimitiveTypeItem) {
                 val returnTypeClass = returnType.asClass()
                 if (returnTypeClass != null) {
                     cantStripThis(

@@ -18,8 +18,8 @@ package com.android.tools.metalava.cli.common
 
 import com.android.tools.metalava.DefaultReporter
 import com.android.tools.metalava.DefaultReporterEnvironment
-import com.android.tools.metalava.IssueConfiguration
 import com.android.tools.metalava.ReporterEnvironment
+import com.android.tools.metalava.reporter.IssueConfiguration
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
 import com.android.tools.metalava.reporter.Severity
@@ -42,7 +42,9 @@ const val ARG_HIDE_CATEGORY = "--hide-category"
 /** The name of the group, can be used in help text to refer to the options in this group. */
 const val REPORTING_OPTIONS_GROUP = "Issue Reporting"
 
-class ReporterOptions(reporterEnvironment: ReporterEnvironment = DefaultReporterEnvironment()) :
+class IssueReportingOptions(
+    reporterEnvironment: ReporterEnvironment = DefaultReporterEnvironment()
+) :
     OptionGroup(
         name = REPORTING_OPTIONS_GROUP,
         help =
@@ -60,12 +62,12 @@ class ReporterOptions(reporterEnvironment: ReporterEnvironment = DefaultReporter
     val issueConfiguration = IssueConfiguration()
 
     /**
-     * The [Reporter] that is configured by these options.
+     * The [Reporter] that is used to report issues encountered while parsing these options.
      *
      * A slight complexity is that this [Reporter] and its [IssueConfiguration] are both modified
      * and used during the process of processing the options.
      */
-    val reporter: Reporter =
+    internal val bootstrapReporter: Reporter =
         DefaultReporter(
             reporterEnvironment,
             issueConfiguration,
@@ -112,7 +114,7 @@ class ReporterOptions(reporterEnvironment: ReporterEnvironment = DefaultReporter
 
                         // Update the configuration immediately
                         values.forEach {
-                            label.setAspectForId(reporter, issueConfiguration, it.trim())
+                            label.setAspectForId(bootstrapReporter, issueConfiguration, it.trim())
                         }
                     }
                 }

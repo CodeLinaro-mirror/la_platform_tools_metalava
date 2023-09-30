@@ -19,7 +19,7 @@ package com.android.tools.metalava.cli.help
 import com.android.tools.metalava.cli.common.BaseCommandTest
 import org.junit.Test
 
-class HelpCommandTest : BaseCommandTest<HelpCommand>(::HelpCommand) {
+class HelpCommandTest : BaseCommandTest<HelpCommand>({ HelpCommand() }) {
 
     @Test
     fun `Test help`() {

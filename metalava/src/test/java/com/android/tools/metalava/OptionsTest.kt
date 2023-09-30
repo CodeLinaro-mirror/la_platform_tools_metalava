@@ -69,6 +69,8 @@ Usage: metalava [options] [flags]... <sub-command>? ...
 
 Options:
   --version                                  Show the version and exit
+  --print-stack-trace                        Print the stack trace of any exceptions that will cause metalava to exit.
+                                             (default: no stack trace)
   --quiet, --verbose                         Set the verbosity of the output.
                                              --quiet - Only include vital output.
                                              --verbose - Include extra diagnostic output.

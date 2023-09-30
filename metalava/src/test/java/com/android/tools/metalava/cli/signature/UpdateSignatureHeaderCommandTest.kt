@@ -23,7 +23,7 @@ import kotlin.test.assertEquals
 import org.junit.Test
 
 class UpdateSignatureHeaderCommandTest :
-    BaseCommandTest<UpdateSignatureHeaderCommand>(::UpdateSignatureHeaderCommand) {
+    BaseCommandTest<UpdateSignatureHeaderCommand>({ UpdateSignatureHeaderCommand() }) {
 
     private fun checkUpdateSignatures(
         contents: String,

@@ -22,8 +22,8 @@ import com.android.tools.lint.detector.api.isJdkFolder
 import com.android.tools.metalava.cli.common.ARG_HIDE
 import com.android.tools.metalava.cli.common.ARG_HIDE_CATEGORY
 import com.android.tools.metalava.cli.common.CommonOptions
+import com.android.tools.metalava.cli.common.IssueReportingOptions
 import com.android.tools.metalava.cli.common.MetalavaCliException
-import com.android.tools.metalava.cli.common.ReporterOptions
 import com.android.tools.metalava.cli.common.Terminal
 import com.android.tools.metalava.cli.common.TerminalColor
 import com.android.tools.metalava.cli.common.Verbosity
@@ -45,11 +45,12 @@ import com.android.tools.metalava.model.source.DEFAULT_JAVA_LANGUAGE_LEVEL
 import com.android.tools.metalava.model.source.DEFAULT_KOTLIN_LANGUAGE_LEVEL
 import com.android.tools.metalava.model.text.ApiClassResolution
 import com.android.tools.metalava.model.visitors.ApiVisitor
+import com.android.tools.metalava.reporter.Baseline
+import com.android.tools.metalava.reporter.DEFAULT_BASELINE_NAME
 import com.android.tools.metalava.reporter.Reporter
 import com.android.utils.SdkUtils.wrap
 import com.github.ajalt.clikt.core.NoSuchOption
 import com.github.ajalt.clikt.parameters.groups.OptionGroup
-import com.github.ajalt.clikt.parameters.options.convert
 import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.deprecated
 import com.github.ajalt.clikt.parameters.options.multiple
@@ -200,7 +201,6 @@ const val ARG_UPDATE_BASELINE = "--update-baseline"
 const val ARG_UPDATE_BASELINE_API_LINT = "--update-baseline:api-lint"
 const val ARG_UPDATE_BASELINE_CHECK_COMPATIBILITY_RELEASED =
     "--update-baseline:compatibility:released"
-const val ARG_MERGE_BASELINE = "--merge-baseline"
 const val ARG_STUB_PACKAGES = "--stub-packages"
 const val ARG_STUB_IMPORT_PACKAGES = "--stub-import-packages"
 const val ARG_DELETE_EMPTY_BASELINES = "--delete-empty-baselines"
@@ -218,7 +218,7 @@ const val ARG_ADD_NONESSENTIAL_OVERRIDES_CLASSES = "--add-nonessential-overrides
 
 class Options(
     private val commonOptions: CommonOptions = CommonOptions(),
-    reporterOptions: ReporterOptions = ReporterOptions(),
+    private val issueReportingOptions: IssueReportingOptions = IssueReportingOptions(),
     signatureFileOptions: SignatureFileOptions = SignatureFileOptions(),
     signatureFormatOptions: SignatureFormatOptions = SignatureFormatOptions(),
     stubGenerationOptions: StubGenerationOptions = StubGenerationOptions(),
@@ -399,10 +399,10 @@ class Options(
     var checkApiBaselineApiFile: File? = null
 
     /** Packages to include (if null, include all) */
-    var stubPackages: PackageFilter? = null
+    private var stubPackages: PackageFilter? = null
 
     /** Packages to import (if empty, include all) */
-    var stubImportPackages: Set<String> = mutableStubImportPackages
+    private var stubImportPackages: Set<String> = mutableStubImportPackages
 
     /** Packages to exclude/hide */
     var hidePackages: List<String> = mutableHidePackages
@@ -455,7 +455,7 @@ class Options(
      * Once all APIs are either self-contained or imported all the required references this will be
      * removed and no classes will be allowed from the classpath JARs.
      */
-    var allowClassesFromClasspath = true
+    private var allowClassesFromClasspath = true
 
     /** The configuration options for the [ApiVisitor] class. */
     val apiVisitorConfig by lazy {
@@ -489,7 +489,7 @@ class Options(
     }
 
     /** This is set directly by [preprocessArgv]. */
-    internal var verbosity: Verbosity = Verbosity.NORMAL
+    private var verbosity: Verbosity = Verbosity.NORMAL
 
     /** Whether to report warnings and other diagnostics along the way */
     val quiet: Boolean
@@ -550,19 +550,25 @@ class Options(
      */
     var externalAnnotations: File? = null
 
-    /** A [Manifest] object to look up available permissions and min_sdk_version. */
-    val manifest by
+    /** An optional manifest [File]. */
+    private val manifestFile by
         option(
                 ARG_MANIFEST,
                 help =
                     """
         A manifest file, used to check permissions to cross check APIs and retrieve min_sdk_version.
-    """
+        (default: no manifest)
+                    """
                         .trimIndent()
             )
             .file(mustExist = true, canBeDir = false, mustBeReadable = true)
-            .convert("<file>") { Manifest(it, reporter) }
-            .default(emptyManifest, defaultForHelp = "no manifest")
+
+    /**
+     * A [Manifest] object to look up available permissions and min_sdk_version.
+     *
+     * Created lazily to make sure that the [reporter] has been initialized.
+     */
+    val manifest by lazy { manifestFile?.let { Manifest(it, reporter) } ?: emptyManifest }
 
     /** Whether output should be colorized */
     val terminal by commonOptions::terminal
@@ -586,8 +592,8 @@ class Options(
     var baseApiForCompatCheck: File? = null
 
     /** Existing external annotation files to merge in */
-    var mergeQualifierAnnotations: List<File> = mutableMergeQualifierAnnotations
-    var mergeInclusionAnnotations: List<File> = mutableMergeInclusionAnnotations
+    private var mergeQualifierAnnotations: List<File> = mutableMergeQualifierAnnotations
+    private var mergeInclusionAnnotations: List<File> = mutableMergeInclusionAnnotations
 
     /**
      * An optional <b>jar</b> file to load classes from instead of from source. This is similar to
@@ -669,18 +675,6 @@ class Options(
                 EmitFileHeader.ALWAYS
             }
 
-    /** A baseline to check against */
-    var baseline: Baseline? = null
-
-    /** A baseline to check against, specifically used for "API lint" (i.e. [ARG_API_LINT]) */
-    private var baselineApiLint: Baseline? = null
-
-    /**
-     * A baseline to check against, specifically used for "check-compatibility:*:released" (i.e.
-     * [ARG_CHECK_COMPATIBILITY_API_RELEASED] and [ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED])
-     */
-    private var baselineCompatibilityReleased: Baseline? = null
-
     var allBaselines: List<Baseline> = emptyList()
 
     /**
@@ -695,10 +689,10 @@ class Options(
     private var errorMessageCompatibilityReleased: String? = null
 
     /** [IssueConfiguration] used by all reporters. */
-    val issueConfiguration by reporterOptions::issueConfiguration
+    val issueConfiguration by issueReportingOptions::issueConfiguration
 
     /** [Reporter] for general use. */
-    val reporter: Reporter by reporterOptions::reporter
+    lateinit var reporter: Reporter
 
     /**
      * [Reporter] for "api-lint".
@@ -721,24 +715,17 @@ class Options(
     var passBaselineUpdates = false
 
     /** If updating baselines and the baseline is empty, delete the file */
-    var deleteEmptyBaselines = false
+    private var deleteEmptyBaselines = false
 
     /** If generating a removed signature file, and it is empty, delete it */
     var deleteEmptyRemovedSignatures = false
 
     /** Whether the baseline should only contain errors */
-    var baselineErrorsOnly = false
+    private var baselineErrorsOnly = false
 
     /** Writes a list of all errors, even if they were suppressed in baseline or via annotation. */
     private var reportEvenIfSuppressed: File? = null
     var reportEvenIfSuppressedWriter: PrintWriter? = null
-
-    /**
-     * Whether to omit locations for warnings and errors. This is not a flag exposed to users or
-     * listed in help; this is intended for the unit test suite, used for example for the test which
-     * checks compatibility between signature and API files where the paths vary.
-     */
-    var omitLocations = false
 
     /** The language level to use for Java files, set with [ARG_JAVA_SOURCE] */
     var javaLanguageLevelAsString: String = DEFAULT_JAVA_LANGUAGE_LEVEL
@@ -781,7 +768,7 @@ class Options(
     /** Temporary folder to use instead of the JDK default, if any */
     private var tempFolder: File? = null
 
-    val additionalNonessentialOverridesClasses by
+    private val additionalNonessentialOverridesClasses by
         option(
                 ARG_ADD_NONESSENTIAL_OVERRIDES_CLASSES,
                 help =
@@ -834,8 +821,7 @@ class Options(
         fun getBaselineBuilderForArg(flag: String): Baseline.Builder =
             when (flag) {
                 ARG_BASELINE,
-                ARG_UPDATE_BASELINE,
-                ARG_MERGE_BASELINE -> baselineBuilder
+                ARG_UPDATE_BASELINE -> baselineBuilder
                 ARG_BASELINE_API_LINT,
                 ARG_UPDATE_BASELINE_API_LINT -> baselineApiLintBuilder
                 ARG_BASELINE_CHECK_COMPATIBILITY_RELEASED,
@@ -945,10 +931,6 @@ class Options(
                     val annotations = getValue(args, ++index)
                     annotations.split(",").forEach { path -> mutableExcludeAnnotations.add(path) }
                 }
-
-                // Flag used by test suite to avoid including locations in
-                // the output when diffing against golden files
-                "--omit-locations" -> omitLocations = true
                 ARG_PROGUARD -> proguard = stringToNewFile(getValue(args, ++index))
                 ARG_HIDE_PACKAGE -> mutableHidePackages.add(getValue(args, ++index))
                 ARG_STUB_PACKAGES,
@@ -994,12 +976,10 @@ class Options(
                     reportEvenIfSuppressed = stringToNewOrExistingFile(relative)
                     reportEvenIfSuppressedWriter = reportEvenIfSuppressed?.printWriter()
                 }
-                ARG_MERGE_BASELINE,
                 ARG_UPDATE_BASELINE,
                 ARG_UPDATE_BASELINE_API_LINT,
                 ARG_UPDATE_BASELINE_CHECK_COMPATIBILITY_RELEASED -> {
                     val builder = getBaselineBuilderForArg(arg)
-                    builder.merge = (arg == ARG_MERGE_BASELINE)
                     if (index < args.size - 1) {
                         val nextArg = args[index + 1]
                         if (!nextArg.startsWith("-")) {
@@ -1221,24 +1201,47 @@ class Options(
             }
         }
 
-        baseline = baselineBuilder.build()
-        baselineApiLint = baselineApiLintBuilder.build()
-        baselineCompatibilityReleased = baselineCompatibilityReleasedBuilder.build()
+        val baselineConfig =
+            Baseline.Config(
+                issueConfiguration = issueConfiguration,
+                baselineErrorsOnly = baselineErrorsOnly,
+                deleteEmptyBaselines = deleteEmptyBaselines,
+                sourcePath = sourcePath,
+            )
+        // A baseline to check against
+        val baseline = baselineBuilder.build(baselineConfig)
 
-        // Override the default reporters.
+        // A baseline to check against, specifically used for "API lint" (i.e. [ARG_API_LINT])
+        val baselineApiLint = baselineApiLintBuilder.build(baselineConfig)
+
+        // A baseline to check against, specifically used for "check-compatibility:*:released" (i.e.
+        // [ARG_CHECK_COMPATIBILITY_API_RELEASED] and [ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED])
+        val baselineCompatibilityReleased =
+            baselineCompatibilityReleasedBuilder.build(baselineConfig)
+
+        // Initialize the reporters.
+        reporter =
+            DefaultReporter(
+                environment = executionEnvironment.reporterEnvironment,
+                issueConfiguration = issueConfiguration,
+                baseline = baseline,
+                packageFilter = stubPackages,
+            )
         reporterApiLint =
             DefaultReporter(
-                executionEnvironment.reporterEnvironment,
-                issueConfiguration,
-                baselineApiLint ?: baseline,
-                errorMessageApiLint,
+                environment = executionEnvironment.reporterEnvironment,
+                issueConfiguration = issueConfiguration,
+                baseline = baselineApiLint ?: baseline,
+                errorMessage = errorMessageApiLint,
+                packageFilter = stubPackages,
             )
         reporterCompatibilityReleased =
             DefaultReporter(
-                executionEnvironment.reporterEnvironment,
-                issueConfiguration,
-                baselineCompatibilityReleased ?: baseline,
-                errorMessageCompatibilityReleased,
+                environment = executionEnvironment.reporterEnvironment,
+                issueConfiguration = issueConfiguration,
+                baseline = baselineCompatibilityReleased ?: baseline,
+                errorMessage = errorMessageCompatibilityReleased,
+                packageFilter = stubPackages,
             )
 
         // Build "all baselines" and "all reporters"
@@ -1250,6 +1253,7 @@ class Options(
         // Downcast to DefaultReporter to gain access to some implementation specific functionality.
         allReporters =
             listOf(
+                    issueReportingOptions.bootstrapReporter,
                     reporter,
                     reporterApiLint,
                     reporterCompatibilityReleased,
@@ -1707,11 +1711,6 @@ object OptionsHelp {
                 "Same as $ARG_BASELINE and " +
                     "$ARG_UPDATE_BASELINE respectively, but used specifically for API compatibility issues performed by " +
                     "$ARG_CHECK_COMPATIBILITY_API_RELEASED and $ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED.",
-                "$ARG_MERGE_BASELINE [file]",
-                "Like $ARG_UPDATE_BASELINE, but instead of always replacing entries " +
-                    "in the baseline, it will merge the existing baseline with the new baseline. This is useful " +
-                    "if $PROGRAM_NAME runs multiple times on the same source tree with different flags at different " +
-                    "times, such as occasionally with $ARG_API_LINT.",
                 ARG_PASS_BASELINE_UPDATES,
                 "Normally, encountering error will fail the build, even when updating " +
                     "baselines. This flag allows you to tell $PROGRAM_NAME to continue without errors, such that " +

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018 The Android Open Source Project
+ * Copyright (C) 2023 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,12 +14,9 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava
+package com.android.tools.metalava.reporter
 
-import com.android.tools.metalava.cli.common.MetalavaCliException
 import com.android.tools.metalava.model.Location
-import com.android.tools.metalava.reporter.Issues
-import com.android.tools.metalava.reporter.Severity
 import java.io.File
 import java.io.PrintWriter
 import kotlin.text.Charsets.UTF_8
@@ -28,29 +25,61 @@ const val DEFAULT_BASELINE_NAME = "baseline.txt"
 
 private const val BASELINE_FILE_HEADER = "// Baseline format: 1.0\n"
 
-@Suppress("DEPRECATION")
-class Baseline(
-    /** Description of this baseline. e.g. "api-lint. */
-    val description: String,
+class Baseline
+private constructor(
+    /** Description of this baseline. e.g. "api-lint", which is written into the file. */
+    private val description: String,
+    /**
+     * The optional input baseline file.
+     *
+     * If this exists and [updateFile] is either not set, or set to a different path then this file
+     * is read in and used to filter out known issues. If [updateFile] is set then the known issues
+     * read in from this file will be included in those written to [updateFile].
+     */
     val file: File?,
-    var updateFile: File?,
-    // TODO(roosa): unless file == updateFile, existing baselines will be merged into the updateFile
-    // regardless of this value
-    var merge: Boolean = false,
-    private var headerComment: String = "",
+    /**
+     * The file into which an updated version of the baseline will be written that would suppress
+     * all the known issues reported during this process.
+     */
+    val updateFile: File?,
+    /**
+     * The comment that will be written after the first line which marks this out as a baseline
+     * file.
+     */
+    private val headerComment: String,
+    /** Configuration common to all [Baseline] instances. */
+    private val config: Config,
+) {
+    data class Config(
+
+        /** Configuration for the issues that will be stored in the baseline file. */
+        val issueConfiguration: IssueConfiguration,
+
+        /** True if this should only store errors in the baseline, false otherwise. */
+        val baselineErrorsOnly: Boolean,
+
+        /** True if this should delete empty baseline files, false otherwise. */
+        val deleteEmptyBaselines: Boolean,
+
+        /**
+         * The source directory roots, used to convert location information to be relative to a
+         * source directory.
+         */
+        val sourcePath: List<File>,
+    )
+
     /**
      * Whether, when updating the baseline, we allow the metalava run to pass even if the baseline
      * does not contain all issues that would normally fail the run (by default ERROR level).
      */
-    var silentUpdate: Boolean = updateFile != null && updateFile.path == file?.path,
-) {
+    private val silentUpdate: Boolean = updateFile != null && updateFile.path == file?.path
 
     /** Map from issue id to element id to message */
     private val map = HashMap<Issues.Issue, MutableMap<String, String>>()
 
     init {
-        if (file?.isFile == true && (!silentUpdate || merge)) {
-            // We've set a baseline for a nonexistent file: read it
+        if (file?.isFile == true && !silentUpdate) {
+            // We've set a baseline from an existing file: read it
             read()
         }
     }
@@ -68,8 +97,8 @@ class Baseline(
                 ?: run {
                     if (updateFile != null) {
                         if (
-                            options.baselineErrorsOnly &&
-                                options.issueConfiguration.getSeverity(issue) != Severity.ERROR
+                            config.baselineErrorsOnly &&
+                                config.issueConfiguration.getSeverity(issue) != Severity.ERROR
                         ) {
                             return true
                         }
@@ -83,7 +112,7 @@ class Baseline(
 
         val oldMessage: String? = idMap?.get(elementId)
         if (oldMessage != null) {
-            // for now not matching messages; the id's are unique enough and allows us
+            // for now not matching messages; the ids are unique enough and allows us
             // to tweak issue messages compatibly without recording all the deltas here
             return true
         }
@@ -100,17 +129,13 @@ class Baseline(
         return false
     }
 
-    private fun getBaselineKey(file: File): String {
-        return transformBaselinePath(file.path)
-    }
-
     /**
      * Transform the path (which is absolute) so that it is relative to one of the source roots, and
      * make sure that it uses `/` consistently as the file separator so that the generated files are
      * platform independent.
      */
     private fun transformBaselinePath(path: String): String {
-        for (sourcePath in options.sourcePath) {
+        for (sourcePath in config.sourcePath) {
             if (path.startsWith(sourcePath.path)) {
                 return path.substring(sourcePath.path.length).replace('\\', '/').removePrefix("/")
             }
@@ -168,7 +193,7 @@ class Baseline(
 
     private fun write(): Boolean {
         val updateFile = this.updateFile ?: return false
-        if (map.isNotEmpty() || !options.deleteEmptyBaselines) {
+        if (map.isNotEmpty() || !config.deleteEmptyBaselines) {
             val sb = StringBuilder()
             sb.append(BASELINE_FILE_HEADER)
             sb.append(headerComment)
@@ -217,7 +242,7 @@ class Baseline(
         val list = counts.entries.toMutableList()
         list.sortWith(compareBy({ -it.value }, { it.key.name }))
         var total = 0
-        val issueConfiguration = options.issueConfiguration
+        val issueConfiguration = config.issueConfiguration
         for (entry in list) {
             val count = entry.value
             val issue = entry.key
@@ -244,19 +269,17 @@ class Baseline(
         var file: File? = null
             set(value) {
                 if (field != null) {
-                    throw MetalavaCliException(
+                    throw IllegalStateException(
                         "Only one baseline is allowed; found both $field and $value"
                     )
                 }
                 field = value
             }
 
-        var merge: Boolean = false
-
         var updateFile: File? = null
             set(value) {
                 if (field != null) {
-                    throw MetalavaCliException(
+                    throw IllegalStateException(
                         "Only one update-baseline is allowed; found both $field and $value"
                     )
                 }
@@ -265,15 +288,21 @@ class Baseline(
 
         var headerComment: String = ""
 
-        fun build(): Baseline? {
+        fun build(config: Config): Baseline? {
             // If neither file nor updateFile is set, don't return an instance.
             if (file == null && updateFile == null) {
                 return null
             }
             if (description.isEmpty()) {
-                throw MetalavaCliException("Baseline description must be set")
+                throw IllegalStateException("Baseline description must be set")
             }
-            return Baseline(description, file, updateFile, merge, headerComment)
+            return Baseline(
+                description = description,
+                file = file,
+                updateFile = updateFile,
+                headerComment = headerComment,
+                config = config,
+            )
         }
     }
 }

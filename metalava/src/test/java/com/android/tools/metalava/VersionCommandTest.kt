@@ -21,7 +21,7 @@ import com.android.tools.metalava.cli.common.Version
 import com.android.tools.metalava.cli.common.VersionCommand
 import org.junit.Test
 
-class VersionCommandTest : BaseCommandTest<VersionCommand>(::VersionCommand) {
+class VersionCommandTest : BaseCommandTest<VersionCommand>({ VersionCommand() }) {
 
     @Test
     fun `Test help`() {

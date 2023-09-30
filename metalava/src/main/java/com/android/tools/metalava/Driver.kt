@@ -22,25 +22,14 @@ import com.android.SdkConstants.DOT_TXT
 import com.android.tools.lint.detector.api.assertionsEnabled
 import com.android.tools.metalava.apilevels.ApiGenerator
 import com.android.tools.metalava.cli.common.ActionContext
-import com.android.tools.metalava.cli.common.CommonOptions
 import com.android.tools.metalava.cli.common.EarlyOptions
-import com.android.tools.metalava.cli.common.LegacyHelpFormatter
 import com.android.tools.metalava.cli.common.MetalavaCliException
 import com.android.tools.metalava.cli.common.MetalavaCommand
-import com.android.tools.metalava.cli.common.MetalavaLocalization
-import com.android.tools.metalava.cli.common.ReporterOptions
 import com.android.tools.metalava.cli.common.VersionCommand
 import com.android.tools.metalava.cli.common.commonOptions
-import com.android.tools.metalava.cli.common.executionEnvironment
-import com.android.tools.metalava.cli.common.progressTracker
-import com.android.tools.metalava.cli.common.registerPostCommandAction
-import com.android.tools.metalava.cli.common.stderr
-import com.android.tools.metalava.cli.common.stdout
-import com.android.tools.metalava.cli.common.terminal
 import com.android.tools.metalava.cli.help.HelpCommand
 import com.android.tools.metalava.cli.internal.MakeAnnotationsPackagePrivateCommand
 import com.android.tools.metalava.cli.signature.MergeSignaturesCommand
-import com.android.tools.metalava.cli.signature.SignatureFormatOptions
 import com.android.tools.metalava.cli.signature.UpdateSignatureHeaderCommand
 import com.android.tools.metalava.compatibility.CompatibilityCheck
 import com.android.tools.metalava.compatibility.CompatibilityCheck.CheckRequest
@@ -51,7 +40,6 @@ import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.psi.gatherSources
 import com.android.tools.metalava.model.source.EnvironmentManager
-import com.android.tools.metalava.model.source.SourceModelProvider
 import com.android.tools.metalava.model.source.SourceParser
 import com.android.tools.metalava.model.text.ApiClassResolution
 import com.android.tools.metalava.model.text.TextClassItem
@@ -60,22 +48,16 @@ import com.android.tools.metalava.model.text.TextMethodItem
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.stub.StubWriter
-import com.github.ajalt.clikt.core.CliktCommand
-import com.github.ajalt.clikt.core.context
 import com.github.ajalt.clikt.core.subcommands
-import com.github.ajalt.clikt.parameters.arguments.argument
-import com.github.ajalt.clikt.parameters.arguments.multiple
-import com.github.ajalt.clikt.parameters.groups.OptionGroup
-import com.github.ajalt.clikt.parameters.groups.provideDelegate
 import com.google.common.base.Stopwatch
 import java.io.File
 import java.io.IOException
 import java.io.PrintWriter
 import java.io.StringWriter
+import java.util.Arrays
 import java.util.concurrent.TimeUnit.SECONDS
 import java.util.function.Predicate
 import kotlin.system.exitProcess
-import kotlin.text.Charsets.UTF_8
 
 const val PROGRAM_NAME = "metalava"
 
@@ -129,23 +111,6 @@ fun run(
     progressTracker.progress("$PROGRAM_NAME exiting with exit code $exitCode\n")
 
     return exitCode
-}
-
-private fun repeatErrors(writer: PrintWriter, reporters: List<DefaultReporter>, max: Int) {
-    writer.println("Error: $PROGRAM_NAME detected the following problems:")
-    val totalErrors = reporters.sumOf { it.errorCount }
-    var remainingCap = max
-    var totalShown = 0
-    reporters.forEach {
-        val numShown = it.printErrors(writer, remainingCap)
-        remainingCap -= numShown
-        totalShown += numShown
-    }
-    if (totalShown < totalErrors) {
-        writer.println(
-            "${totalErrors - totalShown} more error(s) omitted. Search the log for 'error:' to find all of them."
-        )
-    }
 }
 
 @Suppress("DEPRECATION")
@@ -644,10 +609,20 @@ private fun ActionContext.checkCompatibility(
 
     if (options.showUnannotated && apiType == ApiType.PUBLIC_API) {
         // Fast path: if we've already generated a signature file, and it's identical, we're good!
-        val apiFile = options.apiFile
-        if (apiFile != null && apiFile.readText(UTF_8) == signatureFile.readText(UTF_8)) {
-            return
+        // Some things to watch out for:
+        // * There is no guarantee that the signature file is actually a txt file, it could also be
+        //   a `jar` file, so double check that first.
+        // * Reading two files that may be a couple of MBs each isn't a particularly fast path so
+        //   check the lengths first and then compare contents byte for byte so that it exits
+        //   quickly if they're different and does not do all the UTF-8 conversions.
+        options.apiFile?.let { apiFile ->
+            val compatibilityCheckCanBeSkipped =
+                signatureFile.extension == "txt" && compareFileContents(apiFile, signatureFile)
+            // TODO(b/301282006): Remove global variable use when this can be tested properly
+            fastPathCheckResult = compatibilityCheckCanBeSkipped
+            if (compatibilityCheckCanBeSkipped) return
         }
+
         val baseApiFile = options.baseApiForCompatCheck
         if (baseApiFile != null) {
             baseApi = signatureFileCache.load(file = baseApiFile)
@@ -671,6 +646,55 @@ private fun ActionContext.checkCompatibility(
         options.issueConfiguration,
     )
 }
+
+/** Compare two files to see if they are byte for byte identical. */
+private fun compareFileContents(file1: File, file2: File): Boolean {
+    // First check the lengths, if they are different they cannot be identical.
+    if (file1.length() == file2.length()) {
+        // Then load the contents in chunks to see if they differ.
+        file1.inputStream().buffered().use { stream1 ->
+            file2.inputStream().buffered().use { stream2 ->
+                val buffer1 = ByteArray(DEFAULT_BUFFER_SIZE)
+                val buffer2 = ByteArray(DEFAULT_BUFFER_SIZE)
+                do {
+                    val c1 = stream1.read(buffer1)
+                    val c2 = stream2.read(buffer2)
+                    if (c1 != c2) {
+                        // This should never happen as the files are the same length.
+                        break
+                    }
+                    if (c1 == -1) {
+                        // They have both reached the end of file.
+                        return true
+                    }
+                    // Check the buffer contents, if they differ exit the loop otherwise, continue
+                    // on to read the next chunks.
+                } while (Arrays.equals(buffer1, 0, c1, buffer2, 0, c2))
+            }
+        }
+    }
+    return false
+}
+
+/**
+ * Used to store whether the fast path check in the previous method succeeded or not that can be
+ * checked by tests.
+ *
+ * The test must initialize it to `null`. Then if the fast path check is run it will set it a
+ * non-null to indicate whether the fast path was taken or not. The test can then differentiate
+ * between the following states:
+ * * `null` - the fast path check was not performed.
+ * * `false` - the fast path check was performed and the fast path was not taken.
+ * * `true` - the fast path check was performed and the fast path was taken.
+ *
+ * This is used because there is no nice way to test this code in isolation but the code needs to be
+ * updated to deal with some test failures. This is a hack to avoid a catch-22 where this code needs
+ * to be refactored to allow it to be tested but it needs to be tested before it can be safely
+ * refactored.
+ *
+ * TODO(b/301282006): Remove this variable when the fast path this can be tested properly
+ */
+internal var fastPathCheckResult: Boolean? = null
 
 private fun convertToWarningNullabilityAnnotations(codebase: Codebase, filter: PackageFilter?) {
     if (filter != null) {
@@ -970,120 +994,4 @@ private fun createMetalavaCommand(
         VersionCommand(),
     )
     return command
-}
-
-/**
- * A command that is passed to [MetalavaCommand.defaultCommand] when the main metalava functionality
- * needs to be run when no subcommand is provided.
- */
-class MainCommand(
-    commonOptions: CommonOptions,
-    executionEnvironment: ExecutionEnvironment,
-) :
-    CliktCommand(
-        help = "The default sub-command that is run if no sub-command is specified.",
-        treatUnknownOptionsAsArgs = true,
-    ) {
-
-    init {
-        // Although, the `helpFormatter` is inherited from the parent context unless overridden the
-        // same is not true for the `localization` so make sure to initialize it for this command.
-        context {
-            localization = MetalavaLocalization()
-
-            // Explicitly specify help options as the parent command disables it.
-            helpOptionNames = setOf("-h", "--help")
-
-            // Override the help formatter to add in documentation for the legacy flags.
-            helpFormatter =
-                LegacyHelpFormatter(
-                    { terminal },
-                    localization,
-                    OptionsHelp::getUsage,
-                )
-        }
-    }
-
-    /** Property into which all the arguments (and unknown options) are gathered. */
-    private val flags by
-        argument(
-                name = "flags",
-                help = "See below.",
-            )
-            .multiple()
-
-    /** Issue reporter configuration. */
-    private val reporterOptions by ReporterOptions(executionEnvironment.reporterEnvironment)
-
-    /** Signature file options. */
-    private val signatureFileOptions by SignatureFileOptions()
-
-    /** Signature format options. */
-    private val signatureFormatOptions by SignatureFormatOptions()
-
-    /** Stub generation options. */
-    private val stubGenerationOptions by StubGenerationOptions()
-
-    /**
-     * Add [Options] (an [OptionGroup]) so that any Clikt defined properties will be processed by
-     * Clikt.
-     */
-    private val optionGroup by
-        Options(
-            commonOptions = commonOptions,
-            reporterOptions = reporterOptions,
-            signatureFileOptions = signatureFileOptions,
-            signatureFormatOptions = signatureFormatOptions,
-            stubGenerationOptions = stubGenerationOptions,
-        )
-
-    override fun run() {
-        // Make sure to flush out the baseline files, close files and write any final messages.
-        registerPostCommandAction {
-            // Update and close all baseline files.
-            optionGroup.allBaselines.forEach { baseline ->
-                if (optionGroup.verbose) {
-                    baseline.dumpStats(optionGroup.stdout)
-                }
-                if (baseline.close()) {
-                    if (!optionGroup.quiet) {
-                        stdout.println(
-                            "$PROGRAM_NAME wrote updated baseline to ${baseline.updateFile}"
-                        )
-                    }
-                }
-            }
-
-            optionGroup.reportEvenIfSuppressedWriter?.close()
-
-            // Show failure messages, if any.
-            optionGroup.allReporters.forEach { it.writeErrorMessage(stderr) }
-        }
-
-        // Get any remaining arguments/options that were not handled by Clikt.
-        val remainingArgs = flags.toTypedArray()
-
-        // Parse any remaining arguments
-        optionGroup.parse(executionEnvironment, remainingArgs)
-
-        // Update the global options.
-        @Suppress("DEPRECATION")
-        options = optionGroup
-
-        val sourceModelProvider =
-            SourceModelProvider.getImplementation(optionGroup.sourceModelProvider)
-        sourceModelProvider.createEnvironmentManager(disableStderrDumping()).use {
-            processFlags(it, progressTracker)
-        }
-
-        if (optionGroup.allReporters.any { it.hasErrors() } && !optionGroup.passBaselineUpdates) {
-            // Repeat the errors at the end to make it easy to find the actual problems.
-            if (reporterOptions.repeatErrorsMax > 0) {
-                repeatErrors(stderr, optionGroup.allReporters, reporterOptions.repeatErrorsMax)
-            }
-
-            // Make sure that the process exits with an error code.
-            throw MetalavaCliException(exitCode = -1)
-        }
-    }
 }

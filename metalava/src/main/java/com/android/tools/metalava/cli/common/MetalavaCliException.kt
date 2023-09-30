@@ -28,5 +28,8 @@ class MetalavaCliException(
      * The exit code for the process to return, defaults to `-1` if [stderr] is not blank, otherwise
      * defaults to `0`.
      */
-    val exitCode: Int = if (stderr.isBlank()) 0 else -1
-) : RuntimeException(stdout + stderr)
+    val exitCode: Int = if (stderr.isBlank()) 0 else -1,
+
+    /** Optional cause. */
+    cause: Throwable? = null,
+) : RuntimeException(stdout + stderr, cause)

@@ -26,7 +26,9 @@ import org.junit.Before
 import org.junit.Test
 
 class MakeAnnotationsPackagePrivateCommandTest :
-    BaseCommandTest<MakeAnnotationsPackagePrivateCommand>(::MakeAnnotationsPackagePrivateCommand) {
+    BaseCommandTest<MakeAnnotationsPackagePrivateCommand>({
+        MakeAnnotationsPackagePrivateCommand()
+    }) {
 
     @Test
     fun `Test help`() {

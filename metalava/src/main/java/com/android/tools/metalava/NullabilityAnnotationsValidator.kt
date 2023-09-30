@@ -18,12 +18,15 @@ package com.android.tools.metalava
 
 import com.android.tools.metalava.cli.common.MetalavaCliException
 import com.android.tools.metalava.model.AnnotationItem
+import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ParameterItem
+import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.SUPPORT_TYPE_USE_ANNOTATIONS
 import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
@@ -161,13 +164,13 @@ class NullabilityAnnotationsValidator(
     ) {
         when {
             // Primitive (may not have nullability):
-            type.primitive -> {
+            type is PrimitiveTypeItem -> {
                 if (nullability != null) {
                     errors.add(Error(method, label, ErrorType.ON_PRIMITIVE))
                 }
             }
             // Array (see comment):
-            type.arrayDimensions() > 0 -> {
+            type is ArrayTypeItem -> {
                 // TODO: When type annotations are supported, we should check the annotation on both
                 // the array itself and the component type. Until then, there's nothing we can
                 // safely do, because e.g. a method parameter declared as '@NonNull Object[]' means
@@ -177,7 +180,7 @@ class NullabilityAnnotationsValidator(
                 assert(!SUPPORT_TYPE_USE_ANNOTATIONS)
             }
             // Type parameter reference (should have nullability):
-            type.asTypeParameter() != null -> {
+            type is VariableTypeItem -> {
                 if (nullability == null) {
                     warnings.add(Warning(method, label, WarningType.MISSING))
                 }

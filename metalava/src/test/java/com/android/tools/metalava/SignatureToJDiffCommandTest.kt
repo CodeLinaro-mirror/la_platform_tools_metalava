@@ -24,7 +24,7 @@ import kotlin.test.assertEquals
 import org.junit.Test
 
 class SignatureToJDiffCommandTest :
-    BaseCommandTest<SignatureToJDiffCommand>(::SignatureToJDiffCommand) {
+    BaseCommandTest<SignatureToJDiffCommand>({ SignatureToJDiffCommand() }) {
 
     @Test
     fun `Test help`() {

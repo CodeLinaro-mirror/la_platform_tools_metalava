@@ -24,7 +24,7 @@ import org.junit.Assert.fail
 import org.junit.Test
 
 class MergeSignaturesCommandTest :
-    BaseCommandTest<MergeSignaturesCommand>(::MergeSignaturesCommand) {
+    BaseCommandTest<MergeSignaturesCommand>({ MergeSignaturesCommand() }) {
 
     private fun checkMergeSignatures(
         vararg files: String,

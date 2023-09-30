@@ -1676,9 +1676,9 @@ class CompatibilityCheckTest : DriverTest() {
                 src/test/pkg/MyClass.java:5: error: Method test.pkg.MyClass.method1 has changed return type from float to int [ChangedType]
                 src/test/pkg/MyClass.java:6: error: Method test.pkg.MyClass.method2 has changed return type from java.util.List<Number> to java.util.List<java.lang.Integer> [ChangedType]
                 src/test/pkg/MyClass.java:7: error: Method test.pkg.MyClass.method3 has changed return type from java.util.List<Integer> to java.util.List<java.lang.Number> [ChangedType]
-                src/test/pkg/MyClass.java:8: error: Method test.pkg.MyClass.method4 has changed return type from String to String[] [ChangedType]
-                src/test/pkg/MyClass.java:9: error: Method test.pkg.MyClass.method5 has changed return type from String[] to String[][] [ChangedType]
-                src/test/pkg/MyClass.java:11: error: Method test.pkg.MyClass.method7 has changed return type from T to Number [ChangedType]
+                src/test/pkg/MyClass.java:8: error: Method test.pkg.MyClass.method4 has changed return type from java.lang.String to java.lang.String[] [ChangedType]
+                src/test/pkg/MyClass.java:9: error: Method test.pkg.MyClass.method5 has changed return type from java.lang.String[] to java.lang.String[][] [ChangedType]
+                src/test/pkg/MyClass.java:11: error: Method test.pkg.MyClass.method7 has changed return type from T (extends java.lang.Number) to java.lang.Number [ChangedType]
                 src/test/pkg/MyClass.java:13: error: Method test.pkg.MyClass.method9 has changed return type from X (extends java.lang.Throwable) to U (extends java.lang.Number) [ChangedType]
                 """,
             checkCompatibilityApiReleased =
@@ -3738,7 +3738,7 @@ class CompatibilityCheckTest : DriverTest() {
         check(
             expectedIssues =
                 """
-            load-api.txt:7: error: Method test.pkg.sample.SampleClass.convert1 has changed return type from Number to java.lang.Number [ChangedType]
+            load-api.txt:7: error: Method test.pkg.sample.SampleClass.convert1 has changed return type from Number (extends java.lang.Object) to java.lang.Number [ChangedType]
             """,
             checkCompatibilityApiReleased =
                 """
@@ -4952,6 +4952,70 @@ class CompatibilityCheckTest : DriverTest() {
                     """
                     )
                 )
+        )
+    }
+
+    @Test
+    fun `Changing return type to variable with equal bounds is compatible`() {
+        check(
+            expectedIssues = "",
+            checkCompatibilityApiReleased =
+                """
+                // Signature format: 2.0
+                package test.pkg {
+                  public final class Foo {
+                    method public <A extends java.lang.annotation.Annotation> A getAnnotation();
+                    method public <A extends java.lang.annotation.Annotation> A[] getAnnotationArray();
+                  }
+                }
+                """,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                        package test.pkg;
+
+                        public final class Foo {
+                            public <T extends java.lang.annotation.Annotation> T getAnnotation() { return null; }
+                            public <T extends java.lang.annotation.Annotation> T[] getAnnotationArray() { return null; }
+                        }
+                    """
+                    )
+                ),
+        )
+    }
+
+    @Test
+    fun `Changing return type to variable with unequal bounds is incompatible`() {
+        check(
+            expectedIssues =
+                """
+                src/test/pkg/Foo.java:4: error: Method test.pkg.Foo.getAnnotation has changed return type from A (extends java.lang.annotation.Annotation) to A (extends java.lang.String) [ChangedType]
+                src/test/pkg/Foo.java:5: error: Method test.pkg.Foo.getAnnotationArray has changed return type from A (extends java.lang.annotation.Annotation)[] to A (extends java.lang.String)[] [ChangedType]
+            """,
+            checkCompatibilityApiReleased =
+                """
+                // Signature format: 2.0
+                package test.pkg {
+                  public final class Foo {
+                    method public <A extends java.lang.annotation.Annotation> A getAnnotation();
+                    method public <A extends java.lang.annotation.Annotation> A[] getAnnotationArray();
+                  }
+                }
+                """,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                        package test.pkg;
+
+                        public final class Foo {
+                            public <A extends java.lang.String> A getAnnotation() { return null; }
+                            public <A extends java.lang.String> A[] getAnnotationArray() { return null; }
+                        }
+                    """
+                    )
+                ),
         )
     }
 

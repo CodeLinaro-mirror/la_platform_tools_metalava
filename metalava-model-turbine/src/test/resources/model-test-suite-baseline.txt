@@ -11,14 +11,26 @@ com.android.tools.metalava.model.testsuite.CommonClassItemTest
 com.android.tools.metalava.model.testsuite.CommonMethodItemTest
   MethodItem type[turbine,java]
 
+com.android.tools.metalava.model.testsuite.annotationitem.CommonAnnotationItemTest
+  annotation with annotation values[turbine,java]
+  annotation with boolean values[turbine,java]
+  annotation with char values[turbine,java]
+  annotation with class values[turbine,java]
+  annotation with number values[turbine,java]
+  annotation with string values[turbine,java]
+
 com.android.tools.metalava.model.testsuite.typeitem.CommonTypeItemTest
   Test class array types[turbine,java]
   Test class types[turbine,java]
+  Test inner parameterized types[turbine,java]
   Test inner types[turbine,java]
+  Test interface types[turbine,java]
   Test multidimensional primitive array types[turbine,java]
   Test primitive array types[turbine,java]
   Test primitive types[turbine,java]
   Test primitive vararg types[turbine,java]
+  Test super class type[turbine,java]
+  Test super class and interface types of interface[turbine,java]
   Test variable types[turbine,java]
   Test wildcard types[turbine,java]
   Test field type variable types[turbine,java]

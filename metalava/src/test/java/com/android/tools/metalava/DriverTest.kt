@@ -370,8 +370,6 @@ abstract class DriverTest : TemporaryFolderOwner {
          * set.
          */
         updateBaseline: String? = null,
-        /** Merge instead of replacing the baseline */
-        mergeBaseline: String? = null,
 
         /** [ARG_BASELINE_API_LINT] */
         baselineApiLint: String? = null,
@@ -833,23 +831,21 @@ abstract class DriverTest : TemporaryFolderOwner {
         fun buildBaselineArgs(
             argBaseline: String,
             argUpdateBaseline: String,
-            argMergeBaseline: String,
             filename: String,
             baselineContent: String?,
             updateContent: String?,
-            merge: Boolean
         ): Pair<Array<String>, File?> {
             if (baselineContent != null) {
                 val baselineFile = temporaryFolder.newFile(filename)
                 baselineFile?.writeText(baselineContent.trimIndent())
-                return if (!(updateContent != null || merge)) {
+                return if (updateContent == null) {
                     Pair(arrayOf(argBaseline, baselineFile.path), baselineFile)
                 } else {
                     Pair(
                         arrayOf(
                             argBaseline,
                             baselineFile.path,
-                            if (mergeBaseline != null) argMergeBaseline else argUpdateBaseline,
+                            argUpdateBaseline,
                             baselineFile.path
                         ),
                         baselineFile
@@ -864,31 +860,25 @@ abstract class DriverTest : TemporaryFolderOwner {
             buildBaselineArgs(
                 ARG_BASELINE,
                 ARG_UPDATE_BASELINE,
-                ARG_MERGE_BASELINE,
                 "baseline.txt",
                 baseline,
-                updateBaseline,
-                mergeBaseline != null
+                updateBaseline
             )
         val (baselineApiLintArgs, baselineApiLintFile) =
             buildBaselineArgs(
                 ARG_BASELINE_API_LINT,
                 ARG_UPDATE_BASELINE_API_LINT,
-                "",
                 "baseline-api-lint.txt",
                 baselineApiLint,
-                updateBaselineApiLint,
-                false
+                updateBaselineApiLint
             )
         val (baselineCheckCompatibilityReleasedArgs, baselineCheckCompatibilityReleasedFile) =
             buildBaselineArgs(
                 ARG_BASELINE_CHECK_COMPATIBILITY_RELEASED,
                 ARG_UPDATE_BASELINE_CHECK_COMPATIBILITY_RELEASED,
-                "",
                 "baseline-check-released.txt",
                 baselineCheckCompatibilityReleased,
-                updateBaselineCheckCompatibilityReleased,
-                false
+                updateBaselineCheckCompatibilityReleased
             )
 
         val importedPackageArgs = mutableListOf<String>()
@@ -1089,7 +1079,6 @@ abstract class DriverTest : TemporaryFolderOwner {
             arg: String,
             baselineContent: String?,
             updateBaselineContent: String?,
-            mergeBaselineContent: String?,
             file: File?
         ) {
             if (file == null) {
@@ -1099,28 +1088,25 @@ abstract class DriverTest : TemporaryFolderOwner {
             val actualText = readFile(file)
 
             // Compare against:
-            // If "merged baseline" is set, use it.
             // If "update baseline" is set, use it.
             // Otherwise, the original baseline.
-            val sourceFile = mergeBaselineContent ?: updateBaselineContent ?: baselineContent ?: ""
+            val sourceFile = updateBaselineContent ?: baselineContent ?: ""
             assertEquals(
                 stripComments(sourceFile, DOT_XML, stripLineComments = false).trimIndent(),
                 actualText
             )
         }
-        checkBaseline(ARG_BASELINE, baseline, updateBaseline, mergeBaseline, baselineFile)
+        checkBaseline(ARG_BASELINE, baseline, updateBaseline, baselineFile)
         checkBaseline(
             ARG_BASELINE_API_LINT,
             baselineApiLint,
             updateBaselineApiLint,
-            null,
             baselineApiLintFile
         )
         checkBaseline(
             ARG_BASELINE_CHECK_COMPATIBILITY_RELEASED,
             baselineCheckCompatibilityReleased,
             updateBaselineCheckCompatibilityReleased,
-            null,
             baselineCheckCompatibilityReleasedFile
         )
 

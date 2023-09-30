@@ -16,6 +16,8 @@
 
 package com.android.tools.metalava.model
 
+import kotlin.reflect.KClass
+
 fun isNullnessAnnotation(qualifiedName: String): Boolean =
     isNullableAnnotation(qualifiedName) || isNonNullAnnotation(qualifiedName)
 
@@ -229,11 +231,121 @@ interface AnnotationItem {
 /**
  * Get the value of the named attribute as an object of the specified type or null if the attribute
  * could not be found.
+ *
+ * This can only be called for attributes which have a single value, it will throw an exception if
+ * called for an attribute whose value is any array type. See [getAttributeValues] instead.
+ *
+ * This supports the following types for [T]:
+ * * [String] - the attribute must be of type [String] or [Class].
+ * * [AnnotationItem] - the attribute must be of an annotation type.
+ * * [Boolean] - the attribute must be of type [Boolean].
+ * * [Byte] - the attribute must be of type [Byte].
+ * * [Char] - the attribute must be of type [Char].
+ * * [Double] - the attribute must be of type [Double].
+ * * [Float] - the attribute must be of type [Float].
+ * * [Int] - the attribute must be of type [Int].
+ * * [Long] - the attribute must be of type [Long].
+ * * [Short] - the attribute must be of type [Short].
+ *
+ * Any other types will result in a [ClassCastException].
  */
 inline fun <reified T : Any> AnnotationItem.getAttributeValue(name: String): T? {
-    val attributeValue = findAttribute(name)?.value ?: return null
-    val value = attributeValue.value() ?: return null
+    @Suppress("DEPRECATION") val value = nonInlineGetAttributeValue(T::class, name) ?: return null
     return value as T
+}
+
+/**
+ * Non-inline portion of functionality needed by [getAttributeValue]; separated to reduce the cost
+ * of inlining [getAttributeValue].
+ *
+ * Deprecated to discourage direct calls.
+ */
+@Deprecated(message = "use getAttributeValue() instead")
+fun AnnotationItem.nonInlineGetAttributeValue(kClass: KClass<*>, name: String): Any? {
+    val attributeValue = findAttribute(name)?.value ?: return null
+    val value =
+        when (attributeValue) {
+            is AnnotationArrayAttributeValue ->
+                throw IllegalStateException("Annotation attribute is of type array")
+            else -> attributeValue.value()
+        }
+            ?: return null
+
+    return convertValue(codebase, kClass, value)
+}
+
+/**
+ * Get the values of the named attribute as a list of objects of the specified type or null if the
+ * attribute could not be found.
+ *
+ * This can be used to get the value of an attribute that is either one of the types in
+ * [getAttributeValue] (in which case this returns a list containing a single item), or an array of
+ * one of the types in [getAttributeValue] (in which case this returns a list containing all the
+ * items in the array).
+ */
+inline fun <reified T : Any> AnnotationItem.getAttributeValues(name: String): List<T>? {
+    @Suppress("DEPRECATION") return nonInlineGetAttributeValues(T::class, name) { it as T }
+}
+
+/**
+ * Non-inline portion of functionality needed by [getAttributeValues]; separated to reduce the cost
+ * of inlining [getAttributeValues].
+ *
+ * Deprecated to discourage direct calls.
+ */
+@Deprecated(message = "use getAttributeValues() instead")
+fun <T : Any> AnnotationItem.nonInlineGetAttributeValues(
+    kClass: KClass<*>,
+    name: String,
+    caster: (Any) -> T
+): List<T>? {
+    val attributeValue = findAttribute(name)?.value ?: return null
+    val values =
+        when (attributeValue) {
+            is AnnotationArrayAttributeValue -> attributeValue.values.mapNotNull { it.value() }
+            else -> listOfNotNull(attributeValue.value())
+        }
+
+    return values.map { caster(convertValue(codebase, kClass, it)) }
+}
+
+/**
+ * Perform some conversions to try and make [value] to be an instance of [kClass].
+ *
+ * This fixes up some known issues with [value] not corresponding to the expected type but otherwise
+ * simply returns the value it is given. It is the caller's responsibility to actually cast the
+ * returned value to the correct type.
+ */
+private fun convertValue(codebase: Codebase, kClass: KClass<*>, value: Any): Any {
+    // The value stored for number types is not always the same as the type of the annotation
+    // attributes. This is for a number of reasons, e.g.
+    // * In a .class file annotation values are stored in the constant pool and some number types do
+    //   not have their own constant form (or their own array constant form) so are stored as
+    //   instances of a wider type. They need to be converted to the correct type.
+    // * In signature files annotation values are not always stored as the narrowest type, may not
+    //   have a suffix and type information may not always be available when parsing.
+    if (Number::class.java.isAssignableFrom(kClass.java)) {
+        value as Number
+        return when (kClass) {
+            // Byte does have its own constant form but when stored in an array it is stored as an
+            // int.
+            Byte::class -> value.toByte()
+            // DefaultAnnotationValue.create() always reads integers as longs.
+            Int::class -> value.toInt()
+            // DefaultAnnotationValue.create() always reads floating point as doubles.
+            Float::class -> value.toFloat()
+            // Short does not have its own constant form.
+            Short::class -> value.toShort()
+            else -> value
+        }
+    }
+
+    // TODO: Push down into the model as that is likely to be more efficient.
+    if (kClass == AnnotationItem::class) {
+        return DefaultAnnotationItem.create(codebase, value as String)
+    }
+
+    return value
 }
 
 /** Default implementation of an annotation item */
