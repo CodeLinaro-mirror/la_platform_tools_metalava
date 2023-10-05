@@ -29,13 +29,14 @@ import com.android.tools.metalava.model.JAVA_LANG_OBJECT
 import com.android.tools.metalava.model.JAVA_LANG_STRING
 import com.android.tools.metalava.model.JAVA_LANG_THROWABLE
 import com.android.tools.metalava.model.MethodItem
+import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.TypeParameterList.Companion.NONE
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.javaUnescapeString
 import com.android.tools.metalava.model.noOpAnnotationManager
-import com.android.tools.metalava.model.text.TextTypeItem.Companion.isPrimitive
 import com.android.tools.metalava.model.text.TextTypeParameterList.Companion.create
+import com.android.tools.metalava.model.text.TextTypeParser.Companion.isPrimitive
 import java.io.File
 import java.io.IOException
 import java.io.StringReader
@@ -310,15 +311,12 @@ private constructor(
             }
         }
         assertIdent(tokenizer, token)
-        val name: String = token
-        val qualifiedName = qualifiedName(pkg.name(), name)
-        val typeInfo = api.obtainTypeFromString(qualifiedName)
-        // Simple type info excludes the package name (but includes enclosing class names)
-        var rawName = name
-        val variableIndex = rawName.indexOf('<')
-        if (variableIndex != -1) {
-            rawName = rawName.substring(0, variableIndex)
-        }
+        // The classType and qualifiedClassType include the type parameter string, the className and
+        // qualifiedClassName are just the name without type parameters.
+        val classType: String = token
+        val (className, typeParameters) = parseClassName(api, classType)
+        val qualifiedClassType = qualifiedName(pkg.name(), classType)
+        val qualifiedClassName = qualifiedName(pkg.name(), className)
         token = tokenizer.requireToken()
         var cl =
             TextClassItem(
@@ -328,14 +326,14 @@ private constructor(
                 isInterface,
                 isEnum,
                 isAnnotation,
-                typeInfo.toErasedTypeString(null),
-                typeInfo.qualifiedTypeName(),
-                rawName,
-                annotations
+                qualifiedClassName,
+                qualifiedClassType,
+                className,
+                annotations,
+                typeParameters
             )
 
         cl.setContainingPackage(pkg)
-        cl.setTypeInfo(typeInfo)
         cl.deprecated = modifiers.isDeprecated()
         if ("extends" == token) {
             token = tokenizer.requireToken()
@@ -426,6 +424,22 @@ private constructor(
             token = tokenizer.requireToken()
         }
         pkg.addClass(cl)
+    }
+
+    /**
+     * Splits the class type into its name and type parameter list.
+     *
+     * For example "Foo" would split into name "Foo" and an empty type parameter list, while "Foo<A,
+     * B extends java.lang.String, C>" would split into name "Foo" and type parameter list with "A",
+     * "B extends java.lang.String", and "C" as type parameters.
+     */
+    private fun parseClassName(api: TextCodebase, type: String): Pair<String, TypeParameterList> {
+        val paramIndex = type.indexOf('<')
+        return if (paramIndex == -1) {
+            Pair(type, NONE)
+        } else {
+            Pair(type.substring(0, paramIndex), create(api, type.substring(paramIndex)))
+        }
     }
 
     @Throws(ApiParseException::class)
@@ -530,9 +544,11 @@ private constructor(
         if ("(" != token) {
             throw ApiParseException("expected (", tokenizer)
         }
-        method = TextConstructorItem(api, name, cl, modifiers, cl.asTypeInfo(), tokenizer.pos())
+        method = TextConstructorItem(api, name, cl, modifiers, cl.toType(), tokenizer.pos())
         method.deprecated = modifiers.isDeprecated()
-        parseParameterList(api, tokenizer, method)
+        // Collect all type parameters in scope into one list
+        val typeParams = typeParameterList.typeParameters() + cl.typeParameterList.typeParameters()
+        parseParameterList(api, tokenizer, method, typeParams)
         method.setTypeParameterList(typeParameterList)
         if (typeParameterList is TextTypeParameterList) {
             typeParameterList.owner = method
@@ -603,7 +619,9 @@ private constructor(
                 break
             }
         }
-        returnType = api.obtainTypeFromString(returnTypeString, cl, typeParameterList)
+        // Collect all type parameters in scope into one list
+        val typeParams = typeParameterList.typeParameters() + cl.typeParameterList.typeParameters()
+        returnType = api.typeResolver.obtainTypeFromString(returnTypeString, typeParams)
         assertIdent(tokenizer, token)
         val name: String = token
         method = TextMethodItem(api, name, cl, modifiers, returnType, tokenizer.pos())
@@ -619,7 +637,7 @@ private constructor(
         if ("(" != token) {
             throw ApiParseException("expected (, was $token", tokenizer)
         }
-        parseParameterList(api, tokenizer, method)
+        parseParameterList(api, tokenizer, method, typeParams)
         token = tokenizer.requireToken()
         if ("throws" == token) {
             token = parseThrows(tokenizer, method)
@@ -665,7 +683,8 @@ private constructor(
         annotations = second
         modifiers.addAnnotations(annotations)
         val type = token
-        val typeInfo = api.obtainTypeFromString(type)
+        val typeInfo =
+            api.typeResolver.obtainTypeFromString(type, cl.typeParameterList.typeParameters())
         token = tokenizer.requireToken()
         assertIdent(tokenizer, token)
         val name = token
@@ -864,7 +883,8 @@ private constructor(
         annotations = second
         modifiers.addAnnotations(annotations)
         val type: String = token
-        val typeInfo = api.obtainTypeFromString(type)
+        val typeInfo =
+            api.typeResolver.obtainTypeFromString(type, cl.typeParameterList.typeParameters())
         token = tokenizer.requireToken()
         assertIdent(tokenizer, token)
         val name: String = token
@@ -897,7 +917,7 @@ private constructor(
         return if (typeParameterList.isEmpty()) {
             NONE
         } else {
-            create(codebase, null, typeParameterList)
+            create(codebase, typeParameterList)
         }
     }
 
@@ -905,7 +925,8 @@ private constructor(
     private fun parseParameterList(
         api: TextCodebase,
         tokenizer: Tokenizer,
-        method: TextMethodItem
+        method: TextMethodItem,
+        typeParameters: List<TypeParameterItem>
     ) {
         var token: String = tokenizer.requireToken()
         var index = 0
@@ -952,12 +973,7 @@ private constructor(
             if (typeString.endsWith("...")) {
                 modifiers.setVarArg(true)
             }
-            val typeInfo =
-                api.obtainTypeFromString(
-                    typeString,
-                    (method.containingClass() as TextClassItem),
-                    method.typeParameterList()
-                )
+            val typeInfo = api.typeResolver.obtainTypeFromString(typeString, typeParameters)
             var name: String
             var publicName: String?
             if (isIdent(token) && token != "=") {
@@ -1376,7 +1392,7 @@ class ReferenceResolver(
             }
 
             val superclass = getOrCreateClass(scName)
-            cl.setSuperClass(superclass, codebase.obtainTypeFromString(scName))
+            cl.setSuperClass(superclass, codebase.typeResolver.obtainTypeFromString(scName))
         }
     }
 
@@ -1385,7 +1401,7 @@ class ReferenceResolver(
             val interfaces = context.namesOfInterfaces(cl) ?: continue
             for (interfaceName in interfaces) {
                 getOrCreateClass(interfaceName, isInterface = true)
-                cl.addInterface(codebase.obtainTypeFromString(interfaceName))
+                cl.addInterface(codebase.typeResolver.obtainTypeFromString(interfaceName))
             }
         }
     }

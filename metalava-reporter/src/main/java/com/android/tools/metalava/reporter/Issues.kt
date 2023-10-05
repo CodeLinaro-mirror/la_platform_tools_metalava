@@ -224,6 +224,7 @@ object Issues {
     val ASYNC_SUFFIX_FUTURE = Issue(Severity.ERROR, Category.API_LINT)
     val GENERIC_CALLBACKS = Issue(Severity.ERROR, Category.API_LINT)
     val KOTLIN_DEFAULT_PARAMETER_ORDER = Issue(Severity.ERROR, Category.API_LINT_ANDROIDX_MISC)
+    val UNFLAGGED_API = Issue(Severity.HIDDEN, Category.API_LINT)
 
     fun findIssueById(id: String?): Issue? {
         return nameToIssue[id]

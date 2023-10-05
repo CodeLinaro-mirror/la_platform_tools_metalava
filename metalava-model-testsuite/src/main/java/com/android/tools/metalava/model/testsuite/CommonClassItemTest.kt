@@ -26,7 +26,6 @@ import org.junit.runners.Parameterized
 @RunWith(Parameterized::class)
 class CommonClassItemTest(runner: ModelSuiteRunner) : BaseModelTest(runner) {
 
-    @IgnoreForRunner("turbine")
     @Test
     fun `empty class`() {
         createCodebaseAndRun(

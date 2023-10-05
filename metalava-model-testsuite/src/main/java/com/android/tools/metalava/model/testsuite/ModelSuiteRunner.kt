@@ -31,13 +31,19 @@ interface ModelSuiteRunner {
      * Create a [Codebase] from one of the supplied [signature] or [source] files and then run a
      * test on that [Codebase].
      *
-     * This must be called with [signature] and [source] contents that are equivalent so that the
-     * test can have the same behavior on models that consume the different formats. Implementations
-     * of this must consume at least one of them to create a [Codebase] on which the test is run.
+     * This can be called in one of two ways:
+     * 1. To test behavior common to [Codebase]. In this case it must be called with [signature] and
+     *    [source] contents that are equivalent so that the test can have the same behavior on
+     *    models that consume the different formats.
+     * 2. To test behavior common to [com.android.tools.metalava.model.source.SourceModelProvider]
+     *    implementations. In this case it must be called with a `null` [signature].
+     *
+     * Implementations of this must consume either [source] or [signature] to create a [Codebase] on
+     * which the test is run.
      */
     fun createCodebaseAndRun(
         tempDir: File,
-        signature: String,
+        signature: String?,
         source: TestFile,
         test: (Codebase) -> Unit,
     )

@@ -57,5 +57,7 @@ interface MutableModifierList : ModifierList {
 
     fun removeAnnotation(annotation: AnnotationItem)
 
+    fun removeAnnotations(predicate: (AnnotationItem) -> Boolean)
+
     fun clearAnnotations(annotation: AnnotationItem)
 }

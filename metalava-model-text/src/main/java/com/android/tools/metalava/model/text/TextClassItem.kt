@@ -40,9 +40,10 @@ open class TextClassItem(
     private var isEnum: Boolean = false,
     internal var isAnnotation: Boolean = false,
     val qualifiedName: String = "",
-    private val qualifiedTypeName: String = qualifiedName,
+    val qualifiedTypeName: String = qualifiedName,
     var name: String = qualifiedName.substring(qualifiedName.lastIndexOf('.') + 1),
-    val annotations: List<String>? = null
+    val annotations: List<String>? = null,
+    val typeParameterList: TypeParameterList = TypeParameterList.NONE
 ) :
     TextItem(codebase = codebase, position = position, modifiers = modifiers),
     ClassItem,
@@ -50,6 +51,10 @@ open class TextClassItem(
 
     init {
         @Suppress("LeakingThis") modifiers.setOwner(this)
+        if (typeParameterList is TextTypeParameterList) {
+            @Suppress("LeakingThis")
+            typeParameterList.owner = this
+        }
     }
 
     override val isTypeParameter: Boolean = false
@@ -112,37 +117,9 @@ open class TextClassItem(
     override fun containingPackage(): PackageItem =
         containingClass?.containingPackage() ?: containingPackage ?: error(this)
 
-    override fun toType(): TypeItem {
-        val typeParameterListString = typeParameterList().toString()
-        return codebase.obtainTypeFromString(
-            if (typeParameterListString.isNotEmpty()) {
-                // TODO: No, handle List<String>[], though this is highly unlikely in a class
-                qualifiedName() + typeParameterListString
-            } else qualifiedName()
-        )
-    }
+    override fun hasTypeVariables(): Boolean = typeParameterList.typeParameterCount() > 0
 
-    override fun hasTypeVariables(): Boolean {
-        return typeInfo?.hasTypeArguments() ?: false
-    }
-
-    private var typeParameterList: TypeParameterList? = null
-
-    override fun typeParameterList(): TypeParameterList {
-        if (typeParameterList == null) {
-            val s = typeInfo.toString()
-            // TODO: No, handle List<String>[]  (though it's not likely for type parameters)
-            val index = s.indexOf('<')
-            typeParameterList =
-                if (index != -1) {
-                    TextTypeParameterList.create(codebase, this, s.substring(index))
-                } else {
-                    TypeParameterList.NONE
-                }
-        }
-
-        return typeParameterList!!
-    }
+    override fun typeParameterList(): TypeParameterList = typeParameterList
 
     override fun typeParameterListOwnerParent(): TypeParameterListOwner? {
         return containingClass as? TypeParameterListOwner
@@ -178,13 +155,9 @@ open class TextClassItem(
 
     private var typeInfo: TextTypeItem? = null
 
-    fun setTypeInfo(typeInfo: TextTypeItem) {
-        this.typeInfo = typeInfo
-    }
-
-    fun asTypeInfo(): TextTypeItem {
+    override fun toType(): TextTypeItem {
         if (typeInfo == null) {
-            typeInfo = codebase.obtainTypeFromString(qualifiedTypeName)
+            typeInfo = codebase.typeResolver.obtainTypeFromClass(this)
         }
         return typeInfo!!
     }
@@ -348,6 +321,12 @@ open class TextClassItem(
         ): TextClassItem {
             val index = if (name.endsWith(">")) name.indexOf('<') else -1
             val qualifiedName = if (index == -1) name else name.substring(0, index)
+            val typeParameterList =
+                if (index == -1) {
+                    TypeParameterList.NONE
+                } else {
+                    TextTypeParameterList.create(codebase, name.substring(index))
+                }
             val fullName = getFullName(qualifiedName)
             val cls =
                 TextClassItem(
@@ -355,14 +334,10 @@ open class TextClassItem(
                     name = fullName,
                     qualifiedName = qualifiedName,
                     isInterface = isInterface,
-                    modifiers = DefaultModifierList(codebase, DefaultModifierList.PUBLIC)
+                    modifiers = DefaultModifierList(codebase, DefaultModifierList.PUBLIC),
+                    typeParameterList = typeParameterList
                 )
             cls.emit = false // it's a stub
-
-            if (index != -1) {
-                cls.typeParameterList =
-                    TextTypeParameterList.create(codebase, cls, name.substring(index))
-            }
 
             return cls
         }

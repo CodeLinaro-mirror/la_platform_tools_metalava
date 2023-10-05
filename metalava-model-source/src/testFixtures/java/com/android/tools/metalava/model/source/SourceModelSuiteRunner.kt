@@ -38,7 +38,7 @@ class SourceModelSuiteRunner : ModelSuiteRunner {
 
     override fun createCodebaseAndRun(
         tempDir: File,
-        signature: String,
+        signature: String?,
         source: TestFile,
         test: (Codebase) -> Unit
     ) {
