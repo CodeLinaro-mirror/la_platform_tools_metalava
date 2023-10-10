@@ -656,6 +656,20 @@ class ApiFileTest : DriverTest() {
                     ),
                     java(
                         """
+                    package androidx.collection;
+
+                    import java.util.Collection;
+                    import java.util.HashSet;
+                    import java.util.Set;
+
+                    public class ArraySet<E> extends HashSet<E> implements Set<E> {
+                        public ArraySet() {
+                        }
+                    }
+                    """
+                    ),
+                    java(
+                        """
                     package androidx.core.app;
 
                     import java.util.ArrayList;
@@ -698,6 +712,26 @@ class ApiFileTest : DriverTest() {
                     }
                     """
                     ),
+                    kotlin(
+                        "src/main/java/androidx/collection/ArraySet.kt",
+                        """
+                    package androidx.collection
+
+                    inline fun <T> arraySetOf(): ArraySet<T> = ArraySet()
+
+                    fun <T> arraySetOf(vararg values: T): ArraySet<T> {
+                        val set = ArraySet<T>(values.size)
+                        for (value in values) {
+                            set.add(value)
+                        }
+                        return set
+                    }
+
+                    fun <T> arraySetOfNullable(vararg values: T?): ArraySet<T>? {
+                        return null
+                    }
+                    """
+                    ),
                     androidxNonNullSource,
                     androidxNullableSource
                 ),
@@ -712,6 +746,14 @@ class ApiFileTest : DriverTest() {
                     method public static inline <K, V> androidx.collection.ArrayMap<K,V> arrayMapOf();
                     method public static <K, V> androidx.collection.ArrayMap<K,V> arrayMapOf(kotlin.Pair<? extends K,? extends V>... pairs);
                     method public static <K, V> androidx.collection.ArrayMap<K,V>? arrayMapOfNullable(kotlin.Pair<? extends K,? extends V>?... pairs);
+                  }
+                  public class ArraySet<E> extends java.util.HashSet<E> implements java.util.Set<E> {
+                    ctor public ArraySet();
+                  }
+                  public final class ArraySetKt {
+                    method public static inline <T> androidx.collection.ArraySet<T> arraySetOf();
+                    method public static <T> androidx.collection.ArraySet<T> arraySetOf(T... values);
+                    method public static <T> androidx.collection.ArraySet<T>? arraySetOfNullable(T?... values);
                   }
                 }
                 package androidx.core.app {
@@ -851,6 +893,10 @@ class ApiFileTest : DriverTest() {
                         class CircularArray<E> {
                             val first: E
                                 get() = TODO()
+
+                            var last: E
+                                get() = TODO()
+                                set(value) = TODO()
                         }
                     """
                     )
@@ -861,7 +907,10 @@ class ApiFileTest : DriverTest() {
                   public final class CircularArray<E> {
                     ctor public CircularArray();
                     method public E getFirst();
+                    method public E getLast();
+                    method public void setLast(E);
                     property public final E first;
+                    property public final E last;
                   }
                 }
             """
@@ -3856,59 +3905,6 @@ class ApiFileTest : DriverTest() {
         )
     }
 
-    @Deprecated("Copied to [MergeFullSignatureTest]")
-    @Test
-    fun `Test merging API signature files`() {
-        val source1 =
-            """
-            package Test.pkg {
-              public final class Class1 {
-                method public void method1();
-              }
-            }
-            package Test.pkg1 {
-              public final class Class1 {
-                method public void method1();
-              }
-            }
-                    """
-        val source2 =
-            """
-            package Test.pkg {
-              public final class Class2 {
-                method public void method1(String);
-              }
-            }
-            package Test.pkg2 {
-              public final class Class1 {
-                method public void method1(String, String);
-              }
-            }
-                    """
-        val expected =
-            """
-            package Test.pkg {
-              public final class Class1 {
-                method public void method1();
-              }
-              public final class Class2 {
-                method public void method1(String);
-              }
-            }
-            package Test.pkg1 {
-              public final class Class1 {
-                method public void method1();
-              }
-            }
-            package Test.pkg2 {
-              public final class Class1 {
-                method public void method1(String, String);
-              }
-            }
-                    """
-        check(format = FileFormat.V2, signatureSources = arrayOf(source1, source2), api = expected)
-    }
-
     val MERGE_TEST_SOURCE_1 =
         """
             package test.pkg {
@@ -3934,144 +3930,6 @@ class ApiFileTest : DriverTest() {
               }
             }
             """
-
-    @Deprecated("Copied to [MergeFullSignatureTest]")
-    @Test
-    fun `Test merging API signature files, one refer to another`() {
-        check(
-            signatureSources = arrayOf(MERGE_TEST_SOURCE_1, MERGE_TEST_SOURCE_2),
-            api = MERGE_TEST_EXPECTED
-        )
-    }
-
-    @Deprecated("Copied to [MergeFullSignatureTest]")
-    @Test
-    fun `Test merging API signature files, one refer to another, in reverse order`() {
-        // Exactly the same as the previous test, but read them in the reverse order
-        check(
-            signatureSources = arrayOf(MERGE_TEST_SOURCE_2, MERGE_TEST_SOURCE_1),
-            api = MERGE_TEST_EXPECTED
-        )
-    }
-
-    @Deprecated("Copied to [MergeFullSignatureTest]")
-    @Test
-    fun `Test merging API signature files with reverse dependency`() {
-        val source1 =
-            """
-            package test.pkg {
-              public final class Class1 {
-                method public void method1(test.pkg.Class2 arg);
-              }
-            }
-                    """
-        val source2 =
-            """
-            package test.pkg {
-              public final class Class2 {
-              }
-            }
-                    """
-        val expected =
-            """
-            package test.pkg {
-              public final class Class1 {
-                method public void method1(test.pkg.Class2 arg);
-              }
-              public final class Class2 {
-              }
-            }
-                    """
-        check(format = FileFormat.V2, signatureSources = arrayOf(source1, source2), api = expected)
-    }
-
-    @Deprecated("Copied to [MergeFullSignatureTest]")
-    @Test
-    fun `Test merging 3 API signature files`() {
-        val source1 =
-            """
-            package test.pkg1 {
-              public final class BaseClass1 {
-                method public void method1();
-              }
-
-              public final class AnotherSubClass extends test.pkg2.AnotherBase {
-                method public void method1();
-              }
-            }
-                    """
-        val source2 =
-            """
-            package test.pkg2 {
-              public final class SubClass1 extends test.pkg1.BaseClass1 {
-              }
-            }
-                    """
-        val source3 =
-            """
-            package test.pkg2 {
-              public final class SubClass2 extends test.pkg2.SubClass1 {
-                method public void bar();
-              }
-
-              public final class AnotherBase {
-                method public void baz();
-              }
-            }
-                    """
-        val expected =
-            """
-            package test.pkg1 {
-              public final class AnotherSubClass extends test.pkg2.AnotherBase {
-                method public void method1();
-              }
-              public final class BaseClass1 {
-                method public void method1();
-              }
-            }
-            package test.pkg2 {
-              public final class AnotherBase {
-                method public void baz();
-              }
-              public final class SubClass1 extends test.pkg1.BaseClass1 {
-              }
-              public final class SubClass2 extends test.pkg2.SubClass1 {
-                method public void bar();
-              }
-            }
-                    """
-        check(signatureSources = arrayOf(source1, source2, source3), api = expected)
-    }
-
-    @Deprecated("Copied to [MergeFullSignatureTest]")
-    @Test
-    fun `Test can merge API signature files with duplicate class`() {
-        val source1 =
-            """
-            package Test.pkg {
-              public final class Class1 {
-                method public void method1();
-              }
-            }
-                    """
-        val source2 =
-            """
-            package Test.pkg {
-              public final class Class1 {
-                method public void method1();
-              }
-            }
-                    """
-        val expected =
-            """
-            package Test.pkg {
-              public final class Class1 {
-                method public void method1();
-              }
-            }
-                    """
-        check(signatureSources = arrayOf(source1, source2), api = expected)
-    }
 
     @Test
     fun `Test can merge API signature files with duplicate classes with constructors`() {
@@ -4168,52 +4026,6 @@ class ApiFileTest : DriverTest() {
                 FileFormat.V2.copy(
                     specifiedOverloadedMethodOrder = OverloadedMethodOrder.SOURCE,
                 ),
-        )
-    }
-
-    @Deprecated("Copied to [MergeFullSignatureTest]")
-    @Test
-    fun `Test cannot merge API signature files with incompatible class definitions`() {
-        val source1 =
-            """
-            package Test.pkg {
-              public class Class1 {
-                method public void method2();
-              }
-            }
-                    """
-        val source2 =
-            """
-            package Test.pkg {
-              public final class Class1 {
-                method public void method1();
-              }
-            }
-                    """
-        check(
-            signatureSources = arrayOf(source1, source2),
-            expectedFail =
-                "Aborting: Unable to parse signature file: TESTROOT/project/load-api2.txt:3: Incompatible class Test.pkg.Class1 definitions"
-        )
-    }
-
-    @Deprecated("Copied to [MergeFullSignatureTest]")
-    @Test
-    fun `Test can merge API signature files with different file formats`() {
-        val source1 =
-            """
-            // Signature format: 2.0
-            package Test.pkg {
-            }
-                    """
-        val source2 =
-            """
-            // Signature format: 3.0
-            package Test.pkg {
-            }
-                    """
-        check(
-            signatureSources = arrayOf(source1, source2),
         )
     }
 

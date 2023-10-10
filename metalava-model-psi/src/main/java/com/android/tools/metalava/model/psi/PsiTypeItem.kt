@@ -27,6 +27,7 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.TypeModifiers
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.WildcardTypeItem
@@ -61,8 +62,11 @@ import java.lang.IllegalStateException
 import java.util.function.Predicate
 
 /** Represents a type backed by PSI */
-sealed class PsiTypeItem(open val codebase: PsiBasedCodebase, open val psiType: PsiType) :
-    TypeItem {
+sealed class PsiTypeItem(
+    open val codebase: PsiBasedCodebase,
+    open val psiType: PsiType,
+    override val modifiers: TypeModifiers = PsiTypeModifiers.create(codebase, psiType)
+) : TypeItem {
     private var toString: String? = null
     private var toAnnotatedString: String? = null
     private var toInnerAnnotatedString: String? = null
@@ -875,6 +879,7 @@ class PsiClassTypeItem(
     override val qualifiedName = PsiNameHelper.getQualifiedClassName(psiType.canonicalText, true)
     override val parameters: List<TypeItem> = psiType.parameters.map { create(codebase, it) }
     override val outerClassType =
+        // TODO(b/300081840): this drops annotations on the outer class
         PsiNameHelper.getOuterClassReference(psiType.canonicalText).let { outerClassName ->
             // [PsiNameHelper.getOuterClassReference] returns an empty string if there is no outer
             // class reference.

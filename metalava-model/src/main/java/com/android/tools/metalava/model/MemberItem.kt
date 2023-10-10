@@ -27,7 +27,7 @@ interface MemberItem : Item {
     fun internalName(): String = name()
 
     /** The containing class */
-    fun containingClass(): ClassItem
+    @MetalavaApi fun containingClass(): ClassItem
 
     override fun containingClass(strict: Boolean): ClassItem = containingClass()
 

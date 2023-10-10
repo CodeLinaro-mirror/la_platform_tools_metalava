@@ -4320,6 +4320,46 @@ class ApiLintTest : DriverTest() {
     }
 
     @Test
+    fun `Nullability on vararg with inherited generic type`() {
+        check(
+            apiLint = "",
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                    package androidx.collection;
+
+                    import java.util.Collection;
+                    import java.util.HashSet;
+                    import java.util.Set;
+
+                    public class ArraySet<E> extends HashSet<E> implements Set<E> {
+                        public ArraySet() {
+                        }
+                    }
+                        """
+                    ),
+                    kotlin(
+                        "src/main/java/androidx/collection/ArraySet.kt",
+                        """
+                    package androidx.collection
+
+                    inline fun <T> arraySetOf(): ArraySet<T> = ArraySet()
+
+                    fun <T> arraySetOf(vararg values: T): ArraySet<T> {
+                        val set = ArraySet<T>(values.size)
+                        for (value in values) {
+                            set.add(value)
+                        }
+                        return set
+                    }
+                    """
+                    )
+                )
+        )
+    }
+
+    @Test
     fun `Kotlin required parameters must come before optional parameters`() {
         check(
             apiLint = "", // enabled

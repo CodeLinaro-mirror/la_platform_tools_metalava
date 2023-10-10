@@ -82,4 +82,102 @@ class CommonMethodItemTest(parameters: TestParameters) : BaseModelTest(parameter
             )
         }
     }
+
+    @Test
+    fun `MethodItem superMethods() on constructor`() {
+        runCodebaseTest(
+            inputSet(
+                signature(
+                    """
+                        // Signature format: 2.0
+                        package test.pkg {
+                          public class Base {
+                            ctor public Base();
+                          }
+                          public class Test extends test.pkg.Base {
+                            ctor public Test();
+                          }
+                        }
+                    """
+                ),
+            ),
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+    
+                        public class Base {
+                            public Base() {}
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+    
+                        public class Test extends Base {
+                            public Test() {}
+                        }
+                    """
+                ),
+            ),
+        ) { codebase ->
+            val testClass = codebase.assertClass("test.pkg.Test")
+            val testConstructor = testClass.constructors().single()
+            assertEquals(emptyList(), testConstructor.superMethods())
+        }
+    }
+
+    @Test
+    fun `MethodItem superMethods() on simple method`() {
+        runCodebaseTest(
+            inputSet(
+                signature(
+                    """
+                        // Signature format: 2.0
+                        package test.pkg {
+                          public class Base {
+                            ctor public Base();
+                            method public void foo();
+                          }
+                          public class Test extends test.pkg.Base {
+                            ctor public Test();
+                            method public void foo();
+                          }
+                        }
+                    """
+                ),
+            ),
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+    
+                        public class Base {
+                            public Base() {}
+                            public void foo() {}
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+    
+                        public class Test extends Base {
+                            public Test() {}
+                            public void foo() {}
+                        }
+                    """
+                ),
+            ),
+        ) { codebase ->
+            val baseClass = codebase.assertClass("test.pkg.Base")
+            val testClass = codebase.assertClass("test.pkg.Test")
+
+            val baseFoo = baseClass.methods().single()
+            val testFoo = testClass.methods().single()
+
+            assertEquals(listOf(baseFoo), testFoo.superMethods())
+        }
+    }
 }

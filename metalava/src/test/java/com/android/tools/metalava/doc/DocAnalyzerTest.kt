@@ -1,10 +1,38 @@
-package com.android.tools.metalava
+/*
+ * Copyright (C) 2018 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
-import com.android.tools.lint.checks.infrastructure.TestFiles.source
+package com.android.tools.metalava.doc
+
+import com.android.tools.lint.checks.infrastructure.TestFiles
+import com.android.tools.metalava.ARG_CURRENT_CODENAME
+import com.android.tools.metalava.ARG_CURRENT_VERSION
+import com.android.tools.metalava.DriverTest
+import com.android.tools.metalava.columnSource
+import com.android.tools.metalava.lint.DefaultLintErrorMessage
 import com.android.tools.metalava.model.psi.trimDocIndent
+import com.android.tools.metalava.nonNullSource
+import com.android.tools.metalava.nullableSource
+import com.android.tools.metalava.requiresApiSource
+import com.android.tools.metalava.requiresPermissionSource
+import com.android.tools.metalava.systemApiSource
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
-import org.junit.Assert.assertEquals
+import com.android.tools.metalava.uiThreadSource
+import com.android.tools.metalava.workerThreadSource
+import org.junit.Assert
 import org.junit.Test
 
 /** Tests for the [DocAnalyzer] which enhances the docs */
@@ -386,6 +414,7 @@ class DocAnalyzerTest : DriverTest() {
         check(
             expectedIssues =
                 "src/android/widget/Toolbar2.java:18: error: Documentation should not specify @apiSince manually; it's computed and injected at build time by metalava [ForbiddenTag]",
+            expectedFail = DefaultLintErrorMessage,
             sourceFiles =
                 arrayOf(
                     java(
@@ -695,7 +724,7 @@ class DocAnalyzerTest : DriverTest() {
 
     @Test
     fun `test documentation trim utility`() {
-        assertEquals(
+        Assert.assertEquals(
             "/**\n * This is a comment\n * This is a second comment\n */",
             trimDocIndent(
                 """/**
@@ -926,7 +955,7 @@ class DocAnalyzerTest : DriverTest() {
                     }
                     """
                     ),
-                    source(
+                    TestFiles.source(
                             "src/android/pkg2/package.html",
                             """
                     <body bgcolor="white">
@@ -1218,8 +1247,8 @@ class DocAnalyzerTest : DriverTest() {
         check(
             sourceFiles =
                 arrayOf(
-                    source("src/overview.html", "<html>My overview docs</html>"),
-                    source(
+                    TestFiles.source("src/overview.html", "<html>My overview docs</html>"),
+                    TestFiles.source(
                             "src/foo/test/visible/package.html",
                             """
                     <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
@@ -1251,7 +1280,7 @@ class DocAnalyzerTest : DriverTest() {
                     """
                     ),
                     // Also test hiding classes via javadoc
-                    source(
+                    TestFiles.source(
                             "src/foo/test/hidden1/package.html",
                             """
                     <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
@@ -1310,7 +1339,7 @@ class DocAnalyzerTest : DriverTest() {
             // (removing all the content surrounding <body>, etc)
             stubFiles =
                 arrayOf(
-                    source("overview.html", "<html>My overview docs</html>"),
+                    TestFiles.source("overview.html", "<html>My overview docs</html>"),
                     java(
                         """
                     /**

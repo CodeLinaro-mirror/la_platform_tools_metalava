@@ -167,10 +167,11 @@ class BootstrapSourceModelProviderTest(parameters: TestParameters) : BaseModelTe
 
                     interface SuperInterface{}
                     abstract class SuperClass implements SuperInterface{}
-                    interface ChildInterface {}
 
-                    class Test extends SuperClass implements ChildInterface {
-                    }
+                    interface SuperChildInterface{}
+                    interface ChildInterface extends SuperChildInterface,SuperInterface{}
+
+                    class Test extends SuperClass implements ChildInterface{}
                 """
             ),
         ) { codebase ->
@@ -178,10 +179,68 @@ class BootstrapSourceModelProviderTest(parameters: TestParameters) : BaseModelTe
             val superClassItem = codebase.assertClass("test.pkg.SuperClass")
             val superInterfaceItem = codebase.assertClass("test.pkg.SuperInterface")
             val childInterfaceItem = codebase.assertClass("test.pkg.ChildInterface")
+            val superChildInterfaceItem = codebase.assertClass("test.pkg.SuperChildInterface")
             assertEquals(superClassItem, classItem.superClass())
-            assertEquals(2, classItem.allInterfaces().count(), message = "")
+            assertEquals(3, classItem.allInterfaces().count(), message = "")
             assertEquals(true, classItem.allInterfaces().contains(childInterfaceItem))
             assertEquals(true, classItem.allInterfaces().contains(superInterfaceItem))
+            assertEquals(true, classItem.allInterfaces().contains(superChildInterfaceItem))
+            assertEquals(3, childInterfaceItem.allInterfaces().count(), message = "")
+            assertEquals(true, childInterfaceItem.allInterfaces().contains(superChildInterfaceItem))
+            assertEquals(true, childInterfaceItem.allInterfaces().contains(childInterfaceItem))
+            assertEquals(true, classItem.allInterfaces().contains(superInterfaceItem))
+        }
+    }
+
+    @Test
+    fun `100 - check class types`() {
+        runSourceCodebaseTest(
+            java(
+                """
+                  package test.pkg;
+
+                  interface TestInterface{}
+                  enum TestEnum {}
+                  @interface TestAnnotation {}
+                """
+            ),
+        ) { codebase ->
+            val interfaceItem = codebase.assertClass("test.pkg.TestInterface")
+            val enumItem = codebase.assertClass("test.pkg.TestEnum")
+            val annotationItem = codebase.assertClass("test.pkg.TestAnnotation")
+            assertEquals(true, interfaceItem.isInterface())
+            assertEquals(true, enumItem.isEnum())
+            assertEquals(true, annotationItem.isAnnotationType())
+        }
+    }
+
+    @Test
+    fun `110 - advanced package test`() {
+        runSourceCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+
+                        class Test {
+                            class Inner {}
+                        }
+                    """
+                ),
+                java("""
+                        package test;
+                     """),
+            ),
+        ) { codebase ->
+            val packageItem = codebase.assertPackage("test.pkg")
+            val parentPackageItem = codebase.assertPackage("test")
+            val classItem = codebase.assertClass("test.pkg.Test")
+            val innerClassItem = codebase.assertClass("test.pkg.Test.Inner")
+            assertEquals(1, packageItem.topLevelClasses().count())
+            assertEquals(0, parentPackageItem.topLevelClasses().count())
+            assertEquals(parentPackageItem, packageItem.containingPackage())
+            assertEquals(packageItem, classItem.containingPackage())
+            assertEquals(packageItem, innerClassItem.containingPackage())
         }
     }
 }

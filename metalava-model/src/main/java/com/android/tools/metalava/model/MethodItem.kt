@@ -18,6 +18,7 @@ package com.android.tools.metalava.model
 
 import java.util.function.Predicate
 
+@MetalavaApi
 interface MethodItem : MemberItem {
     /**
      * The property this method is an accessor for; inverse of [PropertyItem.getter] and
@@ -27,13 +28,13 @@ interface MethodItem : MemberItem {
         get() = null
 
     /** Whether this method is a constructor */
-    fun isConstructor(): Boolean
+    @MetalavaApi fun isConstructor(): Boolean
 
     /** The type of this field. Returns the containing class for constructors */
-    fun returnType(): TypeItem
+    @MetalavaApi fun returnType(): TypeItem
 
     /** The list of parameters */
-    fun parameters(): List<ParameterItem>
+    @MetalavaApi fun parameters(): List<ParameterItem>
 
     /** Returns true if this method is a Kotlin extension method */
     fun isExtensionMethod(): Boolean
@@ -58,7 +59,7 @@ interface MethodItem : MemberItem {
      * Any type parameters for the class, if any, as a source string (with fully qualified class
      * names)
      */
-    fun typeParameterList(): TypeParameterList
+    @MetalavaApi fun typeParameterList(): TypeParameterList
 
     /** Returns the classes that are part of the type parameters of this method, if any */
     fun typeArgumentClasses(): List<ClassItem> = codebase.unsupported()

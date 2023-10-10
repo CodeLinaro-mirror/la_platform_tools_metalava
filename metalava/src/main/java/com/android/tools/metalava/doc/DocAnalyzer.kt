@@ -1,12 +1,30 @@
-package com.android.tools.metalava
+/*
+ * Copyright (C) 2018 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
-import com.android.sdklib.SdkVersionInfo
+package com.android.tools.metalava.doc
+
 import com.android.tools.lint.LintCliClient
 import com.android.tools.lint.checks.ApiLookup
 import com.android.tools.lint.detector.api.ApiConstraint
 import com.android.tools.lint.detector.api.editDistance
 import com.android.tools.lint.helpers.DefaultJavaEvaluator
+import com.android.tools.metalava.PROGRAM_NAME
+import com.android.tools.metalava.SdkIdentifier
 import com.android.tools.metalava.apilevels.ApiToExtensionsMap
+import com.android.tools.metalava.isUnderTest
 import com.android.tools.metalava.model.ANDROIDX_ANNOTATION_PREFIX
 import com.android.tools.metalava.model.ANNOTATION_ATTR_VALUE
 import com.android.tools.metalava.model.AnnotationAttributeValue
@@ -26,6 +44,7 @@ import com.android.tools.metalava.model.psi.PsiFieldItem
 import com.android.tools.metalava.model.psi.PsiMethodItem
 import com.android.tools.metalava.model.psi.containsLinkTags
 import com.android.tools.metalava.model.visitors.ApiVisitor
+import com.android.tools.metalava.options
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
 import com.intellij.psi.PsiClass
@@ -36,20 +55,12 @@ import java.nio.file.Files
 import java.util.regex.Pattern
 import javax.xml.parsers.SAXParserFactory
 import kotlin.math.min
-import org.w3c.dom.Node
-import org.w3c.dom.NodeList
 import org.xml.sax.Attributes
 import org.xml.sax.helpers.DefaultHandler
 
-/**
- * Whether to include textual descriptions of the API requirements instead of just inserting a
- * since-tag. This should be off if there is post-processing to convert since tags in the
- * documentation tool used.
- */
-const val ADD_API_LEVEL_TEXT = false
-const val ADD_DEPRECATED_IN_TEXT = false
-
 private const val DEFAULT_ENFORCEMENT = "android.content.pm.PackageManager#hasSystemFeature"
+
+private const val CARRIER_PRIVILEGES_MARKER = "carrier privileges"
 
 /**
  * Walk over the API and apply tweaks to the documentation, such as
@@ -60,8 +71,7 @@ private const val DEFAULT_ENFORCEMENT = "android.content.pm.PackageManager#hasSy
  * - Transferring docs from hidden super methods.
  * - Performing tweaks for common documentation mistakes, such as ending the first sentence with ",
  *   e.g. " where javadoc will sadly see the ". " and think "aha, that's the end of the sentence!"
- *   (It works around this by replacing the space with &nbsp;.) This will also attempt to fix common
- *   typos (Andriod->Android etc).
+ *   (It works around this by replacing the space with &nbsp;.)
  */
 class DocAnalyzer(
     /** The codebase to analyze */
@@ -82,7 +92,6 @@ class DocAnalyzer(
 
     val mentionsNull: Pattern = Pattern.compile("\\bnull\\b")
 
-    /** Hide packages explicitly listed in [Options.hidePackages] */
     private fun documentsFromAnnotations() {
         // Note: Doclava1 inserts its own javadoc parameters into the documentation,
         // which is then later processed by javadoc to insert actual descriptions.
@@ -109,26 +118,9 @@ class DocAnalyzer(
                         handleAnnotation(annotation, item, depth = 0)
                     }
 
-                    /* Handled via @memberDoc/@classDoc on the annotations themselves right now.
-                       That doesn't handle combinations of multiple thread annotations, but those
-                       don't occur yet, right?
-                    // Threading annotations: can't look at them one at a time; need to list them
-                    // all together
-                    if (item is ClassItem || item is MethodItem) {
-                        val threads = findThreadAnnotations(annotations)
-                        threads?.let {
-                            val threadList = it.joinToString(separator = " or ") +
-                                    (if (it.size == 1) " thread" else " threads")
-                            val doc = if (item is ClassItem) {
-                                "All methods in this class must be invoked on the $threadList, unless otherwise noted"
-                            } else {
-                                assert(item is MethodItem)
-                                "This method must be invoked on the $threadList"
-                            }
-                            appendDocumentation(doc, item, false)
-                        }
-                    }
-                    */
+                    // Handled via @memberDoc/@classDoc on the annotations themselves right now.
+                    // That doesn't handle combinations of multiple thread annotations, but those
+                    // don't occur yet, right?
                     if (findThreadAnnotations(annotations).size > 1) {
                         reporter.report(
                             Issues.MULTIPLE_THREAD_ANNOTATIONS,
@@ -258,15 +250,21 @@ class DocAnalyzer(
                         // conditions
                         // outlined in the docs).
                         val doc =
-                            if (item is ParameterItem) {
-                                item.containingMethod().findTagDocumentation("param", item.name())
-                                    ?: ""
-                            } else if (item is MethodItem) {
-                                // Don't inspect param docs (and other tags) for this purpose.
-                                item.findMainDocumentation() +
-                                    (item.findTagDocumentation("return") ?: "")
-                            } else {
-                                item.documentation
+                            when (item) {
+                                is ParameterItem -> {
+                                    item
+                                        .containingMethod()
+                                        .findTagDocumentation("param", item.name())
+                                        ?: ""
+                                }
+                                is MethodItem -> {
+                                    // Don't inspect param docs (and other tags) for this purpose.
+                                    item.findMainDocumentation() +
+                                        (item.findTagDocumentation("return") ?: "")
+                                }
+                                else -> {
+                                    item.documentation
+                                }
                             }
                         if (doc.contains("null") && mentionsNull.matcher(doc).find()) {
                             return
@@ -313,7 +311,7 @@ class DocAnalyzer(
                         }
                     }
 
-                    if (values != null && values.isNotEmpty() && !conditional) {
+                    if (!values.isNullOrEmpty() && !conditional) {
                         // Look at macros_override.cs for the usage of these
                         // tags. In particular, search for def:dump_permission
 
@@ -393,10 +391,8 @@ class DocAnalyzer(
                                 "Value is between $from and $to inclusive"
                             } else if (from != null) {
                                 "Value is $from or greater"
-                            } else if (to != null) {
-                                "Value is $to or less"
                             } else {
-                                null
+                                "Value is $to or less"
                             }
                         appendDocumentation(doc, item, true)
                     }
@@ -669,7 +665,7 @@ class DocAnalyzer(
     }
 
     private fun stripMetaTags(string: String): String {
-        // Get rid of @hide and @remove tags etc that are part of documentation snippets
+        // Get rid of @hide and @remove tags etc. that are part of documentation snippets
         // we pull in, such that we don't accidentally start applying this to the
         // item that is pulling in the documentation.
         if (string.contains("@hide") || string.contains("@remove")) {
@@ -710,12 +706,10 @@ class DocAnalyzer(
                     if (psiMethod.containingClass == null) {
                         return
                     }
-                    @Suppress("DEPRECATION")
                     addApiLevelDocumentation(apiLookup.getMethodVersion(psiMethod), method)
                     elementToSdkExtSinceMap[
                             "${psiMethod.containingClass!!.qualifiedName}#${psiMethod.name}"]
                         ?.let { addApiExtensionsDocumentation(it, method) }
-                    @Suppress("DEPRECATION")
                     addDeprecatedDocumentation(apiLookup.getMethodDeprecatedIn(psiMethod), method)
                 }
 
@@ -783,14 +777,6 @@ class DocAnalyzer(
                     level.toString()
                 }
 
-            @Suppress("ConstantConditionIf")
-            if (
-                ADD_API_LEVEL_TEXT
-            ) { // See 113933920: Remove "Requires API level" from method comment
-                val description =
-                    if (code == currentCodeName) currentCodeName else describeApiLevel(level)
-                appendDocumentation("Requires API level $description", item, false)
-            }
             // Also add @since tag, unless already manually entered.
             // TODO: Override it everywhere in case the existing doc is wrong (we know
             // better), and at least for OpenJDK sources we *should* since the since tags
@@ -841,14 +827,6 @@ class DocAnalyzer(
                     level.toString()
                 }
 
-            @Suppress("ConstantConditionIf")
-            if (ADD_DEPRECATED_IN_TEXT) {
-                // TODO: *pre*pend instead!
-                val description =
-                    "<p class=\"caution\"><strong>This class was deprecated in API level $code.</strong></p>"
-                item.appendDocumentation(description, "@deprecated", append = false)
-            }
-
             if (!item.documentation.contains("@deprecatedSince")) {
                 item.appendDocumentation(code, "@deprecatedSince")
             } else {
@@ -860,10 +838,6 @@ class DocAnalyzer(
                 )
             }
         }
-    }
-
-    private fun describeApiLevel(level: Int): String {
-        return "$level (Android ${SdkVersionInfo.getVersionString(level)}, ${SdkVersionInfo.getCodeName(level)})"
     }
 }
 
@@ -880,11 +854,9 @@ fun ApiConstraint.minApiLevel(): Int {
         .filter { it != ApiConstraint.UNKNOWN }
         // Remove any constraints that are not for the Android Platform SDK.
         .filter { it.isAtLeast(androidSdkConstraint) }
-        // Get the lowest API level from that constraint.
-        .map { it.fromInclusive() }
         // Get the minimum of all the lowest API levels, or -1 if there are no API levels in the
         // constraints.
-        .minOrNull()
+        .minOfOrNull { it.fromInclusive() }
         ?: -1
 }
 
@@ -1000,7 +972,7 @@ private fun createSymbolToSdkExtSinceMap(xmlFile: File): Map<String, List<SdkAnd
     data class OuterClass(val name: String, val idAndVersionList: List<IdAndVersion>?)
 
     val sdkIdentifiers =
-        mutableMapOf<Int, SdkIdentifier>(
+        mutableMapOf(
             ApiToExtensionsMap.ANDROID_PLATFORM_SDK_ID to
                 SdkIdentifier(
                     ApiToExtensionsMap.ANDROID_PLATFORM_SDK_ID,
@@ -1037,7 +1009,7 @@ private fun createSymbolToSdkExtSinceMap(xmlFile: File): Map<String, List<SdkAnd
                     val reference: String =
                         attributes.getValue("reference")
                             ?: throw IllegalArgumentException("<sdk>: missing reference attribute")
-                    sdkIdentifiers.put(id, SdkIdentifier(id, shortname, name, reference))
+                    sdkIdentifiers[id] = SdkIdentifier(id, shortname, name, reference)
                 } else if (memberTags.contains(qualifiedName)) {
                     val name: String =
                         attributes.getValue("name")
@@ -1073,8 +1045,7 @@ private fun createSymbolToSdkExtSinceMap(xmlFile: File): Map<String, List<SdkAnd
                                     idAndVersionList
                                 )
                             if (idAndVersionList != null) {
-                                elementToIdAndVersionMap["${lastSeenClass!!.name}"] =
-                                    idAndVersionList
+                                elementToIdAndVersionMap[lastSeenClass!!.name] = idAndVersionList
                             }
                         }
                         "method",
@@ -1115,7 +1086,7 @@ private fun createSymbolToSdkExtSinceMap(xmlFile: File): Map<String, List<SdkAnd
         elementToSdkExtSinceMap[entry.key] =
             entry.value.map {
                 val name =
-                    sdkIdentifiers.get(it.first)?.name
+                    sdkIdentifiers[it.first]?.name
                         ?: throw IllegalArgumentException(
                             "SDK reference to unknown <sdk> with id ${it.first}"
                         )
@@ -1124,13 +1095,6 @@ private fun createSymbolToSdkExtSinceMap(xmlFile: File): Map<String, List<SdkAnd
     }
     return elementToSdkExtSinceMap
 }
-
-private fun NodeList.firstOrNull(): Node? =
-    if (length > 0) {
-        item(0)
-    } else {
-        null
-    }
 
 private typealias IdAndVersion = Pair<Int, Int>
 

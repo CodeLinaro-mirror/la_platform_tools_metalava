@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018 The Android Open Source Project
+ * Copyright (C) 2023 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,17 +16,11 @@
 
 package com.android.tools.metalava.model
 
-@MetalavaApi
-interface TypeParameterItem : ClassItem {
-    @Deprecated(
-        message = "Please use typeBounds() instead.",
-        level = DeprecationLevel.ERROR,
-        replaceWith = ReplaceWith("typeBounds().mapNotNull { it.asClass() }")
-    )
-    @MetalavaApi
-    fun bounds(): List<ClassItem> = typeBounds().mapNotNull { it.asClass() }
-
-    fun typeBounds(): List<TypeItem>
-
-    fun isReified(): Boolean
+/**
+ * Modifiers for a [TypeItem], analogous to [ModifierList]s for [Item]s. Contains type-use
+ * annotation information.
+ */
+interface TypeModifiers {
+    /** The type-use annotations applied to the owning type. */
+    fun annotations(): List<AnnotationItem>
 }

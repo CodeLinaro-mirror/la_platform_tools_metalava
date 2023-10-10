@@ -33,7 +33,7 @@ interface Item {
     val codebase: Codebase
 
     /** Return the modifiers of this class */
-    val modifiers: ModifierList
+    @MetalavaApi val modifiers: ModifierList
 
     /**
      * Whether this element was originally hidden with @hide/@Hide. The [hidden] property tracks
@@ -253,9 +253,6 @@ interface Item {
     /** Returns the [Location] for this item, if any. */
     fun location(): Location = Location.unknownLocationAndBaselineKey
 
-    /** Tag field used for DFS etc */
-    var tag: Boolean
-
     /**
      * Returns the [documentation], but with fully qualified links (except for the same package, and
      * when turning a relative reference into a fully qualified reference, use the javadoc syntax
@@ -428,7 +425,6 @@ abstract class DefaultItem(override val sortingRank: Int = nextRank.getAndIncrem
         get() = modifiers.isPrivate()
 
     override var emit = true
-    override var tag: Boolean = false
 
     companion object {
         private var nextRank = AtomicInteger()

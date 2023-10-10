@@ -1831,7 +1831,7 @@ class ApiLint(
             if (inherited) {
                 return // Do not enforce nullability on inherited items (non-overridden)
             }
-            if (type != null && type is VariableTypeItem) {
+            if (type is VariableTypeItem || item.hasInheritedGenericType()) {
                 // Generic types should have declarations of nullability set at the site of where
                 // the type is set, so that for Foo<T>, T does not need to specify nullability, but
                 // for Foo<Bar>, Bar does.

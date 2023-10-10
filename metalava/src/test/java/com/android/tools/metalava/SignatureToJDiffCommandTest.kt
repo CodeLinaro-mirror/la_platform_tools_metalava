@@ -18,6 +18,7 @@ package com.android.tools.metalava
 
 import com.android.tools.metalava.cli.common.BaseCommandTest
 import com.android.tools.metalava.cli.common.CommandTestConfig
+import com.android.tools.metalava.cli.signature.SignatureToJDiffCommand
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.model.text.prepareSignatureFileForTest
 import kotlin.test.assertEquals

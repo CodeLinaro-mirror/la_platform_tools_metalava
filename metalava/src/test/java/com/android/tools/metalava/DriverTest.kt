@@ -232,14 +232,6 @@ abstract class DriverTest : TemporaryFolderOwner {
         }
     }
 
-    /** File conversion tasks */
-    data class ConvertData(
-        val fromApi: String,
-        val outputFile: String,
-        val baseApi: String? = null,
-        val strip: Boolean = true,
-    )
-
     @Suppress("DEPRECATION")
     protected fun check(
         /** Any jars to add to the class path */

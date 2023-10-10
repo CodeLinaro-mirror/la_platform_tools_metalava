@@ -17,10 +17,19 @@
 package com.android.tools.metalava.model.turbine
 
 import com.android.tools.metalava.model.DefaultModifierList
+import com.google.common.collect.ImmutableList
+import com.google.common.collect.ImmutableMap
+import com.google.turbine.binder.Binder
+import com.google.turbine.binder.Binder.BindingResult
+import com.google.turbine.binder.ClassPathBinder
+import com.google.turbine.binder.bound.SourceTypeBoundClass
+import com.google.turbine.binder.sym.ClassSymbol
 import com.google.turbine.tree.Tree
 import com.google.turbine.tree.Tree.CompUnit
 import com.google.turbine.tree.Tree.Kind.TY_DECL
 import com.google.turbine.tree.Tree.TyDecl
+import java.io.File
+import java.util.Optional
 
 /**
  * This initializer acts as adaptor between codebase and the output from Turbine parser.
@@ -30,24 +39,45 @@ import com.google.turbine.tree.Tree.TyDecl
  */
 open class TurbineCodebaseInitialiser(
     val units: List<CompUnit>,
-    val codebase: TurbineBasedCodebase
+    val codebase: TurbineBasedCodebase,
+    val classpath: List<File>,
 ) {
 
     /** Map items (classitems, methoditems, etc.) with their qualified name. */
     private var itemMap: MutableMap<Tree, String> = mutableMapOf<Tree, String>()
 
+    /** The output from Turbine Binder */
+    private lateinit var bindingResult: BindingResult
+
     /**
-     * Initialize uses two passes thorugh units. One pass is for creating all the items and the
+     * Initialize uses two passes through units. One pass is for creating all the items and the
      * other pass to set up all the hierarchy.
+     *
+     * The hierarchy is set up in two parts: one with the use of Turbine binder and other without
      */
     fun initialize() {
         codebase.initialize()
+
+        // First pass for creating items
         for (unit in units) {
             createItems(unit)
         }
-        for (unit in units) {
-            setHierarchy(unit)
+
+        // This method sets up hierarchy using only parsed source files
+        setInnerClassHierarchy(units)
+
+        try {
+            bindingResult =
+                Binder.bind(
+                    ImmutableList.copyOf(units),
+                    ClassPathBinder.bindClasspath(classpath.map { it.toPath() }),
+                    ClassPathBinder.bindClasspath(listOf()),
+                    Optional.empty()
+                )!!
+        } catch (e: Throwable) {
+            throw e
         }
+        setSuperClassHierarchy(bindingResult.units())
     }
 
     /** Extracts data from the compilation units. A unit corresponds to one parsed source file. */
@@ -84,6 +114,7 @@ open class TurbineCodebaseInitialiser(
                 qualifiedName,
                 containingClass,
                 modifers,
+                TurbineClassType.getClassType(typeDecl.tykind()),
             )
 
         val members = typeDecl.members()
@@ -102,35 +133,49 @@ open class TurbineCodebaseInitialiser(
         itemMap.put(typeDecl, qualifiedName)
     }
 
-    /**
-     * This method aims to set up the hierarchy of classes and methods. This includes setting
-     * superclasses, implements , innerclasses, method overrides, etc.
-     */
-    fun setHierarchy(unit: CompUnit) {
-        val typeDecls = unit.decls()
-        for (typeDecl in typeDecls) {
-            setClassHierarchy(typeDecl)
+    /** This method sets up inner class hierarchy without using binder. */
+    fun setInnerClassHierarchy(units: List<CompUnit>) {
+        for (unit in units) {
+            val typeDecls = unit.decls()
+            for (typeDecl in typeDecls) {
+                setInnerClasses(typeDecl)
+            }
         }
     }
 
-    fun setClassHierarchy(typeDecl: TyDecl) {
+    /** Method to setup innerclasses for a single class */
+    fun setInnerClasses(typeDecl: TyDecl) {
         val className = itemMap[typeDecl]!!
         val classItem = codebase.findClass(className)!!
-        val innerClasses = mutableListOf<TurbineClassItem>()
+        val innerClasses =
+            typeDecl
+                .members()
+                .filter { it.kind() == TY_DECL }
+                .mapNotNull { it ->
+                    val memberName = itemMap[it]!!
+                    codebase.findClass(memberName)
+                }
+        classItem.innerClasses = innerClasses
+    }
 
-        for (member in typeDecl.members()) {
-            when (member.kind()) {
-                // A class or an interface declaration
-                TY_DECL -> {
-                    val memberName = itemMap[member]!!
-                    val memberItem = codebase.findClass(memberName)!!
-                    innerClasses.add(memberItem)
-                }
-                else -> {
-                    // Do nothing for now
-                }
+    /** This method uses output from binder to setup superclass and implemented interfaces */
+    fun setSuperClassHierarchy(units: ImmutableMap<ClassSymbol, SourceTypeBoundClass>) {
+        for ((sym, cls) in units) {
+            val classItem = codebase.findClass(sym.toString())
+            if (classItem != null) {
+
+                // Set superclass
+                val superClassItem =
+                    cls.superclass()?.let { superClass ->
+                        codebase.findClass(superClass.toString())
+                    }
+                classItem.setSuperClass(superClassItem, null)
+
+                // Set direct interfaces
+                val interfaces =
+                    cls.interfaces().mapNotNull { itf -> codebase.findClass(itf.toString()) }
+                classItem.directInterfaces = interfaces
             }
         }
-        classItem.innerClasses = innerClasses
     }
 }

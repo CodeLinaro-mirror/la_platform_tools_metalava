@@ -46,6 +46,8 @@ import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
 import java.io.File
+import java.util.Collections
+import java.util.IdentityHashMap
 import java.util.Locale
 import java.util.function.Predicate
 import org.jetbrains.kotlin.asJava.classes.KtLightClassForFacade
@@ -121,12 +123,13 @@ class ApiAnalyzer(
     }
 
     fun addConstructors(filter: Predicate<Item>) {
-        // Let's say I have
+        // Let's say we have
         //  class GrandParent { public GrandParent(int) {} }
         //  class Parent {  Parent(int) {} }
         //  class Child { public Child(int) {} }
         //
-        // Here Parent's constructor is not public. For normal stub generation I'd end up with this:
+        // Here Parent's constructor is not public. For normal stub generation we'd end up with
+        // this:
         //  class GrandParent { public GrandParent(int) {} }
         //  class Parent { }
         //  class Child { public Child(int) {} }
@@ -134,37 +137,28 @@ class ApiAnalyzer(
         // This doesn't compile - Parent can't have a default constructor since there isn't
         // one for it to invoke on GrandParent.
         //
-        // I can generate a fake constructor instead, such as
+        // we can generate a fake constructor instead, such as
         //   Parent() { super(0); }
         //
-        // But it's hard to do this lazily; what if I'm generating the Child class first?
-        // Therefore, we'll instead walk over the hierarchy and insert these constructors
-        // into the Item hierarchy such that code generation can find them.
+        // But it's hard to do this lazily; what if we're generating the Child class first?
+        // Therefore, we'll instead walk over the hierarchy and insert these constructors into the
+        // Item hierarchy such that code generation can find them.
         //
-        // (We also need to handle the throws list, so we can't just unconditionally
-        // insert package private constructors
-        //
-        // To do this right I really need to process super constructors before the classes
-        // depending on them.
+        // We also need to handle the throws list, so we can't just unconditionally insert package
+        // private constructors
 
-        // Mark all classes that are the super class of some other class:
-        val allClasses = packages.allClasses().filter { filter.test(it) }
+        // Keep track of all the ClassItems that have been visited so classes are only visited once.
+        val visited = Collections.newSetFromMap(IdentityHashMap<ClassItem, Boolean>())
 
-        codebase.clearTags()
-        allClasses.forEach { cls -> cls.superClass()?.tag = true }
-
-        val leafClasses = allClasses.filter { !it.tag }.toList()
-
-        // Now walk through all the leaf classes, and walk up the super hierarchy
-        // and recursively add constructors; we'll do it recursively to make sure that
-        // the superclass has had its constructors initialized first (such that we can
-        // match the parameter lists and throws signatures), and we use the tag fields
-        // to avoid looking at all the internal classes more than once.
-        codebase.clearTags()
-        leafClasses
-            // Filter classes by filter here to not waste time in hidden packages
+        // Add constructors to the classes by walking up the super hierarchy and recursively add
+        // constructors; we'll do it recursively to make sure that the superclass has had its
+        // constructors initialized first (such that we can match the parameter lists and throws
+        // signatures), and we use the tag fields to avoid looking at all the internal classes more
+        // than once.
+        packages
+            .allClasses()
             .filter { filter.test(it) }
-            .forEach { addConstructors(it, filter) }
+            .forEach { addConstructors(it, filter, visited) }
     }
 
     /**
@@ -179,9 +173,14 @@ class ApiAnalyzer(
      * [ConstructorItem.superConstructor] The default constructor to invoke. If set, use this rather
      * than the [ClassItem.stubConstructor].
      *
-     * [Item.tag] : mark for avoiding repeated iteration of internal item nodes
+     * @param visited contains the [ClassItem]s that have already been visited; this method adds
+     *   [cls] to it so [cls] will not be visited again.
      */
-    private fun addConstructors(cls: ClassItem, filter: Predicate<Item>) {
+    private fun addConstructors(
+        cls: ClassItem,
+        filter: Predicate<Item>,
+        visited: MutableSet<ClassItem>
+    ) {
         // What happens if we have
         //  package foo:
         //     public class A { public A(int) }
@@ -215,17 +214,25 @@ class ApiAnalyzer(
         // it to the constructor to use, and it checks to see if the containing class
         // for the constructor is the same to decide whether to emit "this" or "super".
 
-        if (
-            cls.tag || !cls.isClass()
-        ) { // Don't add constructors to interfaces, enums, annotations, etc
+        if (cls in visited) {
             return
         }
 
-        // First handle its super class hierarchy to make sure that we've
-        // already constructed super classes
+        // Don't add constructors to interfaces, enums, annotations, etc
+        if (!cls.isClass()) {
+            return
+        }
+
+        // Remember that we have visited this class so that it is not visited again. This does not
+        // strictly need to be done before visiting the super classes as there should not be cycles
+        // in the class hierarchy. However, if due to some invalid input there is then doing this
+        // here will prevent those cycles from causing a stack overflow.
+        visited.add(cls)
+
+        // First handle its super class hierarchy to make sure that we've already constructed super
+        // classes.
         val superClass = cls.filteredSuperclass(filter)
-        superClass?.let { addConstructors(it, filter) }
-        cls.tag = true
+        superClass?.let { addConstructors(it, filter, visited) }
 
         if (superClass != null) {
             val superDefaultConstructor = superClass.stubConstructor

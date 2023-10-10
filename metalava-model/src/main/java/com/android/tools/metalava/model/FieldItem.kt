@@ -18,13 +18,14 @@ package com.android.tools.metalava.model
 
 import java.io.PrintWriter
 
+@MetalavaApi
 interface FieldItem : MemberItem {
     /** The property this field backs; inverse of [PropertyItem.backingField] */
     val property: PropertyItem?
         get() = null
 
     /** The type of this field */
-    override fun type(): TypeItem
+    @MetalavaApi override fun type(): TypeItem
 
     /**
      * The initial/constant value, if any. If [requireConstant] the initial value will only be

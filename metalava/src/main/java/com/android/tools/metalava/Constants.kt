@@ -26,7 +26,6 @@ const val RECENTLY_NONNULL = "androidx.annotation.RecentlyNonNull"
 const val ANDROID_NULLABLE = "android.annotation.Nullable"
 const val ANDROID_NONNULL = "android.annotation.NonNull"
 const val ANDROID_SDK_CONSTANT = "android.annotation.SdkConstant"
-const val CARRIER_PRIVILEGES_MARKER = "carrier privileges"
 
 const val ANDROID_SUPPRESS_LINT = "android.annotation.SuppressLint"
 const val JAVA_LANG_SUPPRESS_WARNINGS = "java.lang.SuppressWarnings"

@@ -1,0 +1,2 @@
+com.android.tools.metalava.model.testsuite.typeitem.CommonTypeModifiersTest
+  Test inner parameterized types with annotations[psi,java]
