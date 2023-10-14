@@ -21,14 +21,12 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.FieldItem
-import com.android.tools.metalava.model.ItemVisitor
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ModifierList
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
-import com.android.tools.metalava.model.TypeVisitor
 
 open class TurbineClassItem(
     override val codebase: Codebase,
@@ -57,6 +55,10 @@ open class TurbineClassItem(
     internal lateinit var directInterfaces: List<TurbineClassItem>
 
     private var allInterfaces: List<TurbineClassItem>? = null
+
+    internal lateinit var containingPackage: TurbinePackageItem
+
+    internal lateinit var fields: List<TurbineFieldItem>
 
     override fun allInterfaces(): Sequence<TurbineClassItem> {
         if (allInterfaces == null) {
@@ -87,13 +89,10 @@ open class TurbineClassItem(
 
     override fun containingClass(): ClassItem? = containingClass
 
-    override fun containingPackage(): PackageItem {
-        TODO("b/295800205")
-    }
+    override fun containingPackage(): PackageItem =
+        containingClass?.containingPackage() ?: containingPackage
 
-    override fun fields(): List<FieldItem> {
-        TODO("b/295800205")
-    }
+    override fun fields(): List<FieldItem> = fields
 
     override fun getRetention(): AnnotationRetention {
         TODO("b/295800205")
@@ -158,17 +157,12 @@ open class TurbineClassItem(
         TODO("b/295800205")
     }
 
-    override fun accept(visitor: ItemVisitor) {
-        TODO("b/295800205")
-    }
-
-    override fun acceptTypes(visitor: TypeVisitor) {
-        TODO("b/295800205")
-    }
-
     override fun hashCode(): Int = qualifiedName.hashCode()
 
     override fun equals(other: Any?): Boolean {
+        if (this === other) {
+            return true
+        }
         return other is ClassItem && qualifiedName() == other.qualifiedName()
     }
 }

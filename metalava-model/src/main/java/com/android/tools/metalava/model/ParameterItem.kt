@@ -126,11 +126,9 @@ interface ParameterItem : Item {
         return null
     }
 
-    override fun containingClass(strict: Boolean): ClassItem? =
-        containingMethod().containingClass(false)
+    override fun containingClass(): ClassItem? = containingMethod().containingClass()
 
-    override fun containingPackage(strict: Boolean): PackageItem? =
-        containingMethod().containingPackage(false)
+    override fun containingPackage(): PackageItem? = containingMethod().containingPackage()
 
     // TODO: modifier list
 }

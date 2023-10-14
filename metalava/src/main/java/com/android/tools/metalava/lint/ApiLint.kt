@@ -1594,15 +1594,6 @@ class ApiLint(
         }
     }
 
-    fun Item.containingClass(): ClassItem? {
-        return when (this) {
-            is MemberItem -> this.containingClass()
-            is ParameterItem -> this.containingMethod().containingClass()
-            is ClassItem -> this
-            else -> null
-        }
-    }
-
     private fun checkNullableCollections(type: TypeItem, item: Item) {
         if (type is PrimitiveTypeItem) return
         if (!item.modifiers.isNullable()) return
@@ -1785,7 +1776,21 @@ class ApiLint(
     }
 
     private fun checkHasFlaggedApi(item: Item) {
-        if (!item.modifiers.hasAnnotation { it.qualifiedName == flaggedApi }) {
+        fun itemOrAnyContainingClasses(predicate: Predicate<Item>): Boolean {
+            var it: Item? = item
+            while (it != null) {
+                if (predicate.test(it)) {
+                    return true
+                }
+                it = it.containingClass()
+            }
+            return false
+        }
+        if (
+            !itemOrAnyContainingClasses {
+                it.modifiers.hasAnnotation { it.qualifiedName == flaggedApi }
+            }
+        ) {
             val elidedField =
                 if (item is FieldItem) {
                     val inheritedFrom = item.inheritedFrom

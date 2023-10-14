@@ -94,6 +94,7 @@ class BootstrapSourceModelProviderTest(parameters: TestParameters) : BaseModelTe
             val testClass = codebase.assertClass("test.pkg.Test")
             val fieldItem = testClass.assertField("field")
             assertEquals("field", fieldItem.name())
+            assertEquals(testClass, fieldItem.containingClass())
         }
     }
 
@@ -234,11 +235,14 @@ class BootstrapSourceModelProviderTest(parameters: TestParameters) : BaseModelTe
         ) { codebase ->
             val packageItem = codebase.assertPackage("test.pkg")
             val parentPackageItem = codebase.assertPackage("test")
+            val rootPackageItem = codebase.assertPackage("")
             val classItem = codebase.assertClass("test.pkg.Test")
             val innerClassItem = codebase.assertClass("test.pkg.Test.Inner")
             assertEquals(1, packageItem.topLevelClasses().count())
             assertEquals(0, parentPackageItem.topLevelClasses().count())
             assertEquals(parentPackageItem, packageItem.containingPackage())
+            assertEquals(rootPackageItem, parentPackageItem.containingPackage())
+            assertEquals(null, rootPackageItem.containingPackage())
             assertEquals(packageItem, classItem.containingPackage())
             assertEquals(packageItem, innerClassItem.containingPackage())
         }

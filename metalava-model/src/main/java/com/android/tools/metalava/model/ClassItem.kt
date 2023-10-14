@@ -194,16 +194,10 @@ interface ClassItem : Item {
     fun isClass(): Boolean = !isInterface() && !isAnnotationType() && !isEnum()
 
     /** The containing class, for inner classes */
-    @MetalavaApi fun containingClass(): ClassItem?
+    @MetalavaApi override fun containingClass(): ClassItem?
 
     /** The containing package */
-    fun containingPackage(): PackageItem
-
-    override fun containingPackage(strict: Boolean): PackageItem = containingPackage()
-
-    override fun containingClass(strict: Boolean): ClassItem? {
-        return if (strict) containingClass() else this
-    }
+    override fun containingPackage(): PackageItem
 
     /** Gets the type for this class */
     fun toType(): TypeItem

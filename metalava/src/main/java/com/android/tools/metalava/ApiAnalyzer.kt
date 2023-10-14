@@ -162,16 +162,14 @@ class ApiAnalyzer(
     }
 
     /**
-     * Handle computing constructor hierarchy. We'll be setting several attributes:
-     * [ClassItem.stubConstructor] : The default constructor to invoke in this class from
-     * subclasses. **NOTE**: This constructor may not be part of the [ClassItem.constructors] list,
-     * e.g. for package private default constructors we've inserted (because there were no public
-     * constructors or constructors not using hidden parameter types.)
+     * Handle computing constructor hierarchy.
      *
-     * If we can find a public constructor we'll put that here instead.
+     * We'll be setting several attributes: [ClassItem.stubConstructor] : The default constructor to
+     * invoke in this class from subclasses. **NOTE**: This constructor may not be part of the
+     * [ClassItem.constructors] list, e.g. for package private default constructors we've inserted
+     * (because there were no public constructors or constructors not using hidden parameter types.)
      *
-     * [ConstructorItem.superConstructor] The default constructor to invoke. If set, use this rather
-     * than the [ClassItem.stubConstructor].
+     * [ConstructorItem.superConstructor] : The default constructor to invoke.
      *
      * @param visited contains the [ClassItem]s that have already been visited; this method adds
      *   [cls] to it so [cls] will not be visited again.
@@ -186,33 +184,25 @@ class ApiAnalyzer(
         //     public class A { public A(int) }
         //  package bar
         //     public class B extends A { public B(int) }
-        // If I just try inserting package private constructors here things will NOT work:
+        // If we just try inserting package private constructors here things will NOT work:
         //  package foo:
         //     public class A { public A(int); A() {} }
         //  package bar
         //     public class B extends A { public B(int); B() }
-        //  because A <() is not accessible from B() -- it's outside the same package.
+        // because A <() is not accessible from B() -- it's outside the same package.
         //
-        // So, I'll need to model the real constructors for all the scenarios where that
-        // works.
+        // So, we'll need to model the real constructors for all the scenarios where that works.
         //
-        // The remaining challenge is that there will be some gaps: when I don't have
-        // a default constructor, subclass constructors will have to have an explicit
-        // super(args) call to pick the parent constructor to use. And which one?
-        // It generally doesn't matter; just pick one, but unfortunately, the super
-        // constructor can throw exceptions, and in that case the subclass constructor
-        // must also throw all those constructors (you can't surround a super call
-        // with try/catch.)  Luckily, the source code already needs to do this to
-        // compile, so we can just use the same constructor as the super call.
-        // But there are two cases we have to deal with:
-        //   (1) the constructor doesn't call a super constructor; it calls another
-        //       constructor on this class.
-        //   (2) the super constructor it *does* call isn't available.
+        // The remaining challenge is that there will be some gaps: when we don't have a default
+        // constructor, subclass constructors will have to have an explicit super(args) call to pick
+        // the parent constructor to use. And which one? It generally doesn't matter; just pick one,
+        // but unfortunately, the super constructor can throw exceptions, and in that case the
+        // subclass constructor must also throw all those exceptions (you can't surround a super
+        // call with try/catch.)
         //
-        // For (1), this means that our stub code generator should be prepared to
-        // handle both super- and this- dispatches; we'll handle this by pointing
-        // it to the constructor to use, and it checks to see if the containing class
-        // for the constructor is the same to decide whether to emit "this" or "super".
+        // Luckily, this does not seem to be an actual problem with any of the source code that
+        // metalava currently processes. If it did become a problem then the solution would be to
+        // pick super constructors with a compatible set of throws.
 
         if (cls in visited) {
             return
@@ -234,45 +224,40 @@ class ApiAnalyzer(
         val superClass = cls.filteredSuperclass(filter)
         superClass?.let { addConstructors(it, filter, visited) }
 
-        if (superClass != null) {
-            val superDefaultConstructor = superClass.stubConstructor
-            if (superDefaultConstructor != null) {
-                val constructors = cls.constructors()
-                for (constructor in constructors) {
-                    val superConstructor = constructor.superConstructor
-                    if (
-                        superConstructor == null ||
-                            (superConstructor.containingClass() != superClass &&
-                                superConstructor.containingClass() != cls)
-                    ) {
-                        constructor.superConstructor = superDefaultConstructor
-                    }
-                }
+        val superDefaultConstructor = superClass?.stubConstructor
+        if (superDefaultConstructor != null) {
+            cls.constructors().forEach { constructor ->
+                constructor.superConstructor = superDefaultConstructor
             }
         }
 
         // Find default constructor, if one doesn't exist
-        val constructors = cls.filteredConstructors(filter).toList()
-        if (constructors.isNotEmpty()) {
-            // Try to pick the constructor, select first by fewest throwables,
-            // then fewest parameters, then based on order in listFilter.test(cls)
-            cls.stubConstructor = constructors.reduce { first, second -> pickBest(first, second) }
-            return
-        }
+        val filteredConstructors = cls.filteredConstructors(filter).toList()
+        cls.stubConstructor =
+            if (filteredConstructors.isNotEmpty()) {
+                // Try to pick the constructor, select first by fewest throwables,
+                // then fewest parameters, then based on order in listFilter.test(cls)
+                filteredConstructors.reduce { first, second -> pickBest(first, second) }
+            } else if (
+                cls.constructors().isNotEmpty() ||
+                    // For text based codebase, stub constructor needs to be generated even if
+                    // cls.constructors() is empty, so that public default constructor is not
+                    // created.
+                    cls.codebase.preFiltered
+            ) {
 
-        // For text based codebase, stub constructor needs to be generated even if
-        // cls.constructors() is empty, so that public default constructor is not created.
-        if (cls.constructors().isNotEmpty() || cls.codebase.preFiltered) {
-            // No accessible constructors are available so a package private constructor is created.
-            // Technically, the stub now has a constructor that isn't available at runtime,
-            // but apps creating subclasses inside the android.* package is not supported.
-            cls.stubConstructor =
+                // No accessible constructors are available so a package private constructor is
+                // created. Technically, the stub now has a constructor that isn't available at
+                // runtime, but apps creating subclasses inside the android.* package is not
+                // supported.
                 cls.createDefaultConstructor().also {
                     it.mutableModifiers().setVisibilityLevel(VisibilityLevel.PACKAGE_PRIVATE)
                     it.hidden = false
-                    it.superConstructor = superClass?.stubConstructor
+                    it.superConstructor = superDefaultConstructor
                 }
-        }
+            } else {
+                null
+            }
     }
 
     // TODO: Annotation test: @ParameterName, if present, must be supplied on *all* the arguments!

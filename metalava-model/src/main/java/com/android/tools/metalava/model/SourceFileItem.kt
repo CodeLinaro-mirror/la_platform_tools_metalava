@@ -29,7 +29,7 @@ interface SourceFileItem : Item {
 
     override fun parent(): PackageItem? = containingPackage()
 
-    override fun containingClass(strict: Boolean): ClassItem? = null
+    override fun containingClass(): ClassItem? = null
 
     override fun type(): TypeItem? = null
 

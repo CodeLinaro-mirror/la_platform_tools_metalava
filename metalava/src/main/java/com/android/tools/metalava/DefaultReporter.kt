@@ -22,6 +22,7 @@ import com.android.tools.metalava.cli.common.plainTerminal
 import com.android.tools.metalava.model.AnnotationArrayAttributeValue
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.Location
+import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.reporter.Baseline
 import com.android.tools.metalava.reporter.IssueConfiguration
 import com.android.tools.metalava.reporter.Issues
@@ -99,7 +100,7 @@ internal class DefaultReporter(
         // issues from other packages
         if (item != null) {
             if (packageFilter != null) {
-                val pkg = item.containingPackage(false)
+                val pkg = (item as? PackageItem) ?: item.containingPackage()
                 if (pkg != null && !packageFilter.matches(pkg)) {
                     return false
                 }

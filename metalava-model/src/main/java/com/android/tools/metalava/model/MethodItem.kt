@@ -575,6 +575,30 @@ interface MethodItem : MemberItem {
         }
     }
 
+    private fun getUniqueSuperInterfaceMethods(
+        superInterfaceMethods: List<MethodItem>
+    ): List<MethodItem> {
+        val visitCountMap = mutableMapOf<ClassItem, Int>()
+
+        // perform BFS on all super interfaces of each super interface methods'
+        // containing interface to determine the leaf interface of each unique hierarchy.
+        superInterfaceMethods.forEach {
+            val superInterface = it.containingClass()
+            val queue = mutableListOf(superInterface)
+            while (queue.isNotEmpty()) {
+                val s = queue.removeFirst()
+                visitCountMap[s] = visitCountMap.getOrDefault(s, 0) + 1
+                queue.addAll(
+                    s.interfaceTypes().mapNotNull { interfaceType -> interfaceType.asClass() }
+                )
+            }
+        }
+
+        // If visit count is greater than 1, it means the interface is within the hierarchy of
+        // another method, thus filter out.
+        return superInterfaceMethods.filter { visitCountMap[it.containingClass()]!! == 1 }
+    }
+
     /**
      * Determines if the method needs to be added to the signature file in order to prevent errors
      * when compiling the stubs or the reverse dependencies of the stubs.
@@ -593,10 +617,34 @@ interface MethodItem : MemberItem {
                     // changes)
                     !sameSignature(this, it.first())
                 } else {
-                    it.all { superMethod ->
-                        superMethod.containingClass().isJavaLangObject() ||
-                            superMethod.requiresOverride()
-                    }
+                    // Since a class can extend a single class except Object,
+                    // there is only one non-Object super class method at max.
+                    val superClassMethods =
+                        it.firstOrNull { superMethod ->
+                            superMethod.containingClass().isClass() &&
+                                !superMethod.containingClass().isJavaLangObject()
+                        }
+
+                    // Assume a class implements two interfaces A and B;
+                    // A provides a default super method, and B provides an abstract super method.
+                    // In such case, the child method is a required overriding method when:
+                    // - A and B do not extend each other or
+                    // - A is a super interface of B
+                    // On the other hand, the child method is not a required overriding method when:
+                    // - B is a super interface of A
+                    // Given this, we should make decisions only based on the leaf interface of each
+                    // unique hierarchy.
+                    val uniqueSuperInterfaceMethods =
+                        getUniqueSuperInterfaceMethods(
+                            it.filter { superMethod -> superMethod.containingClass().isInterface() }
+                        )
+
+                    // If super method is non-null, whether this method is required
+                    // is determined by whether the super method requires override.
+                    // If super method is null, this method is required if there is a
+                    // unique super interface that requires override.
+                    superClassMethods?.requiresOverride()
+                        ?: uniqueSuperInterfaceMethods.any { s -> s.requiresOverride() }
                 }
             }) ||
             // To inherit methods with override-equivalent signatures
