@@ -54,7 +54,16 @@ interface TypeItem {
         filter: Predicate<Item>? = null
     ): String
 
-    /** Alias for [toTypeString] with erased=true */
+    /**
+     * Alias for [toTypeString] with erased=true.
+     *
+     * Implements the behavior described
+     * [here](https://docs.oracle.com/javase/tutorial/java/generics/genTypes.html).
+     *
+     * One point to note is that vararg parameters are represented using standard array syntax, i.e.
+     * `[]`, not the special source `...` syntax. The reason for that is that the erased type is
+     * mainly used at runtime which treats a vararg parameter as a standard array type.
+     */
     @MetalavaApi fun toErasedTypeString(context: Item? = null): String
 
     /** Array dimensions of this type; for example, for String it's 0 and for String[][] it's 2. */

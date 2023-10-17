@@ -18,6 +18,8 @@ package com.android.tools.metalava.model.testsuite
 
 import com.android.tools.metalava.testing.java
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
+import kotlin.test.assertSame
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
@@ -58,6 +60,45 @@ class CommonClassItemTest(parameters: TestParameters) : BaseModelTest(parameters
             assertEquals(emptyList(), testClass.methods())
             assertEquals(emptyList(), testClass.fields())
             assertEquals(emptyList(), testClass.properties())
+        }
+    }
+
+    @Test
+    fun `Find method with type parameterized by two types`() {
+        runCodebaseTest(
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public class Foo {
+                        method public void foo(java.util.Map<String, Integer>);
+                      }
+                    }
+                """
+            ),
+            java(
+                """
+                    package test.pkg;
+
+                    public class Foo {
+                        public void foo(java.util.Map<String, Integer> map) {}
+                    }
+                """
+            ),
+        ) { codebase ->
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+            val fooMethod = fooClass.methods().single()
+
+            // This should not find the method as `findMethod` splits parameters by `,` so it looks
+            // for one parameter of type `java.util.Map<String` and one of type `Integer>`.
+            val foundMethod = fooClass.findMethod("foo", "java.util.Map<String, Integer>")
+            assertNull(
+                foundMethod,
+                message = "unexpectedly found method with multiple type parameters"
+            )
+
+            // This should find the method.
+            assertSame(fooMethod, fooClass.findMethod("foo", "java.util.Map"))
         }
     }
 }

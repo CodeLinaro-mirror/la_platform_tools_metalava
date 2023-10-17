@@ -410,6 +410,16 @@ interface MethodItem : MemberItem {
     }
 
     /**
+     * Returns true if overloads of the method should be checked separately when checking signature
+     * of the method.
+     *
+     * This works around the issue of actual method not generating overloads for @JvmOverloads
+     * annotation when the default is specified on expect side
+     * (https://youtrack.jetbrains.com/issue/KT-57537).
+     */
+    fun shouldExpandOverloads(): Boolean = false
+
+    /**
      * Returns true if this method is a signature match for the given method (e.g. can be
      * overriding). This checks that the name and parameter lists match, but ignores differences in
      * parameter names, return value types and throws list types.

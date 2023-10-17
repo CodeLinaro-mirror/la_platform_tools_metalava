@@ -32,8 +32,6 @@ import com.android.tools.metalava.model.WildcardTypeItem
 import java.util.function.Predicate
 import kotlin.math.min
 
-const val ASSUME_TYPE_VARS_EXTEND_OBJECT = false
-
 sealed class TextTypeItem(open val codebase: TextCodebase, open val type: String) : TypeItem {
     override fun toString(): String = type
 
@@ -152,7 +150,8 @@ sealed class TextTypeItem(open val codebase: TextCodebase, open val type: String
         ): String {
             return if (erased) {
                 val raw = eraseTypeArguments(type)
-                val concrete = eraseTypeArguments(substituteTypeParameters(raw, context))
+                val rawNoEllipsis = raw.replace("...", "[]")
+                val concrete = eraseTypeArguments(substituteTypeParameters(rawNoEllipsis, context))
                 if (outerAnnotations && innerAnnotations) {
                     concrete
                 } else {
@@ -181,10 +180,8 @@ sealed class TextTypeItem(open val codebase: TextCodebase, open val type: String
                         if (bounds.isNotEmpty()) {
                             return bounds.first().toTypeString() + s.substring(end)
                         }
-                        @Suppress("ConstantConditionIf")
-                        if (ASSUME_TYPE_VARS_EXTEND_OBJECT) {
-                            return JAVA_LANG_OBJECT + s.substring(end)
-                        }
+
+                        return JAVA_LANG_OBJECT + s.substring(end)
                     }
                 }
             }
