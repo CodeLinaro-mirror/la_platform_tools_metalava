@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model.testsuite
 
 import com.android.tools.lint.checks.infrastructure.TestFile
+import com.android.tools.lint.checks.infrastructure.TestFiles
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ConstructorItem
@@ -39,16 +40,25 @@ import org.junit.runners.model.Statement
 /**
  * Base class for tests that verify the behavior of model implementations.
  *
- * This is parameterized by the runners as even though the tests are run in different projects the
- * test results are collated and reported together. Having the runner in the test name makes it
- * easier to differentiate them.
+ * This is parameterized by [TestParameters] as even though the tests are run in different projects
+ * the test results are collated and reported together. Having the parameters in the test name makes
+ * it easier to differentiate them.
  *
  * Note: In the top-level test report produced by Gradle it appears to just display whichever test
  * ran last. However, the test reports in the model implementation projects do list each run
  * separately. If this is an issue then the [ModelSuiteRunner] implementations could all be moved
  * into the same project and run tests against them all at the same time.
  */
-abstract class BaseModelTest(private val runner: ModelSuiteRunner) {
+abstract class BaseModelTest(parameters: TestParameters) {
+
+    /** The [ModelSuiteRunner] that this test must use. */
+    private val runner = parameters.runner
+
+    /**
+     * The [InputFormat] of the test files that should be processed by this test. It must ignore all
+     * other [InputFormat]s.
+     */
+    private val inputFormat = parameters.inputFormat
 
     @get:Rule val temporaryFolder = TemporaryFolder()
 
@@ -57,44 +67,100 @@ abstract class BaseModelTest(private val runner: ModelSuiteRunner) {
     companion object {
         @JvmStatic
         @Parameterized.Parameters(name = "{0}")
-        fun runners(): Iterable<ModelSuiteRunner> {
+        fun testParameters(): Iterable<TestParameters> {
             val loader = ServiceLoader.load(ModelSuiteRunner::class.java)
-            val list = loader.toList()
-            if (list.isEmpty()) {
+            val runners = loader.toList()
+            if (runners.isEmpty()) {
                 fail("No runners found")
             }
+            val list =
+                runners.flatMap { runner ->
+                    runner.supportedInputFormats
+                        .map { inputFormat -> TestParameters(runner, inputFormat) }
+                        .toList()
+                }
             return list
         }
     }
 
     /**
-     * Create a [Codebase] from one of the supplied [signature] or [source] files and then run a
-     * test on that [Codebase].
+     * Set of inputs for a test.
      *
-     * This must be called with [signature] and [source] contents that are equivalent so that the
-     * test can have the same behavior on models that consume the different formats. Subclasses of
-     * this must implement this method consuming at least one of them to create a [Codebase] on
-     * which the test is run.
+     * Currently, this is limited to one file but in future it may be more.
      */
-    fun createCodebaseAndRun(
-        signature: String,
-        source: TestFile,
+    private data class InputSet(
+        /** The [InputFormat] of the [testFile]. */
+        val inputFormat: InputFormat,
+
+        /** The [TestFile] to process. */
+        val testFile: TestFile,
+    )
+
+    /**
+     * Create a [Codebase] from one of the supplied [inputSets] and then run a test on that
+     * [Codebase].
+     *
+     * The [InputSet] that is selected is the one whose [InputSet.inputFormat] is the same as the
+     * current [inputFormat]. There can be at most one of those.
+     */
+    private fun createCodebaseFromInputSetAndRun(
+        vararg inputSets: InputSet,
         test: (Codebase) -> Unit,
     ) {
-        val tempDir = temporaryFolder.newFolder()
-        runner.createCodebaseAndRun(tempDir, signature, source, test)
+        // Run the input set that matches the current inputFormat, if there is one.
+        inputSets
+            .filter { it.inputFormat == inputFormat }
+            .singleOrNull()
+            ?.let {
+                val tempDir = temporaryFolder.newFolder()
+                runner.createCodebaseAndRun(tempDir, it.testFile, test)
+            }
+    }
+
+    private fun testFilesToInputSets(testFiles: Array<out TestFile>): Array<InputSet> {
+        return testFiles
+            .map { InputSet(InputFormat.fromFilename(it.targetRelativePath), it) }
+            .toTypedArray()
     }
 
     /**
-     * Create a [SourceCodebase] from one of the supplied [signature] or [source] files and then run
-     * a test on that [SourceCodebase].
+     * Create a [Codebase] from one of the supplied [sources] and then run the [test] on that
+     * [Codebase].
+     *
+     * The [sources] array should have at most one [TestFile] whose extension matches an
+     * [InputFormat.extension].
+     */
+    fun runCodebaseTest(
+        vararg sources: TestFile,
+        test: (Codebase) -> Unit,
+    ) {
+        createCodebaseFromInputSetAndRun(
+            *testFilesToInputSets(sources),
+            test = test,
+        )
+    }
+
+    /**
+     * Create a [SourceCodebase] from one of the supplied [sources] and then run the [test] on that
+     * [SourceCodebase].
+     *
+     * The [sources] array should have at most one [TestFile] whose extension matches an
+     * [InputFormat.extension].
      */
     fun runSourceCodebaseTest(
-        source: TestFile,
+        vararg sources: TestFile,
         test: (SourceCodebase) -> Unit,
     ) {
-        val tempDir = temporaryFolder.newFolder()
-        runner.createCodebaseAndRun(tempDir, null, source) { test(it as SourceCodebase) }
+        createCodebaseFromInputSetAndRun(
+            *testFilesToInputSets(sources),
+        ) {
+            test(it as SourceCodebase)
+        }
+    }
+
+    /** Create a signature [TestFile] with the supplied [contents]. */
+    fun signature(contents: String): TestFile {
+        return TestFiles.source("api.txt", contents.trimIndent())
     }
 
     /** Get the class from the [Codebase], failing if it does not exist. */

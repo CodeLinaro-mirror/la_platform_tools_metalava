@@ -580,7 +580,10 @@ class CodebaseComparator(
             if (comparator.compare(child.item, prev.item) == 0) {
                 if (prev.item!!.emit && !child.item!!.emit) {
                     // merge child into prev because prev is emitted
+                    val prevChildren = prev.children.toList()
+                    prev.children.clear()
                     prev.children += child.children
+                    prev.children += prevChildren
                     children.removeAt(i)
                 } else {
                     // merge prev into child because child was specified first

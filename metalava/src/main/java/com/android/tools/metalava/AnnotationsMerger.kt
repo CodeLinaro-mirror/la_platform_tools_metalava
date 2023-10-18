@@ -68,9 +68,7 @@ import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
 import com.android.tools.metalava.xml.parseDocument
-import com.google.common.io.ByteStreams
 import com.google.common.io.Closeables
-import com.google.common.io.Files
 import java.io.File
 import java.io.FileInputStream
 import java.io.IOException
@@ -169,7 +167,7 @@ class AnnotationsMerger(
             mergeFromJar(file)
         } else if (file.path.endsWith(DOT_XML)) {
             try {
-                val xml = Files.asCharSource(file, UTF_8).read()
+                val xml = file.readText()
                 mergeAnnotationsXml(file.path, xml)
             } catch (e: IOException) {
                 error("I/O problem during transform: $e")
@@ -199,7 +197,7 @@ class AnnotationsMerger(
             var entry: ZipEntry? = zis.nextEntry
             while (entry != null) {
                 if (entry.name.endsWith(".xml")) {
-                    val bytes = ByteStreams.toByteArray(zis)
+                    val bytes = zis.readBytes()
                     val xml = String(bytes, UTF_8)
                     mergeAnnotationsXml(jar.path + ": " + entry, xml)
                 }

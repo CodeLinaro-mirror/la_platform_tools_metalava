@@ -14,10 +14,20 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava
+package com.android.tools.metalava.lint
 
+import com.android.tools.metalava.ARG_API_LINT
+import com.android.tools.metalava.ARG_API_LINT_IGNORE_PREFIX
+import com.android.tools.metalava.DriverTest
+import com.android.tools.metalava.androidxNonNullSource
+import com.android.tools.metalava.androidxNullableSource
 import com.android.tools.metalava.cli.common.ARG_ERROR
 import com.android.tools.metalava.cli.common.ARG_HIDE
+import com.android.tools.metalava.cli.common.ARG_WARNING
+import com.android.tools.metalava.flaggedApiSource
+import com.android.tools.metalava.nonNullSource
+import com.android.tools.metalava.nullableSource
+import com.android.tools.metalava.systemApiSource
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import org.junit.Test
@@ -2748,7 +2758,7 @@ class ApiLintTest : DriverTest() {
             apiLint = "", // enabled
             expectedIssues =
                 """
-                src/android/pkg/MyErrorClass1.java:8: warning: Type `java.util.TimeZone` should be replaced with richer ICU type `android.icu.util.TimeZone` [UseIcu]
+                src/android/pkg/MyErrorClass1.java:8: warning: Type `java.text.NumberFormat` should be replaced with richer ICU type `android.icu.text.NumberFormat` [UseIcu]
             """,
             manifest =
                 """<?xml version="1.0" encoding="UTF-8"?>
@@ -2764,12 +2774,12 @@ class ApiLintTest : DriverTest() {
                     package android.pkg;
 
                     import android.annotation.NonNull;
-                    import java.util.TimeZone;
+                    import java.text.NumberFormat;
 
                     public abstract class MyErrorClass1 {
                         @NonNull
-                        public TimeZone getDefaultTimeZone() {
-                            return TimeZone.getDefault();
+                        public NumberFormat getDefaultNumberFormat() {
+                           return NumberFormat.getInstance();
                         }
                     }
                     """
@@ -2798,12 +2808,12 @@ class ApiLintTest : DriverTest() {
                     package android.pkg;
 
                     import android.annotation.NonNull;
-                    import java.util.TimeZone;
+                    import java.text.NumberFormat;
 
                     public abstract class MyErrorClass1 {
                         @NonNull
-                        public TimeZone getDefaultTimeZone() {
-                            return TimeZone.getDefault();
+                        public NumberFormat getDefaultNumberFormat() {
+                            return NumberFormat.getInstance();
                         }
                     }
                     """
@@ -3103,7 +3113,7 @@ class ApiLintTest : DriverTest() {
             apiLint = "", // enabled
             expectedIssues =
                 """
-                src/android/pkg/IcuTest.java:6: warning: Type `java.util.TimeZone` should be replaced with richer ICU type `android.icu.util.TimeZone` [UseIcu]
+                src/android/pkg/IcuTest.java:6: warning: Type `java.text.NumberFormat` should be replaced with richer ICU type `android.icu.text.NumberFormat` [UseIcu]
                 src/android/pkg/IcuTest.java:8: warning: Type `java.text.BreakIterator` should be replaced with richer ICU type `android.icu.text.BreakIterator` [UseIcu]
                 src/android/pkg/IcuTest.java:8: warning: Type `java.text.Collator` should be replaced with richer ICU type `android.icu.text.Collator` [UseIcu]
                 """,
@@ -3116,7 +3126,7 @@ class ApiLintTest : DriverTest() {
                     import androidx.annotation.Nullable;
 
                     public abstract class IcuTest {
-                        public IcuTest(@Nullable java.util.TimeZone timeZone) { }
+                        public IcuTest(@Nullable java.text.NumberFormat nf) { }
                         @Nullable
                         public abstract java.text.BreakIterator foo(@Nullable java.text.Collator collator);
                     }
@@ -3439,6 +3449,32 @@ class ApiLintTest : DriverTest() {
     }
 
     @Test
+    fun `Test type variable array requires nullability`() {
+        check(
+            apiLint = "", // enabled
+            extraArguments = arrayOf(ARG_API_LINT, ARG_HIDE, "ArrayReturn"),
+            expectedIssues =
+                """
+                src/test/pkg/Foo.java:4: error: Missing nullability on method `badTypeVarArrayReturn` return [MissingNullability]
+            """,
+            expectedFail = DefaultLintErrorMessage,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                        package test.pkg;
+                        public class Foo<T> {
+                            public T goodTypeVarReturn() { return null; }
+                            public T[] badTypeVarArrayReturn() { return null; }
+                        }
+                    """
+                            .trimIndent()
+                    )
+                )
+        )
+    }
+
+    @Test
     fun `Test equals, toString, non-null constants, enums and annotation members don't require nullability`() {
         check(
             apiLint = "", // enabled
@@ -3742,6 +3778,67 @@ class ApiLintTest : DriverTest() {
     }
 
     @Test
+    fun `Dont require @FlaggedApi on methods that get elided from signature files`() {
+        check(
+            showAnnotations = arrayOf("android.annotation.SystemApi"),
+            expectedIssues = "",
+            apiLint =
+                """
+                package android.foobar {
+                  public class ExistingSystemApi {
+                      ctor public ExistingSystemApi();
+                  }
+                  public class Existing {
+                      method public int existingSystemApi();
+                  }
+                }
+            """,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                        package android.foobar;
+
+                        import android.annotation.SystemApi;
+                        import android.annotation.FlaggedApi;
+
+                        /** @hide */
+                        @SystemApi
+                        public class ExistingSystemApi extends Existing {
+                            /** exactly matches Object.hashCode, not emitted */
+                            @Override
+                            public int hashCode() { return 0; }
+                            /** exactly matches ExistingPublicApi.existingPublicApi, not emitted */
+                            @Override
+                            public int existingPublicApi() { return 0; }
+                            @Override
+                            public int existingSystemApi() { return 0; }
+                        }
+                    """
+                    ),
+                    java(
+                        """
+                        package android.foobar;
+
+                        import android.annotation.SystemApi;
+                        import android.annotation.FlaggedApi;
+
+                        public class Existing {
+                            public int existingPublicApi() { return 0; }
+                            /** @hide */
+                            @SystemApi
+                            public int existingSystemApi() { return 0; }
+                        }
+                    """
+                    ),
+                    flaggedApiSource,
+                    systemApiSource,
+                ),
+            extraArguments = arrayOf("--warning", "UnflaggedApi")
+        )
+    }
+
+    @Test
     fun `Require @FlaggedApi on new APIs`() {
         check(
             expectedIssues =
@@ -3749,11 +3846,15 @@ class ApiLintTest : DriverTest() {
                 src/android/foobar/Bad.java:3: warning: New API must be flagged with @FlaggedApi: class android.foobar.Bad [UnflaggedApi]
                 src/android/foobar/Bad.java:3: warning: New API must be flagged with @FlaggedApi: constructor android.foobar.Bad() [UnflaggedApi]
                 src/android/foobar/Bad.java:5: warning: New API must be flagged with @FlaggedApi: method android.foobar.Bad.bad() [UnflaggedApi]
+                src/android/foobar/BadHiddenSuperClass.java:5: warning: New API must be flagged with @FlaggedApi: method android.foobar.Bad.inheritedBad() [UnflaggedApi]
                 src/android/foobar/Bad.java:4: warning: New API must be flagged with @FlaggedApi: field android.foobar.Bad.BAD [UnflaggedApi]
+                src/android/foobar/BadHiddenSuperClass.java:4: warning: New API must be flagged with @FlaggedApi: field android.foobar.Bad.INHERITED_BAD [UnflaggedApi]
                 src/android/foobar/Bad.java:7: warning: New API must be flagged with @FlaggedApi: class android.foobar.Bad.BadAnnotation [UnflaggedApi]
                 src/android/foobar/Bad.java:6: warning: New API must be flagged with @FlaggedApi: class android.foobar.Bad.BadInterface [UnflaggedApi]
                 src/android/foobar/ExistingClass.java:10: warning: New API must be flagged with @FlaggedApi: method android.foobar.ExistingClass.bad() [UnflaggedApi]
+                src/android/foobar/BadHiddenSuperClass.java:5: warning: New API must be flagged with @FlaggedApi: method android.foobar.ExistingClass.inheritedBad() [UnflaggedApi]
                 src/android/foobar/ExistingClass.java:9: warning: New API must be flagged with @FlaggedApi: field android.foobar.ExistingClass.BAD [UnflaggedApi]
+                src/android/foobar/BadHiddenSuperClass.java:4: warning: New API must be flagged with @FlaggedApi: field android.foobar.ExistingClass.INHERITED_BAD [UnflaggedApi]
                 """
                     .trimIndent(),
             apiLint =
@@ -3763,6 +3864,15 @@ class ApiLintTest : DriverTest() {
                       ctor ExistingClass();
                       field public static final String EXISTING_FIELD = "foo";
                       method public void existingMethod();
+                  }
+                  public interface ExistingInterface {
+                      field public static final String EXISTING_INTERFACE_FIELD = "foo";
+                      method public void existingInterfaceMethod();
+                  }
+                  public class ExistingSuperClass {
+                      ctor public ExistingSuperClass();
+                      field public static final String EXISTING_SUPER_FIELD = "foo";
+                      method public void existingSuperMethod();
                   }
                 }
                 """,
@@ -3774,7 +3884,31 @@ class ApiLintTest : DriverTest() {
 
                         import android.annotation.FlaggedApi;
 
-                        public class ExistingClass {
+                        public interface ExistingInterface {
+                            public static final String EXISTING_INTERFACE_FIELD = "foo";
+                            public default void existingInterfaceMethod() {}
+                        }
+                    """
+                    ),
+                    java(
+                        """
+                        package android.foobar;
+
+                        import android.annotation.FlaggedApi;
+
+                        public class ExistingSuperClass {
+                            public static final String EXISTING_SUPER_FIELD = "foo";
+                            public void existingSuperMethod() {}
+                        }
+                    """
+                    ),
+                    java(
+                        """
+                        package android.foobar;
+
+                        import android.annotation.FlaggedApi;
+
+                        public class ExistingClass extends BadHiddenSuperClass implements BadHiddenSuperInterface {
                             public static final String EXISTING_FIELD = "foo";
                             public void existingMethod() {}
 
@@ -3793,7 +3927,27 @@ class ApiLintTest : DriverTest() {
                         """
                         package android.foobar;
 
-                        public class Bad {
+                        class BadHiddenSuperClass {
+                            public static final String INHERITED_BAD = "bar";
+                            public void inheritedBad() {}
+                        }
+                    """
+                    ),
+                    java(
+                        """
+                        package android.foobar;
+
+                        interface BadHiddenSuperInterface {
+                            public static final String INHERITED_BAD = "bar";
+                            public void inheritedBad() {}
+                        }
+                    """
+                    ),
+                    java(
+                        """
+                        package android.foobar;
+
+                        public class Bad extends BadHiddenSuperClass implements BadHiddenSuperInterface {
                             public static final String BAD = "bar";
                             public void bad() {}
                             public interface BadInterface {}
@@ -3808,7 +3962,7 @@ class ApiLintTest : DriverTest() {
                         import android.annotation.FlaggedApi;
 
                         @FlaggedApi("foo/bar")
-                        public class Ok {
+                        public class Ok extends ExistingSuperClass implements ExistingInterface {
                             @FlaggedApi("foo/bar")
                             Ok() {}
                             @FlaggedApi("foo/bar")
@@ -3824,7 +3978,7 @@ class ApiLintTest : DriverTest() {
                     ),
                     flaggedApiSource
                 ),
-            extraArguments = arrayOf("--warning", "UnflaggedApi")
+            extraArguments = arrayOf(ARG_WARNING, "UnflaggedApi", ARG_HIDE, "HiddenSuperclass")
         )
     }
 
@@ -3832,13 +3986,7 @@ class ApiLintTest : DriverTest() {
     fun `Dont require @FlaggedApi on existing items in nested SystemApi classes`() {
         check(
             showAnnotations = arrayOf("android.annotation.SystemApi"),
-            expectedIssues =
-                // TODO: (b/299675771): This warning is erroneous. It appears because the
-                //  ComparisonVisitor treats Existing as added, so ApiLint visits it and all its
-                //  contained classes, even though Existing.Inner isn't new.
-                """
-                src/android/foobar/Existing.java:9: warning: New API must be flagged with @FlaggedApi: method android.foobar.Existing.Inner.existing() [UnflaggedApi]
-            """,
+            expectedIssues = "",
             apiLint =
                 """
                 package android.foobar {
@@ -3868,6 +4016,168 @@ class ApiLintTest : DriverTest() {
                     systemApiSource,
                 ),
             extraArguments = arrayOf("--warning", "UnflaggedApi")
+        )
+    }
+
+    @Test
+    fun `Dont require @FlaggedApi on existing items inherited into new SystemApi classes`() {
+        check(
+            showAnnotations = arrayOf("android.annotation.SystemApi"),
+            expectedIssues =
+                """
+                src/android/foobar/BadHiddenSuperClass.java:7: warning: New API must be flagged with @FlaggedApi: method android.foobar.Bad.badInherited() [UnflaggedApi]
+                src/android/foobar/BadHiddenSuperClass.java:6: warning: New API must be flagged with @FlaggedApi: field android.foobar.Bad.BAD_INHERITED [UnflaggedApi]
+            """,
+            apiLint =
+                """
+                package android.foobar {
+                  public interface ExistingSystemInterface {
+                      field public static final String EXISTING_SYSTEM_INTERFACE_FIELD = "foo";
+                      method public void existingSystemInterfaceMethod();
+                  }
+                  public class ExistingSystemSuperClass {
+                      ctor public ExistingSystemSuperClass();
+                      field public static final String EXISTING_SYSTEM_SUPER_FIELD = "foo";
+                      method public void existingSystemSuperMethod();
+                  }
+                  public class Existing {
+                  }
+                }
+            """,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                        package android.foobar;
+
+                        import android.annotation.FlaggedApi;
+                        import android.annotation.SystemApi;
+
+                        /** @hide */
+                        @SystemApi
+                        public interface ExistingSystemInterface {
+                            public static final String EXISTING_SYSTEM_INTERFACE_FIELD = "foo";
+                            public default void existingSystemInterfaceMethod() {}
+                        }
+                    """
+                    ),
+                    java(
+                        """
+                        package android.foobar;
+
+                        import android.annotation.FlaggedApi;
+                        import android.annotation.SystemApi;
+
+                        /** @hide */
+                        @SystemApi
+                        public class ExistingSystemSuperClass {
+                            public static final String EXISTING_SYSTEM_SUPER_FIELD = "foo";
+                            public void existingSystemSuperMethod() {}
+                        }
+                    """
+                    ),
+                    java(
+                        """
+                        package android.foobar;
+
+                        import android.annotation.FlaggedApi;
+
+                        public interface ExistingPublicInterface {
+                            public static final String EXISTING_PUBLIC_INTERFACE_FIELD = "foo";
+                            public default void existingPublicInterfaceMethod() {}
+                        }
+                    """
+                    ),
+                    java(
+                        """
+                        package android.foobar;
+
+                        import android.annotation.FlaggedApi;
+
+                        class BadHiddenSuperClass {
+                            public static final String BAD_INHERITED = "foo";
+                            public default void badInherited() {}
+                        }
+                    """
+                    ),
+                    java(
+                        """
+                        package android.foobar;
+
+                        import android.annotation.FlaggedApi;
+
+                        public class ExistingPublicSuperClass {
+                            public static final String EXISTING_PUBLIC_SUPER_FIELD = "foo";
+                            public void existingPublicSuperMethod() {}
+                        }
+                    """
+                    ),
+                    java(
+                        """
+                        package android.foobar;
+
+                        import android.annotation.FlaggedApi;
+
+                        import android.annotation.SystemApi;
+
+                        /** @hide */
+                        @SystemApi
+                        @FlaggedApi("namespace/flag")
+                        public class Ok extends ExistingSystemSuperClass implements ExistingSystemInterface {
+                            private Ok() {}
+                        }
+                    """
+                    ),
+                    java(
+                        """
+                        package android.foobar;
+
+                        import android.annotation.FlaggedApi;
+
+                        import android.annotation.SystemApi;
+
+                        /** @hide */
+                        @SystemApi
+                        @FlaggedApi("namespace/flag")
+                        public class Bad extends BadHiddenSuperClass {
+                            private Bad() {}
+                        }
+                    """
+                    ),
+                    java(
+                        """
+                        package android.foobar;
+
+                        import android.annotation.FlaggedApi;
+                        import android.annotation.SystemApi;
+
+                        /** @hide */
+                        @SystemApi
+                        @FlaggedApi("namespace/flag")
+                        public class Ok2 extends ExistingPublicSuperClass implements ExistingPublicInterface {
+                            private Ok2() {}
+                        }
+                    """
+                    ),
+                    java(
+                        """
+                        package android.foobar;
+
+                        import android.annotation.FlaggedApi;
+                        import android.annotation.SystemApi;
+
+                        /** @hide */
+                        @SystemApi
+                        public class Existing extends ExistingPublicSuperClass implements ExistingPublicInterface {
+                            private Existing() {}
+                        }
+                    """
+                    ),
+                    flaggedApiSource,
+                    systemApiSource,
+                ),
+            extraArguments = arrayOf(ARG_WARNING, "UnflaggedApi", ARG_HIDE, "HiddenSuperclass"),
+            checkCompilation = true
         )
     }
 

@@ -95,9 +95,10 @@ Signature Format Output:
 
 class SignatureFormatOptionsTest :
     BaseOptionGroupTest<SignatureFormatOptions>(
-        { SignatureFormatOptions() },
-        SIGNATURE_FORMAT_OPTIONS_HELP
+        SIGNATURE_FORMAT_OPTIONS_HELP,
     ) {
+
+    override fun createOptions(): SignatureFormatOptions = SignatureFormatOptions()
 
     @Test
     fun `V1 not supported`() {

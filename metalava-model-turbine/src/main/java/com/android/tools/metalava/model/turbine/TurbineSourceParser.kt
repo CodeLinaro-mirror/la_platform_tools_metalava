@@ -20,6 +20,8 @@ import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.source.SourceCodebase
 import com.android.tools.metalava.model.source.SourceParser
+import com.google.turbine.diag.SourceFile
+import com.google.turbine.parse.Parser
 import java.io.File
 
 internal class TurbineSourceParser(private val annotationManager: AnnotationManager) :
@@ -40,7 +42,17 @@ internal class TurbineSourceParser(private val annotationManager: AnnotationMana
     ): TurbineBasedCodebase {
         val rootDir = sourcePath.firstOrNull() ?: File("").canonicalFile
         val codebase = TurbineBasedCodebase(rootDir, description, annotationManager)
+
+        val sourcefiles = getSourceFiles(sources)
+        val units = sourcefiles.map { it -> Parser.parse(it) }
+        val initialiser = TurbineCodebaseInitialiser(units, codebase)
+        initialiser.initialize()
+
         return codebase
+    }
+
+    private fun getSourceFiles(sources: List<File>): List<SourceFile> {
+        return sources.map { it -> SourceFile(it.path, it.readText()) }
     }
 
     override fun loadFromJar(apiJar: File, preFiltered: Boolean): SourceCodebase {

@@ -67,6 +67,8 @@ Aborting: Error: no such option: "--trip". (Possible options: --strip, --no-stri
 
 Usage: metalava signature-to-jdiff [options] <api-file> <xml-file>
 
+  Convert an API signature file into a file in the JDiff XML format.
+
 Options:
   --strip / --no-strip                       Determines whether duplicate inherited methods should be stripped from the
                                              output or not. (default: false)

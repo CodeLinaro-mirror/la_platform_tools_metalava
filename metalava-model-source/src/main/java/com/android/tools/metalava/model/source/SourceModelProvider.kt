@@ -24,6 +24,9 @@ interface SourceModelProvider {
     /** The name of the provider. */
     val providerName: String
 
+    /** The set of supported languages. */
+    val supportedLanguages: Set<SourceLanguage>
+
     /**
      * Create an [EnvironmentManager] that will manage any resources needed while creating
      * [SourceCodebase]s from source files.

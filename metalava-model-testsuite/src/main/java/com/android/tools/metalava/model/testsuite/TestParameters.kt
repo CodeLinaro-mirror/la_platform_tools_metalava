@@ -14,9 +14,16 @@
  * limitations under the License.
  */
 
-/**
- * Contains support for fixing issues with Clikt and providing support to ease the migration when
- * upgrading from the current version to the next major version.
- */
-package com.android.tools.metalava.cli.clikt;
+package com.android.tools.metalava.model.testsuite
 
+import java.util.Locale
+
+/** Encapsulates all the parameters for the [BaseModelTest] */
+data class TestParameters(
+    /** The [ModelSuiteRunner] to use. */
+    val runner: ModelSuiteRunner,
+    val inputFormat: InputFormat,
+) {
+    /** Override this to return the string that will be used in the test name. */
+    override fun toString(): String = "$runner,${inputFormat.name.lowercase(Locale.US)}"
+}

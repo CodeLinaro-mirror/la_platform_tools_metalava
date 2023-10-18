@@ -14,8 +14,13 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava
+package com.android.tools.metalava.compatibility
 
+import com.android.tools.metalava.ApiType
+import com.android.tools.metalava.CodebaseComparator
+import com.android.tools.metalava.ComparisonVisitor
+import com.android.tools.metalava.IssueConfiguration
+import com.android.tools.metalava.JVM_DEFAULT_WITH_COMPATIBILITY
 import com.android.tools.metalava.NullnessMigration.Companion.findNullnessAnnotation
 import com.android.tools.metalava.NullnessMigration.Companion.isNullable
 import com.android.tools.metalava.cli.common.MetalavaCliException
@@ -31,6 +36,7 @@ import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.psi.PsiItem
+import com.android.tools.metalava.options
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Issues.Issue
 import com.android.tools.metalava.reporter.Reporter

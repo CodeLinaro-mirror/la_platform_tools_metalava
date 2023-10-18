@@ -14,40 +14,44 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava
+package com.android.tools.metalava.lint
 
-import com.android.resources.ResourceType
-import com.android.resources.ResourceType.AAPT
-import com.android.resources.ResourceType.ANIM
-import com.android.resources.ResourceType.ANIMATOR
-import com.android.resources.ResourceType.ARRAY
-import com.android.resources.ResourceType.ATTR
-import com.android.resources.ResourceType.BOOL
-import com.android.resources.ResourceType.COLOR
-import com.android.resources.ResourceType.DIMEN
-import com.android.resources.ResourceType.DRAWABLE
-import com.android.resources.ResourceType.FONT
-import com.android.resources.ResourceType.FRACTION
-import com.android.resources.ResourceType.ID
-import com.android.resources.ResourceType.INTEGER
-import com.android.resources.ResourceType.INTERPOLATOR
-import com.android.resources.ResourceType.LAYOUT
-import com.android.resources.ResourceType.MACRO
-import com.android.resources.ResourceType.MENU
-import com.android.resources.ResourceType.MIPMAP
-import com.android.resources.ResourceType.NAVIGATION
-import com.android.resources.ResourceType.OVERLAYABLE
-import com.android.resources.ResourceType.PLURALS
-import com.android.resources.ResourceType.PUBLIC
-import com.android.resources.ResourceType.RAW
-import com.android.resources.ResourceType.SAMPLE_DATA
-import com.android.resources.ResourceType.STRING
-import com.android.resources.ResourceType.STYLE
-import com.android.resources.ResourceType.STYLEABLE
-import com.android.resources.ResourceType.STYLE_ITEM
-import com.android.resources.ResourceType.TRANSITION
-import com.android.resources.ResourceType.XML
 import com.android.sdklib.SdkVersionInfo
+import com.android.tools.metalava.ApiPredicate
+import com.android.tools.metalava.ApiType
+import com.android.tools.metalava.CodebaseComparator
+import com.android.tools.metalava.ComparisonVisitor
+import com.android.tools.metalava.KotlinInteropChecks
+import com.android.tools.metalava.lint.ResourceType.AAPT
+import com.android.tools.metalava.lint.ResourceType.ANIM
+import com.android.tools.metalava.lint.ResourceType.ANIMATOR
+import com.android.tools.metalava.lint.ResourceType.ARRAY
+import com.android.tools.metalava.lint.ResourceType.ATTR
+import com.android.tools.metalava.lint.ResourceType.BOOL
+import com.android.tools.metalava.lint.ResourceType.COLOR
+import com.android.tools.metalava.lint.ResourceType.DIMEN
+import com.android.tools.metalava.lint.ResourceType.DRAWABLE
+import com.android.tools.metalava.lint.ResourceType.FONT
+import com.android.tools.metalava.lint.ResourceType.FRACTION
+import com.android.tools.metalava.lint.ResourceType.ID
+import com.android.tools.metalava.lint.ResourceType.INTEGER
+import com.android.tools.metalava.lint.ResourceType.INTERPOLATOR
+import com.android.tools.metalava.lint.ResourceType.LAYOUT
+import com.android.tools.metalava.lint.ResourceType.MACRO
+import com.android.tools.metalava.lint.ResourceType.MENU
+import com.android.tools.metalava.lint.ResourceType.MIPMAP
+import com.android.tools.metalava.lint.ResourceType.NAVIGATION
+import com.android.tools.metalava.lint.ResourceType.OVERLAYABLE
+import com.android.tools.metalava.lint.ResourceType.PLURALS
+import com.android.tools.metalava.lint.ResourceType.PUBLIC
+import com.android.tools.metalava.lint.ResourceType.RAW
+import com.android.tools.metalava.lint.ResourceType.SAMPLE_DATA
+import com.android.tools.metalava.lint.ResourceType.STRING
+import com.android.tools.metalava.lint.ResourceType.STYLE
+import com.android.tools.metalava.lint.ResourceType.STYLEABLE
+import com.android.tools.metalava.lint.ResourceType.STYLE_ITEM
+import com.android.tools.metalava.lint.ResourceType.TRANSITION
+import com.android.tools.metalava.lint.ResourceType.XML
 import com.android.tools.metalava.manifest.Manifest
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ClassItem
@@ -63,12 +67,14 @@ import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.SetMinSdkVersion
 import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.findAnnotation
 import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.model.psi.PsiLocationProvider
 import com.android.tools.metalava.model.psi.PsiMethodItem
 import com.android.tools.metalava.model.psi.PsiTypeItem
 import com.android.tools.metalava.model.visitors.ApiVisitor
+import com.android.tools.metalava.options
 import com.android.tools.metalava.reporter.Issues.ABSTRACT_INNER
 import com.android.tools.metalava.reporter.Issues.ACRONYM_NAME
 import com.android.tools.metalava.reporter.Issues.ACTION_VALUE
@@ -188,16 +194,24 @@ class ApiLint(
     private val codebase: Codebase,
     private val oldCodebase: Codebase?,
     private val reporter: Reporter,
-    private val manifest: Manifest = @Suppress("DEPRECATION") options.manifest,
+    private val manifest: Manifest,
+    config: ApiVisitor.Config,
 ) :
     ApiVisitor(
-        // Sort by source order such that warnings follow source line number order
+        // We don't use ApiType's eliding emitFilter here, because lint checks should run
+        // even when the signatures match that of a super method exactly (notably the ones checking
+        // that nullability overrides are consistent).
+        filterEmit =
+            ApiPredicate(includeApisForStubPurposes = false, config = config.apiPredicateConfig),
+        filterReference = ApiType.PUBLIC_API.getReferenceFilter(config.apiPredicateConfig),
+        config = config,
+        // Sort by source order such that warnings follow source line number order.
         methodComparator = MethodItem.sourceOrderComparator,
         fieldComparator = FieldItem.comparator,
-        ignoreShown = @Suppress("DEPRECATION") options.showUnannotated,
-        // No need to check "for stubs only APIs" (== "implicit" APIs)
-        includeApisForStubPurposes = false
     ) {
+    /** Predicate that checks if the item appears in the signature file. */
+    private val elidingFilterEmit = ApiType.PUBLIC_API.getEmitFilter(config.apiPredicateConfig)
+
     private fun report(
         id: Issue,
         item: Item,
@@ -223,13 +237,26 @@ class ApiLint(
         reporter.report(id, item, message, location)
     }
 
-    private fun check() {
+    fun check() {
         if (oldCodebase != null) {
             // Only check the new APIs
             CodebaseComparator()
                 .compare(
                     object : ComparisonVisitor() {
                         override fun added(new: Item) {
+                            if (
+                                new is ClassItem &&
+                                    !filterEmit.test(new) &&
+                                    oldCodebase.findClass(new.qualifiedName())?.emit == false
+                            ) {
+                                // old is implied (emit == false) in the old codebase but
+                                // wasn't emitted. new is also not eligible for emitting,
+                                // no point in checking it.
+                                // Skip here to avoid checking all of new's children even if
+                                // they're pre-existing. new's children will still be visited by
+                                // CodebaseComparator if they are truly new.
+                                return
+                            }
                             new.accept(this@ApiLint)
                         }
                     },
@@ -413,9 +440,11 @@ class ApiLint(
                 report(
                     ACRONYM_NAME,
                     method,
-                    "Acronyms should not be capitalized in method names: was `$name`, should this be `${decapitalizeAcronyms(
+                    "Acronyms should not be capitalized in method names: was `$name`, should this be `${
+                        decapitalizeAcronyms(
                         name
-                    )}`?"
+                    )
+                    }`?"
                 )
             }
         }
@@ -443,9 +472,11 @@ class ApiLint(
                 report(
                     ACRONYM_NAME,
                     cls,
-                    "Acronyms should not be capitalized in class names: was `$name`, should this be `${decapitalizeAcronyms(
+                    "Acronyms should not be capitalized in class names: was `$name`, should this be `${
+                        decapitalizeAcronyms(
                         name
-                    )}`?"
+                    )
+                    }`?"
                 )
             }
             name.endsWith("Impl") -> {
@@ -1752,6 +1783,29 @@ class ApiLint(
 
     private fun checkHasFlaggedApi(item: Item) {
         if (!item.modifiers.hasAnnotation { it.qualifiedName == flaggedApi }) {
+            val elidedField =
+                if (item is FieldItem) {
+                    val inheritedFrom = item.inheritedFrom
+                    // The field gets elided if we're able to reference the original class, but not
+                    // emit it; this happens e.g. when inheriting from a public API interface into
+                    // an @SystemApi class.
+                    // The only edge-case we don't handle well here is if the inheritance itself is
+                    // new, because that can't be flagged.
+                    // TODO(b/299659989): adjust comment once flagging inheritance is possible.
+                    inheritedFrom != null && filterReference.test(inheritedFrom)
+                } else {
+                    false
+                }
+            if (!elidingFilterEmit.test(item) || elidedField) {
+                // This API wouldn't appear in the signature file, so we don't know here if the API
+                // is pre-existing.
+                // Since the base API is either new and subject to flagging rules, or preexisting
+                // and therefore stable, the elided API is not required to be flagged.
+                // The only edge-case we don't handle well here is if the inheritance itself is new,
+                // because that can't be flagged.
+                // TODO(b/299659989): adjust comment once flagging inheritance is possible.
+                return
+            }
             report(
                 UNFLAGGED_API,
                 item,
@@ -1774,7 +1828,7 @@ class ApiLint(
             if (inherited) {
                 return // Do not enforce nullability on inherited items (non-overridden)
             }
-            if (type != null && type.isTypeParameter()) {
+            if (type != null && type is VariableTypeItem) {
                 // Generic types should have declarations of nullability set at the site of where
                 // the type is set, so that for Foo<T>, T does not need to specify nullability, but
                 // for Foo<Bar>, Bar does.
@@ -1863,7 +1917,7 @@ class ApiLint(
     private fun anySuperMethodIsNonNull(method: MethodItem): Boolean {
         return method.superMethods().any { superMethod ->
             // Disable check for generics
-            superMethod.modifiers.isNonNull() && !superMethod.returnType().isTypeParameter()
+            superMethod.modifiers.isNonNull() && superMethod.returnType() !is VariableTypeItem
         }
     }
 
@@ -1871,7 +1925,7 @@ class ApiLint(
         val supers = parameter.containingMethod().superMethods()
         return supers.all { superMethod ->
             // Disable check for generics
-            superMethod.parameters().none { it.type().isTypeParameter() }
+            superMethod.parameters().none { it.type() is VariableTypeItem }
         } &&
             supers.any { superMethod ->
                 superMethod
@@ -1886,7 +1940,7 @@ class ApiLint(
     private fun anySuperMethodLacksNullnessInfo(method: MethodItem): Boolean {
         return method.superMethods().any { superMethod ->
             // Disable check for generics
-            !superMethod.hasNullnessInfo() && !superMethod.returnType().isTypeParameter()
+            !superMethod.hasNullnessInfo() && superMethod.returnType() !is VariableTypeItem
         }
     }
 
@@ -1894,7 +1948,7 @@ class ApiLint(
         val supers = parameter.containingMethod().superMethods()
         return supers.all { superMethod ->
             // Disable check for generics
-            superMethod.parameters().none { it.type().isTypeParameter() }
+            superMethod.parameters().none { it.type() is VariableTypeItem }
         } &&
             supers.any { superMethod ->
                 !(superMethod
@@ -2842,14 +2896,8 @@ class ApiLint(
         }
         val better =
             when (typeString) {
-                "java.util.TimeZone" -> "android.icu.util.TimeZone"
                 "java.util.Calendar" -> "android.icu.util.Calendar"
-                "java.util.Locale" -> "android.icu.util.ULocale"
-                "java.util.ResourceBundle" -> "android.icu.util.UResourceBundle"
-                "java.util.SimpleTimeZone" -> "android.icu.util.SimpleTimeZone"
-                "java.util.StringTokenizer" -> "android.icu.util.StringTokenizer"
                 "java.util.GregorianCalendar" -> "android.icu.util.GregorianCalendar"
-                "java.lang.Character" -> "android.icu.lang.UCharacter"
                 "java.text.BreakIterator" -> "android.icu.text.BreakIterator"
                 "java.text.Collator" -> "android.icu.text.Collator"
                 "java.text.DecimalFormatSymbols" -> "android.icu.text.DecimalFormatSymbols"
@@ -3277,10 +3325,6 @@ class ApiLint(
                         s.replace(acronym, replacement)
                     }
             }
-        }
-
-        fun check(codebase: Codebase, oldCodebase: Codebase?, reporter: Reporter) {
-            ApiLint(codebase, oldCodebase, reporter).check()
         }
     }
 }

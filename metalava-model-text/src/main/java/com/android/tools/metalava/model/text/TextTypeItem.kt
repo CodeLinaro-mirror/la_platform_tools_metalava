@@ -16,22 +16,27 @@
 
 package com.android.tools.metalava.model.text
 
+import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.JAVA_LANG_OBJECT
 import com.android.tools.metalava.model.JAVA_LANG_PREFIX
 import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.MethodItem
+import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.TypeParameterListOwner
+import com.android.tools.metalava.model.VariableTypeItem
+import com.android.tools.metalava.model.WildcardTypeItem
 import java.util.function.Predicate
 import kotlin.math.min
 
 const val ASSUME_TYPE_VARS_EXTEND_OBJECT = false
 
-class TextTypeItem(val codebase: TextCodebase, val type: String) : TypeItem {
+sealed class TextTypeItem(open val codebase: TextCodebase, open val type: String) : TypeItem {
 
     override fun toString(): String = type
 
@@ -207,7 +212,7 @@ class TextTypeItem(val codebase: TextCodebase, val type: String) : TypeItem {
     override fun typeArgumentClasses(): List<ClassItem> = codebase.unsupported()
 
     override fun convertType(replacementMap: Map<String, String>?, owner: Item?): TypeItem {
-        return TextTypeItem(codebase, convertTypeString(replacementMap))
+        return codebase.typeResolver.obtainTypeFromString(convertTypeString(replacementMap))
     }
 
     override fun markRecent() = codebase.unsupported()
@@ -417,3 +422,42 @@ class TextTypeItem(val codebase: TextCodebase, val type: String) : TypeItem {
         }
     }
 }
+
+/** A [PrimitiveTypeItem] parsed from a signature file. */
+internal class TextPrimitiveTypeItem(
+    override val codebase: TextCodebase,
+    override val type: String,
+    override val kind: PrimitiveTypeItem.Primitive
+) : PrimitiveTypeItem, TextTypeItem(codebase, type)
+
+/** An [ArrayTypeItem] parsed from a signature file. */
+internal class TextArrayTypeItem(
+    override val codebase: TextCodebase,
+    override val type: String,
+    override val componentType: TypeItem,
+    override val isVarargs: Boolean
+) : ArrayTypeItem, TextTypeItem(codebase, type)
+
+/** A [ClassTypeItem] parsed from a signature file. */
+internal class TextClassTypeItem(
+    override val codebase: TextCodebase,
+    override val type: String,
+    override val qualifiedName: String,
+    override val parameters: List<TypeItem>
+) : ClassTypeItem, TextTypeItem(codebase, type)
+
+/** A [VariableTypeItem] parsed from a signature file. */
+internal class TextVariableTypeItem(
+    override val codebase: TextCodebase,
+    override val type: String,
+    override val name: String,
+    override val asTypeParameter: TypeParameterItem
+) : VariableTypeItem, TextTypeItem(codebase, type)
+
+/** A [WildcardTypeItem] parsed from a signature file. */
+internal class TextWildcardTypeItem(
+    override val codebase: TextCodebase,
+    override val type: String,
+    override val extendsBound: TypeItem?,
+    override val superBound: TypeItem?
+) : WildcardTypeItem, TextTypeItem(codebase, type)

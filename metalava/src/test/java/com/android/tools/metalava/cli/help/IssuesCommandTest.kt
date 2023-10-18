@@ -121,6 +121,7 @@ Available Issues                             |  Category                |   Defa
   InternalClasses                            |  api_lint                |   error
   InternalError                              |  unknown                 |   error
   InternalField                              |  api_lint                |   error
+  InvalidFeatureEnforcement                  |  documentation           |   lint
   InvalidNullConversion                      |  compatibility           |   error
   InvalidNullabilityAnnotation               |  unknown                 |   error
   InvalidNullabilityAnnotationWarning        |  unknown                 |   warning

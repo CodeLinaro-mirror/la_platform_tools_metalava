@@ -23,7 +23,6 @@ import com.github.ajalt.clikt.output.Localization
 internal class LegacyHelpFormatter(
     terminalSupplier: () -> Terminal,
     localization: Localization,
-    private val helpListTransform: (List<ParameterHelp>) -> List<ParameterHelp>,
     /** Provider for additional non-Clikt usage information. */
     private val nonCliktUsageProvider: (Terminal, Int) -> String,
 ) : MetalavaHelpFormatter(terminalSupplier, localization) {
@@ -34,7 +33,6 @@ internal class LegacyHelpFormatter(
         programName: String
     ): String {
         val extendedEpilog = "```${nonCliktUsageProvider(terminal, width)}```$epilog"
-        val transformedParameters = helpListTransform(parameters)
-        return super.formatHelp(prolog, extendedEpilog, transformedParameters, programName)
+        return super.formatHelp(prolog, extendedEpilog, parameters, programName)
     }
 }

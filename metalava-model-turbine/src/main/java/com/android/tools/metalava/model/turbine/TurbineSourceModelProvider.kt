@@ -16,11 +16,15 @@
 
 package com.android.tools.metalava.model.turbine
 
+import com.android.tools.metalava.model.source.SourceLanguage
+
 // @AutoService(SourceModelProvider::class)
 internal class TurbineSourceModelProvider :
     com.android.tools.metalava.model.source.SourceModelProvider {
 
     override val providerName: String = "turbine"
+
+    override val supportedLanguages: Set<SourceLanguage> = setOf(SourceLanguage.JAVA)
 
     override fun createEnvironmentManager(
         disableStderrDumping: Boolean,

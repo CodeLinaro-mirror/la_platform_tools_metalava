@@ -24,32 +24,23 @@ import com.android.tools.metalava.model.text.ApiParseException
 import com.android.tools.metalava.model.text.TextCodebase
 import java.io.File
 
-@Suppress("DEPRECATION")
+/**
+ * Helper object to load signature files and rethrow any [ApiParseException] as a
+ * [MetalavaCliException].
+ */
 object SignatureFileLoader {
-    private val map = mutableMapOf<File, TextCodebase>()
-
-    /** Used by java file. */
-    fun load(file: File): TextCodebase {
-        return load(file, null)
-    }
-
     fun load(
         file: File,
         classResolver: ClassResolver? = null,
-        annotationManager: AnnotationManager = options.annotationManager,
+        annotationManager: AnnotationManager,
     ): TextCodebase {
-        return map[file]
-            ?: run {
-                val loaded = loadFiles(listOf(file), classResolver, annotationManager)
-                map[file] = loaded
-                loaded
-            }
+        return loadFiles(listOf(file), classResolver, annotationManager)
     }
 
     fun loadFiles(
         files: List<File>,
         classResolver: ClassResolver? = null,
-        annotationManager: AnnotationManager = options.annotationManager,
+        annotationManager: AnnotationManager,
     ): TextCodebase {
         require(files.isNotEmpty()) { "files must not be empty" }
 

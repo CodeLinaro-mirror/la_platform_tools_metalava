@@ -50,7 +50,7 @@ fun addApisFromCodebase(api: Api, apiLevel: Int, codebase: Codebase, useInternal
                         if (existing == superName) {
                             // The bytecode used to point to the old hidden super class. Point
                             // to the real one (that the signature files referenced) instead.
-                            val removed = newClass.removeSuperClass(superName)
+                            val removed = superName?.let { newClass.removeSuperClass(it) }
                             val since = removed?.since ?: apiLevel
                             val entry =
                                 newClass.addSuperClass(filteredSuperClass.nameInApi(), since)

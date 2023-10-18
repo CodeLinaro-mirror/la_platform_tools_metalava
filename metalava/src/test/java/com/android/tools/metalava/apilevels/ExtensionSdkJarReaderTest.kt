@@ -50,7 +50,32 @@ class ExtensionSdkJarReaderTest {
                             ),
                         "baz" to listOf(VersionAndPath(2, File(root, "2/public/baz.jar"))),
                     )
-                val actual = ExtensionSdkJarReader.findExtensionSdkJarFiles(root)
+                val actual = ExtensionSdkJarReader.findExtensionSdkJarFiles(root, null)
+                assertEquals(expected, actual)
+            }
+    }
+
+    @Test
+    fun `Verify findExtensionSdkJarFiles exclude unreleased`() {
+        TemporaryDirectoryHierarchy(
+                listOf(
+                    "1/public/foo.jar",
+                    "2/public/foo.jar",
+                    "3/public/foo.jar",
+                    "4/public/foo.jar",
+                )
+            )
+            .use {
+                val root = it.root
+                val expected =
+                    mapOf(
+                        "foo" to
+                            listOf(
+                                VersionAndPath(1, File(root, "1/public/foo.jar")),
+                                VersionAndPath(2, File(root, "2/public/foo.jar"))
+                            )
+                    )
+                val actual = ExtensionSdkJarReader.findExtensionSdkJarFiles(root, 2)
                 assertEquals(expected, actual)
             }
     }
