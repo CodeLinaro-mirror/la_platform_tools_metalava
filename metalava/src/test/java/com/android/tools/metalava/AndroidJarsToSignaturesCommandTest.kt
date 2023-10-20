@@ -57,7 +57,7 @@ Arguments:
     @Test
     fun `Test not Android dir`() {
         commandTest {
-            val notAndroidRoot = folder()
+            val notAndroidRoot = folder("not-android-root")
 
             args += "android-jars-to-signatures"
             args += notAndroidRoot.path
@@ -81,7 +81,7 @@ Arguments:
 
         commandTest {
             // Copy the android.jar into a temporary folder structure.
-            val androidRootDir = folder()
+            val androidRootDir = folder("android-root-dir")
 
             fun oldAndroidJarFile(apiVersion: Int): String {
                 return "prebuilts/tools/common/api-versions/android-$apiVersion/android.jar"

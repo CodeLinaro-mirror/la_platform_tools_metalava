@@ -388,14 +388,22 @@ data class FileFormat(
         /**
          * Parse the start of the contents provided by [reader] to obtain the [FileFormat]
          *
+         * @param filename the name of the file from which the content is being read.
+         * @param reader the reader to use to read the file contents.
+         * @param formatForLegacyFiles the optional format to use if the file uses a legacy, and now
+         *   unsupported file format.
          * @return the [FileFormat] or null if the reader was blank.
          */
-        fun parseHeader(filename: String, reader: Reader): FileFormat? {
+        fun parseHeader(
+            filename: String,
+            reader: Reader,
+            formatForLegacyFiles: FileFormat? = null
+        ): FileFormat? {
             val lineNumberReader =
                 if (reader is LineNumberReader) reader else LineNumberReader(reader, BUFFER_SIZE)
 
             try {
-                return parseHeader(lineNumberReader)
+                return parseHeader(lineNumberReader, formatForLegacyFiles)
             } catch (cause: ApiParseException) {
                 // Wrap the exception and add contextual information to help user identify and fix
                 // the problem. This is done here instead of when throwing the exception as the
@@ -417,7 +425,14 @@ data class FileFormat(
          *
          * @return the [FileFormat] or null if the reader was blank.
          */
-        private fun parseHeader(reader: LineNumberReader): FileFormat? {
+        private fun parseHeader(
+            reader: LineNumberReader,
+            formatForLegacyFiles: FileFormat?
+        ): FileFormat? {
+            // Remember the starting position of the reader just in case it is necessary to reset
+            // it back to this point.
+            reader.mark(BUFFER_SIZE)
+
             // This reads the minimal amount to determine whether this is likely to be a
             // signature file.
             val prefixLength = SIGNATURE_FORMAT_PREFIX.length
@@ -443,6 +458,16 @@ data class FileFormat(
                     // If the line is null then te whole file is blank which is handled specially.
                     if (line == null) {
                         return null
+                    }
+                }
+
+                // If formatForLegacyFiles has been provided then check to see if the file adheres
+                // to a legacy format and if it does behave as if it was formatForLegacyFiles.
+                if (formatForLegacyFiles != null) {
+                    // Check for version 1.0, i.e. no header at all.
+                    if (prefix.startsWith("package ")) {
+                        reader.reset()
+                        return formatForLegacyFiles
                     }
                 }
 
@@ -493,8 +518,8 @@ data class FileFormat(
          */
         fun parseSpecifier(
             specifier: String,
-            migratingAllowed: Boolean,
-            extraVersions: Set<String>,
+            migratingAllowed: Boolean = false,
+            extraVersions: Set<String> = emptySet(),
         ): FileFormat {
             val specifierParts = specifier.split(VERSION_PROPERTIES_SEPARATOR, limit = 2)
             val versionNumber = specifierParts[0]
@@ -573,7 +598,7 @@ data class FileFormat(
         private fun parseProperties(reader: LineNumberReader, version: Version): FileFormat {
             val builder = Builder(version.defaults)
             do {
-                reader.mark(1024)
+                reader.mark(BUFFER_SIZE)
                 val line = reader.readLine() ?: break
                 if (line.startsWith("package ")) {
                     reader.reset()

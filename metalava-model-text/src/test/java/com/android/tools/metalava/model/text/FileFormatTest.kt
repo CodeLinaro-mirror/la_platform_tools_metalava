@@ -26,22 +26,21 @@ import org.junit.Test
 class FileFormatTest {
     private fun checkParseHeader(
         apiText: String,
+        formatForLegacyFiles: FileFormat? = null,
         expectedFormat: FileFormat? = null,
         expectedError: String? = null,
         expectedNextLine: String? = null
     ) {
         val reader = LineNumberReader(StringReader(apiText.trimIndent()))
+        val parseHeader = { FileFormat.parseHeader("api.txt", reader, formatForLegacyFiles) }
         if (expectedError == null) {
-            val format = FileFormat.parseHeader("api.txt", reader)
+            val format = parseHeader()
             assertEquals(expectedFormat, format)
             val nextLine = reader.readLine()
             assertEquals(expectedNextLine, nextLine, "next line mismatch")
         } else {
             assertNull("cannot specify both expectedFormat and expectedError", expectedFormat)
-            val e =
-                assertThrows(ApiParseException::class.java) {
-                    FileFormat.parseHeader("api.txt", reader)
-                }
+            val e = assertThrows(ApiParseException::class.java) { parseHeader() }
             assertEquals(expectedError, e.message)
         }
     }
@@ -114,6 +113,22 @@ class FileFormatTest {
             """,
             expectedError =
                 "api.txt:1: Signature format error - invalid prefix, found 'package test.pkg {', expected '// Signature format: '",
+        )
+    }
+
+    @Test
+    fun `Check format parsing (v1 + legacy format)`() {
+        checkParseHeader(
+            """
+                package test.pkg {
+                  public class MyTest {
+                    ctor public MyTest();
+                  }
+                }
+            """,
+            formatForLegacyFiles = FileFormat.V2,
+            expectedFormat = FileFormat.V2,
+            expectedNextLine = "package test.pkg {",
         )
     }
 

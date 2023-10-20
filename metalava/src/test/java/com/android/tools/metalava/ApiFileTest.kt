@@ -4860,6 +4860,11 @@ class ApiFileTest : DriverTest() {
                             private val p4: Int = 0,
                             private val p5: Int
                         )
+
+                        expect class AllOptionalJvmOverloadsBothSides @JvmOverloads constructor(
+                            private val foo: Int = 0,
+                            private val bar: Int = 0
+                        )
                     """
                     ),
                     kotlin(
@@ -4879,6 +4884,11 @@ class ApiFileTest : DriverTest() {
                             private val p4: Int,
                             private val p5: Int
                         )
+
+                        actual class AllOptionalJvmOverloadsBothSides @JvmOverloads actual constructor(
+                            private val foo: Int = 0,
+                            private val bar: Int = 0
+                        )
                     """
                     )
                 ),
@@ -4890,6 +4900,11 @@ class ApiFileTest : DriverTest() {
                         ctor public AllOptionalJvmOverloads();
                         ctor public AllOptionalJvmOverloads(optional int foo);
                         ctor public AllOptionalJvmOverloads(optional int foo, optional int bar);
+                      }
+                      public final class AllOptionalJvmOverloadsBothSides {
+                        ctor public AllOptionalJvmOverloadsBothSides();
+                        ctor public AllOptionalJvmOverloadsBothSides(optional int foo);
+                        ctor public AllOptionalJvmOverloadsBothSides(optional int foo, optional int bar);
                       }
                       public final class SomeOptionalJvmOverloads {
                         ctor public SomeOptionalJvmOverloads(int p1, int p3, int p5);

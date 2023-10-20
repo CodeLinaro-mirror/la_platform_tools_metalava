@@ -20,9 +20,41 @@ import com.android.tools.metalava.cli.common.BaseCommandTest
 import com.android.tools.metalava.cli.common.CommandTestConfig
 import com.android.tools.metalava.cli.signature.SignatureToJDiffCommand
 import com.android.tools.metalava.model.text.FileFormat
-import com.android.tools.metalava.model.text.prepareSignatureFileForTest
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import org.junit.Test
+
+private val signatureToJdiffHelp =
+    """
+Usage: metalava signature-to-jdiff [options] <api-file> <xml-file>
+
+  Convert an API signature file into a file in the JDiff XML format.
+
+Options:
+  --strip / --no-strip                       Determines whether duplicate inherited methods should be stripped from the
+                                             output or not. (default: false)
+  --format-for-legacy-files <format-specifier>
+                                             Optional format to use when reading legacy, i.e. no longer supported,
+                                             format versions. Forces the signature file to be parsed as if it was in
+                                             this format.
+
+                                             This is provided primarily to allow version 1.0 files, which had no header,
+                                             to be parsed as if they were 2.0 files (by specifying
+                                             `--format-for-legacy-files=2.0`) so that version 1.0 files can still be
+                                             read even though metalava no longer supports version 1.0 files
+                                             specifically. That is effectively what metalava did anyway before it
+                                             removed support for version 1.0 files so should work reasonably well.
+
+                                             Applies to both `--base-api` and `<api-file>`.
+  --base-api <base-api-file>                 Optional base API file. If provided then the output will only include API
+                                             items that are not in this file.
+  -h, -?, --help                             Show this message and exit
+
+Arguments:
+  <api-file>                                 API signature file to convert to the JDiff XML format.
+  <xml-file>                                 Output JDiff XML format file.
+    """
+        .trimIndent()
 
 class SignatureToJDiffCommandTest :
     BaseCommandTest<SignatureToJDiffCommand>({ SignatureToJDiffCommand() }) {
@@ -32,24 +64,7 @@ class SignatureToJDiffCommandTest :
         commandTest {
             args += listOf("signature-to-jdiff", "--help")
 
-            expectedStdout =
-                """
-Usage: metalava signature-to-jdiff [options] <api-file> <xml-file>
-
-  Convert an API signature file into a file in the JDiff XML format.
-
-Options:
-  --strip / --no-strip                       Determines whether duplicate inherited methods should be stripped from the
-                                             output or not. (default: false)
-  --base-api <base-api-file>                 Optional base API file. If provided then the output will only include API
-                                             items that are not in this file.
-  -h, -?, --help                             Show this message and exit
-
-Arguments:
-  <api-file>                                 API signature file to convert to the JDiff XML format.
-  <xml-file>                                 Output JDiff XML format file.
-            """
-                    .trimIndent()
+            expectedStdout = signatureToJdiffHelp
         }
     }
 
@@ -66,93 +81,85 @@ Arguments:
                 """
 Aborting: Error: no such option: "--trip". (Possible options: --strip, --no-strip)
 
-Usage: metalava signature-to-jdiff [options] <api-file> <xml-file>
-
-  Convert an API signature file into a file in the JDiff XML format.
-
-Options:
-  --strip / --no-strip                       Determines whether duplicate inherited methods should be stripped from the
-                                             output or not. (default: false)
-  --base-api <base-api-file>                 Optional base API file. If provided then the output will only include API
-                                             items that are not in this file.
-  -h, -?, --help                             Show this message and exit
-
-Arguments:
-  <api-file>                                 API signature file to convert to the JDiff XML format.
-  <xml-file>                                 Output JDiff XML format file.
+$signatureToJdiffHelp
             """
                     .trimIndent()
         }
     }
 
     @Test
-    fun `Test conversion flag`() {
+    fun `Test conversion flag class with constructor`() {
         jdiffConversionTest {
             strip = true
 
             api =
                 """
-                package test.pkg {
-                  public class MyTest1 {
-                    ctor public MyTest1();
-                  }
-                }
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public class MyTest1 {
+                        ctor public MyTest1();
+                      }
+                    }
                 """
 
             expectedXml =
                 """
-                <api name="api" xmlns:metalava="http://www.android.com/metalava/">
-                <package name="test.pkg"
-                >
-                <class name="MyTest1"
-                 extends="java.lang.Object"
-                 abstract="false"
-                 static="false"
-                 final="false"
-                 deprecated="not deprecated"
-                 visibility="public"
-                >
-                <constructor name="MyTest1"
-                 type="test.pkg.MyTest1"
-                 static="false"
-                 final="false"
-                 deprecated="not deprecated"
-                 visibility="public"
-                >
-                </constructor>
-                </class>
-                </package>
-                </api>
+                    <api name="api" xmlns:metalava="http://www.android.com/metalava/">
+                    <package name="test.pkg"
+                    >
+                    <class name="MyTest1"
+                     extends="java.lang.Object"
+                     abstract="false"
+                     static="false"
+                     final="false"
+                     deprecated="not deprecated"
+                     visibility="public"
+                    >
+                    <constructor name="MyTest1"
+                     type="test.pkg.MyTest1"
+                     static="false"
+                     final="false"
+                     deprecated="not deprecated"
+                     visibility="public"
+                    >
+                    </constructor>
+                    </class>
+                    </package>
+                    </api>
                 """
         }
+    }
 
+    @Test
+    fun `Test conversion flag empty class`() {
         jdiffConversionTest {
             strip = true
 
             api =
                 """
-                package test.pkg {
-                  public class MyTest2 {
-                  }
-                }
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public class MyTest2 {
+                      }
+                    }
                 """
 
             expectedXml =
                 """
-                <api name="api" xmlns:metalava="http://www.android.com/metalava/">
-                <package name="test.pkg"
-                >
-                <class name="MyTest2"
-                 extends="java.lang.Object"
-                 abstract="false"
-                 static="false"
-                 final="false"
-                 deprecated="not deprecated"
-                 visibility="public"
-                >
-                </class>
-                </package>
-                </api>
+                    <api name="api" xmlns:metalava="http://www.android.com/metalava/">
+                    <package name="test.pkg"
+                    >
+                    <class name="MyTest2"
+                     extends="java.lang.Object"
+                     abstract="false"
+                     static="false"
+                     final="false"
+                     deprecated="not deprecated"
+                     visibility="public"
+                    >
+                    </class>
+                    </package>
+                    </api>
                 """
         }
     }
@@ -164,150 +171,7 @@ Arguments:
 
             api =
                 """
-                package test.pkg {
-                  public class MyTest1 {
-                    ctor public MyTest1();
-                    method public deprecated int clamp(int);
-                    method public java.lang.Double convert(java.lang.Float);
-                    field public static final java.lang.String ANY_CURSOR_ITEM_TYPE = "vnd.android.cursor.item/*";
-                    field public deprecated java.lang.Number myNumber;
-                  }
-                  public class MyTest2 {
-                    ctor public MyTest2();
-                    method public java.lang.Double convert(java.lang.Float);
-                  }
-                }
-                package test.pkg.new {
-                  public interface MyInterface {
-                  }
-                  public abstract class MyTest3 implements java.util.List {
-                  }
-                  public abstract class MyTest4 implements test.pkg.new.MyInterface {
-                  }
-                }
-                """
-
-            baseApi =
-                """
-                package test.pkg {
-                  public class MyTest1 {
-                    ctor public MyTest1();
-                    method public deprecated int clamp(int);
-                    field public deprecated java.lang.Number myNumber;
-                  }
-                }
-                """
-
-            expectedXml =
-                """
-                <api name="api" xmlns:metalava="http://www.android.com/metalava/">
-                <package name="test.pkg"
-                >
-                <class name="MyTest1"
-                 extends="java.lang.Object"
-                 abstract="false"
-                 static="false"
-                 final="false"
-                 deprecated="not deprecated"
-                 visibility="public"
-                >
-                <method name="convert"
-                 return="java.lang.Double"
-                 abstract="false"
-                 native="false"
-                 synchronized="false"
-                 static="false"
-                 final="false"
-                 deprecated="not deprecated"
-                 visibility="public"
-                >
-                <parameter name="null" type="java.lang.Float">
-                </parameter>
-                </method>
-                <field name="ANY_CURSOR_ITEM_TYPE"
-                 type="java.lang.String"
-                 transient="false"
-                 volatile="false"
-                 value="&quot;vnd.android.cursor.item/*&quot;"
-                 static="true"
-                 final="true"
-                 deprecated="not deprecated"
-                 visibility="public"
-                >
-                </field>
-                </class>
-                <class name="MyTest2"
-                 extends="java.lang.Object"
-                 abstract="false"
-                 static="false"
-                 final="false"
-                 deprecated="not deprecated"
-                 visibility="public"
-                >
-                <constructor name="MyTest2"
-                 type="test.pkg.MyTest2"
-                 static="false"
-                 final="false"
-                 deprecated="not deprecated"
-                 visibility="public"
-                >
-                </constructor>
-                <method name="convert"
-                 return="java.lang.Double"
-                 abstract="false"
-                 native="false"
-                 synchronized="false"
-                 static="false"
-                 final="false"
-                 deprecated="not deprecated"
-                 visibility="public"
-                >
-                <parameter name="null" type="java.lang.Float">
-                </parameter>
-                </method>
-                </class>
-                </package>
-                <package name="test.pkg.new"
-                >
-                <interface name="MyInterface"
-                 abstract="true"
-                 static="false"
-                 final="false"
-                 deprecated="not deprecated"
-                 visibility="public"
-                >
-                </interface>
-                <class name="MyTest3"
-                 extends="java.lang.Object"
-                 abstract="true"
-                 static="false"
-                 final="false"
-                 deprecated="not deprecated"
-                 visibility="public"
-                >
-                </class>
-                <class name="MyTest4"
-                 extends="java.lang.Object"
-                 abstract="true"
-                 static="false"
-                 final="false"
-                 deprecated="not deprecated"
-                 visibility="public"
-                >
-                <implements name="test.pkg.new.MyInterface">
-                </implements>
-                </class>
-                </package>
-                </api>
-                """
-        }
-    }
-
-    @Test
-    fun `Test convert new without compat mode and no strip`() {
-        jdiffConversionTest {
-            api =
-                """
+                    // Signature format: 2.0
                     package test.pkg {
                       public class MyTest1 {
                         ctor public MyTest1();
@@ -329,10 +193,11 @@ Arguments:
                       public abstract class MyTest4 implements test.pkg.new.MyInterface {
                       }
                     }
-                    """
+                """
 
             baseApi =
                 """
+                    // Signature format: 2.0
                     package test.pkg {
                       public class MyTest1 {
                         ctor public MyTest1();
@@ -340,7 +205,153 @@ Arguments:
                         field public deprecated java.lang.Number myNumber;
                       }
                     }
-                    """
+                """
+
+            expectedXml =
+                """
+                    <api name="api" xmlns:metalava="http://www.android.com/metalava/">
+                    <package name="test.pkg"
+                    >
+                    <class name="MyTest1"
+                     extends="java.lang.Object"
+                     abstract="false"
+                     static="false"
+                     final="false"
+                     deprecated="not deprecated"
+                     visibility="public"
+                    >
+                    <method name="convert"
+                     return="java.lang.Double"
+                     abstract="false"
+                     native="false"
+                     synchronized="false"
+                     static="false"
+                     final="false"
+                     deprecated="not deprecated"
+                     visibility="public"
+                    >
+                    <parameter name="null" type="java.lang.Float">
+                    </parameter>
+                    </method>
+                    <field name="ANY_CURSOR_ITEM_TYPE"
+                     type="java.lang.String"
+                     transient="false"
+                     volatile="false"
+                     value="&quot;vnd.android.cursor.item/*&quot;"
+                     static="true"
+                     final="true"
+                     deprecated="not deprecated"
+                     visibility="public"
+                    >
+                    </field>
+                    </class>
+                    <class name="MyTest2"
+                     extends="java.lang.Object"
+                     abstract="false"
+                     static="false"
+                     final="false"
+                     deprecated="not deprecated"
+                     visibility="public"
+                    >
+                    <constructor name="MyTest2"
+                     type="test.pkg.MyTest2"
+                     static="false"
+                     final="false"
+                     deprecated="not deprecated"
+                     visibility="public"
+                    >
+                    </constructor>
+                    <method name="convert"
+                     return="java.lang.Double"
+                     abstract="false"
+                     native="false"
+                     synchronized="false"
+                     static="false"
+                     final="false"
+                     deprecated="not deprecated"
+                     visibility="public"
+                    >
+                    <parameter name="null" type="java.lang.Float">
+                    </parameter>
+                    </method>
+                    </class>
+                    </package>
+                    <package name="test.pkg.new"
+                    >
+                    <interface name="MyInterface"
+                     abstract="true"
+                     static="false"
+                     final="false"
+                     deprecated="not deprecated"
+                     visibility="public"
+                    >
+                    </interface>
+                    <class name="MyTest3"
+                     extends="java.lang.Object"
+                     abstract="true"
+                     static="false"
+                     final="false"
+                     deprecated="not deprecated"
+                     visibility="public"
+                    >
+                    </class>
+                    <class name="MyTest4"
+                     extends="java.lang.Object"
+                     abstract="true"
+                     static="false"
+                     final="false"
+                     deprecated="not deprecated"
+                     visibility="public"
+                    >
+                    <implements name="test.pkg.new.MyInterface">
+                    </implements>
+                    </class>
+                    </package>
+                    </api>
+                """
+        }
+    }
+
+    @Test
+    fun `Test convert new without compat mode and no strip`() {
+        jdiffConversionTest {
+            api =
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public class MyTest1 {
+                        ctor public MyTest1();
+                        method public deprecated int clamp(int);
+                        method public java.lang.Double convert(java.lang.Float);
+                        field public static final java.lang.String ANY_CURSOR_ITEM_TYPE = "vnd.android.cursor.item/*";
+                        field public deprecated java.lang.Number myNumber;
+                      }
+                      public class MyTest2 {
+                        ctor public MyTest2();
+                        method public java.lang.Double convert(java.lang.Float);
+                      }
+                    }
+                    package test.pkg.new {
+                      public interface MyInterface {
+                      }
+                      public abstract class MyTest3 implements java.util.List {
+                      }
+                      public abstract class MyTest4 implements test.pkg.new.MyInterface {
+                      }
+                    }
+                """
+
+            baseApi =
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public class MyTest1 {
+                        ctor public MyTest1();
+                        method public deprecated int clamp(int);
+                        field public deprecated java.lang.Number myNumber;
+                      }
+                    }
+                """
 
             expectedXml =
                 """
@@ -445,7 +456,7 @@ Arguments:
                     </class>
                     </package>
                     </api>
-                    """
+                """
         }
     }
 
@@ -454,6 +465,7 @@ Arguments:
         jdiffConversionTest {
             api =
                 """
+                    // Signature format: 2.0
                     package test.pkg {
                       public class MyTest1 {
                         ctor public MyTest1();
@@ -471,10 +483,11 @@ Arguments:
                       public class MyTest3 {
                       }
                     }
-                    """
+                """
 
             baseApi =
                 """
+                    // Signature format: 2.0
                     package test.pkg {
                       public class MyTest1 {
                         ctor public MyTest1();
@@ -492,13 +505,106 @@ Arguments:
                       public class MyTest3 {
                       }
                     }
-                    """
+                """
 
             expectedXml =
                 """
                     <api name="api" xmlns:metalava="http://www.android.com/metalava/">
                     </api>
-                    """
+                """
+        }
+    }
+
+    @Test
+    fun `Test convert legacy file`() {
+        jdiffConversionTest {
+            api =
+                """
+                    package test.pkg {
+                      public class Test {
+                      }
+                    }
+                """
+
+            expectedStderr =
+                "Aborting: Unable to parse signature file: TESTROOT/jdiff-conversion/api.txt:1: Signature format error - invalid prefix, found 'package test.pkg {', expected '// Signature format: '"
+        }
+    }
+
+    @Test
+    fun `Test convert legacy base file`() {
+        jdiffConversionTest {
+            api =
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public class Test {
+                        ctor public Test();
+                      }
+                    }
+                """
+
+            baseApi =
+                """
+                    package test.pkg {
+                      public class Test {
+                      }
+                    }
+                """
+
+            expectedStderr =
+                "Aborting: Unable to parse signature file: TESTROOT/jdiff-conversion/base-api.txt:1: Signature format error - invalid prefix, found 'package test.pkg {', expected '// Signature format: '"
+        }
+    }
+
+    @Test
+    fun `Test convert legacy files with --format-for-legacy-files`() {
+        jdiffConversionTest {
+            formatForLegacyFiles = FileFormat.V2
+
+            api =
+                """
+                    package test.pkg {
+                      public class Test {
+                        ctor public Test();
+                      }
+                    }
+                """
+
+            baseApi =
+                """
+                    package test.pkg {
+                      public class Test {
+                      }
+                    }
+                """
+
+            expectedXml =
+                """
+                    <api name="api" xmlns:metalava="http://www.android.com/metalava/">
+                    <package name="test.pkg"
+                    >
+                    <class name="Test"
+                     extends="java.lang.Object"
+                     abstract="false"
+                     static="false"
+                     final="false"
+                     deprecated="not deprecated"
+                     visibility="public"
+                    >
+                    <constructor name="Test"
+                     type="test.pkg.Test"
+                     static="false"
+                     final="false"
+                     deprecated="not deprecated"
+                     visibility="public"
+                    >
+                    </constructor>
+                    </class>
+                    </package>
+                    </api>
+                """
+                    .trimIndent()
         }
     }
 }
@@ -513,9 +619,17 @@ fun BaseCommandTest<SignatureToJDiffCommand>.jdiffConversionTest(body: JDiffTest
 
 class JDiffTestConfig(val commandTestConfig: CommandTestConfig<SignatureToJDiffCommand>) {
     var strip = false
+    var formatForLegacyFiles: FileFormat? = null
     var api = ""
     var baseApi: String? = null
-    var expectedXml = ""
+    var expectedXml: String? = null
+
+    /**
+     * The expected output, defaults to an empty string.
+     *
+     * This will be checked after running the test.
+     */
+    var expectedStderr: String = ""
 
     fun arrange() {
         with(commandTestConfig) {
@@ -525,24 +639,19 @@ class JDiffTestConfig(val commandTestConfig: CommandTestConfig<SignatureToJDiffC
                 args += "--strip"
             }
 
-            // Create a unique folder to allow multiple configs to be run in the same test.
-            val folder = commandTestConfig.folder()
+            formatForLegacyFiles?.let { format ->
+                args += "--format-for-legacy-files"
+                args += format.specifier()
+            }
 
-            val apiFile =
-                inputFile(
-                    "api.txt",
-                    prepareSignatureFileForTest(api.trimIndent(), FileFormat.V2),
-                    parentDir = folder
-                )
+            // Create a unique folder to allow multiple configs to be run in the same test.
+            val folder = commandTestConfig.folder("jdiff-conversion")
+
+            val apiFile = inputFile("api.txt", api.trimIndent(), parentDir = folder)
             args += apiFile.path
 
             baseApi?.let {
-                val baseApiFile =
-                    inputFile(
-                        "base-api.txt",
-                        prepareSignatureFileForTest(it.trimIndent(), FileFormat.V2),
-                        parentDir = folder
-                    )
+                val baseApiFile = inputFile("base-api.txt", it.trimIndent(), parentDir = folder)
                 args += "--base-api"
                 args += baseApiFile.path
             }
@@ -550,7 +659,19 @@ class JDiffTestConfig(val commandTestConfig: CommandTestConfig<SignatureToJDiffC
             val xmlFile = outputFile("api.xml", parentDir = folder)
             args += xmlFile.path
 
-            verify { assertEquals(expectedXml.trimIndent(), xmlFile.readText().trim()) }
+            verify {
+                val expectedXml = this@JDiffTestConfig.expectedXml
+                if (expectedXml == null) {
+                    assertFalse(
+                        xmlFile.exists(),
+                        message = "did not expect $xmlFile to be created but it was"
+                    )
+                } else {
+                    assertEquals(expectedXml.trimIndent(), xmlFile.readText().trim())
+                }
+            }
+
+            expectedStderr = this@JDiffTestConfig.expectedStderr
         }
     }
 }

@@ -162,12 +162,9 @@ internal fun processFlags(
                         "Inconsistent input file types: The first file is of $DOT_TXT, but detected different extension in ${it.path}"
                     )
                 }
+            val signatureFileLoader = SignatureFileLoader(annotationManager)
             val textCodebase =
-                SignatureFileLoader.loadFiles(
-                    sources,
-                    classResolverProvider.classResolver,
-                    annotationManager,
-                )
+                signatureFileLoader.loadFiles(sources, classResolverProvider.classResolver)
 
             // If this codebase was loaded in order to generate stubs then they will need some
             // additional items to be added that were purposely removed from the signature files.

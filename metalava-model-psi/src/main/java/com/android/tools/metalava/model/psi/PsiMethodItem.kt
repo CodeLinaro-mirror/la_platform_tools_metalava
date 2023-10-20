@@ -303,6 +303,9 @@ open class PsiMethodItem(
         val ktFunction = (psiMethod as? UMethod)?.sourcePsi as? KtFunction ?: return false
         return ktFunction.hasActualModifier() &&
             psiMethod.hasAnnotation(JvmNames.JVM_OVERLOADS_FQ_NAME.asString()) &&
+            // It is /technically/ invalid to have actual functions with default values, but
+            // some places suppress the compiler error, so we should handle it here too.
+            ktFunction.valueParameters.none { it.hasDefaultValue() } &&
             parameters.any { it.hasDefaultValue() }
     }
 

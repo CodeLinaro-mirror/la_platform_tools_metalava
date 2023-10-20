@@ -47,6 +47,11 @@ com.android.tools.metalava.model.testsuite.typeitem.CommonTypeModifiersTest
   Test super class and interface types of interface[turbine,java]
   Test super class type[turbine,java]
 
+com.android.tools.metalava.model.testsuite.typeitem.CommonTypeParameterItemTest
+  Test typeBounds extends Comparable[turbine,java]
+  Test typeBounds multiple[turbine,java]
+  Test typeBounds no extends[turbine,java]
+
 com.android.tools.metalava.model.testsuite.typeitem.CommonTypeStringTest
   Erased type string[turbine,java,String]
   Erased type string[turbine,java,T extends Number array]
