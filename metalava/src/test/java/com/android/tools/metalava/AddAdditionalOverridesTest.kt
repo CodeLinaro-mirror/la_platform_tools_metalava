@@ -50,7 +50,7 @@ class AddAdditionalOverridesTest : DriverTest() {
     }
 
     @Test
-    fun `Add additional overrides -- Does emit Object method override to signature file to prevent compile error`() {
+    fun `Does emit Object method override to signature file to prevent compile error`() {
 
         // Currently, ChildClass.hashCode() is not emitted to signature files as it possess
         // identical signature to java.lang.Object.hashCode(). However, omitting this method will
@@ -127,7 +127,7 @@ class AddAdditionalOverridesTest : DriverTest() {
     }
 
     @Test
-    fun `Add additional overrides -- Does emit override with identical signature to prevent compile error`() {
+    fun `Does emit override with identical signature to prevent compile error`() {
 
         // ChildClass.someMethod() possess identical signature to that of
         // ChildInterface.someMethod(), but needs to be implemented in ChildClass to resolve compile
@@ -211,7 +211,7 @@ class AddAdditionalOverridesTest : DriverTest() {
     }
 
     @Test
-    fun `Add additional overrides -- Does add override-equivalent signatures`() {
+    fun `Does add override-equivalent signatures`() {
 
         // When an interface inherits several methods with override-equivalent signatures
         // but it is not defined, it leads to a compile error thus needs to be included in the
@@ -390,7 +390,7 @@ class AddAdditionalOverridesTest : DriverTest() {
     }
 
     @Test
-    fun `Add additional overrides -- Method with multiple interface parent methods in same hierarchy not elided`() {
+    fun `Method with multiple interface parent methods in same hierarchy not elided`() {
         checkAddAdditionalOverrides(
             sourceFiles =
                 arrayOf(
@@ -455,6 +455,232 @@ class AddAdditionalOverridesTest : DriverTest() {
               }
             }
         """,
+        )
+    }
+
+    @Test
+    fun `Do not treat generic method as override when erased parameter type does not match`() {
+        checkAddAdditionalOverrides(
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                        package test.pkg;
+
+                        public class ParentClass<T> {
+                            public void hasGenericParameter(T t) {}
+                        }
+                        """
+                    ),
+                    java(
+                        """
+                        package test.pkg;
+
+                        public class ChildClass<T extends Number> extends ParentClass<T> {
+                            public void hasGenericParameter(T t) {}
+                        }
+                        """
+                    ),
+                ),
+            apiOriginal =
+                """
+                // Signature format: 2.0
+                package test.pkg {
+                  public class ChildClass<T extends java.lang.Number> extends test.pkg.ParentClass<T> {
+                    ctor public ChildClass();
+                  }
+                  public class ParentClass<T> {
+                    ctor public ParentClass();
+                    method public void hasGenericParameter(T);
+                  }
+                }
+                """,
+            apiWithAdditionalOverrides =
+                """
+                // Signature format: 2.0
+                package test.pkg {
+                  public class ChildClass<T extends java.lang.Number> extends test.pkg.ParentClass<T> {
+                    ctor public ChildClass();
+                    method public void hasGenericParameter(T);
+                  }
+                  public class ParentClass<T> {
+                    ctor public ParentClass();
+                    method public void hasGenericParameter(T);
+                  }
+                }
+                """,
+        )
+    }
+
+    @Test
+    fun `Do not elide generic method override when erased parameter types match but unerased parameter types do not match`() {
+        // This test is intended to ensure that textual differences in return and parameter types
+        // will cause the methods to be kept even when they don't strictly need to be. That is to
+        // preserve existing behavior to reduce churn in API signature files and also to detect
+        // significant differences such as nullability annotations.
+        checkAddAdditionalOverrides(
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                        package test.pkg;
+
+                        public class ParentClass<T> {
+                            public void hasGenericParameter(T t) {}
+                        }
+                        """
+                    ),
+                    java(
+                        """
+                        package test.pkg;
+
+                        public class ChildClass<E> extends ParentClass<E> {
+                            public void hasGenericParameter(E e) {}
+                        }
+                        """
+                    ),
+                ),
+            apiOriginal =
+                """
+                // Signature format: 2.0
+                package test.pkg {
+                  public class ChildClass<E> extends test.pkg.ParentClass<E> {
+                    ctor public ChildClass();
+                    method public void hasGenericParameter(E);
+                  }
+                  public class ParentClass<T> {
+                    ctor public ParentClass();
+                    method public void hasGenericParameter(T);
+                  }
+                }
+                """,
+            apiWithAdditionalOverrides =
+                """
+                // Signature format: 2.0
+                package test.pkg {
+                  public class ChildClass<E> extends test.pkg.ParentClass<E> {
+                    ctor public ChildClass();
+                    method public void hasGenericParameter(E);
+                  }
+                  public class ParentClass<T> {
+                    ctor public ParentClass();
+                    method public void hasGenericParameter(T);
+                  }
+                }
+                """,
+        )
+    }
+
+    @Test
+    fun `Do not elide generic override when erased return types does not match`() {
+        checkAddAdditionalOverrides(
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                        package test.pkg;
+
+                        public class ParentClass<T> {
+                            public T hasGenericReturnType() {throw new IllegalStateException();}
+                        }
+                        """
+                    ),
+                    java(
+                        """
+                        package test.pkg;
+
+                        public class ChildClass<T extends Number> extends ParentClass<T> {
+                            public T hasGenericReturnType() {throw new IllegalStateException();}
+                        }
+                        """
+                    ),
+                ),
+            apiOriginal =
+                """
+                // Signature format: 2.0
+                package test.pkg {
+                  public class ChildClass<T extends java.lang.Number> extends test.pkg.ParentClass<T> {
+                    ctor public ChildClass();
+                  }
+                  public class ParentClass<T> {
+                    ctor public ParentClass();
+                    method public T hasGenericReturnType();
+                  }
+                }
+                """,
+            apiWithAdditionalOverrides =
+                """
+                // Signature format: 2.0
+                package test.pkg {
+                  public class ChildClass<T extends java.lang.Number> extends test.pkg.ParentClass<T> {
+                    ctor public ChildClass();
+                    method public T hasGenericReturnType();
+                  }
+                  public class ParentClass<T> {
+                    ctor public ParentClass();
+                    method public T hasGenericReturnType();
+                  }
+                }
+                """,
+        )
+    }
+
+    @Test
+    fun `Do not elide generic override when erased return types match but unerased return types do not match`() {
+        // This test is intended to ensure that textual differences in return and parameter types
+        // will cause the methods to be kept even when they don't strictly need to be. That is to
+        // preserve existing behavior to reduce churn in API signature files and also to detect
+        // significant differences such as nullability annotations.
+        checkAddAdditionalOverrides(
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                        package test.pkg;
+
+                        public class ParentClass<T> {
+                            public T hasGenericReturnType() {throw new IllegalStateException();}
+                        }
+                        """
+                    ),
+                    java(
+                        """
+                        package test.pkg;
+
+                        public class ChildClass<E> extends ParentClass<E> {
+                            public E hasGenericReturnType() {throw new IllegalStateException();}
+                        }
+                        """
+                    ),
+                ),
+            apiOriginal =
+                """
+                // Signature format: 2.0
+                package test.pkg {
+                  public class ChildClass<E> extends test.pkg.ParentClass<E> {
+                    ctor public ChildClass();
+                    method public E hasGenericReturnType();
+                  }
+                  public class ParentClass<T> {
+                    ctor public ParentClass();
+                    method public T hasGenericReturnType();
+                  }
+                }
+                """,
+            apiWithAdditionalOverrides =
+                """
+                // Signature format: 2.0
+                package test.pkg {
+                  public class ChildClass<E> extends test.pkg.ParentClass<E> {
+                    ctor public ChildClass();
+                    method public E hasGenericReturnType();
+                  }
+                  public class ParentClass<T> {
+                    ctor public ParentClass();
+                    method public T hasGenericReturnType();
+                  }
+                }
+                """,
         )
     }
 }
