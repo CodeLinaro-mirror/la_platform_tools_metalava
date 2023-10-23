@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2023 The Android Open Source Project
+ * Copyright (C) 2018 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,10 +14,7 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava
-
-import com.android.tools.metalava.reporter.Issues
-import com.android.tools.metalava.reporter.Severity
+package com.android.tools.metalava.reporter
 
 /** An issue configuration is a set of overrides for severities for various [Issues.Issue] */
 class IssueConfiguration {

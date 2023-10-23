@@ -18,8 +18,11 @@ package com.android.tools.metalava.cli.common
 
 import com.android.tools.metalava.ExecutionEnvironment
 import com.android.tools.metalava.ProgressTracker
+import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.core.context
+import com.github.ajalt.clikt.core.subcommands
 import org.junit.Assert
+import org.junit.Assert.fail
 import org.junit.Test
 
 class MetalavaCommandTest {
@@ -74,6 +77,54 @@ class MetalavaCommandTest {
         ) {
         init {
             context { expandArgumentFiles = true }
+        }
+    }
+
+    @Test
+    fun `Test print stack trace`() {
+        val args = listOf(ARG_NO_COLOR, "--print-stack-trace", "fail")
+
+        val (executionEnvironment, _, stderr) = ExecutionEnvironment.forTest()
+
+        val command =
+            MetalavaCommand(
+                executionEnvironment = executionEnvironment,
+                progressTracker = ProgressTracker(),
+            )
+        command.subcommands(FailCommand())
+
+        command.process(args.toTypedArray())
+
+        val pattern =
+            """\Qcom.android.tools.metalava.cli.common.MetalavaCliException: fail
+            |	at com.android.tools.metalava.cli.common.MetalavaCommandTest${"$"}FailCommand.run\E\([^)]+\)
+            |	at .*
+            |	at .*
+            |	at .*
+        """
+                .trimMargin()
+        val output = stderr.toString()
+        if (!pattern.toRegex().matchesAt(output, 0)) {
+            val separator = "=".repeat(80)
+            fail(
+                """
+Expected output to match this pattern:
+$separator
+$pattern
+$separator
+
+but the following output does not match:
+$separator
+$output
+$separator
+                """
+            )
+        }
+    }
+
+    private class FailCommand : CliktCommand() {
+        override fun run() {
+            throw MetalavaCliException("fail")
         }
     }
 }

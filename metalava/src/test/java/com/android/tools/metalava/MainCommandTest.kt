@@ -18,15 +18,18 @@ package com.android.tools.metalava
 
 import com.android.tools.metalava.cli.common.BaseCommandTest
 import com.android.tools.metalava.cli.common.CommonOptions
-import com.android.tools.metalava.cli.common.REPORTING_OPTIONS_HELP
+import com.android.tools.metalava.cli.common.ISSUE_REPORTING_OPTIONS_HELP
 import com.android.tools.metalava.cli.signature.SIGNATURE_FORMAT_OPTIONS_HELP
+import com.android.tools.metalava.reporter.Issues
+import java.util.Locale
+import kotlin.test.assertEquals
 import org.junit.Test
 
 class MainCommandTest :
-    BaseCommandTest<MainCommand>({
+    BaseCommandTest<MainCommand>({ executionEnvironment ->
         MainCommand(
             commonOptions = CommonOptions(),
-            executionEnvironment = ExecutionEnvironment(),
+            executionEnvironment = executionEnvironment,
         )
     }) {
 
@@ -69,7 +72,7 @@ Options:
                                              (default: [])
   -h, --help                                 Show this message and exit
 
-$REPORTING_OPTIONS_HELP
+$ISSUE_REPORTING_OPTIONS_HELP
 
 Signature File Output:
 
@@ -257,11 +260,6 @@ Diffs and Checks:
                                              specifically for API compatibility issues performed by
                                              --check-compatibility:api:released and
                                              --check-compatibility:removed:released.
---merge-baseline [file]
-                                             Like --update-baseline, but instead of always replacing entries in the
-                                             baseline, it will merge the existing baseline with the new baseline. This
-                                             is useful if metalava runs multiple times on the same source tree with
-                                             different flags at different times, such as occasionally with --api-lint.
 --pass-baseline-updates
                                              Normally, encountering error will fail the build, even when updating
                                              baselines. This flag allows you to tell metalava to continue without
@@ -392,6 +390,33 @@ Aborting: Error: no such option: "--blah-blah-blah"
 $EXPECTED_HELP
                 """
                     .trimIndent()
+        }
+    }
+
+    @Test
+    fun `Test deprecated lowercase matching in issue configuration options`() {
+        // Temporarily set [options] as it is needed by the [ReporterOptions.reporter] when
+        // reporting [Issues.DEPRECATED_OPTION].
+        @Suppress("DEPRECATION")
+        options = Options()
+
+        commandTest {
+            args +=
+                listOf(
+                    "main",
+                    "--error",
+                    Issues.DEPRECATED_OPTION.name,
+                    "--hide",
+                    Issues.ADDED_FINAL.name.lowercase(Locale.US),
+                )
+
+            expectedStderr =
+                """
+error: Case-insensitive issue matching is deprecated, use --hide AddedFinal instead of --hide addedfinal [DeprecatedOption]
+                """
+                    .trimIndent()
+
+            verify { assertEquals(-1, exitCode, message = "exitCode") }
         }
     }
 }

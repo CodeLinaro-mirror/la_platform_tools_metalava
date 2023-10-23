@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava
 
+import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.FieldItem
@@ -128,12 +129,8 @@ class ProguardWriter(
 
     private fun getCleanTypeName(t: TypeItem?): String {
         t ?: return ""
+        if (t is ArrayTypeItem) return getCleanTypeName(t.componentType) + "[]"
         val cls = t.asClass() ?: return t.toCanonicalType()
-        var qualifiedName = cls.qualifiedNameWithDollarInnerClasses()
-
-        for (i in 0 until t.arrayDimensions()) {
-            qualifiedName += "[]"
-        }
-        return qualifiedName
+        return cls.qualifiedNameWithDollarInnerClasses()
     }
 }

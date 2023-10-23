@@ -21,7 +21,6 @@ import com.android.tools.metalava.model.text.ApiParseException
 import com.android.tools.metalava.model.text.FILE_FORMAT_PROPERTIES
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.testing.source
-import com.github.ajalt.clikt.core.BadParameterValue
 import com.google.common.truth.Truth.assertThat
 import java.io.File
 import kotlin.test.assertEquals
@@ -102,18 +101,19 @@ class SignatureFormatOptionsTest :
 
     @Test
     fun `V1 not supported`() {
-        val e = assertThrows(BadParameterValue::class.java) { runTest("--format=v1") {} }
-        assertThat(e.message)
-            .startsWith(
-                """Invalid value for "--format": invalid version, found 'v1', expected one of '2.0', '3.0', '4.0', '5.0', 'v2', 'v3', 'v4', 'latest', 'recommended'"""
-            )
+        runTest("--format=v1") {
+            assertThat(stderr)
+                .startsWith(
+                    """Invalid value for "--format": invalid version, found 'v1', expected one of '2.0', '3.0', '4.0', '5.0', 'v2', 'v3', 'v4', 'latest', 'recommended'"""
+                )
+        }
     }
 
     @Test
     fun `--use-same-format-as reads from a valid file and ignores --format`() {
         val path = source("api.txt", "// Signature format: 3.0\n").createFile(temporaryFolder.root)
         runTest("--use-same-format-as", path.path, "--format", "v4") {
-            assertThat(it.fileFormat).isEqualTo(FileFormat.V3)
+            assertThat(options.fileFormat).isEqualTo(FileFormat.V3)
         }
     }
 
@@ -121,7 +121,7 @@ class SignatureFormatOptionsTest :
     fun `--use-same-format-as ignores empty file and falls back to format`() {
         val path = source("api.txt", "").createFile(temporaryFolder.root)
         runTest("--use-same-format-as", path.path, "--format", "v4") {
-            assertThat(it.fileFormat).isEqualTo(FileFormat.V4)
+            assertThat(options.fileFormat).isEqualTo(FileFormat.V4)
         }
     }
 
@@ -134,19 +134,20 @@ class SignatureFormatOptionsTest :
             "--format-defaults",
             "overloaded-method-order=source"
         ) {
-            assertThat(it.fileFormat.overloadedMethodOrder)
+            assertThat(options.fileFormat.overloadedMethodOrder)
                 .isEqualTo(FileFormat.OverloadedMethodOrder.SOURCE)
         }
     }
 
     @Test
     fun `--use-same-format-as fails on non-existent file`() {
-        val e =
-            assertThrows(BadParameterValue::class.java) {
-                runTest("--use-same-format-as", "unknown.txt") {}
-            }
-        val path = File("unknown.txt").absolutePath
-        assertEquals("""Invalid value for "--use-same-format-as": $path is not a file""", e.message)
+        runTest("--use-same-format-as", "unknown.txt") {
+            val path = File("unknown.txt").absolutePath
+            assertEquals(
+                """Invalid value for "--use-same-format-as": $path is not a file""",
+                stderr
+            )
+        }
     }
 
     @Test
@@ -157,7 +158,7 @@ class SignatureFormatOptionsTest :
             assertThrows(ApiParseException::class.java) {
                 runTest("--use-same-format-as", path) {
                     // Get the file format as the file is only read when needed.
-                    it.fileFormat
+                    options.fileFormat
                 }
             }
         assertEquals(
@@ -168,7 +169,7 @@ class SignatureFormatOptionsTest :
 
     @Test
     fun `--format with no properties`() {
-        runTest("--format", "2.0") { assertEquals(FileFormat.V2, it.fileFormat) }
+        runTest("--format", "2.0") { assertEquals(FileFormat.V2, options.fileFormat) }
     }
 
     @Test
@@ -176,7 +177,7 @@ class SignatureFormatOptionsTest :
         runTest("--format", "2.0", "--format-defaults", "overloaded-method-order=source") {
             assertEquals(
                 FileFormat.OverloadedMethodOrder.SOURCE,
-                it.fileFormat.overloadedMethodOrder
+                options.fileFormat.overloadedMethodOrder
             )
         }
     }
@@ -184,7 +185,7 @@ class SignatureFormatOptionsTest :
     @Test
     fun `--format with no properties and --format-defaults add-additional-overrides=yes`() {
         runTest("--format", "2.0", "--format-defaults", "add-additional-overrides=yes") {
-            assertEquals(true, it.fileFormat.addAdditionalOverrides)
+            assertEquals(true, options.fileFormat.addAdditionalOverrides)
         }
     }
 
@@ -195,7 +196,7 @@ class SignatureFormatOptionsTest :
                 FileFormat.V2.copy(
                     specifiedOverloadedMethodOrder = FileFormat.OverloadedMethodOrder.SIGNATURE,
                 ),
-                it.fileFormat
+                options.fileFormat
             )
         }
     }
@@ -210,7 +211,7 @@ class SignatureFormatOptionsTest :
         ) {
             assertEquals(
                 FileFormat.OverloadedMethodOrder.SIGNATURE,
-                it.fileFormat.overloadedMethodOrder
+                options.fileFormat.overloadedMethodOrder
             )
         }
     }
@@ -227,7 +228,7 @@ class SignatureFormatOptionsTest :
                     kotlinStyleNulls = true,
                     conciseDefaultValues = true,
                 ),
-                it.fileFormat
+                options.fileFormat
             )
         }
     }
@@ -242,83 +243,73 @@ class SignatureFormatOptionsTest :
                 FileFormat.V2.copy(
                     specifiedAddAdditionalOverrides = true,
                 ),
-                it.fileFormat
+                options.fileFormat
             )
         }
     }
 
     @Test
     fun `--format-properties gibberish`() {
-        val e =
-            assertThrows(BadParameterValue::class.java) { runTest("--format", "2.0:gibberish") {} }
-        assertEquals(
-            """Invalid value for "--format": expected <property>=<value> but found 'gibberish'""",
-            e.message
-        )
+        runTest("--format", "2.0:gibberish") {
+            assertEquals(
+                """Invalid value for "--format": expected <property>=<value> but found 'gibberish'""",
+                stderr
+            )
+        }
     }
 
     @Test
     fun `--format specifier unknown property`() {
-        val e =
-            assertThrows(BadParameterValue::class.java) {
-                runTest("--format", "2.0:property=value") {}
-            }
-        assertEquals(
-            """Invalid value for "--format": unknown format property name `property`, expected one of $FILE_FORMAT_PROPERTIES""",
-            e.message
-        )
+        runTest("--format", "2.0:property=value") {
+            assertEquals(
+                """Invalid value for "--format": unknown format property name `property`, expected one of $FILE_FORMAT_PROPERTIES""",
+                stderr
+            )
+        }
     }
 
     @Test
     fun `--format specifier unknown value (concise-default-values)`() {
-        val e =
-            assertThrows(BadParameterValue::class.java) {
-                runTest("--format", "2.0:concise-default-values=barf") {}
-            }
-        assertEquals(
-            """Invalid value for "--format": unexpected value for concise-default-values, found 'barf', expected one of 'yes' or 'no'""",
-            e.message
-        )
+        runTest("--format", "2.0:concise-default-values=barf") {
+            assertEquals(
+                """Invalid value for "--format": unexpected value for concise-default-values, found 'barf', expected one of 'yes' or 'no'""",
+                stderr
+            )
+        }
     }
 
     @Test
     fun `--format specifier unknown value (kotlin-style-nulls)`() {
-        val e =
-            assertThrows(BadParameterValue::class.java) {
-                runTest("--format", "2.0:kotlin-style-nulls=barf") {}
-            }
-        assertEquals(
-            """Invalid value for "--format": unexpected value for kotlin-style-nulls, found 'barf', expected one of 'yes' or 'no'""",
-            e.message
-        )
+        runTest("--format", "2.0:kotlin-style-nulls=barf") {
+            assertEquals(
+                """Invalid value for "--format": unexpected value for kotlin-style-nulls, found 'barf', expected one of 'yes' or 'no'""",
+                stderr
+            )
+        }
     }
 
     @Test
     fun `--format specifier unknown value (overloaded-method-order)`() {
-        val e =
-            assertThrows(BadParameterValue::class.java) {
-                runTest("--format", "2.0:overloaded-method-order=barf") {}
-            }
-        assertEquals(
-            """Invalid value for "--format": unexpected value for overloaded-method-order, found 'barf', expected one of 'source' or 'signature'""",
-            e.message
-        )
+        runTest("--format", "2.0:overloaded-method-order=barf") {
+            assertEquals(
+                """Invalid value for "--format": unexpected value for overloaded-method-order, found 'barf', expected one of 'source' or 'signature'""",
+                stderr
+            )
+        }
     }
 
     @Test
     fun `--format specifier with v2 some properties, excluding 'migrating' when migratingAllowed=true`() {
-        val e =
-            assertThrows(BadParameterValue::class.java) {
-                runTest(
-                    "--format",
-                    "2.0:kotlin-style-nulls=yes,concise-default-values=yes",
-                    optionGroup = SignatureFormatOptions(migratingAllowed = true),
-                ) {}
-            }
-        assertEquals(
-            """Invalid value for "--format": invalid format specifier: '2.0:kotlin-style-nulls=yes,concise-default-values=yes' - must provide a 'migrating' property when customizing version 2.0""",
-            e.message
-        )
+        runTest(
+            "--format",
+            "2.0:kotlin-style-nulls=yes,concise-default-values=yes",
+            optionGroup = SignatureFormatOptions(migratingAllowed = true),
+        ) {
+            assertEquals(
+                """Invalid value for "--format": invalid format specifier: '2.0:kotlin-style-nulls=yes,concise-default-values=yes' - must provide a 'migrating' property when customizing version 2.0""",
+                stderr
+            )
+        }
     }
 
     @Test
@@ -334,25 +325,23 @@ class SignatureFormatOptionsTest :
                     conciseDefaultValues = true,
                     migrating = "See b/295577788"
                 ),
-                it.fileFormat
+                options.fileFormat
             )
         }
     }
 
     @Test
     fun `--format specifier with v2 some properties, including 'migrating' when migratingAllowed=false`() {
-        val e =
-            assertThrows(BadParameterValue::class.java) {
-                runTest(
-                    "--format",
-                    "2.0:kotlin-style-nulls=yes,concise-default-values=yes,migrating=See b/295577788",
-                    optionGroup = SignatureFormatOptions(migratingAllowed = false),
-                ) {}
-            }
-        assertEquals(
-            """Invalid value for "--format": invalid format specifier: '2.0:kotlin-style-nulls=yes,concise-default-values=yes,migrating=See b/295577788' - must not contain a 'migrating' property""",
-            e.message
-        )
+        runTest(
+            "--format",
+            "2.0:kotlin-style-nulls=yes,concise-default-values=yes,migrating=See b/295577788",
+            optionGroup = SignatureFormatOptions(migratingAllowed = false),
+        ) {
+            assertEquals(
+                """Invalid value for "--format": invalid format specifier: '2.0:kotlin-style-nulls=yes,concise-default-values=yes,migrating=See b/295577788' - must not contain a 'migrating' property""",
+                stderr
+            )
+        }
     }
 
     @Test
@@ -367,7 +356,7 @@ class SignatureFormatOptionsTest :
                     kotlinStyleNulls = false,
                     conciseDefaultValues = false,
                 ),
-                it.fileFormat
+                options.fileFormat
             )
         }
     }
@@ -385,24 +374,22 @@ class SignatureFormatOptionsTest :
                     conciseDefaultValues = false,
                     migrating = "See b/295577788",
                 ),
-                it.fileFormat
+                options.fileFormat
             )
         }
     }
 
     @Test
     fun `--format specifier with v5, some properties, including 'migrating' when migratingAllowed=false`() {
-        val e =
-            assertThrows(BadParameterValue::class.java) {
-                runTest(
-                    "--format",
-                    "5.0:kotlin-style-nulls=no,concise-default-values=no,migrating=See b/295577788",
-                    optionGroup = SignatureFormatOptions(migratingAllowed = false),
-                ) {}
-            }
-        assertEquals(
-            """Invalid value for "--format": invalid format specifier: '5.0:kotlin-style-nulls=no,concise-default-values=no,migrating=See b/295577788' - must not contain a 'migrating' property""",
-            e.message
-        )
+        runTest(
+            "--format",
+            "5.0:kotlin-style-nulls=no,concise-default-values=no,migrating=See b/295577788",
+            optionGroup = SignatureFormatOptions(migratingAllowed = false),
+        ) {
+            assertEquals(
+                """Invalid value for "--format": invalid format specifier: '5.0:kotlin-style-nulls=no,concise-default-values=no,migrating=See b/295577788' - must not contain a 'migrating' property""",
+                stderr
+            )
+        }
     }
 }

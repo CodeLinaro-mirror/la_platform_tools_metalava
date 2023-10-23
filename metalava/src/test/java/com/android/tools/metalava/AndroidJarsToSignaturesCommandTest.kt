@@ -25,7 +25,7 @@ import org.junit.Assert
 import org.junit.Test
 
 class AndroidJarsToSignaturesCommandTest :
-    BaseCommandTest<AndroidJarsToSignaturesCommand>(::AndroidJarsToSignaturesCommand) {
+    BaseCommandTest<AndroidJarsToSignaturesCommand>({ AndroidJarsToSignaturesCommand() }) {
 
     @Test
     fun `Test help`() {

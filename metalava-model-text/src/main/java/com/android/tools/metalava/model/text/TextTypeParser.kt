@@ -31,13 +31,13 @@ internal class TextTypeParser(val codebase: TextCodebase) {
      */
     fun obtainTypeFromClass(cl: TextClassItem): TextTypeItem {
         val params = cl.typeParameterList.typeParameters().map { it.toType() }
-        return TextClassTypeItem(codebase, cl.qualifiedTypeName, cl.qualifiedName, params)
+        return TextClassTypeItem(codebase, cl.qualifiedTypeName, cl.qualifiedName, params, null)
     }
 
     /** Creates or retrieves from cache a [TextTypeItem] representing `java.lang.Object` */
     fun obtainObjectType(): TextTypeItem {
         return typeCache.obtain(JAVA_LANG_OBJECT) {
-            TextClassTypeItem(codebase, JAVA_LANG_OBJECT, JAVA_LANG_OBJECT, emptyList())
+            TextClassTypeItem(codebase, JAVA_LANG_OBJECT, JAVA_LANG_OBJECT, emptyList(), null)
         }
     }
 
@@ -248,22 +248,25 @@ internal class TextTypeParser(val codebase: TextCodebase) {
     private fun createClassType(
         original: String,
         type: String,
-        outerQualifiedName: String?,
+        outerClassType: TextClassTypeItem?,
         typeParams: List<TypeParameterItem>,
     ): TextClassTypeItem {
         // TODO(b/300081840): handle annotations
-        val (name, paramString, _) = trimClassAnnotations(type)
+        val (name, afterName, _) = splitClassType(type)
         val (qualifiedName, fullName) =
-            if (outerQualifiedName != null) {
+            if (outerClassType != null) {
                 // This is an inner type, add the prefix of the outer name
-                Pair("$outerQualifiedName.$name", original)
+                Pair("${outerClassType.qualifiedName}.$name", original)
             } else if (!name.contains('.')) {
                 // Reverse the effect of [TypeItem.stripJavaLangPrefix].
                 Pair("java.lang.$name", "java.lang.$original")
             } else {
                 Pair(name, original)
             }
-        val (paramStrings, remainder) = typeParameterStringsWithRemainder(paramString)
+
+        val (paramStrings, remainder) = typeParameterStringsWithRemainder(afterName)
+        val params = paramStrings.map { obtainTypeFromString(it, typeParams) }
+        val classType = TextClassTypeItem(codebase, fullName, qualifiedName, params, outerClassType)
 
         if (remainder != null) {
             if (!remainder.startsWith('.')) {
@@ -271,12 +274,11 @@ internal class TextTypeParser(val codebase: TextCodebase) {
                     "Could not parse type `$type`. Found unexpected string after type parameters: $remainder"
                 )
             }
-            // This is an inner class type, recur with the new outer qualified name
-            // TODO(b/301076671): This loses information about the outer type parameters
-            return createClassType(fullName, remainder.substring(1), qualifiedName, typeParams)
+            // This is an inner class type, recur with the new outer class
+            return createClassType(fullName, remainder.substring(1), classType, typeParams)
         }
-        val params = paramStrings.map { obtainTypeFromString(it, typeParams) }
-        return TextClassTypeItem(codebase, fullName, qualifiedName, params)
+
+        return classType
     }
 
     private class Cache<Key, Value> {
@@ -383,58 +385,80 @@ internal class TextTypeParser(val codebase: TextCodebase) {
 
         /**
          * Given [type] which represents a class, splits the string into the qualified name of the
-         * class, the type parameter string, and a list of type-use annotations.
+         * class, the remainder of the type string, and a list of type-use annotations. The
+         * remainder of the type string might be the type parameter list, inner class names, or a
+         * combination
          *
-         * For instance, for `java.util.@A @B List<java.lang.@C String>`, returns the triple
-         * ("java.util.List", "<java.lang.@C String", listOf("@A", "@B")).
+         * For `java.util.@A @B List<java.lang.@C String>`, returns the triple ("java.util.List",
+         * "<java.lang.@C String", listOf("@A", "@B")).
+         *
+         * For `test.pkg.Outer.Inner`, returns the triple ("test.pkg.Outer", ".Inner", emptyList()).
+         *
+         * For `test.pkg.@test.pkg.A Outer<P1>.@test.pkg.B Inner<P2>`, returns the triple
+         * ("test.pkg.Outer", "<P1>.@test.pkg.B Inner<P2>", listOf("@test.pkg.A")).
          */
-        fun trimClassAnnotations(type: String): Triple<String, String?, List<String>> {
+        fun splitClassType(type: String): Triple<String, String?, List<String>> {
             // The constructed qualified type name
-            var className = ""
+            var name = ""
             // The part of the type which still needs to be parsed
             var remaining = type.trim()
-            val annotations: MutableList<String> = mutableListOf()
+            // The annotations of the type, may be set later
+            var annotations = emptyList<String>()
 
-            var annotationIndex = remaining.indexOf('@')
+            var dotIndex = remaining.indexOf('.')
             var paramIndex = remaining.indexOf('<')
-            while (annotationIndex != -1) {
-                // If there's an annotation before the params start, parse the next annotation
-                if (annotationIndex < paramIndex || paramIndex == -1) {
-                    // Everything before the annotation is part of the class name
-                    className += remaining.substring(0, annotationIndex).trim()
-                    // Find the end of the annotation, add the annotation to the list
-                    val annotationEnd = findAnnotationEnd(remaining, annotationIndex + 1)
-                    annotations.add(remaining.substring(annotationIndex, annotationEnd).trim())
-                    // Set the remaining string to parse
-                    remaining =
-                        if (annotationEnd == remaining.length) {
-                            ""
-                        } else {
-                            remaining.substring(annotationEnd).trim()
+            var annotationIndex = remaining.indexOf('@')
+
+            // Find which of '.', '<', or '@' comes first, if any
+            var minIndex = minIndex(dotIndex, paramIndex, annotationIndex)
+            while (minIndex != null) {
+                when (minIndex) {
+                    // '.' is first, the next part is part of the qualified class name.
+                    dotIndex -> {
+                        val nextNameChunk = remaining.substring(0, dotIndex)
+                        name += nextNameChunk
+                        remaining = remaining.substring(dotIndex)
+                        // Assumes that package names are all lower case and class names will have
+                        // an upper class character (the [START_WITH_UPPER] API lint check should
+                        // make this a safe assumption). If the name is a class name, we've found
+                        // the complete class name, return.
+                        if (nextNameChunk.any { it.isUpperCase() }) {
+                            return Triple(name, remaining, annotations)
                         }
-                    // Reset indices to continue
-                    annotationIndex = remaining.indexOf('@')
-                    paramIndex = remaining.indexOf('<')
-                } else {
-                    // Params start first, so there are no more annotations breaking up the name.
-                    // All remaining annotations apply to parameters of the class, not the class
-                    // type itself.
-                    break
+                    }
+                    // '<' is first, the end of the class name has been reached.
+                    paramIndex -> {
+                        name += remaining.substring(0, paramIndex)
+                        remaining = remaining.substring(paramIndex)
+                        return Triple(name, remaining, annotations)
+                    }
+                    // '@' is first, trim all annotations.
+                    annotationIndex -> {
+                        name += remaining.substring(0, annotationIndex)
+                        trimLeadingAnnotations(remaining.substring(annotationIndex)).let {
+                            (first, second) ->
+                            remaining = first
+                            annotations = second
+                        }
+                    }
                 }
+                // Reset indices -- the string may now start with '.' for the next chunk of the name
+                // but this should find the end of the next chunk.
+                dotIndex = remaining.indexOf('.', 1)
+                paramIndex = remaining.indexOf('<')
+                annotationIndex = remaining.indexOf('@')
+                minIndex = minIndex(dotIndex, paramIndex, annotationIndex)
             }
-
-            // Finalize the class name and find the parameter string
-            val params: String?
-            if (paramIndex == -1) {
-                className += remaining
-                params = null
-            } else {
-                className += remaining.substring(0, paramIndex).trim()
-                params = remaining.substring(paramIndex)
-            }
-
-            return Triple(className, params, annotations)
+            // End of the name reached with no leftover string.
+            name += remaining
+            return Triple(name, null, annotations)
         }
+
+        /**
+         * Returns the minimum valid list index from the input, or null if there isn't one. -1 is
+         * not a valid index.
+         */
+        private fun minIndex(vararg index: Int): Int? = index.filter { it != -1 }.minOrNull()
 
         /**
          * Given a string and the index in that string which is the start of an annotation (the
@@ -478,6 +502,7 @@ internal class TextTypeParser(val codebase: TextCodebase) {
          */
         fun typeParameterStringsWithRemainder(typeString: String?): Pair<List<String>, String?> {
             val s = typeString ?: return Pair(emptyList(), null)
+            if (!s.startsWith("<")) return Pair(emptyList(), s)
             val list = mutableListOf<String>()
             var balance = 0
             var expect = false

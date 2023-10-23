@@ -17,20 +17,19 @@
 package com.android.tools.metalava.cli.common
 
 import com.android.tools.metalava.DefaultReporter
-import com.android.tools.metalava.IssueConfiguration
 import com.android.tools.metalava.ReporterEnvironment
+import com.android.tools.metalava.reporter.IssueConfiguration
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Severity
 import java.io.File
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertThrows
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TestRule
 import org.junit.runner.Description
 import org.junit.runners.model.Statement
 
-val REPORTING_OPTIONS_HELP =
+val ISSUE_REPORTING_OPTIONS_HELP =
     """
 Issue Reporting:
 
@@ -107,16 +106,16 @@ class ReportCollectorRule(
     }
 }
 
-class ReporterOptionsTest :
-    BaseOptionGroupTest<ReporterOptions>(
-        REPORTING_OPTIONS_HELP,
+class IssueReportingOptionsTest :
+    BaseOptionGroupTest<IssueReportingOptions>(
+        ISSUE_REPORTING_OPTIONS_HELP,
     ) {
 
     @get:Rule
     val reportCollector = ReportCollectorRule(this::cleanupString, { temporaryFolder.root })
 
-    override fun createOptions(): ReporterOptions =
-        ReporterOptions(reporterEnvironment = reportCollector.reporterEnvironment!!)
+    override fun createOptions(): IssueReportingOptions =
+        IssueReportingOptions(reporterEnvironment = reportCollector.reporterEnvironment!!)
 
     @Test
     fun `Test issue severity options`() {
@@ -130,7 +129,7 @@ class ReporterOptionsTest :
             "--error",
             "ArrayReturn"
         ) {
-            val issueConfiguration = it.issueConfiguration
+            val issueConfiguration = options.issueConfiguration
 
             assertEquals(Severity.HIDDEN, issueConfiguration.getSeverity(Issues.START_WITH_LOWER))
             assertEquals(Severity.LINT, issueConfiguration.getSeverity(Issues.ENDS_WITH_IMPL))
@@ -143,7 +142,7 @@ class ReporterOptionsTest :
     fun `Test multiple issue severity options`() {
         // Purposely includes some whitespace as that is something callers of metalava do.
         runTest("--hide", "StartWithLower ,StartWithUpper, ArrayReturn") {
-            val issueConfiguration = it.issueConfiguration
+            val issueConfiguration = options.issueConfiguration
             assertEquals(Severity.HIDDEN, issueConfiguration.getSeverity(Issues.START_WITH_LOWER))
             assertEquals(Severity.HIDDEN, issueConfiguration.getSeverity(Issues.START_WITH_UPPER))
             assertEquals(Severity.HIDDEN, issueConfiguration.getSeverity(Issues.ARRAY_RETURN))
@@ -153,7 +152,7 @@ class ReporterOptionsTest :
     @Test
     fun `Test issue severity options with inheriting issues`() {
         runTest("--error", "RemovedClass") {
-            val issueConfiguration = it.issueConfiguration
+            val issueConfiguration = options.issueConfiguration
             assertEquals(Severity.ERROR, issueConfiguration.getSeverity(Issues.REMOVED_CLASS))
             assertEquals(
                 Severity.ERROR,
@@ -169,18 +168,16 @@ class ReporterOptionsTest :
                 "warning: Case-insensitive issue matching is deprecated, use --hide ArrayReturn instead of --hide arrayreturn [DeprecatedOption]"
             )
 
-            val issueConfiguration = it.issueConfiguration
+            val issueConfiguration = options.issueConfiguration
             assertEquals(Severity.HIDDEN, issueConfiguration.getSeverity(Issues.ARRAY_RETURN))
         }
     }
 
     @Test
     fun `Test issue severity options with non-existing issue`() {
-        val e =
-            assertThrows(MetalavaCliException::class.java) {
-                runTest("--hide", "ThisIssueDoesNotExist") {}
-            }
-        assertEquals("Unknown issue id: '--hide' 'ThisIssueDoesNotExist'", e.message)
+        runTest("--hide", "ThisIssueDoesNotExist") {
+            assertEquals("Unknown issue id: '--hide' 'ThisIssueDoesNotExist'", stderr)
+        }
     }
 
     @Test
@@ -204,7 +201,7 @@ class ReporterOptionsTest :
             assertEquals(Severity.WARNING, baseConfiguration.getSeverity(Issues.UNAVAILABLE_SYMBOL))
 
             // Now make sure the issues fine.
-            val issueConfiguration = it.issueConfiguration
+            val issueConfiguration = options.issueConfiguration
             assertEquals(Severity.HIDDEN, issueConfiguration.getSeverity(Issues.HIDDEN_SUPERCLASS))
             assertEquals(Severity.ERROR, issueConfiguration.getSeverity(Issues.UNAVAILABLE_SYMBOL))
         }
@@ -217,7 +214,7 @@ class ReporterOptionsTest :
                 "error: Case-insensitive issue matching is deprecated, use --hide ArrayReturn instead of --hide arrayreturn [DeprecatedOption]\n"
             )
 
-            val issueConfiguration = it.issueConfiguration
+            val issueConfiguration = options.issueConfiguration
             assertEquals(Severity.HIDDEN, issueConfiguration.getSeverity(Issues.ARRAY_RETURN))
             assertEquals(Severity.ERROR, issueConfiguration.getSeverity(Issues.DEPRECATED_OPTION))
         }

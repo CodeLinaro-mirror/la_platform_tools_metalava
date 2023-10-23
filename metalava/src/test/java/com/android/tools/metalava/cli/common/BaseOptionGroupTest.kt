@@ -16,10 +16,12 @@
 
 package com.android.tools.metalava.cli.common
 
+import com.android.tools.metalava.ExecutionEnvironment
+import com.android.tools.metalava.ProgressTracker
 import com.android.tools.metalava.testing.TemporaryFolderOwner
 import com.github.ajalt.clikt.core.CliktCommand
-import com.github.ajalt.clikt.core.PrintHelpMessage
 import com.github.ajalt.clikt.core.context
+import com.github.ajalt.clikt.core.subcommands
 import com.github.ajalt.clikt.parameters.groups.OptionGroup
 import com.github.ajalt.clikt.parameters.groups.provideDelegate
 import org.junit.Assert
@@ -45,36 +47,44 @@ abstract class BaseOptionGroupTest<O : OptionGroup>(
     protected fun runTest(
         vararg args: String,
         optionGroup: O? = null,
-        test: (O) -> Unit,
+        test: Result<O>.() -> Unit,
     ) {
         val testFactory = { optionGroup ?: createOptions() }
-        val command = MockCommand(testFactory, test)
-        command.parse(args.toList())
+        val command = MockCommand(testFactory)
+        val (executionEnvironment, stdout, stderr) = ExecutionEnvironment.forTest()
+        val rootCommand = MetalavaCommand(executionEnvironment, null, ProgressTracker())
+        rootCommand.subcommands(command)
+        rootCommand.process(arrayOf("mock") + args)
+        val result =
+            Result(
+                options = command.options,
+                stdout = removeBoilerplate(stdout.toString()),
+                stderr = removeBoilerplate(stderr.toString()),
+            )
+        result.test()
     }
+
+    /** Remove various different forms of boilerplate text. */
+    private fun removeBoilerplate(out: String) =
+        out.trim()
+            .removePrefix("Aborting: ")
+            .removePrefix("Usage: metalava mock [options]")
+            .trim()
+            .removePrefix("Error: ")
+
+    data class Result<O : OptionGroup>(
+        val options: O,
+        val stdout: String,
+        val stderr: String,
+    )
 
     @Test
     fun `Test help`() {
-        val e = Assert.assertThrows(PrintHelpMessage::class.java) { runTest {} }
-
-        val formattedHelp =
-            e.command
-                .getFormattedHelp()
-                .removePrefix(
-                    """
-Usage: mock [options]
-
-Options:
-  -h, --help                                 Show this message and exit
-
-        """
-                        .trimIndent()
-                )
-                .trim()
-        Assert.assertEquals(expectedHelp, formattedHelp)
+        runTest { Assert.assertEquals(expectedHelp, stdout) }
     }
 }
 
-private class MockCommand<O : OptionGroup>(factory: () -> O, val test: (O) -> Unit) :
+private class MockCommand<O : OptionGroup>(factory: () -> O) :
     CliktCommand(printHelpOnEmptyArgs = true) {
     val options by factory()
 
@@ -85,7 +95,5 @@ private class MockCommand<O : OptionGroup>(factory: () -> O, val test: (O) -> Un
         }
     }
 
-    override fun run() {
-        test(options)
-    }
+    override fun run() {}
 }

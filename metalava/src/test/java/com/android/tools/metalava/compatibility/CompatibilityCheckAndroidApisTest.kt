@@ -18,45 +18,106 @@ package com.android.tools.metalava.compatibility
 
 import com.android.tools.metalava.DriverTest
 import com.android.tools.metalava.cli.common.ARG_HIDE
+import com.android.tools.metalava.cli.common.ARG_WARNING
 import com.android.tools.metalava.testing.getAndroidJar
 import java.io.File
-import kotlin.text.Charsets.UTF_8
-import org.junit.Ignore
+import org.junit.Assert.assertTrue
+import org.junit.AssumptionViolatedException
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.junit.runners.Parameterized
 
-class CompatibilityCheckAndroidApisTest : DriverTest() {
-    @Ignore(
-        "Not currently working: we're getting the wrong PSI results; I suspect caching across the two codebases"
-    )
-    @Test
-    fun `Test All Android API levels`() {
-        // Checks API across Android SDK versions and makes sure the results are
-        // intentional (to help shake out bugs in the API compatibility checker)
+@RunWith(Parameterized::class)
+abstract class CompatibilityCheckAndroidApisTest(
+    private val apiLevelCheck: ApiLevelCheck,
+) : DriverTest() {
 
-        // Expected migration warnings (the map value) when migrating to the target key level from
-        // the previous level
-        val expected =
-            mapOf(
-                5 to
-                    "warning: Method android.view.Surface.lockCanvas added thrown exception java.lang.IllegalArgumentException [ChangedThrows]",
-                6 to
+    data class ApiLevelCheck(
+        val apiLevel: Int,
+        val expectedIssues: String,
+        val extraArgs: List<String>,
+        val disabled: Boolean = false,
+    ) {
+        override fun toString(): String = "${apiLevel - 1} to $apiLevel"
+    }
+
+    companion object {
+        private val DEFAULT_HIDDEN_ISSUES =
+            listOf(
+                "AddedClass",
+                "AddedField",
+                "AddedInterface",
+                "AddedMethod",
+                "AddedPackage",
+                "ChangedDeprecated",
+                "RemovedClass",
+                "RemovedDeprecatedClass",
+                "RemovedField",
+            )
+        private val DEFAULT_HIDDEN_ISSUES_STRING = DEFAULT_HIDDEN_ISSUES.joinToString(",")
+
+        private fun joinIssues(issues: Array<out String>): String = issues.joinToString(",")
+
+        fun hide(vararg issues: String): List<String> {
+            return listOf(ARG_HIDE, joinIssues(issues))
+        }
+
+        fun warning(vararg issues: String): List<String> {
+            return listOf(ARG_WARNING, issues.joinToString(","))
+        }
+
+        /** Data for each api version to check. */
+        private val data =
+            listOf(
+                ApiLevelCheck(
+                    5,
+                    """
+                warning: Method android.view.Surface.lockCanvas added thrown exception java.lang.IllegalArgumentException [ChangedThrows]
+                """,
+                    hide(
+                        DEFAULT_HIDDEN_ISSUES_STRING,
+                        "AddedAbstractMethod",
+                    ) + warning("ChangedThrows"),
+                ),
+                ApiLevelCheck(
+                    6,
                     """
                 warning: Method android.accounts.AbstractAccountAuthenticator.confirmCredentials added thrown exception android.accounts.NetworkErrorException [ChangedThrows]
                 warning: Method android.accounts.AbstractAccountAuthenticator.updateCredentials added thrown exception android.accounts.NetworkErrorException [ChangedThrows]
                 warning: Field android.view.WindowManager.LayoutParams.TYPE_STATUS_BAR_PANEL has changed value from 2008 to 2014 [ChangedValue]
                 """,
-                7 to
+                    hide(
+                        DEFAULT_HIDDEN_ISSUES_STRING,
+                    ) +
+                        warning(
+                            "ChangedThrows",
+                            "ChangedValue",
+                        ),
+                ),
+                ApiLevelCheck(
+                    7,
                     """
                 error: Removed field android.view.ViewGroup.FLAG_USE_CHILD_DRAWING_ORDER [RemovedField]
                 """,
-
-                // setOption getting removed here is wrong! Seems to be a PSI loading bug.
-                8 to
+                    hide(
+                        "AddedClass",
+                        "AddedField",
+                        "AddedInterface",
+                        "AddedMethod",
+                        "AddedPackage",
+                        "ChangedDeprecated",
+                    ),
+                ),
+                ApiLevelCheck(
+                    8,
                     """
+                error: Method android.content.ComponentName.clone has changed return type from java.lang.Object to android.content.ComponentName [ChangedType]
+                warning: Method android.content.ComponentName.clone no longer throws exception java.lang.CloneNotSupportedException [ChangedThrows]
+                warning: Method android.gesture.Gesture.clone no longer throws exception java.lang.CloneNotSupportedException [ChangedThrows]
+                warning: Method android.gesture.GesturePoint.clone no longer throws exception java.lang.CloneNotSupportedException [ChangedThrows]
+                warning: Method android.gesture.GestureStroke.clone no longer throws exception java.lang.CloneNotSupportedException [ChangedThrows]
                 warning: Constructor android.net.SSLCertificateSocketFactory no longer throws exception java.security.KeyManagementException [ChangedThrows]
                 warning: Constructor android.net.SSLCertificateSocketFactory no longer throws exception java.security.NoSuchAlgorithmException [ChangedThrows]
-                error: Removed method java.net.DatagramSocketImpl.getOption(int) [RemovedMethod]
-                error: Removed method java.net.DatagramSocketImpl.setOption(int,Object) [RemovedMethod]
                 warning: Constructor java.nio.charset.Charset no longer throws exception java.nio.charset.IllegalCharsetNameException [ChangedThrows]
                 warning: Method java.nio.charset.Charset.forName no longer throws exception java.nio.charset.IllegalCharsetNameException [ChangedThrows]
                 warning: Method java.nio.charset.Charset.forName no longer throws exception java.nio.charset.UnsupportedCharsetException [ChangedThrows]
@@ -64,7 +125,7 @@ class CompatibilityCheckAndroidApisTest : DriverTest() {
                 warning: Method java.util.regex.Matcher.appendReplacement no longer throws exception java.lang.IllegalStateException [ChangedThrows]
                 warning: Method java.util.regex.Matcher.start no longer throws exception java.lang.IllegalStateException [ChangedThrows]
                 warning: Method java.util.regex.Pattern.compile no longer throws exception java.util.regex.PatternSyntaxException [ChangedThrows]
-                warning: Class javax.xml.XMLConstants added final qualifier [AddedFinal]
+                warning: Class javax.xml.XMLConstants added 'final' qualifier [AddedFinal]
                 error: Removed constructor javax.xml.XMLConstants() [RemovedMethod]
                 warning: Method javax.xml.parsers.DocumentBuilder.isXIncludeAware no longer throws exception java.lang.UnsupportedOperationException [ChangedThrows]
                 warning: Method javax.xml.parsers.DocumentBuilderFactory.newInstance no longer throws exception javax.xml.parsers.FactoryConfigurationError [ChangedThrows]
@@ -76,17 +137,41 @@ class CompatibilityCheckAndroidApisTest : DriverTest() {
                 warning: Method org.w3c.dom.Element.hasAttributeNS added thrown exception org.w3c.dom.DOMException [ChangedThrows]
                 warning: Method org.w3c.dom.NamedNodeMap.getNamedItemNS added thrown exception org.w3c.dom.DOMException [ChangedThrows]
                 """,
-                18 to
+                    hide(
+                        DEFAULT_HIDDEN_ISSUES_STRING,
+                        "AddedAbstractMethod",
+                    ) +
+                        warning(
+                            "AddedFinal",
+                            "ChangedThrows",
+                        ),
+                ),
+                ApiLevelCheck(
+                    18,
                     """
-                warning: Class android.os.Looper added final qualifier but was previously uninstantiable and therefore could not be subclassed [AddedFinalUninstantiable]
-                warning: Class android.os.MessageQueue added final qualifier but was previously uninstantiable and therefore could not be subclassed [AddedFinalUninstantiable]
+                error: Added method android.content.pm.PackageManager.getPackagesHoldingPermissions(String[],int) [AddedAbstractMethod]
                 error: Removed field android.os.Process.BLUETOOTH_GID [RemovedField]
                 error: Removed class android.renderscript.Program [RemovedClass]
                 error: Removed class android.renderscript.ProgramStore [RemovedClass]
+                error: Added method android.widget.MediaController.MediaPlayerControl.getAudioSessionId() [AddedAbstractMethod]
                 """,
-                19 to
+                    hide(
+                        "AddedClass",
+                        "AddedField",
+                        "AddedFinal",
+                        "AddedInterface",
+                        "AddedMethod",
+                        "AddedPackage",
+                        "ChangedDeprecated",
+                        "ChangedThrows",
+                        "ChangedType",
+                        "RemovedDeprecatedClass",
+                        "RemovedMethod",
+                    ),
+                ),
+                ApiLevelCheck(
+                    19,
                     """
-                warning: Method android.app.Notification.Style.build has changed 'abstract' qualifier [ChangedAbstract]
                 error: Removed method android.os.Debug.MemoryInfo.getOtherLabel(int) [RemovedMethod]
                 error: Removed method android.os.Debug.MemoryInfo.getOtherPrivateDirty(int) [RemovedMethod]
                 error: Removed method android.os.Debug.MemoryInfo.getOtherPss(int) [RemovedMethod]
@@ -99,43 +184,103 @@ class CompatibilityCheckAndroidApisTest : DriverTest() {
                 warning: Field android.view.animation.Transformation.TYPE_IDENTITY has added 'final' qualifier [AddedFinal]
                 warning: Field android.view.animation.Transformation.TYPE_MATRIX has changed value from nothing/not constant to 2 [ChangedValue]
                 warning: Field android.view.animation.Transformation.TYPE_MATRIX has added 'final' qualifier [AddedFinal]
-                warning: Method java.nio.CharBuffer.subSequence has changed return type from CharSequence to java.nio.CharBuffer [ChangedType]
-                """, // The last warning above is not right; seems to be a PSI jar loading bug. It returns the wrong return type!
-                20 to
+                warning: Method java.nio.CharBuffer.subSequence has changed return type from java.lang.CharSequence to java.nio.CharBuffer [ChangedType]
+                """,
+                    // The last warning above is not right; seems to be a PSI jar loading bug. It
+                    // returns the wrong return type!
+                    hide(
+                        DEFAULT_HIDDEN_ISSUES_STRING,
+                        "AddedAbstractMethod",
+                    ) +
+                        warning(
+                            "AddedFinal",
+                            "ChangedType",
+                            "ChangedValue",
+                        ),
+                ),
+                ApiLevelCheck(
+                    20,
                     """
                 error: Removed method android.util.TypedValue.complexToDimensionNoisy(int,android.util.DisplayMetrics) [RemovedMethod]
                 warning: Method org.json.JSONObject.keys has changed return type from java.util.Iterator to java.util.Iterator<java.lang.String> [ChangedType]
-                warning: Field org.xmlpull.v1.XmlPullParserFactory.features has changed type from java.util.HashMap to java.util.HashMap<java.lang.String, java.lang.Boolean> [ChangedType]
+                warning: Field org.xmlpull.v1.XmlPullParserFactory.features has changed type from java.util.HashMap to java.util.HashMap<java.lang.String,java.lang.Boolean> [ChangedType]
                 """,
-                26 to
+                    hide(
+                        DEFAULT_HIDDEN_ISSUES_STRING,
+                        "AddedAbstractMethod",
+                    ) +
+                        warning(
+                            "ChangedType",
+                        ),
+                ),
+                ApiLevelCheck(
+                    26,
                     """
                 warning: Field android.app.ActivityManager.RunningAppProcessInfo.IMPORTANCE_PERCEPTIBLE has changed value from 130 to 230 [ChangedValue]
                 warning: Field android.content.pm.PermissionInfo.PROTECTION_MASK_FLAGS has changed value from 4080 to 65520 [ChangedValue]
                 """,
-                27 to ""
+                    hide(
+                        "AddedAbstractMethod",
+                        "AddedClass",
+                        "AddedField",
+                        "AddedFinal",
+                        "AddedInterface",
+                        "AddedMethod",
+                        "AddedPackage",
+                        "ChangedAbstract",
+                        "ChangedDeprecated",
+                        "ChangedThrows",
+                        "ChangedType",
+                        "RemovedClass",
+                        "RemovedDeprecatedClass",
+                        "RemovedMethod",
+                    ) +
+                        warning(
+                            "ChangedValue",
+                        ),
+                ),
+                ApiLevelCheck(
+                    27,
+                    "",
+                    hide(
+                        "AddedClass",
+                        "AddedField",
+                        "AddedFinal",
+                        "AddedInterface",
+                        "AddedMethod",
+                        "AddedPackage",
+                        "ChangedAbstract",
+                        "ChangedDeprecated",
+                        "ChangedThrows",
+                        "RemovedMethod",
+                    ),
+                ),
             )
 
-        val suppressLevels =
-            mapOf(
-                1 to
-                    "AddedPackage,AddedClass,AddedMethod,AddedInterface,AddedField,ChangedDeprecated",
-                7 to
-                    "AddedPackage,AddedClass,AddedMethod,AddedInterface,AddedField,ChangedDeprecated",
-                18 to
-                    "AddedPackage,AddedClass,AddedMethod,AddedInterface,AddedField,RemovedMethod,ChangedDeprecated,ChangedThrows,AddedFinal,ChangedType,RemovedDeprecatedClass",
-                26 to
-                    "AddedPackage,AddedClass,AddedMethod,AddedInterface,AddedField,RemovedMethod,ChangedDeprecated,ChangedThrows,AddedFinal,RemovedClass,RemovedDeprecatedClass",
-                27 to
-                    "AddedPackage,AddedClass,AddedMethod,AddedInterface,AddedField,RemovedMethod,ChangedDeprecated,ChangedThrows,AddedFinal"
-            )
+        @JvmStatic
+        protected fun shardTestParameters(apiLevelRange: IntRange) =
+            data.filter { it.apiLevel in apiLevelRange }
+    }
 
-        val loadPrevAsSignature = false
+    @Test
+    fun `Test All Android API levels`() {
+        // Checks API across Android SDK versions and makes sure the results are
+        // intentional (to help shake out bugs in the API compatibility checker)
 
-        for (apiLevel in 5..27) {
-            if (!expected.containsKey(apiLevel)) {
-                continue
+        // Temporary let block to keep the same indent as before when this was looping over the data
+        // itself.
+        let {
+            if (apiLevelCheck.disabled) {
+                throw AssumptionViolatedException("Test disabled")
             }
-            println("Checking compatibility from API level ${apiLevel - 1} to $apiLevel...")
+
+            val apiLevel = apiLevelCheck.apiLevel
+            val expectedIssues = apiLevelCheck.expectedIssues
+            val expectedFail =
+                if (expectedIssues.contains("error: ")) "Aborting: Found compatibility problems"
+                else ""
+            val extraArgs = apiLevelCheck.extraArgs.toTypedArray()
+
             val current = getAndroidJar(apiLevel)
             val previous = getAndroidJar(apiLevel - 1)
             val previousApi = previous.path
@@ -143,19 +288,12 @@ class CompatibilityCheckAndroidApisTest : DriverTest() {
             // PSI based check
 
             check(
-                extraArguments =
-                    arrayOf(
-                        "--omit-locations",
-                        ARG_HIDE,
-                        suppressLevels[apiLevel]
-                            ?: "AddedPackage,AddedClass,AddedMethod,AddedInterface,AddedField,ChangedDeprecated,RemovedField,RemovedClass,RemovedDeprecatedClass" +
-                                (if ((apiLevel == 19 || apiLevel == 20) && loadPrevAsSignature)
-                                    ",ChangedType"
-                                else "")
-                    ),
-                expectedIssues = expected[apiLevel]?.trimIndent() ?: "",
+                extraArguments = extraArgs,
+                expectedIssues = expectedIssues,
+                expectedFail = expectedFail,
                 checkCompatibilityApiReleased = previousApi,
-                apiJar = current
+                apiJar = current,
+                skipEmitPackages = emptyList(),
             )
 
             // Signature based check
@@ -166,26 +304,19 @@ class CompatibilityCheckAndroidApisTest : DriverTest() {
                 // missing type variables in class declarations, missing generics in method
                 // signatures, etc.
                 val signatureFile =
-                    File("../../prebuilts/sdk/${apiLevel - 1}/public/api/android.txt")
-                if (!(signatureFile.isFile)) {
-                    println(
-                        "Couldn't find $signatureFile: Check that pwd for test is correct. Skipping this test."
-                    )
-                    return
-                }
-                val previousSignatureApi = signatureFile.readText(UTF_8)
+                    File("../../../prebuilts/sdk/${apiLevel - 1}/public/api/android.txt")
+                assertTrue(
+                    "Couldn't find $signatureFile: Check that pwd (${File("").absolutePath}) for test is correct",
+                    signatureFile.isFile
+                )
 
                 check(
-                    extraArguments =
-                        arrayOf(
-                            "--omit-locations",
-                            ARG_HIDE,
-                            suppressLevels[apiLevel]
-                                ?: "AddedPackage,AddedClass,AddedMethod,AddedInterface,AddedField,ChangedDeprecated,RemovedField,RemovedClass,RemovedDeprecatedClass"
-                        ),
-                    expectedIssues = expected[apiLevel]?.trimIndent() ?: "",
-                    checkCompatibilityApiReleased = previousSignatureApi,
-                    apiJar = current
+                    extraArguments = extraArgs,
+                    expectedIssues = expectedIssues,
+                    expectedFail = expectedFail,
+                    checkCompatibilityApiReleased = signatureFile.path,
+                    apiJar = current,
+                    skipEmitPackages = emptyList(),
                 )
             }
         }

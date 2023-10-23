@@ -113,7 +113,7 @@ interface FieldItem : MemberItem {
     }
 
     override fun requiresNullnessInfo(): Boolean {
-        if (type().primitive) {
+        if (type() is PrimitiveTypeItem) {
             return false
         }
 

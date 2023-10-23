@@ -27,9 +27,9 @@ import com.github.ajalt.clikt.core.context
 import com.github.ajalt.clikt.parameters.arguments.argument
 import com.github.ajalt.clikt.parameters.arguments.multiple
 import com.github.ajalt.clikt.parameters.groups.provideDelegate
+import com.github.ajalt.clikt.parameters.options.eagerOption
 import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.option
-import com.github.ajalt.clikt.parameters.options.versionOption
 import java.io.PrintWriter
 
 const val ARG_VERSION = "--version"
@@ -95,17 +95,40 @@ internal open class MetalavaCommand(
         }
 
         // Print the version number if requested.
-        versionOption(
-            // Use a fake version here to avoid loading the `/version.properties` file unless
-            // needed.
-            "fake-version",
+        eagerOption(
+            help = "Show the version and exit",
             names = setOf(ARG_VERSION),
-            message = { "$commandName version: ${Version.VERSION}" },
+            // Abort the processing of options immediately to display the version and exit.
+            action = { throw PrintVersionException() }
+        )
+
+        // Add the --print-stack-trace option.
+        eagerOption(
+            "--print-stack-trace",
+            help =
+                """
+                    Print the stack trace of any exceptions that will cause metalava to exit.
+                    (default: no stack trace)
+                """
+                    .trimIndent(),
+            action = { printStackTrace = true }
         )
     }
 
     /** Group of common options. */
     val common by CommonOptions()
+
+    /**
+     * True if a stack trace should be output for any exception that is thrown and causes metalava
+     * to exit.
+     *
+     * Uses a real property that is set by an eager option action rather than a normal Clikt option
+     * so that it will be readable even if metalava aborts before it has been processed. Otherwise,
+     * exceptions that were thrown before the option was processed would cause this field to be
+     * accessed to see whether their stack trace should be printed. That access would fail and
+     * obscure the original error.
+     */
+    private var printStackTrace: Boolean = false
 
     /**
      * A custom, non-eager help option that allows [CommonOptions] like [CommonOptions.terminal] to
@@ -136,23 +159,31 @@ internal open class MetalavaCommand(
         var exitCode = 0
         try {
             processThrowCliException(args)
+        } catch (e: PrintVersionException) {
+            // Print the version and exit.
+            stdout.println("\n$commandName version: ${Version.VERSION}")
         } catch (e: MetalavaCliException) {
             stdout.flush()
             stderr.flush()
 
-            val prefix =
-                if (e.exitCode != 0) {
-                    "Aborting: "
-                } else {
-                    ""
-                }
+            if (printStackTrace) {
+                e.printStackTrace(stderr)
+            } else {
+                val prefix =
+                    if (e.exitCode != 0) {
+                        "Aborting: "
+                    } else {
+                        ""
+                    }
 
-            if (e.stderr.isNotBlank()) {
-                stderr.println("\n${prefix}${e.stderr}")
+                if (e.stderr.isNotBlank()) {
+                    stderr.println("\n${prefix}${e.stderr}")
+                }
+                if (e.stdout.isNotBlank()) {
+                    stdout.println("\n${prefix}${e.stdout}")
+                }
             }
-            if (e.stdout.isNotBlank()) {
-                stdout.println("\n${prefix}${e.stdout}")
-            }
+
             exitCode = e.exitCode
         }
 
@@ -185,13 +216,25 @@ internal open class MetalavaCommand(
                 exitCode = if (e.error) 1 else 0
             )
         } catch (e: PrintMessage) {
-            throw MetalavaCliException(stdout = e.message ?: "", exitCode = if (e.error) 1 else 0)
+            throw MetalavaCliException(
+                stdout = e.message ?: "",
+                exitCode = if (e.error) 1 else 0,
+                cause = e,
+            )
         } catch (e: NoSuchOption) {
             val message = createNoSuchOptionErrorMessage(e)
-            throw MetalavaCliException(stderr = message, exitCode = e.statusCode)
+            throw MetalavaCliException(
+                stderr = message,
+                exitCode = e.statusCode,
+                cause = e,
+            )
         } catch (e: UsageError) {
             val message = e.helpMessage()
-            throw MetalavaCliException(stderr = message, exitCode = e.statusCode)
+            throw MetalavaCliException(
+                stderr = message,
+                exitCode = e.statusCode,
+                cause = e,
+            )
         }
     }
 
@@ -250,6 +293,12 @@ internal open class MetalavaCommand(
             throw PrintHelpMessage(this)
         }
     }
+
+    /**
+     * Exception to use for the --version option to use for aborting the processing of options
+     * immediately and allow the exception handling code to treat it specially.
+     */
+    private class PrintVersionException : RuntimeException()
 }
 
 /**

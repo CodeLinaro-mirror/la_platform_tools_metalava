@@ -42,7 +42,7 @@ class TextTypeParserTest {
         assertThat(TextTypeParser.typeParameterStringsWithRemainder(null))
             .isEqualTo(Pair(emptyList<String>(), null))
         assertThat(TextTypeParser.typeParameterStringsWithRemainder(""))
-            .isEqualTo(Pair(emptyList<String>(), null))
+            .isEqualTo(Pair(emptyList<String>(), ""))
         assertThat(TextTypeParser.typeParameterStringsWithRemainder("<X>"))
             .isEqualTo(Pair(listOf("X"), null))
         assertThat(TextTypeParser.typeParameterStringsWithRemainder("<X>.Inner"))
@@ -241,7 +241,7 @@ class TextTypeParserTest {
     }
 
     /**
-     * Verifies that calling [TextTypeParser.trimClassAnnotations] returns the triple of
+     * Verifies that calling [TextTypeParser.splitClassType] returns the triple of
      * [expectedClassName], [expectedParams], [expectedAnnotations].
      */
     private fun testClassAnnotations(
@@ -250,7 +250,7 @@ class TextTypeParserTest {
         expectedParams: String?,
         expectedAnnotations: List<String>
     ) {
-        val (className, params, annotations) = TextTypeParser.trimClassAnnotations(original)
+        val (className, params, annotations) = TextTypeParser.splitClassType(original)
         assertThat(className).isEqualTo(expectedClassName)
         assertThat(params).isEqualTo(expectedParams)
         assertThat(annotations).isEqualTo(expectedAnnotations)
@@ -319,6 +319,30 @@ class TextTypeParserTest {
             expectedClassName = "java.util.List",
             expectedParams = "<java.lang.@test.pkg.B(v = \"@\") String>",
             expectedAnnotations = listOf("@test.pkg.A(a = \"hi@\", b = 0)", "@test.pkg.B(v = \"\")")
+        )
+        testClassAnnotations(
+            original = "test.pkg.Outer<P1>.Inner<P2>",
+            expectedClassName = "test.pkg.Outer",
+            expectedParams = "<P1>.Inner<P2>",
+            expectedAnnotations = emptyList()
+        )
+        testClassAnnotations(
+            original = "test.pkg.Outer.Inner",
+            expectedClassName = "test.pkg.Outer",
+            expectedParams = ".Inner",
+            expectedAnnotations = emptyList()
+        )
+        testClassAnnotations(
+            original = "test.pkg.@test.pkg.A Outer<P1>.@test.pkg.A Inner<P2>",
+            expectedClassName = "test.pkg.Outer",
+            expectedParams = "<P1>.@test.pkg.A Inner<P2>",
+            expectedAnnotations = listOf("@test.pkg.A")
+        )
+        testClassAnnotations(
+            original = "Outer.Inner<P2>",
+            expectedClassName = "Outer",
+            expectedParams = ".Inner<P2>",
+            expectedAnnotations = emptyList()
         )
     }
 

@@ -343,8 +343,8 @@ interface MethodItem : MemberItem {
         return when {
             modifiers.hasJvmSyntheticAnnotation() -> false
             isConstructor() -> false
-            (!returnType().primitive) -> true
-            parameters().any { !it.type().primitive } -> true
+            (returnType() !is PrimitiveTypeItem) -> true
+            parameters().any { it.type() !is PrimitiveTypeItem } -> true
             else -> false
         }
     }
@@ -354,7 +354,7 @@ interface MethodItem : MemberItem {
             return true
         }
 
-        if (!isConstructor() && !returnType().primitive) {
+        if (!isConstructor() && returnType() !is PrimitiveTypeItem) {
             if (!modifiers.hasNullnessInfo()) {
                 return false
             }

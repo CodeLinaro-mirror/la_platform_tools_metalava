@@ -193,10 +193,6 @@ sealed class PsiTypeItem(open val codebase: PsiBasedCodebase, open val psiType: 
         )
     }
 
-    override fun arrayDimensions(): Int {
-        return psiType.arrayDimensions
-    }
-
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
 
@@ -207,7 +203,7 @@ sealed class PsiTypeItem(open val codebase: PsiBasedCodebase, open val psiType: 
     }
 
     override fun asClass(): PsiClassItem? {
-        if (primitive) {
+        if (this is PrimitiveTypeItem) {
             return null
         }
         if (asClass == null) {
@@ -216,20 +212,12 @@ sealed class PsiTypeItem(open val codebase: PsiBasedCodebase, open val psiType: 
         return asClass
     }
 
-    override fun asTypeParameter(context: MemberItem?): TypeParameterItem? {
-        val cls = asClass() ?: return null
-        return cls as? PsiTypeParameterItem
-    }
-
     override fun hashCode(): Int {
         return psiType.hashCode()
     }
 
-    override val primitive: Boolean
-        get() = psiType is PsiPrimitiveType
-
     override fun typeArgumentClasses(): List<ClassItem> {
-        if (primitive) {
+        if (this is PrimitiveTypeItem) {
             return emptyList()
         }
 
@@ -336,7 +324,7 @@ sealed class PsiTypeItem(open val codebase: PsiBasedCodebase, open val psiType: 
 
     /** Returns `true` if `this` type can be assigned from `other` without unboxing the other. */
     fun isAssignableFromWithoutUnboxing(other: PsiTypeItem): Boolean {
-        if (this.primitive && !other.primitive) {
+        if (this is PrimitiveTypeItem && other !is PrimitiveTypeItem) {
             return false
         }
         return TypeConversionUtil.isAssignable(psiType, other.psiType)
@@ -884,9 +872,21 @@ class PsiClassTypeItem(
     // It should be possible to do `psiType.rawType().canonicalText` instead, but this doesn't
     // always work if psi is unable to resolve the reference.
     // See https://youtrack.jetbrains.com/issue/KTIJ-27093 for more details.
-    override val qualifiedName: String =
-        PsiNameHelper.getQualifiedClassName(psiType.canonicalText, true)
+    override val qualifiedName = PsiNameHelper.getQualifiedClassName(psiType.canonicalText, true)
     override val parameters: List<TypeItem> = psiType.parameters.map { create(codebase, it) }
+    override val outerClassType =
+        PsiNameHelper.getOuterClassReference(psiType.canonicalText).let { outerClassName ->
+            // [PsiNameHelper.getOuterClassReference] returns an empty string if there is no outer
+            // class reference.
+            // If the type is not an inner type, it returns the package name (e.g. for
+            // "java.lang.String" it returns "java.lang").
+            if (outerClassName == "" || codebase.findPsiPackage(outerClassName) != null) {
+                null
+            } else {
+                val psiOuterClassType = codebase.createPsiType(outerClassName, psiType.psiContext)
+                create(codebase, psiOuterClassType) as ClassTypeItem
+            }
+        }
 }
 
 /** A [PsiTypeItem] backed by a [PsiClassType] that represents a type variable.e */

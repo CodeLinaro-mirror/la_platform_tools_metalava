@@ -62,11 +62,7 @@ interface PropertyItem : MemberItem {
     }
 
     override fun requiresNullnessInfo(): Boolean {
-        if (type().primitive) {
-            return false
-        }
-
-        return true
+        return type() !is PrimitiveTypeItem
     }
 
     companion object {

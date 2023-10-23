@@ -37,8 +37,9 @@ import org.junit.rules.TemporaryFolder
  * Tests that need to run command tests must extend this and call [commandTest] to configure the
  * test.
  */
-abstract class BaseCommandTest<C : CliktCommand>(internal val commandFactory: () -> C) :
-    TemporaryFolderOwner {
+abstract class BaseCommandTest<C : CliktCommand>(
+    internal val commandFactory: (ExecutionEnvironment) -> C
+) : TemporaryFolderOwner {
 
     /**
      * Collects errors during the running of the test and reports them at the end.
@@ -118,6 +119,10 @@ class CommandTestConfig<C : CliktCommand>(private val test: BaseCommandTest<C>) 
      * This must only be accessed in a [verify] block.
      */
     lateinit var command: C
+
+    /** The exit code of the command. */
+    var exitCode: Int? = null
+        private set
 
     /** The list of lambdas that are invoked after the command has been run. */
     val verifiers = mutableListOf<() -> Unit>()
@@ -200,8 +205,8 @@ class CommandTestConfig<C : CliktCommand>(private val test: BaseCommandTest<C>) 
         val (executionEnvironment, stdout, stderr) = ExecutionEnvironment.forTest()
 
         // Runs the command
-        command = test.commandFactory()
-        runCommand(executionEnvironment, command)
+        command = test.commandFactory(executionEnvironment)
+        exitCode = runCommand(executionEnvironment, command)
 
         // Add checks of the expected stderr and stdout at the head of the list of verifiers.
         verify(0) { Assert.assertEquals(expectedStderr, test.cleanupString(stderr.toString())) }
@@ -214,7 +219,7 @@ class CommandTestConfig<C : CliktCommand>(private val test: BaseCommandTest<C>) 
         }
     }
 
-    private fun runCommand(executionEnvironment: ExecutionEnvironment, command: C) {
+    private fun runCommand(executionEnvironment: ExecutionEnvironment, command: C): Int {
         val progressTracker = ProgressTracker(stdout = executionEnvironment.stdout)
 
         val metalavaCommand =
@@ -225,6 +230,6 @@ class CommandTestConfig<C : CliktCommand>(private val test: BaseCommandTest<C>) 
 
         metalavaCommand.subcommands(command)
 
-        metalavaCommand.process(args.toTypedArray())
+        return metalavaCommand.process(args.toTypedArray())
     }
 }
