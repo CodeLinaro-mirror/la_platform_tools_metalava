@@ -21,7 +21,7 @@ import kotlin.test.Test
 import kotlin.test.assertNotNull
 import kotlin.test.assertSame
 
-class PsiFieldItemTest {
+class PsiFieldItemTest : BasePsiTest() {
     @Test
     fun `backing fields have properties`() {
         testCodebase(kotlin("class Foo(val bar: Int)")) { codebase ->

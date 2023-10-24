@@ -194,14 +194,14 @@ interface Item {
      *
      * See [Showability.show]
      */
-    fun hasShowAnnotation(): Boolean = showability.show
+    fun hasShowAnnotation(): Boolean = showability.show()
 
     /**
      * Returns true if this has any show single annotations.
      *
      * See [Showability.recursive]
      */
-    fun hasShowSingleAnnotation(): Boolean = showability.let { it.show && !it.recursive }
+    fun hasShowSingleAnnotation(): Boolean = showability.showNonRecursive()
 
     /**
      * Returns true if this item has any show for stub purposes annotations and that is the only
@@ -209,7 +209,7 @@ interface Item {
      *
      * See [Showability.forStubsOnly]
      */
-    fun onlyShowForStubPurposes(): Boolean = showability.forStubsOnly
+    fun onlyShowForStubPurposes(): Boolean = showability.showForStubsOnly()
 
     /** Returns true if this modifier list contains any hide annotations */
     fun hasHideAnnotation(): Boolean =

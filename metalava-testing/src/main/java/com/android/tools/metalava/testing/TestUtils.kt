@@ -18,8 +18,6 @@ package com.android.tools.metalava.testing
 
 import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.lint.checks.infrastructure.TestFiles
-import java.io.File
-import kotlin.io.path.createTempDirectory
 import org.intellij.lang.annotations.Language
 
 fun source(to: String, source: String): TestFile {
@@ -40,14 +38,4 @@ fun kotlin(@Language("kotlin") source: String): TestFile {
 
 fun kotlin(to: String, @Language("kotlin") source: String): TestFile {
     return TestFiles.kotlin(to, source.trimIndent())
-}
-
-/** Creates a temporary directory and cleans up afterwards */
-inline fun tempDirectory(action: (File) -> Unit) {
-    val tempDirectory = createTempDirectory().toFile()
-    try {
-        action(tempDirectory)
-    } finally {
-        tempDirectory.deleteRecursively()
-    }
 }

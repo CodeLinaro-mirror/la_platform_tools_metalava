@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.psi
 
+import com.android.tools.metalava.testing.getAndroidJar
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import kotlin.test.assertEquals
@@ -24,7 +25,7 @@ import kotlin.test.assertNull
 import kotlin.test.assertSame
 import org.junit.Test
 
-class PsiMethodItemTest {
+class PsiMethodItemTest : BasePsiTest() {
 
     @Test
     fun `property accessors have properties`() {
@@ -83,6 +84,210 @@ class PsiMethodItemTest {
                 methodReturnType.toString(),
                 "Return type of an method item should match the expected value."
             )
+        }
+    }
+
+    @Test
+    fun `child method does not need to be added to signature file if super method is concrete`() {
+        val codebase =
+            java(
+                """
+                    public class ParentClass {
+                        public void bar() {}
+                    }
+                    public class ChildClass extends ParentClass {
+                        public ChildClass() {}
+                        @Override public void bar() {}
+                    }
+                """
+            )
+
+        testCodebase(codebase) { c ->
+            val childMethodItem = c.assertClass("ChildClass").assertMethod("bar", "")
+            assertEquals(false, childMethodItem.isRequiredOverridingMethodForTextStub())
+        }
+    }
+
+    @Test
+    fun `child method only needs to be added to signature file if all multiple direct super methods requires override`() {
+
+        // `ParentClass` implements `ParentInterface.bar()`, thus the implementation is not
+        // required at `ChildClass` even if it directly implements `ParentInterface`
+        // Therefore, the method does not need to be added to the signature file.
+        val codebase =
+            java(
+                """
+                    public interface ParentInterface {
+                        void bar();
+                    }
+                    public abstract class ParentClass implements ParentInterface {
+                        @Override
+                        public void bar() {}
+                    }
+                    public class ChildClass extends ParentClass implements ParentInterface {
+                        @Override public void bar() {}
+                    }
+                """
+            )
+
+        testCodebase(codebase) { c ->
+            val childMethodItem = c.assertClass("ChildClass").assertMethod("bar", "")
+            assertEquals(false, childMethodItem.isRequiredOverridingMethodForTextStub())
+        }
+    }
+
+    @Test
+    fun `child method does not need to be added to signature file if override requiring super method is hidden`() {
+
+        // Hierarchy is identical to the above test case.
+        // but omitting `ChildClass.bar()` does not lead to error as `ParentInterface.bar()` is
+        // marked hidden
+        val codebase =
+            java(
+                """
+                    public interface ParentInterface {
+                        /** @hide */
+                        void bar();
+                    }
+                    public abstract class ParentClass implements ParentInterface {
+                        @Override
+                        public void bar() {}
+                    }
+                    public class ChildClass extends ParentClass implements ParentInterface {
+                        @Override public void bar() {}
+                    }
+                """
+            )
+
+        testCodebase(codebase) { c ->
+            val childMethodItem = c.assertClass("ChildClass").assertMethod("bar", "")
+            assertEquals(false, childMethodItem.isRequiredOverridingMethodForTextStub())
+        }
+    }
+
+    @Test
+    fun `child method need to be added to signature file if extending Object method and return type changes`() {
+        val codebase =
+            java(
+                """
+                    public class ChildClass {
+                        @Override public ChildClass clone() {}
+                    }
+                """
+            )
+
+        testCodebase(codebase, classPath = listOf(getAndroidJar())) { c ->
+            val childMethodItem = c.assertClass("ChildClass").assertMethod("clone", "")
+            assertEquals(true, childMethodItem.isRequiredOverridingMethodForTextStub())
+        }
+    }
+
+    @Test
+    fun `child method need to be added to signature file if extending Object method and visibility changes`() {
+        val codebase =
+            java(
+                """
+                    public class ChildClass {
+                        @Override protected Object clone() {}
+                    }
+                """
+            )
+
+        testCodebase(codebase, classPath = listOf(getAndroidJar())) { c ->
+            val childMethodItem = c.assertClass("ChildClass").assertMethod("clone", "")
+            assertEquals(true, childMethodItem.isRequiredOverridingMethodForTextStub())
+        }
+    }
+
+    @Test
+    fun `child method does not need to be added to signature file even if extending Object method and modifier changes when it is not a direct override`() {
+        val codebase =
+            java(
+                """
+                    public class ParentClass {
+                        @Override public ParentClass clone() {}
+                    }
+                    public class ChildClass extends ParentClass {
+                        @Override public ParentClass clone() {}
+                    }
+                """
+            )
+
+        testCodebase(codebase, classPath = listOf(getAndroidJar())) { c ->
+            val childMethodItem = c.assertClass("ChildClass").assertMethod("clone", "")
+            assertEquals(false, childMethodItem.isRequiredOverridingMethodForTextStub())
+        }
+    }
+
+    @Test
+    fun `child method does not need to be added to signature file if extending Object method and modifier does not change`() {
+        val codebase =
+            java(
+                """
+                    public class ChildClass{
+                        @Override public String toString() {}
+                    }
+                """
+            )
+
+        testCodebase(codebase, classPath = listOf(getAndroidJar())) { c ->
+            val childMethodItem = c.assertClass("ChildClass").assertMethod("toString", "")
+            assertEquals(false, childMethodItem.isRequiredOverridingMethodForTextStub())
+        }
+    }
+
+    @Test
+    fun `hidden child method can be added to signature file to resolve compile error`() {
+        val codebase =
+            java(
+                """
+                    public interface ParentInterface {
+                        void bar();
+                    }
+                    public abstract class ParentClass implements ParentInterface {
+                        @Override
+                        public abstract void bar() {}
+                    }
+                    public class ChildClass extends ParentClass {
+                        /** @hide */
+                        @Override public void bar() {}
+                    }
+                """
+            )
+
+        testCodebase(codebase) { c ->
+            val childMethodItem = c.assertClass("ChildClass").assertMethod("bar", "")
+            assertEquals(true, childMethodItem.isRequiredOverridingMethodForTextStub())
+        }
+    }
+
+    @Test
+    fun `child method overriding a hidden parent method can be added to signature file`() {
+        val codebase =
+            java(
+                """
+                    public interface SuperParentInterface {
+                        void bar();
+                    }
+                    public interface ParentInterface extends SuperParentInterface {
+                        /** @hide */
+                        @Override
+                        void bar();
+                    }
+                    public abstract class ParentClass implements ParentInterface {
+                        @Override
+                        abstract public void bar() {}
+                    }
+                    public class ChildClass extends ParentClass {
+                        @Override
+                        public void bar() {}
+                    }
+                """
+            )
+
+        testCodebase(codebase) { c ->
+            val childMethodItem = c.assertClass("ChildClass").assertMethod("bar", "")
+            assertEquals(true, childMethodItem.isRequiredOverridingMethodForTextStub())
         }
     }
 }

@@ -29,6 +29,7 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageDocs
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PackageList
+import com.android.tools.metalava.model.source.SourceCodebase
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
 import com.intellij.openapi.application.ApplicationManager
@@ -98,16 +99,16 @@ open class PsiBasedCodebase(
     annotationManager: AnnotationManager,
     private val reporter: Reporter,
     val fromClasspath: Boolean = false
-) : DefaultCodebase(location, description, false, annotationManager) {
-    lateinit var uastEnvironment: UastEnvironment
-    val project: Project
+) : DefaultCodebase(location, description, false, annotationManager), SourceCodebase {
+    private lateinit var uastEnvironment: UastEnvironment
+    internal val project: Project
         get() = uastEnvironment.ideaProject
 
     /**
      * Returns the compilation units used in this codebase (may be empty when the codebase is not
      * loaded from source, such as from .jar files or from signature files)
      */
-    var units: List<PsiFile> = emptyList()
+    internal var units: List<PsiFile> = emptyList()
 
     /**
      * Printer which can convert PSI, UAST and constants into source code, with ability to filter
@@ -154,15 +155,13 @@ open class PsiBasedCodebase(
      */
     private var initializing = false
 
-    override fun trustedApi(): Boolean = false
-
     private var packageDocs: PackageDocs? = null
 
     private var hideClassesFromJars = true
 
     private lateinit var emptyPackage: PsiPackageItem
 
-    fun initialize(
+    internal fun initialize(
         uastEnvironment: UastEnvironment,
         psiFiles: List<PsiFile>,
         packages: PackageDocs,
@@ -193,8 +192,6 @@ open class PsiBasedCodebase(
 
         // Make sure we only process the files once; sometimes there's overlap in the source lists
         for (psiFile in psiFiles.asSequence().distinct()) {
-            reporter.showProgressTick() // show progress
-
             // Visiting psiFile directly would eagerly load the entire file even though we only need
             // the importList here.
             (psiFile as? PsiJavaFile)
@@ -292,8 +289,7 @@ open class PsiBasedCodebase(
 
         // Next construct packages
         for ((pkgName, classes) in packageClasses) {
-            reporter.showProgressTick() // show progress
-            val psiPackage = JavaPsiFacade.getInstance(project).findPackage(pkgName)
+            val psiPackage = findPsiPackage(pkgName)
             if (psiPackage == null) {
                 println("Could not find package $pkgName")
                 continue
@@ -359,7 +355,7 @@ open class PsiBasedCodebase(
 
         // Create PackageItems for any packages that weren't in the source
         for (pkgName in missingPackages) {
-            val psiPackage = JavaPsiFacade.getInstance(project).findPackage(pkgName) ?: continue
+            val psiPackage = findPsiPackage(pkgName) ?: continue
             val sortedClasses = emptyList<PsiClassItem>()
             val packageHtml = null
             registerPackage(psiPackage, sortedClasses, packageHtml, pkgName)
@@ -410,7 +406,11 @@ open class PsiBasedCodebase(
         return packageItem
     }
 
-    fun initialize(uastEnvironment: UastEnvironment, jarFile: File, preFiltered: Boolean = false) {
+    internal fun initialize(
+        uastEnvironment: UastEnvironment,
+        jarFile: File,
+        preFiltered: Boolean = false,
+    ) {
         this.preFiltered = preFiltered
         initializing = true
         hideClassesFromJars = false
@@ -478,7 +478,7 @@ open class PsiBasedCodebase(
 
         // Next construct packages
         for ((pkgName, packageClasses) in packageToClasses) {
-            val psiPackage = JavaPsiFacade.getInstance(project).findPackage(pkgName)
+            val psiPackage = findPsiPackage(pkgName)
             if (psiPackage == null) {
                 println("Could not find package $pkgName")
                 continue
@@ -590,7 +590,7 @@ open class PsiBasedCodebase(
                 // dynamically discovered packages should NOT be included
                 // val packageHtml = "/** @hide */"
                 val packageHtml = null
-                val psiPackage = JavaPsiFacade.getInstance(project).findPackage(pkgName)
+                val psiPackage = findPsiPackage(pkgName)
                 if (psiPackage != null) {
                     val packageItem = registerPackage(psiPackage, null, packageHtml, pkgName)
                     packageItem.addClass(classItem)
@@ -623,6 +623,10 @@ open class PsiBasedCodebase(
         return packageMap[pkgName]
     }
 
+    internal fun findPsiPackage(pkgName: String): PsiPackage? {
+        return JavaPsiFacade.getInstance(project).findPackage(pkgName)
+    }
+
     override fun findClass(className: String): PsiClassItem? {
         return classMap[className]
     }
@@ -632,14 +636,14 @@ open class PsiBasedCodebase(
         return classMap[qualifiedName]
     }
 
-    open fun findOrCreateClass(qualifiedName: String): PsiClassItem? {
+    internal fun findOrCreateClass(qualifiedName: String): PsiClassItem? {
         val finder = JavaPsiFacade.getInstance(project)
         val psiClass =
             finder.findClass(qualifiedName, GlobalSearchScope.allScope(project)) ?: return null
         return findOrCreateClass(psiClass)
     }
 
-    open fun findOrCreateClass(psiClass: PsiClass): PsiClassItem {
+    internal fun findOrCreateClass(psiClass: PsiClass): PsiClassItem {
         val existing = findClass(psiClass)
         if (existing != null) {
             return existing
@@ -670,7 +674,7 @@ open class PsiBasedCodebase(
         return existing ?: return createClass(psiClass)
     }
 
-    fun findClass(psiType: PsiType): PsiClassItem? {
+    internal fun findClass(psiType: PsiType): PsiClassItem? {
         if (psiType is PsiClassType) {
             val cls = psiType.resolve() ?: return null
             return findOrCreateClass(cls)
@@ -688,13 +692,13 @@ open class PsiBasedCodebase(
         return null
     }
 
-    fun getClassType(cls: PsiClass): PsiClassType =
+    internal fun getClassType(cls: PsiClass): PsiClassType =
         getFactory().createType(cls, PsiSubstitutor.EMPTY)
 
-    fun getComment(string: String, parent: PsiElement? = null): PsiDocComment =
+    internal fun getComment(string: String, parent: PsiElement? = null): PsiDocComment =
         getFactory().createDocCommentFromText(string, parent)
 
-    fun getType(psiType: PsiType): PsiTypeItem {
+    internal fun getType(psiType: PsiType): PsiTypeItem {
         // Note: We do *not* cache these; it turns out that storing PsiType instances
         // in a map is bad for performance; it has a very expensive equals operation
         // for some type comparisons (and we sometimes end up with unexpected results,
@@ -703,7 +707,7 @@ open class PsiBasedCodebase(
         return PsiTypeItem.create(this, psiType)
     }
 
-    fun getType(psiClass: PsiClass): PsiTypeItem {
+    internal fun getType(psiClass: PsiClass): PsiTypeItem {
         return PsiTypeItem.create(this, getFactory().createType(psiClass))
     }
 
@@ -724,7 +728,7 @@ open class PsiBasedCodebase(
         return fullName.substring(0, fullName.length - 1 - name!!.length)
     }
 
-    fun findMethod(method: PsiMethod): PsiMethodItem {
+    internal fun findMethod(method: PsiMethod): PsiMethodItem {
         val containingClass = method.containingClass
         val cls = findOrCreateClass(containingClass!!)
 
@@ -761,7 +765,7 @@ open class PsiBasedCodebase(
         return methodItem
     }
 
-    fun findField(field: PsiField): FieldItem? {
+    internal fun findField(field: PsiField): FieldItem? {
         val containingClass = field.containingClass ?: return null
         val cls = findOrCreateClass(containingClass)
         return cls.findField(field.name)
@@ -777,21 +781,17 @@ open class PsiBasedCodebase(
         }
     }
 
-    /**
-     * Returns a list of the top-level classes declared in the codebase's source (rather than on its
-     * classpath).
-     */
-    fun getTopLevelClassesFromSource(): List<ClassItem> {
+    override fun getTopLevelClassesFromSource(): List<ClassItem> {
         return topLevelClassesFromSource
     }
 
-    fun createPsiMethod(s: String, parent: PsiElement? = null): PsiMethod =
+    internal fun createPsiMethod(s: String, parent: PsiElement? = null): PsiMethod =
         getFactory().createMethodFromText(s, parent)
 
-    fun createPsiType(s: String, parent: PsiElement? = null): PsiType =
+    internal fun createPsiType(s: String, parent: PsiElement? = null): PsiType =
         getFactory().createTypeFromText(s, parent)
 
-    fun createPsiAnnotation(s: String, parent: PsiElement? = null): PsiAnnotation =
+    private fun createPsiAnnotation(s: String, parent: PsiElement? = null): PsiAnnotation =
         getFactory().createAnnotationFromText(s, parent)
 
     private fun getFactory() = JavaPsiFacade.getElementFactory(project)
@@ -800,7 +800,7 @@ open class PsiBasedCodebase(
     private var nullableAnnotationProvider: TypeAnnotationProvider? = null
 
     /** Type annotation provider which provides androidx.annotation.NonNull */
-    fun getNonNullAnnotationProvider(): TypeAnnotationProvider {
+    internal fun getNonNullAnnotationProvider(): TypeAnnotationProvider {
         return nonNullAnnotationProvider
             ?: run {
                 val provider =
@@ -813,7 +813,7 @@ open class PsiBasedCodebase(
     }
 
     /** Type annotation provider which provides androidx.annotation.Nullable */
-    fun getNullableAnnotationProvider(): TypeAnnotationProvider {
+    internal fun getNullableAnnotationProvider(): TypeAnnotationProvider {
         return nullableAnnotationProvider
             ?: run {
                 val provider =

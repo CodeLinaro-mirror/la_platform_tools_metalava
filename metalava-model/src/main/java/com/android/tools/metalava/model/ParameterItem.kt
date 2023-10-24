@@ -92,7 +92,7 @@ interface ParameterItem : Item {
     }
 
     override fun requiresNullnessInfo(): Boolean {
-        return !type().primitive
+        return type() !is PrimitiveTypeItem
     }
 
     override fun hasNullnessInfo(): Boolean {

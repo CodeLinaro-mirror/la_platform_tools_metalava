@@ -87,12 +87,6 @@ interface Reporter {
      * 4. Otherwise, this returns `false`.
      */
     fun isSuppressed(id: Issues.Issue, item: Item? = null, message: String? = null): Boolean
-
-    /**
-     * Report a progress tick (in verbose mode) so that a user will know that metalava is actually
-     * doing something.
-     */
-    fun showProgressTick()
 }
 
 /**
@@ -108,7 +102,12 @@ class BasicReporter(private val stderr: PrintWriter) : Reporter {
     ): Boolean {
         stderr.println(
             buildString {
-                append(item?.location() ?: location)
+                val usableLocation = item?.location() ?: location
+                append(usableLocation.path)
+                if (usableLocation.line > 0) {
+                    append(":")
+                    append(usableLocation.line)
+                }
                 append(": ")
                 append(id.defaultLevel.name.lowercase())
                 append(": ")
@@ -122,6 +121,4 @@ class BasicReporter(private val stderr: PrintWriter) : Reporter {
     }
 
     override fun isSuppressed(id: Issues.Issue, item: Item?, message: String?): Boolean = false
-
-    override fun showProgressTick() {}
 }

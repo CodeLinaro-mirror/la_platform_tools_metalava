@@ -16,13 +16,19 @@
 
 plugins {
     `java-library`
+    `java-test-fixtures`
     id("org.jetbrains.kotlin.jvm")
     id("metalava-build-plugin")
 }
 
 dependencies {
     implementation(project(":metalava-model"))
+    implementation(project(":metalava-model-source"))
     implementation(project(":metalava-testing"))
+
+    // Needed for the update baseline command.
+    implementation(libs.clikt)
+
     implementation(libs.androidLintTests)
     implementation(libs.junit4)
     implementation(libs.truth)

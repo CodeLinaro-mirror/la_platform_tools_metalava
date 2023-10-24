@@ -17,15 +17,24 @@
 package com.android.tools.metalava.model.psi
 
 import com.android.tools.lint.UastEnvironment
+import com.android.tools.metalava.model.AnnotationManager
+import com.android.tools.metalava.model.source.EnvironmentManager
+import com.android.tools.metalava.model.source.SourceParser
+import com.android.tools.metalava.reporter.Reporter
 import com.intellij.core.CoreApplicationEnvironment
 import com.intellij.openapi.diagnostic.DefaultLogger
+import com.intellij.openapi.util.Disposer
+import com.intellij.pom.java.LanguageLevel
 import com.intellij.psi.javadoc.CustomJavadocTagProvider
 import com.intellij.psi.javadoc.JavadocTagInfo
-import java.io.Closeable
+import java.io.File
 import org.jetbrains.kotlin.config.CommonConfigurationKeys
 
 /** Manages the [UastEnvironment] objects created when processing sources. */
-class PsiEnvironmentManager(private val disableStderrDumping: Boolean = false) : Closeable {
+class PsiEnvironmentManager(
+    private val disableStderrDumping: Boolean = false,
+    private val forTesting: Boolean = false,
+) : EnvironmentManager {
 
     /**
      * Determines whether the manager has been closed. Used to prevent creating new environments
@@ -36,12 +45,19 @@ class PsiEnvironmentManager(private val disableStderrDumping: Boolean = false) :
     /** The list of available environments. */
     private val uastEnvironments = mutableListOf<UastEnvironment>()
 
+    init {
+        if (forTesting) {
+            System.setProperty("java.awt.headless", "true")
+            Disposer.setDebugMode(true)
+        }
+    }
+
     /**
      * Create a [UastEnvironment] with the supplied configuration.
      *
      * @throws IllegalStateException if this manager has been closed.
      */
-    fun createEnvironment(config: UastEnvironment.Configuration): UastEnvironment {
+    internal fun createEnvironment(config: UastEnvironment.Configuration): UastEnvironment {
         if (closed) {
             throw IllegalStateException("PsiEnvironmentManager is closed")
         }
@@ -86,6 +102,25 @@ class PsiEnvironmentManager(private val disableStderrDumping: Boolean = false) :
         }
     }
 
+    override fun createSourceParser(
+        reporter: Reporter,
+        annotationManager: AnnotationManager,
+        javaLanguageLevel: String,
+        kotlinLanguageLevel: String,
+        useK2Uast: Boolean,
+        jdkHome: File?,
+    ): SourceParser {
+        return PsiSourceParser(
+            psiEnvironmentManager = this,
+            reporter = reporter,
+            annotationManager = annotationManager,
+            javaLanguageLevel = javaLanguageLevelFromString(javaLanguageLevel),
+            kotlinLanguageLevel = kotlinLanguageVersionSettings(kotlinLanguageLevel),
+            useK2Uast = useK2Uast,
+            jdkHome = jdkHome,
+        )
+    }
+
     override fun close() {
         closed = true
 
@@ -97,6 +132,25 @@ class PsiEnvironmentManager(private val disableStderrDumping: Boolean = false) :
         }
         uastEnvironments.clear()
         UastEnvironment.disposeApplicationEnvironment()
+
+        if (forTesting) {
+            Disposer.assertIsEmpty(true)
+        }
+    }
+
+    companion object {
+        fun javaLanguageLevelFromString(value: String): LanguageLevel {
+            val level = LanguageLevel.parse(value)
+            when {
+                level == null ->
+                    throw IllegalStateException(
+                        "$value is not a valid or supported Java language level"
+                    )
+                level.isLessThan(LanguageLevel.JDK_1_7) ->
+                    throw IllegalStateException("$value must be at least 1.7")
+                else -> return level
+            }
+        }
     }
 }
 

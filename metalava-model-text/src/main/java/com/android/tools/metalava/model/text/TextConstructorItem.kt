@@ -52,7 +52,7 @@ class TextConstructorItem(
                     name = name,
                     containingClass = containingClass,
                     modifiers = modifiers,
-                    returnType = containingClass.asTypeInfo(),
+                    returnType = containingClass.toType(),
                     position = position,
                 )
             modifiers.setOwner(item)

@@ -46,7 +46,7 @@ class TextTypeParameterList(
 
     override fun typeParameters(): List<TypeParameterItem> {
         if (typeParameters == null) {
-            val strings = typeParameterStrings(typeListString)
+            val strings = TextTypeParser.typeParameterStrings(typeListString)
             val list = ArrayList<TypeParameterItem>(strings.size)
             strings.mapTo(list) { TextTypeParameterItem.create(codebase, owner, it) }
             typeParameters = list
@@ -55,57 +55,15 @@ class TextTypeParameterList(
     }
 
     companion object {
-        fun create(
-            codebase: TextCodebase,
-            owner: TypeParameterListOwner?,
-            typeListString: String
-        ): TypeParameterList {
-            return TextTypeParameterList(codebase, owner, typeListString)
-        }
-
-        fun typeParameterStrings(typeString: String?): List<String> {
-            val s = typeString ?: return emptyList()
-            val list = mutableListOf<String>()
-            var balance = 0
-            var expect = false
-            var start = 0
-            for (i in s.indices) {
-                val c = s[i]
-                if (c == '<') {
-                    balance++
-                    expect = balance == 1
-                } else if (c == '>') {
-                    balance--
-                    if (balance == 1) {
-                        add(list, s, start, i + 1)
-                        start = i + 1
-                    } else if (balance == 0) {
-                        add(list, s, start, i)
-                        return list
-                    }
-                } else if (c == ',') {
-                    expect =
-                        if (balance == 1) {
-                            add(list, s, start, i)
-                            true
-                        } else {
-                            false
-                        }
-                } else if (expect && balance == 1) {
-                    start = i
-                    expect = false
-                }
-            }
-            return list
-        }
-
-        private fun add(list: MutableList<String>, s: String, from: Int, to: Int) {
-            for (i in from until to) {
-                if (!Character.isWhitespace(s[i])) {
-                    list.add(s.substring(i, to))
-                    return
-                }
-            }
+        /**
+         * Creates a [TextTypeParameterList] without a set owner, for type parameters created before
+         * their owners are. The owner should be set after it is created.
+         *
+         * The [typeListString] should be the string representation of a list of type parameters,
+         * like "<A>" or "<A, B extends java.lang.String, C>".
+         */
+        fun create(codebase: TextCodebase, typeListString: String): TypeParameterList {
+            return TextTypeParameterList(codebase, owner = null, typeListString)
         }
     }
 }

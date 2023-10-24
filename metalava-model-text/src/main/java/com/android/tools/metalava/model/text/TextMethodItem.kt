@@ -213,6 +213,9 @@ open class TextMethodItem(
     override var inheritedMethod: Boolean = false
     override var inheritedFrom: ClassItem? = null
 
+    @Deprecated("This property should not be accessed directly.")
+    override var _requiresOverride: Boolean? = null
+
     override fun toString(): String =
         "${if (isConstructor()) "constructor" else "method"} ${containingClass().qualifiedName()}.${toSignatureString()}"
 

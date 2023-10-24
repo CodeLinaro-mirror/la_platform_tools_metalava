@@ -54,7 +54,7 @@ interface TypeItem {
     fun toErasedTypeString(context: Item? = null): String
 
     /** Array dimensions of this type; for example, for String it's 0 and for String[][] it's 2. */
-    fun arrayDimensions(): Int
+    @MetalavaApi fun arrayDimensions(): Int = 0
 
     fun asClass(): ClassItem?
 
@@ -87,8 +87,6 @@ interface TypeItem {
         return toTypeString().replace("...", "").replace("[]", "")
     }
 
-    val primitive: Boolean
-
     fun typeArgumentClasses(): List<ClassItem>
 
     fun convertType(from: ClassItem, to: ClassItem): TypeItem {
@@ -116,33 +114,9 @@ interface TypeItem {
         return toTypeString() == JAVA_LANG_STRING
     }
 
-    fun defaultValue(): Any? {
-        return when (toTypeString()) {
-            "boolean" -> false
-            "byte" -> 0.toByte()
-            "char" -> 0.toChar()
-            "double" -> 0.0
-            "float" -> 0F
-            "int" -> 0
-            "long" -> 0L
-            "short" -> 0.toShort()
-            else -> null
-        }
-    }
+    fun defaultValue(): Any? = null
 
-    fun defaultValueString(): String {
-        return when (toTypeString()) {
-            "boolean" -> "false"
-            "byte",
-            "char",
-            "double",
-            "float",
-            "int",
-            "long",
-            "short" -> "0"
-            else -> "null"
-        }
-    }
+    fun defaultValueString(): String = "null"
 
     fun hasTypeArguments(): Boolean = toTypeString().contains("<")
 
@@ -194,25 +168,11 @@ interface TypeItem {
     }
 
     /**
-     * If this type is a type parameter, then return the corresponding [TypeParameterItem]. The
-     * optional [context] provides the method or class where this type parameter appears, and can be
-     * used for example to resolve the bounds for a type variable used in a method that was
-     * specified on the class.
-     */
-    fun asTypeParameter(context: MemberItem? = null): TypeParameterItem?
-
-    /** Whether this type is a type parameter. */
-    fun isTypeParameter(context: MemberItem? = null): Boolean = asTypeParameter(context) != null
-
-    /**
      * Mark nullness annotations in the type as recent.
      *
      * TODO: This isn't very clean; we should model individual annotations.
      */
     fun markRecent()
-
-    /** Returns true if this type represents an array of one or more dimensions */
-    fun isArray(): Boolean = arrayDimensions() > 0
 
     /** Ensure that we don't include any annotations in the type strings for this type. */
     fun scrubAnnotations()
@@ -439,4 +399,75 @@ interface TypeItem {
             return i1 == l1 && i2 == l2
         }
     }
+}
+
+/** Represents a primitive type, like int or boolean. */
+interface PrimitiveTypeItem : TypeItem {
+    /** The kind of [Primitive] this type is. */
+    val kind: Primitive
+
+    /** The possible kinds of primitives. */
+    enum class Primitive(
+        val primitiveName: String,
+        val defaultValue: Any?,
+        val defaultValueString: String
+    ) {
+        BOOLEAN("boolean", false, "false"),
+        BYTE("byte", 0.toByte(), "0"),
+        CHAR("char", 0.toChar(), "0"),
+        DOUBLE("double", 0.0, "0"),
+        FLOAT("float", 0F, "0"),
+        INT("int", 0, "0"),
+        LONG("long", 0L, "0"),
+        SHORT("short", 0.toShort(), "0"),
+        VOID("void", null, "null")
+    }
+
+    override fun defaultValue(): Any? = kind.defaultValue
+
+    override fun defaultValueString(): String = kind.defaultValueString
+}
+
+/** Represents an array type, including vararg types. */
+interface ArrayTypeItem : TypeItem {
+    /** The array's inner type (which for multidimensional arrays is another array type). */
+    val componentType: TypeItem
+
+    /** Whether this array type represents a varargs parameter. */
+    val isVarargs: Boolean
+
+    override fun arrayDimensions(): Int = 1 + componentType.arrayDimensions()
+}
+
+/** Represents a class type. */
+interface ClassTypeItem : TypeItem {
+    /** The qualified name of this class, e.g. "java.lang.String". */
+    val qualifiedName: String
+
+    /** The class's parameter types, empty if it has none. */
+    val parameters: List<TypeItem>
+
+    /** The outer class type of this class, if it is an inner type. */
+    val outerClassType: ClassTypeItem?
+}
+
+/** Represents a type variable type. */
+interface VariableTypeItem : TypeItem {
+    /** The name of the type variable */
+    val name: String
+
+    /** The corresponding type parameter for this type variable. */
+    val asTypeParameter: TypeParameterItem
+}
+
+/**
+ * Represents a wildcard type, like `?`, `? extends String`, and `? super String` in Java, or `*`,
+ * `out String`, and `in String` in Kotlin.
+ */
+interface WildcardTypeItem : TypeItem {
+    /** The type this wildcard must extend. If null, the extends bound is implicitly `Object`. */
+    val extendsBound: TypeItem?
+
+    /** The type this wildcard must be a super class of. */
+    val superBound: TypeItem?
 }

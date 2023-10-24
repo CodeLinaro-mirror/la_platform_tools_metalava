@@ -46,13 +46,6 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 class MetalavaBuildPlugin : Plugin<Project> {
     override fun apply(project: Project) {
-        if (project.rootProject == project) {
-            project.tasks.register(
-                CREATE_AGGREGATE_BUILD_INFO_FILES_TASK,
-                CreateAggregateLibraryBuildInfoFileTask::class.java
-            )
-        }
-
         project.plugins.all { plugin ->
             when (plugin) {
                 is JavaPlugin -> {
@@ -126,19 +119,23 @@ class MetalavaBuildPlugin : Plugin<Project> {
     }
 
     fun configurePublishing(project: Project) {
+        val projectRepo = project.layout.buildDirectory.dir("repo")
         val archiveTaskProvider =
             configurePublishingArchive(
                 project,
                 publicationName,
                 repositoryName,
                 getBuildId(),
-                getDistributionDirectory(project)
+                getDistributionDirectory(project),
+                projectRepo,
             )
 
         project.extensions.getByType<PublishingExtension>().apply {
             publications {
                 it.create<MavenPublication>(publicationName) {
                     from(project.components["java"])
+                    suppressPomMetadataWarningsFor("testFixturesApiElements")
+                    suppressPomMetadataWarningsFor("testFixturesRuntimeElements")
                     pom { pom ->
                         pom.licenses { spec ->
                             spec.license { license ->
@@ -172,13 +169,16 @@ class MetalavaBuildPlugin : Plugin<Project> {
             }
             repositories { handler ->
                 handler.maven { repository ->
-                    repository.name = repositoryName
                     repository.url =
                         project.uri(
                             "file://${
                                 getDistributionDirectory(project).canonicalPath
                             }/repo/m2repository"
                         )
+                }
+                handler.maven { repository ->
+                    repository.name = repositoryName
+                    repository.url = project.uri(projectRepo)
                 }
             }
         }
@@ -220,7 +220,7 @@ private class VersionProviderWrapper(val versionProvider: Provider<String>) {
 private fun Project.getMetalavaVersion(): VersionProviderWrapper {
     val contents =
         providers.fileContents(
-            rootProject.layout.projectDirectory.file("src/main/resources/version.properties")
+            rootProject.layout.projectDirectory.file("version.properties")
         )
     return VersionProviderWrapper(
         contents.asText.map {

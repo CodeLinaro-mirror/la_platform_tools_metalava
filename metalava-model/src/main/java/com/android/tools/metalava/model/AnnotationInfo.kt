@@ -51,6 +51,18 @@ open class AnnotationInfo(
      */
     open val showability: Showability
         get() = Showability.NO_EFFECT
+
+    /**
+     * If true then this annotation will cause annotated items to be hidden from the API.
+     *
+     * This is true if this annotation is explicitly specified as a hide annotation, or is annotated
+     * with a meta hide annotation, see [hideMeta].
+     */
+    open val hide: Boolean
+        get() = false
+
+    open val suppressCompatibility: Boolean
+        get() = false
 }
 
 internal enum class Nullability {
@@ -64,18 +76,23 @@ data class Showability(
      * If true then the annotated item will be shown as part of the API, unless overridden in some
      * way.
      */
-    val show: Boolean,
+    private val show: Boolean,
     /**
      * If true then the annotated item will recursively affect enclosed items, unless overridden by
      * a closer annotation.
      */
-    val recursive: Boolean,
+    private val recursive: Boolean,
     /**
      * If true then the annotated item will only be included in stubs of the API, otherwise it can
      * appear in all representations of the API, e.g. signature files.
      */
-    val forStubsOnly: Boolean,
+    private val forStubsOnly: Boolean,
 ) {
+    fun show() = show
+
+    fun showForStubsOnly() = forStubsOnly
+
+    fun showNonRecursive() = show && !recursive
 
     companion object {
         /** The annotation does not affect whether an annotated item is shown. */

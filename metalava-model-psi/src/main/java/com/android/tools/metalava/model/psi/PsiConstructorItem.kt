@@ -32,7 +32,8 @@ import org.jetbrains.kotlin.psi.KtClassOrObject
 import org.jetbrains.kotlin.psi.KtPrimaryConstructor
 import org.jetbrains.uast.UMethod
 
-class PsiConstructorItem(
+class PsiConstructorItem
+private constructor(
     codebase: PsiBasedCodebase,
     psiMethod: PsiMethod,
     containingClass: PsiClassItem,

@@ -29,13 +29,14 @@ import com.android.tools.metalava.model.JAVA_LANG_OBJECT
 import com.android.tools.metalava.model.JAVA_LANG_STRING
 import com.android.tools.metalava.model.JAVA_LANG_THROWABLE
 import com.android.tools.metalava.model.MethodItem
+import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.TypeParameterList.Companion.NONE
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.javaUnescapeString
 import com.android.tools.metalava.model.noOpAnnotationManager
-import com.android.tools.metalava.model.text.TextTypeItem.Companion.isPrimitive
 import com.android.tools.metalava.model.text.TextTypeParameterList.Companion.create
+import com.android.tools.metalava.model.text.TextTypeParser.Companion.isPrimitive
 import java.io.File
 import java.io.IOException
 import java.io.StringReader
@@ -102,7 +103,11 @@ private constructor(
                     try {
                         file.readText(UTF_8)
                     } catch (ex: IOException) {
-                        throw ApiParseException("Error reading API file", file.path, ex)
+                        throw ApiParseException(
+                            "Error reading API file",
+                            file = file.path,
+                            cause = ex
+                        )
                     }
                 parser.parseApiSingleFile(api, !first, file.path, apiText)
                 first = false
@@ -162,12 +167,7 @@ private constructor(
         format = FileFormat.parseHeader(filename, StringReader(apiText)) ?: FileFormat.V2
         kotlinStyleNulls = format.kotlinStyleNulls
 
-        // If it's the first file, set the format. Otherwise, make sure the format is the same as
-        // the prior files.
-        if (!appending) {
-            // This is the first file to process.
-            api.format = format
-        } else {
+        if (appending) {
             // When we're appending, and the content is empty, nothing to do.
             if (apiText.isBlank()) {
                 return
@@ -311,17 +311,14 @@ private constructor(
             }
         }
         assertIdent(tokenizer, token)
-        val name: String = token
-        val qualifiedName = qualifiedName(pkg.name(), name)
-        val typeInfo = api.obtainTypeFromString(qualifiedName)
-        // Simple type info excludes the package name (but includes enclosing class names)
-        var rawName = name
-        val variableIndex = rawName.indexOf('<')
-        if (variableIndex != -1) {
-            rawName = rawName.substring(0, variableIndex)
-        }
+        // The classType and qualifiedClassType include the type parameter string, the className and
+        // qualifiedClassName are just the name without type parameters.
+        val classType: String = token
+        val (className, typeParameters) = parseClassName(api, classType)
+        val qualifiedClassType = qualifiedName(pkg.name(), classType)
+        val qualifiedClassName = qualifiedName(pkg.name(), className)
         token = tokenizer.requireToken()
-        val maybeExistingClass =
+        var cl =
             TextClassItem(
                 api,
                 tokenizer.pos(),
@@ -329,55 +326,53 @@ private constructor(
                 isInterface,
                 isEnum,
                 isAnnotation,
-                typeInfo.toErasedTypeString(null),
-                typeInfo.qualifiedTypeName(),
-                rawName,
-                annotations
+                qualifiedClassName,
+                qualifiedClassType,
+                className,
+                annotations,
+                typeParameters
             )
-        val cl =
-            when (val foundClass = api.findClass(maybeExistingClass.qualifiedName())) {
-                null -> maybeExistingClass
-                else -> {
-                    if (!foundClass.isCompatible(maybeExistingClass)) {
-                        throw ApiParseException(
-                            "Incompatible $foundClass definitions",
-                            maybeExistingClass.position
-                        )
-                    } else {
-                        foundClass
-                    }
-                }
-            }
 
         cl.setContainingPackage(pkg)
-        cl.setTypeInfo(typeInfo)
         cl.deprecated = modifiers.isDeprecated()
         if ("extends" == token) {
             token = tokenizer.requireToken()
-            assertIdent(tokenizer, token)
-            ext = token
+            var superClassName = token
+            // Make sure full super class name is found if there are type use annotations.
+            if (token.contains('@')) {
+                while (token.contains('@')) {
+                    token = tokenizer.requireToken()
+                    superClassName += " $token"
+                }
+            }
+            ext = superClassName
             token = tokenizer.requireToken()
         }
-        // Resolve superclass after done parsing
-        mapClassToSuper(cl, ext)
         if (
             "implements" == token ||
                 "extends" == token ||
                 isInterface && ext != null && token != "{"
         ) {
-            if (token != "implements" && token != "extends") {
-                mapClassToInterface(cl, token)
+            // If this is part of a list of interface supertypes, token is already a supertype.
+            // Otherwise, skip to the next token to get the supertype.
+            if (token == "implements" || token == "extends") {
+                token = tokenizer.requireToken()
             }
             while (true) {
-                token = tokenizer.requireToken()
+                var interfaceName = token
                 if ("{" == token) {
                     break
-                } else {
-                    // / TODO
-                    if ("," != token) {
-                        mapClassToInterface(cl, token)
+                } else if ("," != token) {
+                    // Make sure full interface name is found if there are type use annotations.
+                    if (token.contains('@')) {
+                        while (token.contains('@')) {
+                            token = tokenizer.requireToken()
+                            interfaceName += " $token"
+                        }
                     }
+                    mapClassToInterface(cl, interfaceName)
                 }
+                token = tokenizer.requireToken()
             }
         }
         if (JAVA_LANG_ENUM == ext) {
@@ -395,6 +390,30 @@ private constructor(
             throw ApiParseException("expected {, was $token", tokenizer)
         }
         token = tokenizer.requireToken()
+        cl =
+            when (val foundClass = api.findClass(cl.qualifiedName())) {
+                null -> {
+                    // Duplicate class is not found, thus update super class string
+                    // and keep cl
+                    mapClassToSuper(cl, ext)
+                    cl
+                }
+                else -> {
+                    if (!foundClass.isCompatible(cl)) {
+                        throw ApiParseException("Incompatible $foundClass definitions", cl.position)
+                    } else if (mClassToSuper[foundClass] != ext) {
+                        // Duplicate class with conflicting superclass names are found.
+                        // Since the clas definition found later should be prioritized,
+                        // overwrite the superclass name as ext but set cl as
+                        // foundClass, where the class attributes are stored
+                        // and continue to add methods/fields in foundClass
+                        mapClassToSuper(cl, ext)
+                        foundClass
+                    } else {
+                        foundClass
+                    }
+                }
+            }
         while (true) {
             if ("}" == token) {
                 break
@@ -421,6 +440,22 @@ private constructor(
         pkg.addClass(cl)
     }
 
+    /**
+     * Splits the class type into its name and type parameter list.
+     *
+     * For example "Foo" would split into name "Foo" and an empty type parameter list, while "Foo<A,
+     * B extends java.lang.String, C>" would split into name "Foo" and type parameter list with "A",
+     * "B extends java.lang.String", and "C" as type parameters.
+     */
+    private fun parseClassName(api: TextCodebase, type: String): Pair<String, TypeParameterList> {
+        val paramIndex = type.indexOf('<')
+        return if (paramIndex == -1) {
+            Pair(type, NONE)
+        } else {
+            Pair(type.substring(0, paramIndex), create(api, type.substring(paramIndex)))
+        }
+    }
+
     @Throws(ApiParseException::class)
     private fun processKotlinTypeSuffix(
         startingType: String,
@@ -433,7 +468,9 @@ private constructor(
             varArgs = true
         }
         if (kotlinStyleNulls) {
-            if (type.endsWith("?")) {
+            if (varArgs) {
+                mergeAnnotations(annotations, ANDROIDX_NONNULL)
+            } else if (type.endsWith("?")) {
                 type = type.substring(0, type.length - 1)
                 mergeAnnotations(annotations, ANDROIDX_NULLABLE)
             } else if (type.endsWith("!")) {
@@ -521,9 +558,11 @@ private constructor(
         if ("(" != token) {
             throw ApiParseException("expected (", tokenizer)
         }
-        method = TextConstructorItem(api, name, cl, modifiers, cl.asTypeInfo(), tokenizer.pos())
+        method = TextConstructorItem(api, name, cl, modifiers, cl.toType(), tokenizer.pos())
         method.deprecated = modifiers.isDeprecated()
-        parseParameterList(api, tokenizer, method)
+        // Collect all type parameters in scope into one list
+        val typeParams = typeParameterList.typeParameters() + cl.typeParameterList.typeParameters()
+        parseParameterList(api, tokenizer, method, typeParams)
         method.setTypeParameterList(typeParameterList)
         if (typeParameterList is TextTypeParameterList) {
             typeParameterList.owner = method
@@ -594,7 +633,9 @@ private constructor(
                 break
             }
         }
-        returnType = api.obtainTypeFromString(returnTypeString, cl, typeParameterList)
+        // Collect all type parameters in scope into one list
+        val typeParams = typeParameterList.typeParameters() + cl.typeParameterList.typeParameters()
+        returnType = api.typeResolver.obtainTypeFromString(returnTypeString, typeParams)
         assertIdent(tokenizer, token)
         val name: String = token
         method = TextMethodItem(api, name, cl, modifiers, returnType, tokenizer.pos())
@@ -610,7 +651,7 @@ private constructor(
         if ("(" != token) {
             throw ApiParseException("expected (, was $token", tokenizer)
         }
-        parseParameterList(api, tokenizer, method)
+        parseParameterList(api, tokenizer, method, typeParams)
         token = tokenizer.requireToken()
         if ("throws" == token) {
             token = parseThrows(tokenizer, method)
@@ -656,7 +697,8 @@ private constructor(
         annotations = second
         modifiers.addAnnotations(annotations)
         val type = token
-        val typeInfo = api.obtainTypeFromString(type)
+        val typeInfo =
+            api.typeResolver.obtainTypeFromString(type, cl.typeParameterList.typeParameters())
         token = tokenizer.requireToken()
         assertIdent(tokenizer, token)
         val name = token
@@ -855,7 +897,8 @@ private constructor(
         annotations = second
         modifiers.addAnnotations(annotations)
         val type: String = token
-        val typeInfo = api.obtainTypeFromString(type)
+        val typeInfo =
+            api.typeResolver.obtainTypeFromString(type, cl.typeParameterList.typeParameters())
         token = tokenizer.requireToken()
         assertIdent(tokenizer, token)
         val name: String = token
@@ -888,7 +931,7 @@ private constructor(
         return if (typeParameterList.isEmpty()) {
             NONE
         } else {
-            create(codebase, null, typeParameterList)
+            create(codebase, typeParameterList)
         }
     }
 
@@ -896,7 +939,8 @@ private constructor(
     private fun parseParameterList(
         api: TextCodebase,
         tokenizer: Tokenizer,
-        method: TextMethodItem
+        method: TextMethodItem,
+        typeParameters: List<TypeParameterItem>
     ) {
         var token: String = tokenizer.requireToken()
         var index = 0
@@ -943,12 +987,7 @@ private constructor(
             if (typeString.endsWith("...")) {
                 modifiers.setVarArg(true)
             }
-            val typeInfo =
-                api.obtainTypeFromString(
-                    typeString,
-                    (method.containingClass() as TextClassItem),
-                    method.typeParameterList()
-                )
+            val typeInfo = api.typeResolver.obtainTypeFromString(typeString, typeParameters)
             var name: String
             var publicName: String?
             if (isIdent(token) && token != "=") {
@@ -1367,7 +1406,7 @@ class ReferenceResolver(
             }
 
             val superclass = getOrCreateClass(scName)
-            cl.setSuperClass(superclass, codebase.obtainTypeFromString(scName))
+            cl.setSuperClass(superclass, codebase.typeResolver.obtainTypeFromString(scName))
         }
     }
 
@@ -1376,7 +1415,7 @@ class ReferenceResolver(
             val interfaces = context.namesOfInterfaces(cl) ?: continue
             for (interfaceName in interfaces) {
                 getOrCreateClass(interfaceName, isInterface = true)
-                cl.addInterface(codebase.obtainTypeFromString(interfaceName))
+                cl.addInterface(codebase.typeResolver.obtainTypeFromString(interfaceName))
             }
         }
     }
@@ -1404,10 +1443,8 @@ class ReferenceResolver(
                     exceptionClass = getOrCreateClass(exception)
                     // Set super class to throwable?
                     if (exception != JAVA_LANG_THROWABLE) {
-                        exceptionClass.setSuperClass(
-                            getOrCreateClass(JAVA_LANG_THROWABLE),
-                            TextTypeItem(codebase, JAVA_LANG_THROWABLE)
-                        )
+                        val throwableClass = getOrCreateClass(JAVA_LANG_THROWABLE)
+                        exceptionClass.setSuperClass(throwableClass, throwableClass.toType())
                     }
                 }
                 result.add(exceptionClass)
@@ -1486,6 +1523,5 @@ private fun TextClassItem.isCompatible(cls: TextClassItem): Boolean {
         isInterface() == cls.isInterface() &&
         isEnum() == cls.isEnum() &&
         isAnnotation == cls.isAnnotation &&
-        superClass() == cls.superClass() &&
         allInterfaces().toSet() == cls.allInterfaces().toSet()
 }
