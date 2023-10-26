@@ -18,19 +18,16 @@ package com.android.tools.metalava.model.turbine
 
 import com.google.common.collect.ImmutableList
 import com.google.common.collect.ImmutableMap
-import com.google.common.collect.ImmutableSet
 import com.google.turbine.binder.Binder
 import com.google.turbine.binder.Binder.BindingResult
 import com.google.turbine.binder.ClassPathBinder
 import com.google.turbine.binder.bound.SourceTypeBoundClass
+import com.google.turbine.binder.bound.TypeBoundClass
+import com.google.turbine.binder.bound.TypeBoundClass.FieldInfo
+import com.google.turbine.binder.bytecode.BytecodeBoundClass
+import com.google.turbine.binder.env.CompoundEnv
 import com.google.turbine.binder.sym.ClassSymbol
-import com.google.turbine.tree.Tree
 import com.google.turbine.tree.Tree.CompUnit
-import com.google.turbine.tree.Tree.Kind.TY_DECL
-import com.google.turbine.tree.Tree.Kind.VAR_DECL
-import com.google.turbine.tree.Tree.TyDecl
-import com.google.turbine.tree.Tree.VarDecl
-import com.google.turbine.tree.TurbineModifier
 import java.io.File
 import java.util.Optional
 
@@ -45,32 +42,25 @@ open class TurbineCodebaseInitialiser(
     val codebase: TurbineBasedCodebase,
     val classpath: List<File>,
 ) {
-
-    /** Map items (classitems, methoditems, etc.) with their qualified name. */
-    private var itemMap: MutableMap<Tree, String> = mutableMapOf<Tree, String>()
-
     /** The output from Turbine Binder */
     private lateinit var bindingResult: BindingResult
 
+    /** Map between ClassSymbols and TurbineClass for classes present in source */
+    private lateinit var sourceClassMap: ImmutableMap<ClassSymbol, SourceTypeBoundClass>
+
+    /** Map between ClassSymbols and TurbineClass for classes present in classPath */
+    private lateinit var envClassMap: CompoundEnv<ClassSymbol, BytecodeBoundClass>
+
     /**
-     * Initialize uses two passes through units. One pass is for creating all the items and the
-     * other pass to set up all the hierarchy.
+     * Binds the units with the help of Turbine's binder.
      *
-     * The hierarchy is set up in two parts: one with the use of Turbine binder and other without
+     * Then creates the packages, classes and their members, as well as sets up various class
+     * hierarchies using the binder's output
      */
     fun initialize() {
         codebase.initialize()
 
-        // First pass for creating items
-        for (unit in units) {
-            createItems(unit)
-        }
-        // Create root package
-        findOrCreatePackage("")
-
-        // This method sets up hierarchy using only parsed source files
-        setInnerClassHierarchy(units)
-
+        // Bind the units
         try {
             bindingResult =
                 Binder.bind(
@@ -79,26 +69,29 @@ open class TurbineCodebaseInitialiser(
                     ClassPathBinder.bindClasspath(listOf()),
                     Optional.empty()
                 )!!
+            sourceClassMap = bindingResult.units()
+            envClassMap = bindingResult.classPathEnv()
         } catch (e: Throwable) {
             throw e
         }
-        setSuperClassHierarchy(bindingResult.units())
+
+        createAllPackages()
+        createAllClasses()
     }
 
-    /** Extracts data from the compilation units. A unit corresponds to one parsed source file. */
-    private fun createItems(unit: CompUnit) {
-        val optPkg = unit.pkg()
-        val pkg = if (optPkg.isPresent()) optPkg.get() else null
-        var pkgName = ""
-        if (pkg != null) {
-            val pkgNameList = pkg.name().map { it.value() }
-            pkgName = pkgNameList.joinToString(separator = ".")
-        }
-        val pkgItem = findOrCreatePackage(pkgName)
+    private fun createAllPackages() {
+        // Root package
+        findOrCreatePackage("")
 
-        val typeDecls = unit.decls()
-        for (typeDecl in typeDecls) {
-            populateClass(typeDecl, pkgItem, null, true)
+        for (unit in units) {
+            val optPkg = unit.pkg()
+            val pkg = if (optPkg.isPresent()) optPkg.get() else null
+            var pkgName = ""
+            if (pkg != null) {
+                val pkgNameList = pkg.name().map { it.value() }
+                pkgName = pkgNameList.joinToString(separator = ".")
+            }
+            findOrCreatePackage(pkgName)
         }
     }
 
@@ -118,114 +111,107 @@ open class TurbineCodebaseInitialiser(
         }
     }
 
-    /** Creates a TurbineClassItem and adds the classitem to the various maps in codebase. */
-    private fun populateClass(
-        typeDecl: TyDecl,
-        pkgItem: TurbinePackageItem,
-        containingClass: TurbineClassItem?,
-        isTopClass: Boolean,
-    ) {
-        val className = typeDecl.name().value()
-        val fullName = if (isTopClass) className else containingClass?.fullName() + "." + className
-        val qualifiedName = pkgItem.qualifiedName() + "." + fullName
-        val modifierItem = TurbineModifierItem.create(codebase, computeTurbineFlag(typeDecl.mods()))
+    private fun createAllClasses() {
+        val classes = sourceClassMap.keys
+        for (cls in classes) {
+
+            // Turbine considers package-info as class and creates one for empty packages which is
+            // not consistent with Psi
+            if (cls.simpleName() == "package-info") {
+                continue
+            }
+
+            findOrCreateClass(cls)
+        }
+    }
+
+    /** Creates a class if not already present in codebase's classmap */
+    private fun findOrCreateClass(sym: ClassSymbol): TurbineClassItem {
+        val className = sym.binaryName().replace('/', '.').replace('$', '.')
+        var classItem = codebase.findClass(className)
+
+        if (classItem == null) {
+            classItem = createClass(sym)
+        }
+
+        return classItem
+    }
+
+    private fun createClass(sym: ClassSymbol): TurbineClassItem {
+
+        var cls: TypeBoundClass? = sourceClassMap[sym]
+        cls = if (cls != null) cls else envClassMap.get(sym)!!
+
+        // Get the package item
+        val pkgName = sym.packageName().replace('/', '.')
+        val pkgItem = findOrCreatePackage(pkgName)
+
+        // Create class
+        val qualifiedName = sym.binaryName().replace('/', '.').replace('$', '.')
+        val simpleName = qualifiedName.substring(qualifiedName.lastIndexOf('.') + 1)
+        val fullName = sym.simpleName().replace('$', '.')
+        val modifierItem = TurbineModifierItem.create(codebase, cls.access())
         val classItem =
             TurbineClassItem(
                 codebase,
-                className,
+                simpleName,
                 fullName,
                 qualifiedName,
-                containingClass,
                 modifierItem,
-                TurbineClassType.getClassType(typeDecl.tykind()),
+                TurbineClassType.getClassType(cls.kind()),
             )
 
-        val members = typeDecl.members()
-        val fields = mutableListOf<TurbineFieldItem>()
-        for (member in members) {
-            when (member.kind()) {
-                // A class or an interface declaration
-                TY_DECL -> {
-                    populateClass(member as TyDecl, pkgItem, classItem, false)
-                }
-                // A field declaration
-                VAR_DECL -> {
-                    val field = member as VarDecl
-                    val fieldModifierItem =
-                        TurbineModifierItem.create(codebase, computeTurbineFlag(field.mods()))
-                    val fieldItem =
-                        TurbineFieldItem(
-                            codebase,
-                            field.name().value(),
-                            classItem,
-                            fieldModifierItem,
-                        )
-                    fields.add(fieldItem)
-                }
-                else -> {
-                    // Do nothing for now
-                }
-            }
-        }
-        classItem.fields = fields
-        codebase.addClass(classItem, isTopClass)
-        itemMap.put(typeDecl, qualifiedName)
+        // Setup the SuperClass
+        val superClassItem = cls.superclass()?.let { superClass -> findOrCreateClass(superClass) }
+        classItem.setSuperClass(superClassItem, null)
 
+        // Setup InnerClasses
+        val t = cls.children()
+        setInnerClasses(classItem, t.values.asList())
+
+        // Set direct interfaces
+        classItem.directInterfaces = cls.interfaces().map { itf -> findOrCreateClass(itf) }
+
+        // Create fields
+        createFields(classItem, cls.fields())
+
+        // Add to the codebase
+        val isTopClass = cls.owner() == null
+        codebase.addClass(classItem, isTopClass)
+
+        // Add the class to corresponding PackageItem
         if (isTopClass) {
             classItem.containingPackage = pkgItem
             pkgItem.addTopClass(classItem)
         }
+
+        return classItem
     }
 
-    /** This method computes modifier flag based on mapping values Turbine uses for modifiers */
-    private fun computeTurbineFlag(mods: ImmutableSet<TurbineModifier>): Int {
-        // return the logical OR of all the modifiers
-        return mods.toList().fold(initial = 0) { acc, next -> acc or next.flag() }
-    }
-
-    /** This method sets up inner class hierarchy without using binder. */
-    private fun setInnerClassHierarchy(units: List<CompUnit>) {
-        for (unit in units) {
-            val typeDecls = unit.decls()
-            for (typeDecl in typeDecls) {
-                setInnerClasses(typeDecl)
+    /** This method sets up inner class hierarchy. */
+    private fun setInnerClasses(
+        classItem: TurbineClassItem,
+        innerClasses: ImmutableList<ClassSymbol>
+    ) {
+        classItem.innerClasses =
+            innerClasses.map { cls ->
+                val innerClassItem = findOrCreateClass(cls)
+                innerClassItem.containingClass = classItem
+                innerClassItem
             }
-        }
     }
 
-    /** Method to setup innerclasses for a single class */
-    private fun setInnerClasses(typeDecl: TyDecl) {
-        val className = itemMap[typeDecl]!!
-        val classItem = codebase.findClass(className)!!
-        val innerClasses =
-            typeDecl
-                .members()
-                .filter { it.kind() == TY_DECL }
-                .mapNotNull { it ->
-                    val memberName = itemMap[it]!!
-                    codebase.findClass(memberName)
-                }
-        classItem.innerClasses = innerClasses
-    }
-
-    /** This method uses output from binder to setup superclass and implemented interfaces */
-    private fun setSuperClassHierarchy(units: ImmutableMap<ClassSymbol, SourceTypeBoundClass>) {
-        for ((sym, cls) in units) {
-            val classItem = codebase.findClass(sym.toString())
-            if (classItem != null) {
-
-                // Set superclass
-                val superClassItem =
-                    cls.superclass()?.let { superClass ->
-                        codebase.findClass(superClass.toString())
-                    }
-                classItem.setSuperClass(superClassItem, null)
-
-                // Set direct interfaces
-                val interfaces =
-                    cls.interfaces().mapNotNull { itf -> codebase.findClass(itf.toString()) }
-                classItem.directInterfaces = interfaces
+    /** This methods creates and sets the fields of a class */
+    private fun createFields(classItem: TurbineClassItem, fields: ImmutableList<FieldInfo>) {
+        classItem.fields =
+            fields.map { field ->
+                val fieldModifierItem = TurbineModifierItem.create(codebase, field.access())
+                TurbineFieldItem(
+                    codebase,
+                    field.name(),
+                    classItem,
+                    fieldModifierItem,
+                )
             }
-        }
     }
 }

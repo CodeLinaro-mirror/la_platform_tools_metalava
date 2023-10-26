@@ -29,5 +29,6 @@ import com.android.tools.metalava.reporter.Reporter
 data class ActionContext(
     val progressTracker: ProgressTracker,
     val reporter: Reporter,
+    val reporterApiLint: Reporter,
     val sourceParser: SourceParser,
 )

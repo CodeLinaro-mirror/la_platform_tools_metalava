@@ -486,7 +486,8 @@ class ShowForStubPurposesAnnotationTest : DriverTest() {
                 src/test/pkg/SystemClass.java:6: error: Class test.pkg.ModuleClass is hidden but was referenced (as parameter type) from public parameter arg in test.pkg.SystemClass.foo(test.pkg.ModuleClass arg) [ReferencesHidden]
                 src/test/pkg/SystemClass.java:6: error: Parameter of unavailable type test.pkg.ModuleClass in test.pkg.SystemClass.foo() [UnavailableSymbol]
                 src/test/pkg/SystemClass.java:6: error: Parameter arg references hidden type test.pkg.ModuleClass. [HiddenTypeParameter]
-                """
+                """,
+            expectedFail = DefaultLintErrorMessage,
         )
     }
 
