@@ -283,7 +283,6 @@ class BootstrapSourceModelProviderTest(parameters: TestParameters) : BaseModelTe
         }
     }
 
-    @Test
     /**
      * Check for the following:
      * 1) If a class from classpath is needed by some source class, the corresponding classItem is
@@ -291,6 +290,7 @@ class BootstrapSourceModelProviderTest(parameters: TestParameters) : BaseModelTe
      * 2) While classpath may contain a lot of classes , only create classItems for the classes
      *    required by source classes directly or indirectly (e.g. superclass of superclass)
      */
+    @Test
     fun `130 - check classes from classpath`() {
         runSourceCodebaseTest(
             java(
@@ -309,6 +309,24 @@ class BootstrapSourceModelProviderTest(parameters: TestParameters) : BaseModelTe
             assertEquals(utilClassItem, classItem.superClass())
             assertEquals(objectClassItem, utilClassItem.superClass())
             assertEquals(3, utilClassItem.allInterfaces().count())
+        }
+    }
+
+    @Test
+    fun `130 - test missing symbols`() {
+        runSourceCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+
+                    interface Interface{}
+                    class Test extends UnresolvedSuper implements Interface, UnresolvedInterface {}
+                """
+            ),
+        ) { codebase ->
+            val classItem = codebase.assertClass("test.pkg.Test")
+            assertEquals(null, classItem.superClass())
+            assertEquals(1, classItem.allInterfaces().count())
         }
     }
 }

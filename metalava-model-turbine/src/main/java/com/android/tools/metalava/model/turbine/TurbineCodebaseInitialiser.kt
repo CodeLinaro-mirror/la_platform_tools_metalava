@@ -21,15 +21,18 @@ import com.google.common.collect.ImmutableMap
 import com.google.turbine.binder.Binder
 import com.google.turbine.binder.Binder.BindingResult
 import com.google.turbine.binder.ClassPathBinder
+import com.google.turbine.binder.Processing.ProcessorInfo
 import com.google.turbine.binder.bound.SourceTypeBoundClass
 import com.google.turbine.binder.bound.TypeBoundClass
 import com.google.turbine.binder.bound.TypeBoundClass.FieldInfo
 import com.google.turbine.binder.bytecode.BytecodeBoundClass
 import com.google.turbine.binder.env.CompoundEnv
 import com.google.turbine.binder.sym.ClassSymbol
+import com.google.turbine.diag.TurbineLog
 import com.google.turbine.tree.Tree.CompUnit
 import java.io.File
 import java.util.Optional
+import javax.lang.model.SourceVersion
 
 /**
  * This initializer acts as adaptor between codebase and the output from Turbine parser.
@@ -62,10 +65,24 @@ open class TurbineCodebaseInitialiser(
 
         // Bind the units
         try {
+            val procInfo =
+                ProcessorInfo.create(
+                    ImmutableList.of(),
+                    null,
+                    ImmutableMap.of(),
+                    SourceVersion.latest()
+                )
+
+            // Any non-fatal error (like unresolved symbols) will be captured in this log and will
+            // be ignored.
+            val log = TurbineLog()
+
             bindingResult =
                 Binder.bind(
+                    log,
                     ImmutableList.copyOf(units),
                     ClassPathBinder.bindClasspath(classpath.map { it.toPath() }),
+                    procInfo,
                     ClassPathBinder.bindClasspath(listOf()),
                     Optional.empty()
                 )!!
