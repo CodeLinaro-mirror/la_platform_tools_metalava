@@ -33,7 +33,7 @@ interface ModifierList {
 
     fun isPrivate(): Boolean
 
-    fun isStatic(): Boolean
+    @MetalavaApi fun isStatic(): Boolean
 
     fun isAbstract(): Boolean
 

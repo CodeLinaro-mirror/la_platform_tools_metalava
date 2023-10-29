@@ -186,7 +186,6 @@ Arguments:
             }
         """
 
-    @Deprecated("Copied to [MergeFullSignatureTest]")
     @Test
     fun `Test merging API signature files, one refer to another`() {
         checkMergeSignatures(
@@ -196,7 +195,6 @@ Arguments:
         )
     }
 
-    @Deprecated("Copied to [MergeFullSignatureTest]")
     @Test
     fun `Test merging API signature files, one refer to another, in reverse order`() {
         // Exactly the same as the previous test, but read them in the reverse order

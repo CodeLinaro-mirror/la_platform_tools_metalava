@@ -15,6 +15,9 @@
  */
 package com.android.tools.metalava.model.text
 
+import com.android.tools.metalava.model.MetalavaApi
+
+@MetalavaApi
 class ApiParseException(
     message: String,
     private val file: String? = null,

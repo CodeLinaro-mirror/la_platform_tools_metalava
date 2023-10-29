@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 The Android Open Source Project
+ * Copyright (C) 2023 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,19 +16,11 @@
 
 package com.android.tools.metalava.model
 
-interface ConstructorItem : MethodItem {
-    override fun isConstructor(): Boolean = true
-
-    /** Returns the internal name of the class, as seen in bytecode */
-    override fun internalName(): String = "<init>"
-
-    /**
-     * The constructor that the stub version of this constructor must delegate to in its `super`
-     * call. Is `null` if the super class has a default constructor.
-     */
-    var superConstructor: ConstructorItem?
-
-    /** True if this is the primary constructor in Kotlin. */
-    val isPrimary: Boolean
-        get() = false
+/**
+ * Modifiers for a [TypeItem], analogous to [ModifierList]s for [Item]s. Contains type-use
+ * annotation information.
+ */
+interface TypeModifiers {
+    /** The type-use annotations applied to the owning type. */
+    fun annotations(): List<AnnotationItem>
 }

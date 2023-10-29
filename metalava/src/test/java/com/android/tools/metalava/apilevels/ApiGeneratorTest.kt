@@ -30,8 +30,8 @@ import com.android.tools.metalava.ARG_REMOVE_MISSING_CLASS_REFERENCES_IN_API_LEV
 import com.android.tools.metalava.ARG_SDK_INFO_FILE
 import com.android.tools.metalava.ARG_SDK_JAR_ROOT
 import com.android.tools.metalava.DriverTest
-import com.android.tools.metalava.getApiLookup
-import com.android.tools.metalava.minApiLevel
+import com.android.tools.metalava.doc.getApiLookup
+import com.android.tools.metalava.doc.minApiLevel
 import com.android.tools.metalava.testing.java
 import com.google.common.truth.Truth.assertThat
 import com.google.gson.GsonBuilder

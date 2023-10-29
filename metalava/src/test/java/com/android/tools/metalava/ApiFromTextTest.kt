@@ -229,6 +229,30 @@ class ApiFromTextTest : DriverTest() {
     }
 
     @Test
+    fun `Type use annotations and Kotlin nullability`() {
+        check(
+            format = FileFormat.V4,
+            signatureSource =
+                """
+                // Signature format: 4.0
+                package test.pkg {
+                  public class MyTest {
+                    method public abstract java.lang.annotation.Annotation? @A [] @B []! getParameterAnnotations();
+                  }
+                }
+                """,
+            api =
+                """
+                package test.pkg {
+                  public class MyTest {
+                    method public abstract java.lang.annotation.Annotation? @A [] @B []! getParameterAnnotations();
+                  }
+                }
+            """
+        )
+    }
+
+    @Test
     fun `Vararg modifier`() {
         val source =
             """

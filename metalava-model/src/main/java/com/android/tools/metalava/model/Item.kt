@@ -33,7 +33,7 @@ interface Item {
     val codebase: Codebase
 
     /** Return the modifiers of this class */
-    val modifiers: ModifierList
+    @MetalavaApi val modifiers: ModifierList
 
     /**
      * Whether this element was originally hidden with @hide/@Hide. The [hidden] property tracks
@@ -253,9 +253,6 @@ interface Item {
     /** Returns the [Location] for this item, if any. */
     fun location(): Location = Location.unknownLocationAndBaselineKey
 
-    /** Tag field used for DFS etc */
-    var tag: Boolean
-
     /**
      * Returns the [documentation], but with fully qualified links (except for the same package, and
      * when turning a relative reference into a fully qualified reference, use the javadoc syntax
@@ -273,19 +270,11 @@ interface Item {
      */
     fun describe(capitalize: Boolean = false) = describe(this, capitalize)
 
-    /**
-     * Returns the package that contains this item. If [strict] is false, this will return self if
-     * called on a package, otherwise it will return the containing package (e.g. "foo" for
-     * "foo.bar"). The parameter is ignored on other item types.
-     */
-    fun containingPackage(strict: Boolean = true): PackageItem?
+    /** Returns the package that contains this item. */
+    fun containingPackage(): PackageItem?
 
-    /**
-     * Returns the class that contains this item. If [strict] is false, this will return self if
-     * called on a class, otherwise it will return the outer class, if any. The parameter is ignored
-     * on other item types.
-     */
-    fun containingClass(strict: Boolean = true): ClassItem?
+    /** Returns the class that contains this item. */
+    fun containingClass(): ClassItem?
 
     /**
      * Returns the associated type if any. For example, for a field, property or parameter, this is
@@ -428,7 +417,6 @@ abstract class DefaultItem(override val sortingRank: Int = nextRank.getAndIncrem
         get() = modifiers.isPrivate()
 
     override var emit = true
-    override var tag: Boolean = false
 
     companion object {
         private var nextRank = AtomicInteger()

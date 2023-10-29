@@ -749,8 +749,7 @@ abstract class UastTestBase : DriverTest() {
     }
 
     protected fun `boxed type argument as method return type`(isK2: Boolean) {
-        // TODO: https://youtrack.jetbrains.com/issue/KT-57579 nullity missed...
-        val n = if (isK2) "!" else ""
+        // https://youtrack.jetbrains.com/issue/KT-57579
         uastCheck(
             isK2,
             sourceFiles =
@@ -783,7 +782,7 @@ abstract class UastTestBase : DriverTest() {
                   }
                   public final class StartActivityForResult extends test.pkg.ActivityResultContract<test.pkg.Intent,java.lang.Boolean> {
                     ctor public StartActivityForResult();
-                    method public Boolean$n parseResult(int resultCode, test.pkg.Intent? intent);
+                    method public Boolean parseResult(int resultCode, test.pkg.Intent? intent);
                   }
                 }
             """
@@ -977,6 +976,125 @@ abstract class UastTestBase : DriverTest() {
                   }
                 }
                 """
+        )
+    }
+
+    protected fun `APIs before and after @Deprecated(HIDDEN) on properties or accessors`(
+        isK2: Boolean,
+        api: String,
+    ) {
+        // TODO: https://youtrack.jetbrains.com/issue/KTIJ-27244
+        uastCheck(
+            isK2,
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                        package test.pkg
+
+                        class Test_noAccessor {
+                            @Deprecated(level = DeprecationLevel.HIDDEN, "no more property")
+                            var pOld_noAccessor_deprecatedOnProperty: String = "42"
+
+                            @get:Deprecated(level = DeprecationLevel.HIDDEN, "no more getter")
+                            var pOld_noAccessor_deprecatedOnGetter: String = "42"
+
+                            @set:Deprecated(level = DeprecationLevel.HIDDEN, "no more setter")
+                            var pOld_noAccessor_deprecatedOnSetter: String = "42"
+
+                            var pNew_noAccessor: String = "42"
+                        }
+
+                        class Test_getter {
+                            @Deprecated(level = DeprecationLevel.HIDDEN, "no more property")
+                            var pOld_getter_deprecatedOnProperty: String? = null
+                                get() = field ?: "null?"
+
+                            @get:Deprecated(level = DeprecationLevel.HIDDEN, "no more getter")
+                            var pOld_getter_deprecatedOnGetter: String? = null
+                                get() = field ?: "null?"
+
+                            @set:Deprecated(level = DeprecationLevel.HIDDEN, "no more setter")
+                            var pOld_getter_deprecatedOnSetter: String? = null
+                                get() = field ?: "null?"
+
+                            var pNew_getter: String? = null
+                                get() = field ?: "null?"
+                        }
+
+                        class Test_setter {
+                            @Deprecated(level = DeprecationLevel.HIDDEN, "no more property")
+                            var pOld_setter_deprecatedOnProperty: String? = null
+                                set(value) {
+                                    if (field == null) {
+                                        field = value
+                                    }
+                                }
+
+                            @get:Deprecated(level = DeprecationLevel.HIDDEN, "no more getter")
+                            var pOld_setter_deprecatedOnGetter: String? = null
+                                set(value) {
+                                    if (field == null) {
+                                        field = value
+                                    }
+                                }
+
+                            @set:Deprecated(level = DeprecationLevel.HIDDEN, "no more setter")
+                            var pOld_setter_deprecatedOnSetter: String? = null
+                                set(value) {
+                                    if (field == null) {
+                                        field = value
+                                    }
+                                }
+
+                            var pNew_setter: String? = null
+                                set(value) {
+                                    if (field == null) {
+                                        field = value
+                                    }
+                                }
+                        }
+
+                        class Test_accessors {
+                            @Deprecated(level = DeprecationLevel.HIDDEN, "no more property")
+                            var pOld_accessors_deprecatedOnProperty: String? = null
+                                get() = field ?: "null?"
+                                set(value) {
+                                    if (field == null) {
+                                        field = value
+                                    }
+                                }
+
+                            @get:Deprecated(level = DeprecationLevel.HIDDEN, "no more getter")
+                            var pOld_accessors_deprecatedOnGetter: String? = null
+                                get() = field ?: "null?"
+                                set(value) {
+                                    if (field == null) {
+                                        field = value
+                                    }
+                                }
+
+                            @set:Deprecated(level = DeprecationLevel.HIDDEN, "no more setter")
+                            var pOld_accessors_deprecatedOnSetter: String? = null
+                                get() = field ?: "null?"
+                                set(value) {
+                                    if (field == null) {
+                                        field = value
+                                    }
+                                }
+
+                            var pNew_accessors: String? = null
+                                get() = field ?: "null?"
+                                set(value) {
+                                    if (field == null) {
+                                        field = value
+                                    }
+                                }
+                        }
+                        """
+                    )
+                ),
+            api = api,
         )
     }
 }

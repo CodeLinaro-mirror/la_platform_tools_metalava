@@ -130,4 +130,53 @@ class UastTestK2 : UastTestBase() {
     fun `IntDef with constant in companion object -- K2`() {
         `IntDef with constant in companion object`(isK2 = true)
     }
+
+    @Test
+    fun `APIs before and after @Deprecated(HIDDEN) on properties or accessors -- K2`() {
+        // NB: better tracking non-deprecated accessors (thanks to better use-site handling)
+        `APIs before and after @Deprecated(HIDDEN) on properties or accessors`(
+            isK2 = true,
+            api =
+                """
+                package test.pkg {
+                  public final class Test_accessors {
+                    ctor public Test_accessors();
+                    method public String? getPNew_accessors();
+                    method public String? getPOld_accessors_deprecatedOnSetter();
+                    method public void setPNew_accessors(String?);
+                    method public void setPOld_accessors_deprecatedOnGetter(String?);
+                    property public final String? pNew_accessors;
+                    property public final String? pOld_accessors_deprecatedOnSetter;
+                  }
+                  public final class Test_getter {
+                    ctor public Test_getter();
+                    method public String? getPNew_getter();
+                    method public String? getPOld_getter_deprecatedOnSetter();
+                    method public void setPNew_getter(String?);
+                    method @Deprecated public void setPOld_getter_deprecatedOnGetter(String?);
+                    property public final String? pNew_getter;
+                    property public final String? pOld_getter_deprecatedOnSetter;
+                  }
+                  public final class Test_noAccessor {
+                    ctor public Test_noAccessor();
+                    method public String getPNew_noAccessor();
+                    method @Deprecated public String getPOld_noAccessor_deprecatedOnSetter();
+                    method public void setPNew_noAccessor(String);
+                    method @Deprecated public void setPOld_noAccessor_deprecatedOnGetter(String);
+                    property public final String pNew_noAccessor;
+                    property @Deprecated public final String pOld_noAccessor_deprecatedOnSetter;
+                  }
+                  public final class Test_setter {
+                    ctor public Test_setter();
+                    method public String? getPNew_setter();
+                    method @Deprecated public String? getPOld_setter_deprecatedOnSetter();
+                    method public void setPNew_setter(String?);
+                    method public void setPOld_setter_deprecatedOnGetter(String?);
+                    property public final String? pNew_setter;
+                    property @Deprecated public final String? pOld_setter_deprecatedOnSetter;
+                  }
+                }
+            """
+        )
+    }
 }

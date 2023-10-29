@@ -30,12 +30,11 @@ class TextModelSuiteRunner : ModelSuiteRunner {
 
     override fun createCodebaseAndRun(
         tempDir: File,
-        input: TestFile,
+        input: List<TestFile>,
         test: (Codebase) -> Unit,
     ) {
-        val signatureFile = input.createFile(tempDir)
-        val codebase =
-            ApiFile.parseApi(listOf(signatureFile), annotationManager = noOpAnnotationManager)
+        val signatureFiles = input.map { it.createFile(tempDir) }
+        val codebase = ApiFile.parseApi(signatureFiles, annotationManager = noOpAnnotationManager)
         test(codebase)
     }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018 The Android Open Source Project
+ * Copyright (C) 2023 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,19 +14,24 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava.model
+package com.android.tools.metalava.model.turbine
 
-@MetalavaApi
-interface TypeParameterItem : ClassItem {
-    @Deprecated(
-        message = "Please use typeBounds() instead.",
-        level = DeprecationLevel.ERROR,
-        replaceWith = ReplaceWith("typeBounds().mapNotNull { it.asClass() }")
-    )
-    @MetalavaApi
-    fun bounds(): List<ClassItem> = typeBounds().mapNotNull { it.asClass() }
+import com.google.turbine.model.TurbineTyKind
 
-    fun typeBounds(): List<TypeItem>
+enum class TurbineClassType() {
+    INTERFACE,
+    ENUM,
+    ANNOTATION,
+    CLASS;
 
-    fun isReified(): Boolean
+    companion object {
+        fun getClassType(type: TurbineTyKind): TurbineClassType {
+            return when (type) {
+                TurbineTyKind.INTERFACE -> INTERFACE
+                TurbineTyKind.ENUM -> ENUM
+                TurbineTyKind.ANNOTATION -> ANNOTATION
+                else -> CLASS
+            }
+        }
+    }
 }

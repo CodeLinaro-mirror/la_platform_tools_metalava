@@ -129,4 +129,40 @@ class UastTestK1 : UastTestBase() {
     fun `IntDef with constant in companion object -- K1`() {
         `IntDef with constant in companion object`(isK2 = false)
     }
+
+    @Test
+    fun `APIs before and after @Deprecated(HIDDEN) on properties or accessors -- K1`() {
+        `APIs before and after @Deprecated(HIDDEN) on properties or accessors`(
+            isK2 = false,
+            api =
+                """
+                package test.pkg {
+                  public final class Test_accessors {
+                    ctor public Test_accessors();
+                    method public String? getPNew_accessors();
+                    method public void setPNew_accessors(String?);
+                    property public final String? pNew_accessors;
+                  }
+                  public final class Test_getter {
+                    ctor public Test_getter();
+                    method public String? getPNew_getter();
+                    method public void setPNew_getter(String?);
+                    property public final String? pNew_getter;
+                  }
+                  public final class Test_noAccessor {
+                    ctor public Test_noAccessor();
+                    method public String getPNew_noAccessor();
+                    method public void setPNew_noAccessor(String);
+                    property public final String pNew_noAccessor;
+                  }
+                  public final class Test_setter {
+                    ctor public Test_setter();
+                    method public String? getPNew_setter();
+                    method public void setPNew_setter(String?);
+                    property public final String? pNew_setter;
+                  }
+                }
+            """
+        )
+    }
 }
