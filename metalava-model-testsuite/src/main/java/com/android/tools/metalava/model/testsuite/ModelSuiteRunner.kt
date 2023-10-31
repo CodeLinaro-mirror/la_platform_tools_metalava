@@ -31,13 +31,13 @@ interface ModelSuiteRunner {
     val supportedInputFormats: Set<InputFormat>
 
     /**
-     * Create a [Codebase] from the supplied [input] file and then run a test on that [Codebase].
+     * Create a [Codebase] from the supplied [input] files and then run a test on that [Codebase].
      *
      * Implementations of this consume [input] to create a [Codebase] on which the test is run.
      */
     fun createCodebaseAndRun(
         tempDir: File,
-        input: TestFile,
+        input: List<TestFile>,
         test: (Codebase) -> Unit,
     )
 

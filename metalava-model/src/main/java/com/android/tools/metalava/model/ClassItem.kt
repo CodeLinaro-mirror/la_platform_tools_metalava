@@ -26,6 +26,7 @@ import java.util.function.Predicate
  * If you need to model array dimensions or resolved type parameters, see {@link
  * com.android.tools.metalava.model.TypeItem} instead
  */
+@MetalavaApi
 interface ClassItem : Item {
     /** The simple name of a class. In class foo.bar.Outer.Inner, the simple name is "Inner" */
     fun simpleName(): String
@@ -37,13 +38,13 @@ interface ClassItem : Item {
      * The qualified name of a class. In class foo.bar.Outer.Inner, the qualified name is the whole
      * thing.
      */
-    fun qualifiedName(): String
+    @MetalavaApi fun qualifiedName(): String
 
     /** Is the class explicitly defined in the source file? */
     fun isDefined(): Boolean
 
     /** Is this an innerclass? */
-    fun isInnerClass(): Boolean = containingClass() != null
+    @MetalavaApi fun isInnerClass(): Boolean = containingClass() != null
 
     /** Is this a top level class? */
     fun isTopLevelClass(): Boolean = containingClass() == null
@@ -90,7 +91,7 @@ interface ClassItem : Item {
     }
 
     /** The super class of this class, if any */
-    fun superClass(): ClassItem?
+    @MetalavaApi fun superClass(): ClassItem?
 
     /** All super classes, if any */
     fun allSuperClasses(): Sequence<ClassItem> {
@@ -149,7 +150,7 @@ interface ClassItem : Item {
         extends(qualifiedName) || implements(qualifiedName)
 
     /** Any interfaces implemented by this class */
-    fun interfaceTypes(): List<TypeItem>
+    @MetalavaApi fun interfaceTypes(): List<TypeItem>
 
     /**
      * All classes and interfaces implemented (by this class and its super classes and the
@@ -161,19 +162,19 @@ interface ClassItem : Item {
     fun innerClasses(): List<ClassItem>
 
     /** The constructors in this class */
-    fun constructors(): List<ConstructorItem>
+    @MetalavaApi fun constructors(): List<ConstructorItem>
 
     /** Whether this class has an implicit default constructor */
     fun hasImplicitDefaultConstructor(): Boolean
 
     /** The non-constructor methods in this class */
-    fun methods(): List<MethodItem>
+    @MetalavaApi fun methods(): List<MethodItem>
 
     /** The properties in this class */
     fun properties(): List<PropertyItem>
 
     /** The fields in this class */
-    fun fields(): List<FieldItem>
+    @MetalavaApi fun fields(): List<FieldItem>
 
     /** The members in this class: constructors, methods, fields/enum constants */
     fun members(): Sequence<MemberItem> {
@@ -193,16 +194,10 @@ interface ClassItem : Item {
     fun isClass(): Boolean = !isInterface() && !isAnnotationType() && !isEnum()
 
     /** The containing class, for inner classes */
-    fun containingClass(): ClassItem?
+    @MetalavaApi override fun containingClass(): ClassItem?
 
     /** The containing package */
-    fun containingPackage(): PackageItem
-
-    override fun containingPackage(strict: Boolean): PackageItem = containingPackage()
-
-    override fun containingClass(strict: Boolean): ClassItem? {
-        return if (strict) containingClass() else this
-    }
+    override fun containingPackage(): PackageItem
 
     /** Gets the type for this class */
     fun toType(): TypeItem
@@ -216,7 +211,7 @@ interface ClassItem : Item {
      * Any type parameters for the class, if any, as a source string (with fully qualified class
      * names)
      */
-    fun typeParameterList(): TypeParameterList
+    @MetalavaApi fun typeParameterList(): TypeParameterList
 
     /** Returns the classes that are part of the type parameters of this method, if any */
     fun typeArgumentClasses(): List<ClassItem> = codebase.unsupported()

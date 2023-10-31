@@ -21,14 +21,12 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.FieldItem
-import com.android.tools.metalava.model.ItemVisitor
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ModifierList
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
-import com.android.tools.metalava.model.TypeVisitor
 
 open class TurbineClassItem(
     override val codebase: Codebase,
@@ -37,6 +35,7 @@ open class TurbineClassItem(
     private val qualifiedName: String,
     private val containingClass: TurbineClassItem?,
     override val modifiers: ModifierList,
+    private val classType: TurbineClassType,
 ) : ClassItem, TurbineItem(codebase = codebase, modifiers = modifiers) {
 
     override var artifact: String? = null
@@ -49,8 +48,39 @@ open class TurbineClassItem(
 
     internal lateinit var innerClasses: List<TurbineClassItem>
 
-    override fun allInterfaces(): Sequence<ClassItem> {
-        TODO("b/295800205")
+    private var superClass: TurbineClassItem? = null
+
+    private var superClassType: TypeItem? = null
+
+    internal lateinit var directInterfaces: List<TurbineClassItem>
+
+    private var allInterfaces: List<TurbineClassItem>? = null
+
+    internal lateinit var containingPackage: TurbinePackageItem
+
+    internal lateinit var fields: List<TurbineFieldItem>
+
+    override fun allInterfaces(): Sequence<TurbineClassItem> {
+        if (allInterfaces == null) {
+            val interfaces = mutableSetOf<TurbineClassItem>()
+
+            // Add self as interface if applicable
+            if (isInterface()) {
+                interfaces.add(this)
+            }
+
+            // Add all the interfaces of super class
+            superClass()?.let { supClass ->
+                supClass.allInterfaces().forEach { interfaces.add(it) }
+            }
+
+            // Add all the interfaces of direct interfaces
+            directInterfaces.map { itf -> itf.allInterfaces().forEach { interfaces.add(it) } }
+
+            allInterfaces = interfaces.toList()
+        }
+
+        return allInterfaces!!.asSequence()
     }
 
     override fun constructors(): List<ConstructorItem> {
@@ -59,13 +89,10 @@ open class TurbineClassItem(
 
     override fun containingClass(): ClassItem? = containingClass
 
-    override fun containingPackage(): PackageItem {
-        TODO("b/295800205")
-    }
+    override fun containingPackage(): PackageItem =
+        containingClass?.containingPackage() ?: containingPackage
 
-    override fun fields(): List<FieldItem> {
-        TODO("b/295800205")
-    }
+    override fun fields(): List<FieldItem> = fields
 
     override fun getRetention(): AnnotationRetention {
         TODO("b/295800205")
@@ -85,21 +112,15 @@ open class TurbineClassItem(
         TODO("b/295800205")
     }
 
-    override fun isAnnotationType(): Boolean {
-        TODO("b/295800205")
-    }
+    override fun isAnnotationType(): Boolean = classType == TurbineClassType.ANNOTATION
 
     override fun isDefined(): Boolean {
         TODO("b/295800205")
     }
 
-    override fun isEnum(): Boolean {
-        TODO("b/295800205")
-    }
+    override fun isEnum(): Boolean = classType == TurbineClassType.ENUM
 
-    override fun isInterface(): Boolean {
-        TODO("b/295800205")
-    }
+    override fun isInterface(): Boolean = classType == TurbineClassType.INTERFACE
 
     override fun methods(): List<MethodItem> {
         TODO("b/295800205")
@@ -120,16 +141,13 @@ open class TurbineClassItem(
     }
 
     override fun setSuperClass(superClass: ClassItem?, superClassType: TypeItem?) {
-        TODO("b/295800205")
+        this.superClass = superClass as? TurbineClassItem
+        this.superClassType = superClassType
     }
 
-    override fun superClass(): ClassItem? {
-        TODO("b/295800205")
-    }
+    override fun superClass(): TurbineClassItem? = superClass
 
-    override fun superClassType(): TypeItem? {
-        TODO("b/295800205")
-    }
+    override fun superClassType(): TypeItem? = superClassType
 
     override fun toType(): TypeItem {
         TODO("b/295800205")
@@ -139,19 +157,12 @@ open class TurbineClassItem(
         TODO("b/295800205")
     }
 
-    override fun accept(visitor: ItemVisitor) {
-        TODO("b/295800205")
-    }
-
-    override fun acceptTypes(visitor: TypeVisitor) {
-        TODO("b/295800205")
-    }
-
-    override fun hashCode(): Int {
-        TODO("b/295800205")
-    }
+    override fun hashCode(): Int = qualifiedName.hashCode()
 
     override fun equals(other: Any?): Boolean {
+        if (this === other) {
+            return true
+        }
         return other is ClassItem && qualifiedName() == other.qualifiedName()
     }
 }

@@ -90,6 +90,10 @@ open class TurbineBasedCodebase(
         classMap.put(classItem.qualifiedName(), classItem)
     }
 
+    fun addPackage(packageItem: TurbinePackageItem) {
+        packageMap.put(packageItem.qualifiedName(), packageItem)
+    }
+
     fun initialize() {
         topLevelClassesFromSource = ArrayList(CLASS_ESTIMATE)
         classMap = HashMap(CLASS_ESTIMATE)

@@ -14,8 +14,20 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava
+package com.android.tools.metalava.cli.signature
 
+import com.android.tools.metalava.ApiType
+import com.android.tools.metalava.CodebaseComparator
+import com.android.tools.metalava.ComparisonVisitor
+import com.android.tools.metalava.DefaultAnnotationManager
+import com.android.tools.metalava.JDiffXmlWriter
+import com.android.tools.metalava.OptionsDelegate
+import com.android.tools.metalava.cli.common.MetalavaSubCommand
+import com.android.tools.metalava.cli.common.SignatureFileLoader
+import com.android.tools.metalava.cli.common.existingFile
+import com.android.tools.metalava.cli.common.newFile
+import com.android.tools.metalava.cli.common.progressTracker
+import com.android.tools.metalava.createReportFile
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.Codebase
@@ -36,52 +48,107 @@ import com.android.tools.metalava.model.text.TextMethodItem
 import com.android.tools.metalava.model.text.TextPackageItem
 import com.android.tools.metalava.model.text.TextPropertyItem
 import com.android.tools.metalava.model.visitors.ApiVisitor
+import com.github.ajalt.clikt.parameters.arguments.argument
+import com.github.ajalt.clikt.parameters.options.flag
+import com.github.ajalt.clikt.parameters.options.option
 import java.io.File
 
-/** File conversion tasks */
-internal data class ConvertFile(
-    val fromApiFile: File,
-    val outputFile: File,
-    val baseApiFile: File? = null,
-    val strip: Boolean = false
-)
+class SignatureToJDiffCommand :
+    MetalavaSubCommand(
+        help =
+            """
+                Convert an API signature file into a file in the JDiff XML format.
+            """
+                .trimIndent()
+    ) {
 
-/** Perform the file conversion described by the [ConvertFile] on which this is called. */
-internal fun ConvertFile.process(progressTracker: ProgressTracker) {
-    val annotationManager = DefaultAnnotationManager()
-    val signatureApi = SignatureFileLoader.load(fromApiFile, annotationManager = annotationManager)
+    private val strip by
+        option(
+                help =
+                    """
+                        Determines whether duplicate inherited methods should be stripped from the
+                        output or not.
+                    """
+                        .trimIndent()
+            )
+            .flag("--no-strip", default = false, defaultForHelp = "false")
 
-    val apiVisitorConfig = ApiVisitor.Config()
-    val apiPredicateConfig = apiVisitorConfig.apiPredicateConfig
-    val apiType = ApiType.ALL
-    val apiEmit = apiType.getEmitFilter(apiPredicateConfig)
-    val strip = strip
-    val apiReference =
-        if (strip) apiType.getEmitFilter(apiPredicateConfig)
-        else apiType.getReferenceFilter(apiPredicateConfig)
-    val baseFile = baseApiFile
+    private val baseApiFile by
+        option(
+                "--base-api",
+                metavar = "<base-api-file>",
+                help =
+                    """
+                        Optional base API file. If provided then the output will only include API
+                        items that are not in this file.
+                    """
+                        .trimIndent()
+            )
+            .existingFile()
 
-    val outputApi =
-        if (baseFile != null) {
-            // Convert base on a diff
-            val baseApi = SignatureFileLoader.load(baseFile, annotationManager = annotationManager)
-            computeDelta(baseFile, baseApi, signatureApi, apiVisitorConfig)
-        } else {
-            signatureApi
+    private val apiFile by
+        argument(
+                name = "<api-file>",
+                help =
+                    """
+                        API signature file to convert to the JDiff XML format.
+                    """
+                        .trimIndent()
+            )
+            .existingFile()
+
+    private val xmlFile by
+        argument(
+                name = "<xml-file>",
+                help =
+                    """
+                        Output JDiff XML format file.
+                    """
+                        .trimIndent()
+            )
+            .newFile()
+
+    override fun run() {
+        // Make sure that none of the code called by this command accesses the global `options`
+        // property.
+        OptionsDelegate.disallowAccess()
+
+        val annotationManager = DefaultAnnotationManager()
+        val signatureApi = SignatureFileLoader.load(apiFile, annotationManager = annotationManager)
+
+        val apiVisitorConfig = ApiVisitor.Config()
+        val apiPredicateConfig = apiVisitorConfig.apiPredicateConfig
+        val apiType = ApiType.ALL
+        val apiEmit = apiType.getEmitFilter(apiPredicateConfig)
+        val strip = strip
+        val apiReference =
+            if (strip) apiType.getEmitFilter(apiPredicateConfig)
+            else apiType.getReferenceFilter(apiPredicateConfig)
+        val baseFile = baseApiFile
+
+        val outputApi =
+            if (baseFile != null) {
+                // Convert base on a diff
+                val baseApi =
+                    SignatureFileLoader.load(baseFile, annotationManager = annotationManager)
+                computeDelta(baseFile, baseApi, signatureApi, apiVisitorConfig)
+            } else {
+                signatureApi
+            }
+
+        // See JDiff's XMLToAPI#nameAPI
+        val apiName = xmlFile.nameWithoutExtension.replace(' ', '_')
+        createReportFile(progressTracker, outputApi, xmlFile, "JDiff File") { printWriter ->
+            JDiffXmlWriter(
+                printWriter,
+                apiEmit,
+                apiReference,
+                signatureApi.preFiltered && !strip,
+                apiName,
+                showUnannotated = false,
+                ApiVisitor.Config(),
+            )
         }
-
-    // See JDiff's XMLToAPI#nameAPI
-    val apiName = outputFile.nameWithoutExtension.replace(' ', '_')
-    createReportFile(progressTracker, outputApi, outputFile, "JDiff File") { printWriter ->
-        JDiffXmlWriter(
-            printWriter,
-            apiEmit,
-            apiReference,
-            signatureApi.preFiltered && !strip,
-            apiName,
-            showUnannotated = false,
-            ApiVisitor.Config(),
-        )
     }
 }
 

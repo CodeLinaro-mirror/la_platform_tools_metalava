@@ -93,7 +93,10 @@ internal fun configureBuildInfoTask(
             }
         )
         // Only set sha when in CI to keep local builds faster
-        it.sha.set(project.provider { if (inCI) getGitSha(project.projectDir) else "" })
+        it.sha.set(project.provider { if (inCI) project.providers.exec {
+            it.workingDir = project.projectDir
+            it.commandLine("git", "rev-parse", "--verify", "HEAD")
+        }.standardOutput.asText.get().trim() else "" })
         it.dependencyList.set(dependencies.map { it.asBuildInfoDependencies() })
         it.projectZipPath.set(archiveTaskProvider.flatMap { task -> task.archiveFileName })
         it.outputFile.set(
@@ -105,27 +108,6 @@ internal fun configureBuildInfoTask(
             }
         )
     }
-}
-
-fun getGitSha(directory: File): String {
-    val process =
-        ProcessBuilder("git", "rev-parse", "--verify", "HEAD")
-            .directory(directory)
-            .redirectOutput(ProcessBuilder.Redirect.PIPE)
-            .redirectError(ProcessBuilder.Redirect.PIPE)
-            .start()
-    // Read output, waiting for process to finish, as needed
-    val stdout = process.inputStream.bufferedReader().readText()
-    val stderr = process.errorStream.bufferedReader().readText()
-    val message = stdout + stderr
-    // wait potentially a little bit longer in case Git was waiting for us to
-    // read its response before it exited
-    process.waitFor(10, TimeUnit.SECONDS)
-    if (stderr != "") {
-        throw GradleException("Unable to call git. Response was: $message")
-    }
-    check(process.exitValue() == 0) { "Nonzero exit value running git command." }
-    return stdout.trim()
 }
 
 fun List<Dependency>.asBuildInfoDependencies() =

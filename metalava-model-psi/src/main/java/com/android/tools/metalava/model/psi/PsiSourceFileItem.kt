@@ -229,7 +229,7 @@ internal class PsiSourceFileItem(
             .orEmpty()
     }
 
-    override fun containingPackage(strict: Boolean): PackageItem? {
+    override fun containingPackage(): PackageItem? {
         return when {
             uFile != null -> codebase.findPackage(uFile.packageName)
             file is PsiJavaFile -> codebase.findPackage(file.packageName)

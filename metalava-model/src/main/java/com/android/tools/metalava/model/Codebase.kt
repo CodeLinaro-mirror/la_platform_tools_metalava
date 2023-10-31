@@ -77,13 +77,6 @@ interface Codebase {
         context: Item? = null,
     ): AnnotationItem
 
-    /** Clear the [Item.tag] fields (prior to iteration like DFS) */
-    fun clearTags() {
-        getPackages().packages.forEach { pkg ->
-            pkg.allClasses().forEach { cls -> cls.tag = false }
-        }
-    }
-
     /** Reports that the given operation is unsupported for this codebase type */
     fun unsupported(desc: String? = null): Nothing
 

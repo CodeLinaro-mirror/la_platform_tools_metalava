@@ -388,4 +388,73 @@ class AddAdditionalOverridesTest : DriverTest() {
                 )
         )
     }
+
+    @Test
+    fun `Add additional overrides -- Method with multiple interface parent methods in same hierarchy not elided`() {
+        checkAddAdditionalOverrides(
+            sourceFiles =
+                arrayOf(
+                    // Although ParentInterface provides the default super method, it is abstracted
+                    // in AnotherParentInterface and thus ChildClass.Foo() is an essential method.
+                    java(
+                        """
+                    package test.pkg;
+
+                    public class ChildClass implements ParentInterface, AnotherParentInterface {
+                        public void Foo() {}
+                    }
+                    """
+                    ),
+                    java(
+                        """
+                    package test.pkg;
+
+                    public interface ParentInterface {
+                        public default void Foo() {}
+                    }
+                    """
+                    ),
+                    java(
+                        """
+                    package test.pkg;
+
+                    public interface AnotherParentInterface extends ParentInterface {
+                        public void Foo();
+                    }
+                    """
+                    ),
+                ),
+            apiOriginal =
+                """
+            // Signature format: 2.0
+            package test.pkg {
+              public interface AnotherParentInterface extends test.pkg.ParentInterface {
+                method public void Foo();
+              }
+              public class ChildClass implements test.pkg.AnotherParentInterface test.pkg.ParentInterface {
+                ctor public ChildClass();
+              }
+              public interface ParentInterface {
+                method public default void Foo();
+              }
+            }
+        """,
+            apiWithAdditionalOverrides =
+                """
+            // Signature format: 2.0
+            package test.pkg {
+              public interface AnotherParentInterface extends test.pkg.ParentInterface {
+                method public void Foo();
+              }
+              public class ChildClass implements test.pkg.AnotherParentInterface test.pkg.ParentInterface {
+                ctor public ChildClass();
+                method public void Foo();
+              }
+              public interface ParentInterface {
+                method public default void Foo();
+              }
+            }
+        """,
+        )
+    }
 }
