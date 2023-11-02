@@ -47,9 +47,7 @@ import com.android.tools.metalava.model.psi.gatherSources
 import com.android.tools.metalava.model.source.EnvironmentManager
 import com.android.tools.metalava.model.source.SourceParser
 import com.android.tools.metalava.model.text.ApiClassResolution
-import com.android.tools.metalava.model.text.TextClassItem
 import com.android.tools.metalava.model.text.TextCodebase
-import com.android.tools.metalava.model.text.TextMethodItem
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
@@ -253,12 +251,19 @@ internal fun processFlags(
         progressTracker.progress(
             "Generating API version history JSON file, ${apiVersionsJson.name}: "
         )
+
+        val apiType = ApiType.PUBLIC_API
+        val apiEmit = apiType.getEmitFilter(options.apiPredicateConfig)
+        val apiReference = apiType.getReferenceFilter(options.apiPredicateConfig)
+
         apiGenerator.generateJson(
             // The signature files can be null if the current version is the only version
             options.apiVersionSignatureFiles ?: emptyList(),
             codebase,
             apiVersionsJson,
-            apiVersionNames
+            apiVersionNames,
+            apiEmit,
+            apiReference
         )
     }
 
@@ -428,13 +433,11 @@ internal fun processFlags(
 }
 
 /**
- * When generate stubs from text signature files some additional items are needed.
+ * When generating stubs from text signature files some additional items are needed.
  *
  * Those items are:
  * * Constructors - in the signature file a missing constructor means no publicly visible
  *   constructor but the stub classes still need a constructor.
- * * Concrete methods - in the signature file concrete implementations of inherited abstract methods
- *   are not listed on concrete classes but the stub concrete classes need those implementations.
  */
 @Suppress("DEPRECATION")
 private fun addMissingItemsRequiredForGeneratingStubs(
@@ -448,98 +451,6 @@ private fun addMissingItemsRequiredForGeneratingStubs(
     val analyzer =
         ApiAnalyzer(sourceParser, textCodebase, reporterApiLint, options.apiAnalyzerConfig)
     analyzer.addConstructors { _ -> true }
-
-    // Only add missing concrete overrides if the codebase does not fall back to loading classes
-    // from the classpath. This is needed because addMissingConcreteMethods assumes that all class
-    // items in the hierarchy are TextClassItem which will not be true if some of those classes have
-    // been loaded from the classpath; in that case some will be PsiClassItems.
-    if (options.apiClassResolution == ApiClassResolution.API) {
-        addMissingConcreteMethods(
-            textCodebase.getPackages().allClasses().map { it as TextClassItem }.toList()
-        )
-    }
-}
-
-/**
- * Add concrete implementations of inherited abstract methods to non-abstract class when generating
- * from-text stubs. Iterate through the hierarchy and collect all super abstract methods that need
- * to be added. These are not included in the signature files but omitting these methods will lead
- * to compile error.
- */
-fun addMissingConcreteMethods(allClasses: List<TextClassItem>) {
-    for (cl in allClasses) {
-        // If class is interface, naively iterate through all parent class and interfaces
-        // and resolve inheritance of override equivalent signatures
-        // Find intersection of super class/interface default methods
-        // Resolve conflict by adding signature
-        // https://docs.oracle.com/javase/specs/jls/se8/html/jls-9.html#jls-9.4.1.3
-        if (cl.isInterface()) {
-            // We only need to track one method item(value) with the signature(key),
-            // since the containing class does not matter if a method to be added is found
-            // as method.duplicate(cl) sets containing class to cl.
-            // Therefore, the value of methodMap can be overwritten.
-            val methodMap = mutableMapOf<String, TextMethodItem>()
-            val methodCount = mutableMapOf<String, Int>()
-            val hasDefault = mutableMapOf<String, Boolean>()
-            for (superInterfaceOrClass in cl.getParentAndInterfaces()) {
-                val methods = superInterfaceOrClass.methods().map { it as TextMethodItem }
-                for (method in methods) {
-                    val signature = method.toSignatureString()
-                    val isDefault = method.modifiers.isDefault()
-                    val newCount = methodCount.getOrDefault(signature, 0) + 1
-                    val newHasDefault = hasDefault.getOrDefault(signature, false) || isDefault
-
-                    methodMap[signature] = method
-                    methodCount[signature] = newCount
-                    hasDefault[signature] = newHasDefault
-
-                    // If the method has appeared more than once, there may be a potential
-                    // conflict
-                    // thus add the method to the interface
-                    if (
-                        newHasDefault && newCount == 2 && !cl.containsMethodInClassContext(method)
-                    ) {
-                        val m = method.duplicate(cl) as TextMethodItem
-                        m.modifiers.setAbstract(true)
-                        m.modifiers.setDefault(false)
-                        cl.addMethod(m)
-                    }
-                }
-            }
-        }
-
-        // If class is a concrete class, iterate through all hierarchy and
-        // find all missing abstract methods.
-        // Only add methods that are not implemented in the hierarchy and not included
-        else if (!cl.isAbstractClass() && !cl.isEnum()) {
-            val superMethodsToBeOverridden = mutableListOf<TextMethodItem>()
-            val hierarchyClassesList = cl.getAllSuperClassesAndInterfaces().toMutableList()
-            while (hierarchyClassesList.isNotEmpty()) {
-                val ancestorClass = hierarchyClassesList.removeLast()
-                val abstractMethods = ancestorClass.methods().filter { it.modifiers.isAbstract() }
-                for (method in abstractMethods) {
-                    // We do not compare this against all ancestors of cl,
-                    // because an abstract method cannot be overridden at its ancestor class.
-                    // Thus, we compare against hierarchyClassesList.
-                    if (
-                        hierarchyClassesList.all { !it.containsMethodInClassContext(method) } &&
-                            !cl.containsMethodInClassContext(method)
-                    ) {
-                        superMethodsToBeOverridden.add(method as TextMethodItem)
-                    }
-                }
-            }
-            for (superMethod in superMethodsToBeOverridden) {
-                // MethodItem.duplicate() sets the containing class of
-                // the duplicated method item as the input parameter.
-                // Thus, the method items to be overridden are duplicated here after the
-                // ancestor classes iteration so that the method items are correctly compared.
-                val m = superMethod.duplicate(cl) as TextMethodItem
-                m.modifiers.setAbstract(false)
-                cl.addMethod(m)
-            }
-        }
-    }
 }
 
 private fun ActionContext.subtractApi(

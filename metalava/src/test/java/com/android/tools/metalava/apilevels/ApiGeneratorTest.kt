@@ -33,6 +33,7 @@ import com.android.tools.metalava.DriverTest
 import com.android.tools.metalava.doc.getApiLookup
 import com.android.tools.metalava.doc.minApiLevel
 import com.android.tools.metalava.testing.java
+import com.android.tools.metalava.testing.kotlin
 import com.google.common.truth.Truth.assertThat
 import com.google.gson.GsonBuilder
 import com.google.gson.JsonElement
@@ -957,6 +958,200 @@ class ApiGeneratorTest : DriverTest() {
         val expectedJson =
             "[{\"class\":\"test.pkg.Foo\",\"addedIn\":\"0.0.0\",\"methods\":[{\"method\":\"foo(java.lang.String)\",\"addedIn\":\"0.0.0\"}],\"fields\":[]}]"
         assertEquals(expectedJson, output.readText())
+    }
+
+    @Test
+    fun `API levels using source as current version does not include inherited methods excluded from signatures`() {
+        val output = File.createTempFile("api-info", ".json")
+        output.deleteOnExit()
+        val outputPath = output.path
+
+        val pastVersions =
+            listOf(
+                createTextFile(
+                    "1.1.0",
+                    """
+                    // Signature format: 4.0
+                    package test.pkg {
+                      public class Bar extends test.pkg.Foo {
+                        ctor public Bar();
+                      }
+                      public class Foo {
+                        ctor public Foo();
+                        method public void inherited();
+                      }
+                    }
+                """
+                        .trimIndent()
+                )
+            )
+        val currentVersion =
+            arrayOf(
+                java(
+                    """
+                        package test.pkg;
+
+                        public class Foo {
+                            public void inherited() {}
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+
+                        public class Bar extends Foo {
+                            @Override
+                            public void inherited() {}
+                        }
+                    """
+                )
+            )
+
+        check(
+            sourceFiles = currentVersion,
+            extraArguments =
+                arrayOf(
+                    ARG_GENERATE_API_VERSION_HISTORY,
+                    outputPath,
+                    ARG_API_VERSION_SIGNATURE_FILES,
+                    pastVersions.joinToString(":") { it.absolutePath },
+                    ARG_API_VERSION_NAMES,
+                    listOf("1.1.0", "1.2.0").joinToString(" ")
+                )
+        )
+
+        assertTrue(output.isFile)
+
+        // Read output and reprint with pretty printing enabled to make test failures easier to read
+        val gson = GsonBuilder().disableHtmlEscaping().setPrettyPrinting().create()
+        val outputJson = gson.fromJson(output.readText(), JsonElement::class.java)
+        val prettyOutput = gson.toJson(outputJson)
+        assertEquals(
+            """
+                [
+                  {
+                    "class": "test.pkg.Bar",
+                    "addedIn": "1.1.0",
+                    "methods": [
+                      {
+                        "method": "Bar()",
+                        "addedIn": "1.1.0"
+                      }
+                    ],
+                    "fields": []
+                  },
+                  {
+                    "class": "test.pkg.Foo",
+                    "addedIn": "1.1.0",
+                    "methods": [
+                      {
+                        "method": "Foo()",
+                        "addedIn": "1.1.0"
+                      },
+                      {
+                        "method": "inherited()",
+                        "addedIn": "1.1.0"
+                      }
+                    ],
+                    "fields": []
+                  }
+                ]
+            """
+                .trimIndent(),
+            prettyOutput
+        )
+    }
+
+    @Test
+    fun `APIs annotated with suppress-compatibility-meta-annotations appear in output`() {
+        val output = File.createTempFile("api-info", ".json")
+        output.deleteOnExit()
+        val outputPath = output.path
+
+        val pastVersions =
+            listOf(
+                createTextFile(
+                    "1.1.0.txt",
+                    """
+                    // Signature format: 4.0
+                    package test.pkg {
+                      public final class Foo {
+                        ctor public Foo();
+                        method @SuppressCompatibility @kotlin.RequiresOptIn public void experimentalFunction();
+                        method public void regularFunction();
+                      }
+                    }
+                """
+                        .trimIndent(),
+                )
+            )
+        val currentVersion =
+            arrayOf(
+                kotlin(
+                    """
+                    package test.pkg
+                    class Foo {
+                        @RequiresOptIn fun experimentalFunction() {}
+                        @RequiresOptIn fun newExperimentalFunction() {}
+                        fun regularFunction() {}
+                    }
+                """
+                        .trimIndent()
+                )
+            )
+
+        check(
+            sourceFiles = currentVersion,
+            suppressCompatibilityMetaAnnotations = arrayOf("kotlin.RequiresOptIn"),
+            extraArguments =
+                arrayOf(
+                    ARG_GENERATE_API_VERSION_HISTORY,
+                    outputPath,
+                    ARG_API_VERSION_SIGNATURE_FILES,
+                    pastVersions.joinToString(":") { it.absolutePath },
+                    ARG_API_VERSION_NAMES,
+                    listOf("1.1.0", "1.2.0").joinToString(" ")
+                )
+        )
+
+        assertTrue(output.isFile)
+
+        // Read output and reprint with pretty printing enabled to make test failures easier to read
+        val gson = GsonBuilder().disableHtmlEscaping().setPrettyPrinting().create()
+        val outputJson = gson.fromJson(output.readText(), JsonElement::class.java)
+        val prettyOutput = gson.toJson(outputJson)
+        assertEquals(
+            """
+                [
+                  {
+                    "class": "test.pkg.Foo",
+                    "addedIn": "1.1.0",
+                    "methods": [
+                      {
+                        "method": "experimentalFunction()",
+                        "addedIn": "1.1.0"
+                      },
+                      {
+                        "method": "Foo()",
+                        "addedIn": "1.1.0"
+                      },
+                      {
+                        "method": "newExperimentalFunction()",
+                        "addedIn": "1.2.0"
+                      },
+                      {
+                        "method": "regularFunction()",
+                        "addedIn": "1.1.0"
+                      }
+                    ],
+                    "fields": []
+                  }
+                ]
+            """
+                .trimIndent(),
+            prettyOutput
+        )
     }
 
     private fun createTextFile(name: String, contents: String): File {

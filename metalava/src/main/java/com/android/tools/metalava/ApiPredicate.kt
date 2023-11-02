@@ -79,12 +79,6 @@ class ApiPredicate(
          * or not.
          */
         val addAdditionalOverrides: Boolean = false,
-
-        /**
-         * Set of qualified names of classes where all visible overriding methods are considered as
-         * APIs.
-         */
-        val additionalNonessentialOverridesClasses: Set<String> = emptySet(),
     )
 
     override fun test(member: Item): Boolean {
@@ -97,16 +91,11 @@ class ApiPredicate(
             return false
         }
 
-        val isVisible = { method: MethodItem -> !method.hidden || method.hasShowAnnotation() }
         val visibleForAdditionalOverridePurpose =
             if (config.addAdditionalOverrides) {
                 member is MethodItem &&
                     !member.isConstructor() &&
-                    (member.isRequiredOverridingMethodForTextStub() ||
-                        (member.containingClass().qualifiedName() in
-                            config.additionalNonessentialOverridesClasses &&
-                            isVisible(member) &&
-                            member.superMethods().all { isVisible(it) }))
+                    member.isRequiredOverridingMethodForTextStub()
             } else {
                 false
             }
