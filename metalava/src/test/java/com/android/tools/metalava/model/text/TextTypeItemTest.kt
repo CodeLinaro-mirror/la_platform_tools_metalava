@@ -104,13 +104,8 @@ class TextTypeItemTest {
         val method = cls?.findMethod("build", "") as TextMethodItem
         assertThat(method).isNotNull()
 
-        @Suppress("ConstantConditionIf")
-        if (ASSUME_TYPE_VARS_EXTEND_OBJECT) {
-            assertThat(
-                    TextTypeItem.toTypeString("D[]", false, false, erased = true, context = method)
-                )
-                .isEqualTo("java.lang.Object[]")
-        }
+        assertThat(TextTypeItem.toTypeString("D[]", false, false, erased = true, context = method))
+            .isEqualTo("java.lang.Object[]")
     }
 
     @Test
@@ -138,13 +133,8 @@ class TextTypeItemTest {
         assertThat(TextTypeItem.toTypeString("K", false, false, erased = true, context = method))
             .isEqualTo("java.lang.Enum")
 
-        @Suppress("ConstantConditionIf")
-        if (ASSUME_TYPE_VARS_EXTEND_OBJECT) {
-            assertThat(
-                    TextTypeItem.toTypeString("V", false, false, erased = true, context = method)
-                )
-                .isEqualTo("java.lang.Object")
-        }
+        assertThat(TextTypeItem.toTypeString("V", false, false, erased = true, context = method))
+            .isEqualTo("java.lang.Object")
     }
 
     @Test

@@ -28,10 +28,13 @@ import com.intellij.psi.PsiMethod
 import com.intellij.psi.util.PsiTypesUtil
 import java.io.StringWriter
 import org.intellij.lang.annotations.Language
+import org.jetbrains.kotlin.name.JvmNames
+import org.jetbrains.kotlin.psi.KtFunction
 import org.jetbrains.kotlin.psi.KtNamedFunction
 import org.jetbrains.kotlin.psi.KtParameter
 import org.jetbrains.kotlin.psi.KtProperty
 import org.jetbrains.kotlin.psi.KtPropertyAccessor
+import org.jetbrains.kotlin.psi.psiUtil.hasActualModifier
 import org.jetbrains.uast.UAnnotation
 import org.jetbrains.uast.UAnnotationMethod
 import org.jetbrains.uast.UClass
@@ -295,6 +298,16 @@ open class PsiMethodItem(
         return psiMethod.isEquivalentTo(other.psiMethod)
     }
     */
+
+    override fun shouldExpandOverloads(): Boolean {
+        val ktFunction = (psiMethod as? UMethod)?.sourcePsi as? KtFunction ?: return false
+        return ktFunction.hasActualModifier() &&
+            psiMethod.hasAnnotation(JvmNames.JVM_OVERLOADS_FQ_NAME.asString()) &&
+            // It is /technically/ invalid to have actual functions with default values, but
+            // some places suppress the compiler error, so we should handle it here too.
+            ktFunction.valueParameters.none { it.hasDefaultValue() } &&
+            parameters.any { it.hasDefaultValue() }
+    }
 
     /**
      * Converts the method to a stub that can be converted back to a PsiMethod.

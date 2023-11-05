@@ -247,4 +247,39 @@ class BootstrapSourceModelProviderTest(parameters: TestParameters) : BaseModelTe
             assertEquals(packageItem, innerClassItem.containingPackage())
         }
     }
+
+    @Test
+    fun `120 - check modifiers`() {
+        runSourceCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+
+                    public final class Test1 {
+                        private int var1;
+                        protected static final int var2;
+                        int var3;
+                    }
+                """
+            ),
+        ) { codebase ->
+            val packageItem = codebase.assertPackage("test.pkg")
+            val classItem1 = codebase.assertClass("test.pkg.Test1")
+            val fieldItem1 = classItem1.assertField("var1")
+            val fieldItem2 = classItem1.assertField("var2")
+            val fieldItem3 = classItem1.assertField("var3")
+            val packageMod = packageItem.mutableModifiers()
+            val classMod1 = classItem1.mutableModifiers()
+            val fieldMod1 = fieldItem1.mutableModifiers()
+            val fieldMod2 = fieldItem2.mutableModifiers()
+            val fieldMod3 = fieldItem3.mutableModifiers()
+            assertEquals(true, packageMod.isPublic())
+            assertEquals(true, classMod1.isPublic())
+            assertEquals(true, fieldMod1.isPrivate())
+            assertEquals(false, fieldMod1.isPackagePrivate())
+            assertEquals(false, fieldMod2.isPrivate())
+            assertEquals(true, fieldMod2.asAccessibleAs(fieldMod1))
+            assertEquals(true, fieldMod3.isPackagePrivate())
+        }
+    }
 }

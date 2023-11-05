@@ -40,14 +40,12 @@ class TextTypeParameterItem(
 
     override fun typeBounds(): List<TypeItem> {
         if (bounds == null) {
-            val boundsString = bounds(typeParameterString, owner)
+            val boundsStringList = bounds(typeParameterString, owner)
             bounds =
-                if (boundsString.isEmpty()) {
+                if (boundsStringList.isEmpty()) {
                     emptyList()
                 } else {
-                    boundsString
-                        .map { codebase.typeResolver.obtainTypeFromString(it) }
-                        .filter { !it.isJavaLangObject() }
+                    boundsStringList.map { codebase.typeResolver.obtainTypeFromString(it) }
                 }
         }
         return bounds!!

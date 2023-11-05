@@ -382,17 +382,6 @@ class AnnotationsMerger(
             }
 
             signature = unescapeXml(signature)
-            if (signature == "java.util.Calendar int get(int)") {
-                // https://youtrack.jetbrains.com/issue/IDEA-137385
-                continue
-            } else if (
-                signature == "java.util.Calendar void set(int, int, int) 1" ||
-                    signature == "java.util.Calendar void set(int, int, int, int, int) 1" ||
-                    signature == "java.util.Calendar void set(int, int, int, int, int, int) 1"
-            ) {
-                // http://b.android.com/76090
-                continue
-            }
 
             val matcher = XML_SIGNATURE.matcher(signature)
             if (matcher.matches()) {
@@ -503,15 +492,6 @@ class AnnotationsMerger(
 
         if (parameterIndex != -1) {
             val parameterItem = methodItem.parameters()[parameterIndex]
-
-            if (
-                "java.util.Calendar" == containingClass && "set" == methodName && parameterIndex > 0
-            ) {
-                // Skip the metadata for Calendar.set(int, int, int+); see
-                // https://code.google.com/p/android/issues/detail?id=73982
-                return
-            }
-
             mergeAnnotations(item, parameterItem)
         } else {
             // Annotation on the method itself
