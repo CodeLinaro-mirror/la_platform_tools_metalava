@@ -37,6 +37,7 @@ import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PropertyItem
+import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.model.text.ReferenceResolver
 import com.android.tools.metalava.model.text.ResolverContext
 import com.android.tools.metalava.model.text.SourcePositionInfo
@@ -49,6 +50,7 @@ import com.android.tools.metalava.model.text.TextPackageItem
 import com.android.tools.metalava.model.text.TextPropertyItem
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.github.ajalt.clikt.parameters.arguments.argument
+import com.github.ajalt.clikt.parameters.options.convert
 import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.option
 import java.io.File
@@ -72,6 +74,29 @@ class SignatureToJDiffCommand :
                         .trimIndent()
             )
             .flag("--no-strip", default = false, defaultForHelp = "false")
+
+    private val formatForLegacyFiles by
+        option(
+                "--format-for-legacy-files",
+                metavar = "<format-specifier>",
+                help =
+                    """
+                        Optional format to use when reading legacy, i.e. no longer supported, format
+                        versions. Forces the signature file to be parsed as if it was in this
+                        format.
+
+                        This is provided primarily to allow version 1.0 files, which had no header,
+                        to be parsed as if they were 2.0 files (by specifying
+                        `--format-for-legacy-files=2.0`) so that version 1.0 files can still be read
+                        even though metalava no longer supports version 1.0 files specifically. That
+                        is effectively what metalava did anyway before it removed support for
+                        version 1.0 files so should work reasonably well.
+
+                        Applies to both `--base-api` and `<api-file>`.
+                    """
+                        .trimIndent()
+            )
+            .convert { specifier -> FileFormat.parseSpecifier(specifier) }
 
     private val baseApiFile by
         option(
@@ -114,7 +139,13 @@ class SignatureToJDiffCommand :
         OptionsDelegate.disallowAccess()
 
         val annotationManager = DefaultAnnotationManager()
-        val signatureApi = SignatureFileLoader.load(apiFile, annotationManager = annotationManager)
+        val signatureFileLoader =
+            SignatureFileLoader(
+                annotationManager = annotationManager,
+                formatForLegacyFiles = formatForLegacyFiles,
+            )
+
+        val signatureApi = signatureFileLoader.load(apiFile)
 
         val apiVisitorConfig = ApiVisitor.Config()
         val apiPredicateConfig = apiVisitorConfig.apiPredicateConfig
@@ -129,8 +160,7 @@ class SignatureToJDiffCommand :
         val outputApi =
             if (baseFile != null) {
                 // Convert base on a diff
-                val baseApi =
-                    SignatureFileLoader.load(baseFile, annotationManager = annotationManager)
+                val baseApi = signatureFileLoader.load(baseFile)
                 computeDelta(baseFile, baseApi, signatureApi, apiVisitorConfig)
             } else {
                 signatureApi

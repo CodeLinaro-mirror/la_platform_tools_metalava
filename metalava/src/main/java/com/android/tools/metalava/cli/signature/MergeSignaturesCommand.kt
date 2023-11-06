@@ -24,7 +24,6 @@ import com.android.tools.metalava.cli.common.existingFile
 import com.android.tools.metalava.cli.common.newFile
 import com.android.tools.metalava.cli.common.progressTracker
 import com.android.tools.metalava.createReportFile
-import com.android.tools.metalava.model.noOpAnnotationManager
 import com.android.tools.metalava.model.text.ApiFile
 import com.android.tools.metalava.model.text.ApiParseException
 import com.android.tools.metalava.model.visitors.ApiVisitor
@@ -82,7 +81,7 @@ class MergeSignaturesCommand :
         OptionsDelegate.disallowAccess()
 
         try {
-            val codebase = ApiFile.parseApi(files, annotationManager = noOpAnnotationManager)
+            val codebase = ApiFile.parseApi(files)
             createReportFile(progressTracker, codebase, out, description = "Merged file") {
                 SignatureWriter(
                     writer = it,

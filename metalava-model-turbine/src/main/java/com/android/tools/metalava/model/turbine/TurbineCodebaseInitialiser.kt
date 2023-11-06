@@ -16,9 +16,9 @@
 
 package com.android.tools.metalava.model.turbine
 
-import com.android.tools.metalava.model.DefaultModifierList
 import com.google.common.collect.ImmutableList
 import com.google.common.collect.ImmutableMap
+import com.google.common.collect.ImmutableSet
 import com.google.turbine.binder.Binder
 import com.google.turbine.binder.Binder.BindingResult
 import com.google.turbine.binder.ClassPathBinder
@@ -30,6 +30,7 @@ import com.google.turbine.tree.Tree.Kind.TY_DECL
 import com.google.turbine.tree.Tree.Kind.VAR_DECL
 import com.google.turbine.tree.Tree.TyDecl
 import com.google.turbine.tree.Tree.VarDecl
+import com.google.turbine.tree.TurbineModifier
 import java.io.File
 import java.util.Optional
 
@@ -110,8 +111,8 @@ open class TurbineCodebaseInitialiser(
         if (pkgItem != null) {
             return pkgItem as TurbinePackageItem
         } else {
-            val modifers = DefaultModifierList(codebase)
-            val turbinePkgItem = TurbinePackageItem(codebase, name, modifers)
+            val modifers = TurbineModifierItem.create(codebase, 0)
+            val turbinePkgItem = TurbinePackageItem.create(codebase, name, modifers)
             codebase.addPackage(turbinePkgItem)
             return turbinePkgItem
         }
@@ -127,7 +128,7 @@ open class TurbineCodebaseInitialiser(
         val className = typeDecl.name().value()
         val fullName = if (isTopClass) className else containingClass?.fullName() + "." + className
         val qualifiedName = pkgItem.qualifiedName() + "." + fullName
-        val modifers = DefaultModifierList(codebase)
+        val modifierItem = TurbineModifierItem.create(codebase, computeTurbineFlag(typeDecl.mods()))
         val classItem =
             TurbineClassItem(
                 codebase,
@@ -135,7 +136,7 @@ open class TurbineCodebaseInitialiser(
                 fullName,
                 qualifiedName,
                 containingClass,
-                modifers,
+                modifierItem,
                 TurbineClassType.getClassType(typeDecl.tykind()),
             )
 
@@ -150,8 +151,15 @@ open class TurbineCodebaseInitialiser(
                 // A field declaration
                 VAR_DECL -> {
                     val field = member as VarDecl
+                    val fieldModifierItem =
+                        TurbineModifierItem.create(codebase, computeTurbineFlag(field.mods()))
                     val fieldItem =
-                        TurbineFieldItem(codebase, field.name().value(), classItem, modifers)
+                        TurbineFieldItem(
+                            codebase,
+                            field.name().value(),
+                            classItem,
+                            fieldModifierItem,
+                        )
                     fields.add(fieldItem)
                 }
                 else -> {
@@ -167,6 +175,12 @@ open class TurbineCodebaseInitialiser(
             classItem.containingPackage = pkgItem
             pkgItem.addTopClass(classItem)
         }
+    }
+
+    /** This method computes modifier flag based on mapping values Turbine uses for modifiers */
+    private fun computeTurbineFlag(mods: ImmutableSet<TurbineModifier>): Int {
+        // return the logical OR of all the modifiers
+        return mods.toList().fold(initial = 0) { acc, next -> acc or next.flag() }
     }
 
     /** This method sets up inner class hierarchy without using binder. */

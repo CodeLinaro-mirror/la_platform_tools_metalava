@@ -4798,8 +4798,11 @@ class ApiFileTest : DriverTest() {
                         )
 
                         class SomeOptionalJvmOverloads @JvmOverloads constructor(
-                            private val foo: Int,
-                            private val bar: Int = 0
+                            private val p1: Int,
+                            private val p2: Int = 0,
+                            private val p3: Int,
+                            private val p4: Int = 0,
+                            private val p5: Int
                         )
 
                         class SomeOptionalNoJvmOverloads(
@@ -4822,14 +4825,94 @@ class ApiFileTest : DriverTest() {
                     ctor public AllOptionalNoJvmOverloads(optional int foo, optional int bar);
                   }
                   public final class SomeOptionalJvmOverloads {
-                    ctor public SomeOptionalJvmOverloads(int foo);
-                    ctor public SomeOptionalJvmOverloads(int foo, optional int bar);
+                    ctor public SomeOptionalJvmOverloads(int p1, int p3, int p5);
+                    ctor public SomeOptionalJvmOverloads(int p1, optional int p2, int p3, int p5);
+                    ctor public SomeOptionalJvmOverloads(int p1, optional int p2, int p3, optional int p4, int p5);
                   }
                   public final class SomeOptionalNoJvmOverloads {
                     ctor public SomeOptionalNoJvmOverloads(int foo, optional int bar);
                   }
                 }
             """
+        )
+    }
+
+    @Test
+    fun `Kotlin expect-actual with JvmOverloads`() {
+        check(
+            format = FileFormat.V4,
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        "src/commonMain/test/pkg/Expect.kt",
+                        """
+                        package test.pkg
+
+                        expect class AllOptionalJvmOverloads @JvmOverloads constructor(
+                            private val foo: Int = 0,
+                            private val bar: Int = 0
+                        )
+
+                        expect class SomeOptionalJvmOverloads @JvmOverloads constructor(
+                            private val p1: Int,
+                            private val p2: Int = 0,
+                            private val p3: Int,
+                            private val p4: Int = 0,
+                            private val p5: Int
+                        )
+
+                        expect class AllOptionalJvmOverloadsBothSides @JvmOverloads constructor(
+                            private val foo: Int = 0,
+                            private val bar: Int = 0
+                        )
+                    """
+                    ),
+                    kotlin(
+                        "src/jvmMain/test/pkg/Actual.kt",
+                        """
+                        package test.pkg
+
+                        actual class AllOptionalJvmOverloads @JvmOverloads actual constructor(
+                            private val foo: Int,
+                            private val bar: Int
+                        )
+
+                        actual class SomeOptionalJvmOverloads @JvmOverloads actual constructor(
+                            private val p1: Int,
+                            private val p2: Int,
+                            private val p3: Int,
+                            private val p4: Int,
+                            private val p5: Int
+                        )
+
+                        actual class AllOptionalJvmOverloadsBothSides @JvmOverloads actual constructor(
+                            private val foo: Int = 0,
+                            private val bar: Int = 0
+                        )
+                    """
+                    )
+                ),
+            api =
+                """
+                    // Signature format: 4.0
+                    package test.pkg {
+                      public final class AllOptionalJvmOverloads {
+                        ctor public AllOptionalJvmOverloads();
+                        ctor public AllOptionalJvmOverloads(optional int foo);
+                        ctor public AllOptionalJvmOverloads(optional int foo, optional int bar);
+                      }
+                      public final class AllOptionalJvmOverloadsBothSides {
+                        ctor public AllOptionalJvmOverloadsBothSides();
+                        ctor public AllOptionalJvmOverloadsBothSides(optional int foo);
+                        ctor public AllOptionalJvmOverloadsBothSides(optional int foo, optional int bar);
+                      }
+                      public final class SomeOptionalJvmOverloads {
+                        ctor public SomeOptionalJvmOverloads(int p1, int p3, int p5);
+                        ctor public SomeOptionalJvmOverloads(int p1, optional int p2, int p3, int p5);
+                        ctor public SomeOptionalJvmOverloads(int p1, optional int p2, int p3, optional int p4, int p5);
+                      }
+                    }
+                """
         )
     }
 

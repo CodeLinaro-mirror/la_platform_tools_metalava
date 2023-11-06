@@ -49,7 +49,8 @@ import kotlin.text.Charsets.UTF_8
 class ApiFile
 private constructor(
     /** Implements [ResolverContext] interface */
-    override val classResolver: ClassResolver?
+    override val classResolver: ClassResolver?,
+    private val formatForLegacyFiles: FileFormat?
 ) : ResolverContext {
 
     /**
@@ -75,7 +76,7 @@ private constructor(
         fun parseApi(
             file: File,
             annotationManager: AnnotationManager,
-        ) = parseApi(listOf(file), null, annotationManager)
+        ) = parseApi(listOf(file), annotationManager)
 
         /**
          * Read API signature files into a [TextCodebase].
@@ -88,13 +89,14 @@ private constructor(
          */
         fun parseApi(
             files: List<File>,
+            annotationManager: AnnotationManager = noOpAnnotationManager,
             classResolver: ClassResolver? = null,
-            annotationManager: AnnotationManager,
+            formatForLegacyFiles: FileFormat? = null,
         ): TextCodebase {
             require(files.isNotEmpty()) { "files must not be empty" }
             val api = TextCodebase(files[0], annotationManager)
             val description = StringBuilder("Codebase loaded from ")
-            val parser = ApiFile(classResolver)
+            val parser = ApiFile(classResolver, formatForLegacyFiles)
             var first = true
             for (file in files) {
                 if (!first) {
@@ -140,10 +142,11 @@ private constructor(
             filename: String,
             apiText: String,
             classResolver: ClassResolver? = null,
+            formatForLegacyFiles: FileFormat? = null,
         ): TextCodebase {
             val api = TextCodebase(File(filename), noOpAnnotationManager)
             api.description = "Codebase loaded from $filename"
-            val parser = ApiFile(classResolver)
+            val parser = ApiFile(classResolver, formatForLegacyFiles)
             parser.parseApiSingleFile(api, false, filename, apiText)
             parser.postProcess(api)
             return api
@@ -164,8 +167,11 @@ private constructor(
         filename: String,
         apiText: String,
     ) {
-        // Parse the header of the signature file to determine the format.
-        format = FileFormat.parseHeader(filename, StringReader(apiText)) ?: FileFormat.V2
+        // Parse the header of the signature file to determine the format. If the signature file is
+        // empty then `parseHeader` will return null, so it will default to `FileFormat.V2`.
+        format =
+            FileFormat.parseHeader(filename, StringReader(apiText), formatForLegacyFiles)
+                ?: FileFormat.V2
         kotlinStyleNulls = format.kotlinStyleNulls
 
         if (appending) {

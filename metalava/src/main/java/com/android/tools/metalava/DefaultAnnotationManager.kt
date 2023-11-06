@@ -261,6 +261,9 @@ class DefaultAnnotationManager(
             "android.annotation.TargetApi",
             "android.annotation.SuppressLint" -> return qualifiedName
             ANDROID_FLAGGED_API -> return qualifiedName
+
+            // This implementation only annotation shouldn't be used by metalava at all.
+            "dalvik.annotation.codegen.CovariantReturnType" -> return null
             else -> {
                 // Some new annotations added to the platform: assume they are support
                 // annotations?

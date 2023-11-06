@@ -335,6 +335,26 @@ sealed class PsiTypeItem(
     }
 
     companion object {
+        /**
+         * Work around inconsistency in [TypeConversionUtil.erasure].
+         *
+         * If the [TypeConversionUtil.erasure] is passed a [PsiEllipsisType] (which is a subclass of
+         * [PsiArrayType]) then it will treat it as a [PsiArrayType], replacing the `...` suffix
+         * with `[]` only when the component type changes during erasure, i.e. is generic. If the
+         * component type is not affected by erasure then the `...` suffix is preserved.
+         *
+         * This works around that inconsistency by explicitly handling the [PsiEllipsisType] and
+         * always replacing it with a [PsiArrayType]. So, an erased type string never includes with
+         * `...`.
+         */
+        private fun typeErasure(psiType: PsiType): PsiType {
+            return if (psiType is PsiEllipsisType) {
+                PsiArrayType(TypeConversionUtil.erasure(psiType.componentType))
+            } else {
+                TypeConversionUtil.erasure(psiType)
+            }
+        }
+
         private fun toTypeString(
             codebase: PsiBasedCodebase,
             type: PsiType,
@@ -349,7 +369,7 @@ sealed class PsiTypeItem(
                 // Recurse with raw type and erase=false
                 return toTypeString(
                     codebase,
-                    TypeConversionUtil.erasure(type),
+                    typeErasure(type),
                     outerAnnotations,
                     innerAnnotations,
                     false,
