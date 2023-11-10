@@ -3979,10 +3979,12 @@ class ApiLintTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                src/test/pkg/Foo.java:10: error: Invalid nullability on method `bar` return. Overrides of unannotated super method cannot be Nullable. [InvalidNullabilityOverride]
-                src/test/pkg/Foo.java:10: error: Invalid nullability on parameter `baz` in method `bar`. Parameters of overrides cannot be NonNull if the super parameter is unannotated. [InvalidNullabilityOverride]
+                src/test/pkg/Foo.java:13: error: Invalid nullability on method `bar` return. Overrides of unannotated super method cannot be Nullable. [InvalidNullabilityOverride]
+                src/test/pkg/Foo.java:13: error: Invalid nullability on parameter `baz` in method `bar`. Parameters of overrides cannot be NonNull if the super parameter is unannotated. [InvalidNullabilityOverride]
+                src/test/pkg/Foo.java:16: error: Invalid nullability on parameter `y` in method `x`. Parameters of overrides cannot be NonNull if the super parameter is unannotated. [InvalidNullabilityOverride]
                 src/test/pkg/Foo.java:5: error: Missing nullability on method `bar` return [MissingNullability]
                 src/test/pkg/Foo.java:5: error: Missing nullability on parameter `baz` in method `bar` [MissingNullability]
+                src/test/pkg/Foo.java:8: error: Missing nullability on parameter `y` in method `x` [MissingNullability]
                 """,
             apiLint = "",
             expectedFail = DefaultLintErrorMessage,
@@ -3995,11 +3997,17 @@ class ApiLintTest : DriverTest() {
                         public class Foo {
                             // Not annotated
                             public String bar(String baz);
+
+                            // Partially annotated
+                            @Nullable public String x(String y);
                         }
-                        // Not allowed to mark override method Nullable if parent is not annotated
-                        // Not allowed to mark override parameter NonNull if parent is not annotated
                         public class Bar extends Foo {
+                            // Not allowed to mark override method Nullable if parent is not annotated
+                            // Not allowed to mark override parameter NonNull if parent is not annotated
                             @Nullable @Override public String bar(@NonNull String baz);
+                            // It is allowed to mark the override method Nullable if the parent is Nullable.
+                            // Not allowed to mark override parameter if parent is not annotated.
+                            @Nullable @Override public String x(@NonNull String y);
                         }
                     """
                     ),
@@ -4266,9 +4274,9 @@ class ApiLintTest : DriverTest() {
                     java(
                         """
                         package test.pkg;
-                        
+
                         import java.util.Map;
-                        
+
                         public class ArrayMap<K, V> extends SimpleArrayMap<K, V> implements Map<K, V> {
                             @Override
                             @Nullable
@@ -4276,7 +4284,7 @@ class ApiLintTest : DriverTest() {
                                 return super.get((K) key);
                             }
                         }
-                        
+
                     """
                     )
                 )
@@ -4303,9 +4311,9 @@ class ApiLintTest : DriverTest() {
                     java(
                         """
                         package test.pkg;
-                        
+
                         import java.util.Map;
-                        
+
                         public class ArrayMap<K, V> extends SimpleArrayMap<K, V> implements Map<K, V> {
                             @Override
                             @Nullable
