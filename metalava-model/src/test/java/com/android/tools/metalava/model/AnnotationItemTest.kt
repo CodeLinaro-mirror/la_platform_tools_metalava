@@ -33,6 +33,7 @@ class AnnotationItemTest {
         checkShortenAnnotation("@SystemService", "@android.annotation.SystemService")
         checkShortenAnnotation("@TargetApi", "@android.annotation.TargetApi")
         checkShortenAnnotation("@SuppressLint", "@android.annotation.SuppressLint")
+        checkShortenAnnotation("@FlaggedApi", "@android.annotation.FlaggedApi")
         checkShortenAnnotation("@Unknown", "@androidx.annotation.Unknown")
         checkShortenAnnotation("@Unknown.Nested", "@androidx.annotation.Unknown.Nested")
         checkShortenAnnotation("@my.Annotation", "@my.Annotation")

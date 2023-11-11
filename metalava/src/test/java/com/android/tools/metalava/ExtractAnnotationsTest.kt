@@ -668,6 +668,7 @@ class ExtractAnnotationsTest : DriverTest() {
                     package test.pkg;
 
                     import android.annotation.IntRange;
+                    import java.util.List;
 
                     public class MyTest {
                         public void test(List<Integer> genericArgument, @IntRange(from = 10) int foo) { }
@@ -681,7 +682,7 @@ class ExtractAnnotationsTest : DriverTest() {
                         """
                 <?xml version="1.0" encoding="UTF-8"?>
                 <root>
-                  <item name="test.pkg.MyTest void test(List&lt;Integer&gt;, int) 1">
+                  <item name="test.pkg.MyTest void test(java.util.List&lt;java.lang.Integer&gt;, int) 1">
                     <annotation name="androidx.annotation.IntRange">
                       <val name="from" val="10" />
                     </annotation>

@@ -663,7 +663,7 @@ class ApiFromTextTest : DriverTest() {
                     method public abstract <ToValue> androidx.paging.DataSource<Key,ToValue> mapByPage(androidx.arch.core.util.Function<java.util.List<Value>,java.util.List<ToValue>>);
                     method @AnyThread public void removeInvalidatedCallback(androidx.paging.DataSource.InvalidatedCallback);
                   }
-                  public abstract class ItemKeyedDataSource<Key, Value> extends androidx.paging.DataSource<Key, Value> {
+                  public abstract class ItemKeyedDataSource<Key, Value> extends androidx.paging.DataSource<Key,Value> {
                     method public abstract Key getKey(Value);
                     method public boolean isContiguous();
                     method public abstract void loadAfter(androidx.paging.ItemKeyedDataSource.LoadParams<Key>, androidx.paging.ItemKeyedDataSource.LoadCallback<Value>);

@@ -1125,20 +1125,20 @@ class ApiLintTest : DriverTest() {
             apiLint = "", // enabled
             expectedIssues =
                 """
-                src/android/pkg/Bad.java:12: warning: Builder must be final: android.pkg.Bad.BadBuilder [StaticFinalBuilder]
-                src/android/pkg/Bad.java:12: warning: Builder must be static: android.pkg.Bad.BadBuilder [StaticFinalBuilder]
-                src/android/pkg/Bad.java:13: warning: Builder constructor arguments must be mandatory (i.e. not @Nullable): parameter badParameter in android.pkg.Bad.BadBuilder(String badParameter) [OptionalBuilderConstructorArgument]
-                src/android/pkg/Bad.java:37: warning: Builder methods names should use setFoo() / addFoo() / clearFoo() style: method android.pkg.Bad.BadBuilder.withBadSetterStyle(boolean) [BuilderSetStyle]
-                src/android/pkg/Bad.java:40: warning: Builder setter must be @NonNull: method android.pkg.Bad.BadBuilder.setReturnsNullable(boolean) [SetterReturnsThis]
-                src/android/pkg/Bad.java:42: warning: Getter should be on the built object, not the builder: method android.pkg.Bad.BadBuilder.getOnBuilder() [GetterOnBuilder]
-                src/android/pkg/Bad.java:44: warning: Methods must return the builder object (return type android.pkg.Bad.BadBuilder instead of void): method android.pkg.Bad.BadBuilder.setNotReturningBuilder(boolean) [SetterReturnsThis]
-                src/android/pkg/Bad.java:19: warning: android.pkg.Bad does not declare a `getWithoutMatchingGetters()` method matching method android.pkg.Bad.BadBuilder.addWithoutMatchingGetter(String) [MissingGetterMatchingBuilder]
-                src/android/pkg/Bad.java:22: warning: android.pkg.Bad does not declare a `isWithoutMatchingGetter()` method matching method android.pkg.Bad.BadBuilder.setWithoutMatchingGetter(boolean) [MissingGetterMatchingBuilder]
-                src/android/pkg/Bad.java:25: warning: android.pkg.Bad does not declare a `getPluralWithoutMatchingGetters()` method matching method android.pkg.Bad.BadBuilder.addPluralWithoutMatchingGetter(Collection<String>) [MissingGetterMatchingBuilder]
-                src/android/pkg/Bad.java:31: warning: android.pkg.Bad does not declare a getter method matching method android.pkg.Bad.BadBuilder.addPluralWithoutMatchingGetters(Collection<String>) (expected one of: [getPluralWithoutMatchingGetters(), getPluralWithoutMatchingGetterses()]) [MissingGetterMatchingBuilder]
-                src/android/pkg/Bad.java:44: warning: android.pkg.Bad does not declare a `isNotReturningBuilder()` method matching method android.pkg.Bad.BadBuilder.setNotReturningBuilder(boolean) [MissingGetterMatchingBuilder]
-                src/android/pkg/Bad.java:56: warning: Methods must return the builder object (return type android.pkg.Bad.BadGenericBuilder<T> instead of T): method android.pkg.Bad.BadGenericBuilder.setBoolean(boolean) [SetterReturnsThis]
-                src/android/pkg/Bad.java:50: warning: android.pkg.Bad.NoBuildMethodBuilder does not declare a `build()` method, but builder classes are expected to [MissingBuildMethod]
+                src/android/pkg/Bad.java:13: warning: Builder must be final: android.pkg.Bad.BadBuilder [StaticFinalBuilder]
+                src/android/pkg/Bad.java:13: warning: Builder must be static: android.pkg.Bad.BadBuilder [StaticFinalBuilder]
+                src/android/pkg/Bad.java:14: warning: Builder constructor arguments must be mandatory (i.e. not @Nullable): parameter badParameter in android.pkg.Bad.BadBuilder(String badParameter) [OptionalBuilderConstructorArgument]
+                src/android/pkg/Bad.java:38: warning: Builder methods names should use setFoo() / addFoo() / clearFoo() style: method android.pkg.Bad.BadBuilder.withBadSetterStyle(boolean) [BuilderSetStyle]
+                src/android/pkg/Bad.java:41: warning: Builder setter must be @NonNull: method android.pkg.Bad.BadBuilder.setReturnsNullable(boolean) [SetterReturnsThis]
+                src/android/pkg/Bad.java:43: warning: Getter should be on the built object, not the builder: method android.pkg.Bad.BadBuilder.getOnBuilder() [GetterOnBuilder]
+                src/android/pkg/Bad.java:45: warning: Methods must return the builder object (return type android.pkg.Bad.BadBuilder instead of void): method android.pkg.Bad.BadBuilder.setNotReturningBuilder(boolean) [SetterReturnsThis]
+                src/android/pkg/Bad.java:20: warning: android.pkg.Bad does not declare a `getWithoutMatchingGetters()` method matching method android.pkg.Bad.BadBuilder.addWithoutMatchingGetter(String) [MissingGetterMatchingBuilder]
+                src/android/pkg/Bad.java:23: warning: android.pkg.Bad does not declare a `isWithoutMatchingGetter()` method matching method android.pkg.Bad.BadBuilder.setWithoutMatchingGetter(boolean) [MissingGetterMatchingBuilder]
+                src/android/pkg/Bad.java:26: warning: android.pkg.Bad does not declare a `getPluralWithoutMatchingGetters()` method matching method android.pkg.Bad.BadBuilder.addPluralWithoutMatchingGetter(java.util.Collection<java.lang.String>) [MissingGetterMatchingBuilder]
+                src/android/pkg/Bad.java:32: warning: android.pkg.Bad does not declare a getter method matching method android.pkg.Bad.BadBuilder.addPluralWithoutMatchingGetters(java.util.Collection<java.lang.String>) (expected one of: [getPluralWithoutMatchingGetters(), getPluralWithoutMatchingGetterses()]) [MissingGetterMatchingBuilder]
+                src/android/pkg/Bad.java:45: warning: android.pkg.Bad does not declare a `isNotReturningBuilder()` method matching method android.pkg.Bad.BadBuilder.setNotReturningBuilder(boolean) [MissingGetterMatchingBuilder]
+                src/android/pkg/Bad.java:57: warning: Methods must return the builder object (return type android.pkg.Bad.BadGenericBuilder<T> instead of T): method android.pkg.Bad.BadGenericBuilder.setBoolean(boolean) [SetterReturnsThis]
+                src/android/pkg/Bad.java:51: warning: android.pkg.Bad.NoBuildMethodBuilder does not declare a `build()` method, but builder classes are expected to [MissingBuildMethod]
                 src/android/pkg/TopLevelBuilder.java:3: warning: Builder should be defined as inner class: android.pkg.TopLevelBuilder [TopLevelBuilder]
                 src/android/pkg/TopLevelBuilder.java:3: warning: android.pkg.TopLevelBuilder does not declare a `build()` method, but builder classes are expected to [MissingBuildMethod]
                 """,
@@ -1260,6 +1260,7 @@ class ApiLintTest : DriverTest() {
 
                     import androidx.annotation.NonNull;
                     import androidx.annotation.Nullable;
+                    import java.util.Collection;
 
                     public class Bad {
 

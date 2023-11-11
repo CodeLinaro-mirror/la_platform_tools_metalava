@@ -912,4 +912,143 @@ class CommonTypeItemTest(parameters: TestParameters) : BaseModelTest(parameters)
             assertThat(outerClassParameter.asTypeParameter).isEqualTo(p1)
         }
     }
+
+    @Test
+    fun `Test superclass and interface types using type variables`() {
+        runCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+
+                    public class Cache<Query, Result> extends java.util.HashMap<Query,Result> {}
+
+                    public class MyList<E> implements java.util.List<E> {}
+                """
+                    .trimIndent()
+            ),
+            kotlin(
+                """
+                    package test.pkg
+
+                    class Cache<Query, Result> : java.util.HashMap<Query, Result>
+
+                    class MyList<E> : java.util.List<E>
+                """
+                    .trimIndent()
+            ),
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public class Cache<Query, Result> extends java.util.HashMap<Query,Result> {
+                      }
+                      public class MyList<E> implements java.util.List<E> {
+                      }
+                    }
+                """
+                    .trimIndent()
+            )
+        ) { codebase ->
+            // Verify that the Cache superclass type uses the Cache type variables
+            val cache = codebase.assertClass("test.pkg.Cache")
+            val cacheTypeParams = cache.typeParameterList().typeParameters()
+            assertThat(cacheTypeParams).hasSize(2)
+            val queryParam = cacheTypeParams[0]
+            val resultParam = cacheTypeParams[1]
+
+            val cacheSuperclassType = cache.superClassType()
+            assertThat(cacheSuperclassType).isInstanceOf(ClassTypeItem::class.java)
+            assertThat((cacheSuperclassType as ClassTypeItem).qualifiedName)
+                .isEqualTo("java.util.HashMap")
+            assertThat(cacheSuperclassType.parameters).hasSize(2)
+
+            val queryVar = cacheSuperclassType.parameters[0]
+            assertThat(queryVar).isInstanceOf(VariableTypeItem::class.java)
+            assertThat((queryVar as VariableTypeItem).asTypeParameter).isEqualTo(queryParam)
+
+            val resultVar = cacheSuperclassType.parameters[1]
+            assertThat(resultVar).isInstanceOf(VariableTypeItem::class.java)
+            assertThat((resultVar as VariableTypeItem).asTypeParameter).isEqualTo(resultParam)
+
+            // Verify that the MyList interface type uses the MyList type variable
+            val myList = codebase.assertClass("test.pkg.MyList")
+            val myListTypeParams = myList.typeParameterList().typeParameters()
+            assertThat(myListTypeParams).hasSize(1)
+            val eParam = myListTypeParams.single()
+
+            val myListInterfaces = myList.interfaceTypes()
+            assertThat(myListInterfaces).hasSize(1)
+
+            val myListInterfaceType = myListInterfaces.single()
+            assertThat(myListInterfaceType).isInstanceOf(ClassTypeItem::class.java)
+            assertThat((myListInterfaceType as ClassTypeItem).qualifiedName)
+                .isEqualTo("java.util.List")
+            assertThat(myListInterfaceType.parameters).hasSize(1)
+
+            val eVar = myListInterfaceType.parameters.single()
+            assertThat(eVar).isInstanceOf(VariableTypeItem::class.java)
+            assertThat((eVar as VariableTypeItem).asTypeParameter).isEqualTo(eParam)
+        }
+    }
+
+    @Test
+    fun `Test array of type with parameter used as type parameter`() {
+        runCodebaseTest(
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public class Foo {
+                        method public java.util.Collection<java.util.List<java.lang.String>[]> foo();
+                      }
+                    }
+                """
+                    .trimIndent()
+            ),
+            java(
+                """
+                    package test.pkg;
+
+                    import java.util.Collection;
+                    import java.util.List;
+
+                    public class Foo {
+                        public Collection<List<String>[]> foo() {}
+                    }
+                """,
+            ),
+            kotlin(
+                """
+                    package test.pkg
+
+                    class Foo {
+                        fun foo(): Collection<Array<List<String>>> {}
+                    }
+                """
+            )
+        ) { codebase ->
+            val method = codebase.assertClass("test.pkg.Foo").methods().single()
+
+            // java.util.Collection<java.util.List<java.lang.String>[]>
+            val collectionOfArrayOfStringList = method.returnType()
+            assertThat(collectionOfArrayOfStringList).isInstanceOf(ClassTypeItem::class.java)
+            assertThat((collectionOfArrayOfStringList as ClassTypeItem).qualifiedName)
+                .isEqualTo("java.util.Collection")
+            assertThat(collectionOfArrayOfStringList.parameters).hasSize(1)
+
+            // java.util.List<java.lang.String>[]
+            val arrayOfStringList = collectionOfArrayOfStringList.parameters.single()
+            assertThat(arrayOfStringList).isInstanceOf(ArrayTypeItem::class.java)
+
+            // java.util.List<java.lang.String>
+            val stringList = (arrayOfStringList as ArrayTypeItem).componentType
+            assertThat(stringList).isInstanceOf(ClassTypeItem::class.java)
+            assertThat((stringList as ClassTypeItem).qualifiedName).isEqualTo("java.util.List")
+            assertThat(stringList.parameters).hasSize(1)
+
+            // java.lang.String
+            val string = stringList.parameters.single()
+            assertThat(string.isString()).isTrue()
+        }
+    }
 }

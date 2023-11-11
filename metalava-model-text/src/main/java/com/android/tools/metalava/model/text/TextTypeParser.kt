@@ -672,10 +672,7 @@ internal class TextTypeParser(val codebase: TextCodebase) {
                     expect = balance == 1
                 } else if (c == '>') {
                     balance--
-                    if (balance == 1) {
-                        add(list, s, start, i + 1)
-                        start = i + 1
-                    } else if (balance == 0) {
+                    if (balance == 0) {
                         add(list, s, start, i)
                         return if (i == s.length - 1) {
                             Pair(list, null)
