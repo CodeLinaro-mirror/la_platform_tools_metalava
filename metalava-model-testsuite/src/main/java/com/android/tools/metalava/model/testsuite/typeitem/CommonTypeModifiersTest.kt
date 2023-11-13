@@ -22,9 +22,11 @@ import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.VariableTypeItem
+import com.android.tools.metalava.model.isNullnessAnnotation
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.model.testsuite.TestParameters
 import com.android.tools.metalava.testing.java
+import com.android.tools.metalava.testing.kotlin
 import com.google.common.truth.Truth.assertThat
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -47,13 +49,25 @@ class CommonTypeModifiersTest(parameters: TestParameters) : BaseModelTest(parame
             java(
                 """
                     package test.pkg;
-                    import java.lang.annotation.ElementType;
-                    import java.lang.annotation.Target;
                     public class Foo {
-                        public @test.pkg.A int foo1() {}
-                        public @test.pkg.A String foo2() {}
-                        public <T> @test.pkg.A T foo3() {}
+                        public @A int foo1() {}
+                        public @A String foo2() {}
+                        public <T> @A T foo3() {}
                     }
+                    @java.lang.annotation.Target(java.lang.annotation.ElementType.TYPE_USE)
+                    public @interface A {}
+                """
+            ),
+            kotlin(
+                """
+                    package test.pkg
+                    class Foo {
+                        fun foo1(): @A Int {}
+                        fun foo2(): @A String {}
+                        fun <T> foo3(): @A T {}
+                    }
+                    @Target(AnnotationTarget.TYPE)
+                    annotation class A
                 """
             ),
             signature(
@@ -77,26 +91,184 @@ class CommonTypeModifiersTest(parameters: TestParameters) : BaseModelTest(parame
             val primitiveMethod = methods[0]
             val primitive = primitiveMethod.returnType()
             assertThat(primitive).isInstanceOf(PrimitiveTypeItem::class.java)
-            // The annotation can be interpreted as applying to the method or return type
-            assertThat(primitive.annotationNames() + primitiveMethod.annotationNames())
-                .containsExactly("test.pkg.A")
+            assertThat(primitive.annotationNames()).containsExactly("test.pkg.A")
+            assertThat(primitiveMethod.annotationNames()).isEmpty()
 
             // @test.pkg.A String
             val stringMethod = methods[1]
             val string = stringMethod.returnType()
             assertThat(string).isInstanceOf(ClassTypeItem::class.java)
-            // The annotation can be interpreted as applying to the method or return type
-            assertThat(string.annotationNames() + stringMethod.annotationNames())
-                .containsExactly("test.pkg.A")
+            assertThat(string.annotationNames()).containsExactly("test.pkg.A")
+            val stringMethodAnnotations = stringMethod.annotationNames()
+            // The Kotlin version puts a nullability annotation on the method
+            if (stringMethodAnnotations.isNotEmpty()) {
+                assertThat(stringMethodAnnotations)
+                    .containsExactly("org.jetbrains.annotations.NotNull")
+            }
 
-            // test.pkg.@test.pkg.A Foo
+            // @test.pkg.A T
             val variableMethod = methods[2]
             val variable = variableMethod.returnType()
+            val typeParameter = variableMethod.typeParameterList().typeParameters().single()
             assertThat(variable).isInstanceOf(VariableTypeItem::class.java)
+            assertThat((variable as VariableTypeItem).asTypeParameter).isEqualTo(typeParameter)
             assertThat(variable.annotationNames()).containsExactly("test.pkg.A")
-            // The annotation can be interpreted as applying to the method or return type
-            assertThat(variable.annotationNames() + variableMethod.annotationNames())
-                .containsExactly("test.pkg.A")
+            assertThat(variableMethod.annotationNames()).isEmpty()
+        }
+    }
+
+    @Test
+    fun `Test type-use annotations with multiple allowed targets`() {
+        runCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+                    public class Foo {
+                        public @A int foo1() {}
+                        public @A String foo2() {}
+                        public @A <T> T foo3() {}
+                    }
+                    @java.lang.annotation.Target({ java.lang.annotation.ElementType.METHOD, java.lang.annotation.ElementType.TYPE_USE })
+                    public @interface A {}
+                """
+            ),
+            kotlin(
+                """
+                    package test.pkg
+                    class Foo {
+                        @A fun foo(): @A Int {}
+                        @A fun foo(): @A String {}
+                        @A fun <T> foo(): @A T {}
+                    }
+                    @Target(AnnotationTarget.FUNCTION, AnnotationTarget.TYPE)
+                    annotation class A
+                """
+            ),
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public class Foo {
+                        method @test.pkg.A public @test.pkg.A int foo1();
+                        method @test.pkg.A public @test.pkg.A String foo2();
+                        method @test.pkg.A public <T> @test.pkg.A T foo3();
+                      }
+                    }
+                """
+                    .trimIndent()
+            )
+        ) { codebase ->
+            val methods = codebase.assertClass("test.pkg.Foo").methods()
+            assertThat(methods).hasSize(3)
+
+            // @test.pkg.A int
+            val primitiveMethod = methods[0]
+            val primitive = primitiveMethod.returnType()
+            assertThat(primitive).isInstanceOf(PrimitiveTypeItem::class.java)
+            assertThat(primitive.annotationNames()).containsExactly("test.pkg.A")
+            assertThat(primitiveMethod.annotationNames()).containsExactly("test.pkg.A")
+
+            // @test.pkg.A String
+            val stringMethod = methods[1]
+            val string = stringMethod.returnType()
+            assertThat(string).isInstanceOf(ClassTypeItem::class.java)
+            assertThat(string.annotationNames()).containsExactly("test.pkg.A")
+            // The Kotlin version puts a nullability annotation on the method
+            val stringMethodAnnotations =
+                stringMethod.annotationNames().filter { !isNullnessAnnotation(it.orEmpty()) }
+            assertThat(stringMethodAnnotations).containsExactly("test.pkg.A")
+
+            // @test.pkg.A T
+            val variableMethod = methods[2]
+            val variable = variableMethod.returnType()
+            val typeParameter = variableMethod.typeParameterList().typeParameters().single()
+            assertThat(variable).isInstanceOf(VariableTypeItem::class.java)
+            assertThat((variable as VariableTypeItem).asTypeParameter).isEqualTo(typeParameter)
+            assertThat(variable.annotationNames()).containsExactly("test.pkg.A")
+            assertThat(variableMethod.annotationNames()).containsExactly("test.pkg.A")
+        }
+    }
+
+    @Test
+    fun `Test kotlin type-use annotations with multiple allowed targets on non-type target`() {
+        runCodebaseTest(
+            kotlin(
+                """
+                    package test.pkg
+                    class Foo {
+                        // @A can be applied to a function or type.
+                        // Because of the positioning, it should apply to the function here.
+                        @A fun foo(): Int {}
+                        @A fun foo(): String {}
+                        @A fun <T> foo(): T {}
+                    }
+                    @Target(AnnotationTarget.FUNCTION, AnnotationTarget.TYPE)
+                    annotation class A
+                """
+            )
+        ) { codebase ->
+            val methods = codebase.assertClass("test.pkg.Foo").methods()
+            assertThat(methods).hasSize(3)
+
+            val primitiveMethod = methods[0]
+            val primitive = primitiveMethod.returnType()
+            assertThat(primitive).isInstanceOf(PrimitiveTypeItem::class.java)
+            assertThat(primitive.annotationNames()).isEmpty()
+            assertThat(primitiveMethod.annotationNames()).containsExactly("test.pkg.A")
+
+            val stringMethod = methods[1]
+            val string = stringMethod.returnType()
+            assertThat(string).isInstanceOf(ClassTypeItem::class.java)
+            assertThat(string.annotationNames()).isEmpty()
+            assertThat(stringMethod.annotationNames())
+                .containsExactly("org.jetbrains.annotations.NotNull", "test.pkg.A")
+
+            val variableMethod = methods[2]
+            val variable = variableMethod.returnType()
+            val typeParameter = variableMethod.typeParameterList().typeParameters().single()
+            assertThat(variable).isInstanceOf(VariableTypeItem::class.java)
+            assertThat((variable as VariableTypeItem).asTypeParameter).isEqualTo(typeParameter)
+            assertThat(variable.annotationNames()).isEmpty()
+            assertThat(variableMethod.annotationNames()).containsExactly("test.pkg.A")
+        }
+    }
+
+    @Test
+    fun `Test filtering of annotations based on target usages`() {
+        runCodebaseTest(
+            java(
+                """
+                package test.pkg;
+                public class Foo {
+                    public @A String bar(@A int arg) {}
+                    public @A String baz;
+                }
+
+                @java.lang.annotation.Target({ java.lang.annotation.ElementType.TYPE_USE, java.lang.annotation.ElementType.PARAMETER })
+                public @interface A {}
+            """
+                    .trimIndent()
+            )
+        ) { codebase ->
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+
+            // @A is TYPE_USE and PARAMETER, so it should not appear on the method
+            val method = fooClass.methods().single()
+            assertThat(method.annotationNames()).isEmpty()
+            val methodReturn = method.returnType()
+            assertThat(methodReturn.annotationNames()).containsExactly("test.pkg.A")
+
+            // @A is TYPE_USE and PARAMETER, so it should appear on the parameter as well as type
+            val methodParam = method.parameters().single()
+            assertThat(methodParam.annotationNames()).containsExactly("test.pkg.A")
+            val methodParamType = methodParam.type()
+            assertThat(methodParamType.annotationNames()).containsExactly("test.pkg.A")
+
+            // @A is TYPE_USE and PARAMETER, so it should not appear on the field
+            val field = fooClass.fields().single()
+            assertThat(field.annotationNames()).isEmpty()
+            val fieldType = field.type()
+            assertThat(fieldType.annotationNames()).containsExactly("test.pkg.A")
         }
     }
 

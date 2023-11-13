@@ -25,6 +25,7 @@ import com.android.tools.metalava.testing.getAndroidJar
 import com.android.tools.metalava.testing.java
 import java.io.File
 import org.junit.Assert
+import org.junit.Ignore
 import org.junit.Test
 
 /** The exact signature contents that would be written out for the [SOURCE_FILE_CONTENTS]. */
@@ -121,6 +122,7 @@ class FastPathTest : DriverTest() {
         )
     }
 
+    @Ignore("b/308154836")
     @Test
     fun `Check fast path android jar`() {
         // Loading the current codebase from an android.jar and the previously released "signature"

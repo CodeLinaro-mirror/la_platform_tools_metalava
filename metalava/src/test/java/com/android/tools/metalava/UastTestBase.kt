@@ -465,9 +465,8 @@ abstract class UastTestBase : DriverTest() {
 
     protected fun `final modifier in enum members`(isK2: Boolean) {
         // https://youtrack.jetbrains.com/issue/KT-57567
-        // TODO(b/287343397): restore Enum.entries output
-        // val e = if (isK2) "test.pkg.Event" else "E!"
-        // val s = if (isK2) "test.pkg.State" else "E!"
+        val e = if (isK2) "test.pkg.Event" else "E!"
+        val s = if (isK2) "test.pkg.State" else "E!"
         uastCheck(
             isK2,
             sourceFiles =
@@ -504,6 +503,7 @@ abstract class UastTestBase : DriverTest() {
                 """
                 package test.pkg {
                   public enum Event {
+                    method public static kotlin.enums.EnumEntries<$e> getEntries();
                     method public static final test.pkg.Event? upTo(test.pkg.State state);
                     method public static test.pkg.Event valueOf(String value) throws java.lang.IllegalArgumentException, java.lang.NullPointerException;
                     method public static test.pkg.Event[] values();
@@ -517,6 +517,7 @@ abstract class UastTestBase : DriverTest() {
                     method public test.pkg.Event? upTo(test.pkg.State state);
                   }
                   public enum State {
+                    method public static kotlin.enums.EnumEntries<$s> getEntries();
                     method public final boolean isAtLeast(test.pkg.State state);
                     method public final boolean isFinished();
                     method public static test.pkg.State valueOf(String value) throws java.lang.IllegalArgumentException, java.lang.NullPointerException;
@@ -570,9 +571,8 @@ abstract class UastTestBase : DriverTest() {
     protected fun `Upper bound wildcards -- enum members`(isK2: Boolean) {
         // https://youtrack.jetbrains.com/issue/KT-57578
         val upperBound = "? extends "
-        // TODO(b/287343397): restore Enum.entries output
-        // val c = if (isK2) "test.pkg.PowerCategory" else "E!"
-        // val d = if (isK2) "test.pkg.PowerCategoryDisplayLevel" else "E!"
+        val c = if (isK2) "test.pkg.PowerCategory" else "E!"
+        val d = if (isK2) "test.pkg.PowerCategoryDisplayLevel" else "E!"
         uastCheck(
             isK2,
             sourceFiles =
@@ -628,12 +628,14 @@ abstract class UastTestBase : DriverTest() {
                 """
                 package test.pkg {
                   public enum PowerCategory {
+                    method public static kotlin.enums.EnumEntries<$c> getEntries();
                     method public static test.pkg.PowerCategory valueOf(String value) throws java.lang.IllegalArgumentException, java.lang.NullPointerException;
                     method public static test.pkg.PowerCategory[] values();
                     enum_constant public static final test.pkg.PowerCategory CPU;
                     enum_constant public static final test.pkg.PowerCategory MEMORY;
                   }
                   public enum PowerCategoryDisplayLevel {
+                    method public static kotlin.enums.EnumEntries<$d> getEntries();
                     method public static test.pkg.PowerCategoryDisplayLevel valueOf(String value) throws java.lang.IllegalArgumentException, java.lang.NullPointerException;
                     method public static test.pkg.PowerCategoryDisplayLevel[] values();
                     enum_constant public static final test.pkg.PowerCategoryDisplayLevel BREAKDOWN;

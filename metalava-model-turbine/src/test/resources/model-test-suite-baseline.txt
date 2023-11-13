@@ -42,10 +42,12 @@ com.android.tools.metalava.model.testsuite.typeitem.CommonTypeModifiersTest
   Test annotations on multidimensional array[turbine,java]
   Test annotations on multidimensional vararg array[turbine,java]
   Test annotations on qualified class type[turbine,java]
+  Test filtering of annotations based on target usages[turbine,java]
   Test inner parameterized types with annotations[turbine,java]
   Test interface types[turbine,java]
   Test super class and interface types of interface[turbine,java]
   Test super class type[turbine,java]
+  Test type-use annotations with multiple allowed targets[turbine,java]
 
 com.android.tools.metalava.model.testsuite.typeitem.CommonTypeParameterItemTest
   Test typeBounds extends Comparable[turbine,java]

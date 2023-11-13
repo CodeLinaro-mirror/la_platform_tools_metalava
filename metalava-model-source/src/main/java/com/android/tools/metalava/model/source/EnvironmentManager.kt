@@ -22,7 +22,7 @@ import java.io.Closeable
 import java.io.File
 
 /**
- * Manages environmental resources, e.g. temporrary directories, file caches, etc. needed while
+ * Manages environmental resources, e.g. temporary directories, file caches, etc. needed while
  * processing source files.
  *
  * This will clean up any resources on [close].
@@ -52,4 +52,4 @@ interface EnvironmentManager : Closeable {
 }
 
 const val DEFAULT_JAVA_LANGUAGE_LEVEL = "1.8"
-const val DEFAULT_KOTLIN_LANGUAGE_LEVEL = "1.8"
+const val DEFAULT_KOTLIN_LANGUAGE_LEVEL = "1.9"

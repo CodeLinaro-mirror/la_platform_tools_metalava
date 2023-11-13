@@ -317,7 +317,7 @@ interface ModifierList {
                 writer.write("synchronized ")
             }
 
-            if (list.isNative() && target.isStubsFile()) {
+            if (list.isNative() && (target.isStubsFile() || isSignaturePolymorphic(item))) {
                 writer.write("native ")
             }
 
@@ -462,6 +462,51 @@ interface ModifierList {
                     }
                 }
             }
+        }
+
+        /** The set of classes that may contain polymorphic methods. */
+        private val polymorphicHandleTypes =
+            setOf(
+                "java.lang.invoke.MethodHandle",
+                "java.lang.invoke.VarHandle",
+            )
+
+        /**
+         * Check to see whether a native item is actually a method with a polymorphic signature.
+         *
+         * The java compiler treats methods with polymorphic signatures specially. It identifies a
+         * method as being polymorphic according to the rules defined in JLS 15.12.3. See
+         * https://docs.oracle.com/javase/specs/jls/se21/html/jls-15.html#jls-15.12.3 for the latest
+         * (at time of writing rules). They state:
+         *
+         * A method is signature polymorphic if all of the following are true:
+         * * It is declared in the [java.lang.invoke.MethodHandle] class or the
+         *   [java.lang.invoke.VarHandle] class.
+         * * It has a single variable arity parameter (§8.4.1) whose declared type is Object[].
+         * * It is native.
+         *
+         * The latter point means that the `native` modifier is an important part of a polymorphic
+         * method's signature even though Metalava generally views the `native` modifier as an
+         * implementation detail that should not be part of the API. So, if this method returns
+         * `true` then the `native` modifier will be output to API signatures.
+         */
+        private fun isSignaturePolymorphic(item: Item): Boolean {
+            return item is MethodItem &&
+                item.containingClass().qualifiedName() in polymorphicHandleTypes &&
+                item.parameters().let { parameters ->
+                    parameters.size == 1 &&
+                        parameters[0].let { parameter ->
+                            parameter.isVarArgs() &&
+                                // Check type is java.lang.Object[]
+                                parameter.type().let { type ->
+                                    type is ArrayTypeItem &&
+                                        type.componentType.let { componentType ->
+                                            componentType is ClassTypeItem &&
+                                                componentType.qualifiedName == "java.lang.Object"
+                                        }
+                                }
+                        }
+                }
         }
 
         /**

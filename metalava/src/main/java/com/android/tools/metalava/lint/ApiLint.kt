@@ -150,7 +150,6 @@ import com.android.tools.metalava.reporter.Issues.PERCENTAGE_INT
 import com.android.tools.metalava.reporter.Issues.PROTECTED_MEMBER
 import com.android.tools.metalava.reporter.Issues.PUBLIC_TYPEDEF
 import com.android.tools.metalava.reporter.Issues.RAW_AIDL
-import com.android.tools.metalava.reporter.Issues.REGISTRATION_NAME
 import com.android.tools.metalava.reporter.Issues.RESOURCE_FIELD_NAME
 import com.android.tools.metalava.reporter.Issues.RESOURCE_STYLE_FIELD_NAME
 import com.android.tools.metalava.reporter.Issues.RESOURCE_VALUE_FIELD_NAME
@@ -929,35 +928,19 @@ class ApiLint(
             val name = method.name()
             // the python version looks for any substring, but that includes a lot of other stuff,
             // like plurals
-            if (name.endsWith("Callback")) {
+            if (name.endsWith("Callback") || name.endsWith("Listener")) {
                 if (name.startsWith("register")) {
                     val unregister = "unregister" + name.substring(8) // "register".length
                     ensureMatched(cls, methods, method, unregister)
                 } else if (name.startsWith("unregister")) {
-                    val unregister = "register" + name.substring(10) // "unregister".length
-                    ensureMatched(cls, methods, method, unregister)
-                }
-                if (name.startsWith("add") || name.startsWith("remove")) {
-                    report(
-                        REGISTRATION_NAME,
-                        method,
-                        "Callback methods should be named register/unregister; was $name"
-                    )
-                }
-            } else if (name.endsWith("Listener")) {
-                if (name.startsWith("add")) {
-                    val unregister = "remove" + name.substring(3) // "add".length
-                    ensureMatched(cls, methods, method, unregister)
+                    val register = "register" + name.substring(10) // "unregister".length
+                    ensureMatched(cls, methods, method, register)
+                } else if (name.startsWith("add")) {
+                    val remove = "remove" + name.substring(3) // "add".length
+                    ensureMatched(cls, methods, method, remove)
                 } else if (name.startsWith("remove") && !name.startsWith("removeAll")) {
-                    val unregister = "add" + name.substring(6) // "remove".length
-                    ensureMatched(cls, methods, method, unregister)
-                }
-                if (name.startsWith("register") || name.startsWith("unregister")) {
-                    report(
-                        REGISTRATION_NAME,
-                        method,
-                        "Listener methods should be named add/remove; was $name"
-                    )
+                    val add = "add" + name.substring(6) // "remove".length
+                    ensureMatched(cls, methods, method, add)
                 }
             }
         }

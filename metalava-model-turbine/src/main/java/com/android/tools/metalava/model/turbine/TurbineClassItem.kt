@@ -32,7 +32,6 @@ open class TurbineClassItem(
     private val name: String,
     private val fullName: String,
     private val qualifiedName: String,
-    private val containingClass: TurbineClassItem?,
     override val modifiers: TurbineModifierItem,
     private val classType: TurbineClassType,
 ) : ClassItem, TurbineItem(codebase = codebase, modifiers = modifiers) {
@@ -58,6 +57,8 @@ open class TurbineClassItem(
     internal lateinit var containingPackage: TurbinePackageItem
 
     internal lateinit var fields: List<TurbineFieldItem>
+
+    internal var containingClass: TurbineClassItem? = null
 
     override fun allInterfaces(): Sequence<TurbineClassItem> {
         if (allInterfaces == null) {

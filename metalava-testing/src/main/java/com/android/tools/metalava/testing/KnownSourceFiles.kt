@@ -100,4 +100,18 @@ object KnownSourceFiles {
     """
             )
             .indented()
+
+    /**
+     * The version of the Jetbrains nullness annotations used by metalava is not type-use, but the
+     * latest version is.
+     */
+    val jetbrainsNullableTypeUseSource: TestFile =
+        TestFiles.java(
+                """
+    package org.jetbrains.annotations;
+    @java.lang.annotation.Target({ java.lang.annotation.ElementType.METHOD, java.lang.annotation.ElementType.FIELD, java.lang.annotation.ElementType.PARAMETER, java.lang.annotation.ElementType.LOCAL_VARIABLE, java.lang.annotation.ElementType.TYPE_USE })
+    public @interface Nullable {}
+            """
+            )
+            .indented()
 }

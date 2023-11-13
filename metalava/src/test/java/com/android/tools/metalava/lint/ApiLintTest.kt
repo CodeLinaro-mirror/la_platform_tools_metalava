@@ -883,10 +883,10 @@ class ApiLintTest : DriverTest() {
                 src/android/pkg/RegistrationInterface.java:6: error: Found registerOverriddenUnpairedCallback but not unregisterOverriddenUnpairedCallback in android.pkg.RegistrationInterface [PairedRegistration]
                 src/android/pkg/RegistrationMethods.java:8: error: Found registerUnpairedCallback but not unregisterUnpairedCallback in android.pkg.RegistrationMethods [PairedRegistration]
                 src/android/pkg/RegistrationMethods.java:12: error: Found unregisterMismatchedCallback but not registerMismatchedCallback in android.pkg.RegistrationMethods [PairedRegistration]
-                src/android/pkg/RegistrationMethods.java:13: error: Callback methods should be named register/unregister; was addCallback [RegistrationName]
+                src/android/pkg/RegistrationMethods.java:13: error: Found addUnpairedCallback but not removeUnpairedCallback in android.pkg.RegistrationMethods [PairedRegistration]
                 src/android/pkg/RegistrationMethods.java:18: error: Found addUnpairedListener but not removeUnpairedListener in android.pkg.RegistrationMethods [PairedRegistration]
                 src/android/pkg/RegistrationMethods.java:19: error: Found removeMismatchedListener but not addMismatchedListener in android.pkg.RegistrationMethods [PairedRegistration]
-                src/android/pkg/RegistrationMethods.java:20: error: Listener methods should be named add/remove; was registerWrongListener [RegistrationName]
+                src/android/pkg/RegistrationMethods.java:20: error: Found registerUnpairedListener but not unregisterUnpairedListener in android.pkg.RegistrationMethods [PairedRegistration]
                 """,
             expectedFail = DefaultLintErrorMessage,
             sourceFiles =
@@ -905,14 +905,14 @@ class ApiLintTest : DriverTest() {
                         @Override
                         public void registerOverriddenUnpairedCallback(@Nullable Runnable r) { }
                         public void unregisterMismatchedCallback(@Nullable Runnable r) { }
-                        public void addCallback(@Nullable Runnable r) { }
+                        public void addUnpairedCallback(@Nullable Runnable r) { }
 
                         public void addOkListener(@Nullable Runnable r) { } // OK
                         public void removeOkListener(@Nullable Runnable r) { } // OK
 
                         public void addUnpairedListener(@Nullable Runnable r) { }
                         public void removeMismatchedListener(@Nullable Runnable r) { }
-                        public void registerWrongListener(@Nullable Runnable r) { }
+                        public void registerUnpairedListener(@Nullable Runnable r) { }
                     }
                     """
                     ),

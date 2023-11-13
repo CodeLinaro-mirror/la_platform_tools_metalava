@@ -14,11 +14,10 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava
+package com.android.tools.metalava.cli.signature
 
 import com.android.tools.metalava.cli.common.BaseCommandTest
 import com.android.tools.metalava.cli.common.CommandTestConfig
-import com.android.tools.metalava.cli.signature.SignatureToJDiffCommand
 import com.android.tools.metalava.model.text.FileFormat
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
