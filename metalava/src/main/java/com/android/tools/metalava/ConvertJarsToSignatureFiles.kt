@@ -87,6 +87,7 @@ class ConvertJarsToSignatureFiles(
                 ActionContext(
                     progressTracker = progressTracker,
                     reporter = reporter,
+                    reporterApiLint = reporter, // Use the same reporter for everything.
                     sourceParser = sourceParser,
                 )
             val jarCodebase =

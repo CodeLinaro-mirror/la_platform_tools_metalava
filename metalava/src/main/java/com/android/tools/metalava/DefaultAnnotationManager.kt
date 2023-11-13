@@ -285,7 +285,7 @@ class DefaultAnnotationManager(
 
                     // Unknown Android platform annotations
                     qualifiedName.startsWith(ANDROID_ANNOTATION_PREFIX) -> {
-                        return null
+                        return qualifiedName
                     }
                     else -> qualifiedName
                 }

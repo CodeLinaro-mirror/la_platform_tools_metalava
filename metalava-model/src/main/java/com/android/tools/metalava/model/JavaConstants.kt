@@ -28,6 +28,12 @@ const val JAVA_LANG_OBJECT = "java.lang.Object"
 const val JAVA_LANG_STRING = "java.lang.String"
 const val JAVA_LANG_THROWABLE = "java.lang.Throwable"
 
+const val JAVA_LANG_ANNOTATION_TARGET = "java.lang.annotation.Target"
+const val JAVA_LANG_TYPE_USE_TARGET = "java.lang.annotation.ElementType.TYPE_USE"
+const val JAVA_LANG_METHOD_TARGET = "java.lang.annotation.ElementType.METHOD"
+const val JAVA_LANG_FIELD_TARGET = "java.lang.annotation.ElementType.FIELD"
+const val JAVA_LANG_PARAMETER_TARGET = "java.lang.annotation.ElementType.PARAMETER"
+
 const val JAVA_RETENTION = "java.lang.annotation.Retention"
 const val KT_RETENTION = "kotlin.annotation.Retention"
 

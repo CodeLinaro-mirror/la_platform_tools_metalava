@@ -90,6 +90,8 @@ Sub-commands:
                                              source tree.
   help                                       Provides help for general metalava concepts
   merge-signatures                           Merge multiple signature files together into a single file.
+  signature-to-dex                           Convert an API signature file into a file containing a list of DEX
+                                             signatures.
   signature-to-jdiff                         Convert an API signature file into a file in the JDiff XML format.
   update-signature-header                    Updates the header of signature files to a different format.
   version                                    Show the version

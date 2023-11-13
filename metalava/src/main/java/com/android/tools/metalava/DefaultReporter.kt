@@ -323,8 +323,7 @@ class DefaultReporterEnvironment(
 
     override fun printReport(message: String, severity: Severity) {
         val output = if (severity == ERROR) stderr else stdout
-        output.println()
-        output.print(message.trim())
+        output.println(message.trim())
         output.flush()
     }
 }

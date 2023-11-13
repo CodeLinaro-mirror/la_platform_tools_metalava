@@ -19,6 +19,7 @@ package com.android.tools.metalava
 import com.android.tools.lint.checks.infrastructure.TestFiles.source
 import com.android.tools.metalava.cli.common.ARG_ERROR
 import com.android.tools.metalava.cli.common.ARG_HIDE
+import com.android.tools.metalava.lint.DefaultLintErrorMessage
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.testing.java
 import java.io.File
@@ -69,6 +70,7 @@ class BaselineTest : DriverTest() {
                 """
                 src/test/pkg/Foo.java:9: error: Class test.pkg.Hidden2 is hidden but was referenced (as return type) from public method test.pkg.Foo.getHidden2() [ReferencesHidden]
             """,
+            expectedFail = DefaultLintErrorMessage,
             sourceFiles =
                 arrayOf(
                     java(
