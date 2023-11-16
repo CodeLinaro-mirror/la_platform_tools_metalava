@@ -47,6 +47,7 @@ import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.reporter.Baseline
 import com.android.tools.metalava.reporter.DEFAULT_BASELINE_NAME
 import com.android.tools.metalava.reporter.Reporter
+import com.android.tools.metalava.stub.StubWriterConfig
 import com.android.utils.SdkUtils.wrap
 import com.github.ajalt.clikt.core.NoSuchOption
 import com.github.ajalt.clikt.parameters.groups.OptionGroup
@@ -147,8 +148,6 @@ const val ARG_NULLABILITY_ERRORS_NON_FATAL = "--nullability-errors-non-fatal"
 const val ARG_INPUT_API_JAR = "--input-api-jar"
 const val ARG_DOC_STUBS = "--doc-stubs"
 const val ARG_KOTLIN_STUBS = "--kotlin-stubs"
-const val ARG_STUBS_SOURCE_LIST = "--write-stubs-source-list"
-const val ARG_DOC_STUBS_SOURCE_LIST = "--write-doc-stubs-source-list"
 /** Used by Firebase, see b/116185431#comment15, not used by Android Platform or AndroidX */
 const val ARG_PROGUARD = "--proguard"
 const val ARG_EXTRACT_ANNOTATIONS = "--extract-annotations"
@@ -498,6 +497,14 @@ class Options(
     val verbose: Boolean
         get() = verbosity.verbose
 
+    internal val stubWriterConfig by lazy {
+        StubWriterConfig(
+            apiVisitorConfig = apiVisitorConfig,
+            kotlinStubs = kotlinStubs,
+            includeDocumentationInStubs = includeDocumentationInStubs,
+        )
+    }
+
     val stubsDir by stubGenerationOptions::stubsDir
     val forceConvertToWarningNullabilityAnnotations by
         stubGenerationOptions::forceConvertToWarningNullabilityAnnotations
@@ -508,18 +515,6 @@ class Options(
      * flag.
      */
     var docStubsDir: File? = null
-
-    /**
-     * If set, a source file to write the stub index (list of source files) to. Can be passed to
-     * other tools like javac/javadoc using the special @-syntax.
-     */
-    var stubsSourceList: File? = null
-
-    /**
-     * If set, a source file to write the doc stub index (list of source files) to. Can be passed to
-     * other tools like javac/javadoc using the special @-syntax.
-     */
-    var docStubsSourceList: File? = null
 
     /** Whether code compiled from Kotlin should be emitted as .kt stubs instead of .java stubs */
     var kotlinStubs = false
@@ -897,9 +892,6 @@ class Options(
                 ARG_HIDE_ANNOTATION -> hideAnnotationsBuilder.add(getValue(args, ++index))
                 ARG_DOC_STUBS -> docStubsDir = stringToNewDir(getValue(args, ++index))
                 ARG_KOTLIN_STUBS -> kotlinStubs = true
-                ARG_STUBS_SOURCE_LIST -> stubsSourceList = stringToNewFile(getValue(args, ++index))
-                ARG_DOC_STUBS_SOURCE_LIST ->
-                    docStubsSourceList = stringToNewFile(getValue(args, ++index))
                 ARG_EXCLUDE_DOCUMENTATION_FROM_STUBS -> includeDocumentationInStubs = false
                 ARG_ENHANCE_DOCUMENTATION -> enhanceDocumentation = true
                 ARG_PASS_THROUGH_ANNOTATION -> {
@@ -1643,13 +1635,6 @@ object OptionsHelp {
                 "Exclude element documentation (javadoc and kdoc) " +
                     "from the generated stubs. (Copyright notices are not affected by this, they are always included. " +
                     "Documentation stubs (--doc-stubs) are not affected.)",
-                "$ARG_STUBS_SOURCE_LIST <file>",
-                "Write the list of generated stub files into the given source " +
-                    "list file. If generating documentation stubs and you haven't also specified " +
-                    "$ARG_DOC_STUBS_SOURCE_LIST, this list will refer to the documentation stubs; " +
-                    "otherwise it's the non-documentation stubs.",
-                "$ARG_DOC_STUBS_SOURCE_LIST <file>",
-                "Write the list of generated doc stub files into the given source " + "list file",
                 "",
                 "Diffs and Checks:",
                 "--check-compatibility:type:released <file>",

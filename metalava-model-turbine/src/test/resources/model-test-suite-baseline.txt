@@ -1,5 +1,6 @@
 com.android.tools.metalava.model.testsuite.BootstrapSourceModelProviderTest
   070 - check constructor exists[turbine,java]
+  150 - advanced superMethods() test on methoditem[turbine,java]
 
 com.android.tools.metalava.model.testsuite.CommonClassItemTest
   Find method with type parameterized by two types[turbine,java]
