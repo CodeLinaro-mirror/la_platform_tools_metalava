@@ -21,6 +21,7 @@ import com.android.tools.metalava.ARG_PASS_THROUGH_ANNOTATION
 import com.android.tools.metalava.androidxNullableSource
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.restrictToSource
+import com.android.tools.metalava.testing.html
 import com.android.tools.metalava.testing.java
 import org.junit.Test
 
@@ -204,6 +205,56 @@ class StubsPackageInfoTest : AbstractStubsTest() {
                     )
                 ),
             extraArguments = arrayOf(ARG_HIDE_PACKAGE, "androidx.annotation")
+        )
+    }
+
+    @Test
+    fun `Check writing package info from package html file`() {
+        checkStubs(
+            format = FileFormat.V2,
+            sourceFiles =
+                arrayOf(
+                    html(
+                        "src/test/pkg/package.html",
+                        """
+                    <HTML>
+                    <BODY>
+                    Summary.
+                    <p>
+                    Body.
+                    </BODY>
+                    </HTML>
+                    """
+                    ),
+                    java(
+                        """
+                    package test.pkg;
+
+                    @SuppressWarnings("all")
+                    public class Test {
+                    }
+                    """
+                    ),
+                ),
+            warnings = "",
+            api =
+                """
+                package test.pkg {
+                  public class Test {
+                    ctor public Test();
+                  }
+                }
+            """,
+            source =
+                @Suppress("DanglingJavadoc")
+                """
+                /**
+                 * Summary.
+                 * <p>
+                 * Body.
+                 */
+                package test.pkg;
+                """,
         )
     }
 }

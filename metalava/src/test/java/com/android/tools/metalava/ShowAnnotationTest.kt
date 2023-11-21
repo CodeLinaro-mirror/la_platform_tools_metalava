@@ -832,14 +832,8 @@ class ShowAnnotationTest : DriverTest() {
     }
 
     @Test
-    fun `Conflicting for stubs and single show annotations`() {
+    fun `Mixing for stubs only and single show annotations`() {
         check(
-            expectedIssues =
-                """
-                src/test/pkg/Foo.java:10: error: Method test.pkg.Foo.method1() has conflicting show annotations @android.annotation.SystemApi (Showability(show=true, recursive=false, forStubsOnly=false)) and @android.annotation.TestApi (Showability(show=true, recursive=true, forStubsOnly=true)) [ConflictingShowAnnotations]
-                src/test/pkg/Foo.java:17: error: Method test.pkg.Foo.method2() has conflicting show annotations @android.annotation.TestApi (Showability(show=true, recursive=true, forStubsOnly=true)) and @android.annotation.SystemApi (Showability(show=true, recursive=false, forStubsOnly=false)) [ConflictingShowAnnotations]
-            """
-                    .trimIndent(),
             sourceFiles =
                 arrayOf(
                     java(
@@ -881,6 +875,7 @@ class ShowAnnotationTest : DriverTest() {
                 package test.pkg {
                   public class Foo {
                     method public void method1();
+                    method public void method2();
                   }
                 }
                 """,

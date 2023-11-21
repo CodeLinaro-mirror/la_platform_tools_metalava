@@ -17,7 +17,6 @@
 package com.android.tools.metalava
 
 import com.android.tools.lint.checks.infrastructure.TestFile
-import com.android.tools.metalava.lint.DefaultLintErrorMessage
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.testing.java
 import java.util.Locale
@@ -355,18 +354,13 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                     package test.pkg {
                       public class Bar extends test.pkg.Foo {
                         ctor public Bar();
-                        method public void flaggedMethod();
                       }
                       public class Foo {
                         ctor public Foo();
                       }
                     }
                 """,
-            // This should be empty.
-            expectedPublicApiMinusFlaggedApiIssues =
-                """
-                    src/test/pkg/Bar.java:8: warning: New API must be flagged with @FlaggedApi: method test.pkg.Bar.flaggedMethod() [UnflaggedApi]
-                """,
+            expectedPublicApiMinusFlaggedApiIssues = "",
             expectedSystemApi =
                 """
                     // Signature format: 2.0
@@ -376,22 +370,11 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                       }
                     }
                 """,
-            // This should not include systemFlaggedMethod(). As overrides of flagged methods do not
-            // need to themselves be flagged then removing flagged methods should remove the
-            // overrides too. That would leave this empty apart from the signature header.
             expectedSystemApiMinusFlaggedApi =
                 """
                     // Signature format: 2.0
-                    package test.pkg {
-                      public class Bar extends test.pkg.Foo {
-                        method public void systemFlaggedMethod();
-                      }
-                    }
                 """,
-            expectedSystemApiMinusFlaggedApiIssues =
-                """
-                    src/test/pkg/Bar.java:13: warning: New API must be flagged with @FlaggedApi: method test.pkg.Bar.systemFlaggedMethod() [UnflaggedApi]
-                """,
+            expectedSystemApiMinusFlaggedApiIssues = "",
         )
     }
 
@@ -450,13 +433,6 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
             expectedSystemApiMinusFlaggedApi =
                 """
                     // Signature format: 2.0
-                """,
-            // There should be no lint errors or issues.
-            expectedSystemApiMinusFlaggedApiFail = DefaultLintErrorMessage,
-            expectedSystemApiMinusFlaggedApiIssues =
-                """
-                    src/test/pkg/Foo.java:16: error: Attempting to unhide constructor test.pkg.Foo(), but surrounding class test.pkg.Foo is hidden and should also be annotated with @android.annotation.SystemApi [ShowingMemberInHiddenClass]
-                    src/test/pkg/Foo.java:22: error: Attempting to unhide method test.pkg.Foo.method(), but surrounding class test.pkg.Foo is hidden and should also be annotated with @android.annotation.SystemApi [ShowingMemberInHiddenClass]
                 """,
         )
     }

@@ -139,6 +139,22 @@ class UastTestK2 : UastTestBase() {
             api =
                 """
                 package test.pkg {
+                  @kotlin.annotation.Target(allowedTargets={kotlin.annotation.AnnotationTarget.PROPERTY, kotlin.annotation.AnnotationTarget.PROPERTY_GETTER, kotlin.annotation.AnnotationTarget.PROPERTY_SETTER}) public @interface MyAnnotation {
+                  }
+                  public interface TestInterface {
+                    method public int getPOld_deprecatedOnSetter();
+                    method @test.pkg.MyAnnotation public int getPOld_deprecatedOnSetter_myAnnoOnBoth();
+                    method @test.pkg.MyAnnotation public int getPOld_deprecatedOnSetter_myAnnoOnGetter();
+                    method public int getPOld_deprecatedOnSetter_myAnnoOnSetter();
+                    method public void setPOld_deprecatedOnGetter(int);
+                    method @test.pkg.MyAnnotation public void setPOld_deprecatedOnGetter_myAnnoOnBoth(int);
+                    method public void setPOld_deprecatedOnGetter_myAnnoOnGetter(int);
+                    method @test.pkg.MyAnnotation public void setPOld_deprecatedOnGetter_myAnnoOnSetter(int);
+                    property public abstract int pOld_deprecatedOnSetter;
+                    property @test.pkg.MyAnnotation public abstract int pOld_deprecatedOnSetter_myAnnoOnBoth;
+                    property @test.pkg.MyAnnotation public abstract int pOld_deprecatedOnSetter_myAnnoOnGetter;
+                    property public abstract int pOld_deprecatedOnSetter_myAnnoOnSetter;
+                  }
                   public final class Test_accessors {
                     ctor public Test_accessors();
                     method public String? getPNew_accessors();
@@ -153,27 +169,27 @@ class UastTestK2 : UastTestBase() {
                     method public String? getPNew_getter();
                     method public String? getPOld_getter_deprecatedOnSetter();
                     method public void setPNew_getter(String?);
-                    method @Deprecated public void setPOld_getter_deprecatedOnGetter(String?);
+                    method public void setPOld_getter_deprecatedOnGetter(String?);
                     property public final String? pNew_getter;
                     property public final String? pOld_getter_deprecatedOnSetter;
                   }
                   public final class Test_noAccessor {
                     ctor public Test_noAccessor();
                     method public String getPNew_noAccessor();
-                    method @Deprecated public String getPOld_noAccessor_deprecatedOnSetter();
+                    method public String getPOld_noAccessor_deprecatedOnSetter();
                     method public void setPNew_noAccessor(String);
-                    method @Deprecated public void setPOld_noAccessor_deprecatedOnGetter(String);
+                    method public void setPOld_noAccessor_deprecatedOnGetter(String);
                     property public final String pNew_noAccessor;
-                    property @Deprecated public final String pOld_noAccessor_deprecatedOnSetter;
+                    property public final String pOld_noAccessor_deprecatedOnSetter;
                   }
                   public final class Test_setter {
                     ctor public Test_setter();
                     method public String? getPNew_setter();
-                    method @Deprecated public String? getPOld_setter_deprecatedOnSetter();
+                    method public String? getPOld_setter_deprecatedOnSetter();
                     method public void setPNew_setter(String?);
                     method public void setPOld_setter_deprecatedOnGetter(String?);
                     property public final String? pNew_setter;
-                    property @Deprecated public final String? pOld_setter_deprecatedOnSetter;
+                    property public final String? pOld_setter_deprecatedOnSetter;
                   }
                 }
             """

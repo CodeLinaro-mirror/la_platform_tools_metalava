@@ -523,6 +523,23 @@ class FileFormatTest {
     }
 
     @Test
+    fun `Check header and specifier (v5 + kotlinNameTypeOrder=yes)`() {
+        headerAndSpecifierTest(
+            header =
+                """
+                // Signature format: 5.0
+                // - kotlin-name-type-order=yes
+
+            """,
+            specifier = "5.0:kotlin-name-type-order=yes",
+            format =
+                FileFormat.V5.copy(
+                    kotlinNameTypeOrder = true,
+                ),
+        )
+    }
+
+    @Test
     fun `Check name with valid and invalid values`() {
         fun checkValidName(name: String) {
             headerAndSpecifierTest(

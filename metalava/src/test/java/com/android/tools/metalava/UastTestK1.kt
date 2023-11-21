@@ -137,6 +137,10 @@ class UastTestK1 : UastTestBase() {
             api =
                 """
                 package test.pkg {
+                  @kotlin.annotation.Target(allowedTargets={kotlin.annotation.AnnotationTarget.PROPERTY, kotlin.annotation.AnnotationTarget.PROPERTY_GETTER, kotlin.annotation.AnnotationTarget.PROPERTY_SETTER}) public @interface MyAnnotation {
+                  }
+                  public interface TestInterface {
+                  }
                   public final class Test_accessors {
                     ctor public Test_accessors();
                     method public String? getPNew_accessors();

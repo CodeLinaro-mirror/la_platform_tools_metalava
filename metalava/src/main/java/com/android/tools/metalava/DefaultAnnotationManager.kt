@@ -37,30 +37,22 @@ import com.android.tools.metalava.model.BaseAnnotationManager
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.JAVA_LANG_PREFIX
+import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ModifierList
 import com.android.tools.metalava.model.ModifierList.Companion.SUPPRESS_COMPATIBILITY_ANNOTATION
 import com.android.tools.metalava.model.NO_ANNOTATION_TARGETS
+import com.android.tools.metalava.model.ShowOrHide
 import com.android.tools.metalava.model.Showability
 import com.android.tools.metalava.model.TypedefMode
 import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.model.isNonNullAnnotation
 import com.android.tools.metalava.model.isNullableAnnotation
-import com.android.tools.metalava.reporter.Issues
-import com.android.tools.metalava.reporter.Reporter
 import java.util.function.Predicate
 
 /** The type of lambda that can construct a key from an [AnnotationItem] */
 typealias KeyFactory = (annotationItem: AnnotationItem) -> String
 
-class DefaultAnnotationManager(
-    /**
-     * The optional reporter.
-     *
-     * This is optional as at the moment not all callers have or need a [Reporter].
-     */
-    private val reporter: Reporter? = null,
-    private val config: Config = Config()
-) : BaseAnnotationManager() {
+class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnnotationManager() {
 
     data class Config(
         val passThroughAnnotations: Set<String> = emptySet(),
@@ -515,43 +507,36 @@ class DefaultAnnotationManager(
         // * `show=true` beats `show=false`
         // * `recurse=true` beats `recurse=false`
         // * `forStubsOnly=false` beats `forStubsOnly=true`
-        // This implementation is not implemented in terms of those properties as not all
-        // combinations are currently supported. Also, it is not clear how to combine something like
-        // SHOW_SINGLE and SHOW_FOR_STUBS, so if found they will result in an error. However, that
-        // should not be an issue in practices as the existing uses do not use both together.
 
         // The resulting showability of the item.
         var itemShowability = Showability.NO_EFFECT
 
-        // The annotation whose showability won.
-        var primaryAnnotation: AnnotationItem? = null
         for (annotation in item.modifiers.annotations()) {
             val showability = annotation.showability
-            if (itemShowability == Showability.NO_EFFECT) {
-                // NO_EFFECT is beaten by anything.
-                itemShowability = showability
-                primaryAnnotation = annotation
-            } else if (showability != Showability.NO_EFFECT && showability != itemShowability) {
-                // If an annotation has a different and significant showability then if it is SHOW
-                // then it wins, otherwise it is an error.
-                if (showability == LazyAnnotationInfo.SHOW) {
-                    // SHOW cannot be beaten so break out.
-                    itemShowability = showability
-                    break
-                } else {
-                    val message =
-                        "${item.describe(capitalize = true)} has conflicting show annotations $primaryAnnotation ($itemShowability) and $annotation ($showability)"
-                    reporter?.report(Issues.CONFLICTING_SHOW_ANNOTATIONS, item, message)
-                        ?: throw IllegalStateException(message)
-                    break
-                }
+            if (showability == Showability.NO_EFFECT) {
+                // NO_EFFECT has no effect on the result so just ignore it.
+                continue
             }
+            itemShowability = itemShowability.combineWith(showability)
+        }
 
-            // SHOW cannot be beaten so break out.
-            if (itemShowability == LazyAnnotationInfo.SHOW) {
-                break
+        if (item is MethodItem) {
+            // If any of a method's super methods are part of a hidden unstable API then treat the
+            // method as if it is too.
+            val hideUnstableApi =
+                item.superMethods().any { methodItem -> methodItem.showability.hideUnstableApi() }
+            if (hideUnstableApi) {
+                itemShowability = itemShowability.combineWith(LazyAnnotationInfo.HIDE_UNSTABLE_API)
             }
         }
+
+        val containingClass = item.containingClass()
+        if (containingClass != null) {
+            if (containingClass.showability.hideUnstableApi()) {
+                itemShowability = itemShowability.combineWith(LazyAnnotationInfo.HIDE_UNSTABLE_API)
+            }
+        }
+
         return itemShowability
     }
 
@@ -585,6 +570,9 @@ private class LazyAnnotationInfo(
                 config.showAnnotations.matches(annotationItem) -> SHOW
                 config.showForStubPurposesAnnotations.matches(annotationItem) -> SHOW_FOR_STUBS
                 config.showSingleAnnotations.matches(annotationItem) -> SHOW_SINGLE
+                config.hideAnnotations.matches(annotationItem) ->
+                    if (annotationItem.qualifiedName == ANDROID_FLAGGED_API) HIDE_UNSTABLE_API
+                    else HIDE
                 else -> Showability.NO_EFFECT
             }
         }
@@ -594,16 +582,45 @@ private class LazyAnnotationInfo(
          * The annotation will cause the annotated item (and any enclosed items unless overridden by
          * a closer annotation) to be shown.
          */
-        val SHOW = Showability(show = true, recursive = true, forStubsOnly = false)
+        val SHOW =
+            Showability(show = ShowOrHide.SHOW, recursive = ShowOrHide.SHOW, forStubsOnly = false)
 
         /**
          * The annotation will cause the annotated item (and any enclosed items unless overridden by
          * a closer annotation) to be shown in the stubs only.
          */
-        val SHOW_FOR_STUBS = Showability(show = true, recursive = true, forStubsOnly = true)
+        val SHOW_FOR_STUBS =
+            Showability(
+                show = ShowOrHide.NO_EFFECT,
+                recursive = ShowOrHide.NO_EFFECT,
+                forStubsOnly = true
+            )
 
         /** The annotation will cause the annotated item (but not enclosed items) to be shown. */
-        val SHOW_SINGLE = Showability(show = true, recursive = false, forStubsOnly = false)
+        val SHOW_SINGLE =
+            Showability(
+                show = ShowOrHide.SHOW,
+                recursive = ShowOrHide.NO_EFFECT,
+                forStubsOnly = false
+            )
+
+        /**
+         * The annotation will cause the annotated item (and any enclosed items unless overridden by
+         * a closer annotation) to not be shown.
+         */
+        val HIDE =
+            Showability(show = ShowOrHide.HIDE, recursive = ShowOrHide.HIDE, forStubsOnly = false)
+
+        /**
+         * The annotation will cause the annotated item (and any enclosed items unless overridden by
+         * a closer annotation) to not be shown.
+         */
+        val HIDE_UNSTABLE_API =
+            Showability(
+                show = ShowOrHide.HIDE_UNSTABLE_API,
+                recursive = ShowOrHide.HIDE_UNSTABLE_API,
+                forStubsOnly = false
+            )
 
         /**
          * Fully-qualified version of [SUPPRESS_COMPATIBILITY_ANNOTATION].
@@ -647,18 +664,6 @@ private class LazyAnnotationInfo(
             isCheckingResolvedAnnotationClass = false
         }
     }
-
-    /**
-     * Compute lazily to avoid doing any more work than strictly necessary.
-     *
-     * This is `true` either if an annotation is matched by [Config.hideAnnotations] or the
-     * annotation is itself annotated with an annotation whose [hideMeta] is `true`.
-     */
-    override val hide: Boolean by
-        lazy(LazyThreadSafetyMode.NONE) {
-            val hideAnnotations = config.hideAnnotations
-            hideAnnotations.isNotEmpty() && hideAnnotations.matches(annotationItem)
-        }
 
     /**
      * If true then this annotation will suppress compatibility checking on annotated items.

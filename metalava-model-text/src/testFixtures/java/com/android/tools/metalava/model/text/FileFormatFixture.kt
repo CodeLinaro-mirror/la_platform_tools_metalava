@@ -17,4 +17,4 @@
 package com.android.tools.metalava.model.text
 
 const val FILE_FORMAT_PROPERTIES =
-    "'add-additional-overrides', 'concise-default-values', 'kotlin-style-nulls', 'language', 'migrating', 'name', 'overloaded-method-order', 'surface'"
+    "'add-additional-overrides', 'concise-default-values', 'kotlin-name-type-order', 'kotlin-style-nulls', 'language', 'migrating', 'name', 'overloaded-method-order', 'surface'"

@@ -116,28 +116,7 @@ internal class PsiSourceParser(
 
         val rootDir = sourceRoots.firstOrNull() ?: File("").canonicalFile
 
-        // TODO(jsjeon): should set language version _per_ module (Lint Project)
-        val lintClient = MetalavaCliClient(kotlinLanguageLevel)
-        // From ...lint.detector.api.Project, `dir` is, e.g., /tmp/foo/dev/src/project1,
-        // and `referenceDir` is /tmp/foo/. However, in many use cases, they are just same.
-        // `referenceDir` is used to adjust `lib` dir accordingly if needed,
-        // but we set `classpath` anyway below.
-        val lintProject =
-            Project.create(lintClient, /* dir = */ rootDir, /* referenceDir = */ rootDir)
-        lintProject.javaSourceFolders.addAll(sourceRoots)
-        lintProject.javaLibraries.addAll(classpath)
-        config.addModules(
-            listOf(
-                UastEnvironment.Module(
-                    lintProject,
-                    // K2 UAST: building KtSdkModule for JDK
-                    jdkHome,
-                    includeTests = false,
-                    includeTestFixtureSources = false,
-                    isUnitTest = false
-                )
-            ),
-        )
+        configureUastEnvironment(config, sourceRoots, classpath, rootDir)
         // K1 UAST: loading of JDK (via compiler config, i.e., only for FE1.0), when using JDK9+
         jdkHome?.let {
             if (isJdkModular(it)) {
@@ -174,11 +153,41 @@ internal class PsiSourceParser(
     /** Initializes a UAST environment using the [apiJars] as classpath roots. */
     fun loadUastFromJars(apiJars: List<File>): UastEnvironment {
         val config = UastEnvironment.Configuration.create(useFirUast = useK2Uast)
-        @Suppress("DEPRECATION") config.addClasspathRoots(apiJars)
+        configureUastEnvironment(config, emptyList(), apiJars)
 
         val environment = psiEnvironmentManager.createEnvironment(config)
         environment.analyzeFiles(emptyList()) // Initializes PSI machinery.
         return environment
+    }
+
+    private fun configureUastEnvironment(
+        config: UastEnvironment.Configuration,
+        sourceRoots: List<File>,
+        classpath: List<File>,
+        rootDir: File = sourceRoots.firstOrNull() ?: File("").canonicalFile
+    ) {
+        // TODO(jsjeon): should set language version _per_ module (Lint Project)
+        val lintClient = MetalavaCliClient(kotlinLanguageLevel)
+        // From ...lint.detector.api.Project, `dir` is, e.g., /tmp/foo/dev/src/project1,
+        // and `referenceDir` is /tmp/foo/. However, in many use cases, they are just same.
+        // `referenceDir` is used to adjust `lib` dir accordingly if needed,
+        // but we set `classpath` anyway below.
+        val lintProject =
+            Project.create(lintClient, /* dir = */ rootDir, /* referenceDir = */ rootDir)
+        lintProject.javaSourceFolders.addAll(sourceRoots)
+        lintProject.javaLibraries.addAll(classpath)
+        config.addModules(
+            listOf(
+                UastEnvironment.Module(
+                    lintProject,
+                    // K2 UAST: building KtSdkModule for JDK
+                    jdkHome,
+                    includeTests = false,
+                    includeTestFixtureSources = false,
+                    isUnitTest = false
+                )
+            ),
+        )
     }
 }
 

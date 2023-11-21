@@ -560,15 +560,12 @@ private constructor(
             token.substring(
                 token.lastIndexOf('.') + 1
             ) // For inner classes, strip outer classes from name
-        token = tokenizer.requireToken()
-        if ("(" != token) {
-            throw ApiParseException("expected (", tokenizer)
-        }
-        method = TextConstructorItem(api, name, cl, modifiers, cl.toType(), tokenizer.pos())
-        method.deprecated = modifiers.isDeprecated()
         // Collect all type parameters in scope into one list
         val typeParams = typeParameterList.typeParameters() + cl.typeParameterList.typeParameters()
-        parseParameterList(api, tokenizer, method, typeParams)
+        val parameters = parseParameterList(api, tokenizer, typeParams)
+        method =
+            TextConstructorItem(api, name, cl, modifiers, cl.toType(), parameters, tokenizer.pos())
+        method.deprecated = modifiers.isDeprecated()
         method.setTypeParameterList(typeParameterList)
         if (typeParameterList is TextTypeParameterList) {
             typeParameterList.setOwner(method)
@@ -607,26 +604,47 @@ private constructor(
         assertIdent(tokenizer, token)
         // Collect all type parameters in scope into one list
         val typeParams = typeParameterList.typeParameters() + cl.typeParameterList.typeParameters()
-        val returnType = parseType(api, tokenizer, token, typeParams, annotations)
-        modifiers.addAnnotations(annotations)
-        token = tokenizer.current
-        assertIdent(tokenizer, token)
-        val name: String = token
-        method = TextMethodItem(api, name, cl, modifiers, returnType, tokenizer.pos())
-        method.deprecated = modifiers.isDeprecated()
+
+        val returnType: TextTypeItem
+        val parameters: List<TextParameterItem>
+        val name: String
+        if (format.kotlinNameTypeOrder) {
+            // Kotlin style: parse the name, the parameter list, then the return type.
+            name = token
+            parameters = parseParameterList(api, tokenizer, typeParams)
+            token = tokenizer.requireToken()
+            if (token != ":") {
+                throw ApiParseException(
+                    "Expecting \":\" after parameter list, found $token.",
+                    tokenizer
+                )
+            }
+            token = tokenizer.requireToken()
+            assertIdent(tokenizer, token)
+            returnType = parseType(api, tokenizer, token, typeParams, annotations)
+            // TODO(b/300081840): update nullability handling
+            modifiers.addAnnotations(annotations)
+            token = tokenizer.current
+        } else {
+            // Java style: parse the return type, the name, and then the parameter list.
+            returnType = parseType(api, tokenizer, token, typeParams, annotations)
+            modifiers.addAnnotations(annotations)
+            token = tokenizer.current
+            assertIdent(tokenizer, token)
+            name = token
+            parameters = parseParameterList(api, tokenizer, typeParams)
+            token = tokenizer.requireToken()
+        }
+
         if (cl.isInterface() && !modifiers.isDefault() && !modifiers.isStatic()) {
             modifiers.setAbstract(true)
         }
+        method = TextMethodItem(api, name, cl, modifiers, returnType, parameters, tokenizer.pos())
+        method.deprecated = modifiers.isDeprecated()
         method.setTypeParameterList(typeParameterList)
         if (typeParameterList is TextTypeParameterList) {
             typeParameterList.setOwner(method)
         }
-        token = tokenizer.requireToken()
-        if ("(" != token) {
-            throw ApiParseException("expected (, was $token", tokenizer)
-        }
-        parseParameterList(api, tokenizer, method, typeParams)
-        token = tokenizer.requireToken()
         if ("throws" == token) {
             token = parseThrows(tokenizer, method)
         }
@@ -665,13 +683,30 @@ private constructor(
         val modifiers = parseModifiers(api, tokenizer, token, null)
         token = tokenizer.current
         assertIdent(tokenizer, token)
-        val type =
-            parseType(api, tokenizer, token, cl.typeParameterList.typeParameters(), annotations)
-        modifiers.addAnnotations(annotations)
-        token = tokenizer.current
-        assertIdent(tokenizer, token)
-        val name = token
-        token = tokenizer.requireToken()
+
+        val type: TextTypeItem
+        val name: String
+        if (format.kotlinNameTypeOrder) {
+            // Kotlin style: parse the name, then the type.
+            name = parseNameWithColon(token, tokenizer)
+            token = tokenizer.requireToken()
+            assertIdent(tokenizer, token)
+            type =
+                parseType(api, tokenizer, token, cl.typeParameterList.typeParameters(), annotations)
+            // TODO(b/300081840): update nullability handling
+            modifiers.addAnnotations(annotations)
+            token = tokenizer.current
+        } else {
+            // Java style: parse the name, then the type.
+            type =
+                parseType(api, tokenizer, token, cl.typeParameterList.typeParameters(), annotations)
+            modifiers.addAnnotations(annotations)
+            token = tokenizer.current
+            assertIdent(tokenizer, token)
+            name = token
+            token = tokenizer.requireToken()
+        }
+
         var value: Any? = null
         if ("=" == token) {
             token = tokenizer.requireToken(false)
@@ -870,13 +905,30 @@ private constructor(
         val modifiers = parseModifiers(api, tokenizer, token, null)
         token = tokenizer.current
         assertIdent(tokenizer, token)
-        val type =
-            parseType(api, tokenizer, token, cl.typeParameterList.typeParameters(), annotations)
-        modifiers.addAnnotations(annotations)
-        token = tokenizer.current
-        assertIdent(tokenizer, token)
-        val name: String = token
-        token = tokenizer.requireToken()
+
+        val type: TextTypeItem
+        val name: String
+        if (format.kotlinNameTypeOrder) {
+            // Kotlin style: parse the name, then the type.
+            name = parseNameWithColon(token, tokenizer)
+            token = tokenizer.requireToken()
+            assertIdent(tokenizer, token)
+            type =
+                parseType(api, tokenizer, token, cl.typeParameterList.typeParameters(), annotations)
+            // TODO(b/300081840): update nullability handling
+            modifiers.addAnnotations(annotations)
+            token = tokenizer.current
+        } else {
+            // Java style: parse the type, then the name.
+            type =
+                parseType(api, tokenizer, token, cl.typeParameterList.typeParameters(), annotations)
+            modifiers.addAnnotations(annotations)
+            token = tokenizer.current
+            assertIdent(tokenizer, token)
+            name = token
+            token = tokenizer.requireToken()
+        }
+
         if (";" != token) {
             throw ApiParseException("expected ; found $token", tokenizer)
         }
@@ -908,17 +960,27 @@ private constructor(
         }
     }
 
+    /**
+     * Parses a list of parameters. Before calling, [tokenizer] should point to the token *before*
+     * the opening `(` of the parameter list (the method starts by calling [requireToken]).
+     *
+     * When the method returns, [tokenizer] will point to the closing `)` of the parameter list.
+     */
     private fun parseParameterList(
         api: TextCodebase,
         tokenizer: Tokenizer,
-        method: TextMethodItem,
         typeParameters: List<TypeParameterItem>
-    ) {
+    ): List<TextParameterItem> {
+        val parameters = mutableListOf<TextParameterItem>()
         var token: String = tokenizer.requireToken()
+        if ("(" != token) {
+            throw ApiParseException("expected (, was $token", tokenizer)
+        }
+        token = tokenizer.requireToken()
         var index = 0
         while (true) {
             if (")" == token) {
-                return
+                return parameters
             }
 
             // Each item can be
@@ -938,23 +1000,43 @@ private constructor(
             val modifiers = parseModifiers(api, tokenizer, token, null)
             token = tokenizer.current
 
-            // Token should now represent the type
-            val type = parseType(api, tokenizer, token, typeParameters, annotations)
-            modifiers.addAnnotations(annotations)
-            token = tokenizer.current
+            val type: TextTypeItem
+            val name: String
+            val publicName: String?
+            if (format.kotlinNameTypeOrder) {
+                // Kotlin style: parse the name (only considered a public name if it is not `_`,
+                // which is used as a placeholder for params without public names), then the type.
+                name = parseNameWithColon(token, tokenizer)
+                publicName =
+                    if (name == "_") {
+                        null
+                    } else {
+                        name
+                    }
+                token = tokenizer.requireToken()
+                // Token should now represent the type
+                type = parseType(api, tokenizer, token, typeParameters, annotations)
+                // TODO(b/300081840): update nullability handling
+                modifiers.addAnnotations(annotations)
+                token = tokenizer.current
+            } else {
+                // Java style: parse the type, then the public name if it has one.
+                type = parseType(api, tokenizer, token, typeParameters, annotations)
+                modifiers.addAnnotations(annotations)
+                token = tokenizer.current
+                if (isIdent(token) && token != "=") {
+                    name = token
+                    publicName = name
+                    token = tokenizer.requireToken()
+                } else {
+                    name = "arg" + (index + 1)
+                    publicName = null
+                }
+            }
             if (type is ArrayTypeItem && type.isVarargs) {
                 modifiers.setVarArg(true)
             }
-            var name: String
-            var publicName: String?
-            if (isIdent(token) && token != "=") {
-                name = token
-                publicName = name
-                token = tokenizer.requireToken()
-            } else {
-                name = "arg" + (index + 1)
-                publicName = null
-            }
+
             var defaultValue = UNKNOWN_DEFAULT_VALUE
             if ("=" == token) {
                 defaultValue = tokenizer.requireToken(true)
@@ -1009,10 +1091,9 @@ private constructor(
                     throw ApiParseException("expected , or ), found $token", tokenizer)
                 }
             }
-            method.addParameter(
+            parameters.add(
                 TextParameterItem(
                     api,
-                    method,
                     name,
                     publicName,
                     hasDefaultValue,
@@ -1023,9 +1104,6 @@ private constructor(
                     tokenizer.pos()
                 )
             )
-            if (modifiers.isVarArg()) {
-                method.setVarargs(true)
-            }
             index++
         }
     }
@@ -1128,6 +1206,19 @@ private constructor(
                 firstAnnotationIndex < paramStartIndex ||
                 paramEndIndex == -1 ||
                 paramEndIndex < lastAnnotationIndex)
+    }
+
+    /**
+     * For Kotlin-style name/type ordering in signature files, the name is generally followed by a
+     * colon (besides methods, where the colon comes after the parameter list). This method takes
+     * the name [token] and removes the trailing colon, throwing an [ApiParseException] if one isn't
+     * present (the [tokenizer] is only used for context for the error, if needed).
+     */
+    private fun parseNameWithColon(token: String, tokenizer: Tokenizer): String {
+        if (!token.endsWith(':')) {
+            throw ApiParseException("Expecting name ending with \":\" but found $token.", tokenizer)
+        }
+        return token.removeSuffix(":")
     }
 
     private fun qualifiedName(pkg: String, className: String): String {

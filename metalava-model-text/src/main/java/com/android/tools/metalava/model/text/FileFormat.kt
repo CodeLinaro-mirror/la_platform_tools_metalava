@@ -91,6 +91,24 @@ data class FileFormat(
     val migrating: String? = null,
     val conciseDefaultValues: Boolean,
     val specifiedAddAdditionalOverrides: Boolean? = null,
+    /**
+     * Whether to order the names and types of APIs using Kotlin-style syntax (`name: type`) or
+     * Java-style syntax (`type name`).
+     *
+     * When Kotlin ordering is used, all method parameters without public names will be given the
+     * placeholder name of `_`, which cannot be used as a Java identifier.
+     *
+     * For example, the following is an example of a method signature with Kotlin ordering:
+     * ```
+     * method public foo(_: int, _: char, _: String[]): String;
+     * ```
+     *
+     * And the following is the equivalent Java ordering:
+     * ```
+     * method public String foo(int, char, String[]);
+     * ```
+     */
+    val kotlinNameTypeOrder: Boolean = false,
 ) {
     init {
         if (migrating != null && "[,\n]".toRegex().find(migrating) != null) {
@@ -658,6 +676,7 @@ data class FileFormat(
         var name: String? = null
         var overloadedMethodOrder: OverloadedMethodOrder? = null
         var surface: String? = null
+        var kotlinNameTypeOrder: Boolean? = null
 
         fun build(): FileFormat {
             // Apply any language defaults first as they take priority over version defaults.
@@ -673,6 +692,7 @@ data class FileFormat(
                 specifiedOverloadedMethodOrder = overloadedMethodOrder
                         ?: base.specifiedOverloadedMethodOrder,
                 surface = surface ?: base.surface,
+                kotlinNameTypeOrder = kotlinNameTypeOrder ?: base.kotlinNameTypeOrder
             )
         }
     }
@@ -752,6 +772,14 @@ data class FileFormat(
 
             override fun stringFromFormat(format: FileFormat): String? =
                 format.specifiedOverloadedMethodOrder?.stringFromEnum()
+        },
+        KOTLIN_NAME_TYPE_ORDER {
+            override fun setFromString(builder: Builder, value: String) {
+                builder.kotlinNameTypeOrder = yesNo(value)
+            }
+
+            override fun stringFromFormat(format: FileFormat): String =
+                yesNo(format.kotlinNameTypeOrder)
         };
 
         /** The property name in the [parseSpecifier] input. */

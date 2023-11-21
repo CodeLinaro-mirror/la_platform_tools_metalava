@@ -33,6 +33,7 @@ open class TextMethodItem(
     containingClass: ClassItem,
     modifiers: DefaultModifierList,
     private val returnType: TextTypeItem,
+    private val parameters: List<TextParameterItem>,
     position: SourcePositionInfo
 ) :
     TextMemberItem(codebase, name, containingClass, position, modifiers = modifiers),
@@ -40,6 +41,7 @@ open class TextMethodItem(
     TypeParameterListOwner {
     init {
         @Suppress("LeakingThis") modifiers.setOwner(this)
+        parameters.forEach { it.containingMethod = this }
     }
 
     override fun equals(other: Any?): Boolean {
@@ -141,6 +143,9 @@ open class TextMethodItem(
                 targetContainingClass,
                 modifiers.duplicate(),
                 returnType,
+                // Consider cloning these: they have back references to the parent method (though
+                // it's unlikely anyone will care about the difference in parent methods)
+                parameters,
                 position
             )
         duplicated.inheritedFrom = containingClass()
@@ -159,15 +164,11 @@ open class TextMethodItem(
             duplicated.deprecated = true
         }
 
-        duplicated.varargs = varargs
         duplicated.deprecated = deprecated
         duplicated.annotationDefault = annotationDefault
         duplicated.throwsTypes.addAll(throwsTypes)
         duplicated.throwsClasses = throwsClasses
         duplicated.typeParameterList = typeParameterList
-        // Consider cloning these: they have back references to the parent method (though it's
-        // unlikely anyone will care about the difference in parent methods)
-        duplicated.parameters.addAll(parameters)
 
         return duplicated
     }
@@ -176,7 +177,6 @@ open class TextMethodItem(
         get() = isEnumSyntheticMethod()
 
     private val throwsTypes = mutableListOf<String>()
-    private val parameters = mutableListOf<TextParameterItem>()
     private var throwsClasses: List<ClassItem>? = null
 
     fun throwsTypeNames(): List<String> {
@@ -196,15 +196,7 @@ open class TextMethodItem(
         throwsTypes += throwsType
     }
 
-    fun addParameter(parameter: TextParameterItem) {
-        parameters += parameter
-    }
-
-    private var varargs: Boolean = false
-
-    fun setVarargs(varargs: Boolean) {
-        this.varargs = varargs
-    }
+    private val varargs: Boolean = parameters.any { it.isVarArgs() }
 
     fun isVarArg(): Boolean = varargs
 
