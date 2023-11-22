@@ -66,12 +66,6 @@ Options:
                                              itself part of the API and is not included as a class
 
                                              inline - will include the constants themselves into each usage site
-  --add-nonessential-overrides-classes TEXT  Specifies a list of qualified class names where all visible overriding
-                                             methods are added to signature files. This is a no-op when --format does
-                                             not specify --add-additional-overrides=yes.
-
-                                             The list of qualified class names should be separated with ':'(colon).
-                                             (default: [])
   -h, --help                                 Show this message and exit
 
 $ISSUE_REPORTING_OPTIONS_HELP

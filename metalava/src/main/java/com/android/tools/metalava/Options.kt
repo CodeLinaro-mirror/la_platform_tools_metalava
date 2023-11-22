@@ -33,7 +33,6 @@ import com.android.tools.metalava.cli.common.stringToExistingDir
 import com.android.tools.metalava.cli.common.stringToExistingFile
 import com.android.tools.metalava.cli.common.stringToNewDir
 import com.android.tools.metalava.cli.common.stringToNewFile
-import com.android.tools.metalava.cli.signature.ARG_FORMAT
 import com.android.tools.metalava.cli.signature.SignatureFormatOptions
 import com.android.tools.metalava.compatibility.CompatibilityCheck.CheckRequest
 import com.android.tools.metalava.lint.DefaultLintErrorMessage
@@ -55,7 +54,6 @@ import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.deprecated
 import com.github.ajalt.clikt.parameters.options.multiple
 import com.github.ajalt.clikt.parameters.options.option
-import com.github.ajalt.clikt.parameters.options.split
 import com.github.ajalt.clikt.parameters.options.unique
 import com.github.ajalt.clikt.parameters.types.choice
 import com.github.ajalt.clikt.parameters.types.file
@@ -214,7 +212,6 @@ const val ARG_SDK_JAR_ROOT = "--sdk-extensions-root"
 const val ARG_SDK_INFO_FILE = "--sdk-extensions-info"
 const val ARG_USE_K2_UAST = "--Xuse-k2-uast"
 const val ARG_SOURCE_MODEL_PROVIDER = "--source-model-provider"
-const val ARG_ADD_NONESSENTIAL_OVERRIDES_CLASSES = "--add-nonessential-overrides-classes"
 
 class Options(
     private val commonOptions: CommonOptions = CommonOptions(),
@@ -484,7 +481,6 @@ class Options(
             ignoreShown = showUnannotated,
             allowClassesFromClasspath = allowClassesFromClasspath,
             addAdditionalOverrides = signatureFileFormat.addAdditionalOverrides,
-            additionalNonessentialOverridesClasses = additionalNonessentialOverridesClasses.toSet(),
         )
     }
 
@@ -767,21 +763,6 @@ class Options(
 
     /** Temporary folder to use instead of the JDK default, if any */
     private var tempFolder: File? = null
-
-    private val additionalNonessentialOverridesClasses by
-        option(
-                ARG_ADD_NONESSENTIAL_OVERRIDES_CLASSES,
-                help =
-                    """
-                    Specifies a list of qualified class names where all visible overriding methods are added to signature files.
-                    This is a no-op when $ARG_FORMAT does not specify --add-additional-overrides=yes.
-
-                    The list of qualified class names should be separated with ':'(colon).
-                """
-                        .trimIndent(),
-            )
-            .split(":")
-            .default(emptyList())
 
     var useK2Uast = false
 
