@@ -1614,7 +1614,7 @@ class ApiLint(
                     else -> "Type of ${item.describe()}"
                 }
 
-            val erased = type.toErasedTypeString(item)
+            val erased = type.toErasedTypeString()
             report(
                 NULLABLE_COLLECTION,
                 item,

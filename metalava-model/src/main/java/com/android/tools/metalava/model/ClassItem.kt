@@ -466,7 +466,7 @@ interface ClassItem : Item {
             if (index != -1) {
                 parameterString = parameterString.substring(0, index)
             }
-            val parameter = parameters[i].type().toErasedTypeString(method)
+            val parameter = parameters[i].type().toErasedTypeString()
             if (parameter != parameterString) {
                 return false
             }

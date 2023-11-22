@@ -540,6 +540,41 @@ class FileFormatTest {
     }
 
     @Test
+    fun `Check header and specifier (v5 + kotlin-name-type-order=yes,include-type-use-annotations=yes)`() {
+        headerAndSpecifierTest(
+            header =
+                """
+                // Signature format: 5.0
+                // - kotlin-name-type-order=yes
+                // - include-type-use-annotations=yes
+
+            """,
+            specifier = "5.0:kotlin-name-type-order=yes,include-type-use-annotations=yes",
+            format =
+                FileFormat.V5.copy(kotlinNameTypeOrder = true, includeTypeUseAnnotations = true),
+        )
+    }
+
+    @Test
+    fun `Check that include-type-use-annotations=yes cannot be set without kotlin-name-type-order=yes`() {
+        val e =
+            assertThrows(IllegalStateException::class.java) {
+                checkParseHeader(
+                    """
+                    // Signature format: 5.0
+                    // - kotlin-name-type-order=no
+                    // - include-type-use-annotations=yes
+                """
+                        .trimIndent()
+                )
+            }
+        assertEquals(
+            "Type-use annotations can only be included in signatures when `kotlin-name-type-order=yes` is set",
+            e.message
+        )
+    }
+
+    @Test
     fun `Check name with valid and invalid values`() {
         fun checkValidName(name: String) {
             headerAndSpecifierTest(

@@ -804,4 +804,123 @@ class StubsConstructorTest : AbstractStubsTest() {
                 )
         )
     }
+
+    @Test
+    fun `Use unspecified type argument in constructor cast`() {
+        check(
+            format = FileFormat.V2,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                    package test.pkg;
+                    public class Foo extends Bar {
+                        public Foo(Integer i) {
+                            super(i);
+                        }
+                    }
+                    """
+                    ),
+                    java(
+                        """
+                    package test.pkg;
+
+                    public class Bar<T extends Number> {
+                        public Bar(T foo) {
+                        }
+                        // need to have more than one constructor to trigger casts in stubs
+                        public Bar(T foo, int size) {
+                        }
+                    }
+                    """
+                    ),
+                ),
+            api =
+                """
+                package test.pkg {
+                  public class Bar<T extends java.lang.Number> {
+                    ctor public Bar(T);
+                    ctor public Bar(T, int);
+                  }
+                  public class Foo extends test.pkg.Bar {
+                    ctor public Foo(Integer);
+                  }
+                }
+                """,
+            stubFiles =
+                arrayOf(
+                    java(
+                        """
+                        package test.pkg;
+                        @SuppressWarnings({"unchecked", "deprecation", "all"})
+                        public class Foo extends test.pkg.Bar {
+                        public Foo(java.lang.Integer i) { super((java.lang.Number)null); throw new RuntimeException("Stub!"); }
+                        }
+                        """
+                    )
+                )
+        )
+    }
+
+    @Test
+    fun `Varargs constructor parameter requiring cast`() {
+        check(
+            format = FileFormat.V2,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                    package test.pkg;
+
+                    public class Child extends Parent {
+                        public Child(int... ints) {
+                            super(ints);
+                        }
+                        public Child(String... strings) {
+                            super(strings);
+                        }
+                    }
+                    """
+                    ),
+                    java(
+                        """
+                    package test.pkg;
+
+                    public class Parent {
+                        public Parent(int... ints) {
+                        }
+                        public Parent(String... strings) {
+                        }
+                    }
+                    """
+                    ),
+                ),
+            api =
+                """
+                package test.pkg {
+                  public class Child extends test.pkg.Parent {
+                    ctor public Child(int...);
+                    ctor public Child(java.lang.String...);
+                  }
+                  public class Parent {
+                    ctor public Parent(int...);
+                    ctor public Parent(java.lang.String...);
+                  }
+                }
+                """,
+            stubFiles =
+                arrayOf(
+                    java(
+                        """
+                    package test.pkg;
+                    @SuppressWarnings({"unchecked", "deprecation", "all"})
+                    public class Child extends test.pkg.Parent {
+                    public Child(int... ints) { super((int[])null); throw new RuntimeException("Stub!"); }
+                    public Child(java.lang.String... strings) { super((int[])null); throw new RuntimeException("Stub!"); }
+                    }
+                    """
+                    )
+                )
+        )
+    }
 }

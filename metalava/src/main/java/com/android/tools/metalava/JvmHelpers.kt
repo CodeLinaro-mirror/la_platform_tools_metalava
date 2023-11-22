@@ -17,15 +17,12 @@
 package com.android.tools.metalava
 
 import com.android.tools.lint.detector.api.ClassContext
-import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.TypeItem
 
 // Contains extension functions to access JVM representations of the model.
 
 /**
- * Returns the internal name of the type, as seen in bytecode. The optional [context] provides the
- * method or class where this type appears, and can be used for example to resolve the bounds for a
- * type variable used in a method that was specified on the class.
+ * Returns the internal name of the type, as seen in bytecode.
  *
  * TODO(b/111253910): Look into moving this back to [TypeItem]. This was moved here because
  *   [toSlashFormat] depends on the lint class [ClassContext] and the model package cannot depend on
@@ -34,9 +31,9 @@ import com.android.tools.metalava.model.TypeItem
  *   [ClassContext.getInternalName] is that it uses a heuristic to determine whether something is a
  *   class or a package. Proper support for handling types could certainly do a better job.
  */
-fun TypeItem.internalName(context: Item? = null): String {
+fun TypeItem.internalName(): String {
     // Default implementation; PSI subclass is more accurate
-    return toSlashFormat(toErasedTypeString(context))
+    return toSlashFormat(toErasedTypeString())
 }
 
 // Copied from doclava1

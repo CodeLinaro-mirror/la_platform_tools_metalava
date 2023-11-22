@@ -17,6 +17,13 @@
 package com.android.tools.metalava.model
 
 interface PackageItem : Item {
+    /**
+     * The overview documentation associated with the package; retrieved from an `overview.html`
+     * file.
+     */
+    val overviewDocumentation: String?
+        get() = null
+
     /** The qualified name of this package */
     fun qualifiedName(): String
 

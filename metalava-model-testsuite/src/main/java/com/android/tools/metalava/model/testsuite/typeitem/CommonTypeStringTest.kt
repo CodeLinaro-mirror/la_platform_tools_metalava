@@ -210,7 +210,7 @@ class CommonTypeStringTest(combinedParameters: CombinedParameters) :
             val fooMethod = codebase.assertClass("test.pkg.Foo").methods().single()
             val erasedParameters =
                 fooMethod.parameters().joinToString { parameter ->
-                    parameter.type().toErasedTypeString(fooMethod)
+                    parameter.type().toErasedTypeString()
                 }
             assertEquals(
                 parameters.expectedErasedParameters,
@@ -231,7 +231,7 @@ class CommonTypeStringTest(combinedParameters: CombinedParameters) :
                 Assert.fail(
                     "Searched for method with parameters (${parameters.expectedErasedParameters}) but method has erased parameters of (${
                         fooMethod.parameters()
-                            .joinToString(", ") { it.type().toErasedTypeString(fooMethod) }
+                            .joinToString(", ") { it.type().toErasedTypeString() }
                     })"
                 )
             } else {

@@ -25,28 +25,13 @@ class TextTypeItemTest {
     fun `test typeString()`() {
         val full =
             "@androidx.annotation.Nullable java.util.List<@androidx.annotation.Nullable java.lang.String>"
-        assertThat(TextTypeItem.toTypeString(full, false, false, false))
+        assertThat(TextTypeItem.toTypeString(full, annotations = false))
             .isEqualTo("java.util.List<java.lang.String>")
-        assertThat(TextTypeItem.toTypeString(full, false, true, false))
-            .isEqualTo("java.util.List<@androidx.annotation.Nullable java.lang.String>")
-        assertThat(TextTypeItem.toTypeString(full, false, false, true)).isEqualTo("java.util.List")
-        assertThat(TextTypeItem.toTypeString(full, true, true, false))
+        assertThat(TextTypeItem.toTypeString(full, annotations = true))
             .isEqualTo(
                 "@androidx.annotation.Nullable java.util.List<@androidx.annotation.Nullable java.lang.String>"
             )
-        assertThat(TextTypeItem.toTypeString(full, true, true, true))
-            .isEqualTo("@androidx.annotation.Nullable java.util.List")
-        assertThat(TextTypeItem.toTypeString("int", false, false, false)).isEqualTo("int")
-
-        assertThat(
-                TextTypeItem.toTypeString(
-                    "java.util.List<java.util.Number>[]",
-                    false,
-                    false,
-                    erased = true
-                )
-            )
-            .isEqualTo("java.util.List[]")
+        assertThat(TextTypeItem.toTypeString("int", annotations = false)).isEqualTo("int")
     }
 
     @Test
@@ -75,12 +60,6 @@ class TextTypeItemTest {
         assertThat(method).isNotNull()
         assertThat(TextTypeParameterItem.bounds("D", method).toString())
             .isEqualTo("[androidx.navigation.NavDestination]")
-
-        assertThat(TextTypeItem.toTypeString("D[]", false, false, erased = true, context = method))
-            .isEqualTo("androidx.navigation.NavDestination[]") // it doesn't know any better
-
-        // TODO: Test that in an enum, "T" becomes "java.lang.Enum"; elsewhere it's
-        // "java.lang.Object", etc.
     }
 
     @Test
@@ -103,9 +82,6 @@ class TextTypeItemTest {
         val cls = codebase.findClass("test.pkg.TestClass")
         val method = cls?.findMethod("build", "") as TextMethodItem
         assertThat(method).isNotNull()
-
-        assertThat(TextTypeItem.toTypeString("D[]", false, false, erased = true, context = method))
-            .isEqualTo("java.lang.Object[]")
     }
 
     @Test
@@ -129,12 +105,6 @@ class TextTypeItemTest {
         val cls = codebase.findClass("test.pkg.EnumMap")
         val method = cls?.findMethod("clone", "") as TextMethodItem
         assertThat(method).isNotNull()
-
-        assertThat(TextTypeItem.toTypeString("K", false, false, erased = true, context = method))
-            .isEqualTo("java.lang.Enum")
-
-        assertThat(TextTypeItem.toTypeString("V", false, false, erased = true, context = method))
-            .isEqualTo("java.lang.Object")
     }
 
     @Test

@@ -5817,4 +5817,62 @@ class ApiFileTest : DriverTest() {
                 )
         )
     }
+
+    @Test
+    fun `Type-use annotations can be included in signature files`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            @java.lang.annotation.Target(java.lang.annotation.ElementType.TYPE_USE)
+                            public @interface TypeAnnotation {}
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            @java.lang.annotation.Target(java.lang.annotation.ElementType.METHOD)
+                            public @interface MethodAnnotation {}
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            @java.lang.annotation.Target({java.lang.annotation.ElementType.METHOD, java.lang.annotation.ElementType.TYPE_USE})
+                            public @interface MethodAndTypeAnnotation {}
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            import java.util.List;
+                            public class Foo {
+                                @MethodAnnotation
+                                @MethodAndTypeAnnotation
+                                public @TypeAnnotation List<@TypeAnnotation String> foo() {}
+                            }
+                        """
+                    )
+                ),
+            format =
+                FileFormat.V5.copy(kotlinNameTypeOrder = true, includeTypeUseAnnotations = true),
+            api =
+                """
+                    package test.pkg {
+                      public class Foo {
+                        ctor public Foo();
+                        method @test.pkg.MethodAndTypeAnnotation @test.pkg.MethodAnnotation public foo(): java.util.@test.pkg.MethodAndTypeAnnotation @test.pkg.TypeAnnotation List<java.lang.@test.pkg.TypeAnnotation String!>!;
+                      }
+                      @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS) @java.lang.annotation.Target({java.lang.annotation.ElementType.METHOD, java.lang.annotation.ElementType.TYPE_USE}) public @interface MethodAndTypeAnnotation {
+                      }
+                      @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS) @java.lang.annotation.Target(java.lang.annotation.ElementType.METHOD) public @interface MethodAnnotation {
+                      }
+                      @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS) @java.lang.annotation.Target(java.lang.annotation.ElementType.TYPE_USE) public @interface TypeAnnotation {
+                      }
+                    }
+                """
+        )
+    }
 }

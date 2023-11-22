@@ -387,6 +387,43 @@ class CommonTypeModifiersTest(parameters: TestParameters) : BaseModelTest(parame
     }
 
     @Test
+    fun `Test leading annotation on array type`() {
+        runCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+                    public class Foo {
+                        public <T> @test.pkg.A T[] foo() {}
+                    }
+                """
+            ),
+            signature(
+                """
+                    // Signature format: 5.0
+                    // - kotlin-name-type-order=yes
+                    // - include-type-use-annotations=yes
+                    package test.pkg {
+                      public class Foo {
+                        method public <T> foo(): @test.pkg.A T[];
+                      }
+                    }
+                """
+                    .trimIndent()
+            )
+        ) { codebase ->
+            val method = codebase.assertClass("test.pkg.Foo").methods().single()
+            val methodTypeParam = method.typeParameterList().typeParameters().single()
+            val arrayType = method.returnType()
+            assertThat(arrayType).isInstanceOf(ArrayTypeItem::class.java)
+            val componentType = (arrayType as ArrayTypeItem).componentType
+            assertThat(componentType).isInstanceOf(VariableTypeItem::class.java)
+            assertThat((componentType as VariableTypeItem).asTypeParameter)
+                .isEqualTo(methodTypeParam)
+            assertThat(componentType.annotationNames()).containsExactly("test.pkg.A")
+        }
+    }
+
+    @Test
     fun `Test annotations on multidimensional array`() {
         runCodebaseTest(
             java(

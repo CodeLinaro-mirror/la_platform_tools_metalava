@@ -73,7 +73,7 @@ internal class TextTypeParser(val codebase: TextCodebase) {
         return if (typeParams.isEmpty() && annotations.isEmpty()) {
             typeCache.obtain(type) { parseType(it, typeParams, annotations) }
         } else {
-            parseType(type, typeParams)
+            parseType(type, typeParams, annotations)
         }
     }
 
@@ -96,7 +96,7 @@ internal class TextTypeParser(val codebase: TextCodebase) {
             // not as an array of wildcards, for consistency with how this would be compiled.
             ?: asWildcard(type, trimmed, typeParams, allAnnotations)
             // Try parsing as an array.
-            ?: asArray(trimmed, annotations, suffix, typeParams)
+            ?: asArray(trimmed, allAnnotations, suffix, typeParams)
             // If it isn't anything else, parse the type as a class.
             ?: asClass(type, trimmed, typeParams, allAnnotations)
     }

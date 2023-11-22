@@ -791,7 +791,7 @@ private fun createStubFiles(
     if (docStubs) {
         // Overview docs? These are generally in the empty package.
         codebase.findPackage("")?.let { empty ->
-            val overview = codebase.getPackageDocs()?.getOverviewDocumentation(empty)
+            val overview = empty.overviewDocumentation
             if (!overview.isNullOrBlank()) {
                 stubWriter.writeDocOverview(empty, overview)
             }

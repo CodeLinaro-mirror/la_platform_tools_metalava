@@ -109,6 +109,12 @@ data class FileFormat(
      * ```
      */
     val kotlinNameTypeOrder: Boolean = false,
+    /**
+     * Whether to include type-use annotations in the signature file. Type-use annotations can only
+     * be included when [kotlinNameTypeOrder] is true, because the Java order makes it ambiguous
+     * whether an annotation is type-use.
+     */
+    val includeTypeUseAnnotations: Boolean = false,
 ) {
     init {
         if (migrating != null && "[,\n]".toRegex().find(migrating) != null) {
@@ -119,6 +125,12 @@ data class FileFormat(
 
         validateIdentifier(name, "name")
         validateIdentifier(surface, "surface")
+
+        if (includeTypeUseAnnotations && !kotlinNameTypeOrder) {
+            throw IllegalStateException(
+                "Type-use annotations can only be included in signatures when `kotlin-name-type-order=yes` is set"
+            )
+        }
     }
 
     /** Check that the supplied identifier is valid. */
@@ -677,6 +689,7 @@ data class FileFormat(
         var overloadedMethodOrder: OverloadedMethodOrder? = null
         var surface: String? = null
         var kotlinNameTypeOrder: Boolean? = null
+        var includeTypeUseAnnotations: Boolean? = null
 
         fun build(): FileFormat {
             // Apply any language defaults first as they take priority over version defaults.
@@ -692,7 +705,9 @@ data class FileFormat(
                 specifiedOverloadedMethodOrder = overloadedMethodOrder
                         ?: base.specifiedOverloadedMethodOrder,
                 surface = surface ?: base.surface,
-                kotlinNameTypeOrder = kotlinNameTypeOrder ?: base.kotlinNameTypeOrder
+                kotlinNameTypeOrder = kotlinNameTypeOrder ?: base.kotlinNameTypeOrder,
+                includeTypeUseAnnotations = includeTypeUseAnnotations
+                        ?: base.includeTypeUseAnnotations
             )
         }
     }
@@ -780,6 +795,14 @@ data class FileFormat(
 
             override fun stringFromFormat(format: FileFormat): String =
                 yesNo(format.kotlinNameTypeOrder)
+        },
+        INCLUDE_TYPE_USE_ANNOTATIONS {
+            override fun setFromString(builder: Builder, value: String) {
+                builder.includeTypeUseAnnotations = yesNo(value)
+            }
+
+            override fun stringFromFormat(format: FileFormat): String =
+                yesNo(format.includeTypeUseAnnotations)
         };
 
         /** The property name in the [parseSpecifier] input. */

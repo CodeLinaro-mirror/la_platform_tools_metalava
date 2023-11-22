@@ -111,8 +111,6 @@ class ApiAnalyzer(
             return
         }
 
-        // Apply options for packages that should be hidden
-        hidePackages()
         skipEmitPackages()
         // Suppress kotlin file facade classes with no public api
         hideEmptyKotlinFileFacadeClasses()
@@ -549,14 +547,6 @@ class ApiAnalyzer(
             }
 
             cls.addMethod(method)
-        }
-    }
-
-    /** Hide packages explicitly listed in [Options.hidePackages] */
-    private fun hidePackages() {
-        for (pkgName in config.hidePackages) {
-            val pkg = codebase.findPackage(pkgName) ?: continue
-            pkg.hidden = true
         }
     }
 

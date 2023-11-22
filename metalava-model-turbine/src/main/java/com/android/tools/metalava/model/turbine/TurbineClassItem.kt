@@ -34,6 +34,7 @@ open class TurbineClassItem(
     private val qualifiedName: String,
     override val modifiers: TurbineModifierItem,
     private val classType: TurbineClassType,
+    private val typeParameters: TypeParameterList,
 ) : ClassItem, TurbineItem(codebase = codebase, modifiers = modifiers) {
 
     override var artifact: String? = null
@@ -84,6 +85,8 @@ open class TurbineClassItem(
 
         return allInterfaces!!.asSequence()
     }
+
+    internal fun directInterfaces(): List<TurbineClassItem> = directInterfaces
 
     override fun constructors(): List<ConstructorItem> {
         TODO("b/295800205")
@@ -153,9 +156,7 @@ open class TurbineClassItem(
         TODO("b/295800205")
     }
 
-    override fun typeParameterList(): TypeParameterList {
-        TODO("b/295800205")
-    }
+    override fun typeParameterList(): TypeParameterList = typeParameters
 
     override fun hashCode(): Int = qualifiedName.hashCode()
 

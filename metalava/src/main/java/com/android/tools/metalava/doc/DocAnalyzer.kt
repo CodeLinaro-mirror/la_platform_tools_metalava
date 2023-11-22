@@ -741,12 +741,9 @@ class DocAnalyzer(
             }
         )
 
-        val packageDocs = codebase.getPackageDocs()
-        if (packageDocs != null) {
-            for ((pkg, api) in pkgApi.entries) {
-                val code = api ?: 1
-                addApiLevelDocumentation(code, pkg)
-            }
+        for ((pkg, api) in pkgApi.entries) {
+            val code = api ?: 1
+            addApiLevelDocumentation(code, pkg)
         }
     }
 

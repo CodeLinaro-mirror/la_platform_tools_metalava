@@ -1051,4 +1051,39 @@ class CommonTypeItemTest(parameters: TestParameters) : BaseModelTest(parameters)
             assertThat(string.isString()).isTrue()
         }
     }
+
+    // TODO(b/309149849): move this test to CommonTypeStringTest after adding support for testing
+    // more type string configurations.
+    @Test
+    fun `Test that Kotlin-style nulls can be included in a type string without annotations`() {
+        runCodebaseTest(
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public class Foo {
+                        field @Nullable public String foo;
+                      }
+                    }
+                """
+                    .trimIndent()
+            ),
+            java(
+                """
+                    package test.pkg;
+                    public class Foo {
+                        @Nullable public String foo;
+                    }
+                """
+                    .trimIndent()
+            )
+        ) { codebase ->
+            val field = codebase.assertClass("test.pkg.Foo").fields().single()
+            val type = field.type()
+            assertThat(
+                    type.toTypeString(annotations = false, kotlinStyleNulls = true, context = field)
+                )
+                .isEqualTo("java.lang.String?")
+        }
+    }
 }

@@ -16,7 +16,9 @@
 
 package com.android.tools.metalava.model.testsuite
 
+import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.testing.java
+import com.google.common.truth.Truth.assertThat
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import org.junit.Test
@@ -501,6 +503,81 @@ class BootstrapSourceModelProviderTest(parameters: TestParameters) : BaseModelTe
             assertEquals(listOf(itf1Mtd2), cls1Mtd2.superMethods())
             assertEquals(listOf(itf1Mtd1, itf2Mtd1), cls2Mtd1.superMethods())
             assertEquals(listOf(itf2Mtd1, itf1Mtd1), cls3Mtd1.superMethods())
+        }
+    }
+
+    @Test
+    fun `160 - check field type`() {
+        runSourceCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+
+                    public class Test {
+                        public int field;
+                    }
+                """
+            ),
+        ) { codebase ->
+            val fieldTypeItem = codebase.assertClass("test.pkg.Test").assertField("field").type()
+            assertThat(fieldTypeItem).isInstanceOf(PrimitiveTypeItem::class.java)
+            assertEquals(PrimitiveTypeItem.Primitive.INT, (fieldTypeItem as PrimitiveTypeItem).kind)
+        }
+    }
+
+    @Test
+    fun `170 - check unannotated typeString`() {
+        runSourceCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+
+                    import java.util.List;
+
+                    public class Test {
+                        public int field;
+
+                        public void method(String a, List<Outer<String>> [] ... b, List<?extends   String> c){}
+
+                        public <T> Outer<Integer>.Inner<T, Test1<String>> foo() {
+                            return (new Outer<Integer>()).new Inner<Boolean, Test1<String>>();
+                        }
+                    }
+
+                    class Outer<P> {
+                        class Inner<R,S> {}
+                    }
+
+                    class Test1<String> {}
+                """
+            ),
+        ) { codebase ->
+            val classItem = codebase.assertClass("test.pkg.Test")
+            val methodItem1 = classItem.methods()[0]
+            val methodItem2 = classItem.methods()[1]
+
+            val fieldTypeItem = classItem.assertField("field").type()
+            val returnTypeItem1 = methodItem1.returnType()
+            val parameterTypeItem1 = methodItem1.parameters()[0].type()
+            val parameterTypeItem2 = methodItem1.parameters()[1].type()
+            val parameterTypeItem3 = methodItem1.parameters()[2].type()
+            val returnTypeItem2 = methodItem2.returnType()
+
+            assertEquals("int", fieldTypeItem.toTypeString())
+            assertEquals("void", returnTypeItem1.toTypeString())
+            assertEquals("java.lang.String", parameterTypeItem1.toTypeString())
+            assertEquals(
+                "java.util.List<test.pkg.Outer<java.lang.String>>[]...",
+                parameterTypeItem2.toTypeString()
+            )
+            assertEquals(
+                "java.util.List<? extends java.lang.String>",
+                parameterTypeItem3.toTypeString()
+            )
+            assertEquals(
+                "test.pkg.Outer<java.lang.Integer>.Inner<T,test.pkg.Test1<java.lang.String>>",
+                returnTypeItem2.toTypeString()
+            )
         }
     }
 }

@@ -14,25 +14,10 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava.model.turbine
+package com.android.tools.metalava.model.psi
 
-import com.google.turbine.model.TurbineTyKind
-
-enum class TurbineClassType() {
-    INTERFACE,
-    ENUM,
-    ANNOTATION,
-    TYPE_PARAMETER,
-    CLASS;
-
-    companion object {
-        fun getClassType(type: TurbineTyKind): TurbineClassType {
-            return when (type) {
-                TurbineTyKind.INTERFACE -> INTERFACE
-                TurbineTyKind.ENUM -> ENUM
-                TurbineTyKind.ANNOTATION -> ANNOTATION
-                else -> CLASS
-            }
-        }
-    }
-}
+internal data class PackageDocs(
+    val packageDocs: MutableMap<String, String>,
+    val overviewDocs: MutableMap<String, String>,
+    val hiddenPackages: MutableSet<String>
+)
