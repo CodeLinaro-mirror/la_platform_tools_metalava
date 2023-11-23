@@ -29,9 +29,6 @@ class ElidingPredicate(
 
     /** Whether overriding methods essential for compiling the stubs should be elided or not. */
     private val addAdditionalOverrides: Boolean,
-
-    /** Set of qualified names of classes where all visible overriding methods are not elided. */
-    private val additionalNonessentialOverridesClasses: Set<String>,
 ) : Predicate<Item> {
 
     // Returning true means we are keeping this item
@@ -57,11 +54,7 @@ class ElidingPredicate(
                 )
 
             val doNotElideForAdditionalOverridePurpose =
-                addAdditionalOverrides &&
-                    (method.isRequiredOverridingMethodForTextStub() ||
-                        (method.containingClass().qualifiedName() in
-                            additionalNonessentialOverridesClasses &&
-                            method.superMethods().all { !it.hidden || it.hasShowAnnotation() }))
+                addAdditionalOverrides && method.isRequiredOverridingMethodForTextStub()
 
             differentSuper == null || doNotElideForAdditionalOverridePurpose
         } else {

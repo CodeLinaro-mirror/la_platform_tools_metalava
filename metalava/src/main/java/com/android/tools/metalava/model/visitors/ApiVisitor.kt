@@ -116,6 +116,19 @@ open class ApiVisitor(
         fieldComparator: Comparator<FieldItem>? = null,
 
         /**
+         * The filter to use to determine if we should emit an item. If null, the default value is
+         * an [ApiPredicate] based on the values of [remove], [includeApisForStubPurposes],
+         * [config], and [ignoreShown].
+         */
+        filterEmit: Predicate<Item>? = null,
+
+        /**
+         * The filter to use to determine if we should emit a reference to an item. If null, the
+         * default value is an [ApiPredicate] based on the values of [remove] and [config].
+         */
+        filterReference: Predicate<Item>? = null,
+
+        /**
          * Whether to include "for stub purposes" APIs.
          *
          * See [ApiPredicate.includeOnlyForStubPurposes]
@@ -130,17 +143,17 @@ open class ApiVisitor(
         inlineInheritedFields = true,
         methodComparator = methodComparator,
         fieldComparator = fieldComparator,
-        filterEmit =
-            ApiPredicate(
-                matchRemoved = remove,
-                includeApisForStubPurposes = includeApisForStubPurposes,
-                config = config.apiPredicateConfig.copy(ignoreShown = ignoreShown),
-            ),
-        filterReference =
-            ApiPredicate(
-                ignoreRemoved = remove,
-                config = config.apiPredicateConfig.copy(ignoreShown = true),
-            ),
+        filterEmit = filterEmit
+                ?: ApiPredicate(
+                    matchRemoved = remove,
+                    includeApisForStubPurposes = includeApisForStubPurposes,
+                    config = config.apiPredicateConfig.copy(ignoreShown = ignoreShown),
+                ),
+        filterReference = filterReference
+                ?: ApiPredicate(
+                    ignoreRemoved = remove,
+                    config = config.apiPredicateConfig.copy(ignoreShown = true),
+                ),
         config = config,
     )
 
