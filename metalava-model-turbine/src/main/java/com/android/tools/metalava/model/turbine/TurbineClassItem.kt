@@ -143,7 +143,7 @@ open class TurbineClassItem(
         TODO("b/295800205")
     }
 
-    override fun setSuperClass(superClass: ClassItem?, superClassType: TypeItem?) {
+    internal fun setSuperClass(superClass: ClassItem?, superClassType: TypeItem?) {
         this.superClass = superClass as? TurbineClassItem
         this.superClassType = superClassType
     }

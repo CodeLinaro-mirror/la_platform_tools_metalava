@@ -18,18 +18,10 @@ package com.android.tools.metalava.model.testsuite
 
 import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.lint.checks.infrastructure.TestFiles
-import com.android.tools.metalava.model.AnnotationItem
-import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.Assertions
 import com.android.tools.metalava.model.Codebase
-import com.android.tools.metalava.model.ConstructorItem
-import com.android.tools.metalava.model.FieldItem
-import com.android.tools.metalava.model.Item
-import com.android.tools.metalava.model.MethodItem
-import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.source.SourceCodebase
 import java.util.ServiceLoader
-import kotlin.test.assertIs
-import kotlin.test.assertNotNull
 import kotlin.test.fail
 import org.junit.AssumptionViolatedException
 import org.junit.Rule
@@ -51,7 +43,7 @@ import org.junit.runners.model.Statement
  * separately. If this is an issue then the [ModelSuiteRunner] implementations could all be moved
  * into the same project and run tests against them all at the same time.
  */
-abstract class BaseModelTest(parameters: TestParameters) {
+abstract class BaseModelTest(parameters: TestParameters) : Assertions {
 
     /** The [ModelSuiteRunner] that this test must use. */
     private val runner = parameters.runner
@@ -228,49 +220,6 @@ abstract class BaseModelTest(parameters: TestParameters) {
     /** Create a signature [TestFile] with the supplied [contents]. */
     fun signature(contents: String): TestFile {
         return TestFiles.source("api.txt", contents.trimIndent())
-    }
-
-    /** Get the class from the [Codebase], failing if it does not exist. */
-    fun Codebase.assertClass(qualifiedName: String): ClassItem {
-        val classItem = findClass(qualifiedName)
-        assertNotNull(classItem) { "Expected $qualifiedName to be defined" }
-        return classItem
-    }
-
-    /** Get the package from the [Codebase], failing if it does not exist. */
-    fun Codebase.assertPackage(pkgName: String): PackageItem {
-        val packageItem = findPackage(pkgName)
-        assertNotNull(packageItem) { "Expected $pkgName to be defined" }
-        return packageItem
-    }
-
-    /** Get the field from the [ClassItem], failing if it does not exist. */
-    fun ClassItem.assertField(fieldName: String): FieldItem {
-        val fieldItem = findField(fieldName)
-        assertNotNull(fieldItem) { "Expected $fieldName to be defined" }
-        return fieldItem
-    }
-
-    /** Get the method from the [ClassItem], failing if it does not exist. */
-    fun ClassItem.assertMethod(methodName: String, parameters: String): MethodItem {
-        val methodItem = findMethod(methodName, parameters)
-        assertNotNull(methodItem) { "Expected $methodName($parameters) to be defined" }
-        return methodItem
-    }
-
-    /** Get the constructor from the [ClassItem], failing if it does not exist. */
-    fun ClassItem.assertConstructor(parameters: String): ConstructorItem {
-        val methodItem = findMethod(simpleName(), parameters)
-        assertNotNull(methodItem) { "Expected ${simpleName()}($parameters) to be defined" }
-        return assertIs(methodItem)
-    }
-
-    /** Get the annotation from the [Item], failing if it does not exist. */
-    fun Item.assertAnnotation(parameters: String): AnnotationItem {
-        val annoItem =
-            modifiers.annotations().filter { it.qualifiedName == parameters }.firstOrNull()
-        assertNotNull(annoItem) { "Expected item to be annotated with ($parameters)" }
-        return assertIs(annoItem)
     }
 }
 

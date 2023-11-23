@@ -143,7 +143,7 @@ open class TextClassItem(
 
     override fun superClassType(): TypeItem? = superClassType
 
-    override fun setSuperClass(superClass: ClassItem?, superClassType: TypeItem?) {
+    internal fun setSuperClass(superClass: ClassItem?, superClassType: TypeItem?) {
         this.superClass = superClass
         this.superClassType = superClassType
     }

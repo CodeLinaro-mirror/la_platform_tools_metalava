@@ -20,20 +20,6 @@ import com.google.common.truth.Truth.assertThat
 import org.junit.Test
 
 class TextTypeItemTest {
-
-    @Test
-    fun `test typeString()`() {
-        val full =
-            "@androidx.annotation.Nullable java.util.List<@androidx.annotation.Nullable java.lang.String>"
-        assertThat(TextTypeItem.toTypeString(full, annotations = false))
-            .isEqualTo("java.util.List<java.lang.String>")
-        assertThat(TextTypeItem.toTypeString(full, annotations = true))
-            .isEqualTo(
-                "@androidx.annotation.Nullable java.util.List<@androidx.annotation.Nullable java.lang.String>"
-            )
-        assertThat(TextTypeItem.toTypeString("int", annotations = false)).isEqualTo("int")
-    }
-
     @Test
     fun `check erasure`() {
         // When a type variable is on a member and the type variable is defined on the surrounding

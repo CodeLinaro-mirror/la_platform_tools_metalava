@@ -112,7 +112,7 @@ class CommonTypeParameterItemTest(parameters: TestParameters) : BaseModelTest(pa
             kotlin(
                 """
                     package test.pkg
-                    class Foo<T: Object & Comparable<T>>
+                    class Foo<T> where T : Object, T : Comparable<T>
                 """
             ),
             signature(

@@ -16,10 +16,11 @@
 
 package com.android.tools.metalava.model.text
 
+import com.android.tools.metalava.model.Assertions
 import kotlin.test.assertTrue
 import org.junit.Test
 
-class TextClassItemTest {
+class TextClassItemTest : Assertions {
     @Test
     fun `test hasEqualReturnType() when return types are derived from interface type variables`() {
         val codebase =
@@ -94,46 +95,43 @@ class TextClassItemTest {
             )
 
         val toLocalDate1 =
-            codebase.getOrCreateClass("java.time.LocalDateTime").findMethod("toLocalDate", "")!!
+            codebase.assertClass("java.time.LocalDateTime").assertMethod("toLocalDate", "")
         val toLocalDate2 =
             codebase
-                .getOrCreateClass("java.time.chrono.ChronoLocalDateTime")
-                .findMethod("toLocalDate", "")!!
+                .assertClass("java.time.chrono.ChronoLocalDateTime")
+                .assertMethod("toLocalDate", "")
         val evaluate1 =
             codebase
-                .getOrCreateClass("android.animation.TypeEvaluator<T>")
-                .findMethod("evaluate", "float, java.lang.Object, java.lang.Object")!!
+                .assertClass("android.animation.TypeEvaluator")
+                .assertMethod("evaluate", "float, java.lang.Object, java.lang.Object")
         val evaluate2 =
             codebase
-                .getOrCreateClass("android.animation.FloatEvaluator")
-                .findMethod("evaluate", "float, java.lang.Number, java.lang.Number")!!
+                .assertClass("android.animation.FloatEvaluator")
+                .assertMethod("evaluate", "float, java.lang.Number, java.lang.Number")
         val loadInBackground1 =
             codebase
-                .getOrCreateClass("android.content.AsyncTaskLoader<D>")
-                .findMethod("loadInBackground", "")!!
+                .assertClass("android.content.AsyncTaskLoader")
+                .assertMethod("loadInBackground", "")
         val loadInBackground2 =
             codebase
-                .getOrCreateClass("android.content.CursorLoader")
-                .findMethod("loadInBackground", "")!!
-        val next1 =
-            codebase.getOrCreateClass("android.database.CursorJoiner").findMethod("next", "")!!
-        val next2 = codebase.getOrCreateClass("java.util.Iterator<E>").findMethod("next", "")!!
+                .assertClass("android.content.CursorLoader")
+                .assertMethod("loadInBackground", "")
+        val next1 = codebase.assertClass("android.database.CursorJoiner").assertMethod("next", "")
+        val next2 = codebase.assertClass("java.util.Iterator").assertMethod("next", "")
         val changeParameterType1 =
             codebase
-                .getOrCreateClass("java.lang.invoke.MethodType")
-                .findMethod("changeParameterType", "int, java.lang.Class")!!
+                .assertClass("java.lang.invoke.MethodType")
+                .assertMethod("changeParameterType", "int, java.lang.Class")
         val changeParameterType2 =
             codebase
-                .getOrCreateClass("java.lang.invoke.TypeDescriptor.OfMethod")
-                .findMethod("changeParameterType", "int, java.lang.invoke.TypeDescriptor.OfField")!!
+                .assertClass("java.lang.invoke.TypeDescriptor.OfMethod")
+                .assertMethod("changeParameterType", "int, java.lang.invoke.TypeDescriptor.OfField")
         val parameterArray1 =
-            codebase
-                .getOrCreateClass("java.lang.invoke.MethodType")
-                .findMethod("parameterArray", "")!!
+            codebase.assertClass("java.lang.invoke.MethodType").assertMethod("parameterArray", "")
         val parameterArray2 =
             codebase
-                .getOrCreateClass("java.lang.invoke.TypeDescriptor.OfMethod")
-                .findMethod("parameterArray", "")!!
+                .assertClass("java.lang.invoke.TypeDescriptor.OfMethod")
+                .assertMethod("parameterArray", "")
 
         assertTrue(TextClassItem.hasEqualReturnType(toLocalDate1, toLocalDate2))
         assertTrue(TextClassItem.hasEqualReturnType(evaluate1, evaluate2))
@@ -163,13 +161,11 @@ class TextClassItemTest {
             )
 
         val getAnnotation1 =
-            codebase
-                .getOrCreateClass("java.lang.Class<T>")
-                .findMethod("getAnnotation", "java.lang.Class")!!
+            codebase.assertClass("java.lang.Class").assertMethod("getAnnotation", "java.lang.Class")
         val getAnnotation2 =
             codebase
-                .getOrCreateClass("java.lang.AnnotatedElement")
-                .findMethod("getAnnotation", "java.lang.Class")!!
+                .assertClass("java.lang.AnnotatedElement")
+                .assertMethod("getAnnotation", "java.lang.Class")
 
         assertTrue(TextClassItem.hasEqualReturnType(getAnnotation1, getAnnotation2))
     }
@@ -198,11 +194,9 @@ class TextClassItemTest {
             )
 
         val getAdapter1 =
-            codebase
-                .getOrCreateClass("android.widget.AdapterView<T extends android.widget.Adapter>")
-                .findMethod("getAdapter", "")!!
+            codebase.assertClass("android.widget.AdapterView").assertMethod("getAdapter", "")
         val getAdapter2 =
-            codebase.getOrCreateClass("android.widget.ListView").findMethod("getAdapter", "")!!
+            codebase.assertClass("android.widget.ListView").assertMethod("getAdapter", "")
 
         assertTrue(TextClassItem.hasEqualReturnType(getAdapter1, getAdapter2))
     }
@@ -247,35 +241,33 @@ class TextClassItemTest {
 
         val compareTo1 =
             codebase
-                .getOrCreateClass("java.lang.Comparable")
-                .findMethod("compareTo", "java.lang.Object")!!
+                .assertClass("java.lang.Comparable")
+                .assertMethod("compareTo", "java.lang.Object")
         val compareTo2 =
-            codebase
-                .getOrCreateClass("java.lang.String")
-                .findMethod("compareTo", "java.lang.String")!!
+            codebase.assertClass("java.lang.String").assertMethod("compareTo", "java.lang.String")
         val insertParameterTypes1 =
             codebase
-                .getOrCreateClass("java.lang.invoke.MethodType")
-                .findMethod("insertParameterTypes", "int, java.lang.Class[]")!!
+                .assertClass("java.lang.invoke.MethodType")
+                .assertMethod("insertParameterTypes", "int, java.lang.Class[]")
         val insertParameterTypes2 =
             codebase
-                .getOrCreateClass("java.lang.invoke.TypeDescriptor.OfMethod")
-                .findMethod(
+                .assertClass("java.lang.invoke.TypeDescriptor.OfMethod")
+                .assertMethod(
                     "insertParameterTypes",
                     "int, java.lang.invoke.TypeDescriptor.OfField[]"
-                )!!
+                )
         val evaluate1 =
             codebase
-                .getOrCreateClass("android.animation.TypeEvaluator<T>")
-                .findMethod("evaluate", "float, java.lang.Object, java.lang.Object")!!
+                .assertClass("android.animation.TypeEvaluator")
+                .assertMethod("evaluate", "float, java.lang.Object, java.lang.Object")
         val evaluate2 =
             codebase
-                .getOrCreateClass("android.animation.ArgbEvaluator")
-                .findMethod("evaluate", "float, java.lang.Object, java.lang.Object")!!
+                .assertClass("android.animation.ArgbEvaluator")
+                .assertMethod("evaluate", "float, java.lang.Object, java.lang.Object")
         val evaluate3 =
             codebase
-                .getOrCreateClass("android.animation.FloatArrayEvaluator")
-                .findMethod("evaluate", "float, float[], float[]")!!
+                .assertClass("android.animation.FloatArrayEvaluator")
+                .assertMethod("evaluate", "float, float[], float[]")
 
         assertTrue(TextClassItem.equalMethodInClassContext(compareTo1, compareTo2))
         assertTrue(

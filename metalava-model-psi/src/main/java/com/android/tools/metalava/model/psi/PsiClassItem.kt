@@ -102,11 +102,6 @@ internal constructor(
 
     override fun superClassType(): TypeItem? = superClassType
 
-    override fun setSuperClass(superClass: ClassItem?, superClassType: TypeItem?) {
-        this.superClass = superClass
-        this.superClassType = superClassType
-    }
-
     override var stubConstructor: ConstructorItem? = null
     override var artifact: String? = null
 

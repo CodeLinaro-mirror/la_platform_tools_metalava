@@ -309,8 +309,8 @@ open class PsiBasedCodebase(
         val initialPackages = ArrayList(packageMap.values)
         var registeredCount =
             packageMap.size // classes added after this point will have indices >= original
-        for (cls in initialPackages) {
-            cls.finishInitialization()
+        for (pkg in initialPackages) {
+            pkg.finishInitialization()
         }
 
         // Finish initialization of any additional classes that were registered during

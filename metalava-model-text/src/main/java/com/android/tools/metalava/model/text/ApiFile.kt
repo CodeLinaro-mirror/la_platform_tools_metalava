@@ -1554,12 +1554,22 @@ class ReferenceResolver(
             for (exception in names) {
                 var exceptionClass: ClassItem? = codebase.mAllClasses[exception]
                 if (exceptionClass == null) {
-                    // Exception not provided by this codebase. Inject a stub.
+                    // Exception not provided by this codebase. Either try and retrieve it from a
+                    // base codebase or create a stub.
                     exceptionClass = getOrCreateClass(exception)
-                    // Set super class to throwable?
-                    if (exception != JAVA_LANG_THROWABLE) {
-                        val throwableClass = getOrCreateClass(JAVA_LANG_THROWABLE)
-                        exceptionClass.setSuperClass(throwableClass, throwableClass.toType())
+
+                    // A class retrieved from another codebase is assumed to have been fully
+                    // resolved by the codebase. However, a stub that has just been created will
+                    // need some additional work. A stub can be differentiated from a ClassItem
+                    // retrieved from another codebase because it belongs to this codebase and is
+                    // a TextClassItem.
+                    if (exceptionClass.codebase == codebase && exceptionClass is TextClassItem) {
+                        // An exception class needs to extend Throwable, unless it is Throwable in
+                        // which case it does not need modifying.
+                        if (exception != JAVA_LANG_THROWABLE) {
+                            val throwableClass = getOrCreateClass(JAVA_LANG_THROWABLE)
+                            exceptionClass.setSuperClass(throwableClass, throwableClass.toType())
+                        }
                     }
                 }
                 result.add(exceptionClass)

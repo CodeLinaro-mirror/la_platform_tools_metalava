@@ -202,7 +202,7 @@ internal class JavaStubWriter(
             else cls.filteredInterfaceTypes(filterReference).asSequence()
 
         if (interfaces.any()) {
-            if (cls.isInterface() && cls.superClassType() != null) writer.print(", ")
+            if (cls.isInterface() && cls.superClassType() != null) writer.print(",")
             else writer.print(" implements")
             interfaces.forEachIndexed { index, type ->
                 if (index > 0) {
