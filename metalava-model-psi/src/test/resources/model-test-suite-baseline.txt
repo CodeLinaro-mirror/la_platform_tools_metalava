@@ -4,4 +4,3 @@ com.android.tools.metalava.model.testsuite.typeitem.CommonTypeModifiersTest
 com.android.tools.metalava.model.testsuite.typeitem.CommonTypeStringTest
   Type string[psi,java,annotated integer list - annotated with negative filter]
   Type string[psi,java,multiple annotations integer list - annotated with filter]
-

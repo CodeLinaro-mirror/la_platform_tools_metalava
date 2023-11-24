@@ -624,6 +624,8 @@ class CommonTypeModifiersTest(parameters: TestParameters) : BaseModelTest(parame
                 """
                     package test.pkg;
                     public class Foo extends test.pkg.@test.pkg.A Bar {}
+                    class Bar {}
+                    @interface A {}
                 """
             ),
             signature(
@@ -631,6 +633,10 @@ class CommonTypeModifiersTest(parameters: TestParameters) : BaseModelTest(parame
                     // Signature format: 4.0
                     package test.pkg {
                       public class Foo extends test.pkg.@test.pkg.A Bar {
+                      }
+                      public class Bar {
+                      }
+                      public @interface A {
                       }
                     }
                 """
@@ -667,17 +673,17 @@ class CommonTypeModifiersTest(parameters: TestParameters) : BaseModelTest(parame
             )
         ) { codebase ->
             val foo = codebase.assertClass("test.pkg.Foo")
+            assertThat(foo.superClassType()).isNull()
 
-            val bar = foo.superClassType()
-            assertThat(bar).isNotNull()
+            val interfaces = foo.interfaceTypes()
+            assertThat(interfaces).hasSize(3)
+
+            val bar = interfaces[0]
             assertThat(bar).isInstanceOf(ClassTypeItem::class.java)
             assertThat((bar as ClassTypeItem).qualifiedName).isEqualTo("test.pkg.Bar")
             assertThat(bar.annotationNames()).containsExactly("test.pkg.A")
 
-            val interfaces = foo.interfaceTypes()
-            assertThat(interfaces).hasSize(2)
-
-            val baz = interfaces[0]
+            val baz = interfaces[1]
             assertThat(baz).isInstanceOf(ClassTypeItem::class.java)
             assertThat((baz as ClassTypeItem).qualifiedName).isEqualTo("test.pkg.Baz")
             assertThat(baz.parameters).hasSize(1)
@@ -687,7 +693,7 @@ class CommonTypeModifiersTest(parameters: TestParameters) : BaseModelTest(parame
             assertThat(bazParam.isString()).isTrue()
             assertThat(bazParam.annotationNames()).containsExactly("test.pkg.C")
 
-            val biz = interfaces[1]
+            val biz = interfaces[2]
             assertThat(biz).isInstanceOf(ClassTypeItem::class.java)
             assertThat((biz as ClassTypeItem).qualifiedName).isEqualTo("test.pkg.Biz")
             assertThat(biz.annotationNames()).isEmpty()

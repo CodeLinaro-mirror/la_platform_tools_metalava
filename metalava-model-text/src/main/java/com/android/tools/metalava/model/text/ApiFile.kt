@@ -340,7 +340,7 @@ private constructor(
 
         cl.setContainingPackage(pkg)
         cl.deprecated = modifiers.isDeprecated()
-        if ("extends" == token) {
+        if ("extends" == token && !isInterface) {
             token = tokenizer.requireToken()
             var superClassName = token
             // Make sure full super class name is found if there are type use annotations.
@@ -356,16 +356,8 @@ private constructor(
             ext = superClassName
             token = tokenizer.requireToken()
         }
-        if (
-            "implements" == token ||
-                "extends" == token ||
-                isInterface && ext != null && token != "{"
-        ) {
-            // If this is part of a list of interface supertypes, token is already a supertype.
-            // Otherwise, skip to the next token to get the supertype.
-            if (token == "implements" || token == "extends") {
-                token = tokenizer.requireToken()
-            }
+        if ("implements" == token || "extends" == token) {
+            token = tokenizer.requireToken()
             while (true) {
                 var interfaceName = token
                 if ("{" == token) {
@@ -1492,8 +1484,8 @@ class ReferenceResolver(
 
     private fun resolveSuperclasses() {
         for (cl in classes) {
-            // java.lang.Object has no superclass
-            if (cl.isJavaLangObject()) {
+            // java.lang.Object has no superclass and neither do interfaces
+            if (cl.isJavaLangObject() || cl.isInterface()) {
                 continue
             }
             var scName: String? = context.nameOfSuperClass(cl)
@@ -1502,6 +1494,9 @@ class ReferenceResolver(
                     when {
                         cl.isEnum() -> JAVA_LANG_ENUM
                         cl.isAnnotationType() -> JAVA_LANG_ANNOTATION
+                        // Interfaces do not extend java.lang.Object so drop out before the else
+                        // clause.
+                        cl.isInterface() -> return
                         else -> {
                             val existing = cl.superClassType()?.toTypeString()
                             existing ?: JAVA_LANG_OBJECT

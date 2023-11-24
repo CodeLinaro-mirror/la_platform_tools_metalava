@@ -310,17 +310,19 @@ interface ClassItem : Item {
             }
         }
 
-        val nameComparator: Comparator<ClassItem> = Comparator { a, b ->
-            a.simpleName().compareTo(b.simpleName())
-        }
+        /** A partial ordering over [ClassItem] comparing [ClassItem.fullName]. */
+        val fullNameComparator: Comparator<ClassItem> = Comparator.comparing { it.fullName() }
 
-        val fullNameComparator: Comparator<ClassItem> = Comparator { a, b ->
-            a.fullName().compareTo(b.fullName())
-        }
+        /** A total ordering over [ClassItem] comparing [ClassItem.qualifiedName]. */
+        private val qualifiedComparator: Comparator<ClassItem> =
+            Comparator.comparing { it.qualifiedName() }
 
-        val qualifiedComparator: Comparator<ClassItem> = Comparator { a, b ->
-            a.qualifiedName().compareTo(b.qualifiedName())
-        }
+        /**
+         * A total ordering over [ClassItem] comparing [ClassItem.fullName] first and then
+         * [ClassItem.qualifiedName].
+         */
+        val fullNameThenQualifierComparator: Comparator<ClassItem> =
+            fullNameComparator.thenComparing(qualifiedComparator)
 
         fun classNameSorter(): Comparator<in ClassItem> = ClassItem.qualifiedComparator
     }

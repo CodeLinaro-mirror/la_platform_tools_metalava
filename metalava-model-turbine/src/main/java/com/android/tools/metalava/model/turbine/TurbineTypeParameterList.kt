@@ -17,18 +17,17 @@
 package com.android.tools.metalava.model.turbine
 
 import com.android.tools.metalava.model.Codebase
-import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.TypeParameterList
 
 internal class TurbineTypeParameterList(
     val codebase: Codebase,
 ) : TypeParameterList {
 
-    internal lateinit var typeParameters: List<TypeParameterItem>
+    internal lateinit var typeParameters: List<TurbineTypeParameterItem>
 
     override fun toString(): String = TODO("b/295800205")
 
     override fun typeParameterNames(): List<String> = TODO("b/295800205")
 
-    override fun typeParameters(): List<TypeParameterItem> = typeParameters
+    override fun typeParameters(): List<TurbineTypeParameterItem> = typeParameters
 }

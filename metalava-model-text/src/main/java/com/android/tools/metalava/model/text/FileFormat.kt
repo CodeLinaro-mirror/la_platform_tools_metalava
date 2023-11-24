@@ -71,6 +71,32 @@ data class FileFormat(
      */
     val language: Language? = null,
     val specifiedOverloadedMethodOrder: OverloadedMethodOrder? = null,
+
+    /**
+     * Whether to include type-use annotations in the signature file. Type-use annotations can only
+     * be included when [kotlinNameTypeOrder] is true, because the Java order makes it ambiguous
+     * whether an annotation is type-use.
+     */
+    val includeTypeUseAnnotations: Boolean = false,
+
+    /**
+     * Whether to order the names and types of APIs using Kotlin-style syntax (`name: type`) or
+     * Java-style syntax (`type name`).
+     *
+     * When Kotlin ordering is used, all method parameters without public names will be given the
+     * placeholder name of `_`, which cannot be used as a Java identifier.
+     *
+     * For example, the following is an example of a method signature with Kotlin ordering:
+     * ```
+     * method public foo(_: int, _: char, _: String[]): String;
+     * ```
+     *
+     * And the following is the equivalent Java ordering:
+     * ```
+     * method public String foo(int, char, String[]);
+     * ```
+     */
+    val kotlinNameTypeOrder: Boolean = false,
     val kotlinStyleNulls: Boolean,
     /**
      * If non-null then it indicates that the file format is being used to migrate a signature file
@@ -91,30 +117,20 @@ data class FileFormat(
     val migrating: String? = null,
     val conciseDefaultValues: Boolean,
     val specifiedAddAdditionalOverrides: Boolean? = null,
+
     /**
-     * Whether to order the names and types of APIs using Kotlin-style syntax (`name: type`) or
-     * Java-style syntax (`type name`).
+     * Indicates whether the whole extends list for an interface is sorted.
      *
-     * When Kotlin ordering is used, all method parameters without public names will be given the
-     * placeholder name of `_`, which cannot be used as a Java identifier.
+     * Previously, the first type in the extends list was used as the super type and if it was
+     * present in the API then it would always be output first to the signature files. The code has
+     * been refactored so that is no longer necessary but the previous behavior is maintained to
+     * avoid churn in the API signature files.
      *
-     * For example, the following is an example of a method signature with Kotlin ordering:
-     * ```
-     * method public foo(_: int, _: char, _: String[]): String;
-     * ```
-     *
-     * And the following is the equivalent Java ordering:
-     * ```
-     * method public String foo(int, char, String[]);
-     * ```
+     * By default, this property preserves the previous behavior but if set to `true` then it will
+     * stop treating the first interface specially and just sort all the interface types. The
+     * sorting is by the full name (without the package) of the class.
      */
-    val kotlinNameTypeOrder: Boolean = false,
-    /**
-     * Whether to include type-use annotations in the signature file. Type-use annotations can only
-     * be included when [kotlinNameTypeOrder] is true, because the Java order makes it ambiguous
-     * whether an annotation is type-use.
-     */
-    val includeTypeUseAnnotations: Boolean = false,
+    val specifiedSortWholeExtendsList: Boolean? = null,
 ) {
     init {
         if (migrating != null && "[,\n]".toRegex().find(migrating) != null) {
@@ -165,6 +181,10 @@ data class FileFormat(
     // This defaults to false but can be overridden on the command line.
     val addAdditionalOverrides
         get() = effectiveValue({ specifiedAddAdditionalOverrides }, false)
+
+    // This defaults to false but can be overridden on the command line.
+    val sortWholeExtendsList
+        get() = effectiveValue({ specifiedSortWholeExtendsList }, default = false)
 
     /** The base version of the file format. */
     enum class Version(
@@ -682,20 +702,24 @@ data class FileFormat(
     internal class Builder(private val base: FileFormat) {
         var addAdditionalOverrides: Boolean? = null
         var conciseDefaultValues: Boolean? = null
+        var includeTypeUseAnnotations: Boolean? = null
+        var kotlinNameTypeOrder: Boolean? = null
         var kotlinStyleNulls: Boolean? = null
         var language: Language? = null
         var migrating: String? = null
         var name: String? = null
         var overloadedMethodOrder: OverloadedMethodOrder? = null
+        var sortWholeExtendsList: Boolean? = null
         var surface: String? = null
-        var kotlinNameTypeOrder: Boolean? = null
-        var includeTypeUseAnnotations: Boolean? = null
 
         fun build(): FileFormat {
             // Apply any language defaults first as they take priority over version defaults.
             language?.applyLanguageDefaults(this)
             return base.copy(
                 conciseDefaultValues = conciseDefaultValues ?: base.conciseDefaultValues,
+                includeTypeUseAnnotations = includeTypeUseAnnotations
+                        ?: base.includeTypeUseAnnotations,
+                kotlinNameTypeOrder = kotlinNameTypeOrder ?: base.kotlinNameTypeOrder,
                 kotlinStyleNulls = kotlinStyleNulls ?: base.kotlinStyleNulls,
                 language = language ?: base.language,
                 migrating = migrating ?: base.migrating,
@@ -704,10 +728,9 @@ data class FileFormat(
                         ?: base.specifiedAddAdditionalOverrides,
                 specifiedOverloadedMethodOrder = overloadedMethodOrder
                         ?: base.specifiedOverloadedMethodOrder,
+                specifiedSortWholeExtendsList = sortWholeExtendsList
+                        ?: base.specifiedSortWholeExtendsList,
                 surface = surface ?: base.surface,
-                kotlinNameTypeOrder = kotlinNameTypeOrder ?: base.kotlinNameTypeOrder,
-                includeTypeUseAnnotations = includeTypeUseAnnotations
-                        ?: base.includeTypeUseAnnotations
             )
         }
     }
@@ -763,6 +786,24 @@ data class FileFormat(
             override fun stringFromFormat(format: FileFormat): String =
                 yesNo(format.conciseDefaultValues)
         },
+        /** include-type-use-annotations=[yes|no] */
+        INCLUDE_TYPE_USE_ANNOTATIONS {
+            override fun setFromString(builder: Builder, value: String) {
+                builder.includeTypeUseAnnotations = yesNo(value)
+            }
+
+            override fun stringFromFormat(format: FileFormat): String =
+                yesNo(format.includeTypeUseAnnotations)
+        },
+        /** kotlin-name-type-order=[yes|no] */
+        KOTLIN_NAME_TYPE_ORDER {
+            override fun setFromString(builder: Builder, value: String) {
+                builder.kotlinNameTypeOrder = yesNo(value)
+            }
+
+            override fun stringFromFormat(format: FileFormat): String =
+                yesNo(format.kotlinNameTypeOrder)
+        },
         /** kotlin-style-nulls=[yes|no] */
         KOTLIN_STYLE_NULLS {
             override fun setFromString(builder: Builder, value: String) {
@@ -788,21 +829,13 @@ data class FileFormat(
             override fun stringFromFormat(format: FileFormat): String? =
                 format.specifiedOverloadedMethodOrder?.stringFromEnum()
         },
-        KOTLIN_NAME_TYPE_ORDER {
+        SORT_WHOLE_EXTENDS_LIST(defaultable = true) {
             override fun setFromString(builder: Builder, value: String) {
-                builder.kotlinNameTypeOrder = yesNo(value)
+                builder.sortWholeExtendsList = yesNo(value)
             }
 
-            override fun stringFromFormat(format: FileFormat): String =
-                yesNo(format.kotlinNameTypeOrder)
-        },
-        INCLUDE_TYPE_USE_ANNOTATIONS {
-            override fun setFromString(builder: Builder, value: String) {
-                builder.includeTypeUseAnnotations = yesNo(value)
-            }
-
-            override fun stringFromFormat(format: FileFormat): String =
-                yesNo(format.includeTypeUseAnnotations)
+            override fun stringFromFormat(format: FileFormat): String? =
+                format.specifiedSortWholeExtendsList?.let { yesNo(it) }
         };
 
         /** The property name in the [parseSpecifier] input. */

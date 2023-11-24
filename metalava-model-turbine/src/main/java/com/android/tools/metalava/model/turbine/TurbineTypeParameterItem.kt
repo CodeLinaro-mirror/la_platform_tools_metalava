@@ -20,11 +20,13 @@ import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.TypeParameterList
+import com.google.turbine.binder.sym.TyVarSymbol
 
 internal class TurbineTypeParameterItem(
     codebase: Codebase,
     modifiers: TurbineModifierItem,
-    name: String,
+    internal val symbol: TyVarSymbol,
+    name: String = symbol.name(),
     private val bounds: List<TypeItem>,
 ) :
     TurbineClassItem(

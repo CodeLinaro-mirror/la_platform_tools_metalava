@@ -249,7 +249,45 @@ interface TypeItem {
             return signature.replace(" extends java.lang.Object>", ">")
         }
 
-        val comparator: Comparator<TypeItem> = Comparator { type1, type2 ->
+        /**
+         * Create a [Comparator] that when given two [TypeItem] will treat them as equal if either
+         * returns `null` from [TypeItem.asClass] and will otherwise compare the two [ClassItem]s
+         * using [comparator].
+         *
+         * This only defines a partial ordering over [TypeItem].
+         */
+        private fun typeItemAsClassComparator(
+            comparator: Comparator<ClassItem>
+        ): Comparator<TypeItem> {
+            return Comparator { type1, type2 ->
+                val cls1 = type1.asClass()
+                val cls2 = type2.asClass()
+                if (cls1 != null && cls2 != null) {
+                    comparator.compare(cls1, cls2)
+                } else {
+                    0
+                }
+            }
+        }
+
+        /** A total ordering over [TypeItem] comparing [TypeItem.toTypeString]. */
+        private val typeStringComparator =
+            Comparator.comparing<TypeItem, String> { it.toTypeString() }
+
+        /**
+         * A total ordering over [TypeItem] comparing [TypeItem.asClass] using
+         * [ClassItem.fullNameThenQualifierComparator] and then comparing [TypeItem.toTypeString].
+         */
+        val totalComparator: Comparator<TypeItem> =
+            typeItemAsClassComparator(ClassItem.fullNameThenQualifierComparator)
+                .thenComparing(typeStringComparator)
+
+        @Deprecated(
+            "" +
+                "this should not be used as it only defines a partial ordering which means that the " +
+                "source order will affect the result"
+        )
+        val partialComparator: Comparator<TypeItem> = Comparator { type1, type2 ->
             val cls1 = type1.asClass()
             val cls2 = type2.asClass()
             if (cls1 != null && cls2 != null) {

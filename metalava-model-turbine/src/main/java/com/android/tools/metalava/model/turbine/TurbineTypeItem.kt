@@ -37,6 +37,10 @@ sealed class TurbineTypeItem(
     override val modifiers: TypeModifiers,
 ) : DefaultTypeItem() {
 
+    override fun toString(): String {
+        return toTypeString()
+    }
+
     override fun asClass(): TurbineClassItem? = TODO("b/295800205")
 
     override fun convertType(replacementMap: Map<String, String>?, owner: Item?): TypeItem =

@@ -3203,6 +3203,122 @@ class ApiFileTest : DriverTest() {
     }
 
     @Test
+    fun `Test whether partial or total ordering`() {
+        check(
+            format = FileFormat.V2,
+            checkCompilation = true,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                    package mine;
+
+                    public interface Bar {
+                    }
+                    """
+                    ),
+                    java(
+                        """
+                    package other;
+
+                    public interface Bar {
+                    }
+                    """
+                    ),
+                    java(
+                        """
+                    package test.pkg;
+                    public interface FooMineFirst extends mine.Bar, other.Bar {
+                    }
+                    """
+                    ),
+                    java(
+                        """
+                    package test.pkg;
+                    public interface FooOtherFirst extends other.Bar, mine.Bar {
+                    }
+                    """
+                    ),
+                ),
+            api =
+                """
+                package mine {
+                  public interface Bar {
+                  }
+                }
+                package other {
+                  public interface Bar {
+                  }
+                }
+                package test.pkg {
+                  public interface FooMineFirst extends mine.Bar other.Bar {
+                  }
+                  public interface FooOtherFirst extends other.Bar mine.Bar {
+                  }
+                }
+                """,
+        )
+    }
+
+    @Test
+    fun `Test whether partial or total ordering -  sort-whole-extends-list=yes`() {
+        check(
+            format = FileFormat.V2.copy(specifiedSortWholeExtendsList = true),
+            checkCompilation = true,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                    package mine;
+
+                    public interface Bar {
+                    }
+                    """
+                    ),
+                    java(
+                        """
+                    package other;
+
+                    public interface Bar {
+                    }
+                    """
+                    ),
+                    java(
+                        """
+                    package test.pkg;
+                    public interface FooMineFirst extends mine.Bar, other.Bar {
+                    }
+                    """
+                    ),
+                    java(
+                        """
+                    package test.pkg;
+                    public interface FooOtherFirst extends other.Bar, mine.Bar {
+                    }
+                    """
+                    ),
+                ),
+            api =
+                """
+                package mine {
+                  public interface Bar {
+                  }
+                }
+                package other {
+                  public interface Bar {
+                  }
+                }
+                package test.pkg {
+                  public interface FooMineFirst extends mine.Bar other.Bar {
+                  }
+                  public interface FooOtherFirst extends mine.Bar other.Bar {
+                  }
+                }
+                """,
+        )
+    }
+
+    @Test
     fun `Extend from multiple interfaces`() {
         // Real-world example: XmlResourceParser
         check(
@@ -3251,6 +3367,74 @@ class ApiFileTest : DriverTest() {
                 """
                 package android.content.res {
                   public interface XmlResourceParser extends org.xmlpull.v1.XmlPullParser android.util.AttributeSet my.AutoCloseable {
+                    method public void close();
+                  }
+                }
+                package android.util {
+                  public interface AttributeSet {
+                  }
+                }
+                package my {
+                  public interface AutoCloseable {
+                  }
+                }
+                package org.xmlpull.v1 {
+                  public interface XmlPullParser {
+                  }
+                }
+                """
+        )
+    }
+
+    @Test
+    fun `Extend from multiple interfaces - sort-whole-extends-list=yes`() {
+        // Real-world example: XmlResourceParser
+        check(
+            format = FileFormat.V2.copy(specifiedSortWholeExtendsList = true),
+            checkCompilation = true,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                    package android.content.res;
+                    import android.util.AttributeSet;
+                    import org.xmlpull.v1.XmlPullParser;
+                    import my.AutoCloseable;
+
+                    @SuppressWarnings("UnnecessaryInterfaceModifier")
+                    public interface XmlResourceParser extends XmlPullParser, AttributeSet, AutoCloseable {
+                        public void close();
+                    }
+                    """
+                    ),
+                    java(
+                        """
+                    package android.util;
+                    @SuppressWarnings("WeakerAccess")
+                    public interface AttributeSet {
+                    }
+                    """
+                    ),
+                    java(
+                        """
+                    package my;
+                    public interface AutoCloseable {
+                    }
+                    """
+                    ),
+                    java(
+                        """
+                    package org.xmlpull.v1;
+                    @SuppressWarnings("WeakerAccess")
+                    public interface XmlPullParser {
+                    }
+                    """
+                    )
+                ),
+            api =
+                """
+                package android.content.res {
+                  public interface XmlResourceParser extends android.util.AttributeSet my.AutoCloseable org.xmlpull.v1.XmlPullParser {
                     method public void close();
                   }
                 }

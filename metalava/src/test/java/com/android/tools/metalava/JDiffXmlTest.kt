@@ -579,22 +579,24 @@ class JDiffXmlTest : DriverTest() {
             <package name="test.pkg"
             >
             <interface name="AbstractList"
-             extends="test.pkg.List&lt;D, E, F>"
              abstract="true"
              static="false"
              final="false"
              deprecated="not deprecated"
              visibility="public"
             >
+            <implements name="test.pkg.List&lt;D, E, F>">
+            </implements>
             </interface>
             <interface name="ConcreteList"
-             extends="test.pkg.AbstractList&lt;G, H, I>"
              abstract="true"
              static="false"
              final="false"
              deprecated="not deprecated"
              visibility="public"
             >
+            <implements name="test.pkg.AbstractList&lt;G, H, I>">
+            </implements>
             </interface>
             <interface name="List"
              abstract="true"
@@ -732,13 +734,14 @@ class JDiffXmlTest : DriverTest() {
             <package name="android.companion"
             >
             <interface name="DeviceFilter"
-             extends="android.os.Parcelable"
              abstract="true"
              static="false"
              final="false"
              deprecated="not deprecated"
              visibility="public"
             >
+            <implements name="android.os.Parcelable">
+            </implements>
             </interface>
             </package>
             </api>

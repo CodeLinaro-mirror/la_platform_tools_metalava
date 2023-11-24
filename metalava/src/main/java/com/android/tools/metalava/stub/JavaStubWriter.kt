@@ -162,9 +162,10 @@ internal class JavaStubWriter(
     }
 
     private fun generateSuperClassDeclaration(cls: ClassItem) {
-        if (cls.isEnum() || cls.isAnnotationType()) {
+        if (cls.isEnum() || cls.isAnnotationType() || cls.isInterface()) {
             // No extends statement for enums and annotations; it's implied by the "enum" and
-            // "@interface" keywords
+            // "@interface" keywords. Normal interfaces do support an extends statement but it is
+            // generated in [generateInterfaceList].
             return
         }
 
@@ -172,22 +173,8 @@ internal class JavaStubWriter(
             if (preFiltered) cls.superClassType() else cls.filteredSuperClassType(filterReference)
 
         if (superClass != null && !superClass.isJavaLangObject()) {
-            val qualifiedName = superClass.toTypeString()
             writer.print(" extends ")
-
-            if (qualifiedName.contains("<")) {
-                // TODO: I need to push this into the model at filter-time such that clients don't
-                // need
-                // to remember to do this!!
-                val s = superClass.asClass()
-                if (s != null) {
-                    val map = cls.mapTypeVariables(s)
-                    val replaced = superClass.convertTypeString(map)
-                    writer.print(replaced)
-                    return
-                }
-            }
-            writer.print(qualifiedName)
+            writer.print(superClass.toTypeString())
         }
     }
 
@@ -198,12 +185,11 @@ internal class JavaStubWriter(
         }
 
         val interfaces =
-            if (preFiltered) cls.interfaceTypes().asSequence()
-            else cls.filteredInterfaceTypes(filterReference).asSequence()
+            if (preFiltered) cls.interfaceTypes() else cls.filteredInterfaceTypes(filterReference)
 
         if (interfaces.any()) {
-            if (cls.isInterface() && cls.superClassType() != null) writer.print(",")
-            else writer.print(" implements")
+            val label = if (cls.isInterface()) " extends" else " implements"
+            writer.print(label)
             interfaces.forEachIndexed { index, type ->
                 if (index > 0) {
                     writer.print(",")
@@ -215,8 +201,6 @@ internal class JavaStubWriter(
     }
 
     private fun generateTypeParameterList(typeList: TypeParameterList, addSpace: Boolean) {
-        // TODO: Do I need to map type variables?
-
         val typeListString = typeList.toString()
         if (typeListString.isNotEmpty()) {
             writer.print(typeListString)
@@ -460,7 +444,6 @@ internal class JavaStubWriter(
                 if (i > 0) {
                     writer.print(", ")
                 }
-                // TODO: Shouldn't declare raw types here!
                 writer.print(type.qualifiedName())
             }
         }
