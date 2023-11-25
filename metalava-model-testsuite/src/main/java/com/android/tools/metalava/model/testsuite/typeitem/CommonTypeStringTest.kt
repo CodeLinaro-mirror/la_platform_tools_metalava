@@ -22,7 +22,6 @@ import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.TypeStringConfiguration
 import com.android.tools.metalava.model.isNullnessAnnotation
 import com.android.tools.metalava.model.testsuite.BaseModelTest
-import com.android.tools.metalava.model.testsuite.TestParameters
 import com.android.tools.metalava.testing.KnownSourceFiles.intRangeTypeUseSource
 import com.android.tools.metalava.testing.KnownSourceFiles.libcoreNonNullSource
 import com.android.tools.metalava.testing.KnownSourceFiles.libcoreNullableSource
@@ -31,10 +30,10 @@ import com.google.common.truth.Truth.assertThat
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
+import org.junit.runners.Parameterized.Parameter
 
 @RunWith(Parameterized::class)
-class CommonTypeStringTest(combinedParameters: CombinedParameters) :
-    BaseModelTest(combinedParameters.baseParameters) {
+class CommonTypeStringTest : BaseModelTest() {
 
     data class TypeStringParameters(
         val name: String,
@@ -105,16 +104,15 @@ class CommonTypeStringTest(combinedParameters: CombinedParameters) :
         val expectedTypeString: String
     )
 
-    data class CombinedParameters(
-        val baseParameters: TestParameters,
-        val typeStringParameters: TypeStringParameters,
-    ) {
-        override fun toString(): String {
-            return "$baseParameters,$typeStringParameters"
-        }
-    }
-
-    private val parameters = combinedParameters.typeStringParameters
+    /**
+     * Set by injection by [Parameterized] after class initializers are called.
+     *
+     * Anything that accesses this, either directly or indirectly must do it after initialization,
+     * e.g. from lazy fields or in methods called from test methods.
+     *
+     * See [baseParameters] for more info.
+     */
+    @Parameter(1) lateinit var parameters: TypeStringParameters
 
     private fun javaTestFiles() =
         inputSet(
@@ -177,11 +175,9 @@ class CommonTypeStringTest(combinedParameters: CombinedParameters) :
             )
 
         @JvmStatic
-        @Parameterized.Parameters(name = "{0}")
-        fun combinedTestParameters(): Iterable<CombinedParameters> {
-            return testParameters().flatMap { baseParameters ->
-                testCases.map { CombinedParameters(baseParameters, it) }
-            }
+        @Parameterized.Parameters(name = "{0},{1}")
+        fun combinedTestParameters(): Iterable<Array<Any>> {
+            return crossProduct(testCases)
         }
 
         private val testCases =

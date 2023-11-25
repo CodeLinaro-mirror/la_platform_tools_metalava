@@ -1,6 +1,3 @@
-com.android.tools.metalava.model.testsuite.BootstrapSourceModelProviderTest
-  070 - check constructor exists[turbine,java]
-
 com.android.tools.metalava.model.testsuite.CommonClassItemTest
   Test class no super class but implements lists[turbine,java]
   Test class no super class or implements lists[turbine,java]
@@ -11,12 +8,14 @@ com.android.tools.metalava.model.testsuite.CommonClassItemTest
   empty class[turbine,java]
 
 com.android.tools.metalava.model.testsuite.CommonMethodItemTest
-  MethodItem superMethods() on constructor[turbine,java]
-  MethodItem type[turbine,java]
 
 com.android.tools.metalava.model.testsuite.packageitem.CommonPackageItemTest
   Test @hide in package html[turbine,java]
   Test @hide in package info[turbine,java]
+
+com.android.tools.metalava.model.testsuite.typeitem.CommonInternalNameTest
+  test[turbine,java,pkg.UnknownClass.Inner]
+  test[turbine,java,pkg.UnknownClass]
 
 com.android.tools.metalava.model.testsuite.typeitem.CommonTypeModifiersTest
   Test annotated array types in multiple contexts[turbine,java]

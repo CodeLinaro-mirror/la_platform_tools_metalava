@@ -22,7 +22,6 @@ import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.WildcardTypeItem
 import com.android.tools.metalava.model.testsuite.BaseModelTest
-import com.android.tools.metalava.model.testsuite.TestParameters
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import com.google.common.truth.Truth.assertThat
@@ -31,7 +30,7 @@ import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 
 @RunWith(Parameterized::class)
-class CommonTypeItemTest(parameters: TestParameters) : BaseModelTest(parameters) {
+class CommonTypeItemTest : BaseModelTest() {
     @Test
     fun `Test primitive types`() {
         runCodebaseTest(

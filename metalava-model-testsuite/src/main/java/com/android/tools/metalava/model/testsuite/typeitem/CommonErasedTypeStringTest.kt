@@ -17,7 +17,6 @@
 package com.android.tools.metalava.model.testsuite.typeitem
 
 import com.android.tools.metalava.model.testsuite.BaseModelTest
-import com.android.tools.metalava.model.testsuite.TestParameters
 import com.android.tools.metalava.testing.java
 import kotlin.test.assertEquals
 import kotlin.test.assertSame
@@ -25,10 +24,10 @@ import org.junit.Assert
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
+import org.junit.runners.Parameterized.Parameter
 
 @RunWith(Parameterized::class)
-class CommonErasedTypeStringTest(combinedParameters: CombinedParameters) :
-    BaseModelTest(combinedParameters.baseParameters) {
+class CommonErasedTypeStringTest : BaseModelTest() {
 
     data class TypeStringParameters(
         val parameters: List<String>,
@@ -53,15 +52,6 @@ class CommonErasedTypeStringTest(combinedParameters: CombinedParameters) :
 
         override fun toString(): String {
             return name
-        }
-    }
-
-    data class CombinedParameters(
-        val baseParameters: TestParameters,
-        val typeStringParameters: TypeStringParameters,
-    ) {
-        override fun toString(): String {
-            return "$baseParameters,$typeStringParameters"
         }
     }
 
@@ -162,15 +152,21 @@ class CommonErasedTypeStringTest(combinedParameters: CombinedParameters) :
                 )
 
         @JvmStatic
-        @Parameterized.Parameters(name = "{0}")
-        fun combinedTestParameters(): Iterable<CombinedParameters> {
-            return testParameters().flatMap { baseParameters ->
-                typeStringParameters.map { CombinedParameters(baseParameters, it) }
-            }
+        @Parameterized.Parameters(name = "{0},{1}")
+        fun combinedTestParameters(): Iterable<Array<Any>> {
+            return crossProduct(typeStringParameters)
         }
     }
 
-    private val parameters = combinedParameters.typeStringParameters
+    /**
+     * Set by injection by [Parameterized] after class initializers are called.
+     *
+     * Anything that accesses this, either directly or indirectly must do it after initialization,
+     * e.g. from lazy fields or in methods called from test methods.
+     *
+     * See [baseParameters] for more info.
+     */
+    @Parameter(1) lateinit var parameters: TypeStringParameters
 
     private fun javaTestFile() =
         java(

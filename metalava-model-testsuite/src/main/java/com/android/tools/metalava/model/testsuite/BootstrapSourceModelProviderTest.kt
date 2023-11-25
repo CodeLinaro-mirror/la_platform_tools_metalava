@@ -35,7 +35,7 @@ import org.junit.runners.Parameterized
  * submitting the changes and then moving on to the next test.
  */
 @RunWith(Parameterized::class)
-class BootstrapSourceModelProviderTest(parameters: TestParameters) : BaseModelTest(parameters) {
+class BootstrapSourceModelProviderTest : BaseModelTest() {
 
     @Test
     fun `010 - check source model provider exists`() {
@@ -584,7 +584,7 @@ class BootstrapSourceModelProviderTest(parameters: TestParameters) : BaseModelTe
     }
 
     @Test
-    fun `190 - test classItem toType`() {
+    fun `180 - test classItem toType`() {
         runSourceCodebaseTest(
             java(
                 """
@@ -644,6 +644,41 @@ class BootstrapSourceModelProviderTest(parameters: TestParameters) : BaseModelTe
             )
             assertEquals("test.pkg.Test1<S>.Test2<T>", testClassType2.toString())
             assertEquals(testClassType1, testClassType2.outerClassType)
+        }
+    }
+
+    @Test
+    fun `190 - test constructors`() {
+        runSourceCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+
+                    public class Test {
+                        public int field;
+                        public Test() {}
+                        public Test(int a) {
+                            field = a;
+                        }
+                        class Test1 {}
+                    }
+                """
+            ),
+        ) { codebase ->
+            val testClass = codebase.assertClass("test.pkg.Test")
+            assertEquals(false, testClass.hasImplicitDefaultConstructor())
+            assertEquals(2, testClass.constructors().count())
+            val constructorItem = testClass.constructors().first()
+            assertEquals("Test", constructorItem.name())
+            assertEquals(testClass.toType(), constructorItem.returnType())
+            assertEquals(false, testClass.hasImplicitDefaultConstructor())
+
+            val testClass1 = codebase.assertClass("test.pkg.Test.Test1")
+            val constructorItem1 = testClass1.constructors().single()
+            assertEquals("Test1", constructorItem1.name())
+            assertEquals("test.pkg.Test.Test1", constructorItem1.returnType().toString())
+            assertEquals(testClass1.toType(), constructorItem1.returnType())
+            assertEquals(true, testClass1.hasImplicitDefaultConstructor())
         }
     }
 }

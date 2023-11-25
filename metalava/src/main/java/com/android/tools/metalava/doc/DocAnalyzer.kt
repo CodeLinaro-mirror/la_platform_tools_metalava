@@ -39,17 +39,12 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.getAttributeValue
-import com.android.tools.metalava.model.psi.PsiClassItem
-import com.android.tools.metalava.model.psi.PsiFieldItem
 import com.android.tools.metalava.model.psi.PsiMethodItem
 import com.android.tools.metalava.model.psi.containsLinkTags
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.options
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
-import com.intellij.psi.PsiClass
-import com.intellij.psi.PsiField
-import com.intellij.psi.PsiMethod
 import java.io.File
 import java.nio.file.Files
 import java.util.regex.Pattern
@@ -702,20 +697,22 @@ class DocAnalyzer(
         codebase.accept(
             object : ApiVisitor(visitConstructorsAsMethods = true) {
                 override fun visitMethod(method: MethodItem) {
-                    val psiMethod = (method as PsiMethodItem).psi()
-                    if (psiMethod.containingClass == null) {
+                    // Do not add API information to implicit constructor. It is not clear exactly
+                    // why this is needed but without it some existing tests break.
+                    // TODO(b/302290849): Investigate this further.
+                    if (method.isImplicitConstructor()) {
                         return
                     }
-                    addApiLevelDocumentation(apiLookup.getMethodVersion(psiMethod), method)
-                    elementToSdkExtSinceMap[
-                            "${psiMethod.containingClass!!.qualifiedName}#${psiMethod.name}"]
-                        ?.let { addApiExtensionsDocumentation(it, method) }
-                    addDeprecatedDocumentation(apiLookup.getMethodDeprecatedIn(psiMethod), method)
+                    addApiLevelDocumentation(apiLookup.getMethodVersion(method), method)
+                    val methodName = method.name()
+                    val key = "${method.containingClass().qualifiedName()}#$methodName"
+                    elementToSdkExtSinceMap[key]?.let { addApiExtensionsDocumentation(it, method) }
+                    addDeprecatedDocumentation(apiLookup.getMethodDeprecatedIn(method), method)
                 }
 
                 override fun visitClass(cls: ClassItem) {
-                    val psiClass = (cls as PsiClassItem).psi()
-                    val since = apiLookup.getClassVersion(psiClass)
+                    val qualifiedName = cls.qualifiedName()
+                    val since = apiLookup.getClassVersion(cls)
                     if (since != -1) {
                         addApiLevelDocumentation(since, cls)
 
@@ -724,19 +721,18 @@ class DocAnalyzer(
                         val pkg = cls.containingPackage()
                         pkgApi[pkg] = min(pkgApi[pkg] ?: Integer.MAX_VALUE, since)
                     }
-                    elementToSdkExtSinceMap["${psiClass.qualifiedName}"]?.let {
+                    elementToSdkExtSinceMap[qualifiedName]?.let {
                         addApiExtensionsDocumentation(it, cls)
                     }
-                    addDeprecatedDocumentation(apiLookup.getClassDeprecatedIn(psiClass), cls)
+                    addDeprecatedDocumentation(apiLookup.getClassDeprecatedIn(cls), cls)
                 }
 
                 override fun visitField(field: FieldItem) {
-                    val psiField = (field as PsiFieldItem).psi()
-                    addApiLevelDocumentation(apiLookup.getFieldVersion(psiField), field)
+                    addApiLevelDocumentation(apiLookup.getFieldVersion(field), field)
                     elementToSdkExtSinceMap[
-                            "${psiField.containingClass!!.qualifiedName}#${psiField.name}"]
+                            "${field.containingClass().qualifiedName()}#${field.name()}"]
                         ?.let { addApiExtensionsDocumentation(it, field) }
-                    addDeprecatedDocumentation(apiLookup.getFieldDeprecatedIn(psiField), field)
+                    addDeprecatedDocumentation(apiLookup.getFieldDeprecatedIn(field), field)
                 }
             }
         )
@@ -857,48 +853,53 @@ fun ApiConstraint.minApiLevel(): Int {
         ?: -1
 }
 
-fun ApiLookup.getClassVersion(cls: PsiClass): Int {
-    val owner = cls.qualifiedName ?: return -1
+fun ApiLookup.getClassVersion(cls: ClassItem): Int {
+    val owner = cls.qualifiedName()
     return getClassVersions(owner).minApiLevel()
 }
 
 val defaultEvaluator = DefaultJavaEvaluator(null, null)
 
-fun ApiLookup.getMethodVersion(method: PsiMethod): Int {
-    val containingClass = method.containingClass ?: return -1
-    val owner = containingClass.qualifiedName ?: return -1
-    val desc =
-        defaultEvaluator.getMethodDescription(method, includeName = false, includeReturn = false)
-    return getMethodVersions(owner, if (method.isConstructor) "<init>" else method.name, desc)
-        .minApiLevel()
+fun ApiLookup.getMethodVersion(method: MethodItem): Int {
+    val containingClass = method.containingClass()
+    val owner = containingClass.qualifiedName()
+    val desc = method.getApiLookupMethodDescription()
+    return getMethodVersions(owner, method.name(), desc).minApiLevel()
 }
 
-fun ApiLookup.getFieldVersion(field: PsiField): Int {
-    val containingClass = field.containingClass ?: return -1
-    val owner = containingClass.qualifiedName ?: return -1
-    return getFieldVersions(owner, field.name).minApiLevel()
+fun ApiLookup.getFieldVersion(field: FieldItem): Int {
+    val containingClass = field.containingClass()
+    val owner = containingClass.qualifiedName()
+    return getFieldVersions(owner, field.name()).minApiLevel()
 }
 
-@Suppress("DEPRECATION")
-fun ApiLookup.getClassDeprecatedIn(cls: PsiClass): Int {
-    val owner = cls.qualifiedName ?: return -1
-    return getClassDeprecatedIn(owner)
+fun ApiLookup.getClassDeprecatedIn(cls: ClassItem): Int {
+    val owner = cls.qualifiedName()
+    return getClassDeprecatedInVersions(owner).minApiLevel()
 }
 
-@Suppress("DEPRECATION")
-fun ApiLookup.getMethodDeprecatedIn(method: PsiMethod): Int {
-    val containingClass = method.containingClass ?: return -1
-    val owner = containingClass.qualifiedName ?: return -1
-    val desc =
-        defaultEvaluator.getMethodDescription(method, includeName = false, includeReturn = false)
-    return getMethodDeprecatedIn(owner, method.name, desc)
+fun ApiLookup.getMethodDeprecatedIn(method: MethodItem): Int {
+    val containingClass = method.containingClass()
+    val owner = containingClass.qualifiedName()
+    val desc = method.getApiLookupMethodDescription() ?: return -1
+    return getMethodDeprecatedInVersions(owner, method.name(), desc).minApiLevel()
 }
 
-@Suppress("DEPRECATION")
-fun ApiLookup.getFieldDeprecatedIn(field: PsiField): Int {
-    val containingClass = field.containingClass ?: return -1
-    val owner = containingClass.qualifiedName ?: return -1
-    return getFieldDeprecatedIn(owner, field.name)
+/** Get the method description suitable for use in [ApiLookup.getMethodVersions]. */
+fun MethodItem.getApiLookupMethodDescription(): String? {
+    val psiMethodItem = this as PsiMethodItem
+    val psiMethod = psiMethodItem.psiMethod
+    return defaultEvaluator.getMethodDescription(
+        psiMethod,
+        includeName = false,
+        includeReturn = false
+    )
+}
+
+fun ApiLookup.getFieldDeprecatedIn(field: FieldItem): Int {
+    val containingClass = field.containingClass()
+    val owner = containingClass.qualifiedName()
+    return getFieldDeprecatedInVersions(owner, field.name()).minApiLevel()
 }
 
 fun getApiLookup(xmlFile: File, cacheDir: File? = null): ApiLookup {

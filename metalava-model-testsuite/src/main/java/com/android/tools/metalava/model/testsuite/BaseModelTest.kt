@@ -29,6 +29,7 @@ import org.junit.rules.TemporaryFolder
 import org.junit.rules.TestRule
 import org.junit.runner.Description
 import org.junit.runners.Parameterized
+import org.junit.runners.Parameterized.Parameter
 import org.junit.runners.model.Statement
 
 /**
@@ -43,22 +44,46 @@ import org.junit.runners.model.Statement
  * separately. If this is an issue then the [ModelSuiteRunner] implementations could all be moved
  * into the same project and run tests against them all at the same time.
  */
-abstract class BaseModelTest(parameters: TestParameters) : Assertions {
+abstract class BaseModelTest : Assertions {
+
+    /**
+     * Set by injection by [Parameterized] after class initializers are called.
+     *
+     * Anything that accesses this, either directly or indirectly must do it after initialization,
+     * e.g. from lazy fields or in methods called from test methods.
+     *
+     * The basic process is that each test class gets given a list of parameters. There are two ways
+     * to do that, through field injection or via constructor. If any fields in the test class
+     * hierarchy are annotated with the [Parameter] annotation then field injection is used,
+     * otherwise they are passed via constructor.
+     *
+     * The [Parameter] specifies the index within the list of parameters of the parameter that
+     * should be inserted into the field. The number of [Parameter] annotated fields must be the
+     * same as the number of parameters in the list and each index within the list must be specified
+     * by exactly one [Parameter].
+     *
+     * The life-cycle of a parameterized test class is as follows:
+     * 1. The test class instance is created.
+     * 2. The parameters are injected into the [Parameter] annotated fields.
+     * 3. Follows the normal test class life-cycle.
+     */
+    @Parameter(0) lateinit var baseParameters: TestParameters
 
     /** The [ModelSuiteRunner] that this test must use. */
-    private val runner = parameters.runner
+    private val runner by lazy { baseParameters.runner }
 
     /**
      * The [InputFormat] of the test files that should be processed by this test. It must ignore all
      * other [InputFormat]s.
      */
-    private val inputFormat = parameters.inputFormat
+    protected val inputFormat by lazy { baseParameters.inputFormat }
 
     @get:Rule val temporaryFolder = TemporaryFolder()
 
-    @get:Rule val baselineTestRule: TestRule = BaselineTestRule(runner)
+    @get:Rule val baselineTestRule: TestRule by lazy { BaselineTestRule(runner) }
 
     companion object {
+        /** Compute the list of [TestParameters] based on the available runners. */
         @JvmStatic
         @Parameterized.Parameters(name = "{0}")
         fun testParameters(): Iterable<TestParameters> {
@@ -75,6 +100,22 @@ abstract class BaseModelTest(parameters: TestParameters) : Assertions {
                 }
             return list
         }
+
+        /**
+         * Compute the cross product of the supplied [data] and the [testParameters].
+         *
+         * This must be called from the parameters method of a parameterized test class that is
+         * parameterized in two dimensions, i.e. the available runners as returned by
+         * [testParameters] and its own custom dimension.
+         *
+         *         @JvmStatic
+         *         @Parameterized.Parameters(name = "{0},{1}")
+         *         fun combinedTestParameters(): Iterable<Array<Any>> {
+         *             return crossProduct(myData)
+         *         }
+         */
+        fun crossProduct(data: Iterable<Any>): List<Array<Any>> =
+            testParameters().flatMap { baseParameters -> data.map { arrayOf(baseParameters, it) } }
     }
 
     /**

@@ -65,6 +65,15 @@ sealed class TurbineTypeItem(
         return unannotatedTypeString()
     }
 
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+
+        return when (other) {
+            is TypeItem -> TypeItem.equalsWithoutSpace(toTypeString(), other.toTypeString())
+            else -> false
+        }
+    }
+
     override fun typeArgumentClasses(): List<ClassItem> = TODO("b/295800205")
 
     /**

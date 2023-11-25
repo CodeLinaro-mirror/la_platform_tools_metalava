@@ -24,11 +24,11 @@ import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.google.turbine.binder.sym.MethodSymbol
 
-class TurbineMethodItem(
+open class TurbineMethodItem(
     override val codebase: Codebase,
     private val methodSymbol: MethodSymbol,
     private val containingClass: TurbineClassItem,
-    private val returnType: TurbineTypeItem,
+    protected var returnType: TurbineTypeItem,
     override val modifiers: TurbineModifierItem,
     private val typeParameters: TypeParameterList
 ) : TurbineItem(codebase, modifiers), MethodItem {

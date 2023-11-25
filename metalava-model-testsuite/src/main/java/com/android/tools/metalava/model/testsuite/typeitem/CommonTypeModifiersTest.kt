@@ -24,7 +24,6 @@ import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.isNullnessAnnotation
 import com.android.tools.metalava.model.testsuite.BaseModelTest
-import com.android.tools.metalava.model.testsuite.TestParameters
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import com.google.common.truth.Truth.assertThat
@@ -33,7 +32,7 @@ import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 
 @RunWith(Parameterized::class)
-class CommonTypeModifiersTest(parameters: TestParameters) : BaseModelTest(parameters) {
+class CommonTypeModifiersTest : BaseModelTest() {
 
     private fun TypeItem.annotationNames(): List<String?> {
         return modifiers.annotations().map { it.qualifiedName }

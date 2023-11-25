@@ -24,7 +24,7 @@ import org.junit.runners.Parameterized
 
 /** Common tests for implementations of [MethodItem]. */
 @RunWith(Parameterized::class)
-class CommonMethodItemTest(parameters: TestParameters) : BaseModelTest(parameters) {
+class CommonMethodItemTest : BaseModelTest() {
 
     @Test
     fun `MethodItem type`() {

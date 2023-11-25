@@ -74,6 +74,9 @@ interface TypeItem {
     /** Array dimensions of this type; for example, for String it's 0 and for String[][] it's 2. */
     @MetalavaApi fun arrayDimensions(): Int = 0
 
+    /** Returns the internal name of the type, as seen in bytecode. */
+    fun internalName(): String
+
     fun asClass(): ClassItem?
 
     fun toSimpleType(): String {
@@ -467,6 +470,11 @@ abstract class DefaultTypeItem : TypeItem {
         return cachedErasedType
     }
 
+    override fun internalName(): String {
+        // Default implementation; PSI subclass is more accurate
+        return toSlashFormat(toErasedTypeString())
+    }
+
     companion object {
         private fun StringBuilder.appendErasedTypeString(type: TypeItem) {
             when (type) {
@@ -485,6 +493,66 @@ abstract class DefaultTypeItem : TypeItem {
                     throw IllegalStateException(
                         "should never visit $type of type ${type.javaClass} while generating erased type string"
                     )
+            }
+        }
+
+        // Copied from doclava1
+        private fun toSlashFormat(typeName: String): String {
+            var name = typeName
+            var dimension = ""
+            while (name.endsWith("[]")) {
+                dimension += "["
+                name = name.substring(0, name.length - 2)
+            }
+
+            val base: String
+            base =
+                when (name) {
+                    "void" -> "V"
+                    "byte" -> "B"
+                    "boolean" -> "Z"
+                    "char" -> "C"
+                    "short" -> "S"
+                    "int" -> "I"
+                    "long" -> "J"
+                    "float" -> "F"
+                    "double" -> "D"
+                    else -> "L" + getInternalName(name) + ";"
+                }
+
+            return dimension + base
+        }
+
+        /**
+         * Computes the internal class name of the given fully qualified class name. For example, it
+         * converts foo.bar.Foo.Bar into foo/bar/Foo$Bar
+         *
+         * @param qualifiedName the fully qualified class name
+         * @return the internal class name
+         */
+        private fun getInternalName(qualifiedName: String): String {
+            if (qualifiedName.indexOf('.') == -1) {
+                return qualifiedName
+            }
+
+            // If class name contains $, it's not an ambiguous inner class name.
+            if (qualifiedName.indexOf('$') != -1) {
+                return qualifiedName.replace('.', '/')
+            }
+            // Let's assume that components that start with Caps are class names.
+            return buildString {
+                var prev: String? = null
+                for (part in qualifiedName.split(".")) {
+                    if (!prev.isNullOrEmpty()) {
+                        if (Character.isUpperCase(prev[0])) {
+                            append('$')
+                        } else {
+                            append('/')
+                        }
+                    }
+                    append(part)
+                    prev = part
+                }
             }
         }
     }
