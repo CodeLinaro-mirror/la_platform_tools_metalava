@@ -26,6 +26,12 @@ import org.junit.runners.Parameterized
 
 private val annotationsList = listOf(systemApiSource, flaggedApiSource, nonNullSource)
 
+private const val FULLY_QUALIFIED_SYSTEM_API_SURFACE_ANNOTATION =
+    "android.annotation.SystemApi(client=android.annotation.SystemApi.Client.PRIVILEGED_APPS)"
+
+private const val FULLY_QUALIFIED_MODULE_LIB_API_SURFACE_ANNOTATION =
+    "android.annotation.SystemApi(client=android.annotation.SystemApi.Client.MODULE_LIBRARIES)"
+
 @RunWith(Parameterized::class)
 class FlaggedApiTest(private val config: Configuration) : DriverTest() {
 
@@ -46,7 +52,20 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
     /** The surfaces that this test will check. */
     enum class Surface(val args: List<String>) {
         PUBLIC(emptyList()),
-        SYSTEM(listOf(ARG_SHOW_ANNOTATION, ANDROID_SYSTEM_API)),
+        SYSTEM(
+            listOf(
+                ARG_SHOW_ANNOTATION,
+                FULLY_QUALIFIED_SYSTEM_API_SURFACE_ANNOTATION,
+            )
+        ),
+        MODULE_LIB(
+            listOf(
+                ARG_SHOW_ANNOTATION,
+                FULLY_QUALIFIED_MODULE_LIB_API_SURFACE_ANNOTATION,
+                ARG_SHOW_FOR_STUB_PURPOSES_ANNOTATION,
+                FULLY_QUALIFIED_SYSTEM_API_SURFACE_ANNOTATION,
+            )
+        ),
     }
 
     /** The different configurations of the flagged API that this test will check. */
@@ -70,6 +89,17 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
             }
     }
 
+    @Suppress("ArrayInDataClass")
+    data class Expectations(
+        val surface: Surface,
+        val flagged: Flagged,
+        val expectedApi: String,
+        val expectedFail: String = "",
+        val expectedIssues: String = "",
+        val expectedStubs: Array<TestFile> = emptyArray(),
+        val expectedStubPaths: Array<String>? = null,
+    )
+
     /**
      * Check the result of generating APIs with and without flagged apis for both public and system
      * API surfaces.
@@ -77,47 +107,13 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
     private fun checkFlaggedApis(
         vararg sourceFiles: TestFile,
         previouslyReleasedApi: String,
-        expectedPublicApi: String,
-        expectedPublicApiMinusFlaggedApi: String,
-        expectedPublicApiMinusFlaggedApiIssues: String = "",
-        expectedSystemApi: String,
-        expectedSystemApiMinusFlaggedApi: String,
-        expectedSystemApiMinusFlaggedApiFail: String = "",
-        expectedSystemApiMinusFlaggedApiIssues: String = "",
+        expectationsList: List<Expectations>,
     ) {
-        data class Expectations(
-            val expectedApi: String,
-            val expectedFail: String = "",
-            val expectedIssues: String = "",
-        )
         val expectations =
-            when (config.surface) {
-                Surface.PUBLIC ->
-                    when (config.flagged) {
-                        Flagged.WITH ->
-                            Expectations(
-                                expectedApi = expectedPublicApi,
-                            )
-                        Flagged.WITHOUT ->
-                            Expectations(
-                                expectedApi = expectedPublicApiMinusFlaggedApi,
-                                expectedIssues = expectedPublicApiMinusFlaggedApiIssues,
-                            )
-                    }
-                Surface.SYSTEM ->
-                    when (config.flagged) {
-                        Flagged.WITH ->
-                            Expectations(
-                                expectedApi = expectedSystemApi,
-                            )
-                        Flagged.WITHOUT ->
-                            Expectations(
-                                expectedApi = expectedSystemApiMinusFlaggedApi,
-                                expectedFail = expectedSystemApiMinusFlaggedApiFail,
-                                expectedIssues = expectedSystemApiMinusFlaggedApiIssues,
-                            )
-                    }
+            expectationsList.singleOrNull {
+                it.surface == config.surface && it.flagged == config.flagged
             }
+                ?: return
 
         check(
             // Enable API linting against the previous API; only report issues in changes to that
@@ -131,6 +127,8 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                     }
                     .toTypedArray(),
             api = expectations.expectedApi,
+            stubFiles = expectations.expectedStubs,
+            stubPaths = expectations.expectedStubPaths,
             expectedFail = expectations.expectedFail,
             expectedIssues = expectations.expectedIssues,
             extraArguments =
@@ -169,38 +167,57 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                       }
                     }
                 """,
-            expectedPublicApi =
-                """
-                    // Signature format: 2.0
-                    package test.pkg {
-                      public class Foo {
-                        ctor public Foo();
-                        method @FlaggedApi("foo/bar") public void flaggedPublicApi();
-                      }
-                    }
-                """,
-            expectedPublicApiMinusFlaggedApi =
-                """
-                    // Signature format: 2.0
-                    package test.pkg {
-                      public class Foo {
-                        ctor public Foo();
-                      }
-                    }
-                """,
-            expectedSystemApi =
-                """
-                    // Signature format: 2.0
-                    package test.pkg {
-                      public class Foo {
-                        method @FlaggedApi("foo/bar") public void flaggedSystemApi();
-                      }
-                    }
-                """,
-            expectedSystemApiMinusFlaggedApi =
-                """
-                    // Signature format: 2.0
-                """,
+            expectationsList =
+                listOf(
+                    Expectations(
+                        Surface.PUBLIC,
+                        Flagged.WITH,
+                        expectedApi =
+                            """
+                                // Signature format: 2.0
+                                package test.pkg {
+                                  public class Foo {
+                                    ctor public Foo();
+                                    method @FlaggedApi("foo/bar") public void flaggedPublicApi();
+                                  }
+                                }
+                            """,
+                    ),
+                    Expectations(
+                        Surface.PUBLIC,
+                        Flagged.WITHOUT,
+                        expectedApi =
+                            """
+                                // Signature format: 2.0
+                                package test.pkg {
+                                  public class Foo {
+                                    ctor public Foo();
+                                  }
+                                }
+                            """,
+                    ),
+                    Expectations(
+                        Surface.SYSTEM,
+                        Flagged.WITH,
+                        expectedApi =
+                            """
+                                // Signature format: 2.0
+                                package test.pkg {
+                                  public class Foo {
+                                    method @FlaggedApi("foo/bar") public void flaggedSystemApi();
+                                  }
+                                }
+                            """,
+                    ),
+                    Expectations(
+                        Surface.SYSTEM,
+                        Flagged.WITHOUT,
+                        expectedApi =
+                            """
+                                // Signature format: 2.0                        
+                            """,
+                    ),
+                ),
         )
     }
 
@@ -243,41 +260,59 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                       }
                     }
                 """,
-            expectedPublicApi =
-                """
-                    // Signature format: 2.0
-                    package test.pkg {
-                      public class Bar {
-                        ctor public Bar();
-                      }
-                      @FlaggedApi("foo/bar") public class Foo {
-                        ctor public Foo();
-                      }
-                    }
-                """,
-            expectedPublicApiMinusFlaggedApi =
-                """
-                    // Signature format: 2.0
-                    package test.pkg {
-                      public class Bar {
-                        ctor public Bar();
-                      }
-                    }
-                """,
-            expectedSystemApi =
-                """
-                    // Signature format: 2.0
-                    package test.pkg {
-                      public class Bar {
-                        method @FlaggedApi("foo/bar") public void flaggedSystemApi(@NonNull test.pkg.Foo);
-                      }
-                    }
-                """,
-            expectedSystemApiMinusFlaggedApi =
-                """
-                    // Signature format: 2.0
-                """,
-            expectedSystemApiMinusFlaggedApiIssues = "",
+            expectationsList =
+                listOf(
+                    Expectations(
+                        Surface.PUBLIC,
+                        Flagged.WITH,
+                        expectedApi =
+                            """
+                                // Signature format: 2.0
+                                package test.pkg {
+                                  public class Bar {
+                                    ctor public Bar();
+                                  }
+                                  @FlaggedApi("foo/bar") public class Foo {
+                                    ctor public Foo();
+                                  }
+                                }
+                            """,
+                    ),
+                    Expectations(
+                        Surface.PUBLIC,
+                        Flagged.WITHOUT,
+                        expectedApi =
+                            """
+                                // Signature format: 2.0
+                                package test.pkg {
+                                  public class Bar {
+                                    ctor public Bar();
+                                  }
+                                }
+                            """,
+                    ),
+                    Expectations(
+                        Surface.SYSTEM,
+                        Flagged.WITH,
+                        expectedApi =
+                            """
+                                // Signature format: 2.0
+                                package test.pkg {
+                                  public class Bar {
+                                    method @FlaggedApi("foo/bar") public void flaggedSystemApi(@NonNull test.pkg.Foo);
+                                  }
+                                }
+                            """,
+                    ),
+                    Expectations(
+                        Surface.SYSTEM,
+                        Flagged.WITHOUT,
+                        expectedApi =
+                            """
+                                // Signature format: 2.0
+                            """,
+                    ),
+                ),
         )
     }
 
@@ -332,49 +367,119 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                       }
                     }
                 """,
-            expectedPublicApi =
-                """
-                    // Signature format: 2.0
-                    package test.pkg {
-                      public class Bar extends test.pkg.Foo {
-                        ctor public Bar();
-                      }
-                      public class Foo {
-                        ctor public Foo();
-                        method @FlaggedApi("foo/bar") public void flaggedMethod();
-                      }
-                    }
-                """,
-            // This should not include flaggedMethod(). As overrides of flagged methods do not need
-            // to themselves be flagged then removing flagged methods should remove the overrides
-            // too.
-            expectedPublicApiMinusFlaggedApi =
-                """
-                    // Signature format: 2.0
-                    package test.pkg {
-                      public class Bar extends test.pkg.Foo {
-                        ctor public Bar();
-                      }
-                      public class Foo {
-                        ctor public Foo();
-                      }
-                    }
-                """,
-            expectedPublicApiMinusFlaggedApiIssues = "",
-            expectedSystemApi =
-                """
-                    // Signature format: 2.0
-                    package test.pkg {
-                      public class Foo {
-                        method @FlaggedApi("foo/bar") public void systemFlaggedMethod();
-                      }
-                    }
-                """,
-            expectedSystemApiMinusFlaggedApi =
-                """
-                    // Signature format: 2.0
-                """,
-            expectedSystemApiMinusFlaggedApiIssues = "",
+            expectationsList =
+                listOf(
+                    Expectations(
+                        Surface.PUBLIC,
+                        Flagged.WITH,
+                        expectedApi =
+                            """
+                                // Signature format: 2.0
+                                package test.pkg {
+                                  public class Bar extends test.pkg.Foo {
+                                    ctor public Bar();
+                                  }
+                                  public class Foo {
+                                    ctor public Foo();
+                                    method @FlaggedApi("foo/bar") public void flaggedMethod();
+                                  }
+                                }
+                            """,
+                    ),
+                    Expectations(
+                        Surface.PUBLIC,
+                        Flagged.WITHOUT,
+                        expectedApi =
+                            """
+                                // Signature format: 2.0
+                                package test.pkg {
+                                  public class Bar extends test.pkg.Foo {
+                                    ctor public Bar();
+                                  }
+                                  public class Foo {
+                                    ctor public Foo();
+                                  }
+                                }
+                            """,
+                    ),
+                    Expectations(
+                        Surface.SYSTEM,
+                        Flagged.WITH,
+                        expectedApi =
+                            """
+                                // Signature format: 2.0
+                                package test.pkg {
+                                  public class Foo {
+                                    method @FlaggedApi("foo/bar") public void systemFlaggedMethod();
+                                  }
+                                }
+                            """,
+                    ),
+                    Expectations(
+                        Surface.SYSTEM,
+                        Flagged.WITHOUT,
+                        expectedApi =
+                            """
+                                // Signature format: 2.0
+                            """,
+                        expectedStubPaths =
+                            arrayOf(
+                                "test/pkg/Bar.java",
+                                "test/pkg/Foo.java",
+                            ),
+                        // Make sure that no flagged API appears in the stubs.
+                        expectedStubs =
+                            arrayOf(
+                                java(
+                                    """
+                                    package test.pkg;
+                                    @SuppressWarnings({"unchecked", "deprecation", "all"})
+                                    public class Bar extends test.pkg.Foo {
+                                    public Bar() { throw new RuntimeException("Stub!"); }
+                                    }
+                                """
+                                ),
+                                java(
+                                    """
+                                    package test.pkg;
+                                    @SuppressWarnings({"unchecked", "deprecation", "all"})
+                                    public class Foo {
+                                    public Foo() { throw new RuntimeException("Stub!"); }
+                                    }
+                                """
+                                ),
+                            ),
+                    ),
+                    Expectations(
+                        Surface.MODULE_LIB,
+                        Flagged.WITHOUT,
+                        expectedApi =
+                            """
+                                // Signature format: 2.0
+                            """,
+                        expectedStubs =
+                            arrayOf(
+                                java(
+                                    """
+                                    package test.pkg;
+                                    @SuppressWarnings({"unchecked", "deprecation", "all"})
+                                    public class Bar extends test.pkg.Foo {
+                                    public Bar() { throw new RuntimeException("Stub!"); }
+                                    }
+                                """
+                                ),
+                                java(
+                                    """
+                                    package test.pkg;
+                                    @SuppressWarnings({"unchecked", "deprecation", "all"})
+                                    public class Foo {
+                                    public Foo() { throw new RuntimeException("Stub!"); }
+                                    }
+                                """
+                                ),
+                            ),
+                    ),
+                ),
         )
     }
 
@@ -393,7 +498,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                      */
                     @FlaggedApi("foo/bar")
                     @SystemApi
-                    public class Foo {
+                    public final class Foo {
                         /**
                          * @hide
                          */
@@ -412,28 +517,87 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                 """
                     // Signature format: 2.0
                 """,
-            expectedPublicApi =
-                """
-                    // Signature format: 2.0
-                """,
-            expectedPublicApiMinusFlaggedApi =
-                """
-                    // Signature format: 2.0
-                """,
-            expectedSystemApi =
-                """
-                    // Signature format: 2.0
-                    package test.pkg {
-                      @FlaggedApi("foo/bar") public class Foo {
-                        ctor public Foo();
-                        method public void method();
-                      }
-                    }
-                """,
-            expectedSystemApiMinusFlaggedApi =
-                """
-                    // Signature format: 2.0
-                """,
+            expectationsList =
+                listOf(
+                    Expectations(
+                        Surface.PUBLIC,
+                        Flagged.WITH,
+                        expectedApi =
+                            """
+                                // Signature format: 2.0
+                            """,
+                    ),
+                    Expectations(
+                        Surface.PUBLIC,
+                        Flagged.WITHOUT,
+                        expectedApi =
+                            """
+                                // Signature format: 2.0
+                            """,
+                    ),
+                    Expectations(
+                        Surface.SYSTEM,
+                        Flagged.WITH,
+                        expectedApi =
+                            """
+                                // Signature format: 2.0
+                                package test.pkg {
+                                  @FlaggedApi("foo/bar") public final class Foo {
+                                    ctor public Foo();
+                                    method public void method();
+                                  }
+                                }
+                            """,
+                        expectedStubPaths =
+                            arrayOf(
+                                "test/pkg/Foo.java",
+                            ),
+                        // Make sure that no flagged API appears in the stubs.
+                        expectedStubs =
+                            arrayOf(
+                                java(
+                                    """
+                                    package test.pkg;
+                                    /**
+                                     * @hide
+                                     */
+                                    @SuppressWarnings({"unchecked", "deprecation", "all"})
+                                    public final class Foo {
+                                    /**
+                                     * @hide
+                                     */
+                                    public Foo() { throw new RuntimeException("Stub!"); }
+                                    /**
+                                     * @hide
+                                     */
+                                    public void method() { throw new RuntimeException("Stub!"); }
+                                    }
+                                """
+                                ),
+                            ),
+                    ),
+                    Expectations(
+                        Surface.SYSTEM,
+                        Flagged.WITHOUT,
+                        expectedApi =
+                            """
+                                // Signature format: 2.0
+                            """,
+                        // Make sure that no stub classes are generated at all.
+                        expectedStubPaths = emptyArray(),
+                    ),
+                    // Check the module lib stubs without flagged apis.
+                    Expectations(
+                        Surface.MODULE_LIB,
+                        Flagged.WITHOUT,
+                        expectedApi =
+                            """
+                                // Signature format: 2.0
+                            """,
+                        // There should be no stubs generated.
+                        expectedStubPaths = emptyArray(),
+                    ),
+                ),
         )
     }
 }

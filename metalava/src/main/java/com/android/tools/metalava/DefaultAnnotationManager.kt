@@ -583,7 +583,11 @@ private class LazyAnnotationInfo(
          * a closer annotation) to be shown.
          */
         val SHOW =
-            Showability(show = ShowOrHide.SHOW, recursive = ShowOrHide.SHOW, forStubsOnly = false)
+            Showability(
+                show = ShowOrHide.SHOW,
+                recursive = ShowOrHide.SHOW,
+                forStubsOnly = ShowOrHide.NO_EFFECT,
+            )
 
         /**
          * The annotation will cause the annotated item (and any enclosed items unless overridden by
@@ -593,7 +597,7 @@ private class LazyAnnotationInfo(
             Showability(
                 show = ShowOrHide.NO_EFFECT,
                 recursive = ShowOrHide.NO_EFFECT,
-                forStubsOnly = true
+                forStubsOnly = ShowOrHide.SHOW,
             )
 
         /** The annotation will cause the annotated item (but not enclosed items) to be shown. */
@@ -601,7 +605,7 @@ private class LazyAnnotationInfo(
             Showability(
                 show = ShowOrHide.SHOW,
                 recursive = ShowOrHide.NO_EFFECT,
-                forStubsOnly = false
+                forStubsOnly = ShowOrHide.NO_EFFECT,
             )
 
         /**
@@ -609,7 +613,11 @@ private class LazyAnnotationInfo(
          * a closer annotation) to not be shown.
          */
         val HIDE =
-            Showability(show = ShowOrHide.HIDE, recursive = ShowOrHide.HIDE, forStubsOnly = false)
+            Showability(
+                show = ShowOrHide.HIDE,
+                recursive = ShowOrHide.HIDE,
+                forStubsOnly = ShowOrHide.NO_EFFECT,
+            )
 
         /**
          * The annotation will cause the annotated item (and any enclosed items unless overridden by
@@ -619,7 +627,7 @@ private class LazyAnnotationInfo(
             Showability(
                 show = ShowOrHide.HIDE_UNSTABLE_API,
                 recursive = ShowOrHide.HIDE_UNSTABLE_API,
-                forStubsOnly = false
+                forStubsOnly = ShowOrHide.HIDE_UNSTABLE_API,
             )
 
         /**

@@ -334,7 +334,7 @@ class ShowAnnotationTest : DriverTest() {
     }
 
     @Test
-    fun `Can't expose item from a hidden parent `() {
+    fun `Can't expose item from a hidden parent`() {
         check(
             sourceFiles =
                 arrayOf(
@@ -379,9 +379,9 @@ class ShowAnnotationTest : DriverTest() {
             showAnnotations = arrayOf("@android.annotation.SystemApi"),
             expectedIssues =
                 """
-                src/test/pkg/Class1.java:8: error: Attempting to unhide method test.pkg.Class1.method1(), but surrounding class test.pkg.Class1 is hidden and should also be annotated with @android.annotation.SystemApi [ShowingMemberInHiddenClass]
-                src/test/pkg/Class1.java:12: error: Attempting to unhide class test.pkg.Class1.InnerClass1, but surrounding class test.pkg.Class1 is hidden and should also be annotated with @android.annotation.SystemApi [ShowingMemberInHiddenClass]
-                src/test/pkg/Class2.java:11: error: Attempting to unhide method test.pkg.Class2.InnerClass2.method2(), but surrounding class test.pkg.Class2.InnerClass2 is hidden and should also be annotated with @android.annotation.SystemApi [ShowingMemberInHiddenClass]
+                    src/test/pkg/Class1.java:8: error: Attempting to unhide method test.pkg.Class1.method1(), but surrounding class test.pkg.Class1 is hidden and should also be annotated with @android.annotation.SystemApi(client=android.annotation.SystemApi.Client.PRIVILEGED_APPS) [ShowingMemberInHiddenClass]
+                    src/test/pkg/Class1.java:12: error: Attempting to unhide class test.pkg.Class1.InnerClass1, but surrounding class test.pkg.Class1 is hidden and should also be annotated with @android.annotation.SystemApi(client=android.annotation.SystemApi.Client.PRIVILEGED_APPS) [ShowingMemberInHiddenClass]
+                    src/test/pkg/Class2.java:11: error: Attempting to unhide method test.pkg.Class2.InnerClass2.method2(), but surrounding class test.pkg.Class2.InnerClass2 is hidden and should also be annotated with @android.annotation.SystemApi(client=android.annotation.SystemApi.Client.PRIVILEGED_APPS) [ShowingMemberInHiddenClass]
                 """,
             expectedFail = DefaultLintErrorMessage,
         )
