@@ -2,9 +2,15 @@ com.android.tools.metalava.model.testsuite.typeitem.CommonTypeModifiersTest
   Test inner parameterized types with annotations[psi,java]
 
 com.android.tools.metalava.model.testsuite.typeitem.CommonTypeParameterItemTest
+  Test method type parameter that references class type parameter[psi,java]
+  Test method type parameter that references class type parameter[psi,kotlin]
+  Test self-referential type parameter[psi,java]
+  Test self-referential type parameter[psi,kotlin]
   Test typeBounds extends Comparable[psi,java]
   Test typeBounds extends Comparable[psi,kotlin]
   Test typeBounds multiple[psi,java]
   Test typeBounds multiple[psi,kotlin]
   Test typeBounds no extends[psi,java]
   Test typeBounds no extends[psi,kotlin]
+  Test type parameters that reference each other[psi,java]
+  Test type parameters that reference each other[psi,kotlin]

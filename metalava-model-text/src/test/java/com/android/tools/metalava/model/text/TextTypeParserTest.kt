@@ -35,6 +35,11 @@ class TextTypeParserTest {
                     .toString()
             )
             .isEqualTo("[T extends java.lang.Comparable<? super T>]")
+        assertThat(
+                TextTypeParser.typeParameterStrings("<java.util.List<java.lang.String>[]>")
+                    .toString()
+            )
+            .isEqualTo("[java.util.List<java.lang.String>[]]")
     }
 
     @Test

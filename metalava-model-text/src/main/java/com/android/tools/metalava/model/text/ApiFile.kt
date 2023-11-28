@@ -571,7 +571,7 @@ private constructor(
         parseParameterList(api, tokenizer, method, typeParams)
         method.setTypeParameterList(typeParameterList)
         if (typeParameterList is TextTypeParameterList) {
-            typeParameterList.owner = method
+            typeParameterList.setOwner(method)
         }
         token = tokenizer.requireToken()
         if ("throws" == token) {
@@ -619,7 +619,7 @@ private constructor(
         }
         method.setTypeParameterList(typeParameterList)
         if (typeParameterList is TextTypeParameterList) {
-            typeParameterList.owner = method
+            typeParameterList.setOwner(method)
         }
         token = tokenizer.requireToken()
         if ("(" != token) {
@@ -1419,7 +1419,13 @@ class ReferenceResolver(
             }
 
             val superclass = getOrCreateClass(scName)
-            cl.setSuperClass(superclass, codebase.typeResolver.obtainTypeFromString(scName))
+            cl.setSuperClass(
+                superclass,
+                codebase.typeResolver.obtainTypeFromString(
+                    scName,
+                    cl.typeParameterList.typeParameters()
+                )
+            )
         }
     }
 
@@ -1428,7 +1434,12 @@ class ReferenceResolver(
             val interfaces = context.namesOfInterfaces(cl) ?: continue
             for (interfaceName in interfaces) {
                 getOrCreateClass(interfaceName, isInterface = true)
-                cl.addInterface(codebase.typeResolver.obtainTypeFromString(interfaceName))
+                cl.addInterface(
+                    codebase.typeResolver.obtainTypeFromString(
+                        interfaceName,
+                        cl.typeParameterList.typeParameters()
+                    )
+                )
             }
         }
     }

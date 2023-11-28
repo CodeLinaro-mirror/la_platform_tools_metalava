@@ -17,6 +17,7 @@
 package com.android.tools.metalava
 
 import com.android.tools.lint.checks.infrastructure.TestFile
+import com.android.tools.metalava.lint.DefaultLintErrorMessage
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.testing.java
 import java.util.Locale
@@ -82,10 +83,12 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
         expectedPublicApiMinusFlaggedApiIssues: String = "",
         expectedSystemApi: String,
         expectedSystemApiMinusFlaggedApi: String,
+        expectedSystemApiMinusFlaggedApiFail: String = "",
         expectedSystemApiMinusFlaggedApiIssues: String = "",
     ) {
         data class Expectations(
             val expectedApi: String,
+            val expectedFail: String = "",
             val expectedIssues: String = "",
         )
         val expectations =
@@ -111,6 +114,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                         Flagged.WITHOUT ->
                             Expectations(
                                 expectedApi = expectedSystemApiMinusFlaggedApi,
+                                expectedFail = expectedSystemApiMinusFlaggedApiFail,
                                 expectedIssues = expectedSystemApiMinusFlaggedApiIssues,
                             )
                     }
@@ -128,6 +132,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                     }
                     .toTypedArray(),
             api = expectations.expectedApi,
+            expectedFail = expectations.expectedFail,
             expectedIssues = expectations.expectedIssues,
             extraArguments =
                 arrayOf(ARG_HIDE_PACKAGE, "android.annotation", "--warning", "UnflaggedApi") +
@@ -386,6 +391,72 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
             expectedSystemApiMinusFlaggedApiIssues =
                 """
                     src/test/pkg/Bar.java:13: warning: New API must be flagged with @FlaggedApi: method test.pkg.Bar.systemFlaggedMethod() [UnflaggedApi]
+                """,
+        )
+    }
+
+    @Test
+    fun `Test that annotated class members are handled correctly when flagged APIs are hidden`() {
+        checkFlaggedApis(
+            java(
+                """
+                    package test.pkg;
+
+                    import android.annotation.FlaggedApi;
+                    import android.annotation.SystemApi;
+
+                    /**
+                     * @hide
+                     */
+                    @FlaggedApi("foo/bar")
+                    @SystemApi
+                    public class Foo {
+                        /**
+                         * @hide
+                         */
+                        @SystemApi
+                        public Foo() {}
+
+                        /**
+                         * @hide
+                         */
+                        @SystemApi
+                        public void method() {}
+                    }
+                """
+            ),
+            previouslyReleasedApi =
+                """
+                    // Signature format: 2.0
+                """,
+            expectedPublicApi =
+                """
+                    // Signature format: 2.0
+                """,
+            expectedPublicApiMinusFlaggedApi =
+                """
+                    // Signature format: 2.0
+                """,
+            expectedSystemApi =
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      @FlaggedApi("foo/bar") public class Foo {
+                        ctor public Foo();
+                        method public void method();
+                      }
+                    }
+                """,
+            expectedSystemApiMinusFlaggedApi =
+                """
+                    // Signature format: 2.0
+                """,
+            // There should be no lint errors or issues.
+            expectedSystemApiMinusFlaggedApiFail = DefaultLintErrorMessage,
+            expectedSystemApiMinusFlaggedApiIssues =
+                """
+                    src/test/pkg/Foo.java:16: error: Attempting to unhide constructor test.pkg.Foo(), but surrounding class test.pkg.Foo is hidden and should also be annotated with @android.annotation.SystemApi [ShowingMemberInHiddenClass]
+                    src/test/pkg/Foo.java:22: error: Attempting to unhide method test.pkg.Foo.method(), but surrounding class test.pkg.Foo is hidden and should also be annotated with @android.annotation.SystemApi [ShowingMemberInHiddenClass]
                 """,
         )
     }

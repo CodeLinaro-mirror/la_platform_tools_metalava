@@ -1,5 +1,4 @@
 com.android.tools.metalava.model.testsuite.BootstrapSourceModelProviderTest
-  060 - check method exists[turbine,java]
   070 - check constructor exists[turbine,java]
 
 com.android.tools.metalava.model.testsuite.CommonClassItemTest
@@ -11,15 +10,8 @@ com.android.tools.metalava.model.testsuite.CommonMethodItemTest
   MethodItem superMethods() on simple method[turbine,java]
   MethodItem type[turbine,java]
 
-com.android.tools.metalava.model.testsuite.annotationitem.CommonAnnotationItemTest
-  annotation with annotation values[turbine,java]
-  annotation with boolean values[turbine,java]
-  annotation with char values[turbine,java]
-  annotation with class values[turbine,java]
-  annotation with number values[turbine,java]
-  annotation with string values[turbine,java]
-
 com.android.tools.metalava.model.testsuite.typeitem.CommonTypeItemTest
+  Test array of type with parameter used as type parameter[turbine,java]
   Test class array types[turbine,java]
   Test class types[turbine,java]
   Test field type variable types[turbine,java]
@@ -30,6 +22,7 @@ com.android.tools.metalava.model.testsuite.typeitem.CommonTypeItemTest
   Test multidimensional primitive array types[turbine,java]
   Test primitive array types[turbine,java]
   Test primitive types[turbine,java]
+  Test superclass and interface types using type variables[turbine,java]
   Test primitive vararg types[turbine,java]
   Test variable types[turbine,java]
   Test wildcard types[turbine,java]
@@ -50,9 +43,12 @@ com.android.tools.metalava.model.testsuite.typeitem.CommonTypeModifiersTest
   Test type-use annotations with multiple allowed targets[turbine,java]
 
 com.android.tools.metalava.model.testsuite.typeitem.CommonTypeParameterItemTest
+  Test method type parameter that references class type parameter[turbine,java]
+  Test self-referential type parameter[turbine,java]
   Test typeBounds extends Comparable[turbine,java]
   Test typeBounds multiple[turbine,java]
   Test typeBounds no extends[turbine,java]
+  Test type parameters that reference each other[turbine,java]
 
 com.android.tools.metalava.model.testsuite.typeitem.CommonTypeStringTest
   Erased type string[turbine,java,String]

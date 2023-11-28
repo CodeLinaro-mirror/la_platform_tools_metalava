@@ -52,8 +52,7 @@ open class TextClassItem(
     init {
         @Suppress("LeakingThis") modifiers.setOwner(this)
         if (typeParameterList is TextTypeParameterList) {
-            @Suppress("LeakingThis")
-            typeParameterList.owner = this
+            @Suppress("LeakingThis") typeParameterList.setOwner(this)
         }
     }
 

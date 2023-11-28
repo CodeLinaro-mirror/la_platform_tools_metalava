@@ -1674,8 +1674,8 @@ class CompatibilityCheckTest : DriverTest() {
             expectedIssues =
                 """
                 src/test/pkg/MyClass.java:5: error: Method test.pkg.MyClass.method1 has changed return type from float to int [ChangedType]
-                src/test/pkg/MyClass.java:6: error: Method test.pkg.MyClass.method2 has changed return type from java.util.List<Number> to java.util.List<java.lang.Integer> [ChangedType]
-                src/test/pkg/MyClass.java:7: error: Method test.pkg.MyClass.method3 has changed return type from java.util.List<Integer> to java.util.List<java.lang.Number> [ChangedType]
+                src/test/pkg/MyClass.java:6: error: Method test.pkg.MyClass.method2 has changed return type from java.util.List<java.lang.Number> to java.util.List<java.lang.Integer> [ChangedType]
+                src/test/pkg/MyClass.java:7: error: Method test.pkg.MyClass.method3 has changed return type from java.util.List<java.lang.Integer> to java.util.List<java.lang.Number> [ChangedType]
                 src/test/pkg/MyClass.java:8: error: Method test.pkg.MyClass.method4 has changed return type from java.lang.String to java.lang.String[] [ChangedType]
                 src/test/pkg/MyClass.java:9: error: Method test.pkg.MyClass.method5 has changed return type from java.lang.String[] to java.lang.String[][] [ChangedType]
                 src/test/pkg/MyClass.java:11: error: Method test.pkg.MyClass.method7 has changed return type from T (extends java.lang.Number) to java.lang.Number [ChangedType]
@@ -1686,8 +1686,8 @@ class CompatibilityCheckTest : DriverTest() {
                 package test.pkg {
                   public abstract class MyClass<T extends Number> {
                       method public float method1();
-                      method public java.util.List<Number> method2();
-                      method public java.util.List<Integer> method3();
+                      method public java.util.List<java.lang.Number> method2();
+                      method public java.util.List<java.lang.Integer> method3();
                       method public String method4();
                       method public String[] method5();
                       method public <X extends java.lang.Throwable> T method6(java.util.function.Supplier<? extends X>);
