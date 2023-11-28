@@ -42,6 +42,7 @@ import com.android.tools.metalava.model.text.TextTypeParameterList.Companion.cre
 import com.android.tools.metalava.model.text.TextTypeParser.Companion.isPrimitive
 import java.io.File
 import java.io.IOException
+import java.io.InputStream
 import java.io.StringReader
 import kotlin.text.Charsets.UTF_8
 
@@ -122,7 +123,7 @@ private constructor(
         }
 
         /** <p>DO NOT MODIFY - used by com/android/gts/api/ApprovedApis.java */
-        @Deprecated("Exists only for external callers. ")
+        @Deprecated("Exists only for external callers.")
         @JvmStatic
         @MetalavaApi
         @Throws(ApiParseException::class)
@@ -135,6 +136,20 @@ private constructor(
                 filename,
                 apiText,
             )
+        }
+
+        /**
+         * Parse the API signature file from the [inputStream].
+         *
+         * This will consume the whole contents of the [inputStream] but it is the caller's
+         * responsibility to close it.
+         */
+        @JvmStatic
+        @MetalavaApi
+        @Throws(ApiParseException::class)
+        fun parseApi(filename: String, inputStream: InputStream): TextCodebase {
+            val apiText = inputStream.bufferedReader().readText()
+            return parseApi(filename, apiText)
         }
 
         /** Entry point for testing. Take a filename and content separately. */

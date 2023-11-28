@@ -55,13 +55,13 @@ interface AnnotationFilter {
 class AnnotationFilterBuilder {
     private val inclusionExpressions = mutableListOf<AnnotationFilterEntry>()
 
-    // Adds the given source as a fully qualified annotation name to match with this filter
+    // Adds the given option as a fully qualified annotation name to match with this filter
     // Can be "androidx.annotation.RestrictTo"
     // Can be "androidx.annotation.RestrictTo(androidx.annotation.RestrictTo.Scope.LIBRARY_GROUP)"
     // Note that the order of calls to this method could affect the return from
     // {@link #firstQualifiedName} .
-    fun add(source: String) {
-        inclusionExpressions.add(AnnotationFilterEntry.fromSource(source))
+    fun add(option: String) {
+        inclusionExpressions.add(AnnotationFilterEntry.fromOption(option))
     }
 
     /** Build the [AnnotationFilter]. */
@@ -180,6 +180,10 @@ private class AnnotationFilterEntry(
     companion object {
         fun fromSource(source: String): AnnotationFilterEntry {
             val text = source.replace("@", "")
+            return fromOption(text)
+        }
+
+        fun fromOption(text: String): AnnotationFilterEntry {
             val index = text.indexOf("(")
 
             val qualifiedName =

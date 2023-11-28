@@ -26,6 +26,16 @@ import org.junit.Test
 class ApiFileTest : Assertions {
 
     @Test
+    fun `Test parse from InputStream`() {
+        val fileName = "test-api.txt"
+        val codebase =
+            javaClass.getResourceAsStream(fileName)!!.use { inputStream ->
+                ApiFile.parseApi(fileName, inputStream)
+            }
+        codebase.assertClass("test.pkg.Foo")
+    }
+
+    @Test
     fun `Test known Throwable`() {
         val codebase =
             ApiFile.parseApi(
