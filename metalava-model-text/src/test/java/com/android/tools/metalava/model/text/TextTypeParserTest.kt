@@ -44,6 +44,27 @@ class TextTypeParserTest : Assertions {
     }
 
     @Test
+    fun `Test type parameter strings with annotations`() {
+        assertThat(
+                TextTypeParser.typeParameterStrings(
+                    "<java.lang.@androidx.annotation.IntRange(from=5,to=10) Integer>"
+                )
+            )
+            .containsExactly("java.lang.@androidx.annotation.IntRange(from=5,to=10) Integer")
+        assertThat(TextTypeParser.typeParameterStrings("<@test.pkg.C String>"))
+            .containsExactly("@test.pkg.C String")
+        assertThat(
+                TextTypeParser.typeParameterStrings(
+                    "<java.lang.@androidx.annotation.IntRange(from=5,to=10) Integer, @test.pkg.C String>"
+                )
+            )
+            .containsExactly(
+                "java.lang.@androidx.annotation.IntRange(from=5,to=10) Integer",
+                "@test.pkg.C String"
+            )
+    }
+
+    @Test
     fun `Test type parameter strings with remainder`() {
         assertThat(TextTypeParser.typeParameterStringsWithRemainder(null))
             .isEqualTo(Pair(emptyList<String>(), null))
@@ -347,6 +368,19 @@ class TextTypeParserTest : Assertions {
             original = "Outer.Inner<P2>",
             expectedClassName = "Outer",
             expectedParams = ".Inner<P2>",
+            expectedAnnotations = emptyList()
+        )
+        testClassAnnotations(
+            original = "java.lang.@androidx.annotation.IntRange(from=5,to=10) Integer",
+            expectedClassName = "java.lang.Integer",
+            expectedParams = null,
+            expectedAnnotations = listOf("@androidx.annotation.IntRange(from=5,to=10)")
+        )
+        testClassAnnotations(
+            original =
+                "java.util.List<java.lang.@androidx.annotation.IntRange(from=5,to=10) Integer>",
+            expectedClassName = "java.util.List",
+            expectedParams = "<java.lang.@androidx.annotation.IntRange(from=5,to=10) Integer>",
             expectedAnnotations = emptyList()
         )
     }

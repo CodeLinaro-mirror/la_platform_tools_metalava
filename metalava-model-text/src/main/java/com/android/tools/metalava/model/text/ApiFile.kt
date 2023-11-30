@@ -356,7 +356,7 @@ private constructor(
         cl.setContainingPackage(pkg)
         cl.deprecated = modifiers.isDeprecated()
         if ("extends" == token && !isInterface) {
-            token = tokenizer.requireToken()
+            token = getAnnotationCompleteToken(tokenizer, tokenizer.requireToken())
             var superClassName = token
             // Make sure full super class name is found if there are type use annotations.
             // This can't use [parseType] because the next token might be a separate type (classes
@@ -365,30 +365,32 @@ private constructor(
             // However, this type cannot be an array, so unlike [parseType] this does not need to
             // check if the next token has annotations.
             while (isIncompleteTypeToken(token)) {
-                token = tokenizer.requireToken()
+                token = getAnnotationCompleteToken(tokenizer, tokenizer.current)
                 superClassName += " $token"
             }
             ext = superClassName
-            token = tokenizer.requireToken()
+            token = tokenizer.current
         }
         if ("implements" == token || "extends" == token) {
             token = tokenizer.requireToken()
             while (true) {
-                var interfaceName = token
                 if ("{" == token) {
                     break
                 } else if ("," != token) {
+                    var interfaceName = getAnnotationCompleteToken(tokenizer, token)
                     // Make sure full interface name is found if there are type use annotations.
                     // This can't use [parseType] because the next token might be a separate type.
                     // However, this type cannot be an array, so unlike [parseType] this does not
                     // need to check if the next token has annotations.
                     while (isIncompleteTypeToken(token)) {
-                        token = tokenizer.requireToken()
+                        token = getAnnotationCompleteToken(tokenizer, tokenizer.current)
                         interfaceName += " $token"
                     }
                     mapClassToInterface(cl, interfaceName)
+                    token = tokenizer.current
+                } else {
+                    token = tokenizer.requireToken()
                 }
-                token = tokenizer.requireToken()
             }
         }
         if (JAVA_LANG_ENUM == ext) {
@@ -506,39 +508,80 @@ private constructor(
         return type
     }
 
-    private fun getAnnotations(tokenizer: Tokenizer, startingToken: String): MutableList<String> {
-        var token = startingToken
-        val annotations: MutableList<String> = mutableListOf()
-        while (true) {
-            if (token.startsWith("@")) {
-                // Annotation
-                var annotation = token
+    /**
+     * If the [startingToken] contains the beginning of an annotation, pulls additional tokens from
+     * [tokenizer] to complete the annotation, returning the full token. If there isn't an
+     * annotation, returns the original [startingToken].
+     *
+     * When the method returns, the [tokenizer] will point to the token after the end of the
+     * returned string.
+     */
+    private fun getAnnotationCompleteToken(tokenizer: Tokenizer, startingToken: String): String {
+        return if (startingToken.contains('@')) {
+            val prefix = startingToken.substringBefore('@')
+            val annotationStart = startingToken.substring(startingToken.indexOf('@'))
+            val annotation = getAnnotation(tokenizer, annotationStart)
+            "$prefix$annotation"
+        } else {
+            tokenizer.requireToken()
+            startingToken
+        }
+    }
 
-                // Restore annotations that were shortened on export
-                annotation = unshortenAnnotation(annotation)
-                token = tokenizer.requireToken()
-                if (token == "(") {
-                    // Annotation arguments; potentially nested
-                    var balance = 0
-                    val start = tokenizer.offset() - 1
-                    while (true) {
-                        if (token == "(") {
-                            balance++
-                        } else if (token == ")") {
-                            balance--
-                            if (balance == 0) {
-                                break
-                            }
+    /**
+     * If the [startingToken] is the beginning of an annotation, returns the annotation parsed from
+     * the [tokenizer]. Returns null otherwise.
+     *
+     * When the method returns, the [tokenizer] will point to the token after the annotation.
+     */
+    private fun getAnnotation(tokenizer: Tokenizer, startingToken: String): String? {
+        var token = startingToken
+        if (token.startsWith('@')) {
+            // Annotation
+            var annotation = token
+
+            // Restore annotations that were shortened on export
+            annotation = unshortenAnnotation(annotation)
+            token = tokenizer.requireToken()
+            if (token == "(") {
+                // Annotation arguments; potentially nested
+                var balance = 0
+                val start = tokenizer.offset() - 1
+                while (true) {
+                    if (token == "(") {
+                        balance++
+                    } else if (token == ")") {
+                        balance--
+                        if (balance == 0) {
+                            break
                         }
-                        token = tokenizer.requireToken()
                     }
-                    annotation += tokenizer.getStringFromOffset(start)
                     token = tokenizer.requireToken()
                 }
-                annotations.add(annotation)
-            } else {
-                break
+                annotation += tokenizer.getStringFromOffset(start)
+                // Move the tokenizer so that when the method returns it points to the token after
+                // the end of the annotation.
+                tokenizer.requireToken()
             }
+            return annotation
+        } else {
+            return null
+        }
+    }
+
+    /**
+     * Collects all the sequential annotations from the [tokenizer] beginning with [startingToken],
+     * returning them as a (possibly empty) mutable list.
+     *
+     * When the method returns, the [tokenizer] will point to the token after the annotation list.
+     */
+    private fun getAnnotations(tokenizer: Tokenizer, startingToken: String): MutableList<String> {
+        val annotations: MutableList<String> = mutableListOf()
+        var token = startingToken
+        while (true) {
+            val annotation = getAnnotation(tokenizer, token) ?: break
+            token = tokenizer.current
+            annotations.add(annotation)
         }
         return annotations
     }
@@ -1178,18 +1221,19 @@ private constructor(
         typeParameters: List<TypeParameterItem>,
         annotations: MutableList<String>
     ): TextTypeItem {
-        var type = startingToken
-        var prev = type
-        var token = tokenizer.requireToken()
+        var prev = getAnnotationCompleteToken(tokenizer, startingToken)
+        var type = prev
+        var token = tokenizer.current
         // Look both at the last used token and the next one:
         // If the last token has annotations, the type string was broken up by annotations, and the
         // next token is also part of the type.
         // If the next token has annotations, this is an array type like "Foo @A []", so the next
         // token is part of the type.
         while (isIncompleteTypeToken(prev) || isIncompleteTypeToken(token)) {
+            token = getAnnotationCompleteToken(tokenizer, token)
             type += " $token"
             prev = token
-            token = tokenizer.requireToken()
+            token = tokenizer.current
         }
 
         // TODO: this should be handled by [obtainTypeFromString]

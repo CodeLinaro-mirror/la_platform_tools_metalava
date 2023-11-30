@@ -351,7 +351,16 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
             // from those. This is useful for modularizing the main SDK stubs without having to
             // add a separate module SDK artifact for sdk constants.
             "android.annotation.SdkConstant" -> return ANNOTATION_SDK_STUBS_ONLY
-            ANDROID_FLAGGED_API -> return ANNOTATION_SIGNATURE_ONLY
+            ANDROID_FLAGGED_API ->
+                // If FlaggedApi annotations are hidden in general then do not output them at all.
+                // This means that if some FlaggedApi annotations with specific flags are not hidden
+                // then the annotations will not be written out to the signature files. That is
+                // expected as those APIs are intended to be released.
+                if (config.hideAnnotations.matchesAnnotationName(ANDROID_FLAGGED_API)) {
+                    return NO_ANNOTATION_TARGETS
+                } else {
+                    return ANNOTATION_SIGNATURE_ONLY
+                }
 
             // Skip known annotations that we (a) never want in external annotations and (b) we
             // are

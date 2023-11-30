@@ -665,7 +665,8 @@ internal class TextTypeParser(val codebase: TextCodebase) {
             var balance = 0
             var expect = false
             var start = 0
-            for (i in s.indices) {
+            var i = 0
+            while (i < s.length) {
                 val c = s[i]
                 if (c == '<') {
                     balance++
@@ -688,10 +689,20 @@ internal class TextTypeParser(val codebase: TextCodebase) {
                         } else {
                             false
                         }
-                } else if (expect && balance == 1) {
-                    start = i
-                    expect = false
+                } else {
+                    // This is the start of a parameter
+                    if (expect && balance == 1) {
+                        start = i
+                        expect = false
+                    }
+
+                    if (c == '@') {
+                        // Skip the entire text of the annotation
+                        i = findAnnotationEnd(typeString, i + 1)
+                        continue
+                    }
                 }
+                i++
             }
             return Pair(list, null)
         }

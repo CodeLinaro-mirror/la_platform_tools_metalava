@@ -67,7 +67,7 @@ sealed class PsiTypeItem(
     open val codebase: PsiBasedCodebase,
     open val psiType: PsiType,
     override val modifiers: TypeModifiers = PsiTypeModifiers.create(codebase, psiType)
-) : DefaultTypeItem() {
+) : DefaultTypeItem(codebase) {
     private var toString: String? = null
     private var toAnnotatedString: String? = null
     private var asClass: PsiClassItem? = null
@@ -82,6 +82,10 @@ sealed class PsiTypeItem(
         context: Item?,
         filter: Predicate<Item>?
     ): String {
+        if (!kotlinStyleNulls) {
+            return super.toTypeString(annotations, kotlinStyleNulls, context, filter)
+        }
+
         if (filter != null) {
             // No caching when specifying filter.
             // TODO: When we support type use annotations, here we need to deal with markRecent
@@ -823,6 +827,9 @@ class PsiClassTypeItem(
                 create(codebase, psiOuterClassType) as ClassTypeItem
             }
         }
+    // This should be able to use `psiType.name`, but that sometimes returns null when run on the
+    // AndroidX codebase.
+    override val className: String = ClassTypeItem.computeClassName(qualifiedName)
 }
 
 /** A [PsiTypeItem] backed by a [PsiClassType] that represents a type variable.e */

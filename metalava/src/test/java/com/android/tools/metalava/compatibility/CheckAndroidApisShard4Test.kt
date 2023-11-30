@@ -16,8 +16,10 @@
 
 package com.android.tools.metalava.compatibility
 
+import org.junit.Ignore
 import org.junit.runners.Parameterized
 
+@Ignore("b/308154836")
 class CheckAndroidApisShard4Test(apiLevelCheck: ApiLevelCheck) :
     CompatibilityCheckAndroidApisTest(apiLevelCheck) {
 

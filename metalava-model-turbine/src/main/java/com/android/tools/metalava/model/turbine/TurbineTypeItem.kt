@@ -35,7 +35,7 @@ import java.util.function.Predicate
 sealed class TurbineTypeItem(
     open val codebase: Codebase,
     override val modifiers: TypeModifiers,
-) : DefaultTypeItem() {
+) : DefaultTypeItem(codebase) {
 
     override fun toString(): String {
         return toTypeString()
@@ -58,11 +58,11 @@ sealed class TurbineTypeItem(
         context: Item?,
         filter: Predicate<Item>?,
     ): String {
-        if (annotations) {
-            TODO("b/295800205")
+        if (!kotlinStyleNulls) {
+            return super.toTypeString(annotations, kotlinStyleNulls, context, filter)
         }
 
-        return unannotatedTypeString()
+        TODO("b/295800205")
     }
 
     override fun equals(other: Any?): Boolean {
@@ -75,39 +75,20 @@ sealed class TurbineTypeItem(
     }
 
     override fun typeArgumentClasses(): List<ClassItem> = TODO("b/295800205")
-
-    /**
-     * Same as toTypeString(false,false,false,false,null,null). The logic will be handled by the
-     * subclasses
-     */
-    abstract fun unannotatedTypeString(): String
 }
 
 class TurbinePrimitiveTypeItem(
     override val codebase: Codebase,
     override val modifiers: TypeModifiers,
     override val kind: Primitive,
-) : PrimitiveTypeItem, TurbineTypeItem(codebase, modifiers) {
-    override fun unannotatedTypeString(): String = kind.primitiveName
-}
+) : PrimitiveTypeItem, TurbineTypeItem(codebase, modifiers)
 
 class TurbineArrayTypeItem(
     override val codebase: Codebase,
     override val modifiers: TypeModifiers,
     override val componentType: TurbineTypeItem,
     override val isVarargs: Boolean,
-) : ArrayTypeItem, TurbineTypeItem(codebase, modifiers) {
-    override fun unannotatedTypeString(): String {
-        val sb = StringBuilder()
-        sb.append(componentType.unannotatedTypeString())
-        if (isVarargs) {
-            sb.append("...")
-        } else {
-            sb.append("[]")
-        }
-        return sb.toString()
-    }
-}
+) : ArrayTypeItem, TurbineTypeItem(codebase, modifiers)
 
 class TurbineClassTypeItem(
     override val codebase: Codebase,
@@ -116,34 +97,7 @@ class TurbineClassTypeItem(
     override val parameters: List<TurbineTypeItem>,
     override val outerClassType: TurbineClassTypeItem?,
 ) : ClassTypeItem, TurbineTypeItem(codebase, modifiers) {
-    override fun unannotatedTypeString(): String {
-        val sb = StringBuilder()
-
-        // For inner class fully qualified name of outer class and simple name of inner class will
-        // be used
-        if (outerClassType != null) {
-            sb.append(outerClassType.unannotatedTypeString())
-            sb.append(".")
-            val simpleName = qualifiedName.substring(qualifiedName.lastIndexOf('.') + 1)
-            sb.append(simpleName)
-        } else {
-            sb.append(qualifiedName)
-        }
-
-        if (!parameters.isEmpty()) {
-            sb.append("<")
-            var first = true
-            for (parameter in parameters) {
-                if (!first) {
-                    sb.append(",")
-                }
-                sb.append(parameter.unannotatedTypeString())
-                first = false
-            }
-            sb.append(">")
-        }
-        return sb.toString()
-    }
+    override val className: String = ClassTypeItem.computeClassName(qualifiedName)
 }
 
 class TurbineVariableTypeItem(
@@ -153,8 +107,6 @@ class TurbineVariableTypeItem(
 ) : VariableTypeItem, TurbineTypeItem(codebase, modifiers) {
     override val name: String = symbol.name()
     override val asTypeParameter: TypeParameterItem by lazy { codebase.findTypeParameter(symbol) }
-
-    override fun unannotatedTypeString() = name
 }
 
 class TurbineWildcardTypeItem(
@@ -162,22 +114,4 @@ class TurbineWildcardTypeItem(
     override val modifiers: TypeModifiers,
     override val extendsBound: TurbineTypeItem?,
     override val superBound: TurbineTypeItem?,
-) : WildcardTypeItem, TurbineTypeItem(codebase, modifiers) {
-
-    override fun unannotatedTypeString(): String {
-        val result =
-            StringBuilder().apply {
-                append("?")
-                extendsBound?.let {
-                    append(" extends ")
-                    append(it.unannotatedTypeString())
-                }
-                superBound?.let {
-                    append(" super ")
-                    append(it.unannotatedTypeString())
-                }
-            }
-
-        return result.toString()
-    }
-}
+) : WildcardTypeItem, TurbineTypeItem(codebase, modifiers)

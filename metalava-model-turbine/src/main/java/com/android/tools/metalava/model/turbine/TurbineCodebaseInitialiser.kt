@@ -90,8 +90,6 @@ open class TurbineCodebaseInitialiser(
      * hierarchies using the binder's output
      */
     fun initialize() {
-        codebase.initialize()
-
         // Bind the units
         try {
             val procInfo =

@@ -31,7 +31,7 @@ import com.android.tools.metalava.model.WildcardTypeItem
 import java.util.function.Predicate
 
 sealed class TextTypeItem(open val codebase: TextCodebase, open val type: String) :
-    DefaultTypeItem() {
+    DefaultTypeItem(codebase) {
     override fun toString(): String = type
 
     override fun toTypeString(
@@ -40,6 +40,10 @@ sealed class TextTypeItem(open val codebase: TextCodebase, open val type: String
         context: Item?,
         filter: Predicate<Item>?
     ): String {
+        if (!kotlinStyleNulls) {
+            return super.toTypeString(annotations, kotlinStyleNulls, context, filter)
+        }
+
         val typeString = toTypeString(type, annotations)
 
         if (kotlinStyleNulls && this !is PrimitiveTypeItem && context != null) {
@@ -268,7 +272,9 @@ internal class TextClassTypeItem(
     override val parameters: List<TypeItem>,
     override val outerClassType: ClassTypeItem?,
     override val modifiers: TypeModifiers
-) : ClassTypeItem, TextTypeItem(codebase, type)
+) : ClassTypeItem, TextTypeItem(codebase, type) {
+    override val className: String = ClassTypeItem.computeClassName(qualifiedName)
+}
 
 /** A [VariableTypeItem] parsed from a signature file. */
 internal class TextVariableTypeItem(

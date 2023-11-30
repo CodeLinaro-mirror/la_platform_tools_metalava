@@ -44,8 +44,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
 
         override fun toString(): String {
             val surfaceText = surface.name.lowercase(Locale.US)
-            val prepositionText = flagged.name.lowercase(Locale.US)
-            return "$surfaceText $prepositionText flagged api"
+            return "$surfaceText ${flagged.text}"
         }
     }
 
@@ -69,9 +68,22 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
     }
 
     /** The different configurations of the flagged API that this test will check. */
-    enum class Flagged(val args: List<String>) {
-        WITH(emptyList()),
-        WITHOUT(listOf(ARG_HIDE_ANNOTATION, ANDROID_FLAGGED_API))
+    enum class Flagged(val text: String, val args: List<String>) {
+        /** Represents an API with all flagged APIs. */
+        WITH("with flagged api", emptyList()),
+
+        /** Represents an API without any flagged APIs. */
+        WITHOUT("without  flagged api", listOf(ARG_HIDE_ANNOTATION, ANDROID_FLAGGED_API)),
+
+        /**
+         * Represents an API without flagged APIs apart from those flagged APIs that are part of
+         * feature `foo/bar`.
+         */
+        WITHOUT_APART_FROM_FOO_BAR_APIS(
+            "without flagged api, with foo/bar",
+            WITHOUT.args +
+                listOf(ARG_HIDE_ANNOTATION, """!android.annotation.FlaggedApi("foo/bar")""")
+        ),
     }
 
     companion object {
@@ -109,11 +121,39 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
         previouslyReleasedApi: String,
         expectationsList: List<Expectations>,
     ) {
-        val expectations =
-            expectationsList.singleOrNull {
+        val transformedExpectationsList =
+            expectationsList.flatMap {
+                // All Expectations with flagged APIs are identical to the Expectations without
+                // flagged APIs apart from those for feature flag `foo/bar`. So, this adds
+                // additional Expectations without flagged APIs but with flagged APIs for feature
+                // flag `foo/bar` flagged API that are identical to the "with flagged APIs" except
+                // with for the expectedApi which does not include `@FlaggedApi` annotations.
+                if (it.flagged == Flagged.WITH) {
+                    listOf(
+                        it,
+                        it.copy(
+                            flagged = Flagged.WITHOUT_APART_FROM_FOO_BAR_APIS,
+                            expectedApi =
+                                it.expectedApi.replace("""@FlaggedApi\([^)]+\) """.toRegex(), "")
+                        ),
+                    )
+                } else {
+                    listOf(it)
+                }
+            }
+
+        val filterExpectations =
+            transformedExpectationsList.filter {
                 it.surface == config.surface && it.flagged == config.flagged
             }
-                ?: return
+        // singleOrNull will return null if called on a list with more than one item
+        // which would ignore what is an error so check that explicitly first.
+        if (filterExpectations.size > 1) {
+            throw IllegalStateException(
+                "Found ${filterExpectations.size} expectations that match config"
+            )
+        }
+        val expectations = filterExpectations.singleOrNull() ?: return
 
         check(
             // Enable API linting against the previous API; only report issues in changes to that

@@ -7,8 +7,6 @@ com.android.tools.metalava.model.testsuite.CommonClassItemTest
   Test interface no extends list[turbine,java]
   empty class[turbine,java]
 
-com.android.tools.metalava.model.testsuite.CommonMethodItemTest
-
 com.android.tools.metalava.model.testsuite.packageitem.CommonPackageItemTest
   Test @hide in package html[turbine,java]
   Test @hide in package info[turbine,java]
@@ -16,6 +14,9 @@ com.android.tools.metalava.model.testsuite.packageitem.CommonPackageItemTest
 com.android.tools.metalava.model.testsuite.typeitem.CommonInternalNameTest
   test[turbine,java,pkg.UnknownClass.Inner]
   test[turbine,java,pkg.UnknownClass]
+
+com.android.tools.metalava.model.testsuite.typeitem.CommonTypeItemTest
+  check TypeItem asClass()[turbine,java]
 
 com.android.tools.metalava.model.testsuite.typeitem.CommonTypeModifiersTest
   Test annotated array types in multiple contexts[turbine,java]
@@ -31,40 +32,30 @@ com.android.tools.metalava.model.testsuite.typeitem.CommonTypeStringTest
   Type string[turbine,java,T - kotlin nulls]
   Type string[turbine,java,annotated integer list - annotated and kotlin nulls]
   Type string[turbine,java,annotated integer list - annotated with negative filter and kotlin nulls]
-  Type string[turbine,java,annotated integer list - annotated with negative filter]
-  Type string[turbine,java,annotated integer list - annotated with positive filter]
-  Type string[turbine,java,annotated integer list - annotated]
   Type string[turbine,java,annotated integer list - kotlin nulls]
-  Type string[turbine,java,annotated primitive - annotated]
-  Type string[turbine,java,extends number to super number map - default]
+  Type string[turbine,java,annotated multi-dimensional array - annotated]
+  Type string[turbine,java,annotated primitive - kotlin nulls]
   Type string[turbine,java,extends number to super number map - kotlin nulls]
   Type string[turbine,java,extends string list - kotlin nulls]
   Type string[turbine,java,inner class type - kotlin nulls]
   Type string[turbine,java,int array - kotlin nulls]
   Type string[turbine,java,int array list - kotlin nulls]
+  Type string[turbine,java,int varargs - kotlin nulls]
   Type string[turbine,java,multiple annotations integer list - annotated and kotlin nulls with filter]
   Type string[turbine,java,multiple annotations integer list - annotated and kotlin nulls]
-  Type string[turbine,java,multiple annotations integer list - annotated with filter]
-  Type string[turbine,java,multiple annotations integer list - annotated]
   Type string[turbine,java,multiple annotations integer list - kotlin nulls]
   Type string[turbine,java,null annotated T - annotated and kotlin nulls]
-  Type string[turbine,java,null annotated T - annotated]
+  Type string[turbine,java,null annotated T - kotlin nulls]
   Type string[turbine,java,null annotated extends T collection - annotated and kotlin nulls]
-  Type string[turbine,java,null annotated extends T collection - annotated]
   Type string[turbine,java,null annotated extends T collection - kotlin nulls]
-  Type string[turbine,java,null annotated parameterized inner type - annotated]
   Type string[turbine,java,null annotated parameterized inner type - kotlin nulls]
   Type string[turbine,java,null annotated string - annotated and kotlin nulls]
-  Type string[turbine,java,null annotated string - annotated]
   Type string[turbine,java,null annotated string - kotlin nulls]
   Type string[turbine,java,null annotated string array - annotated and kotlin nulls]
-  Type string[turbine,java,null annotated string array - annotated]
   Type string[turbine,java,null annotated string array - kotlin nulls]
   Type string[turbine,java,null annotated string list - annotated and kotlin nulls]
-  Type string[turbine,java,null annotated string list - annotated]
   Type string[turbine,java,null annotated string list - kotlin nulls]
   Type string[turbine,java,null annotated string varargs - annotated and kotlin nulls]
-  Type string[turbine,java,null annotated string varargs - annotated]
   Type string[turbine,java,null annotated string varargs - kotlin nulls]
   Type string[turbine,java,number - kotlin nulls]
   Type string[turbine,java,parameterized inner type - kotlin nulls]
@@ -73,4 +64,3 @@ com.android.tools.metalava.model.testsuite.typeitem.CommonTypeStringTest
   Type string[turbine,java,string list - kotlin nulls]
   Type string[turbine,java,string to number map - kotlin nulls]
   Type string[turbine,java,string varargs - kotlin nulls]
-  Type string[turbine,java,super T comparable]

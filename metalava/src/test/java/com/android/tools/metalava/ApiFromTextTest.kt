@@ -208,7 +208,7 @@ class ApiFromTextTest : DriverTest() {
                 package test.pkg {
                   public class MyTest {
                     method public static codePointAt(_: char @NonNull [], _: int): int;
-                    method @NonNull public entrySet(): java.util.Set<java.util.Map.@NonNull Entry<K,V>>;
+                    method @NonNull public <K,V> entrySet(): java.util.Set<java.util.Map.@NonNull Entry<K,V>>;
                     method @NonNull public getAnnotations(): java.lang.annotation.@NonNull Annotation @NonNull [];
                     method @NonNull public abstract getParameterAnnotations(): java.lang.annotation.@NonNull Annotation @NonNull [] @NonNull [];
                     method @NonNull public split(@NonNull _: String, _: int): @NonNull String @NonNull [];
@@ -222,7 +222,7 @@ class ApiFromTextTest : DriverTest() {
                 package test.pkg {
                   public class MyTest {
                     method public static int codePointAt(char[], int);
-                    method @NonNull public java.util.Set<java.util.Map.Entry<K,V>> entrySet();
+                    method @NonNull public <K,V> java.util.Set<java.util.Map.Entry<K,V>> entrySet();
                     method @NonNull public java.lang.annotation.Annotation[] getAnnotations();
                     method @NonNull public abstract java.lang.annotation.Annotation[][] getParameterAnnotations();
                     method @NonNull public String[] split(@NonNull String, int);

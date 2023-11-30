@@ -459,9 +459,35 @@ interface TypeItem {
     }
 }
 
-abstract class DefaultTypeItem : TypeItem {
+abstract class DefaultTypeItem(private val codebase: Codebase) : TypeItem {
 
+    private lateinit var cachedDefaultType: String
     private lateinit var cachedErasedType: String
+
+    override fun toTypeString(
+        annotations: Boolean,
+        kotlinStyleNulls: Boolean,
+        context: Item?,
+        filter: Predicate<Item>?
+    ): String {
+        return toTypeString(
+            TypeStringConfiguration(codebase, annotations, kotlinStyleNulls, filter)
+        )
+    }
+
+    private fun toTypeString(configuration: TypeStringConfiguration): String {
+        // Cache the default type string. Other configurations are less likely to be reused.
+        return if (configuration.isDefault) {
+            if (!::cachedDefaultType.isInitialized) {
+                cachedDefaultType = buildString {
+                    appendTypeString(this@DefaultTypeItem, configuration)
+                }
+            }
+            cachedDefaultType
+        } else {
+            buildString { appendTypeString(this@DefaultTypeItem, configuration) }
+        }
+    }
 
     override fun toErasedTypeString(): String {
         if (!::cachedErasedType.isInitialized) {
@@ -476,6 +502,159 @@ abstract class DefaultTypeItem : TypeItem {
     }
 
     companion object {
+        /**
+         * Configuration options for how to represent a type as a string.
+         *
+         * @param codebase The codebase the type is in.
+         * @param annotations Whether to include annotations on the type.
+         * @param kotlinStyleNulls Whether to represent nullability with Kotlin-style suffixes: `?`
+         *   for nullable, no suffix for non-null, and `!` for platform nullability. For example,
+         *   the Java type `@Nullable List<String>` would be represented as `List<String!>?`.
+         * @param filter A filter to apply to the type annotations, if any.
+         */
+        private data class TypeStringConfiguration(
+            val codebase: Codebase,
+            val annotations: Boolean = false,
+            val kotlinStyleNulls: Boolean = false,
+            val filter: Predicate<Item>? = null,
+        ) {
+            val isDefault = !annotations && !kotlinStyleNulls && filter == null
+        }
+
+        private fun StringBuilder.appendTypeString(
+            type: TypeItem,
+            configuration: TypeStringConfiguration
+        ) {
+            when (type) {
+                is PrimitiveTypeItem -> {
+                    if (configuration.annotations) {
+                        appendAnnotations(type.modifiers, configuration)
+                    }
+                    append(type.kind.primitiveName)
+                }
+                is ArrayTypeItem -> {
+                    // The ordering of array annotations means this can't just use a recursive
+                    // approach for annotated multi-dimensional arrays, but it can if annotations
+                    // aren't included.
+                    if (configuration.annotations) {
+                        var deepComponentType = type.componentType
+                        val arrayModifiers = mutableListOf(type.modifiers)
+                        while (deepComponentType is ArrayTypeItem) {
+                            arrayModifiers.add(deepComponentType.modifiers)
+                            deepComponentType = deepComponentType.componentType
+                        }
+
+                        // Print the innermost component type.
+                        appendTypeString(deepComponentType, configuration)
+
+                        // Print modifiers from the outermost array type in, and the array suffixes.
+                        arrayModifiers.forEachIndexed { index, modifiers ->
+                            appendAnnotations(modifiers, configuration, leadingSpace = true)
+                            // Only the outermost array can be varargs.
+                            if (index < arrayModifiers.size - 1 || !type.isVarargs) {
+                                append("[]")
+                            } else {
+                                append("...")
+                            }
+                        }
+                    } else {
+                        // Non-annotated case: just recur to the component
+                        appendTypeString(type.componentType, configuration)
+                        if (type.isVarargs) {
+                            append("...")
+                        } else {
+                            append("[]")
+                        }
+                    }
+                    // TODO: kotlin nulls
+                }
+                is ClassTypeItem -> {
+                    if (type.outerClassType != null) {
+                        appendTypeString(type.outerClassType!!, configuration)
+                        append('.')
+                        if (configuration.annotations) {
+                            appendAnnotations(type.modifiers, configuration)
+                        }
+                        append(type.className)
+                    } else {
+                        if (configuration.annotations) {
+                            append(type.qualifiedName.substringBeforeLast(type.className))
+                            appendAnnotations(type.modifiers, configuration)
+                            append(type.className)
+                        } else {
+                            append(type.qualifiedName)
+                        }
+                    }
+
+                    if (type.parameters.isNotEmpty()) {
+                        append("<")
+                        type.parameters.forEachIndexed { index, parameter ->
+                            appendTypeString(parameter, configuration)
+                            if (index != type.parameters.size - 1) {
+                                append(",")
+                            }
+                        }
+                        append(">")
+                    }
+                    // TODO: kotlin nulls
+                }
+                is VariableTypeItem -> {
+                    if (configuration.annotations) {
+                        appendAnnotations(type.modifiers, configuration)
+                    }
+                    append(type.name)
+                    // TODO: kotlin nulls
+                }
+                is WildcardTypeItem -> {
+                    if (configuration.annotations) {
+                        appendAnnotations(type.modifiers, configuration)
+                    }
+                    append("?")
+                    type.extendsBound?.let {
+                        // Leave out object bounds, because they're implied
+                        if (!it.isJavaLangObject()) {
+                            append(" extends ")
+                            appendTypeString(it, configuration)
+                        }
+                    }
+                    type.superBound?.let {
+                        append(" super ")
+                        appendTypeString(it, configuration)
+                    }
+                }
+            }
+        }
+
+        private fun StringBuilder.appendAnnotations(
+            modifiers: TypeModifiers,
+            configuration: TypeStringConfiguration,
+            leadingSpace: Boolean = false,
+            trailingSpace: Boolean = true
+        ) {
+            val annotations =
+                modifiers.annotations().filter { annotation ->
+                    val filter = configuration.filter ?: return@filter true
+                    val qualifiedName = annotation.qualifiedName ?: return@filter true
+                    val annotationClass =
+                        configuration.codebase.findClass(qualifiedName) ?: return@filter true
+                    filter.test(annotationClass)
+                }
+            if (annotations.isEmpty()) return
+
+            if (leadingSpace) {
+                append(' ')
+            }
+            annotations.forEachIndexed { index, annotation ->
+                append(annotation.toSource())
+                if (index != annotations.size - 1) {
+                    append(' ')
+                }
+            }
+            if (trailingSpace) {
+                append(' ')
+            }
+        }
+
         private fun StringBuilder.appendErasedTypeString(type: TypeItem) {
             when (type) {
                 is PrimitiveTypeItem -> append(type.kind.primitiveName)
@@ -606,6 +785,24 @@ interface ClassTypeItem : TypeItem {
 
     /** The outer class type of this class, if it is an inner type. */
     val outerClassType: ClassTypeItem?
+
+    /**
+     * The name of the class, e.g. "String" for "java.lang.String" and "Inner" for
+     * "test.pkg.Outer.Inner".
+     */
+    val className: String
+
+    companion object {
+        /** Computes the simple name of a class from a qualified class name. */
+        fun computeClassName(qualifiedName: String): String {
+            val lastDotIndex = qualifiedName.lastIndexOf('.')
+            return if (lastDotIndex == -1) {
+                qualifiedName
+            } else {
+                qualifiedName.substring(lastDotIndex + 1)
+            }
+        }
+    }
 }
 
 /** Represents a type variable type. */
@@ -628,18 +825,3 @@ interface WildcardTypeItem : TypeItem {
     /** The type this wildcard must be a super class of. */
     val superBound: TypeItem?
 }
-
-/**
- * Configuration options for how to represent a type as a string.
- *
- * @param annotations Whether to include annotations on the type.
- * @param kotlinStyleNulls Whether to represent nullability with Kotlin-style suffixes: `?` for
- *   nullable, no suffix for non-null, and `!` for platform nullability. For example, the Java type
- *   `@Nullable List<String>` would be represented as `List<String!>?`.
- * @param filter A filter to apply to the type annotations, if any.
- */
-data class TypeStringConfiguration(
-    val annotations: Boolean = false,
-    val kotlinStyleNulls: Boolean = false,
-    val filter: Predicate<Item>? = null,
-)
