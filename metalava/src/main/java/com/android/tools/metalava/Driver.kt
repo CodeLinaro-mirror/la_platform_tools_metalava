@@ -38,6 +38,7 @@ import com.android.tools.metalava.compatibility.CompatibilityCheck
 import com.android.tools.metalava.compatibility.CompatibilityCheck.CheckRequest
 import com.android.tools.metalava.doc.DocAnalyzer
 import com.android.tools.metalava.lint.ApiLint
+import com.android.tools.metalava.model.AnnotationTarget
 import com.android.tools.metalava.model.BaseItemVisitor
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassResolver
@@ -274,7 +275,6 @@ internal fun processFlags(
             it,
             codebase,
             docStubs = true,
-            writeStubList = options.docStubsSourceList != null
         )
     }
 
@@ -402,28 +402,9 @@ internal fun processFlags(
             it,
             codebase,
             docStubs = false,
-            writeStubList = options.stubsSourceList != null
         )
     }
 
-    if (options.docStubsDir == null && options.stubsDir == null) {
-        val writeStubsFile: (File) -> Unit = { file ->
-            val root = File("").absoluteFile
-            val rootPath = root.path
-            val contents =
-                sources.joinToString(" ") {
-                    val path = it.path
-                    if (path.startsWith(rootPath)) {
-                        path.substring(rootPath.length)
-                    } else {
-                        path
-                    }
-                }
-            file.writeText(contents)
-        }
-        options.stubsSourceList?.let(writeStubsFile)
-        options.docStubsSourceList?.let(writeStubsFile)
-    }
     options.externalAnnotations?.let { extractAnnotations(progressTracker, codebase, it) }
 
     val packageCount = codebase.size()
@@ -781,7 +762,6 @@ private fun createStubFiles(
     stubDir: File,
     codebase: Codebase,
     docStubs: Boolean,
-    writeStubList: Boolean
 ) {
     if (codebase is TextCodebase) {
         if (options.verbose) {
@@ -793,11 +773,6 @@ private fun createStubFiles(
         }
     }
 
-    // Temporary bug workaround for org.chromium.arc
-    if (options.sourcePath.firstOrNull()?.path?.endsWith("org.chromium.arc") == true) {
-        codebase.findClass("org.chromium.mojo.bindings.Callbacks")?.hidden = true
-    }
-
     if (docStubs) {
         progressTracker.progress("Generating documentation stub files: ")
     } else {
@@ -806,6 +781,16 @@ private fun createStubFiles(
 
     val localTimer = Stopwatch.createStarted()
 
+    val stubWriterConfig =
+        options.stubWriterConfig.let {
+            if (docStubs) {
+                // Doc stubs always include documentation.
+                it.copy(includeDocumentationInStubs = true)
+            } else {
+                it
+            }
+        }
+
     val stubWriter =
         StubWriter(
             codebase = codebase,
@@ -813,7 +798,10 @@ private fun createStubFiles(
             generateAnnotations = options.generateAnnotations,
             preFiltered = codebase.preFiltered,
             docStubs = docStubs,
+            annotationTarget =
+                if (docStubs) AnnotationTarget.DOC_STUBS_FILE else AnnotationTarget.SDK_STUBS_FILE,
             reporter = options.reporter,
+            config = stubWriterConfig,
         )
     codebase.accept(stubWriter)
 
@@ -824,21 +812,6 @@ private fun createStubFiles(
             if (!overview.isNullOrBlank()) {
                 stubWriter.writeDocOverview(empty, overview)
             }
-        }
-    }
-
-    if (writeStubList) {
-        // Optionally also write out a list of source files that were generated; used
-        // for example to point javadoc to the stubs output to generate documentation
-        val file =
-            if (docStubs) {
-                options.docStubsSourceList ?: options.stubsSourceList
-            } else {
-                options.stubsSourceList
-            }
-        file?.let {
-            val root = File("").absoluteFile
-            stubWriter.writeSourceList(it, root)
         }
     }
 

@@ -204,13 +204,6 @@ Generating Stubs:
                                              Exclude element documentation (javadoc and kdoc) from the generated stubs.
                                              (Copyright notices are not affected by this, they are always included.
                                              Documentation stubs (--doc-stubs) are not affected.)
---write-stubs-source-list <file>
-                                             Write the list of generated stub files into the given source list file. If
-                                             generating documentation stubs and you haven't also specified
-                                             --write-doc-stubs-source-list, this list will refer to the documentation
-                                             stubs; otherwise it's the non-documentation stubs.
---write-doc-stubs-source-list <file>
-                                             Write the list of generated doc stub files into the given source list file
 
 
 Diffs and Checks:

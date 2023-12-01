@@ -341,7 +341,7 @@ class BootstrapSourceModelProviderTest(parameters: TestParameters) : BaseModelTe
     }
 
     @Test
-    fun `130 - test annotations`() {
+    fun `140 - test annotations`() {
         runSourceCodebaseTest(
             inputSet(
                 java(
@@ -438,6 +438,69 @@ class BootstrapSourceModelProviderTest(parameters: TestParameters) : BaseModelTe
             assertEquals(annoClassItem2, customAnno2.resolve())
             assertNotNull(custAnno2Attr1)
             assertEquals(12, custAnno2Attr1.value.value())
+        }
+    }
+
+    @Test
+    fun `150 - advanced superMethods() test on methoditem`() {
+        runSourceCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+
+                    interface Interface1 {
+                        public void method1();
+                        public <T> void method2(T value);
+                    }
+
+                    interface Interface2 extends Interface1 {
+                        public void method1();
+                    }
+
+                    interface Interface3 extends Interface1,Interface2 {}
+
+                    abstract class Test1 implements Interface2 {
+                        @Override
+                        public void method1(){}
+
+                        @Override
+                        public <Integer> void method2(Integer value){}
+                    }
+
+                    class Test2 implements Interface3 {
+                        @Override
+                        public void method1(){}
+                    }
+
+                    class Test3 implements Interface2,Interface1 {
+                        @Override
+                        public void method1(){}
+                    }
+                """
+            ),
+        ) { codebase ->
+            val itfCls1 = codebase.assertClass("test.pkg.Interface1")
+            val itf1Mtd1 = itfCls1.assertMethod("method1", "")
+            val itf1Mtd2 = itfCls1.assertMethod("method2", "java.lang.Object")
+
+            val itfCls2 = codebase.assertClass("test.pkg.Interface2")
+            val itf2Mtd1 = itfCls2.assertMethod("method1", "")
+
+            val classItem1 = codebase.assertClass("test.pkg.Test1")
+            val cls1Mtd1 = classItem1.assertMethod("method1", "")
+            val cls1Mtd2 = classItem1.assertMethod("method2", "java.lang.Object")
+
+            val classItem2 = codebase.assertClass("test.pkg.Test2")
+            val cls2Mtd1 = classItem2.assertMethod("method1", "")
+
+            val classItem3 = codebase.assertClass("test.pkg.Test3")
+            val cls3Mtd1 = classItem3.assertMethod("method1", "")
+
+            assertEquals(listOf(itf2Mtd1), cls1Mtd1.superMethods())
+            assertEquals(listOf(itf2Mtd1, itf1Mtd1), cls1Mtd1.allSuperMethods().toList())
+            assertEquals(listOf(itf1Mtd2), cls1Mtd2.superMethods())
+            assertEquals(listOf(itf1Mtd1, itf2Mtd1), cls2Mtd1.superMethods())
+            assertEquals(listOf(itf2Mtd1, itf1Mtd1), cls3Mtd1.superMethods())
         }
     }
 }

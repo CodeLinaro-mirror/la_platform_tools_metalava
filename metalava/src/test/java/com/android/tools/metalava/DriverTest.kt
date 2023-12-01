@@ -248,10 +248,6 @@ abstract class DriverTest : TemporaryFolderOwner {
         @Language("TEXT") subtractApi: String? = null,
         /** Expected stubs (corresponds to --stubs) */
         stubFiles: Array<TestFile> = emptyArray(),
-        /** Stub source file list generated */
-        stubsSourceList: String? = null,
-        /** Doc Stub source file list generated */
-        docStubsSourceList: String? = null,
         /**
          * Whether the stubs should be written as documentation stubs instead of plain stubs.
          * Decides whether the stubs include @doconly elements, uses rewritten/migration
@@ -787,24 +783,6 @@ abstract class DriverTest : TemporaryFolderOwner {
                 emptyArray()
             }
 
-        var stubsSourceListFile: File? = null
-        val stubsSourceListArgs =
-            if (stubsSourceList != null) {
-                stubsSourceListFile = temporaryFolder.newFile("droiddoc-src-list")
-                arrayOf(ARG_STUBS_SOURCE_LIST, stubsSourceListFile.path)
-            } else {
-                emptyArray()
-            }
-
-        var docStubsSourceListFile: File? = null
-        val docStubsSourceListArgs =
-            if (docStubsSourceList != null) {
-                docStubsSourceListFile = temporaryFolder.newFile("droiddoc-doc-src-list")
-                arrayOf(ARG_DOC_STUBS_SOURCE_LIST, docStubsSourceListFile.path)
-            } else {
-                emptyArray()
-            }
-
         val applyApiLevelsXmlFile: File?
         val applyApiLevelsXmlArgs =
             if (applyApiLevelsXml != null) {
@@ -986,8 +964,6 @@ abstract class DriverTest : TemporaryFolderOwner {
                 *dexApiArgs,
                 *subtractApiArgs,
                 *stubsArgs,
-                *stubsSourceListArgs,
-                *docStubsSourceListArgs,
                 *quiet,
                 *mergeAnnotationsArgs,
                 *signatureAnnotationsArgs,
@@ -1210,38 +1186,6 @@ abstract class DriverTest : TemporaryFolderOwner {
                     "Generated from-$stubSource stub contents does not match expected contents"
                 assertEquals(message, expected.contents, actualContents)
             }
-        }
-
-        if (stubsSourceList != null && stubsSourceListFile != null) {
-            assertTrue(
-                "${stubsSourceListFile.path} does not exist even though --write-stubs-source-list was used",
-                stubsSourceListFile.exists()
-            )
-            val actualText =
-                cleanupString(readFile(stubsSourceListFile), project)
-                    // To make golden files look better put one entry per line instead of a single
-                    // space separated line
-                    .replace(' ', '\n')
-            assertEquals(
-                stripComments(stubsSourceList, DOT_TXT, stripLineComments = false).trimIndent(),
-                actualText
-            )
-        }
-
-        if (docStubsSourceList != null && docStubsSourceListFile != null) {
-            assertTrue(
-                "${docStubsSourceListFile.path} does not exist even though --write-stubs-source-list was used",
-                docStubsSourceListFile.exists()
-            )
-            val actualText =
-                cleanupString(readFile(docStubsSourceListFile), project)
-                    // To make golden files look better put one entry per line instead of a single
-                    // space separated line
-                    .replace(' ', '\n')
-            assertEquals(
-                stripComments(docStubsSourceList, DOT_TXT, stripLineComments = false).trimIndent(),
-                actualText
-            )
         }
 
         if (checkCompilation && stubsDir != null) {

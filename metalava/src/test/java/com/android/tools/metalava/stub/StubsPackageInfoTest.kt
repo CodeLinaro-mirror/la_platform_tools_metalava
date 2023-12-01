@@ -77,7 +77,50 @@ class StubsPackageInfoTest : AbstractStubsTest() {
     }
 
     @Test
-    fun `Test package-info documentation`() {
+    fun `Test package-info documentation in stubs`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    java(
+                            """
+                      /** My package docs */
+                      package test.pkg;
+                      """
+                        )
+                        .indented(),
+                    java("""package test.pkg; public abstract class Class1 { }""")
+                ),
+            api =
+                """
+                package test.pkg {
+                  public abstract class Class1 {
+                    ctor public Class1();
+                  }
+                }
+                """,
+            stubFiles =
+                arrayOf(
+                    java(
+                        """
+                    /** My package docs */
+                    package test.pkg;
+                    """
+                    ),
+                    java(
+                        """
+                    package test.pkg;
+                    @SuppressWarnings({"unchecked", "deprecation", "all"})
+                    public abstract class Class1 {
+                    public Class1() { throw new RuntimeException("Stub!"); }
+                    }
+                    """
+                    )
+                ),
+        )
+    }
+
+    @Test
+    fun `Test package-info documentation in doc stubs`() {
         check(
             sourceFiles =
                 arrayOf(

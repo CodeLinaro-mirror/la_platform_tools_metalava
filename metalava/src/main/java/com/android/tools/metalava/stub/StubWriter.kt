@@ -14,8 +14,6 @@
  * limitations under the License.
  */
 
-@file:Suppress("DEPRECATION")
-
 package com.android.tools.metalava.stub
 
 import com.android.tools.metalava.ApiPredicate
@@ -32,7 +30,6 @@ import com.android.tools.metalava.model.ModifierList
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.psi.trimDocIndent
 import com.android.tools.metalava.model.visitors.ApiVisitor
-import com.android.tools.metalava.options
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
 import java.io.BufferedWriter
@@ -40,14 +37,17 @@ import java.io.File
 import java.io.FileWriter
 import java.io.IOException
 import java.io.PrintWriter
+import java.io.Writer
 
-class StubWriter(
+internal class StubWriter(
     private val codebase: Codebase,
     private val stubsDir: File,
     private val generateAnnotations: Boolean = false,
     private val preFiltered: Boolean = true,
     private val docStubs: Boolean,
+    private val annotationTarget: AnnotationTarget,
     private val reporter: Reporter,
+    private val config: StubWriterConfig,
 ) :
     ApiVisitor(
         visitConstructorsAsMethods = false,
@@ -57,34 +57,11 @@ class StubWriter(
         // Methods are by default sorted in source order in stubs, to encourage methods
         // that are near each other in the source to show up near each other in the documentation
         methodComparator = MethodItem.sourceOrderComparator,
-        filterEmit = FilterPredicate(apiPredicate(docStubs)),
-        filterReference = apiPredicate(docStubs),
-        includeEmptyOuterClasses = true
+        filterEmit = FilterPredicate(apiPredicate(docStubs, config)),
+        filterReference = apiPredicate(docStubs, config),
+        includeEmptyOuterClasses = true,
+        config = config.apiVisitorConfig,
     ) {
-    private val annotationTarget =
-        if (docStubs) AnnotationTarget.DOC_STUBS_FILE else AnnotationTarget.SDK_STUBS_FILE
-
-    private val sourceList = StringBuilder(20000)
-
-    /** Writes a source file list of the generated stubs */
-    fun writeSourceList(target: File, root: File?) {
-        target.parentFile?.mkdirs()
-        val contents =
-            if (root != null) {
-                val path = root.path.replace('\\', '/') + "/"
-                sourceList.toString().replace(path, "")
-            } else {
-                sourceList.toString()
-            }
-        target.writeText(contents)
-    }
-
-    private fun startFile(sourceFile: File) {
-        if (sourceList.isNotEmpty()) {
-            sourceList.append(' ')
-        }
-        sourceList.append(sourceFile.path.replace('\\', '/'))
-    }
 
     override fun visitPackage(pkg: PackageItem) {
         getPackageDir(pkg, create = true)
@@ -123,7 +100,8 @@ class StubWriter(
     private fun writePackageInfo(pkg: PackageItem) {
         val annotations = pkg.modifiers.annotations()
         val writeAnnotations = annotations.isNotEmpty() && generateAnnotations
-        val writeDocumentation = docStubs && pkg.documentation.isNotBlank()
+        val writeDocumentation =
+            config.includeDocumentationInStubs && pkg.documentation.isNotBlank()
         if (writeAnnotations || writeDocumentation) {
             val sourceFile = File(getPackageDir(pkg), "package-info.java")
             val packageInfoWriter =
@@ -133,16 +111,15 @@ class StubWriter(
                     reporter.report(Issues.IO_ERROR, sourceFile, "Cannot open file for write.")
                     return
                 }
-            startFile(sourceFile)
 
-            appendDocumentation(pkg, packageInfoWriter, docStubs)
+            appendDocumentation(pkg, packageInfoWriter, config)
 
             if (annotations.isNotEmpty()) {
                 ModifierList.writeAnnotations(
                     list = pkg.modifiers,
                     separateLines = true,
                     // Some bug in UAST triggers duplicate nullability annotations
-                    // here; make sure the are filtered out
+                    // here; make sure they are filtered out
                     filterDuplicates = true,
                     target = annotationTarget,
                     writer = packageInfoWriter
@@ -174,8 +151,8 @@ class StubWriter(
 
         // Kotlin From-text stub generation is not supported.
         // This method will raise an error if
-        // options.kotlinStubs == true and classItem is TextClassItem.
-        return if (options.kotlinStubs && classItem.isKotlin()) {
+        // config.kotlinStubs == true and classItem is TextClassItem.
+        return if (config.kotlinStubs && classItem.isKotlin()) {
             File(packageDir, "${classItem.simpleName()}.kt")
         } else {
             File(packageDir, "${classItem.simpleName()}.java")
@@ -187,7 +164,28 @@ class StubWriter(
      * to this writer, which redirects to the error output. Nothing should be written to the writer
      * at that time.
      */
-    private var errorTextWriter = PrintWriter(options.stderr)
+    private var errorTextWriter =
+        PrintWriter(
+            object : Writer() {
+                override fun close() {
+                    throw IllegalStateException(
+                        "Attempt to close 'textWriter' outside top level class"
+                    )
+                }
+
+                override fun flush() {
+                    throw IllegalStateException(
+                        "Attempt to flush 'textWriter' outside top level class"
+                    )
+                }
+
+                override fun write(cbuf: CharArray, off: Int, len: Int) {
+                    throw IllegalStateException(
+                        "Attempt to write to 'textWriter' outside top level class\n'${String(cbuf, off, len)}'"
+                    )
+                }
+            }
+        )
 
     /** The writer to write the stubs file to */
     private var textWriter: PrintWriter = errorTextWriter
@@ -205,17 +203,15 @@ class StubWriter(
                     errorTextWriter
                 }
 
-            startFile(sourceFile)
-
             stubWriter =
-                if (options.kotlinStubs && cls.isKotlin()) {
+                if (config.kotlinStubs && cls.isKotlin()) {
                     KotlinStubWriter(
                         textWriter,
-                        filterEmit,
                         filterReference,
                         generateAnnotations,
                         preFiltered,
-                        docStubs
+                        annotationTarget,
+                        config,
                     )
                 } else {
                     JavaStubWriter(
@@ -224,7 +220,8 @@ class StubWriter(
                         filterReference,
                         generateAnnotations,
                         preFiltered,
-                        docStubs
+                        annotationTarget,
+                        config,
                     )
                 }
 
@@ -270,14 +267,14 @@ class StubWriter(
     }
 }
 
-private fun apiPredicate(docStubs: Boolean) =
+private fun apiPredicate(docStubs: Boolean, config: StubWriterConfig) =
     ApiPredicate(
         includeDocOnly = docStubs,
-        config = options.apiPredicateConfig.copy(ignoreShown = true)
+        config = config.apiVisitorConfig.apiPredicateConfig.copy(ignoreShown = true),
     )
 
-internal fun appendDocumentation(item: Item, writer: PrintWriter, docStubs: Boolean) {
-    if (options.includeDocumentationInStubs || docStubs) {
+internal fun appendDocumentation(item: Item, writer: PrintWriter, config: StubWriterConfig) {
+    if (config.includeDocumentationInStubs) {
         val documentation = item.fullyQualifiedDocumentation()
         if (documentation.isNotBlank()) {
             val trimmed = trimDocIndent(documentation)
