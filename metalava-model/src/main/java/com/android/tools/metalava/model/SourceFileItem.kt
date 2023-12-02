@@ -36,12 +36,6 @@ interface SourceFileItem : Item {
     override fun accept(visitor: ItemVisitor) {
         visitor.visit(this)
     }
-
-    override fun acceptTypes(visitor: TypeVisitor) {
-        if (visitor.skip(this)) return
-
-        classes().forEach { it.acceptTypes(visitor) }
-    }
 }
 
 /** Encapsulates information about the imports used in a [SourceFileItem]. */

@@ -121,8 +121,6 @@ sealed class TextTypeItem(open val codebase: TextCodebase, open val type: String
         return qualifiedTypeName().hashCode()
     }
 
-    override fun typeArgumentClasses(): List<ClassItem> = codebase.unsupported()
-
     override fun convertType(replacementMap: Map<String, String>?, owner: Item?): TypeItem {
         return codebase.typeResolver.obtainTypeFromString(convertTypeString(replacementMap))
     }

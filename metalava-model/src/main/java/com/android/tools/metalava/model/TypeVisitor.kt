@@ -16,10 +16,61 @@
 
 package com.android.tools.metalava.model
 
-open class TypeVisitor(val includeInterfaces: Boolean = false) {
-    open fun skip(item: Item): Boolean = false
+interface TypeVisitor {
+    fun visit(primitiveType: PrimitiveTypeItem) = Unit
 
-    open fun visitType(type: TypeItem, owner: Item) {}
+    fun visit(arrayType: ArrayTypeItem) = Unit
 
-    open fun afterVisitType(type: TypeItem, owner: Item) {}
+    fun visit(classType: ClassTypeItem) = Unit
+
+    fun visit(variableType: VariableTypeItem) = Unit
+
+    fun visit(wildcardType: WildcardTypeItem) = Unit
+}
+
+open class BaseTypeVisitor : TypeVisitor {
+    override fun visit(primitiveType: PrimitiveTypeItem) {
+        visitType(primitiveType)
+        visitPrimitiveType(primitiveType)
+    }
+
+    override fun visit(arrayType: ArrayTypeItem) {
+        visitType(arrayType)
+        visitArrayType(arrayType)
+
+        arrayType.componentType.accept(this)
+    }
+
+    override fun visit(classType: ClassTypeItem) {
+        visitType(classType)
+        visitClassType(classType)
+
+        classType.outerClassType?.accept(this)
+        classType.parameters.forEach { it.accept(this) }
+    }
+
+    override fun visit(variableType: VariableTypeItem) {
+        visitType(variableType)
+        visitVariableType(variableType)
+    }
+
+    override fun visit(wildcardType: WildcardTypeItem) {
+        visitType(wildcardType)
+        visitWildcardType(wildcardType)
+
+        wildcardType.extendsBound?.accept(this)
+        wildcardType.superBound?.accept(this)
+    }
+
+    open fun visitType(type: TypeItem) = Unit
+
+    open fun visitPrimitiveType(primitiveType: PrimitiveTypeItem) = Unit
+
+    open fun visitArrayType(arrayType: ArrayTypeItem) = Unit
+
+    open fun visitClassType(classType: ClassTypeItem) = Unit
+
+    open fun visitVariableType(variableType: VariableTypeItem) = Unit
+
+    open fun visitWildcardType(wildcardType: WildcardTypeItem) = Unit
 }

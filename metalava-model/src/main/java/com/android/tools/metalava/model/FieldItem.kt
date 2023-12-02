@@ -61,16 +61,6 @@ interface FieldItem : MemberItem {
         visitor.visit(this)
     }
 
-    override fun acceptTypes(visitor: TypeVisitor) {
-        if (visitor.skip(this)) {
-            return
-        }
-
-        val type = type()
-        visitor.visitType(type, this)
-        visitor.afterVisitType(type, this)
-    }
-
     /**
      * Check the declared value with a typed comparison, not a string comparison, to accommodate
      * toolchains with different fp -> string conversions.

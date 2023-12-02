@@ -39,6 +39,8 @@ import com.google.turbine.binder.bound.TypeBoundClass.ParamInfo
 import com.google.turbine.binder.bound.TypeBoundClass.TyVarInfo
 import com.google.turbine.binder.bytecode.BytecodeBoundClass
 import com.google.turbine.binder.env.CompoundEnv
+import com.google.turbine.binder.lookup.LookupKey
+import com.google.turbine.binder.lookup.TopLevelIndex
 import com.google.turbine.binder.sym.ClassSymbol
 import com.google.turbine.binder.sym.TyVarSymbol
 import com.google.turbine.diag.TurbineLog
@@ -49,6 +51,7 @@ import com.google.turbine.model.Const.Value
 import com.google.turbine.model.TurbineConstantTypeKind as PrimKind
 import com.google.turbine.model.TurbineFlag
 import com.google.turbine.tree.Tree.CompUnit
+import com.google.turbine.tree.Tree.Ident
 import com.google.turbine.type.AnnoInfo
 import com.google.turbine.type.Type
 import com.google.turbine.type.Type.ArrayTy
@@ -83,6 +86,8 @@ open class TurbineCodebaseInitialiser(
     /** Map between ClassSymbols and TurbineClass for classes present in classPath */
     private lateinit var envClassMap: CompoundEnv<ClassSymbol, BytecodeBoundClass>
 
+    private lateinit var index: TopLevelIndex
+
     /**
      * Binds the units with the help of Turbine's binder.
      *
@@ -115,10 +120,10 @@ open class TurbineCodebaseInitialiser(
                 )!!
             sourceClassMap = bindingResult.units()
             envClassMap = bindingResult.classPathEnv()
+            index = bindingResult.tli()
         } catch (e: Throwable) {
             throw e
         }
-
         createAllPackages()
         createAllClasses()
     }
@@ -169,6 +174,19 @@ open class TurbineCodebaseInitialiser(
         }
     }
 
+    /** Tries to create a class if not already present in codebase's classmap */
+    internal fun findOrCreateClass(name: String): TurbineClassItem? {
+        var classItem = codebase.findClass(name)
+
+        if (classItem == null) {
+            val symbol = getClassSymbol(name)
+            symbol?.let { createClass(symbol) }
+            classItem = codebase.findClass(name)
+        }
+
+        return classItem
+    }
+
     /** Creates a class if not already present in codebase's classmap */
     private fun findOrCreateClass(sym: ClassSymbol): TurbineClassItem {
         val className = getQualifiedName(sym.binaryName())
@@ -209,12 +227,15 @@ open class TurbineCodebaseInitialiser(
             )
 
         // Setup the SuperClass
-        val superClassItem = cls.superclass()?.let { superClass -> findOrCreateClass(superClass) }
-        val superClassType = cls.superClassType()
-        val superClassTypeItem =
-            if (superClassType == null || superClassType.tyKind() == TyKind.ERROR_TY) null
-            else createType(superClassType, false)
-        classItem.setSuperClass(superClassItem, superClassTypeItem)
+        if (!classItem.isInterface()) {
+            val superClassItem =
+                cls.superclass()?.let { superClass -> findOrCreateClass(superClass) }
+            val superClassType = cls.superClassType()
+            val superClassTypeItem =
+                if (superClassType == null || superClassType.tyKind() == TyKind.ERROR_TY) null
+                else createType(superClassType, false)
+            classItem.setSuperClass(superClassItem, superClassTypeItem)
+        }
 
         // Setup InnerClasses
         val t = cls.children()
@@ -549,5 +570,21 @@ open class TurbineCodebaseInitialiser(
                 it
             }
         classItem.constructors = result
+    }
+
+    /**
+     * Get the ClassSymbol corresponding to a qualified name. Since the Turbine's lookup method
+     * returns only top-level classes, this method will return the ClassSymbol of outermost class
+     * for inner classes.
+     */
+    private fun getClassSymbol(name: String): ClassSymbol? {
+        val result = index.scope().lookup(createLookupKey(name))
+        return result?.let { it.sym() as ClassSymbol }
+    }
+
+    /** Creates a LookupKey from a given name */
+    private fun createLookupKey(name: String): LookupKey {
+        val idents = name.split(".").mapIndexed { idx, it -> Ident(idx, it) }
+        return LookupKey(ImmutableList.copyOf(idents))
     }
 }

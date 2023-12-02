@@ -165,30 +165,6 @@ interface MethodItem : MemberItem {
         visitor.visit(this)
     }
 
-    override fun acceptTypes(visitor: TypeVisitor) {
-        if (visitor.skip(this)) {
-            return
-        }
-
-        if (!isConstructor()) {
-            val type = returnType()
-            visitor.visitType(type, this)
-        }
-
-        for (parameter in parameters()) {
-            parameter.acceptTypes(visitor)
-        }
-
-        for (exception in throwsTypes()) {
-            exception.acceptTypes(visitor)
-        }
-
-        if (!isConstructor()) {
-            val type = returnType()
-            visitor.visitType(type, this)
-        }
-    }
-
     companion object {
         private fun compareMethods(
             o1: MethodItem,
@@ -504,32 +480,10 @@ interface MethodItem : MemberItem {
      */
     fun hasHiddenType(filterReference: Predicate<Item>): Boolean {
         for (parameter in parameters()) {
-            val type = parameter.type()
-            if (type.hasTypeArguments()) {
-                for (argument in type.typeArgumentClasses()) {
-                    if (!filterReference.test(argument)) {
-                        return true
-                    }
-                }
-            }
-            val clz = type.asClass() ?: continue
-            if (!filterReference.test(clz)) {
-                return true
-            }
+            if (parameter.type().hasHiddenType(filterReference)) return true
         }
 
-        val returnType = returnType()
-        val returnTypeClass = returnType.asClass()
-        if (returnTypeClass != null && !filterReference.test(returnTypeClass)) {
-            return true
-        }
-        if (returnType.hasTypeArguments()) {
-            for (argument in returnType.typeArgumentClasses()) {
-                if (!filterReference.test(argument)) {
-                    return true
-                }
-            }
-        }
+        if (returnType().hasHiddenType(filterReference)) return true
 
         if (typeParameterList().typeParameterCount() > 0) {
             for (argument in typeArgumentClasses()) {
@@ -540,6 +494,23 @@ interface MethodItem : MemberItem {
         }
 
         return false
+    }
+
+    /** Checks if there is a reference to a hidden class anywhere in the type. */
+    private fun TypeItem.hasHiddenType(filterReference: Predicate<Item>): Boolean {
+        return when (this) {
+            is PrimitiveTypeItem -> false
+            is ArrayTypeItem -> componentType.hasHiddenType(filterReference)
+            is ClassTypeItem ->
+                asClass()?.let { !filterReference.test(it) } == true ||
+                    outerClassType?.hasHiddenType(filterReference) == true ||
+                    parameters.any { it.hasHiddenType(filterReference) }
+            is VariableTypeItem -> !filterReference.test(asTypeParameter)
+            is WildcardTypeItem ->
+                extendsBound?.hasHiddenType(filterReference) == true ||
+                    superBound?.hasHiddenType(filterReference) == true
+            else -> throw IllegalStateException("Unrecognized type: $this")
+        }
     }
 
     /** Whether this method is a getter/setter for an underlying Kotlin property (val/var) */

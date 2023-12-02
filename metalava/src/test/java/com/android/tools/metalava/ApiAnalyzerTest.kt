@@ -193,4 +193,55 @@ class ApiAnalyzerTest : DriverTest() {
                 )
         )
     }
+
+    @Test
+    fun `Test that usage of a hidden class as type parameter of an outer class is flagged`() {
+        check(
+            expectedIssues =
+                """
+                src/test/pkg/Foo.java:3: error: Class test.pkg.Hidden is hidden but was referenced (in field type) from public field test.pkg.Foo.fieldReferencesHidden1 [ReferencesHidden]
+                src/test/pkg/Foo.java:4: error: Class test.pkg.Hidden is hidden but was referenced (in field type) from public field test.pkg.Foo.fieldReferencesHidden2 [ReferencesHidden]
+                src/test/pkg/Foo.java:5: error: Class test.pkg.Hidden is hidden but was referenced (in field type) from public field test.pkg.Foo.fieldReferencesHidden3 [ReferencesHidden]
+                src/test/pkg/Foo.java:6: error: Class test.pkg.Hidden is hidden but was referenced (in field type) from public field test.pkg.Foo.fieldReferencesHidden4 [ReferencesHidden]
+                src/test/pkg/Foo.java:3: warning: Field Foo.fieldReferencesHidden1 references hidden type test.pkg.Hidden. [HiddenTypeParameter]
+                src/test/pkg/Foo.java:4: warning: Field Foo.fieldReferencesHidden2 references hidden type test.pkg.Hidden. [HiddenTypeParameter]
+                src/test/pkg/Foo.java:5: warning: Field Foo.fieldReferencesHidden3 references hidden type test.pkg.Hidden. [HiddenTypeParameter]
+                src/test/pkg/Foo.java:6: warning: Field Foo.fieldReferencesHidden4 references hidden type test.pkg.Hidden. [HiddenTypeParameter]
+            """
+                    .trimIndent(),
+            expectedFail = DefaultLintErrorMessage,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                        package test.pkg;
+                        /** @hide */
+                        public class Hidden {}
+                    """
+                            .trimIndent()
+                    ),
+                    java(
+                        """
+                        package test.pkg;
+                        public class Outer<P1> {
+                            public class Inner<P2> {}
+                        }
+                    """
+                            .trimIndent()
+                    ),
+                    java(
+                        """
+                        package test.pkg;
+                        public class Foo {
+                            public Hidden fieldReferencesHidden1;
+                            public Outer<Hidden> fieldReferencesHidden2;
+                            public Outer<Foo>.Inner<Hidden> fieldReferencesHidden3;
+                            public Outer<Hidden>.Inner<Foo> fieldReferencesHidden4;
+                        }
+                    """
+                            .trimIndent()
+                    )
+                )
+        )
+    }
 }
