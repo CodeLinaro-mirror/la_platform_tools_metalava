@@ -32,14 +32,7 @@ class TextTypeParameterList(
 
     override fun typeParameterNames(): List<String> {
         if (typeParameterNames == null) {
-            //     TODO: Delete this method now that I'm doing it differently:
-            // typeParameterNames(typeListString)
-            val typeParameters = typeParameters()
-            val names = ArrayList<String>(typeParameters.size)
-            for (parameter in typeParameters) {
-                names.add(parameter.simpleName())
-            }
-            typeParameterNames = names
+            typeParameterNames = typeParameters().map { it.simpleName() }
         }
         return typeParameterNames!!
     }

@@ -20,7 +20,6 @@ import com.android.tools.lint.UastEnvironment
 import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassResolver
-import com.android.tools.metalava.model.PackageDocs
 import com.android.tools.metalava.reporter.Reporter
 import com.intellij.psi.JavaPsiFacade
 import com.intellij.psi.search.GlobalSearchScope

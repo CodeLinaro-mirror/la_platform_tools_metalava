@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.compatibility
 
+import com.android.tools.lint.checks.infrastructure.TestFiles.base64gzip
 import com.android.tools.metalava.ANDROID_SYSTEM_API
 import com.android.tools.metalava.ARG_HIDE_PACKAGE
 import com.android.tools.metalava.ARG_SHOW_ANNOTATION
@@ -406,6 +407,113 @@ class CompatibilityCheckTest : DriverTest() {
                     """
                     )
                 )
+        )
+    }
+
+    @Test
+    fun `Removed method from classpath`() {
+        check(
+            apiClassResolution = ApiClassResolution.API_CLASSPATH,
+            classpath =
+                arrayOf(
+                    /* The following source file, compiled, then ran
+                    assertEquals("", toBase64gzip(File("path/to/lib1.jar")))
+
+                        package test.pkg;
+
+                        public interface FacetProvider {
+                          Object getFacet(Class<?> facetClass);
+                        }
+                     */
+                    base64gzip(
+                        "libs/lib1.jar",
+                        "" +
+                            "H4sIAAAAAAAA/wvwZmYRYeDg4GDwKMgPZ0ACnAwsDL6uIY66nn5u+v9OMTAw" +
+                            "MwR4s3OApJigSgJwahYBYrhmX0c/TzfX4BA9X7fPvmdO+3jr6l3k9dbVOnfm" +
+                            "/OYggyvGD54W6Xn56nj6XixdxcI147XkC0nNjB/iqmrPl2hZPBcXfSKuOo1B" +
+                            "NPtT0cciRrAbRCZqCTgBbXBCcYMamhtkgLgktbhEvyA7Xd8tMTm1JKAovywz" +
+                            "JbVILzknsbjY+mv+dTs2NrZotrwyNjU3to2TrjwS+tv0pqR2+5EnVyY1LPqz" +
+                            "6cyUK0plbGJubI1rjmxy+TvnyJ6S2v9L1lx5IuTG1vflitAGJze2UF75lj3F" +
+                            "fkmFG7cu49/Fl+3Gdu7BmS97jky6tCjEjY2Xx9YsquzG1kLW59PFVJfvSn3G" +
+                            "8JVzoYUf/5I5vRMbJzbOZGSRaMxLTU1g/nSz0UaNjU+hW/jMIyawN6/4uhXN" +
+                            "BXriHdibjEwiDKiBDYsGUEyhApR4Q9eKHHoiKNpsccQasgmgUEZ2mAyKCQcJ" +
+                            "hHmANysbSB0zEB4H0isYQTwAofA0RIUCAAA="
+                    ),
+                    /* The following source file, compiled, then ran
+                    assertEquals("", toBase64gzip(File("path/to/lib2.jar")))
+
+                        package test.pkg;
+
+                        public interface FacetProviderAdapter {
+                          FacetProvider getFacetProvider(int type);
+                        }
+                     */
+                    base64gzip(
+                        "libs/lib2.jar",
+                        "" +
+                            "H4sIAAAAAAAA/wvwZmYRYeDg4GDwK8gPZ0ACnAwsDL6uIY66nn5u+v9OMTAw" +
+                            "MwR4s3OApJigSgJwahYBYrhmX0c/TzfX4BA9X7fPvmdO+3jr6l3k9dbVOnfm" +
+                            "/OYggyvGD54W6Xn56nj6XixdxcI147XkC0nNjB/iqmrPl2hZPBcXfSKuOo1B" +
+                            "NPtT0cciRrAbRCZqCTgBbXBCcYMamhuUgbgktbhEvyA7Xd8tMTm1JKAovywz" +
+                            "JbXIMSWxoCS1SC85J7G42Ppr/nU7Nja2aDa/MjY1N7abk648Evrb9KakdvuR" +
+                            "J1cmNSz6s+nMlCtKx6ccaZp0RamMTcyNrXHNkU0uf+cc2VNS+3/JmitPhBYE" +
+                            "VGVxdlW5sWXy+vvKv2mLNDYqYH0+XUx1+a7UZ0uMjDySNnvxp3BLKzMrMxsz" +
+                            "cxgw5aalJjBvlLjRqCLMzA72E+ufzUeagS7eDfYTI5MIA2rIwsIcFC2oACWS" +
+                            "0LUiB5UIijZbHFGEbAIoSJEdpoxiwkHiAjjAm5UNpJwZCM8B6amMIB4AmZLm" +
+                            "53kCAAA="
+                    ),
+                ),
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                          package test.pkg;
+
+                          public class FacetProviderAdapterImpl implements FacetProviderAdapter {
+                            private FacetProvider mProvider;
+                            @Override
+                            public FacetProvider getFacetProvider(int type) {
+                                return mProvider;
+                            }
+
+                            public static class FacetProviderImpl implements FacetProvider {
+                              private Object mItem;
+                              @Override
+                              public Object getFacet(Class<?> facetClass) {
+                                  return mItem;
+                              }
+                            }
+                          }
+                        """
+                    )
+                ),
+            format = FileFormat.V4,
+            checkCompatibilityApiReleased =
+                """
+                // Signature format: 4.0
+                package test.pkg {
+                  public interface FacetProvider {
+                    method public Object! getFacet(Class<?>!);
+                  }
+                  public interface FacetProviderAdapter {
+                    method public test.pkg.FacetProvider! getFacetProvider(int);
+                  }
+                  public class FacetProviderAdapterImpl implements test.pkg.FacetProviderAdapter {
+                    method public test.pkg.FacetProvider? getFacetProvider(int);
+                  }
+                  public class FacetProviderAdapterImpl.FacetProviderImpl implements test.pkg.FacetProvider {
+                    method public Object? getFacet(Class<?>?);
+                  }
+                }
+                """,
+            expectedIssues =
+                """
+                released-api.txt:3: error: Removed class test.pkg.FacetProvider [RemovedInterface]
+                released-api.txt:6: error: Removed class test.pkg.FacetProviderAdapter [RemovedInterface]
+                src/test/pkg/FacetProviderAdapterImpl.java:6: error: Attempted to remove @Nullable annotation from method test.pkg.FacetProviderAdapterImpl.getFacetProvider(int) [InvalidNullConversion]
+                src/test/pkg/FacetProviderAdapterImpl.java:13: error: Attempted to remove @Nullable annotation from method test.pkg.FacetProviderAdapterImpl.FacetProviderImpl.getFacet(Class<?>) [InvalidNullConversion]
+                src/test/pkg/FacetProviderAdapterImpl.java:13: error: Attempted to remove @Nullable annotation from parameter facetClass in test.pkg.FacetProviderAdapterImpl.FacetProviderImpl.getFacet(Class<?> facetClass) [InvalidNullConversion]
+            """
         )
     }
 

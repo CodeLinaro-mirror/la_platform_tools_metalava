@@ -25,6 +25,7 @@ class TurbineFieldItem(
     override val codebase: Codebase,
     private val name: String,
     private val containingClass: TurbineClassItem,
+    private val type: TurbineTypeItem,
     override val modifiers: TurbineModifierItem,
 ) : TurbineItem(codebase, modifiers), FieldItem {
 
@@ -47,9 +48,7 @@ class TurbineFieldItem(
 
     override fun hashCode(): Int = name.hashCode()
 
-    override fun type(): TypeItem {
-        TODO("b/295800205")
-    }
+    override fun type(): TypeItem = type
 
     override fun duplicate(targetContainingClass: ClassItem): FieldItem {
         TODO("b/295800205")

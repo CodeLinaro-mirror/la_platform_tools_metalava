@@ -73,7 +73,7 @@ internal class TextTypeParser(val codebase: TextCodebase) {
         return if (typeParams.isEmpty() && annotations.isEmpty()) {
             typeCache.obtain(type) { parseType(it, typeParams, annotations) }
         } else {
-            parseType(type, typeParams)
+            parseType(type, typeParams, annotations)
         }
     }
 
@@ -96,7 +96,7 @@ internal class TextTypeParser(val codebase: TextCodebase) {
             // not as an array of wildcards, for consistency with how this would be compiled.
             ?: asWildcard(type, trimmed, typeParams, allAnnotations)
             // Try parsing as an array.
-            ?: asArray(trimmed, annotations, suffix, typeParams)
+            ?: asArray(trimmed, allAnnotations, suffix, typeParams)
             // If it isn't anything else, parse the type as a class.
             ?: asClass(type, trimmed, typeParams, allAnnotations)
     }
@@ -665,7 +665,8 @@ internal class TextTypeParser(val codebase: TextCodebase) {
             var balance = 0
             var expect = false
             var start = 0
-            for (i in s.indices) {
+            var i = 0
+            while (i < s.length) {
                 val c = s[i]
                 if (c == '<') {
                     balance++
@@ -688,10 +689,20 @@ internal class TextTypeParser(val codebase: TextCodebase) {
                         } else {
                             false
                         }
-                } else if (expect && balance == 1) {
-                    start = i
-                    expect = false
+                } else {
+                    // This is the start of a parameter
+                    if (expect && balance == 1) {
+                        start = i
+                        expect = false
+                    }
+
+                    if (c == '@') {
+                        // Skip the entire text of the annotation
+                        i = findAnnotationEnd(typeString, i + 1)
+                        continue
+                    }
                 }
+                i++
             }
             return Pair(list, null)
         }

@@ -39,7 +39,7 @@ Signature Format Output:
 
                                              A comma separated list of `<property>=<value>` assignments where
                                              `<property>` is one of the following: 'add-additional-overrides',
-                                             'overloaded-method-order'.
+                                             'overloaded-method-order', 'sort-whole-extends-list'.
 
                                              See `metalava help signature-file-formats` for more information on the
                                              properties.

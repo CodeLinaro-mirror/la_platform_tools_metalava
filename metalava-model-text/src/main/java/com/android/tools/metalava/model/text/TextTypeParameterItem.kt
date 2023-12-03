@@ -100,9 +100,7 @@ class TextTypeParameterItem(
                         ?: return emptyList()
                 for (p in parameters) {
                     if (p.simpleName() == s) {
-                        return p.typeBounds()
-                            .filter { !it.isJavaLangObject() }
-                            .map { it.toTypeString() }
+                        return p.typeBounds().map { it.toTypeString() }
                     }
                 }
 

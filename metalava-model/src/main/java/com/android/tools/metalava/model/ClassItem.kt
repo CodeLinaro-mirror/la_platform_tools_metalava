@@ -226,9 +226,6 @@ interface ClassItem : Item {
 
     // Mutation APIs: Used to "fix up" the API hierarchy to only expose visible parts of the API.
 
-    // This replaces the "real" super class
-    fun setSuperClass(superClass: ClassItem?, superClassType: TypeItem? = superClass?.toType())
-
     // This replaces the interface types implemented by this class
     fun setInterfaceTypes(interfaceTypes: List<TypeItem>)
 
@@ -313,17 +310,19 @@ interface ClassItem : Item {
             }
         }
 
-        val nameComparator: Comparator<ClassItem> = Comparator { a, b ->
-            a.simpleName().compareTo(b.simpleName())
-        }
+        /** A partial ordering over [ClassItem] comparing [ClassItem.fullName]. */
+        val fullNameComparator: Comparator<ClassItem> = Comparator.comparing { it.fullName() }
 
-        val fullNameComparator: Comparator<ClassItem> = Comparator { a, b ->
-            a.fullName().compareTo(b.fullName())
-        }
+        /** A total ordering over [ClassItem] comparing [ClassItem.qualifiedName]. */
+        private val qualifiedComparator: Comparator<ClassItem> =
+            Comparator.comparing { it.qualifiedName() }
 
-        val qualifiedComparator: Comparator<ClassItem> = Comparator { a, b ->
-            a.qualifiedName().compareTo(b.qualifiedName())
-        }
+        /**
+         * A total ordering over [ClassItem] comparing [ClassItem.fullName] first and then
+         * [ClassItem.qualifiedName].
+         */
+        val fullNameThenQualifierComparator: Comparator<ClassItem> =
+            fullNameComparator.thenComparing(qualifiedComparator)
 
         fun classNameSorter(): Comparator<in ClassItem> = ClassItem.qualifiedComparator
     }
@@ -466,7 +465,7 @@ interface ClassItem : Item {
             if (index != -1) {
                 parameterString = parameterString.substring(0, index)
             }
-            val parameter = parameters[i].type().toErasedTypeString(method)
+            val parameter = parameters[i].type().toErasedTypeString()
             if (parameter != parameterString) {
                 return false
             }

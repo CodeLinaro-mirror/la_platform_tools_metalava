@@ -34,6 +34,7 @@ open class TurbineClassItem(
     private val qualifiedName: String,
     override val modifiers: TurbineModifierItem,
     private val classType: TurbineClassType,
+    private val typeParameters: TypeParameterList,
 ) : ClassItem, TurbineItem(codebase = codebase, modifiers = modifiers) {
 
     override var artifact: String? = null
@@ -60,7 +61,15 @@ open class TurbineClassItem(
 
     internal lateinit var methods: List<TurbineMethodItem>
 
+    internal lateinit var constructors: List<TurbineConstructorItem>
+
     internal var containingClass: TurbineClassItem? = null
+
+    private lateinit var interfaceTypesList: List<TypeItem>
+
+    private var asType: TurbineTypeItem? = null
+
+    internal var hasImplicitDefaultConstructor = false
 
     override fun allInterfaces(): Sequence<TurbineClassItem> {
         if (allInterfaces == null) {
@@ -85,11 +94,11 @@ open class TurbineClassItem(
         return allInterfaces!!.asSequence()
     }
 
-    override fun constructors(): List<ConstructorItem> {
-        TODO("b/295800205")
-    }
+    internal fun directInterfaces(): List<TurbineClassItem> = directInterfaces
 
-    override fun containingClass(): ClassItem? = containingClass
+    override fun constructors(): List<ConstructorItem> = constructors
+
+    override fun containingClass(): TurbineClassItem? = containingClass
 
     override fun containingPackage(): PackageItem =
         containingClass?.containingPackage() ?: containingPackage
@@ -100,9 +109,7 @@ open class TurbineClassItem(
         TODO("b/295800205")
     }
 
-    override fun hasImplicitDefaultConstructor(): Boolean {
-        TODO("b/295800205")
-    }
+    override fun hasImplicitDefaultConstructor(): Boolean = hasImplicitDefaultConstructor
 
     override fun hasTypeVariables(): Boolean {
         TODO("b/295800205")
@@ -110,9 +117,7 @@ open class TurbineClassItem(
 
     override fun innerClasses(): List<ClassItem> = innerClasses
 
-    override fun interfaceTypes(): List<TypeItem> {
-        TODO("b/295800205")
-    }
+    override fun interfaceTypes(): List<TypeItem> = interfaceTypesList
 
     override fun isAnnotationType(): Boolean = classType == TurbineClassType.ANNOTATION
 
@@ -137,10 +142,10 @@ open class TurbineClassItem(
     override fun fullName(): String = fullName
 
     override fun setInterfaceTypes(interfaceTypes: List<TypeItem>) {
-        TODO("b/295800205")
+        interfaceTypesList = interfaceTypes
     }
 
-    override fun setSuperClass(superClass: ClassItem?, superClassType: TypeItem?) {
+    internal fun setSuperClass(superClass: ClassItem?, superClassType: TypeItem?) {
         this.superClass = superClass as? TurbineClassItem
         this.superClassType = superClassType
     }
@@ -149,13 +154,25 @@ open class TurbineClassItem(
 
     override fun superClassType(): TypeItem? = superClassType
 
-    override fun toType(): TypeItem {
-        TODO("b/295800205")
+    override fun toType(): TurbineTypeItem {
+        if (asType == null) {
+            val parameters =
+                typeParameterList().typeParameters().map {
+                    createVariableType(it as TurbineTypeParameterItem)
+                }
+            val mods = TurbineTypeModifiers(modifiers.annotations())
+            val outerClassType = containingClass?.let { it.toType() as TurbineClassTypeItem }
+            asType = TurbineClassTypeItem(codebase, mods, qualifiedName, parameters, outerClassType)
+        }
+        return asType!!
     }
 
-    override fun typeParameterList(): TypeParameterList {
-        TODO("b/295800205")
+    private fun createVariableType(typeParam: TurbineTypeParameterItem): TurbineVariableTypeItem {
+        val mods = TurbineTypeModifiers(typeParam.modifiers.annotations())
+        return TurbineVariableTypeItem(codebase as TurbineBasedCodebase, mods, typeParam.symbol)
     }
+
+    override fun typeParameterList(): TypeParameterList = typeParameters
 
     override fun hashCode(): Int = qualifiedName.hashCode()
 

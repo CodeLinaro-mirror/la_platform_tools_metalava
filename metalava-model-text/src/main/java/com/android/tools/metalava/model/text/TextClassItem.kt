@@ -74,7 +74,12 @@ open class TextClassItem(
     override fun interfaceTypes(): List<TypeItem> = interfaceTypes
 
     override fun allInterfaces(): Sequence<ClassItem> {
-        return interfaceTypes.asSequence().map { it.asClass() }.filterNotNull()
+        return sequenceOf(
+                // Add this if and only if it is an interface.
+                if (isInterface) sequenceOf(this) else emptySequence(),
+                interfaceTypes.asSequence().map { it.asClass() }.filterNotNull(),
+            )
+            .flatten()
     }
 
     private var innerClasses: MutableList<ClassItem> = mutableListOf()
@@ -143,7 +148,7 @@ open class TextClassItem(
 
     override fun superClassType(): TypeItem? = superClassType
 
-    override fun setSuperClass(superClass: ClassItem?, superClassType: TypeItem?) {
+    internal fun setSuperClass(superClass: ClassItem?, superClassType: TypeItem?) {
         this.superClass = superClass
         this.superClassType = superClassType
     }

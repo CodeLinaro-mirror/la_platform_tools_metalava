@@ -17,12 +17,13 @@
 package com.android.tools.metalava.model.text
 
 import com.android.tools.metalava.model.ArrayTypeItem
+import com.android.tools.metalava.model.Assertions
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.TypeItem
 import com.google.common.truth.Truth.assertThat
 import org.junit.Test
 
-class TextTypeParserTest {
+class TextTypeParserTest : Assertions {
     @Test
     fun `Test type parameter strings`() {
         assertThat(TextTypeParser.typeParameterStrings(null).toString()).isEqualTo("[]")
@@ -40,6 +41,27 @@ class TextTypeParserTest {
                     .toString()
             )
             .isEqualTo("[java.util.List<java.lang.String>[]]")
+    }
+
+    @Test
+    fun `Test type parameter strings with annotations`() {
+        assertThat(
+                TextTypeParser.typeParameterStrings(
+                    "<java.lang.@androidx.annotation.IntRange(from=5,to=10) Integer>"
+                )
+            )
+            .containsExactly("java.lang.@androidx.annotation.IntRange(from=5,to=10) Integer")
+        assertThat(TextTypeParser.typeParameterStrings("<@test.pkg.C String>"))
+            .containsExactly("@test.pkg.C String")
+        assertThat(
+                TextTypeParser.typeParameterStrings(
+                    "<java.lang.@androidx.annotation.IntRange(from=5,to=10) Integer, @test.pkg.C String>"
+                )
+            )
+            .containsExactly(
+                "java.lang.@androidx.annotation.IntRange(from=5,to=10) Integer",
+                "@test.pkg.C String"
+            )
     }
 
     @Test
@@ -74,9 +96,8 @@ class TextTypeParserTest {
                 """
                     .trimIndent()
             )
-        val foo = codebase.findClass("test.pkg.Foo")
-        assertThat(foo).isNotNull()
-        assertThat(foo!!.methods()).hasSize(4)
+        val foo = codebase.assertClass("test.pkg.Foo")
+        assertThat(foo.methods()).hasSize(4)
 
         val bar1Param = foo.methods()[0].parameters()[0].type()
         val bar2Param = foo.methods()[1].parameters()[0].type()
@@ -347,6 +368,19 @@ class TextTypeParserTest {
             original = "Outer.Inner<P2>",
             expectedClassName = "Outer",
             expectedParams = ".Inner<P2>",
+            expectedAnnotations = emptyList()
+        )
+        testClassAnnotations(
+            original = "java.lang.@androidx.annotation.IntRange(from=5,to=10) Integer",
+            expectedClassName = "java.lang.Integer",
+            expectedParams = null,
+            expectedAnnotations = listOf("@androidx.annotation.IntRange(from=5,to=10)")
+        )
+        testClassAnnotations(
+            original =
+                "java.util.List<java.lang.@androidx.annotation.IntRange(from=5,to=10) Integer>",
+            expectedClassName = "java.util.List",
+            expectedParams = "<java.lang.@androidx.annotation.IntRange(from=5,to=10) Integer>",
             expectedAnnotations = emptyList()
         )
     }
