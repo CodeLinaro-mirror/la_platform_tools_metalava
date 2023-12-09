@@ -202,10 +202,6 @@ internal constructor(
         }
     }
 
-    override fun typeArgumentClasses(): List<ClassItem> {
-        return PsiTypeItem.typeParameterClasses(codebase, psiClass.typeParameterList)
-    }
-
     override val isTypeParameter: Boolean
         get() = psiClass is PsiTypeParameter
 

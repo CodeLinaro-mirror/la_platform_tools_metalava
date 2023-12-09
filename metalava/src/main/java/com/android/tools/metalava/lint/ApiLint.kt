@@ -18,7 +18,6 @@ package com.android.tools.metalava.lint
 
 import com.android.sdklib.SdkVersionInfo
 import com.android.tools.metalava.ANDROID_FLAGGED_API
-import com.android.tools.metalava.ApiPredicate
 import com.android.tools.metalava.ApiType
 import com.android.tools.metalava.CodebaseComparator
 import com.android.tools.metalava.ComparisonVisitor
@@ -192,25 +191,26 @@ import org.jetbrains.uast.visitor.AbstractUastVisitor
  * The [ApiLint] analyzer checks the API against a known set of preferred API practices by the
  * Android API council.
  */
-class ApiLint(
+class ApiLint
+private constructor(
     private val codebase: Codebase,
     private val oldCodebase: Codebase?,
     private val reporter: Reporter,
     private val manifest: Manifest,
-    config: ApiVisitor.Config,
+    config: Config,
 ) :
     ApiVisitor(
         // We don't use ApiType's eliding emitFilter here, because lint checks should run
         // even when the signatures match that of a super method exactly (notably the ones checking
         // that nullability overrides are consistent).
-        filterEmit =
-            ApiPredicate(includeApisForStubPurposes = false, config = config.apiPredicateConfig),
+        filterEmit = ApiType.PUBLIC_API.getNonElidingFilter(config.apiPredicateConfig),
         filterReference = ApiType.PUBLIC_API.getReferenceFilter(config.apiPredicateConfig),
         config = config,
         // Sort by source order such that warnings follow source line number order.
         methodComparator = MethodItem.sourceOrderComparator,
         fieldComparator = FieldItem.comparator,
     ) {
+
     /** Predicate that checks if the item appears in the signature file. */
     private val elidingFilterEmit = ApiType.PUBLIC_API.getEmitFilter(config.apiPredicateConfig)
 
@@ -222,11 +222,7 @@ class ApiLint(
     ) {
         // Don't flag api warnings on deprecated APIs; these are obviously already known to
         // be problematic.
-        if (item.deprecated) {
-            return
-        }
-
-        if (item is ParameterItem && item.containingMethod().deprecated) {
+        if (item.effectivelyDeprecated) {
             return
         }
 
@@ -239,7 +235,7 @@ class ApiLint(
         reporter.report(id, item, message, location)
     }
 
-    fun check() {
+    private fun check() {
         if (oldCodebase != null) {
             // Only check the new APIs
             CodebaseComparator()
@@ -3129,6 +3125,24 @@ class ApiLint(
     }
 
     companion object {
+
+        /**
+         * Check the supplied [codebase] to see if it adheres to the API lint rules enforced by this
+         * class, reporting any issues that it finds.
+         *
+         * If [oldCodebase] is provided then it will ignore any issues that are present in the
+         * [oldCodebase] as there is little that can be done to rectify those.
+         */
+        fun check(
+            codebase: Codebase,
+            oldCodebase: Codebase?,
+            reporter: Reporter,
+            manifest: Manifest,
+            config: Config,
+        ) {
+            val apiLint = ApiLint(codebase, oldCodebase, reporter, manifest, config)
+            apiLint.check()
+        }
 
         private data class GetterSetterPattern(val getter: String, val setter: String)
 

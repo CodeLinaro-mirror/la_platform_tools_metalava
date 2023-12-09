@@ -22,7 +22,7 @@ import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.TypeItem
 
 class TurbineParameterItem(
-    override val codebase: Codebase,
+    codebase: Codebase,
     private val name: String,
     private val containingMethod: TurbineMethodItem,
     override val parameterIndex: Int,

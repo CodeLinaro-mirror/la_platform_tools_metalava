@@ -28,14 +28,14 @@ import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 
 open class TurbineClassItem(
-    override val codebase: Codebase,
+    codebase: Codebase,
     private val name: String,
     private val fullName: String,
     private val qualifiedName: String,
-    override val modifiers: TurbineModifierItem,
+    modifiers: TurbineModifierItem,
     private val classType: TurbineClassType,
     private val typeParameters: TypeParameterList,
-) : ClassItem, TurbineItem(codebase = codebase, modifiers = modifiers) {
+) : TurbineItem(codebase, modifiers), ClassItem {
 
     override var artifact: String? = null
 

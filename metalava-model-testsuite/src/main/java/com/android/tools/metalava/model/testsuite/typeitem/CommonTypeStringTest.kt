@@ -114,6 +114,7 @@ class CommonTypeStringTest : BaseModelTest() {
         val annotations: Boolean = false,
         val kotlinStyleNulls: Boolean = false,
         val filter: Predicate<Item>? = null,
+        val spaceBetweenParameters: Boolean = false,
     )
 
     /**
@@ -168,7 +169,9 @@ class CommonTypeStringTest : BaseModelTest() {
                     annotations = parameters.typeStringConfiguration.annotations,
                     kotlinStyleNulls = parameters.typeStringConfiguration.kotlinStyleNulls,
                     filter = parameters.typeStringConfiguration.filter,
-                    context = param
+                    context = param,
+                    spaceBetweenParameters =
+                        parameters.typeStringConfiguration.spaceBetweenParameters,
                 )
             assertThat(typeString).isEqualTo(parameters.expectedTypeString)
         }
@@ -331,16 +334,41 @@ class CommonTypeStringTest : BaseModelTest() {
                                     ),
                                 expectedTypeString = "java.util.List<java.lang.String>?"
                             ),
+                            ConfigurationTestCase(
+                                name = "spaced params",
+                                configuration =
+                                    TypeStringConfiguration(spaceBetweenParameters = true),
+                                expectedTypeString = "java.util.List<java.lang.String>"
+                            ),
                         ),
                     extraJavaSourceFiles = listOf(libcoreNonNullSource, libcoreNullableSource),
                     extraTextPackages = listOf(libcoreTextPackage)
                 ) +
-                TypeStringParameters.forDefaultAndKotlinNulls(
+                TypeStringParameters.fromConfigurations(
                     name = "string to number map",
                     sourceType = "java.util.Map<String, Number>",
-                    expectedDefaultTypeString = "java.util.Map<java.lang.String,java.lang.Number>",
-                    expectedKotlinNullsTypeString =
-                        "java.util.Map<java.lang.String!,java.lang.Number!>!"
+                    configs =
+                        listOf(
+                            ConfigurationTestCase(
+                                name = "default",
+                                configuration = TypeStringConfiguration(),
+                                expectedTypeString =
+                                    "java.util.Map<java.lang.String,java.lang.Number>"
+                            ),
+                            ConfigurationTestCase(
+                                name = "kotlin nulls",
+                                configuration = TypeStringConfiguration(kotlinStyleNulls = true),
+                                expectedTypeString =
+                                    "java.util.Map<java.lang.String!,java.lang.Number!>!"
+                            ),
+                            ConfigurationTestCase(
+                                name = "spaced params",
+                                configuration =
+                                    TypeStringConfiguration(spaceBetweenParameters = true),
+                                expectedTypeString =
+                                    "java.util.Map<java.lang.String, java.lang.Number>"
+                            )
+                        )
                 ) +
                 TypeStringParameters.forDefaultAndKotlinNulls(
                     name = "2d string array",

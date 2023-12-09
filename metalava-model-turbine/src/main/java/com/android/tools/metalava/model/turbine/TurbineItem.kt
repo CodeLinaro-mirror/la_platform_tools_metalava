@@ -23,9 +23,7 @@ import com.android.tools.metalava.model.MutableModifierList
 abstract class TurbineItem(
     override val codebase: Codebase,
     override val modifiers: TurbineModifierItem
-) : DefaultItem() {
-
-    override var deprecated: Boolean = false
+) : DefaultItem(modifiers) {
 
     override var docOnly: Boolean = false
 

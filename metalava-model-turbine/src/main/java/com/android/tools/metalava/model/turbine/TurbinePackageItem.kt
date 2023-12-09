@@ -22,10 +22,10 @@ import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.VisibilityLevel
 
 class TurbinePackageItem(
-    override val codebase: Codebase,
+    codebase: Codebase,
     private val qualifiedName: String,
-    override val modifiers: TurbineModifierItem,
-) : PackageItem, TurbineItem(codebase, modifiers) {
+    modifiers: TurbineModifierItem,
+) : TurbineItem(codebase, modifiers), PackageItem {
 
     private var topClasses = mutableListOf<TurbineClassItem>()
 

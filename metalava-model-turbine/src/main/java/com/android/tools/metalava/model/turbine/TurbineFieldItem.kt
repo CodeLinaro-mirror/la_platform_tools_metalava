@@ -22,11 +22,11 @@ import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.TypeItem
 
 class TurbineFieldItem(
-    override val codebase: Codebase,
+    codebase: Codebase,
     private val name: String,
     private val containingClass: TurbineClassItem,
     private val type: TurbineTypeItem,
-    override val modifiers: TurbineModifierItem,
+    modifiers: TurbineModifierItem,
 ) : TurbineItem(codebase, modifiers), FieldItem {
 
     override var inheritedFrom: ClassItem? = null

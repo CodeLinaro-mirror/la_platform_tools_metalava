@@ -24,18 +24,13 @@ enum class ApiType(val flagName: String, val displayName: String = flagName) {
     /** The public API */
     PUBLIC_API("api", "public") {
 
-        override fun getEmitFilter(apiPredicateConfig: ApiPredicate.Config): Predicate<Item> {
+        override fun getNonElidingFilter(apiPredicateConfig: ApiPredicate.Config): Predicate<Item> {
             // This filter is for API signature files, where we don't need the "for stub purposes"
             // APIs.
-            val apiFilter =
-                FilterPredicate(
-                    ApiPredicate(
-                        includeApisForStubPurposes = false,
-                        config = apiPredicateConfig,
-                    )
-                )
-            val apiReference = ApiPredicate(config = apiPredicateConfig.copy(ignoreShown = true))
-            return apiFilter.and(elidingPredicate(apiReference, apiPredicateConfig))
+            return ApiPredicate(
+                includeApisForStubPurposes = false,
+                config = apiPredicateConfig,
+            )
         }
 
         override fun getReferenceFilter(apiPredicateConfig: ApiPredicate.Config): Predicate<Item> {
@@ -46,23 +41,14 @@ enum class ApiType(val flagName: String, val displayName: String = flagName) {
     /** The API that has been removed */
     REMOVED("removed", "removed") {
 
-        override fun getEmitFilter(apiPredicateConfig: ApiPredicate.Config): Predicate<Item> {
+        override fun getNonElidingFilter(apiPredicateConfig: ApiPredicate.Config): Predicate<Item> {
             // This filter is for API signature files, where we don't need the "for stub purposes"
             // APIs.
-            val removedFilter =
-                FilterPredicate(
-                    ApiPredicate(
-                        includeApisForStubPurposes = false,
-                        matchRemoved = true,
-                        config = apiPredicateConfig,
-                    )
-                )
-            val removedReference =
-                ApiPredicate(
-                    ignoreRemoved = true,
-                    config = apiPredicateConfig.copy(ignoreShown = true),
-                )
-            return removedFilter.and(elidingPredicate(removedReference, apiPredicateConfig))
+            return ApiPredicate(
+                includeApisForStubPurposes = false,
+                matchRemoved = true,
+                config = apiPredicateConfig,
+            )
         }
 
         override fun getReferenceFilter(apiPredicateConfig: ApiPredicate.Config): Predicate<Item> {
@@ -76,6 +62,10 @@ enum class ApiType(val flagName: String, val displayName: String = flagName) {
     /** Everything */
     ALL("all", "all") {
 
+        override fun getNonElidingFilter(apiPredicateConfig: ApiPredicate.Config): Predicate<Item> {
+            return Predicate { it.emit }
+        }
+
         override fun getEmitFilter(apiPredicateConfig: ApiPredicate.Config): Predicate<Item> {
             return Predicate { it.emit }
         }
@@ -85,7 +75,13 @@ enum class ApiType(val flagName: String, val displayName: String = flagName) {
         }
     };
 
-    abstract fun getEmitFilter(apiPredicateConfig: ApiPredicate.Config): Predicate<Item>
+    abstract fun getNonElidingFilter(apiPredicateConfig: ApiPredicate.Config): Predicate<Item>
+
+    open fun getEmitFilter(apiPredicateConfig: ApiPredicate.Config): Predicate<Item> {
+        val nonElidingFilter = FilterPredicate(getNonElidingFilter(apiPredicateConfig))
+        val referenceFilter = getReferenceFilter(apiPredicateConfig)
+        return nonElidingFilter.and(elidingPredicate(referenceFilter, apiPredicateConfig))
+    }
 
     abstract fun getReferenceFilter(apiPredicateConfig: ApiPredicate.Config): Predicate<Item>
 
@@ -94,7 +90,7 @@ enum class ApiType(val flagName: String, val displayName: String = flagName) {
      * [apiPredicateConfig].
      */
     protected fun elidingPredicate(
-        wrappedPredicate: ApiPredicate,
+        wrappedPredicate: Predicate<Item>,
         apiPredicateConfig: ApiPredicate.Config
     ) =
         ElidingPredicate(

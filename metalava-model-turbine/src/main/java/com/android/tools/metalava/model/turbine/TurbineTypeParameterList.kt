@@ -24,10 +24,32 @@ internal class TurbineTypeParameterList(
 ) : TypeParameterList {
 
     internal lateinit var typeParameters: List<TurbineTypeParameterItem>
+    private lateinit var typeParameterNamesList: List<String>
 
-    override fun toString(): String = TODO("b/295800205")
+    override fun toString(): String {
+        val sb = StringBuilder()
+        if (!typeParameters.isEmpty()) {
+            sb.append("<")
+            var first = true
+            for (param in typeParameters) {
+                if (!first) {
+                    sb.append(",")
+                    sb.append(" ")
+                }
+                first = false
+                sb.append(param.toSource())
+            }
+            sb.append(">")
+        }
+        return sb.toString()
+    }
 
-    override fun typeParameterNames(): List<String> = TODO("b/295800205")
+    override fun typeParameterNames(): List<String> {
+        if (!::typeParameterNamesList.isInitialized) {
+            typeParameterNamesList = typeParameters.map { it.simpleName() }
+        }
+        return typeParameterNamesList
+    }
 
     override fun typeParameters(): List<TurbineTypeParameterItem> = typeParameters
 }

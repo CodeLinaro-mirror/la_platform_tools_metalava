@@ -213,9 +213,6 @@ interface ClassItem : Item {
      */
     @MetalavaApi fun typeParameterList(): TypeParameterList
 
-    /** Returns the classes that are part of the type parameters of this method, if any */
-    fun typeArgumentClasses(): List<ClassItem> = codebase.unsupported()
-
     fun isJavaLangObject(): Boolean {
         return qualifiedName() == JAVA_LANG_OBJECT
     }

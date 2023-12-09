@@ -38,19 +38,21 @@ interface TypeItem {
     /**
      * Generates a string for this type.
      *
-     * For a type like this: @Nullable java.util.List<@NonNull java.lang.String>, [annotations]
-     * controls whether the annotations like @Nullable and @NonNull are included. The
-     * [kotlinStyleNulls] parameter controls whether it should return "@Nullable List<String>" as
-     * "List<String!>?". Finally, [filter] specifies a filter to apply to the type annotations, if
-     * any.
-     *
-     * (The combination [outerAnnotations] = true and [innerAnnotations] = false is not allowed.)
+     * @param annotations For a type like this: @Nullable java.util.List<@NonNull java.lang.String>,
+     *   [annotations] controls whether the annotations like @Nullable and @NonNull are included.
+     * @param kotlinStyleNulls Controls whether it should return "@Nullable List<String>" as
+     *   "List<String!>?".
+     * @param filter Specifies a filter to apply to the type annotations, if any.
+     * @param spaceBetweenParameters Controls whether there should be a space between class type
+     *   parameters, e.g. "java.util.Map<java.lang.Integer, java.lang.Number>" or
+     *   "java.util.Map<java.lang.Integer,java.lang.Number>".
      */
     fun toTypeString(
         annotations: Boolean = false,
         kotlinStyleNulls: Boolean = false,
         context: Item? = null,
-        filter: Predicate<Item>? = null
+        filter: Predicate<Item>? = null,
+        spaceBetweenParameters: Boolean = false
     ): String
 
     /** Legacy alias for [toErasedTypeString]`()`. */
@@ -468,10 +470,17 @@ abstract class DefaultTypeItem(private val codebase: Codebase) : TypeItem {
         annotations: Boolean,
         kotlinStyleNulls: Boolean,
         context: Item?,
-        filter: Predicate<Item>?
+        filter: Predicate<Item>?,
+        spaceBetweenParameters: Boolean
     ): String {
         return toTypeString(
-            TypeStringConfiguration(codebase, annotations, kotlinStyleNulls, filter)
+            TypeStringConfiguration(
+                codebase,
+                annotations,
+                kotlinStyleNulls,
+                filter,
+                spaceBetweenParameters
+            )
         )
     }
 
@@ -511,14 +520,17 @@ abstract class DefaultTypeItem(private val codebase: Codebase) : TypeItem {
          *   for nullable, no suffix for non-null, and `!` for platform nullability. For example,
          *   the Java type `@Nullable List<String>` would be represented as `List<String!>?`.
          * @param filter A filter to apply to the type annotations, if any.
+         * @param spaceBetweenParameters Whether to include a space between class type params.
          */
         private data class TypeStringConfiguration(
             val codebase: Codebase,
             val annotations: Boolean = false,
             val kotlinStyleNulls: Boolean = false,
             val filter: Predicate<Item>? = null,
+            val spaceBetweenParameters: Boolean = false,
         ) {
-            val isDefault = !annotations && !kotlinStyleNulls && filter == null
+            val isDefault =
+                !annotations && !kotlinStyleNulls && filter == null && !spaceBetweenParameters
         }
 
         private fun StringBuilder.appendTypeString(
@@ -592,6 +604,9 @@ abstract class DefaultTypeItem(private val codebase: Codebase) : TypeItem {
                             appendTypeString(parameter, configuration)
                             if (index != type.parameters.size - 1) {
                                 append(",")
+                                if (configuration.spaceBetweenParameters) {
+                                    append(" ")
+                                }
                             }
                         }
                         append(">")

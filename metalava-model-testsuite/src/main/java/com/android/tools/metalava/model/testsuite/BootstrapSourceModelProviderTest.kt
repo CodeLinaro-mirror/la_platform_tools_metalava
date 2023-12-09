@@ -681,4 +681,51 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
             assertEquals(true, testClass1.hasImplicitDefaultConstructor())
         }
     }
+
+    @Test
+    fun `200 - test TypeParameterList name strings`() {
+        runSourceCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+
+                    import java.util.Map;
+                    import java.io.Serializable;
+
+                    class Test<@Nullable T,U extends Map<? super U, String>,V extends  Comparable & Serializable> {
+                        public <Q, R extends Outer<? super U>.Inner<? extends Comparable >,S extends  Comparable & Serializable> void foo(Q a, R b, S c) {}
+                    }
+
+                    class Outer<O> {
+                        class Inner<P> {}
+                    }
+                    @interface Nullable {}
+                """
+            ),
+        ) { codebase ->
+            val classItem = codebase.assertClass("test.pkg.Test")
+            val annoItem = codebase.assertClass("test.pkg.Nullable")
+            val methodItem = classItem.methods().single()
+            val classTypeParameterList = classItem.typeParameterList()
+            val methodTypeParameterList = methodItem.typeParameterList()
+            val annoTypeParameterList = annoItem.typeParameterList()
+
+            val classParameterNames = listOf("T", "U", "V")
+            val methodParameterNames = listOf("Q", "R", "S")
+
+            assertEquals(classParameterNames, classTypeParameterList.typeParameterNames())
+            assertEquals(emptyList(), annoTypeParameterList.typeParameterNames())
+            assertEquals(methodParameterNames, methodTypeParameterList.typeParameterNames())
+
+            assertEquals(
+                "<T, U extends java.util.Map<? super U, java.lang.String>, V extends java.lang.Comparable & java.io.Serializable>",
+                classTypeParameterList.toString()
+            )
+            assertEquals("", annoTypeParameterList.toString())
+            assertEquals(
+                "<Q, R extends test.pkg.Outer<? super U>.Inner<? extends java.lang.Comparable>, S extends java.lang.Comparable & java.io.Serializable>",
+                methodTypeParameterList.toString()
+            )
+        }
+    }
 }

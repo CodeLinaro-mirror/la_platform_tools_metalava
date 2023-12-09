@@ -150,10 +150,6 @@ open class PsiMethodItem(
         }
     }
 
-    override fun typeArgumentClasses(): List<ClassItem> {
-        return PsiTypeItem.typeParameterClasses(codebase, psiMethod.typeParameterList)
-    }
-
     //    private var throwsTypes: List<ClassItem>? = null
     private lateinit var throwsTypes: List<ClassItem>
 

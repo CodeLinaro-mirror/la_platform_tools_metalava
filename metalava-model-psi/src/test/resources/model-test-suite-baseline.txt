@@ -1,3 +1,6 @@
+com.android.tools.metalava.model.testsuite.BootstrapSourceModelProviderTest
+  200 - test TypeParameterList name strings[psi,java]
+
 com.android.tools.metalava.model.testsuite.typeitem.CommonTypeItemTest
   check TypeItem asClass()[psi,java]
 

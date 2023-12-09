@@ -75,7 +75,23 @@ interface Item {
      */
     var removed: Boolean
 
-    /** True if this element has been marked deprecated */
+    /** True if this item has been marked deprecated. */
+    val originallyDeprecated: Boolean
+
+    /**
+     * True if this item has been marked as deprecated or is a descendant of a non-package item that
+     * has been marked as deprecated.
+     */
+    var effectivelyDeprecated: Boolean
+
+    /**
+     * True if this item has been marked deprecated.
+     *
+     * The meaning of this property changes over time. Initially, when reading sources it indicates
+     * whether the item has been marked as deprecated (either using `@deprecated` javadoc tag or
+     * `@Deprecated` annotation). However, during processing it is updated to `true` if any of its
+     * non-package ancestors have set this to `true`.
+     */
     var deprecated: Boolean
 
     /** True if this element is only intended for documentation */
@@ -369,7 +385,16 @@ interface Item {
     }
 }
 
-abstract class DefaultItem(override val sortingRank: Int = nextRank.getAndIncrement()) : Item {
+abstract class DefaultItem(modifiers: DefaultModifierList) : Item {
+
+    final override val sortingRank: Int = nextRank.getAndIncrement()
+
+    final override var originallyDeprecated = modifiers.isDeprecated()
+
+    final override var effectivelyDeprecated = originallyDeprecated
+
+    final override var deprecated = originallyDeprecated
+
     override val isPublic: Boolean
         get() = modifiers.isPublic()
 

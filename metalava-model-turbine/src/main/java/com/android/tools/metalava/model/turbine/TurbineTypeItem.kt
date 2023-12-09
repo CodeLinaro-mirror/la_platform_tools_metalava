@@ -66,9 +66,16 @@ sealed class TurbineTypeItem(
         kotlinStyleNulls: Boolean,
         context: Item?,
         filter: Predicate<Item>?,
+        spaceBetweenParameters: Boolean
     ): String {
         if (!kotlinStyleNulls) {
-            return super.toTypeString(annotations, kotlinStyleNulls, context, filter)
+            return super.toTypeString(
+                annotations,
+                kotlinStyleNulls,
+                context,
+                filter,
+                spaceBetweenParameters
+            )
         }
 
         TODO("b/295800205")
