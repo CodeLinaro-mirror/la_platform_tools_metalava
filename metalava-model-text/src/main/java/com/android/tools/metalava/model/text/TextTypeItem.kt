@@ -132,10 +132,6 @@ sealed class TextTypeItem(open val codebase: TextCodebase, open val type: String
         return codebase.typeResolver.obtainTypeFromString(convertTypeString(replacementMap))
     }
 
-    override fun markRecent() = codebase.unsupported()
-
-    override fun scrubAnnotations() = codebase.unsupported()
-
     companion object {
         fun toTypeString(
             type: String,

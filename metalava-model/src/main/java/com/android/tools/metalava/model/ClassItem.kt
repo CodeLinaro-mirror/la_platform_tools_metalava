@@ -217,10 +217,6 @@ interface ClassItem : Item {
         return qualifiedName() == JAVA_LANG_OBJECT
     }
 
-    fun isAbstractClass(): Boolean {
-        return modifiers.isAbstract()
-    }
-
     // Mutation APIs: Used to "fix up" the API hierarchy to only expose visible parts of the API.
 
     // This replaces the interface types implemented by this class

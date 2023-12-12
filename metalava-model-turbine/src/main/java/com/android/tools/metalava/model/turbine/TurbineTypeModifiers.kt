@@ -20,6 +20,16 @@ import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.TypeModifiers
 
 /** Modifiers for a [TurbineTypeItem]. */
-internal class TurbineTypeModifiers(private val annotations: List<AnnotationItem>) : TypeModifiers {
+internal class TurbineTypeModifiers(initialAnnotations: List<AnnotationItem>) : TypeModifiers {
+    private val annotations = initialAnnotations.toMutableList()
+
     override fun annotations(): List<AnnotationItem> = annotations
+
+    override fun addAnnotation(annotation: AnnotationItem) {
+        annotations.add(annotation)
+    }
+
+    override fun removeAnnotation(annotation: AnnotationItem) {
+        annotations.remove(annotation)
+    }
 }

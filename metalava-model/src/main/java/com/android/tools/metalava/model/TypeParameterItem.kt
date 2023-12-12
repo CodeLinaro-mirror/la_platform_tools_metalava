@@ -31,24 +31,27 @@ interface TypeParameterItem : ClassItem {
     fun isReified(): Boolean
 
     fun toSource(): String {
-        val sb = StringBuilder()
-        if (isReified()) {
-            sb.append("reified ")
-        }
-        sb.append(simpleName())
-        if (typeBounds().isNotEmpty()) {
-            sb.append(" extends ")
-            var first = true
-            for (bound in typeBounds()) {
-                if (!first) {
-                    sb.append(" ")
-                    sb.append("&")
-                    sb.append(" ")
+        return buildString {
+            if (isReified()) {
+                append("reified ")
+            }
+            append(simpleName())
+            // If the only bound is Object, omit it because it is implied.
+            if (
+                typeBounds().isNotEmpty() && typeBounds().singleOrNull()?.isJavaLangObject() != true
+            ) {
+                append(" extends ")
+                var first = true
+                for (bound in typeBounds()) {
+                    if (!first) {
+                        append(" ")
+                        append("&")
+                        append(" ")
+                    }
+                    first = false
+                    append(bound.toTypeString(spaceBetweenParameters = true))
                 }
-                first = false
-                sb.append(bound.toTypeString(spaceBetweenParameters = true))
             }
         }
-        return sb.toString()
     }
 }

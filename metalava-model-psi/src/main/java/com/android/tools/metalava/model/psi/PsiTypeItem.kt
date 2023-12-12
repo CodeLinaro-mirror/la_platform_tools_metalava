@@ -178,13 +178,6 @@ sealed class PsiTypeItem(
         return type is PsiClassType && type.hasParameters()
     }
 
-    // This method is only used when `SUPPORT_TYPE_USE_ANNOTATIONS` is hardcoded to true
-    override fun markRecent() = TODO()
-
-    override fun scrubAnnotations() {
-        toAnnotatedString = toTypeString(annotations = false)
-    }
-
     /** Returns `true` if `this` type can be assigned from `other` without unboxing the other. */
     fun isAssignableFromWithoutUnboxing(other: PsiTypeItem): Boolean {
         if (this is PrimitiveTypeItem && other !is PrimitiveTypeItem) {

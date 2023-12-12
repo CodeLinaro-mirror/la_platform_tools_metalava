@@ -360,7 +360,7 @@ class CommonTypeParameterItemTest : BaseModelTest() {
             java(
                 """
                     package test.pkg;
-                    public class Foo<T extends Object> {}
+                    public class Foo<T extends Object, U extends Object & Comparable<U>> {}
                 """
                     .trimIndent()
             ),
@@ -368,7 +368,7 @@ class CommonTypeParameterItemTest : BaseModelTest() {
                 """
                     // Signature format: 5.0
                     package test.pkg {
-                      public final class Foo<T extends java.lang.Object> {
+                      public final class Foo<T extends java.lang.Object, U extends java.lang.Object & java.lang.Comparable<U>> {
                       }
                     }
                 """
@@ -376,12 +376,25 @@ class CommonTypeParameterItemTest : BaseModelTest() {
             )
         ) { codebase ->
             val clazz = codebase.assertClass("test.pkg.Foo")
-            val typeParameter = clazz.typeParameterList().typeParameters().single()
-            assertThat(typeParameter.isReified()).isFalse()
-            val bounds = typeParameter.typeBounds()
-            assertThat(bounds).hasSize(1)
-            assertThat(bounds.single().isJavaLangObject()).isTrue()
-            assertThat(typeParameter.toSource()).isEqualTo("T extends java.lang.Object")
+            val typeParameters = clazz.typeParameterList().typeParameters()
+
+            val typeParameterT = typeParameters[0]
+            assertThat(typeParameterT.isReified()).isFalse()
+            val boundsT = typeParameterT.typeBounds()
+            assertThat(boundsT).hasSize(1)
+            assertThat(boundsT.single().isJavaLangObject()).isTrue()
+            assertThat(typeParameterT.toSource()).isEqualTo("T")
+
+            val typeParameterU = typeParameters[1]
+            assertThat(typeParameterU.isReified()).isFalse()
+            val boundsU = typeParameterU.typeBounds()
+            assertThat(boundsU).hasSize(2)
+            assertThat(boundsU[0].isJavaLangObject()).isTrue()
+            assertThat((boundsU[1] as ClassTypeItem).qualifiedName)
+                .isEqualTo("java.lang.Comparable")
+            // Since this is not a single object bound, it is still included
+            assertThat(typeParameterU.toSource())
+                .isEqualTo("U extends java.lang.Object & java.lang.Comparable<U>")
         }
     }
 }

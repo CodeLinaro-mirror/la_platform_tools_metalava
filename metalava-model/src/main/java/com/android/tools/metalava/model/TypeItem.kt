@@ -104,14 +104,6 @@ interface TypeItem {
         return s
     }
 
-    /**
-     * Returns the element type if the type is an array or contains a vararg. If the element is not
-     * an array or does not contain a vararg, returns the original type string.
-     */
-    fun toElementType(): String {
-        return toTypeString().replace("...", "").replace("[]", "")
-    }
-
     fun convertType(from: ClassItem, to: ClassItem): TypeItem {
         val map = from.mapTypeVariables(to)
         if (map.isNotEmpty()) {
@@ -141,63 +133,6 @@ interface TypeItem {
     fun defaultValueString(): String = "null"
 
     fun hasTypeArguments(): Boolean = toTypeString().contains("<")
-
-    /**
-     * If the item has type arguments, return a list of type arguments. If simplified is true,
-     * returns the simplified forms of the type arguments. e.g. when type arguments are <K, V
-     * extends some.arbitrary.Class>, [K, V] will be returned. If the item does not have any type
-     * arguments, return an empty list.
-     */
-    fun typeArguments(simplified: Boolean = false): List<String> {
-        if (!hasTypeArguments()) {
-            return emptyList()
-        }
-        val typeString = toTypeString()
-        val bracketRemovedTypeString =
-            typeString.indexOf('<').let { typeString.substring(it + 1, typeString.length - 1) }
-        val typeArguments = mutableListOf<String>()
-        var builder = StringBuilder()
-        var balance = 0
-        var idx = 0
-        while (idx < bracketRemovedTypeString.length) {
-            when (val s = bracketRemovedTypeString[idx]) {
-                ',' -> {
-                    if (balance == 0) {
-                        typeArguments.add(builder.toString())
-                        builder = StringBuilder()
-                    } else {
-                        builder.append(s)
-                    }
-                }
-                '<' -> {
-                    balance += 1
-                    builder.append(s)
-                }
-                '>' -> {
-                    balance -= 1
-                    builder.append(s)
-                }
-                else -> builder.append(s)
-            }
-            idx += 1
-        }
-        typeArguments.add(builder.toString())
-
-        if (simplified) {
-            return typeArguments.map { it.substringBefore(" extends ").trim() }
-        }
-        return typeArguments.map { it.trim() }
-    }
-
-    /**
-     * Mark nullness annotations in the type as recent.
-     *
-     * TODO: This isn't very clean; we should model individual annotations.
-     */
-    fun markRecent()
-
-    /** Ensure that we don't include any annotations in the type strings for this type. */
-    fun scrubAnnotations()
 
     companion object {
         /** Shortens types, if configured */

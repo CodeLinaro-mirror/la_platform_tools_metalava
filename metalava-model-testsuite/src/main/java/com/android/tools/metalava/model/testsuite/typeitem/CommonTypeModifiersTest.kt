@@ -806,4 +806,39 @@ class CommonTypeModifiersTest : BaseModelTest() {
             testModifiers(string.modifiers)
         }
     }
+
+    @Test
+    fun `Test adding and removing annotations`() {
+        // Not supported for text codebases due to caching
+        runCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+                    import java.lang.annotation.ElementType;
+                    import java.lang.annotation.Target;
+                    public class Foo {
+                        public @A @B String foo() {}
+                    }
+                    @Target(ElementType.TYPE_USE)
+                    public @interface A {}
+                    @Target(ElementType.TYPE_USE)
+                    public @interface B {}
+                """
+                    .trimIndent()
+            ),
+        ) { codebase ->
+            val stringType = codebase.assertClass("test.pkg.Foo").methods().single().returnType()
+            assertThat(stringType.annotationNames()).containsExactly("test.pkg.A", "test.pkg.B")
+
+            // Remove annotation
+            val annotationA = stringType.modifiers.annotations().first()
+            assertThat(annotationA.qualifiedName).isEqualTo("test.pkg.A")
+            stringType.modifiers.removeAnnotation(annotationA)
+            assertThat(stringType.annotationNames()).containsExactly("test.pkg.B")
+
+            // Add annotation
+            stringType.modifiers.addAnnotation(annotationA)
+            assertThat(stringType.annotationNames()).containsExactly("test.pkg.B", "test.pkg.A")
+        }
+    }
 }

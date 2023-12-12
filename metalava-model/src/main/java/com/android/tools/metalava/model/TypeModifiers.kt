@@ -23,4 +23,10 @@ package com.android.tools.metalava.model
 interface TypeModifiers {
     /** The type-use annotations applied to the owning type. */
     fun annotations(): List<AnnotationItem>
+
+    /** Adds the [annotation] to the list of annotations for the type. */
+    fun addAnnotation(annotation: AnnotationItem)
+
+    /** Removes the [annotation] from the list of annotations for the type, if it was present. */
+    fun removeAnnotation(annotation: AnnotationItem)
 }

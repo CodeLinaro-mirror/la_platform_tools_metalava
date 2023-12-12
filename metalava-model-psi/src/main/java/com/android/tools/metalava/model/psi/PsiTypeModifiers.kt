@@ -21,13 +21,24 @@ import com.android.tools.metalava.model.TypeModifiers
 import com.intellij.psi.PsiType
 
 /** Modifiers for a [PsiTypeItem]. */
-internal class PsiTypeModifiers(private val annotations: List<PsiAnnotationItem>) : TypeModifiers {
+internal class PsiTypeModifiers(private val annotations: MutableList<PsiAnnotationItem>) :
+    TypeModifiers {
     override fun annotations(): List<AnnotationItem> = annotations
+
+    override fun addAnnotation(annotation: AnnotationItem) {
+        annotations.add(annotation as PsiAnnotationItem)
+    }
+
+    override fun removeAnnotation(annotation: AnnotationItem) {
+        annotations.remove(annotation)
+    }
 
     companion object {
         /** Creates modifiers in the given [codebase] based on the annotations of the [type]. */
         fun create(codebase: PsiBasedCodebase, type: PsiType): PsiTypeModifiers {
-            return PsiTypeModifiers(type.annotations.map { PsiAnnotationItem.create(codebase, it) })
+            return PsiTypeModifiers(
+                type.annotations.map { PsiAnnotationItem.create(codebase, it) }.toMutableList()
+            )
         }
     }
 }

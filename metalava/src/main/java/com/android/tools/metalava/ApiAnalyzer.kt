@@ -1000,7 +1000,7 @@ class ApiAnalyzer(
                     }
 
                     // Make sure we don't annotate findViewById & getSystemService as @Nullable.
-                    // See for example 68914170.
+                    // See for example b/68914170.
                     val name = method.name()
                     if (
                         (name == "findViewById" || name == "getSystemService") &&
@@ -1013,13 +1013,14 @@ class ApiAnalyzer(
                             "$method should not be annotated @Nullable; it should be left unspecified to make it a platform type"
                         )
                         val annotation = method.modifiers.findAnnotation(AnnotationItem::isNullable)
-                        annotation?.let {
-                            method.mutableModifiers().removeAnnotation(it)
-                            // Have to also clear the annotation out of the return type itself, if
-                            // it's a type
-                            // use annotation
-                            method.returnType().scrubAnnotations()
-                        }
+                        annotation?.let { method.mutableModifiers().removeAnnotation(it) }
+                        // Have to also clear the annotation out of the return type itself, if it's
+                        // a type use annotation
+                        val typeAnnotation =
+                            method.returnType().modifiers.annotations().singleOrNull {
+                                it.isNullnessAnnotation()
+                            }
+                        typeAnnotation?.let { method.returnType().modifiers.removeAnnotation(it) }
                     }
                 }
 

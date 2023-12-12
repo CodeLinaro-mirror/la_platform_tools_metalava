@@ -693,7 +693,8 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
                     import java.io.Serializable;
 
                     class Test<@Nullable T,U extends Map<? super U, String>,V extends  Comparable & Serializable> {
-                        public <Q, R extends Outer<? super U>.Inner<? extends Comparable >,S extends  Comparable & Serializable> void foo(Q a, R b, S c) {}
+                        public <Q, R extends Outer<? super U>.Inner<? extends Comparable >,S extends  Comparable & Serializable> void foo1(Q a, R b, S c) {}
+                        public <A extends Object, B extends Object> void foo2() {}
                     }
 
                     class Outer<O> {
@@ -705,17 +706,21 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
         ) { codebase ->
             val classItem = codebase.assertClass("test.pkg.Test")
             val annoItem = codebase.assertClass("test.pkg.Nullable")
-            val methodItem = classItem.methods().single()
+            val method1Item = classItem.methods()[0]
+            val method2Item = classItem.methods()[1]
             val classTypeParameterList = classItem.typeParameterList()
-            val methodTypeParameterList = methodItem.typeParameterList()
+            val method1TypeParameterList = method1Item.typeParameterList()
+            val method2TypeParameterList = method2Item.typeParameterList()
             val annoTypeParameterList = annoItem.typeParameterList()
 
             val classParameterNames = listOf("T", "U", "V")
-            val methodParameterNames = listOf("Q", "R", "S")
+            val method1ParameterNames = listOf("Q", "R", "S")
+            val method2TypeParameterNames = listOf("A", "B")
 
             assertEquals(classParameterNames, classTypeParameterList.typeParameterNames())
             assertEquals(emptyList(), annoTypeParameterList.typeParameterNames())
-            assertEquals(methodParameterNames, methodTypeParameterList.typeParameterNames())
+            assertEquals(method1ParameterNames, method1TypeParameterList.typeParameterNames())
+            assertEquals(method2TypeParameterNames, method2TypeParameterList.typeParameterNames())
 
             assertEquals(
                 "<T, U extends java.util.Map<? super U, java.lang.String>, V extends java.lang.Comparable & java.io.Serializable>",
@@ -724,8 +729,9 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
             assertEquals("", annoTypeParameterList.toString())
             assertEquals(
                 "<Q, R extends test.pkg.Outer<? super U>.Inner<? extends java.lang.Comparable>, S extends java.lang.Comparable & java.io.Serializable>",
-                methodTypeParameterList.toString()
+                method1TypeParameterList.toString()
             )
+            assertEquals("<A, B>", method2TypeParameterList.toString())
         }
     }
 }

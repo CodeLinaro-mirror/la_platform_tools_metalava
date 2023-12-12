@@ -91,11 +91,9 @@ import com.android.tools.metalava.reporter.Issues.BUILDER_SET_STYLE
 import com.android.tools.metalava.reporter.Issues.CALLBACK_INTERFACE
 import com.android.tools.metalava.reporter.Issues.CALLBACK_METHOD_NAME
 import com.android.tools.metalava.reporter.Issues.CALLBACK_NAME
-import com.android.tools.metalava.reporter.Issues.COMMON_ARGS_FIRST
 import com.android.tools.metalava.reporter.Issues.COMPILE_TIME_CONSTANT
 import com.android.tools.metalava.reporter.Issues.CONCRETE_COLLECTION
 import com.android.tools.metalava.reporter.Issues.CONFIG_FIELD_NAME
-import com.android.tools.metalava.reporter.Issues.CONSISTENT_ARGUMENT_ORDER
 import com.android.tools.metalava.reporter.Issues.CONTEXT_FIRST
 import com.android.tools.metalava.reporter.Issues.CONTEXT_NAME_SUFFIX
 import com.android.tools.metalava.reporter.Issues.ENDS_WITH_IMPL
@@ -361,9 +359,6 @@ private constructor(
         checkExtends(cls)
         checkTypedef(cls)
         checkHasFlaggedApi(cls)
-
-        // TODO: Not yet working
-        // checkOverloadArgs(cls, methods)
     }
 
     private fun checkField(field: FieldItem) {
@@ -2013,78 +2008,6 @@ private constructor(
                     fields.none { !it.modifiers.isStatic() }
             ) {
                 report(STATIC_UTILS, cls, "Fully-static utility classes must not have constructor")
-            }
-        }
-    }
-
-    private fun checkOverloadArgs(cls: ClassItem, methods: Sequence<MethodItem>) {
-        if (cls.qualifiedName().startsWith("android.opengl")) {
-            return
-        }
-
-        val overloads = mutableMapOf<String, MutableList<MethodItem>>()
-        for (method in methods) {
-            if (!method.deprecated) {
-                val name = method.name()
-                val list =
-                    overloads[name]
-                        ?: run {
-                            val new = mutableListOf<MethodItem>()
-                            overloads[name] = new
-                            new
-                        }
-                list.add(method)
-            }
-        }
-
-        // Look for arguments common across all overloads
-        fun cluster(args: List<ParameterItem>): MutableSet<String> {
-            val count = mutableMapOf<String, Int>()
-            val res = mutableSetOf<String>()
-            for (parameter in args) {
-                val a = parameter.type().toTypeString()
-                val currCount = count[a] ?: 1
-                res.add("$a#$currCount")
-                count[a] = currCount + 1
-            }
-            return res
-        }
-
-        for ((_, methodList) in overloads.entries) {
-            if (methodList.size <= 1) {
-                continue
-            }
-
-            val commonArgs = cluster(methodList[0].parameters())
-            for (m in methodList) {
-                val clustered = cluster(m.parameters())
-                commonArgs.removeAll(clustered)
-            }
-            if (commonArgs.isEmpty()) {
-                continue
-            }
-
-            // Require that all common arguments are present at the start of the signature
-            var lockedSig: List<ParameterItem>? = null
-            val commonArgCount = commonArgs.size
-            for (m in methodList) {
-                val sig = m.parameters().subList(0, commonArgCount)
-                val cluster = cluster(sig)
-                if (!cluster.containsAll(commonArgs)) {
-                    report(
-                        COMMON_ARGS_FIRST,
-                        m,
-                        "Expected common arguments ${commonArgs.joinToString()}} at beginning of overloaded method ${m.describe()}"
-                    )
-                } else if (lockedSig == null) {
-                    lockedSig = sig
-                } else if (lockedSig != sig) {
-                    report(
-                        CONSISTENT_ARGUMENT_ORDER,
-                        m,
-                        "Expected consistent argument ordering between overloads: ${lockedSig.joinToString()}}"
-                    )
-                }
             }
         }
     }
