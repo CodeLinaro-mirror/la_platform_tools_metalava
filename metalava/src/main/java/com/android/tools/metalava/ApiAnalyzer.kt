@@ -611,7 +611,14 @@ class ApiAnalyzer(
     private fun propagateHiddenRemovedAndDocOnly() {
         packages.accept(
             object : BaseItemVisitor(visitConstructorsAsMethods = true, nestInnerClasses = true) {
-                override fun visitItem(item: Item) {
+                /**
+                 * Mark [item] as deprecated if [Item.parent] is deprecated, and it is not a
+                 * package.
+                 *
+                 * This must be called from the type specific `visit*()` methods after any other
+                 * logic as it will depend on the value of [Item.removed] set in that method.
+                 */
+                private fun markAsDeprecatedIfNonPackageParentIsDeprecated(item: Item) {
                     val parent = item.parent() ?: return
                     if (parent !is PackageItem && parent.effectivelyDeprecated) {
                         item.effectivelyDeprecated = true
@@ -686,6 +693,8 @@ class ApiAnalyzer(
                             cls.removed = true
                         }
                     }
+
+                    markAsDeprecatedIfNonPackageParentIsDeprecated(cls)
                 }
 
                 override fun visitMethod(method: MethodItem) {
@@ -715,6 +724,12 @@ class ApiAnalyzer(
                             method.removed = true
                         }
                     }
+
+                    markAsDeprecatedIfNonPackageParentIsDeprecated(method)
+                }
+
+                override fun visitParameter(parameter: ParameterItem) {
+                    markAsDeprecatedIfNonPackageParentIsDeprecated(parameter)
                 }
 
                 override fun visitField(field: FieldItem) {
@@ -740,6 +755,12 @@ class ApiAnalyzer(
                             field.removed = true
                         }
                     }
+
+                    markAsDeprecatedIfNonPackageParentIsDeprecated(field)
+                }
+
+                override fun visitProperty(property: PropertyItem) {
+                    markAsDeprecatedIfNonPackageParentIsDeprecated(property)
                 }
 
                 private fun ensureParentVisible(item: Item) {
@@ -873,8 +894,15 @@ class ApiAnalyzer(
                 }
 
                 override fun visitItem(item: Item) {
+                    // None of the checks in this apply to [ParameterItem]. The deprecation checks
+                    // do not apply as there is no way to provide an `@deprecation` tag in Javadoc
+                    // for parameters. The unhidden showability annotation check
+                    // ('UnhiddemSystemApi`) does not apply as you cannot annotation a
+                    // [ParameterItem] with a showability annotation.
+                    if (item is ParameterItem) return
+
                     if (
-                        item.deprecated &&
+                        item.originallyDeprecated &&
                             !item.documentationContainsDeprecated() &&
                             // Don't warn about this in Kotlin; the Kotlin deprecation annotation
                             // includes deprecation
@@ -899,7 +927,6 @@ class ApiAnalyzer(
                         val deprecatedForSdk =
                             item.modifiers.findAnnotation(ANDROID_DEPRECATED_FOR_SDK)
                         if (deprecatedForSdk != null) {
-                            item.deprecated = true
                             if (item.documentation.contains("@deprecated")) {
                                 reporter.report(
                                     Issues.DEPRECATION_MISMATCH,
@@ -920,21 +947,25 @@ class ApiAnalyzer(
                             !item.originallyHidden &&
                             !item.hasShowSingleAnnotation()
                     ) {
-                        val annotationName =
-                            item.modifiers
-                                .annotations()
-                                // As item.hasShowAnnotation() is true there must be at least one
-                                // annotation that matches the following predicate.
-                                .first(AnnotationItem::isShowAnnotation)
-                                // All show annotations must have a non-null string otherwise they
-                                // would not have been matched.
-                                .qualifiedName!!
-                                .removePrefix(ANDROID_ANNOTATION_PREFIX)
-                        reporter.report(
-                            Issues.UNHIDDEN_SYSTEM_API,
-                            item,
-                            "@$annotationName APIs must also be marked @hide: ${item.describe()}"
-                        )
+                        item.modifiers
+                            .annotations()
+                            // Find the first show annotation. Just because item.hasShowAnnotation()
+                            // is true does not mean that there must be one show annotation as a
+                            // revert annotation could be treated as a show annotation on one item
+                            // and a hide annotation on another but is neither a show or hide
+                            // annotation.
+                            .firstOrNull(AnnotationItem::isShowAnnotation)
+                            // All show annotations must have a non-null string otherwise they
+                            // would not have been matched.
+                            ?.qualifiedName
+                            ?.removePrefix(ANDROID_ANNOTATION_PREFIX)
+                            ?.let { annotationName ->
+                                reporter.report(
+                                    Issues.UNHIDDEN_SYSTEM_API,
+                                    item,
+                                    "@$annotationName APIs must also be marked @hide: ${item.describe()}"
+                                )
+                            }
                     }
                 }
 
@@ -1088,9 +1119,9 @@ class ApiAnalyzer(
                             m,
                             "Reference to unavailable method " + m.name()
                         )
-                    } else if (m.deprecated) {
-                        // don't bother reporting deprecated methods
-                        // unless they are public
+                    } else if (m.originallyDeprecated) {
+                        // don't bother reporting deprecated methods unless they are public and
+                        // explicitly marked as deprecated.
                         reporter.report(
                             Issues.DEPRECATED,
                             m,
@@ -1203,7 +1234,7 @@ class ApiAnalyzer(
                         }
                     }
                 }
-            } else if (cl.deprecated) {
+            } else if (cl.originallyDeprecated) {
                 // not hidden, but deprecated
                 reporter.report(Issues.DEPRECATED, cl, "Class ${cl.qualifiedName()} is deprecated")
             }

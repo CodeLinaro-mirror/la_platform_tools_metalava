@@ -83,6 +83,7 @@ internal constructor(
                 documentation?.contains("@deprecated") == true ||
                     // Check for @Deprecated annotation
                     ((element as? PsiDocCommentOwner)?.isDeprecated == true) ||
+                    hasDeprecatedAnnotation(modifiers) ||
                     // Check for @Deprecated on sourcePsi
                     isDeprecatedFromSourcePsi(element)
             ) {
@@ -91,6 +92,18 @@ internal constructor(
 
             return modifiers
         }
+
+        private fun hasDeprecatedAnnotation(modifiers: PsiModifierItem) =
+            modifiers.annotations?.any {
+                it.qualifiedName?.let { qualifiedName ->
+                    qualifiedName == "Deprecated" ||
+                        qualifiedName.endsWith(".Deprecated") ||
+                        // DeprecatedForSdk that do not apply to this API surface have been filtered
+                        // out so if any are left then treat it as a standard Deprecated annotation.
+                        qualifiedName == ANDROID_DEPRECATED_FOR_SDK
+                }
+                    ?: false
+            } == true
 
         private fun isDeprecatedFromSourcePsi(element: PsiModifierListOwner): Boolean {
             if (element is UMethod) {

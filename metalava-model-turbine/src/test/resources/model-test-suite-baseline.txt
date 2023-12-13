@@ -1,7 +1,8 @@
 com.android.tools.metalava.model.testsuite.CommonClassItemTest
-  Test deprecated class by annotation[turbine,java]
-  Test deprecated class by javadoc tag[turbine,java]
   empty class[turbine,java]
+
+com.android.tools.metalava.model.testsuite.methoditem.CommonParameterItemTest
+  Test deprecated parameter by annotation[turbine,java]
 
 com.android.tools.metalava.model.testsuite.packageitem.CommonPackageItemTest
   Test @hide in package html[turbine,java]

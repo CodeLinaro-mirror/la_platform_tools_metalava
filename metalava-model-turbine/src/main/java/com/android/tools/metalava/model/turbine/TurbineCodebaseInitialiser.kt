@@ -153,7 +153,7 @@ open class TurbineCodebaseInitialiser(
         if (pkgItem != null) {
             return pkgItem as TurbinePackageItem
         } else {
-            val modifiers = TurbineModifierItem.create(codebase, 0, null)
+            val modifiers = TurbineModifierItem.create(codebase, 0, null, false)
             val turbinePkgItem = TurbinePackageItem.create(codebase, name, modifiers)
             codebase.addPackage(turbinePkgItem)
             return turbinePkgItem
@@ -193,16 +193,25 @@ open class TurbineCodebaseInitialiser(
         var classItem = codebase.findClass(className)
 
         if (classItem == null) {
-            classItem = createClass(sym)
+            // Inner class should not be created directly from here. Instead create its
+            // TopLevelClass which
+            // will automatically create the innerclass via createInnerClasses method
+            if (sym.binaryName().contains("$")) {
+                val topClassSym = getClassSymbol(className)!!
+                createClass(topClassSym)
+            } else {
+                createClass(sym)
+            }
         }
 
-        return classItem
+        return codebase.findClass(className)!!
     }
 
     private fun createClass(sym: ClassSymbol): TurbineClassItem {
 
         var cls: TypeBoundClass? = sourceClassMap[sym]
         cls = if (cls != null) cls else envClassMap.get(sym)!!
+        val decl = (cls as? SourceTypeBoundClass)?.decl()
 
         // Get the package item
         val pkgName = sym.packageName().replace('/', '.')
@@ -213,7 +222,13 @@ open class TurbineCodebaseInitialiser(
         val simpleName = qualifiedName.substring(qualifiedName.lastIndexOf('.') + 1)
         val fullName = sym.simpleName().replace('$', '.')
         val annotations = createAnnotations(cls.annotations())
-        val modifierItem = TurbineModifierItem.create(codebase, cls.access(), annotations)
+        val modifierItem =
+            TurbineModifierItem.create(
+                codebase,
+                cls.access(),
+                annotations,
+                isDeprecated(decl?.javadoc())
+            )
         val typeParameters = createTypeParameters(cls.typeParameterTypes())
         val classItem =
             TurbineClassItem(
@@ -236,10 +251,6 @@ open class TurbineCodebaseInitialiser(
                 else createType(superClassType, false)
             classItem.setSuperClass(superClassItem, superClassTypeItem)
         }
-
-        // Setup InnerClasses
-        val t = cls.children()
-        setInnerClasses(classItem, t.values.asList())
 
         // Set direct interfaces
         classItem.directInterfaces = cls.interfaces().map { itf -> findOrCreateClass(itf) }
@@ -272,6 +283,16 @@ open class TurbineCodebaseInitialiser(
             // for containingClass to be set via setInnerClasses
             fixCtorReturnType(classItem)
         }
+
+        // Set the throwslist for methods
+        classItem.methods.forEach { it.setThrowsTypes() }
+
+        // Set the throwslist for constructors
+        classItem.constructors.forEach { it.setThrowsTypes() }
+
+        // Create InnerClasses.
+        val children = cls.children()
+        createInnerClasses(classItem, children.values.asList())
 
         return classItem
     }
@@ -446,7 +467,7 @@ open class TurbineCodebaseInitialiser(
         upperBounds.bounds().mapTo(typeBounds) { createType(it, false) }
         param.lowerBound()?.let { typeBounds.add(createType(it, false)) }
         val modifiers =
-            TurbineModifierItem(codebase, annotations = createAnnotations(param.annotations()))
+            TurbineModifierItem.create(codebase, 0, createAnnotations(param.annotations()), false)
         val typeParamItem =
             TurbineTypeParameterItem(codebase, modifiers, symbol = sym, bounds = typeBounds)
         codebase.addTypeParameter(sym, typeParamItem)
@@ -454,13 +475,13 @@ open class TurbineCodebaseInitialiser(
     }
 
     /** This method sets up the inner class hierarchy. */
-    private fun setInnerClasses(
+    private fun createInnerClasses(
         classItem: TurbineClassItem,
         innerClasses: ImmutableList<ClassSymbol>
     ) {
         classItem.innerClasses =
             innerClasses.map { cls ->
-                val innerClassItem = findOrCreateClass(cls)
+                val innerClassItem = createClass(cls)
                 innerClassItem.containingClass = classItem
                 fixCtorReturnType(innerClassItem)
                 innerClassItem
@@ -473,7 +494,12 @@ open class TurbineCodebaseInitialiser(
             fields.map { field ->
                 val annotations = createAnnotations(field.annotations())
                 val fieldModifierItem =
-                    TurbineModifierItem.create(codebase, field.access(), annotations)
+                    TurbineModifierItem.create(
+                        codebase,
+                        field.access(),
+                        annotations,
+                        isDeprecated(field.decl()?.javadoc())
+                    )
                 val type = createType(field.type(), false)
                 TurbineFieldItem(
                     codebase,
@@ -492,7 +518,12 @@ open class TurbineCodebaseInitialiser(
                 .map { method ->
                     val annotations = createAnnotations(method.annotations())
                     val methodModifierItem =
-                        TurbineModifierItem.create(codebase, method.access(), annotations)
+                        TurbineModifierItem.create(
+                            codebase,
+                            method.access(),
+                            annotations,
+                            isDeprecated(method.decl()?.javadoc())
+                        )
                     val typeParams = createTypeParameters(method.tyParams())
                     val methodItem =
                         TurbineMethodItem(
@@ -504,6 +535,7 @@ open class TurbineCodebaseInitialiser(
                             typeParams,
                         )
                     createParameters(methodItem, method.parameters())
+                    methodItem.throwsClassNames = getThrowsList(method.exceptions())
                     methodItem
                 }
     }
@@ -513,7 +545,7 @@ open class TurbineCodebaseInitialiser(
             parameters.mapIndexed { idx, parameter ->
                 val annotations = createAnnotations(parameter.annotations())
                 val parameterModifierItem =
-                    TurbineModifierItem.create(codebase, parameter.access(), annotations)
+                    TurbineModifierItem.create(codebase, parameter.access(), annotations, false)
                 val type = createType(parameter.type(), parameterModifierItem.isVarArg())
                 TurbineParameterItem(
                     codebase,
@@ -534,7 +566,12 @@ open class TurbineCodebaseInitialiser(
                 .map { constructor ->
                     val annotations = createAnnotations(constructor.annotations())
                     val constructorModifierItem =
-                        TurbineModifierItem.create(codebase, constructor.access(), annotations)
+                        TurbineModifierItem.create(
+                            codebase,
+                            constructor.access(),
+                            annotations,
+                            isDeprecated(constructor.decl()?.javadoc())
+                        )
                     val typeParams = createTypeParameters(constructor.tyParams())
                     hasImplicitDefaultConstructor =
                         (constructor.access() and TurbineFlag.ACC_SYNTH_CTOR) != 0
@@ -550,6 +587,7 @@ open class TurbineCodebaseInitialiser(
                             typeParams,
                         )
                     createParameters(constructorItem, constructor.parameters())
+                    constructorItem.throwsClassNames = getThrowsList(constructor.exceptions())
                     constructorItem
                 }
         classItem.hasImplicitDefaultConstructor = hasImplicitDefaultConstructor
@@ -586,5 +624,16 @@ open class TurbineCodebaseInitialiser(
     private fun createLookupKey(name: String): LookupKey {
         val idents = name.split(".").mapIndexed { idx, it -> Ident(idx, it) }
         return LookupKey(ImmutableList.copyOf(idents))
+    }
+
+    private fun isDeprecated(javadoc: String?): Boolean {
+        return javadoc?.contains("@deprecated") ?: false
+    }
+
+    private fun getThrowsList(throwsTypes: List<Type>): List<String> {
+        return throwsTypes.mapNotNull { it ->
+            val sym = (it as? ClassTy)?.sym()
+            sym?.let { getQualifiedName(it.binaryName()) }
+        }
     }
 }

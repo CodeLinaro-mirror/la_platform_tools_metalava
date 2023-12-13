@@ -40,7 +40,17 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
         val surface: Surface,
         val flagged: Flagged,
     ) {
-        val extraArguments = surface.args + flagged.args
+        val extraArguments =
+            surface.args +
+                // TODO(b/313398274): Remove testing of ARG_HIDE_ANNOTATION once the build has been
+                //  switched to use `--revert-annotation`.
+                // Alternate between ARG_REVERT_ANNOTATION and ARG_HIDE_ANNOTATION to make sure that
+                // they both work.
+                if ((surface.ordinal + 7 * flagged.ordinal) % 2 == 0) flagged.args
+                else
+                    flagged.args.map {
+                        if (it == ARG_REVERT_ANNOTATION) ARG_HIDE_ANNOTATION else it
+                    }
 
         override fun toString(): String {
             val surfaceText = surface.name.lowercase(Locale.US)
@@ -73,7 +83,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
         WITH("with flagged api", emptyList()),
 
         /** Represents an API without any flagged APIs. */
-        WITHOUT("without  flagged api", listOf(ARG_HIDE_ANNOTATION, ANDROID_FLAGGED_API)),
+        WITHOUT("without  flagged api", listOf(ARG_REVERT_ANNOTATION, ANDROID_FLAGGED_API)),
 
         /**
          * Represents an API without flagged APIs apart from those flagged APIs that are part of
@@ -81,8 +91,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
          */
         WITHOUT_APART_FROM_FOO_BAR_APIS(
             "without flagged api, with foo/bar",
-            WITHOUT.args +
-                listOf(ARG_HIDE_ANNOTATION, """!android.annotation.FlaggedApi("foo/bar")""")
+            WITHOUT.args + listOf(ARG_REVERT_ANNOTATION, """!$ANDROID_FLAGGED_API("foo/bar")""")
         ),
     }
 

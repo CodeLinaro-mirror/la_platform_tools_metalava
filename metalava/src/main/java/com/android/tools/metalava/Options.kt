@@ -164,6 +164,7 @@ const val ARG_LINTS_AS_ERRORS = "--lints-as-errors"
 const val ARG_SHOW_ANNOTATION = "--show-annotation"
 const val ARG_SHOW_SINGLE_ANNOTATION = "--show-single-annotation"
 const val ARG_HIDE_ANNOTATION = "--hide-annotation"
+const val ARG_REVERT_ANNOTATION = "--revert-annotation"
 const val ARG_SUPPRESS_COMPATIBILITY_META_ANNOTATION = "--suppress-compatibility-meta-annotation"
 const val ARG_SHOW_FOR_STUB_PURPOSES_ANNOTATION = "--show-for-stub-purposes-annotation"
 const val ARG_SHOW_UNANNOTATED = "--show-unannotated"
@@ -243,8 +244,10 @@ class Options(
     private val showSingleAnnotationsBuilder = AnnotationFilterBuilder()
     /** Internal builder backing [showForStubPurposesAnnotations] */
     private val showForStubPurposesAnnotationBuilder = AnnotationFilterBuilder()
-    /** Internal list backing [hideAnnotations] */
+    /** Internal builder backing [hideAnnotations] */
     private val hideAnnotationsBuilder = AnnotationFilterBuilder()
+    /** Internal builder backing [revertAnnotations] */
+    private val revertAnnotationsBuilder = AnnotationFilterBuilder()
     /** Internal list backing [stubImportPackages] */
     private val mutableStubImportPackages: MutableSet<String> = mutableSetOf()
     /** Internal list backing [mergeQualifierAnnotations] */
@@ -409,6 +412,9 @@ class Options(
     /** Annotations to hide */
     val hideAnnotations by lazy(hideAnnotationsBuilder::build)
 
+    /** Annotations to revert */
+    val revertAnnotations by lazy(revertAnnotationsBuilder::build)
+
     val annotationManager: AnnotationManager by lazy {
         DefaultAnnotationManager(
             DefaultAnnotationManager.Config(
@@ -418,6 +424,7 @@ class Options(
                 showSingleAnnotations = showSingleAnnotations,
                 showForStubPurposesAnnotations = showForStubPurposesAnnotations,
                 hideAnnotations = hideAnnotations,
+                revertAnnotations = revertAnnotations,
                 suppressCompatibilityMetaAnnotations = suppressCompatibilityMetaAnnotations,
                 excludeAnnotations = excludeAnnotations,
                 typedefMode = typedefMode,
@@ -888,7 +895,20 @@ class Options(
                     allShowAnnotationsBuilder.add(annotation)
                 }
                 ARG_SHOW_UNANNOTATED -> showUnannotated = true
-                ARG_HIDE_ANNOTATION -> hideAnnotationsBuilder.add(getValue(args, ++index))
+                ARG_HIDE_ANNOTATION -> {
+                    val annotation = getValue(args, ++index)
+                    // TODO(b/313398274): Remove special ANDROID_FLAGGED_API handling once the build
+                    //  has been switched to use `--revert-annotation`.
+                    if (
+                        annotation.startsWith(ANDROID_FLAGGED_API) ||
+                            annotation.startsWith("!" + ANDROID_FLAGGED_API)
+                    ) {
+                        revertAnnotationsBuilder.add(annotation)
+                    } else {
+                        hideAnnotationsBuilder.add(annotation)
+                    }
+                }
+                ARG_REVERT_ANNOTATION -> revertAnnotationsBuilder.add(getValue(args, ++index))
                 ARG_DOC_STUBS -> docStubsDir = stringToNewDir(getValue(args, ++index))
                 ARG_KOTLIN_STUBS -> kotlinStubs = true
                 ARG_EXCLUDE_DOCUMENTATION_FROM_STUBS -> includeDocumentationInStubs = false

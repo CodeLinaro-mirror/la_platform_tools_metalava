@@ -353,7 +353,7 @@ open class PsiMethodItem(
                 parameterModifierString,
                 parameter.modifiers,
                 parameter,
-                target = AnnotationTarget.INTERNAL
+                target = AnnotationTarget.INTERNAL,
             )
             sb.append(parameterModifierString.toString())
             sb.append(parameter.type().convertTypeString(replacementMap))

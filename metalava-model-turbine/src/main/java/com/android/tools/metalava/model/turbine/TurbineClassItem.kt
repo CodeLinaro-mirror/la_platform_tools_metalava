@@ -18,7 +18,6 @@ package com.android.tools.metalava.model.turbine
 
 import com.android.tools.metalava.model.AnnotationRetention
 import com.android.tools.metalava.model.ClassItem
-import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.MethodItem
@@ -28,7 +27,7 @@ import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 
 open class TurbineClassItem(
-    codebase: Codebase,
+    codebase: TurbineBasedCodebase,
     private val name: String,
     private val fullName: String,
     private val qualifiedName: String,
@@ -162,21 +161,14 @@ open class TurbineClassItem(
                 }
             val mods = TurbineTypeModifiers(modifiers.annotations())
             val outerClassType = containingClass?.let { it.toType() as TurbineClassTypeItem }
-            asType =
-                TurbineClassTypeItem(
-                    codebase as TurbineBasedCodebase,
-                    mods,
-                    qualifiedName,
-                    parameters,
-                    outerClassType
-                )
+            asType = TurbineClassTypeItem(codebase, mods, qualifiedName, parameters, outerClassType)
         }
         return asType!!
     }
 
     private fun createVariableType(typeParam: TurbineTypeParameterItem): TurbineVariableTypeItem {
         val mods = TurbineTypeModifiers(typeParam.modifiers.annotations())
-        return TurbineVariableTypeItem(codebase as TurbineBasedCodebase, mods, typeParam.symbol)
+        return TurbineVariableTypeItem(codebase, mods, typeParam.symbol)
     }
 
     override fun typeParameterList(): TypeParameterList = typeParameters
