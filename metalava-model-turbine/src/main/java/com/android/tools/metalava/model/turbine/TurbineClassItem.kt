@@ -130,9 +130,11 @@ open class TurbineClassItem(
 
     override fun methods(): List<MethodItem> = methods
 
-    override fun properties(): List<PropertyItem> {
-        TODO("b/295800205")
-    }
+    /**
+     * [PropertyItem]s are kotlin specific and it is unlikely that Turbine will ever support Kotlin
+     * so just return an empty list.
+     */
+    override fun properties(): List<PropertyItem> = emptyList()
 
     override fun simpleName(): String = name
 

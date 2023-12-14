@@ -223,7 +223,7 @@ interface Item {
     fun hasSuppressCompatibilityMetaAnnotation(): Boolean =
         modifiers.hasSuppressCompatibilityMetaAnnotations()
 
-    fun sourceFile(): SourceFileItem? {
+    fun sourceFile(): SourceFile? {
         var curr: Item? = this
         while (curr != null) {
             if (curr is ClassItem && curr.isTopLevelClass()) {
@@ -267,6 +267,12 @@ interface Item {
      * files, it's null.
      */
     fun type(): TypeItem?
+
+    /**
+     * Find the [Item] in [codebase] that corresponds to this item, or `null` if there is no such
+     * item.
+     */
+    fun findCorrespondingItemIn(codebase: Codebase): Item?
 
     companion object {
         fun describe(item: Item, capitalize: Boolean = false): String {

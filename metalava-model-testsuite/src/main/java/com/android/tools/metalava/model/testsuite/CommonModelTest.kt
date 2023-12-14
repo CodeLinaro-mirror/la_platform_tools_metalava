@@ -16,7 +16,10 @@
 
 package com.android.tools.metalava.model.testsuite
 
+import com.android.tools.metalava.model.BaseItemVisitor
+import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.testing.java
+import kotlin.test.assertSame
 import org.junit.Assert.assertNotNull
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -33,6 +36,59 @@ class CommonModelTest : BaseModelTest() {
             java(""),
         ) { codebase ->
             assertNotNull(codebase)
+        }
+    }
+
+    @Test
+    fun `test findCorrespondingItemIn`() {
+        runCodebaseTest(
+            inputSet(
+                signature(
+                    """
+                        // Signature format: 2.0
+                        package test.pkg {
+                          public class Foo {
+                            ctor public Foo();
+                            method public void foo(int i);
+                          }
+                          public class Bar extends test.pkg.Foo {
+                            ctor public Bar();
+                            method public void foo(int i);
+                            method public int bar(String s);
+                          }
+                        }
+                    """
+                ),
+            ),
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+                        public class Foo {
+                            public void foo(int i) {}                        
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        public class Bar extends Foo {
+                            public void foo(int i) {}                        
+                            public int bar(String s) {return s.length();}                        
+                        }
+                    """
+                ),
+            ),
+        ) { codebase ->
+            // Iterate over the codebase and try and find every item that is visited.
+            codebase.accept(
+                object : BaseItemVisitor() {
+                    override fun visitItem(item: Item) {
+                        val foundItem = item.findCorrespondingItemIn(codebase)
+                        assertSame(item, foundItem)
+                    }
+                }
+            )
         }
     }
 }

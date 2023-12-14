@@ -19,26 +19,16 @@ package com.android.tools.metalava.model
 import java.util.function.Predicate
 
 /** Represents a Kotlin/Java source file */
-interface SourceFileItem : Item {
+interface SourceFile {
     /** Top level classes contained in this file */
     fun classes(): Sequence<ClassItem>
 
     fun getHeaderComments(): String? = null
 
     fun getImports(predicate: Predicate<Item>): Collection<Import> = emptyList()
-
-    override fun parent(): PackageItem? = containingPackage()
-
-    override fun containingClass(): ClassItem? = null
-
-    override fun type(): TypeItem? = null
-
-    override fun accept(visitor: ItemVisitor) {
-        visitor.visit(this)
-    }
 }
 
-/** Encapsulates information about the imports used in a [SourceFileItem]. */
+/** Encapsulates information about the imports used in a [SourceFile]. */
 data class Import
 internal constructor(
     /**

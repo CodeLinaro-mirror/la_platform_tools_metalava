@@ -146,22 +146,22 @@ private constructor(
             codebase: PsiBasedCodebase,
             sb: StringBuilder,
             psiAnnotation: PsiAnnotation,
-            originalName: String?,
+            qualifiedName: String?,
             target: AnnotationTarget,
             showDefaultAttrs: Boolean
         ) {
-            val alwaysInlineValues = originalName == "android.annotation.FlaggedApi"
-            val qualifiedName =
-                codebase.annotationManager.normalizeOutputName(originalName, target) ?: return
+            val alwaysInlineValues = qualifiedName == "android.annotation.FlaggedApi"
+            val outputName =
+                codebase.annotationManager.normalizeOutputName(qualifiedName, target) ?: return
 
             val attributes = getAttributes(psiAnnotation, showDefaultAttrs)
             if (attributes.isEmpty()) {
-                sb.append("@$qualifiedName")
+                sb.append("@$outputName")
                 return
             }
 
             sb.append("@")
-            sb.append(qualifiedName)
+            sb.append(outputName)
             sb.append("(")
             if (
                 attributes.size == 1 &&

@@ -29,4 +29,46 @@ interface TypeModifiers {
 
     /** Removes the [annotation] from the list of annotations for the type, if it was present. */
     fun removeAnnotation(annotation: AnnotationItem)
+
+    /** The nullability of the type. */
+    fun nullability(): TypeNullability
+
+    /**
+     * Updates the nullability of the type to [newNullability]. Does not add or remove any nullness
+     * annotations, so those should be handled separately through [addAnnotation] and/or
+     * [removeAnnotation], if needed.
+     */
+    fun setNullability(newNullability: TypeNullability)
+}
+
+/** An enum representing the possible nullness values of a type. */
+enum class TypeNullability(val suffix: String) {
+    /**
+     * Nullability for a type that is annotated non-null, is primitive, or defined as non-null in
+     * Kotlin.
+     */
+    NONNULL(""),
+    /** Nullability for a type that is annotated nullable or defined as nullable in Kotlin. */
+    NULLABLE("?"),
+    /** Nullability for a Java type without a specified nullability. */
+    PLATFORM("!"),
+    /**
+     * The nullability for a type without defined nullness. Examples include:
+     * - A Kotlin type variable with inherited nullability.
+     * - Wildcard types (nullness is defined through the bounds of the wildcard).
+     */
+    UNDEFINED("");
+
+    companion object {
+        /** Given a nullness [annotation], returns the corresponding [TypeNullability]. */
+        fun ofAnnotation(annotation: AnnotationItem): TypeNullability {
+            return if (isNullableAnnotation(annotation.qualifiedName.orEmpty())) {
+                NULLABLE
+            } else if (isNonNullAnnotation(annotation.qualifiedName.orEmpty())) {
+                NONNULL
+            } else {
+                throw IllegalStateException("Not a nullness annotation: $annotation")
+            }
+        }
+    }
 }

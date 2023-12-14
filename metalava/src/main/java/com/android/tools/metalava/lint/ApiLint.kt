@@ -1879,8 +1879,6 @@ private constructor(
                     }
                 }
                 is MethodItem -> {
-                    // We don't enforce this check on constructors
-                    if (item.isConstructor()) return
                     if (item.modifiers.isNullable()) {
                         if (anySuperMethodLacksNullnessInfo(item)) {
                             report(

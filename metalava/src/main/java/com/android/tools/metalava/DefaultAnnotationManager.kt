@@ -35,6 +35,7 @@ import com.android.tools.metalava.model.AnnotationRetention
 import com.android.tools.metalava.model.AnnotationTarget
 import com.android.tools.metalava.model.BaseAnnotationManager
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.JAVA_LANG_PREFIX
 import com.android.tools.metalava.model.MethodItem
@@ -66,6 +67,8 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
         val excludeAnnotations: Set<String> = emptySet(),
         val typedefMode: TypedefMode = TypedefMode.NONE,
         val apiPredicate: Predicate<Item> = Predicate { true },
+        val previouslyReleasedCodebaseProvider: () -> Codebase? = { null },
+        val previouslyReleasedRemovedCodebaseProvider: () -> Codebase? = { null },
     )
 
     /**
@@ -106,6 +109,7 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
                 config.showSingleAnnotations,
                 config.showForStubPurposesAnnotations,
                 config.hideAnnotations,
+                config.revertAnnotations,
             )
         annotationNameToKeyFactory =
             filters
@@ -550,7 +554,57 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
             }
         }
 
+        // If the item is to be reverted then find the [Item] to which it will be reverted, if any,
+        // and incorporate that into the [Showability].
+        if (itemShowability == LazyAnnotationInfo.REVERT_UNSTABLE_API) {
+            val revertItem = findRevertItem(item)
+
+            // If the [revertItem] cannot be found then there is no need to modify the item
+            // showability as it is already in the correct state.
+            if (revertItem != null) {
+                // Update the item showability to revert to the [revertItem]. This intentionally
+                // does not modify it to use `SHOW` or `HIDE` but keeps it using
+                // `REVERT_UNSTABLE_API` so that it can be propagated down onto overriding methods
+                // and nested members if applicable.
+                itemShowability =
+                    itemShowability.copy(
+                        // When reverting to a previous item the item must be in the current API
+                        // surface not one that it extends. If the API surface is a complete API
+                        // (like public) then it does not extend another surface. If the API surface
+                        // is a partial API then so was the previously released API and so the
+                        // reverted item must be part of this surface. In either case it must not
+                        // be treated as part of an extended API so `forStubsOnly` is set to no
+                        // effect.
+                        forStubsOnly = ShowOrHide.NO_EFFECT,
+                        // Incorporate the item to be reverted into the [Showability].
+                        revertItem = revertItem,
+                    )
+            }
+        }
+
         return itemShowability
+    }
+
+    /**
+     * Find the item to which [item] will be reverted.
+     *
+     * Searches first the previously released API (if present) and then the previously released
+     * removed API (if present).
+     */
+    private fun findRevertItem(item: Item): Item? {
+        config.previouslyReleasedCodebaseProvider()?.let { oldCodebase ->
+            item.findCorrespondingItemIn(oldCodebase)?.let {
+                return it
+            }
+        }
+
+        config.previouslyReleasedRemovedCodebaseProvider()?.let { oldCodebase ->
+            item.findCorrespondingItemIn(oldCodebase)?.let {
+                return it
+            }
+        }
+
+        return null
     }
 
     override val typedefMode: TypedefMode = config.typedefMode

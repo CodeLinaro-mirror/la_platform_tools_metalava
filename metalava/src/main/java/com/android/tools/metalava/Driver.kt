@@ -137,7 +137,7 @@ internal fun processFlags(
             jdkHome = options.jdkHome,
         )
 
-    val signatureFileCache = SignatureFileCache(annotationManager)
+    val signatureFileCache = options.signatureFileCache
 
     val actionContext =
         ActionContext(

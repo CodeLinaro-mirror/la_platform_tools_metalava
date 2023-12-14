@@ -18,6 +18,7 @@ package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.TypeModifiers
+import com.android.tools.metalava.model.TypeNullability
 import com.intellij.psi.PsiType
 
 /** Modifiers for a [PsiTypeItem]. */
@@ -31,6 +32,14 @@ internal class PsiTypeModifiers(private val annotations: MutableList<PsiAnnotati
 
     override fun removeAnnotation(annotation: AnnotationItem) {
         annotations.remove(annotation)
+    }
+
+    override fun nullability(): TypeNullability {
+        TODO("Not yet implemented")
+    }
+
+    override fun setNullability(newNullability: TypeNullability) {
+        TODO("Not yet implemented")
     }
 
     companion object {

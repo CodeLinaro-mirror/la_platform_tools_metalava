@@ -85,14 +85,36 @@ enum class ShowOrHide(private val show: Boolean?) {
      * (which override hide annotations) then in order for the item to be hidden then this needs to
      * come after [SHOW].
      */
-    REVERT_UNSTABLE_API(show = false),
+    REVERT_UNSTABLE_API(show = null) {
+        /** If the [revertItem] is not null then reverting will still show this item. */
+        override fun show(revertItem: Item?): Boolean {
+            return revertItem != null
+        }
+
+        /** If the [revertItem] is null then reverting will hide this item. */
+        override fun hide(revertItem: Item?): Boolean {
+            return revertItem == null
+        }
+    },
     ;
 
-    /** Return true if this shows an `Item` as part of the API. */
-    fun show(): Boolean = show == true
+    /**
+     * Return true if this shows an `Item` as part of the API.
+     *
+     * @param revertItem the optional [Item] in the previously released API to which this will be
+     *   reverted. This is only set for, and only has an effect on, [REVERT_UNSTABLE_API], see
+     *   [REVERT_UNSTABLE_API.show] for details.
+     */
+    open fun show(revertItem: Item?): Boolean = show == true
 
-    /** Return true if this hides an `Item` from the API. */
-    fun hide(): Boolean = show == false
+    /**
+     * Return true if this hides an `Item` from the API.
+     *
+     * @param revertItem the optional [Item] in the previously released API to which this will be
+     *   reverted. This is only set for, and only has an effect on, [REVERT_UNSTABLE_API], see
+     *   [REVERT_UNSTABLE_API.show] for details.
+     */
+    open fun hide(revertItem: Item?): Boolean = show == false
 
     /** Return the highest priority between this and another [ShowOrHide]. */
     fun highestPriority(other: ShowOrHide): ShowOrHide = maxOf(this, other)
@@ -144,6 +166,9 @@ data class Showability(
      * `--show-single-annotation`.
      */
     private val forStubsOnly: ShowOrHide,
+
+    /** The item to which this item should be reverted. Null if no such item exists. */
+    val revertItem: Item? = null,
 ) {
     /**
      * Check whether the annotated item should be considered part of the API or not.
@@ -151,7 +176,7 @@ data class Showability(
      * Returns `true` if the item is annotated with a `--show-annotation`,
      * `--show-single-annotation`, or `--show-for-stub-purposes-annotation`.
      */
-    fun show() = show.show() || forStubsOnly.show()
+    fun show() = show.show(revertItem) || forStubsOnly.show(revertItem)
 
     /**
      * Check whether the annotated item should only be considered part of the API when generating
@@ -160,21 +185,22 @@ data class Showability(
      * Returns `true` if the item is annotated with a `--show-for-stub-purposes-annotation`. Such
      * items will be part of an API surface that the API being generated extends.
      */
-    fun showForStubsOnly() = forStubsOnly.show()
+    fun showForStubsOnly() = forStubsOnly.show(revertItem)
 
     /**
      * Check whether the annotations on this item only affect the current `Item`.
      *
      * Returns `true` if they do, `false` if they can also affect nested `Item`s.
      */
-    fun showNonRecursive() = show.show() && !recursive.show() && !forStubsOnly.show()
+    fun showNonRecursive() =
+        show.show(revertItem) && !recursive.show(revertItem) && !forStubsOnly.show(revertItem)
 
     /**
      * Check whether the annotated item should be hidden from the API.
      *
      * Returns `true` if the annotation matches an `--hide-annotation`.
      */
-    fun hide() = show.hide()
+    fun hide() = show.hide(revertItem)
 
     /**
      * Check whether the annotated item is part of an unstable API that needs to be reverted.
@@ -196,7 +222,7 @@ data class Showability(
 
         // For everything wins over only for stubs.
         val forStubsOnly =
-            if (newShow.show()) {
+            if (newShow.show(revertItem)) {
                 ShowOrHide.NO_EFFECT
             } else {
                 forStubsOnly.highestPriority(other.forStubsOnly)

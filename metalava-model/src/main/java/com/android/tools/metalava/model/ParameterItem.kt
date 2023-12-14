@@ -24,6 +24,12 @@ interface ParameterItem : Item {
     /** The type of this field */
     @MetalavaApi override fun type(): TypeItem
 
+    override fun findCorrespondingItemIn(codebase: Codebase) =
+        containingMethod()
+            .findCorrespondingItemIn(codebase)
+            ?.parameters()
+            ?.getOrNull(parameterIndex)
+
     /** The containing method */
     fun containingMethod(): MethodItem
 

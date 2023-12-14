@@ -518,7 +518,7 @@ class StubsInterfaceTest : AbstractStubsTest() {
                         package test.pkg
                         @file:Suppress("ALL")
                         class MainClass : test.pkg.MyParentClass(), test.pkg.MyInterface1, test.pkg.MyInterface2 {
-                        open fun MainClass(): test.pkg.MainClass! = error("Stub!")
+                        open fun MainClass(): test.pkg.MainClass = error("Stub!")
                         }
                     """
                     )

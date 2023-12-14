@@ -24,7 +24,7 @@ import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PropertyItem
-import com.android.tools.metalava.model.SourceFileItem
+import com.android.tools.metalava.model.SourceFile
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VisibilityLevel
@@ -205,7 +205,7 @@ internal constructor(
     override val isTypeParameter: Boolean
         get() = psiClass is PsiTypeParameter
 
-    override fun getSourceFile(): SourceFileItem? {
+    override fun getSourceFile(): SourceFile? {
         if (isInnerClass()) {
             return null
         }
@@ -222,7 +222,7 @@ internal constructor(
                 null
             }
 
-        return PsiSourceFileItem(codebase, containingFile, uFile)
+        return PsiSourceFile(codebase, containingFile, uFile)
     }
 
     override fun finishInitialization() {

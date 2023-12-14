@@ -19,6 +19,7 @@ package com.android.tools.metalava.model.text
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.DefaultAnnotationItem
 import com.android.tools.metalava.model.TypeModifiers
+import com.android.tools.metalava.model.TypeNullability
 
 /** Modifiers for a [TextTypeItem]. */
 internal class TextTypeModifiers(
@@ -32,6 +33,13 @@ internal class TextTypeModifiers(
         codebase.unsupported("TextTypeModifiers are immutable because TextTypes are cached")
 
     override fun removeAnnotation(annotation: AnnotationItem) =
+        codebase.unsupported("TextTypeModifiers are immutable because TextTypes are cached")
+
+    override fun nullability(): TypeNullability {
+        TODO("Not yet implemented")
+    }
+
+    override fun setNullability(newNullability: TypeNullability) =
         codebase.unsupported("TextTypeModifiers are immutable because TextTypes are cached")
 
     companion object {

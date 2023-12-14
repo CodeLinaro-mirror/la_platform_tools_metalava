@@ -19,10 +19,14 @@ package com.android.tools.metalava.model.turbine
 import com.android.tools.metalava.model.AnnotationAttribute
 import com.android.tools.metalava.model.AnnotationAttributeValue
 import com.android.tools.metalava.model.AnnotationItem
+import com.android.tools.metalava.model.ArrayTypeItem
+import com.android.tools.metalava.model.BaseItemVisitor
 import com.android.tools.metalava.model.DefaultAnnotationArrayAttributeValue
 import com.android.tools.metalava.model.DefaultAnnotationAttribute
 import com.android.tools.metalava.model.DefaultAnnotationSingleAttributeValue
+import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
+import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeParameterList
 import com.google.common.collect.ImmutableList
 import com.google.common.collect.ImmutableMap
@@ -126,6 +130,33 @@ open class TurbineCodebaseInitialiser(
         }
         createAllPackages()
         createAllClasses()
+        correctNullability()
+    }
+
+    /**
+     * Corrects the nullability of types in the codebase based on their context items. If an item is
+     * non-null or nullable, its type is too.
+     */
+    private fun correctNullability() {
+        codebase.accept(
+            object : BaseItemVisitor() {
+                override fun visitItem(item: Item) {
+                    val type = item.type() ?: return
+                    val implicitNullness = item.implicitNullness()
+                    if (implicitNullness == true || item.modifiers.isNullable()) {
+                        type.modifiers.setNullability(TypeNullability.NULLABLE)
+                    } else if (implicitNullness == false || item.modifiers.isNonNull()) {
+                        type.modifiers.setNullability(TypeNullability.NONNULL)
+                    }
+                    // Also make array components for annotation types non-null
+                    if (
+                        type is ArrayTypeItem && item.containingClass()?.isAnnotationType() == true
+                    ) {
+                        type.componentType.modifiers.setNullability(TypeNullability.NONNULL)
+                    }
+                }
+            }
+        )
     }
 
     private fun createAllPackages() {
@@ -356,7 +387,8 @@ open class TurbineCodebaseInitialiser(
             TyKind.PRIM_TY -> {
                 type as PrimTy
                 val annotations = createAnnotations(type.annos())
-                val modifiers = TurbineTypeModifiers(annotations)
+                // Primitives are always non-null.
+                val modifiers = TurbineTypeModifiers(annotations, TypeNullability.NONNULL)
                 when (type.primkind()) {
                     PrimKind.BOOLEAN ->
                         TurbinePrimitiveTypeItem(codebase, modifiers, Primitive.BOOLEAN)
@@ -386,6 +418,8 @@ open class TurbineCodebaseInitialiser(
                 // class. e.g. , Outer.Inner.Inner1 will be represented by three simple classes
                 // Outer, Outer.Inner and Outer.Inner.Inner1
                 for (simpleClass in type.classes()) {
+                    // For all outer class types, set the nullability to non-null.
+                    outerClass?.modifiers?.setNullability(TypeNullability.NONNULL)
                     outerClass = createSimpleClassType(simpleClass, outerClass)
                 }
                 outerClass!!
@@ -399,7 +433,8 @@ open class TurbineCodebaseInitialiser(
             TyKind.WILD_TY -> {
                 type as WildTy
                 val annotations = createAnnotations(type.annotations())
-                val modifiers = TurbineTypeModifiers(annotations)
+                // Wildcards themselves don't have a defined nullability.
+                val modifiers = TurbineTypeModifiers(annotations, TypeNullability.UNDEFINED)
                 when (type.boundKind()) {
                     BoundKind.UPPER -> {
                         val upperBound = createType(type.bound(), false)
@@ -423,13 +458,15 @@ open class TurbineCodebaseInitialiser(
             TyKind.VOID_TY ->
                 TurbinePrimitiveTypeItem(
                     codebase,
-                    TurbineTypeModifiers(emptyList()),
+                    // Primitives are always non-null.
+                    TurbineTypeModifiers(emptyList(), TypeNullability.NONNULL),
                     Primitive.VOID
                 )
             TyKind.NONE_TY ->
                 TurbinePrimitiveTypeItem(
                     codebase,
-                    TurbineTypeModifiers(emptyList()),
+                    // Primitives are always non-null.
+                    TurbineTypeModifiers(emptyList(), TypeNullability.NONNULL),
                     Primitive.VOID
                 )
             else -> throw IllegalStateException("Invalid type in API surface: $kind")

@@ -44,6 +44,9 @@ interface MethodItem : MemberItem {
 
     override fun type(): TypeItem? = returnType()
 
+    override fun findCorrespondingItemIn(codebase: Codebase) =
+        containingClass().findCorrespondingItemIn(codebase)?.findMethod(this)
+
     /** Returns the main documentation for the method (the documentation before any tags). */
     fun findMainDocumentation(): String
 

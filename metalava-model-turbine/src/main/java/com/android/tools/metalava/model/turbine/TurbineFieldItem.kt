@@ -53,11 +53,9 @@ class TurbineFieldItem(
         TODO("b/295800205")
     }
 
-    override fun initialValue(requireConstant: Boolean): Any? {
-        TODO("b/295800205")
-    }
+    // TODO("b/295800205")
+    override fun initialValue(requireConstant: Boolean): Any? = null
 
-    override fun isEnumConstant(): Boolean {
-        TODO("b/295800205")
-    }
+    // TODO("b/295800205")
+    override fun isEnumConstant(): Boolean = false
 }

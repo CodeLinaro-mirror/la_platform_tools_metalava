@@ -32,6 +32,7 @@ private const val FULLY_QUALIFIED_SYSTEM_API_SURFACE_ANNOTATION =
 private const val FULLY_QUALIFIED_MODULE_LIB_API_SURFACE_ANNOTATION =
     "android.annotation.SystemApi(client=android.annotation.SystemApi.Client.MODULE_LIBRARIES)"
 
+@Suppress("JavadocDeclaration")
 @RunWith(Parameterized::class)
 class FlaggedApiTest(private val config: Configuration) : DriverTest() {
 
@@ -40,17 +41,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
         val surface: Surface,
         val flagged: Flagged,
     ) {
-        val extraArguments =
-            surface.args +
-                // TODO(b/313398274): Remove testing of ARG_HIDE_ANNOTATION once the build has been
-                //  switched to use `--revert-annotation`.
-                // Alternate between ARG_REVERT_ANNOTATION and ARG_HIDE_ANNOTATION to make sure that
-                // they both work.
-                if ((surface.ordinal + 7 * flagged.ordinal) % 2 == 0) flagged.args
-                else
-                    flagged.args.map {
-                        if (it == ARG_REVERT_ANNOTATION) ARG_HIDE_ANNOTATION else it
-                    }
+        val extraArguments = surface.args + flagged.args
 
         override fun toString(): String {
             val surfaceText = surface.name.lowercase(Locale.US)
@@ -128,6 +119,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
     private fun checkFlaggedApis(
         vararg sourceFiles: TestFile,
         previouslyReleasedApi: String,
+        previouslyReleasedRemovedApi: String = "",
         expectationsList: List<Expectations>,
     ) {
         val transformedExpectationsList =
@@ -168,6 +160,11 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
             // Enable API linting against the previous API; only report issues in changes to that
             // API.
             apiLint = previouslyReleasedApi,
+            // Pass the previously released API as the API against which compatibility checks are
+            // performed as that is what will determine the previous API to which a flagged API will
+            // be reverted.
+            checkCompatibilityApiReleased = previouslyReleasedApi,
+            checkCompatibilityRemovedApiReleased = previouslyReleasedRemovedApi,
             format = FileFormat.V2,
             sourceFiles =
                 buildList {
@@ -668,6 +665,327 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                             """,
                         // There should be no stubs generated.
                         expectedStubPaths = emptyArray(),
+                    ),
+                ),
+        )
+    }
+
+    @Test
+    fun `Test that previously released APIs which are now public and flagged are not removed`() {
+        val stubsWithNewMembers =
+            arrayOf(
+                java(
+                    """
+                    package test.pkg;
+                    @SuppressWarnings({"unchecked", "deprecation", "all"})
+                    public final class Foo {
+                    public Foo() { throw new RuntimeException("Stub!"); }
+                    public void method() { throw new RuntimeException("Stub!"); }
+                    public final int field = 2; // 0x2
+                    }
+                """
+                ),
+            )
+        val stubsWithoutNewMembers =
+            arrayOf(
+                java(
+                    """
+                    package test.pkg;
+                    @SuppressWarnings({"unchecked", "deprecation", "all"})
+                    public final class Foo {
+                    Foo() { throw new RuntimeException("Stub!"); }
+                    }
+                """
+                ),
+            )
+        checkFlaggedApis(
+            java(
+                """
+                    package test.pkg;
+
+                    import android.annotation.FlaggedApi;
+
+                    @FlaggedApi("foo/bar")
+                    public final class Foo {
+                        public Foo() {}
+                        public void method() {}
+                        /** @removed */
+                        public void removedMethod() {}
+                        public final int field = 2;
+                    }
+                """
+            ),
+            previouslyReleasedApi =
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public final class Foo {
+                      }
+                    }
+                """,
+            previouslyReleasedRemovedApi =
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public final class Foo {
+                        method public void removedMethod();
+                      }
+                    }
+                """,
+            expectationsList =
+                listOf(
+                    // The following public expectations verify what happens with a class that was
+                    // previously released but which is annotated with FlaggedApi because it has new
+                    // members.
+                    Expectations(
+                        Surface.PUBLIC,
+                        Flagged.WITH,
+                        expectedApi =
+                            """
+                                // Signature format: 2.0
+                                package test.pkg {
+                                  @FlaggedApi("foo/bar") public final class Foo {
+                                    ctor public Foo();
+                                    method public void method();
+                                    field public final int field = 2; // 0x2
+                                  }
+                                }
+                            """,
+                        expectedStubs = stubsWithNewMembers,
+                    ),
+                    Expectations(
+                        Surface.PUBLIC,
+                        Flagged.WITHOUT,
+                        // Even without flagged APIs the class is still part of the public API
+                        // because being annotated with @FlaggedApi does not cause it to be removed
+                        // it was previously part of a released API. However, the new members did
+                        // not exist in the previously released API so have been removed.
+                        expectedApi =
+                            """
+                                // Signature format: 2.0
+                                package test.pkg {
+                                  public final class Foo {
+                                  }
+                                }
+                            """,
+                        expectedStubs = stubsWithoutNewMembers,
+                    ),
+                    // The following system expectations verify what happens with a class that was
+                    // previously released as part of the system API but which is annotated with
+                    // FlaggedApi because it has moved to public and has new members.
+                    Expectations(
+                        Surface.SYSTEM,
+                        Flagged.WITH,
+                        // This is expected to be empty as the API has moved to public.
+                        expectedApi =
+                            """
+                                // Signature format: 2.0
+                            """,
+                        // The system API stubs with flagged APIs include the class and the new
+                        // methods because while they are no longer system API they are public API
+                        // and system API stubs include public API stubs.
+                        expectedStubs = stubsWithNewMembers,
+                    ),
+                    Expectations(
+                        Surface.SYSTEM,
+                        Flagged.WITHOUT,
+                        // Even without flagged APIs the class is still part of the system API
+                        // because being annotated with @FlaggedApi does not cause it to be removed
+                        // it was previously part of a released API. However, the new members did
+                        // not exist in the previously released API so have been removed.
+                        expectedApi =
+                            """
+                                // Signature format: 2.0
+                                package test.pkg {
+                                  public final class Foo {
+                                  }
+                                }
+                            """,
+                        // The system API stubs without flagged APIs include the class but exclude
+                        // the new methods because the class was present in the previously released
+                        // system API but the methods were not.
+                        expectedStubs = stubsWithoutNewMembers,
+                    ),
+                    // The following module lib expectations verify what happens with a class that
+                    // was previously released as part of the module lib API but which is annotated
+                    // with FlaggedApi because it has moved to public and has new members.
+                    Expectations(
+                        Surface.MODULE_LIB,
+                        Flagged.WITH,
+                        // This is expected to be empty as the API has moved to public.
+                        expectedApi =
+                            """
+                                // Signature format: 2.0
+                            """,
+                        // The module lib API stubs with flagged APIs include the class and the new
+                        // methods because while they are no longer module lib API they are public
+                        // API and module lib API stubs include public API stubs.
+                        expectedStubs = stubsWithNewMembers,
+                    ),
+                    Expectations(
+                        Surface.MODULE_LIB,
+                        Flagged.WITHOUT,
+                        // Even without flagged APIs the class is still part of the module lib API
+                        // because being annotated with @FlaggedApi does not cause it to be removed
+                        // it was previously part of a released API. However, the new members did
+                        // not exist in the previously released API so have been removed.
+                        expectedApi =
+                            """
+                                // Signature format: 2.0
+                                package test.pkg {
+                                  public final class Foo {
+                                  }
+                                }
+                            """,
+                        // The module lib API stubs without flagged APIs include the class but
+                        // exclude the new methods because the class was present in the previously
+                        // released module lib API but the methods were not.
+                        expectedStubs = stubsWithoutNewMembers,
+                    ),
+                ),
+        )
+    }
+
+    @Test
+    fun `Test that previously released APIs which are now system and flagged are not removed`() {
+        val stubsWithNewMembers =
+            arrayOf(
+                java(
+                    """
+                    package test.pkg;
+                    /** @hide */
+                    @SuppressWarnings({"unchecked", "deprecation", "all"})
+                    public final class Foo {
+                    public Foo() { throw new RuntimeException("Stub!"); }
+                    public void method() { throw new RuntimeException("Stub!"); }
+                    public final int field = 2; // 0x2
+                    }
+                """
+                ),
+            )
+        val stubsWithoutNewMembers =
+            arrayOf(
+                java(
+                    """
+                    package test.pkg;
+                    /** @hide */
+                    @SuppressWarnings({"unchecked", "deprecation", "all"})
+                    public final class Foo {
+                    Foo() { throw new RuntimeException("Stub!"); }
+                    }
+                """
+                ),
+            )
+        checkFlaggedApis(
+            java(
+                """
+                    package test.pkg;
+
+                    import android.annotation.FlaggedApi;
+                    import android.annotation.SystemApi;
+
+                    /** @hide */
+                    @SystemApi
+                    @FlaggedApi("foo/bar")
+                    public final class Foo {
+                        public Foo() {}
+                        public void method() {}
+                        /** @removed */
+                        public void removedMethod() {}
+                        public final int field = 2;
+                    }
+                """
+            ),
+            previouslyReleasedApi =
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public final class Foo {
+                      }
+                    }
+                """,
+            previouslyReleasedRemovedApi =
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public final class Foo {
+                        method public void removedMethod();
+                      }
+                    }
+                """,
+            expectationsList =
+                listOf(
+                    // The following system expectations verify what happens with a class that was
+                    // previously released as part of the system API but which is annotated with
+                    // FlaggedApi because it has new members.
+                    Expectations(
+                        Surface.SYSTEM,
+                        Flagged.WITH,
+                        expectedApi =
+                            """
+                                // Signature format: 2.0
+                                package test.pkg {
+                                  @FlaggedApi("foo/bar") public final class Foo {
+                                    ctor public Foo();
+                                    method public void method();
+                                    field public final int field = 2; // 0x2
+                                  }
+                                }
+                            """,
+                        expectedStubs = stubsWithNewMembers,
+                    ),
+                    Expectations(
+                        Surface.SYSTEM,
+                        Flagged.WITHOUT,
+                        // Even without flagged APIs the class is still part of the system API
+                        // because being annotated with @FlaggedApi does not cause it to be removed
+                        // it was previously part of a released API. However, the new members did
+                        // not exist in the previously released API so have been removed.
+                        expectedApi =
+                            """
+                                // Signature format: 2.0
+                                package test.pkg {
+                                  public final class Foo {
+                                  }
+                                }
+                            """,
+                        expectedStubs = stubsWithoutNewMembers,
+                    ),
+                    // The following module lib expectations verify what happens with a class that
+                    // was previously released as part of the module lib API but which is annotated
+                    // with FlaggedApi because it has moved to system API and has new members.
+                    Expectations(
+                        Surface.MODULE_LIB,
+                        Flagged.WITH,
+                        // This is expected to be empty as the API has moved to system.
+                        expectedApi =
+                            """
+                                // Signature format: 2.0
+                            """,
+                        // The module lib API stubs with flagged APIs include the class and the new
+                        // methods because while they are no longer module lib API they are public
+                        // API and module lib API stubs include public API stubs.
+                        expectedStubs = stubsWithNewMembers,
+                    ),
+                    Expectations(
+                        Surface.MODULE_LIB,
+                        Flagged.WITHOUT,
+                        // Even without flagged APIs the class is still part of the module lib API
+                        // because being annotated with @FlaggedApi does not cause it to be removed
+                        // it was previously part of a released API. However, the new members did
+                        // not exist in the previously released API so have been removed.
+                        expectedApi =
+                            """
+                                // Signature format: 2.0
+                                package test.pkg {
+                                  public final class Foo {
+                                  }
+                                }
+                            """,
+                        // The module lib API stubs without flagged APIs include the class but
+                        // exclude the new methods because the class was present in the previously
+                        // released module lib API but the methods were not.
+                        expectedStubs = stubsWithoutNewMembers,
                     ),
                 ),
         )

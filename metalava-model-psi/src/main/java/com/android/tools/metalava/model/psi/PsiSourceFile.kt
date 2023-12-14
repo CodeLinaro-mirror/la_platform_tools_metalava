@@ -20,8 +20,7 @@ import com.android.tools.metalava.model.BaseItemVisitor
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Import
 import com.android.tools.metalava.model.Item
-import com.android.tools.metalava.model.PackageItem
-import com.android.tools.metalava.model.SourceFileItem
+import com.android.tools.metalava.model.SourceFile
 import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiClassOwner
 import com.intellij.psi.PsiComment
@@ -42,11 +41,11 @@ import org.jetbrains.uast.UFile
 /** Whether we should limit import statements to symbols found in class docs */
 private const val ONLY_IMPORT_CLASSES_REFERENCED_IN_DOCS = true
 
-internal class PsiSourceFileItem(
-    codebase: PsiBasedCodebase,
+internal class PsiSourceFile(
+    val codebase: PsiBasedCodebase,
     val file: PsiFile,
     val uFile: UFile? = null
-) : SourceFileItem, PsiItem(codebase, file, PsiModifierItem(codebase), documentation = "") {
+) : SourceFile {
     override fun getHeaderComments(): String? {
         if (uFile != null) {
             var comment: String? = null
@@ -229,17 +228,9 @@ internal class PsiSourceFileItem(
             .orEmpty()
     }
 
-    override fun containingPackage(): PackageItem? {
-        return when {
-            uFile != null -> codebase.findPackage(uFile.packageName)
-            file is PsiJavaFile -> codebase.findPackage(file.packageName)
-            else -> null
-        }
-    }
-
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
-        return other is PsiSourceFileItem && file == other.file
+        return other is PsiSourceFile && file == other.file
     }
 
     override fun hashCode(): Int = file.hashCode()

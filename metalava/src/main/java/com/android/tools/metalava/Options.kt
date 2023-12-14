@@ -429,8 +429,24 @@ class Options(
                 excludeAnnotations = excludeAnnotations,
                 typedefMode = typedefMode,
                 apiPredicate = ApiPredicate(config = apiPredicateConfig),
+                previouslyReleasedCodebaseProvider = { previouslyReleasedCodebase },
+                previouslyReleasedRemovedCodebaseProvider = { previouslyReleasedRemovedCodebase },
             )
         )
+    }
+
+    internal val signatureFileCache by lazy { SignatureFileCache(annotationManager) }
+
+    private var previouslyReleasedApi: File? = null
+
+    private val previouslyReleasedCodebase by lazy {
+        previouslyReleasedApi?.let { file -> signatureFileCache.load(file) }
+    }
+
+    private var previouslyReleasedRemovedApi: File? = null
+
+    private val previouslyReleasedRemovedCodebase by lazy {
+        previouslyReleasedRemovedApi?.let { file -> signatureFileCache.load(file) }
     }
 
     /** Meta-annotations for which annotated APIs should not be checked for compatibility. */
@@ -895,19 +911,7 @@ class Options(
                     allShowAnnotationsBuilder.add(annotation)
                 }
                 ARG_SHOW_UNANNOTATED -> showUnannotated = true
-                ARG_HIDE_ANNOTATION -> {
-                    val annotation = getValue(args, ++index)
-                    // TODO(b/313398274): Remove special ANDROID_FLAGGED_API handling once the build
-                    //  has been switched to use `--revert-annotation`.
-                    if (
-                        annotation.startsWith(ANDROID_FLAGGED_API) ||
-                            annotation.startsWith("!" + ANDROID_FLAGGED_API)
-                    ) {
-                        revertAnnotationsBuilder.add(annotation)
-                    } else {
-                        hideAnnotationsBuilder.add(annotation)
-                    }
-                }
+                ARG_HIDE_ANNOTATION -> hideAnnotationsBuilder.add(getValue(args, ++index))
                 ARG_REVERT_ANNOTATION -> revertAnnotationsBuilder.add(getValue(args, ++index))
                 ARG_DOC_STUBS -> docStubsDir = stringToNewDir(getValue(args, ++index))
                 ARG_KOTLIN_STUBS -> kotlinStubs = true
@@ -994,10 +998,12 @@ class Options(
                 }
                 ARG_CHECK_COMPATIBILITY_API_RELEASED -> {
                     val file = stringToExistingFile(getValue(args, ++index))
+                    previouslyReleasedApi = file
                     mutableCompatibilityChecks.add(CheckRequest(file, ApiType.PUBLIC_API))
                 }
                 ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED -> {
                     val file = stringToExistingFile(getValue(args, ++index))
+                    previouslyReleasedRemovedApi = file
                     mutableCompatibilityChecks.add(CheckRequest(file, ApiType.REMOVED))
                 }
                 ARG_CHECK_COMPATIBILITY_BASE_API -> {
