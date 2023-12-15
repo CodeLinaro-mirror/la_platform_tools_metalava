@@ -425,20 +425,24 @@ class AnnotationsMergerTest : DriverTest() {
             showAnnotations = arrayOf("test.annotation.Show"),
             showUnannotated = true,
             mergeInclusionAnnotations =
-                """
-                package test.pkg;
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
 
-                public interface Example {
-                    void aNotAnnotated();
-                    @test.annotation.Hide void bHidden();
-                    @test.annotation.Hide @test.annotation.Show void cShown();
-                }
+                            public interface Example {
+                                void aNotAnnotated();
+                                @test.annotation.Hide void bHidden();
+                                @test.annotation.Hide @test.annotation.Show void cShown();
+                            }
 
-                @test.annotation.Hide
-                public interface HiddenExample {
-                    void method();
-                }
-                """,
+                            @test.annotation.Hide
+                            public interface HiddenExample {
+                                void method();
+                            }
+                        """
+                    ),
+                ),
             api =
                 """
                 package test.pkg {
@@ -447,6 +451,142 @@ class AnnotationsMergerTest : DriverTest() {
                     method public void cShown();
                   }
                 }
+                """
+        )
+    }
+
+    @Test
+    fun `Merge inclusion annotations from multiple Java stub files`() {
+        check(
+            format = FileFormat.V2,
+            expectedIssues = "",
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+
+                            public interface Example {
+                                void aNotAnnotated();
+                                void bHidden();
+                                void cShown();
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+
+                            public interface HiddenExample {
+                                void method();
+                            }
+                        """
+                    ),
+                ),
+            hideAnnotations = arrayOf("test.annotation.Hide"),
+            showAnnotations = arrayOf("test.annotation.Show"),
+            showUnannotated = true,
+            mergeInclusionAnnotations =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+
+                            public interface Example {
+                                void aNotAnnotated();
+                                void bHidden();
+                                @test.annotation.Show void cShown();
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+
+                            public interface Example {
+                                void aNotAnnotated();
+                                @test.annotation.Hide void bHidden();
+                                @test.annotation.Hide void cShown();
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+
+                            @test.annotation.Hide
+                            public interface HiddenExample {
+                                void method();
+                            }
+                        """
+                    ),
+                ),
+            api =
+                """
+                    package test.pkg {
+                      public interface Example {
+                        method public void aNotAnnotated();
+                        method public void cShown();
+                      }
+                    }
+                """
+        )
+    }
+
+    @Test
+    fun `Merge @FlaggedApi inclusion annotations from Java stub files`() {
+        check(
+            format = FileFormat.V2,
+            expectedIssues = "",
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+
+                            public interface Example {
+                                void aNotAnnotated();
+                                void cShown();
+                            }
+                        """
+                    ),
+                ),
+            hideAnnotations = arrayOf("test.annotation.Hide"),
+            showAnnotations = arrayOf("test.annotation.Show"),
+            showUnannotated = true,
+            mergeInclusionAnnotations =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+
+                            public interface Example {
+                                void aNotAnnotated();
+                                void bHidden();
+                                @test.annotation.Hide @test.annotation.Show void cShown();
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+
+                            public interface Example {
+                                void aNotAnnotated();
+                                @android.annotation.FlaggedApi("flag")
+                                void cShown();
+                            }
+                        """
+                    ),
+                ),
+            api =
+                """
+                    package test.pkg {
+                      public interface Example {
+                        method public void aNotAnnotated();
+                        method @FlaggedApi("flag") public void cShown();
+                      }
+                    }
                 """
         )
     }
@@ -478,16 +618,20 @@ class AnnotationsMergerTest : DriverTest() {
                 ),
             showUnannotated = true,
             mergeInclusionAnnotations =
-                """
-                package test.pkg;
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
 
-                @test.annotation.Hide
-                @test.annotation.Show
-                public interface Example {
-                    void aNotAnnotated();
-                    @test.annotation.Show void bShown();
-                }
-                """,
+                            @test.annotation.Hide
+                            @test.annotation.Show
+                            public interface Example {
+                                void aNotAnnotated();
+                                @test.annotation.Show void bShown();
+                            }
+                        """
+                    ),
+                ),
             api =
                 """
                 package test.pkg {
@@ -519,14 +663,18 @@ class AnnotationsMergerTest : DriverTest() {
                 ),
             extraArguments = arrayOf(ARG_SHOW_SINGLE_ANNOTATION, "test.annotation.Show"),
             mergeInclusionAnnotations =
-                """
-                package java.net;
+                arrayOf(
+                    java(
+                        """
+                            package java.net;
 
-                public class Example {
-                    void aNotAnnotated();
-                    @test.annotation.Show void bShown();
-                }
-                """,
+                            public class Example {
+                                void aNotAnnotated();
+                                @test.annotation.Show void bShown();
+                            }
+                        """
+                    ),
+                ),
             api =
                 """
                 package java.net {
@@ -580,12 +728,16 @@ class AnnotationsMergerTest : DriverTest() {
                 ),
             extraArguments = arrayOf(ARG_SHOW_SINGLE_ANNOTATION, "libcore.api.CorePlatformApi"),
             mergeInclusionAnnotations =
-                """
-                package java.util;
+                arrayOf(
+                    java(
+                        """
+                            package java.util;
 
-                public class LinkedHashMap extends java.util.HashMap {
-                }
-                """,
+                            public class LinkedHashMap extends java.util.HashMap {
+                            }
+                        """
+                    ),
+                ),
             api = "" // This test is checking that it doesn't crash
         )
     }

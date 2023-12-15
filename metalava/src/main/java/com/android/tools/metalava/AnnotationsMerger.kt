@@ -111,27 +111,37 @@ class AnnotationsMerger(
         )
     }
 
+    /**
+     * Given a list of directories containing various files, scan those files merging them into the
+     * [codebase].
+     *
+     * All `.java` files are collated and
+     */
     private fun mergeAll(
         mergeAnnotations: List<File>,
         mergeFile: (File) -> Unit,
         mergeJavaStubsCodebase: (SourceCodebase) -> Unit
     ) {
-        val javaStubFiles = mutableListOf<File>()
-        mergeAnnotations.forEach { mergeFileOrDir(it, mergeFile, javaStubFiles) }
-        if (javaStubFiles.isNotEmpty()) {
-            // Set up class path to contain our main sources such that we can
-            // resolve types in the stubs
-            val roots = mutableListOf<File>()
-            extractRoots(reporter, options.sources, roots)
-            roots.addAll(options.sourcePath)
-            val javaStubsCodebase =
-                sourceParser.parseSources(
-                    javaStubFiles,
-                    "Codebase loaded from stubs",
-                    sourcePath = roots,
-                    classPath = options.classpath
-                )
-            mergeJavaStubsCodebase(javaStubsCodebase)
+        // Process each file (which are almost certainly directories) separately. That allows for a
+        // single Java class to merge in annotations from multiple separate files.
+        mergeAnnotations.forEach {
+            val javaStubFiles = mutableListOf<File>()
+            mergeFileOrDir(it, mergeFile, javaStubFiles)
+            if (javaStubFiles.isNotEmpty()) {
+                // Set up class path to contain our main sources such that we can
+                // resolve types in the stubs
+                val roots = mutableListOf<File>()
+                extractRoots(reporter, options.sources, roots)
+                roots.addAll(options.sourcePath)
+                val javaStubsCodebase =
+                    sourceParser.parseSources(
+                        javaStubFiles,
+                        "Codebase loaded from stubs",
+                        sourcePath = roots,
+                        classPath = options.classpath
+                    )
+                mergeJavaStubsCodebase(javaStubsCodebase)
+            }
         }
     }
 
@@ -319,36 +329,33 @@ class AnnotationsMerger(
     }
 
     private fun mergeInclusionAnnotationsFromCodebase(externalCodebase: Codebase) {
-        val showAnnotations = options.allShowAnnotations
-        val hideAnnotations = options.hideAnnotations
-        if (showAnnotations.isNotEmpty() || hideAnnotations.isNotEmpty()) {
-            val visitor =
-                object : ComparisonVisitor() {
-                    override fun compare(old: Item, new: Item) {
-                        // Transfer any show/hide annotations from the external to the main
-                        // codebase.
-                        for (annotation in old.modifiers.annotations()) {
-                            val qualifiedName = annotation.qualifiedName ?: continue
-                            if (
-                                annotation.isShowabilityAnnotation() &&
-                                    new.modifiers.findAnnotation(qualifiedName) == null
-                            ) {
-                                new.mutableModifiers().addAnnotation(annotation)
-                            }
-                        }
-                        // The hidden field in the main codebase is already initialized. So if the
-                        // element is hidden in the external codebase, hide it in the main codebase
-                        // too.
-                        if (old.hidden) {
-                            new.hidden = true
-                        }
-                        if (old.originallyHidden) {
-                            new.originallyHidden = true
+        val visitor =
+            object : ComparisonVisitor() {
+                override fun compare(old: Item, new: Item) {
+                    // Transfer any show/hide annotations from the external to the main codebase.
+                    // Also copy any FlaggedApi annotations.
+                    for (annotation in old.modifiers.annotations()) {
+                        val qualifiedName = annotation.qualifiedName ?: continue
+                        if (
+                            (annotation.isShowabilityAnnotation() ||
+                                qualifiedName == ANDROID_FLAGGED_API) &&
+                                new.modifiers.findAnnotation(qualifiedName) == null
+                        ) {
+                            new.mutableModifiers().addAnnotation(annotation)
                         }
                     }
+                    // The hidden field in the main codebase is already initialized. So if the
+                    // element is hidden in the external codebase, hide it in the main codebase
+                    // too.
+                    if (old.hidden) {
+                        new.hidden = true
+                    }
+                    if (old.originallyHidden) {
+                        new.originallyHidden = true
+                    }
                 }
-            CodebaseComparator().compare(visitor, externalCodebase, codebase)
-        }
+            }
+        CodebaseComparator().compare(visitor, externalCodebase, codebase)
     }
 
     internal fun error(message: String) {

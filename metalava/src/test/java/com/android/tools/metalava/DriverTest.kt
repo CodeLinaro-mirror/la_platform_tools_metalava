@@ -274,7 +274,7 @@ abstract class DriverTest : TemporaryFolderOwner {
         /** Qualifier annotations to merge in (in Java stub format) */
         @Language("JAVA") mergeJavaStubAnnotations: String? = null,
         /** Inclusion annotations to merge in (in Java stub format) */
-        @Language("JAVA") mergeInclusionAnnotations: String? = null,
+        mergeInclusionAnnotations: Array<TestFile> = emptyArray(),
         /** Optional API signature files content to load **instead** of Java/Kotlin source files */
         @Language("TEXT") signatureSources: Array<String> = emptyArray(),
         apiClassResolution: ApiClassResolution = ApiClassResolution.API,
@@ -531,14 +531,17 @@ abstract class DriverTest : TemporaryFolderOwner {
             }
 
         val inclusionAnnotationsArgs =
-            if (mergeInclusionAnnotations != null) {
-                val cls = ClassName(mergeInclusionAnnotations)
-                val pkg = cls.packageName
-                val relative = pkg?.replace('.', File.separatorChar) ?: "."
-                val merged = File(project, "inclusion/$relative/${cls.className}.java")
-                merged.parentFile?.mkdirs()
-                merged.writeText(mergeInclusionAnnotations.trimIndent())
-                arrayOf(ARG_MERGE_INCLUSION_ANNOTATIONS, merged.path)
+            if (mergeInclusionAnnotations.isNotEmpty()) {
+                // Create each file in their own directory.
+                mergeInclusionAnnotations
+                    .flatMapIndexed { i, testFile ->
+                        val suffix = if (i == 0) "" else i.toString()
+                        val targetDir = File(project, "inclusion$suffix")
+                        targetDir.mkdirs()
+                        testFile.createFile(targetDir)
+                        listOf(ARG_MERGE_INCLUSION_ANNOTATIONS, targetDir.path)
+                    }
+                    .toTypedArray()
             } else {
                 emptyArray()
             }
