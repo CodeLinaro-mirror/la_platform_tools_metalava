@@ -59,7 +59,7 @@ internal class PsiTypeParameterItem(
             if (refs.isNullOrEmpty()) {
                 emptyList()
             } else {
-                refs.mapNotNull { PsiTypeItem.create(codebase, it) }
+                refs.mapNotNull { codebase.getType(it) }
             }
     }
 

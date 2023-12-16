@@ -23,6 +23,7 @@ import com.android.tools.metalava.model.isNonNullAnnotation
 import com.intellij.psi.PsiCallExpression
 import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiEnumConstant
+import com.intellij.psi.PsiExpression
 import com.intellij.psi.PsiField
 import com.intellij.psi.PsiModifierListOwner
 import com.intellij.psi.PsiPrimitiveType
@@ -74,9 +75,23 @@ class PsiFieldItem(
         }
 
         return if (!requireConstant) {
-            val initializer = psiField.initializer ?: return null
+            val initializer = psiField.safeInitializer() ?: return null
             JavaConstantExpressionEvaluator.computeConstantExpression(initializer, false)
         } else {
+            null
+        }
+    }
+
+    /**
+     * Work around exception from getting initializer of emptyArray() / arrayOf():
+     * https://youtrack.jetbrains.com/issue/KT-63552
+     *
+     * TODO(b/316343051): remove this workaround
+     */
+    private fun PsiField.safeInitializer(): PsiExpression? {
+        return try {
+            initializer
+        } catch (e: NoSuchElementException) {
             null
         }
     }
@@ -148,7 +163,7 @@ class PsiFieldItem(
             val commentText = javadoc(psiField)
             val modifiers = modifiers(codebase, psiField, commentText)
 
-            val fieldType = codebase.getType(psiField.type)
+            val fieldType = codebase.getType(psiField.type, psiField)
             val isEnumConstant = psiField is PsiEnumConstant
             val initialValue = null // compute lazily
 
@@ -187,7 +202,7 @@ class PsiFieldItem(
             // field initialization. If that right hand side for example represents a method call,
             // and the method we're calling is annotated with @NonNull, then the field (since it is
             // final) will always be @NonNull as well.
-            when (val initializer = psiField.initializer) {
+            when (val initializer = psiField.safeInitializer()) {
                 is PsiReference -> {
                     val resolved = initializer.resolve()
                     if (
@@ -210,5 +225,11 @@ class PsiFieldItem(
         }
 
         return null
+    }
+
+    override fun finishInitialization() {
+        super.finishInitialization()
+
+        fieldType.finishInitialization(this)
     }
 }

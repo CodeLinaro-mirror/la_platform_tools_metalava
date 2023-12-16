@@ -241,8 +241,8 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
             // These aren't support annotations
             "android.annotation.AppIdInt",
             "android.annotation.SuppressAutoDoc",
-            "android.annotation.SystemApi",
-            "android.annotation.TestApi",
+            ANDROID_SYSTEM_API,
+            ANDROID_TEST_API,
             "android.annotation.CallbackExecutor",
             "android.annotation.Condemned",
             "android.annotation.Hide",

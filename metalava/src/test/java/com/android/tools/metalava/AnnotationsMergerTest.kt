@@ -16,7 +16,9 @@
 
 package com.android.tools.metalava
 
+import com.android.tools.metalava.cli.common.ARG_WARNING
 import com.android.tools.metalava.model.text.FileFormat
+import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.testing.java
 import org.junit.Test
 
@@ -161,10 +163,10 @@ class AnnotationsMergerTest : DriverTest() {
                   public interface Appendable {
                     method public test.pkg.Appendable append(java.lang.CharSequence?);
                     method public test.pkg.Appendable append2(java.lang.CharSequence?);
-                    method public java.lang.String! reverse(java.lang.String!);
+                    method @Deprecated public java.lang.String! reverse(java.lang.String!);
                   }
-                  public interface RandomClass {
-                    method public test.pkg.Appendable append(java.lang.CharSequence);
+                  @Deprecated public interface RandomClass {
+                    method @Deprecated public test.pkg.Appendable append(java.lang.CharSequence);
                   }
                 }
                 """,
@@ -181,7 +183,8 @@ class AnnotationsMergerTest : DriverTest() {
                 merged-annotations.txt:5: warning: qualifier annotations were given for method test.pkg.Appendable.append2(CharSequence) but no matching item was found [UnmatchedMergeAnnotation]
                 merged-annotations.txt:6: warning: qualifier annotations were given for method test.pkg.Appendable.reverse(String) but no matching item was found [UnmatchedMergeAnnotation]
                 merged-annotations.txt:8: warning: qualifier annotations were given for class test.pkg.RandomClass but no matching item was found [UnmatchedMergeAnnotation]
-            """
+            """,
+            extraArguments = arrayOf(ARG_WARNING, Issues.UNMATCHED_MERGE_ANNOTATION.name)
         )
     }
 
@@ -212,6 +215,8 @@ class AnnotationsMergerTest : DriverTest() {
 
                 public interface Appendable {
                     @NonNull Appendable append(@Nullable java.lang.CharSequence csq);
+                    @NonNull String notPresentWithAnnotations();
+                    void notPresentWithoutAnnotations();
                 }
                 """,
             api =
@@ -222,7 +227,17 @@ class AnnotationsMergerTest : DriverTest() {
                   }
                 }
                 """,
-            extraArguments = arrayOf(ARG_HIDE_PACKAGE, "libcore.util")
+            extraArguments =
+                arrayOf(
+                    ARG_HIDE_PACKAGE,
+                    "libcore.util",
+                    ARG_WARNING,
+                    Issues.UNMATCHED_MERGE_ANNOTATION.name,
+                ),
+            expectedIssues =
+                """
+                    qualifier/test/pkg/Appendable.java:8: warning: qualifier annotations were given for method test.pkg.Appendable.notPresentWithAnnotations() but no matching item was found [UnmatchedMergeAnnotation]
+                """,
         )
     }
 
@@ -395,7 +410,10 @@ class AnnotationsMergerTest : DriverTest() {
     fun `Merge inclusion annotations from Java stub files`() {
         check(
             format = FileFormat.V2,
-            expectedIssues = "",
+            expectedIssues =
+                """
+                    inclusion/src/test/pkg/Example.java:13: warning: inclusion annotations were given for method test.pkg.HiddenExample.notPresentWithAnnotations() but no matching item was found [UnmatchedMergeAnnotation]
+                """,
             sourceFiles =
                 arrayOf(
                     java(
@@ -439,6 +457,9 @@ class AnnotationsMergerTest : DriverTest() {
                             @test.annotation.Hide
                             public interface HiddenExample {
                                 void method();
+                                @test.annotation.Hide
+                                void notPresentWithAnnotations();
+                                void notPresentWithoutAnnotations();
                             }
                         """
                     ),
@@ -451,7 +472,8 @@ class AnnotationsMergerTest : DriverTest() {
                     method public void cShown();
                   }
                 }
-                """
+                """,
+            extraArguments = arrayOf(ARG_WARNING, Issues.UNMATCHED_MERGE_ANNOTATION.name),
         )
     }
 
