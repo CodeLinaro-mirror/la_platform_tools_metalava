@@ -1235,6 +1235,7 @@ class CommonTypeModifiersTest : BaseModelTest() {
                     // Signature format: 5.0
                     // - include-type-use-annotations=yes
                     // - kotlin-name-type-order=yes
+                    // - kotlin-style-nulls=no
                     package test.pkg {
                       public class Foo {
                         method public platformStringPlatformVararg(arg: String...): void;
@@ -1263,11 +1264,10 @@ class CommonTypeModifiersTest : BaseModelTest() {
                     // Signature format: 5.0
                     // - include-type-use-annotations=yes
                     // - kotlin-name-type-order=yes
-                    // - kotlin-style-nulls=no
                     package test.pkg {
                       public class Foo {
                         method public platformStringPlatformVararg(arg: String!...!): void;
-                        method public nullableStringPlatformVararg(arg: String?...): void;
+                        method public nullableStringPlatformVararg(arg: String?...!): void;
                         method public platformStringNullableVararg(arg: String!...?): void;
                         method public nullableStringNullableVararg(arg: String?...?): void;
                         method public nullableStringNonNullVararg(arg: String?...): void;
@@ -1665,7 +1665,7 @@ class CommonTypeModifiersTest : BaseModelTest() {
                         // - kotlin-style-nulls=no
                         package test.pkg {
                           public class Foo {
-                            method public @Nullable foo(): String;
+                            method @Nullable public foo(): String;
                           }
                         }
                     """

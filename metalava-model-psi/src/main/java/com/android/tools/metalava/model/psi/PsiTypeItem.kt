@@ -64,10 +64,6 @@ sealed class PsiTypeItem(open val codebase: PsiBasedCodebase, open val psiType: 
     private var toAnnotatedString: String? = null
     private var asClass: PsiClassItem? = null
 
-    override fun toString(): String {
-        return toTypeString()
-    }
-
     override fun toTypeString(
         annotations: Boolean,
         kotlinStyleNulls: Boolean,

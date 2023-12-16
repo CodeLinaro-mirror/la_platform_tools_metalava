@@ -147,6 +147,7 @@ class CommonTypeStringTest : BaseModelTest() {
                 // Signature format: 5.0
                 // - kotlin-name-type-order=yes
                 // - include-type-use-annotations=yes
+                // - kotlin-style-nulls=no
                 package test.pkg {
                   public class Foo {
                     ctor public Foo();

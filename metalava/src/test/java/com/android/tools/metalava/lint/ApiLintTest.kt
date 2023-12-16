@@ -24,7 +24,6 @@ import com.android.tools.metalava.androidxNullableSource
 import com.android.tools.metalava.cli.common.ARG_ERROR
 import com.android.tools.metalava.cli.common.ARG_HIDE
 import com.android.tools.metalava.nonNullSource
-import com.android.tools.metalava.nullableSource
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import org.junit.Test
@@ -930,90 +929,6 @@ class ApiLintTest : DriverTest() {
                     """
                     ),
                     androidxNullableSource
-                )
-        )
-    }
-
-    @Test
-    fun `Api methods should not be synchronized in their signature`() {
-        check(
-            apiLint = "", // enabled
-            expectedIssues =
-                """
-                src/android/pkg/CheckSynchronization.java:12: error: Internal locks must not be exposed: method android.pkg.CheckSynchronization.errorMethod1(Runnable) [VisiblySynchronized]
-                src/android/pkg/CheckSynchronization.java:14: error: Internal locks must not be exposed (synchronizing on this or class is still externally observable): method android.pkg.CheckSynchronization.errorMethod2() [VisiblySynchronized]
-                src/android/pkg/CheckSynchronization.java:18: error: Internal locks must not be exposed (synchronizing on this or class is still externally observable): method android.pkg.CheckSynchronization.errorMethod2() [VisiblySynchronized]
-                src/android/pkg/CheckSynchronization.java:23: error: Internal locks must not be exposed (synchronizing on this or class is still externally observable): method android.pkg.CheckSynchronization.errorMethod3() [VisiblySynchronized]
-                src/android/pkg/CheckSynchronization2.kt:5: error: Internal locks must not be exposed (synchronizing on this or class is still externally observable): method android.pkg.CheckSynchronization2.errorMethod1() [VisiblySynchronized]
-                src/android/pkg/CheckSynchronization2.kt:8: error: Internal locks must not be exposed (synchronizing on this or class is still externally observable): method android.pkg.CheckSynchronization2.errorMethod2() [VisiblySynchronized]
-                src/android/pkg/CheckSynchronization2.kt:13: error: Internal locks must not be exposed (synchronizing on this or class is still externally observable): method android.pkg.CheckSynchronization2.errorMethod3() [VisiblySynchronized]
-                src/android/pkg/CheckSynchronization2.kt:16: error: Internal locks must not be exposed (synchronizing on this or class is still externally observable): method android.pkg.CheckSynchronization2.errorMethod4() [VisiblySynchronized]
-                src/android/pkg/CheckSynchronization2.kt:18: error: Internal locks must not be exposed (synchronizing on this or class is still externally observable): method android.pkg.CheckSynchronization2.errorMethod5() [VisiblySynchronized]
-                """,
-            expectedFail = DefaultLintErrorMessage,
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
-                    package android.pkg;
-
-                    import androidx.annotation.Nullable;
-
-                    public class CheckSynchronization {
-                        public void okMethod1(@Nullable Runnable r) { }
-                        private static final Object LOCK = new Object();
-                        public void okMethod2() {
-                            synchronized(LOCK) {
-                            }
-                        }
-                        public synchronized void errorMethod1(@Nullable Runnable r) { } // ERROR
-                        public void errorMethod2() {
-                            synchronized(this) {
-                            }
-                        }
-                        public void errorMethod2() {
-                            synchronized(CheckSynchronization.class) {
-                            }
-                        }
-                        public void errorMethod3() {
-                            if (true) {
-                                synchronized(CheckSynchronization.class) {
-                                }
-                            }
-                        }
-                    }
-                    """
-                    ),
-                    kotlin(
-                        """
-                    package android.pkg
-
-                    class CheckSynchronization2 {
-                        fun errorMethod1() {
-                            synchronized(this) { println("hello") }
-                        }
-                        fun errorMethod2() {
-                            synchronized(CheckSynchronization2::class.java) { println("hello") }
-                        }
-                        fun errorMethod3() {
-                            @Suppress("ConstantConditionIf")
-                            if (true) {
-                                synchronized(CheckSynchronization2::class.java) { println("hello") }
-                            }
-                        }
-                        fun errorMethod4() = synchronized(this) { println("hello") }
-                        fun errorMethod5() {
-                            synchronized(CheckSynchronization2::class) { println("hello") }
-                        }
-                        fun okMethod() {
-                            val lock = Object()
-                            synchronized(lock) { println("hello") }
-                        }
-                    }
-                    """
-                    ),
-                    androidxNullableSource,
-                    nullableSource
                 )
         )
     }

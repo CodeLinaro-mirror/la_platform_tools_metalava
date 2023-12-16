@@ -18,11 +18,12 @@ package com.android.tools.metalava.model.text
 
 import com.android.tools.metalava.model.JAVA_LANG_OBJECT
 import com.android.tools.metalava.model.PrimitiveTypeItem
+import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeParameterItem
 import java.util.HashMap
 
 /** Parses and caches types for a [codebase]. */
-internal class TextTypeParser(val codebase: TextCodebase) {
+internal class TextTypeParser(val codebase: TextCodebase, var kotlinStyleNulls: Boolean = false) {
     private val typeCache = Cache<String, TextTypeItem>()
 
     /**
@@ -37,7 +38,7 @@ internal class TextTypeParser(val codebase: TextCodebase) {
             cl.qualifiedName,
             params,
             null,
-            modifiers(emptyList())
+            emptyModifiers
         )
     }
 
@@ -50,7 +51,7 @@ internal class TextTypeParser(val codebase: TextCodebase) {
                 JAVA_LANG_OBJECT,
                 emptyList(),
                 null,
-                modifiers(emptyList())
+                emptyModifiers
             )
         }
     }
@@ -85,20 +86,21 @@ internal class TextTypeParser(val codebase: TextCodebase) {
     ): TextTypeItem {
         val (unannotated, annotationsFromString) = trimLeadingAnnotations(type)
         val allAnnotations = annotations + annotationsFromString
-        val (withoutNullability, suffix) = splitNullabilitySuffix(unannotated)
+        val (withoutNullability, nullability) =
+            splitNullabilitySuffix(unannotated, kotlinStyleNulls)
         val trimmed = withoutNullability.trim()
 
         // Figure out what kind of type this is. Start with the simple cases: primitive or variable.
-        return asPrimitive(type, trimmed, allAnnotations)
-            ?: asVariable(type, trimmed, typeParams, allAnnotations)
+        return asPrimitive(type, trimmed, allAnnotations, nullability)
+            ?: asVariable(type, trimmed, typeParams, allAnnotations, nullability)
             // Try parsing as a wildcard before trying to parse as an array.
             // `? extends java.lang.String[]` should be parsed as a wildcard with an array bound,
             // not as an array of wildcards, for consistency with how this would be compiled.
-            ?: asWildcard(type, trimmed, typeParams, allAnnotations)
+            ?: asWildcard(type, trimmed, typeParams, allAnnotations, nullability)
             // Try parsing as an array.
-            ?: asArray(trimmed, allAnnotations, suffix, typeParams)
+            ?: asArray(trimmed, allAnnotations, nullability, typeParams)
             // If it isn't anything else, parse the type as a class.
-            ?: asClass(type, trimmed, typeParams, allAnnotations)
+            ?: asClass(type, trimmed, typeParams, allAnnotations, nullability)
     }
 
     /**
@@ -112,7 +114,8 @@ internal class TextTypeParser(val codebase: TextCodebase) {
     private fun asPrimitive(
         original: String,
         type: String,
-        annotations: List<String>
+        annotations: List<String>,
+        nullability: TypeNullability?
     ): TextPrimitiveTypeItem? {
         val kind =
             when (type) {
@@ -127,7 +130,15 @@ internal class TextTypeParser(val codebase: TextCodebase) {
                 "void" -> PrimitiveTypeItem.Primitive.VOID
                 else -> return null
             }
-        return TextPrimitiveTypeItem(codebase, original, kind, modifiers(annotations))
+        if (nullability != null && nullability != TypeNullability.NONNULL) {
+            throw ApiParseException("Invalid nullability suffix on primitive: $original")
+        }
+        return TextPrimitiveTypeItem(
+            codebase,
+            original,
+            kind,
+            modifiers(annotations, TypeNullability.NONNULL)
+        )
     }
 
     /**
@@ -139,7 +150,7 @@ internal class TextTypeParser(val codebase: TextCodebase) {
     private fun asArray(
         type: String,
         componentAnnotations: List<String>,
-        nullability: String,
+        nullability: TypeNullability?,
         typeParams: List<TypeParameterItem>
     ): TextArrayTypeItem? {
         // Check if this is a regular array or varargs.
@@ -172,7 +183,7 @@ internal class TextTypeParser(val codebase: TextCodebase) {
 
         // Remove nullability marker from the component type, but don't add it to the list yet, as
         // it might not be an array.
-        var nullabilityResult = splitNullabilitySuffix(componentString)
+        var nullabilityResult = splitNullabilitySuffix(componentString, kotlinStyleNulls)
         componentString = nullabilityResult.first
         var componentNullability = nullabilityResult.second
 
@@ -189,14 +200,14 @@ internal class TextTypeParser(val codebase: TextCodebase) {
 
             // Remove nullability marker from the new component type, but don't add it to the list
             // yet, as the next component type might not be an array.
-            nullabilityResult = splitNullabilitySuffix(componentString)
+            nullabilityResult = splitNullabilitySuffix(componentString, kotlinStyleNulls)
             componentString = nullabilityResult.first
             componentNullability = nullabilityResult.second
         }
 
         // Re-add the component's nullability suffix when parsing the component type, and include
         // the leading annotations already removed from the type string.
-        componentString += componentNullability
+        componentString += componentNullability?.suffix.orEmpty()
         val deepComponentType =
             obtainTypeFromString(componentString, typeParams, componentAnnotations)
 
@@ -204,9 +215,8 @@ internal class TextTypeParser(val codebase: TextCodebase) {
         // appear in the string in reverse order of each other. The modifiers list will be ordered
         // from innermost array modifiers to outermost array modifiers.
         val allModifiers =
-            allAnnotations.zip(allNullability.reversed()).map { (annotations, _) ->
-                // TODO: use the nullability
-                modifiers(annotations)
+            allAnnotations.zip(allNullability.reversed()).map { (annotations, nullability) ->
+                modifiers(annotations, nullability)
             }
         // The final modifiers are in the list apply to the outermost array.
         val componentModifiers = allModifiers.dropLast(1)
@@ -249,7 +259,7 @@ internal class TextTypeParser(val codebase: TextCodebase) {
         deepComponentType: TextTypeItem,
         deepComponentAnnotations: List<String>,
         allArrayAnnotations: List<List<String>>,
-        allNullability: List<String>,
+        allNullability: List<TypeNullability?>,
         varargs: Boolean
     ): String {
         if (allArrayAnnotations.isNotEmpty()) {
@@ -270,7 +280,7 @@ internal class TextTypeParser(val codebase: TextCodebase) {
                 else {
                     " " + outerArrayAnnotations.joinToString(" ") + " "
                 }
-            val suffix = (if (varargs) "..." else "[]") + allNullability.first()
+            val suffix = (if (varargs) "..." else "[]") + allNullability.first()?.suffix.orEmpty()
             return "$component$trailingAnnotations$suffix"
         } else {
             // End of the recursion, create a string for the non-array component type.
@@ -279,7 +289,7 @@ internal class TextTypeParser(val codebase: TextCodebase) {
                 else {
                     deepComponentAnnotations.joinToString(" ") + " "
                 }
-            return "$leadingAnnotations$deepComponentType"
+            return "$leadingAnnotations${deepComponentType.type}"
         }
     }
 
@@ -297,7 +307,8 @@ internal class TextTypeParser(val codebase: TextCodebase) {
         original: String,
         type: String,
         typeParams: List<TypeParameterItem>,
-        annotations: List<String>
+        annotations: List<String>,
+        nullability: TypeNullability?
     ): TextWildcardTypeItem? {
         // See if this is a wildcard
         if (!type.startsWith("?")) return null
@@ -309,10 +320,11 @@ internal class TextTypeParser(val codebase: TextCodebase) {
                 type,
                 obtainObjectType(),
                 null,
-                modifiers(annotations)
+                modifiers(annotations, TypeNullability.UNDEFINED)
             )
 
-        val bound = type.substring(2)
+        // If there's a bound, the nullability suffix applies there instead.
+        val bound = type.substring(2) + nullability?.suffix.orEmpty()
         return if (bound.startsWith("extends")) {
             val extendsBound = bound.substring(8)
             TextWildcardTypeItem(
@@ -320,7 +332,7 @@ internal class TextTypeParser(val codebase: TextCodebase) {
                 original,
                 obtainTypeFromString(extendsBound, typeParams),
                 null,
-                modifiers(annotations)
+                modifiers(annotations, TypeNullability.UNDEFINED)
             )
         } else if (bound.startsWith("super")) {
             val superBound = bound.substring(6)
@@ -330,7 +342,7 @@ internal class TextTypeParser(val codebase: TextCodebase) {
                 // All wildcards have an implicit Object extends bound
                 obtainObjectType(),
                 obtainTypeFromString(superBound, typeParams),
-                modifiers(annotations)
+                modifiers(annotations, TypeNullability.UNDEFINED)
             )
         } else {
             throw ApiParseException(
@@ -351,10 +363,17 @@ internal class TextTypeParser(val codebase: TextCodebase) {
         original: String,
         type: String,
         typeParams: List<TypeParameterItem>,
-        annotations: List<String>
+        annotations: List<String>,
+        nullability: TypeNullability?
     ): TextVariableTypeItem? {
         val param = typeParams.firstOrNull { it.simpleName() == type } ?: return null
-        return TextVariableTypeItem(codebase, original, type, param, modifiers(annotations))
+        return TextVariableTypeItem(
+            codebase,
+            original,
+            type,
+            param,
+            modifiers(annotations, nullability)
+        )
     }
 
     /**
@@ -371,16 +390,16 @@ internal class TextTypeParser(val codebase: TextCodebase) {
         original: String,
         type: String,
         typeParams: List<TypeParameterItem>,
-        annotations: List<String>
+        annotations: List<String>,
+        nullability: TypeNullability?
     ): TextClassTypeItem {
-        return createClassType(original, type, null, typeParams, annotations)
+        return createClassType(original, type, null, typeParams, annotations, nullability)
     }
 
     /**
-     * Creates a class name for the class represented by [type] with optional qualified name prefix
-     * [outerQualifiedName].
+     * Creates a class name for the class represented by [type] with optional [outerClassType].
      *
-     * For instance, `test.pkg.Outer<P1>` would be the [outerQualifiedName] when parsing `Inner<P2>`
+     * For instance, `test.pkg.Outer<P1>` would be the [outerClassType] when parsing `Inner<P2>`
      * from the [original] type `test.pkg.Outer<P1>.Inner<P2>`.
      */
     private fun createClassType(
@@ -388,10 +407,10 @@ internal class TextTypeParser(val codebase: TextCodebase) {
         type: String,
         outerClassType: TextClassTypeItem?,
         typeParams: List<TypeParameterItem>,
-        annotations: List<String>
+        annotations: List<String>,
+        nullability: TypeNullability?
     ): TextClassTypeItem {
         val (name, afterName, classAnnotations) = splitClassType(type)
-        val allAnnotations = annotations + classAnnotations
 
         val (qualifiedName, fullName) =
             if (outerClassType != null) {
@@ -406,6 +425,14 @@ internal class TextTypeParser(val codebase: TextCodebase) {
 
         val (paramStrings, remainder) = typeParameterStringsWithRemainder(afterName)
         val params = paramStrings.map { obtainTypeFromString(it, typeParams) }
+        // If this is an outer class type (there's a remainder), call it non-null and don't apply
+        // the leading annotations (they belong to the inner class type).
+        val classModifiers =
+            if (remainder != null) {
+                modifiers(classAnnotations, TypeNullability.NONNULL)
+            } else {
+                modifiers(classAnnotations + annotations, nullability)
+            }
         val classType =
             TextClassTypeItem(
                 codebase,
@@ -413,7 +440,7 @@ internal class TextTypeParser(val codebase: TextCodebase) {
                 qualifiedName,
                 params,
                 outerClassType,
-                modifiers(allAnnotations)
+                classModifiers
             )
 
         if (remainder != null) {
@@ -428,15 +455,22 @@ internal class TextTypeParser(val codebase: TextCodebase) {
                 remainder.substring(1),
                 classType,
                 typeParams,
-                emptyList()
+                annotations,
+                nullability
             )
         }
 
         return classType
     }
 
-    private fun modifiers(annotations: List<String>): TextTypeModifiers {
-        return TextTypeModifiers.create(codebase, annotations)
+    private val emptyModifiers: TextTypeModifiers =
+        TextTypeModifiers.create(codebase, emptyList(), null)
+
+    private fun modifiers(
+        annotations: List<String>,
+        nullability: TypeNullability?
+    ): TextTypeModifiers {
+        return TextTypeModifiers.create(codebase, annotations, nullability)
     }
 
     private class Cache<Key, Value> {
@@ -474,14 +508,27 @@ internal class TextTypeParser(val codebase: TextCodebase) {
          * Splits the Kotlin-style nullability marker off the type string, returning a pair of the
          * cleaned type string and the nullability suffix.
          */
-        fun splitNullabilitySuffix(type: String): Pair<String, String> {
-            // Don't interpret the wildcard type `?` as a nullability marker.
-            return if (type.length == 1) {
-                Pair(type, "")
-            } else if (type.endsWith("?") || type.endsWith("!")) {
-                Pair(type.dropLast(1), type.last().toString())
+        fun splitNullabilitySuffix(
+            type: String,
+            kotlinStyleNulls: Boolean
+        ): Pair<String, TypeNullability?> {
+            return if (kotlinStyleNulls) {
+                // Don't interpret the wildcard type `?` as a nullability marker.
+                if (type == "?") {
+                    Pair(type, TypeNullability.UNDEFINED)
+                } else if (type.endsWith("?")) {
+                    Pair(type.dropLast(1), TypeNullability.NULLABLE)
+                } else if (type.endsWith("!")) {
+                    Pair(type.dropLast(1), TypeNullability.PLATFORM)
+                } else {
+                    Pair(type, TypeNullability.NONNULL)
+                }
+            } else if (type.length > 1 && type.endsWith("?") || type.endsWith("!")) {
+                throw ApiParseException(
+                    "Format does not support Kotlin-style null type syntax: $type"
+                )
             } else {
-                Pair(type, "")
+                Pair(type, null)
             }
         }
 

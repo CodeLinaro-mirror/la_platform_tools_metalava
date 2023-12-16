@@ -35,10 +35,6 @@ sealed class TurbineTypeItem(
     override val modifiers: TypeModifiers,
 ) : DefaultTypeItem(codebase) {
 
-    override fun toString(): String {
-        return toTypeString()
-    }
-
     override fun asClass(): TurbineClassItem? {
         if (this is TurbineArrayTypeItem) {
             return this.componentType.asClass()

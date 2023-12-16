@@ -82,12 +82,19 @@ internal class DefaultReporter(
                 (
                     severity: Severity, location: String?, message: String, id: Issues.Issue
                 ) -> Boolean
-        ) =
-            when {
-                location.path != null -> which(severity, location.forReport(), message, id)
-                item != null -> which(severity, item.location().forReport(), message, id)
-                else -> which(severity, null as String?, message, id)
-            }
+        ): Boolean {
+            // When selecting a location to use for reporting the issue the location is used in
+            // preference to the item because the location is more specific. e.g. if the item is a
+            // method then the location may be a line within the body of the method.
+            val reportLocation =
+                when {
+                    location.path != null -> location.forReport()
+                    item != null -> item.location().forReport()
+                    else -> null
+                }
+
+            return which(severity, reportLocation, message, id)
+        }
 
         // Optionally write to the --report-even-if-suppressed file.
         dispatch(this::reportEvenIfSuppressed)
@@ -107,12 +114,20 @@ internal class DefaultReporter(
             }
         }
 
-        if (item != null && baseline != null && baseline.mark(item.location(), message, id)) {
-            return false
-        } else if (
-            location.path != null && baseline != null && baseline.mark(location, message, id)
-        ) {
-            return false
+        if (baseline != null) {
+            // When selecting a location to use for in checking the baseline the item is used in
+            // preference to the location because the item is more stable. e.g. the location may be
+            // for a specific line within a method which would change over time while the method
+            // signature would stay the same.
+            val baselineLocation =
+                when {
+                    item != null -> item.location()
+                    location.path != null -> location
+                    else -> null
+                }
+
+            if (baselineLocation != null && baseline.mark(baselineLocation, message, id))
+                return false
         }
 
         return dispatch(this::doReport)
