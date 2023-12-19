@@ -193,7 +193,7 @@ class ApiLint
 private constructor(
     private val codebase: Codebase,
     private val oldCodebase: Codebase?,
-    private val reporter: Reporter,
+    reporter: Reporter,
     private val manifest: Manifest,
     config: Config,
 ) :
@@ -212,24 +212,37 @@ private constructor(
     /** Predicate that checks if the item appears in the signature file. */
     private val elidingFilterEmit = ApiType.PUBLIC_API.getEmitFilter(config.apiPredicateConfig)
 
+    /** [Reporter] that filters out items that are not relevant for the current API surface. */
+    inner class FilteringReporter(private val delegate: Reporter) : Reporter by delegate {
+        override fun report(id: Issue, item: Item?, message: String, location: Location): Boolean {
+
+            if (item != null) {
+                // Don't flag api warnings on deprecated APIs; these are obviously already known to
+                // be problematic.
+                if (item.effectivelyDeprecated) {
+                    return false
+                }
+
+                // With show annotations we might be flagging API that is filtered out: hide these
+                // here
+                val testItem = if (item is ParameterItem) item.containingMethod() else item
+                if (!filterEmit.test(testItem)) {
+                    return false
+                }
+            }
+
+            return delegate.report(id, item, message, location)
+        }
+    }
+
+    private val reporter: Reporter = FilteringReporter(reporter)
+
     private fun report(
         id: Issue,
         item: Item,
         message: String,
         location: Location = Location.unknownLocationAndBaselineKey
     ) {
-        // Don't flag api warnings on deprecated APIs; these are obviously already known to
-        // be problematic.
-        if (item.effectivelyDeprecated) {
-            return
-        }
-
-        // With show annotations we might be flagging API that is filtered out: hide these here
-        val testItem = if (item is ParameterItem) item.containingMethod() else item
-        if (!filterEmit.test(testItem)) {
-            return
-        }
-
         reporter.report(id, item, message, location)
     }
 
@@ -273,7 +286,7 @@ private constructor(
             item is FieldItem && !isInteresting(item.containingClass())
     }
 
-    private val kotlinInterop = KotlinInteropChecks(reporter)
+    private val kotlinInterop: KotlinInteropChecks = KotlinInteropChecks(this.reporter)
 
     override fun visitClass(cls: ClassItem) {
         val methods = cls.filteredMethods(filterReference).asSequence()
