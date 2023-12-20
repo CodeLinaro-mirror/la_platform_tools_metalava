@@ -68,7 +68,7 @@ class BaselineTest : DriverTest() {
             // Commented out above:
             expectedIssues =
                 """
-                src/test/pkg/Foo.java:9: error: Class test.pkg.Hidden2 is hidden but was referenced (as return type) from public method test.pkg.Foo.getHidden2() [ReferencesHidden]
+                src/test/pkg/Foo.java:9: error: Class test.pkg.Hidden2 is hidden but was referenced (in return type) from public method test.pkg.Foo.getHidden2() [ReferencesHidden]
             """,
             expectedFail = DefaultLintErrorMessage,
             sourceFiles =

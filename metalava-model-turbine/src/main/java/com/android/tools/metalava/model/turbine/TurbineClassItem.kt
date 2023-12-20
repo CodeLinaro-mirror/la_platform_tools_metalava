@@ -162,7 +162,14 @@ open class TurbineClassItem(
                 }
             val mods = TurbineTypeModifiers(modifiers.annotations())
             val outerClassType = containingClass?.let { it.toType() as TurbineClassTypeItem }
-            asType = TurbineClassTypeItem(codebase, mods, qualifiedName, parameters, outerClassType)
+            asType =
+                TurbineClassTypeItem(
+                    codebase as TurbineBasedCodebase,
+                    mods,
+                    qualifiedName,
+                    parameters,
+                    outerClassType
+                )
         }
         return asType!!
     }

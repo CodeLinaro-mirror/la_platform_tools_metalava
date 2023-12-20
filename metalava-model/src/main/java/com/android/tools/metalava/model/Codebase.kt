@@ -61,10 +61,6 @@ interface Codebase {
         getPackages().accept(visitor)
     }
 
-    fun acceptTypes(visitor: TypeVisitor) {
-        getPackages().acceptTypes(visitor)
-    }
-
     /** Creates an annotation item for the given (fully qualified) Java source */
     fun createAnnotation(
         source: String,

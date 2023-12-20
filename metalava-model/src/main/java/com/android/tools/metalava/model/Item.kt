@@ -93,9 +93,6 @@ interface Item {
     /** Visits this element using the given [visitor] */
     fun accept(visitor: ItemVisitor)
 
-    /** Visits all types in this item hierarchy */
-    fun acceptTypes(visitor: TypeVisitor)
-
     /** Get a mutable version of modifiers for this item */
     fun mutableModifiers(): MutableModifierList
 

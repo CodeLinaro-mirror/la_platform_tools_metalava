@@ -70,6 +70,10 @@ open class TurbineBasedCodebase(
         return classMap[className]
     }
 
+    fun findOrCreateClass(className: String): TurbineClassItem? {
+        return initializer.findOrCreateClass(className)
+    }
+
     fun findTypeParameter(sym: TyVarSymbol): TypeParameterItem {
         return typeParameterMap[sym]!!
     }
