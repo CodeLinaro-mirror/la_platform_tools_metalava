@@ -201,8 +201,6 @@ object Issues {
     val USE_PARCEL_FILE_DESCRIPTOR = Issue(Severity.ERROR, Category.API_LINT)
     val NO_BYTE_OR_SHORT = Issue(Severity.WARNING, Category.API_LINT)
     val SINGLETON_CONSTRUCTOR = Issue(Severity.ERROR, Category.API_LINT)
-    val COMMON_ARGS_FIRST = Issue(Severity.WARNING, Category.API_LINT)
-    val CONSISTENT_ARGUMENT_ORDER = Issue(Severity.ERROR, Category.API_LINT)
     val KOTLIN_KEYWORD = Issue(Severity.ERROR, Category.API_LINT)
     val UNIQUE_KOTLIN_OPERATOR = Issue(Severity.ERROR, Category.API_LINT)
     val SAM_SHOULD_BE_LAST = Issue(Severity.WARNING, Category.API_LINT)

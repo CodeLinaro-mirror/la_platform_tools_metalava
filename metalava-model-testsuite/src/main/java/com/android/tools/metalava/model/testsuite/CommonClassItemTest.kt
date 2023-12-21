@@ -18,6 +18,7 @@ package com.android.tools.metalava.model.testsuite
 
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.testing.java
+import com.android.tools.metalava.testing.kotlin
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 import kotlin.test.assertSame
@@ -344,6 +345,94 @@ class CommonClassItemTest : BaseModelTest() {
 
             val allInterfaces = fooClass.allInterfaces().toList()
             assertEquals(listOf(interfaceA, interfaceB, interfaceC), allInterfaces)
+        }
+    }
+
+    @Test
+    fun `Test deprecated class by javadoc tag`() {
+        runCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+
+                    /**
+                     * @deprecated
+                     */
+                    public class Bar {}
+                """
+            ),
+        ) { codebase ->
+            val barClass = codebase.assertClass("test.pkg.Bar")
+            assertEquals(true, barClass.deprecated)
+            assertEquals(true, barClass.originallyDeprecated)
+        }
+    }
+
+    @Test
+    fun `Test deprecated class by annotation`() {
+        runCodebaseTest(
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      @Deprecated public class Bar {
+                      }
+                    }
+                """
+            ),
+            java(
+                """
+                    package test.pkg;
+
+                    @Deprecated
+                    public class Bar {}
+                """
+            ),
+            kotlin(
+                """
+                    package test.pkg
+
+                    @Deprecated
+                    class Bar {}
+                """
+            ),
+        ) { codebase ->
+            val barClass = codebase.assertClass("test.pkg.Bar")
+            assertEquals(true, barClass.deprecated)
+            assertEquals(true, barClass.originallyDeprecated)
+        }
+    }
+
+    @Test
+    fun `Test not deprecated class`() {
+        runCodebaseTest(
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public class Bar {
+                      }
+                    }
+                """
+            ),
+            java(
+                """
+                    package test.pkg;
+
+                    public class Bar {}
+                """
+            ),
+            kotlin(
+                """
+                    package test.pkg
+
+                    class Bar {}
+                """
+            ),
+        ) { codebase ->
+            val barClass = codebase.assertClass("test.pkg.Bar")
+            assertEquals(false, barClass.deprecated)
+            assertEquals(false, barClass.originallyDeprecated)
         }
     }
 }

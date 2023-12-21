@@ -16,12 +16,13 @@
 
 package com.android.tools.metalava.model.text
 
+import com.android.tools.metalava.model.Assertions
 import com.google.common.truth.Truth.assertThat
 import org.junit.Test
 
-class TextTypeItemTest {
+class TextTypeItemTest : Assertions {
     @Test
-    fun `check erasure`() {
+    fun `check bounds`() {
         // When a type variable is on a member and the type variable is defined on the surrounding
         // class, look up the bound on the class type parameter:
         val codebase =
@@ -41,15 +42,15 @@ class TextTypeItemTest {
             """
                     .trimIndent(),
             )
-        val cls = codebase.findClass("androidx.navigation.NavDestinationBuilder")
-        val method = cls?.findMethod("build", "") as TextMethodItem
-        assertThat(method).isNotNull()
+        val cls = codebase.assertClass("androidx.navigation.NavDestinationBuilder")
+        val method = cls.assertMethod("build", "") as TextMethodItem
+
         assertThat(TextTypeParameterItem.bounds("D", method).toString())
             .isEqualTo("[androidx.navigation.NavDestination]")
     }
 
     @Test
-    fun `check erasure from object`() {
+    fun `check implicit bounds from object`() {
         // When a type variable is on a member and the type variable is defined on the surrounding
         // class, look up the bound on the class type parameter:
         val codebase =
@@ -65,13 +66,16 @@ class TextTypeItemTest {
             """
                     .trimIndent(),
             )
-        val cls = codebase.findClass("test.pkg.TestClass")
-        val method = cls?.findMethod("build", "") as TextMethodItem
-        assertThat(method).isNotNull()
+        val cls = codebase.assertClass("test.pkg.TestClass") as TextClassItem
+        val method = cls.assertMethod("build", "") as TextMethodItem
+
+        // The implicit upper bound of `java.lang.Object` that is used for any type parameter that
+        // does not explicitly define a bound is not included in `bounds`.
+        assertThat(TextTypeParameterItem.bounds("D", method)).isEqualTo(emptyList<String>())
     }
 
     @Test
-    fun `check erasure from enums`() {
+    fun `check bounds from enums`() {
         // When a type variable is on a member and the type variable is defined on the surrounding
         // class, look up the bound on the class type parameter:
         val codebase =
@@ -88,9 +92,10 @@ class TextTypeItemTest {
             """
                     .trimIndent(),
             )
-        val cls = codebase.findClass("test.pkg.EnumMap")
-        val method = cls?.findMethod("clone", "") as TextMethodItem
-        assertThat(method).isNotNull()
+        val cls = codebase.assertClass("test.pkg.EnumMap")
+        val method = cls.assertMethod("clone", "") as TextMethodItem
+
+        assertThat(TextTypeParameterItem.bounds("K", method)).isEqualTo(listOf("java.lang.Enum<K>"))
     }
 
     @Test

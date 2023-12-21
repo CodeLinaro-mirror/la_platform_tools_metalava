@@ -3761,7 +3761,7 @@ class ApiLintTest : DriverTest() {
                         package javax.microedition.khronos.egl;
 
                         public interface EGL10 extends EGL {
-                            EGLDisplay EGL_SUCCESS = new EGLImpl();
+                            int EGL_SUCCESS = 0;
                         }
                     """
                     ),

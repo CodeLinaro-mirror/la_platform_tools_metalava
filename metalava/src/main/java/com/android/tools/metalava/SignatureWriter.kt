@@ -221,7 +221,6 @@ class SignatureWriter(
             modifiers = item.modifiers,
             item = item,
             target = AnnotationTarget.SIGNATURE_FILE,
-            includeDeprecated = true,
             skipNullnessAnnotations = fileFormat.kotlinStyleNulls,
             omitCommonPackages = true
         )

@@ -17,16 +17,15 @@
 package com.android.tools.metalava.model.turbine
 
 import com.android.tools.metalava.model.ClassItem
-import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.TypeItem
 
 class TurbineFieldItem(
-    override val codebase: Codebase,
+    codebase: TurbineBasedCodebase,
     private val name: String,
     private val containingClass: TurbineClassItem,
     private val type: TurbineTypeItem,
-    override val modifiers: TurbineModifierItem,
+    modifiers: TurbineModifierItem,
 ) : TurbineItem(codebase, modifiers), FieldItem {
 
     override var inheritedFrom: ClassItem? = null
@@ -54,11 +53,9 @@ class TurbineFieldItem(
         TODO("b/295800205")
     }
 
-    override fun initialValue(requireConstant: Boolean): Any? {
-        TODO("b/295800205")
-    }
+    // TODO("b/295800205")
+    override fun initialValue(requireConstant: Boolean): Any? = null
 
-    override fun isEnumConstant(): Boolean {
-        TODO("b/295800205")
-    }
+    // TODO("b/295800205")
+    override fun isEnumConstant(): Boolean = false
 }

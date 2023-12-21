@@ -1191,7 +1191,7 @@ class StubsTest : AbstractStubsTest() {
                         /** My class doc */
                         @file:Suppress("ALL")
                         class Kotlin : test.pkg.Parent() {
-                        open fun Kotlin(open property1: java.lang.String!, open arg2: int): test.pkg.Kotlin! = error("Stub!")
+                        open fun Kotlin(open property1: java.lang.String, open arg2: int): test.pkg.Kotlin = error("Stub!")
                         open fun method(): java.lang.String = error("Stub!")
                         /** My method doc */
                         open fun otherMethod(open ok: boolean, open times: int): void = error("Stub!")
@@ -1203,7 +1203,7 @@ class StubsTest : AbstractStubsTest() {
                         package test.pkg
                         @file:Suppress("ALL")
                         open class ExtendableClass<T> {
-                        open fun ExtendableClass(): test.pkg.ExtendableClass<T!>! = error("Stub!")
+                        open fun ExtendableClass(): test.pkg.ExtendableClass<T!> = error("Stub!")
                         }
                     """
                     )

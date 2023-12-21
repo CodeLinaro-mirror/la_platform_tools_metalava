@@ -204,6 +204,8 @@ interface ClassItem : Item {
 
     override fun type(): TypeItem? = null
 
+    override fun findCorrespondingItemIn(codebase: Codebase) = codebase.findClass(qualifiedName())
+
     /** Returns true if this class has type parameters */
     fun hasTypeVariables(): Boolean
 
@@ -213,15 +215,8 @@ interface ClassItem : Item {
      */
     @MetalavaApi fun typeParameterList(): TypeParameterList
 
-    /** Returns the classes that are part of the type parameters of this method, if any */
-    fun typeArgumentClasses(): List<ClassItem> = codebase.unsupported()
-
     fun isJavaLangObject(): Boolean {
         return qualifiedName() == JAVA_LANG_OBJECT
-    }
-
-    fun isAbstractClass(): Boolean {
-        return modifiers.isAbstract()
     }
 
     // Mutation APIs: Used to "fix up" the API hierarchy to only expose visible parts of the API.
@@ -441,7 +436,7 @@ interface ClassItem : Item {
     }
 
     /** Returns the corresponding source file, if any */
-    fun getSourceFile(): SourceFileItem? = null
+    fun getSourceFile(): SourceFile? = null
 
     /** If this class is an annotation type, returns the retention of this class */
     fun getRetention(): AnnotationRetention

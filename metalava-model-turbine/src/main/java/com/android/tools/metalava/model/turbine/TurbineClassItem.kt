@@ -18,7 +18,6 @@ package com.android.tools.metalava.model.turbine
 
 import com.android.tools.metalava.model.AnnotationRetention
 import com.android.tools.metalava.model.ClassItem
-import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.MethodItem
@@ -28,14 +27,14 @@ import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 
 open class TurbineClassItem(
-    override val codebase: Codebase,
+    codebase: TurbineBasedCodebase,
     private val name: String,
     private val fullName: String,
     private val qualifiedName: String,
-    override val modifiers: TurbineModifierItem,
+    modifiers: TurbineModifierItem,
     private val classType: TurbineClassType,
     private val typeParameters: TypeParameterList,
-) : ClassItem, TurbineItem(codebase = codebase, modifiers = modifiers) {
+) : TurbineItem(codebase, modifiers), ClassItem {
 
     override var artifact: String? = null
 
@@ -131,9 +130,11 @@ open class TurbineClassItem(
 
     override fun methods(): List<MethodItem> = methods
 
-    override fun properties(): List<PropertyItem> {
-        TODO("b/295800205")
-    }
+    /**
+     * [PropertyItem]s are kotlin specific and it is unlikely that Turbine will ever support Kotlin
+     * so just return an empty list.
+     */
+    override fun properties(): List<PropertyItem> = emptyList()
 
     override fun simpleName(): String = name
 
@@ -162,21 +163,14 @@ open class TurbineClassItem(
                 }
             val mods = TurbineTypeModifiers(modifiers.annotations())
             val outerClassType = containingClass?.let { it.toType() as TurbineClassTypeItem }
-            asType =
-                TurbineClassTypeItem(
-                    codebase as TurbineBasedCodebase,
-                    mods,
-                    qualifiedName,
-                    parameters,
-                    outerClassType
-                )
+            asType = TurbineClassTypeItem(codebase, mods, qualifiedName, parameters, outerClassType)
         }
         return asType!!
     }
 
     private fun createVariableType(typeParam: TurbineTypeParameterItem): TurbineVariableTypeItem {
         val mods = TurbineTypeModifiers(typeParam.modifiers.annotations())
-        return TurbineVariableTypeItem(codebase as TurbineBasedCodebase, mods, typeParam.symbol)
+        return TurbineVariableTypeItem(codebase, mods, typeParam.symbol)
     }
 
     override fun typeParameterList(): TypeParameterList = typeParameters

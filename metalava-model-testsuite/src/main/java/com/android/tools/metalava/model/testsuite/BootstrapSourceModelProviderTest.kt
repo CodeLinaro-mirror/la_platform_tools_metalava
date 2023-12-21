@@ -681,4 +681,115 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
             assertEquals(true, testClass1.hasImplicitDefaultConstructor())
         }
     }
+
+    @Test
+    fun `200 - test TypeParameterList name strings`() {
+        runSourceCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+
+                    import java.util.Map;
+                    import java.io.Serializable;
+
+                    class Test<@Nullable T,U extends Map<? super U, String>,V extends  Comparable & Serializable> {
+                        public <Q, R extends Outer<? super U>.Inner<? extends Comparable >,S extends  Comparable & Serializable> void foo1(Q a, R b, S c) {}
+                        public <A extends Object, B extends Object> void foo2() {}
+                    }
+
+                    class Outer<O> {
+                        class Inner<P> {}
+                    }
+                    @interface Nullable {}
+                """
+            ),
+        ) { codebase ->
+            val classItem = codebase.assertClass("test.pkg.Test")
+            val annoItem = codebase.assertClass("test.pkg.Nullable")
+            val method1Item = classItem.methods()[0]
+            val method2Item = classItem.methods()[1]
+            val classTypeParameterList = classItem.typeParameterList()
+            val method1TypeParameterList = method1Item.typeParameterList()
+            val method2TypeParameterList = method2Item.typeParameterList()
+            val annoTypeParameterList = annoItem.typeParameterList()
+
+            val classParameterNames = listOf("T", "U", "V")
+            val method1ParameterNames = listOf("Q", "R", "S")
+            val method2TypeParameterNames = listOf("A", "B")
+
+            assertEquals(classParameterNames, classTypeParameterList.typeParameterNames())
+            assertEquals(emptyList(), annoTypeParameterList.typeParameterNames())
+            assertEquals(method1ParameterNames, method1TypeParameterList.typeParameterNames())
+            assertEquals(method2TypeParameterNames, method2TypeParameterList.typeParameterNames())
+
+            assertEquals(
+                "<T, U extends java.util.Map<? super U, java.lang.String>, V extends java.lang.Comparable & java.io.Serializable>",
+                classTypeParameterList.toString()
+            )
+            assertEquals("", annoTypeParameterList.toString())
+            assertEquals(
+                "<Q, R extends test.pkg.Outer<? super U>.Inner<? extends java.lang.Comparable>, S extends java.lang.Comparable & java.io.Serializable>",
+                method1TypeParameterList.toString()
+            )
+            assertEquals("<A, B>", method2TypeParameterList.toString())
+        }
+    }
+
+    @Test
+    fun `210 Test Method exception list`() {
+        runSourceCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+
+                    import java.io.IOException;
+
+                    public class Test {
+                        public Test() {}
+                        public void foo() throws TestException, IOException {}
+                    }
+
+                    public class TestException extends Exception {
+                        public TestException(String str) {
+                            super(str);
+                        }
+                    }
+                """
+            ),
+        ) { codebase ->
+            val testClass = codebase.assertClass("test.pkg.Test")
+            val testExceptionClass = codebase.assertClass("test.pkg.TestException")
+            val ioExceptionClass = codebase.assertClass("java.io.IOException")
+            val methodItem = testClass.assertMethod("foo", "")
+
+            assertEquals(listOf(ioExceptionClass, testExceptionClass), methodItem.throwsTypes())
+        }
+    }
+
+    @Test
+    fun `210 test reference between innerclass and outerclass`() {
+        runSourceCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+
+                    public class Outer {
+                        class Inner extends Outer {}
+                        class Inner1 extends Inner {
+                            class InnerInner extends Outer {}
+                        }
+                    }
+                """
+            ),
+        ) { codebase ->
+            val outerClass = codebase.assertClass("test.pkg.Outer")
+            val innerClass = codebase.assertClass("test.pkg.Outer.Inner")
+            val innerClass1 = codebase.assertClass("test.pkg.Outer.Inner1")
+            val innerInnerClass = codebase.assertClass("test.pkg.Outer.Inner1.InnerInner")
+
+            assertEquals(outerClass, innerClass.containingClass())
+            assertEquals(outerClass, innerClass1.containingClass())
+            assertEquals(innerClass1, innerInnerClass.containingClass())
+        }
+    }
 }

@@ -28,7 +28,7 @@ abstract class TextItem(
     override var docOnly: Boolean = false,
     override var documentation: String = "",
     override var modifiers: DefaultModifierList
-) : DefaultItem() {
+) : DefaultItem(modifiers) {
 
     override val synthetic = false
     override var originallyHidden = false
@@ -47,8 +47,6 @@ abstract class TextItem(
 
     override fun isKotlin(): Boolean =
         codebase.unsupported() // source language not recorded in signature files
-
-    override var deprecated = false
 
     override fun isCloned(): Boolean = false
 

@@ -16,13 +16,12 @@
 
 package com.android.tools.metalava.model.turbine
 
-import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.google.turbine.binder.sym.MethodSymbol
 
 class TurbineConstructorItem(
-    codebase: Codebase,
+    codebase: TurbineBasedCodebase,
     private val name: String,
     methodSymbol: MethodSymbol,
     containingClass: TurbineClassItem,

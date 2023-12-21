@@ -16,16 +16,13 @@
 
 package com.android.tools.metalava.model.turbine
 
-import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.DefaultItem
 import com.android.tools.metalava.model.MutableModifierList
 
 abstract class TurbineItem(
-    override val codebase: Codebase,
+    override val codebase: TurbineBasedCodebase,
     override val modifiers: TurbineModifierItem
-) : DefaultItem() {
-
-    override var deprecated: Boolean = false
+) : DefaultItem(modifiers) {
 
     override var docOnly: Boolean = false
 

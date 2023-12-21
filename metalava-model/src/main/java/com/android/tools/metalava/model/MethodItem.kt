@@ -44,6 +44,9 @@ interface MethodItem : MemberItem {
 
     override fun type(): TypeItem? = returnType()
 
+    override fun findCorrespondingItemIn(codebase: Codebase) =
+        containingClass().findCorrespondingItemIn(codebase)?.findMethod(this)
+
     /** Returns the main documentation for the method (the documentation before any tags). */
     fun findMainDocumentation(): String
 
@@ -60,9 +63,6 @@ interface MethodItem : MemberItem {
      * names)
      */
     @MetalavaApi fun typeParameterList(): TypeParameterList
-
-    /** Returns the classes that are part of the type parameters of this method, if any */
-    fun typeArgumentClasses(): List<ClassItem> = codebase.unsupported()
 
     /** Types of exceptions that this method can throw */
     fun throwsTypes(): List<ClassItem>
@@ -485,12 +485,8 @@ interface MethodItem : MemberItem {
 
         if (returnType().hasHiddenType(filterReference)) return true
 
-        if (typeParameterList().typeParameterCount() > 0) {
-            for (argument in typeArgumentClasses()) {
-                if (!filterReference.test(argument)) {
-                    return true
-                }
-            }
+        for (typeParameter in typeParameterList().typeParameters()) {
+            if (typeParameter.typeBounds().any { it.hasHiddenType(filterReference) }) return true
         }
 
         return false

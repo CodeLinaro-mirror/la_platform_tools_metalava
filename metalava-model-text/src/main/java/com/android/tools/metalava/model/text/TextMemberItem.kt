@@ -25,7 +25,7 @@ abstract class TextMemberItem(
     private val name: String,
     private val containingClass: ClassItem,
     position: SourcePositionInfo,
-    override var modifiers: DefaultModifierList
+    modifiers: DefaultModifierList
 ) : TextItem(codebase, position = position, modifiers = modifiers), MemberItem {
 
     override fun name(): String = name

@@ -77,12 +77,10 @@ Available Issues                             |  Category                |   Defa
   ChangedType                                |  compatibility           |   error
   ChangedValue                               |  compatibility           |   error
   ChangedVolatile                            |  compatibility           |   error
-  CommonArgsFirst                            |  api_lint                |   warning
   CompileTimeConstant                        |  api_lint                |   error
   ConcreteCollection                         |  api_lint                |   error
   ConfigFieldName                            |  api_lint                |   error
   ConflictingShowAnnotations                 |  unknown                 |   error
-  ConsistentArgumentOrder                    |  api_lint                |   error
   ContextFirst                               |  api_lint                |   error
   ContextNameSuffix                          |  api_lint                |   error
   DefaultValueChange                         |  api_lint                |   error

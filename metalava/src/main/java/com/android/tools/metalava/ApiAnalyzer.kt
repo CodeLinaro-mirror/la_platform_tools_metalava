@@ -39,6 +39,7 @@ import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.findAnnotation
 import com.android.tools.metalava.model.psi.PsiClassItem
@@ -57,7 +58,7 @@ import org.jetbrains.uast.UClass
 
 /**
  * The [ApiAnalyzer] is responsible for walking over the various classes and members and compute
- * visibility etc of the APIs
+ * visibility etc. of the APIs
  */
 class ApiAnalyzer(
     private val sourceParser: SourceParser,
@@ -119,7 +120,7 @@ class ApiAnalyzer(
 
         // Propagate visibility down into individual elements -- if a class is hidden,
         // then the methods and fields are hidden etc
-        propagateHiddenRemovedAndDocOnly(false)
+        propagateHiddenRemovedAndDocOnly()
     }
 
     fun addConstructors(filter: Predicate<Item>) {
@@ -368,11 +369,10 @@ class ApiAnalyzer(
         val interfaces: Set<TypeItem> = cls.allInterfaceTypes(filterReference).toSet()
 
         // Note that we can't just call method.superMethods() to and see whether any of their
-        // containing
-        // classes are among our target APIs because it's possible that the super class doesn't
-        // actually
-        // implement the interface, but still provides a matching signature for the interface.
-        // Instead we'll look through all of our interface methods and look for potential overrides
+        // containing classes are among our target APIs because it's possible that the super class
+        // doesn't actually implement the interface, but still provides a matching signature for the
+        // interface. Instead, we'll look through all of our interface methods and look for
+        // potential overrides.
         val interfaceNames = mutableMapOf<String, MutableList<MethodItem>>()
         for (interfaceType in interfaces) {
             val interfaceClass = interfaceType.asClass() ?: continue
@@ -412,7 +412,7 @@ class ApiAnalyzer(
         // Also add in any concrete public methods from hidden super classes
         for (superClass in hiddenSuperClasses) {
             // Determine if there is a non-hidden class between the superClass and this class.
-            // If non hidden classes are found, don't include the methods for this hiddenSuperClass,
+            // If non-hidden classes are found, don't include the methods for this hiddenSuperClass,
             // as it will already have been included in a previous super class
             var includeHiddenSuperClassMethods = true
             var currentClass = cls.superClass()
@@ -552,7 +552,7 @@ class ApiAnalyzer(
         }
     }
 
-    /** Apply emit filters listed in [Options.skipEmitPackages] */
+    /** Apply package filters listed in [Options.skipEmitPackages] */
     private fun skipEmitPackages() {
         for (pkgName in config.skipEmitPackages) {
             val pkg = codebase.findPackage(pkgName) ?: continue
@@ -585,7 +585,7 @@ class ApiAnalyzer(
 
     /**
      * Merge in external qualifier annotations (i.e. ones intended to be included in the API written
-     * from all configured sources.
+     * from all configured sources).
      */
     fun mergeExternalQualifierAnnotations() {
         val mergeQualifierAnnotations = config.mergeQualifierAnnotations
@@ -608,9 +608,23 @@ class ApiAnalyzer(
      * Propagate the hidden flag down into individual elements -- if a class is hidden, then the
      * methods and fields are hidden etc
      */
-    private fun propagateHiddenRemovedAndDocOnly(includingFields: Boolean) {
+    private fun propagateHiddenRemovedAndDocOnly() {
         packages.accept(
             object : BaseItemVisitor(visitConstructorsAsMethods = true, nestInnerClasses = true) {
+                /**
+                 * Mark [item] as deprecated if [Item.parent] is deprecated, and it is not a
+                 * package.
+                 *
+                 * This must be called from the type specific `visit*()` methods after any other
+                 * logic as it will depend on the value of [Item.removed] set in that method.
+                 */
+                private fun markAsDeprecatedIfNonPackageParentIsDeprecated(item: Item) {
+                    val parent = item.parent() ?: return
+                    if (parent !is PackageItem && parent.effectivelyDeprecated) {
+                        item.effectivelyDeprecated = true
+                    }
+                }
+
                 override fun visitPackage(pkg: PackageItem) {
                     when {
                         config.hidePackages.contains(pkg.qualifiedName()) -> pkg.hidden = true
@@ -679,6 +693,8 @@ class ApiAnalyzer(
                             cls.removed = true
                         }
                     }
+
+                    markAsDeprecatedIfNonPackageParentIsDeprecated(cls)
                 }
 
                 override fun visitMethod(method: MethodItem) {
@@ -708,6 +724,12 @@ class ApiAnalyzer(
                             method.removed = true
                         }
                     }
+
+                    markAsDeprecatedIfNonPackageParentIsDeprecated(method)
+                }
+
+                override fun visitParameter(parameter: ParameterItem) {
+                    markAsDeprecatedIfNonPackageParentIsDeprecated(parameter)
                 }
 
                 override fun visitField(field: FieldItem) {
@@ -719,15 +741,7 @@ class ApiAnalyzer(
                         field.hidden = true
                     } else {
                         val containingClass = field.containingClass()
-                        /* We don't always propagate field visibility down to the fields
-                           because we sometimes move fields around, and in that
-                           case we don't want to carry forward the "hidden" attribute
-                           from the field that wasn't marked on the field but its
-                           container interface.
-                        */
-                        if (includingFields && containingClass.hidden) {
-                            field.hidden = true
-                        } else if (
+                        if (
                             containingClass.originallyHidden &&
                                 containingClass.hasShowSingleAnnotation()
                         ) {
@@ -741,6 +755,12 @@ class ApiAnalyzer(
                             field.removed = true
                         }
                     }
+
+                    markAsDeprecatedIfNonPackageParentIsDeprecated(field)
+                }
+
+                override fun visitProperty(property: PropertyItem) {
+                    markAsDeprecatedIfNonPackageParentIsDeprecated(property)
                 }
 
                 private fun ensureParentVisible(item: Item) {
@@ -874,8 +894,15 @@ class ApiAnalyzer(
                 }
 
                 override fun visitItem(item: Item) {
+                    // None of the checks in this apply to [ParameterItem]. The deprecation checks
+                    // do not apply as there is no way to provide an `@deprecation` tag in Javadoc
+                    // for parameters. The unhidden showability annotation check
+                    // ('UnhiddemSystemApi`) does not apply as you cannot annotation a
+                    // [ParameterItem] with a showability annotation.
+                    if (item is ParameterItem) return
+
                     if (
-                        item.deprecated &&
+                        item.originallyDeprecated &&
                             !item.documentationContainsDeprecated() &&
                             // Don't warn about this in Kotlin; the Kotlin deprecation annotation
                             // includes deprecation
@@ -900,7 +927,6 @@ class ApiAnalyzer(
                         val deprecatedForSdk =
                             item.modifiers.findAnnotation(ANDROID_DEPRECATED_FOR_SDK)
                         if (deprecatedForSdk != null) {
-                            item.deprecated = true
                             if (item.documentation.contains("@deprecated")) {
                                 reporter.report(
                                     Issues.DEPRECATION_MISMATCH,
@@ -921,21 +947,25 @@ class ApiAnalyzer(
                             !item.originallyHidden &&
                             !item.hasShowSingleAnnotation()
                     ) {
-                        val annotationName =
-                            item.modifiers
-                                .annotations()
-                                // As item.hasShowAnnotation() is true there must be at least one
-                                // annotation that matches the following predicate.
-                                .first(AnnotationItem::isShowAnnotation)
-                                // All show annotations must have a non-null string otherwise they
-                                // would not have been matched.
-                                .qualifiedName!!
-                                .removePrefix(ANDROID_ANNOTATION_PREFIX)
-                        reporter.report(
-                            Issues.UNHIDDEN_SYSTEM_API,
-                            item,
-                            "@$annotationName APIs must also be marked @hide: ${item.describe()}"
-                        )
+                        item.modifiers
+                            .annotations()
+                            // Find the first show annotation. Just because item.hasShowAnnotation()
+                            // is true does not mean that there must be one show annotation as a
+                            // revert annotation could be treated as a show annotation on one item
+                            // and a hide annotation on another but is neither a show or hide
+                            // annotation.
+                            .firstOrNull(AnnotationItem::isShowAnnotation)
+                            // All show annotations must have a non-null string otherwise they
+                            // would not have been matched.
+                            ?.qualifiedName
+                            ?.removePrefix(ANDROID_ANNOTATION_PREFIX)
+                            ?.let { annotationName ->
+                                reporter.report(
+                                    Issues.UNHIDDEN_SYSTEM_API,
+                                    item,
+                                    "@$annotationName APIs must also be marked @hide: ${item.describe()}"
+                                )
+                            }
                     }
                 }
 
@@ -1001,7 +1031,7 @@ class ApiAnalyzer(
                     }
 
                     // Make sure we don't annotate findViewById & getSystemService as @Nullable.
-                    // See for example 68914170.
+                    // See for example b/68914170.
                     val name = method.name()
                     if (
                         (name == "findViewById" || name == "getSystemService") &&
@@ -1014,13 +1044,14 @@ class ApiAnalyzer(
                             "$method should not be annotated @Nullable; it should be left unspecified to make it a platform type"
                         )
                         val annotation = method.modifiers.findAnnotation(AnnotationItem::isNullable)
-                        annotation?.let {
-                            method.mutableModifiers().removeAnnotation(it)
-                            // Have to also clear the annotation out of the return type itself, if
-                            // it's a type
-                            // use annotation
-                            method.returnType().scrubAnnotations()
-                        }
+                        annotation?.let { method.mutableModifiers().removeAnnotation(it) }
+                        // Have to also clear the annotation out of the return type itself, if it's
+                        // a type use annotation
+                        val typeAnnotation =
+                            method.returnType().modifiers.annotations().singleOrNull {
+                                it.isNullnessAnnotation()
+                            }
+                        typeAnnotation?.let { method.returnType().modifiers.removeAnnotation(it) }
                     }
                 }
 
@@ -1088,9 +1119,9 @@ class ApiAnalyzer(
                             m,
                             "Reference to unavailable method " + m.name()
                         )
-                    } else if (m.deprecated) {
-                        // don't bother reporting deprecated methods
-                        // unless they are public
+                    } else if (m.originallyDeprecated) {
+                        // don't bother reporting deprecated methods unless they are public and
+                        // explicitly marked as deprecated.
                         reporter.report(
                             Issues.DEPRECATED,
                             m,
@@ -1203,7 +1234,7 @@ class ApiAnalyzer(
                         }
                     }
                 }
-            } else if (cl.deprecated) {
+            } else if (cl.originallyDeprecated) {
                 // not hidden, but deprecated
                 reporter.report(Issues.DEPRECATED, cl, "Class ${cl.qualifiedName()} is deprecated")
             }
@@ -1264,9 +1295,7 @@ class ApiAnalyzer(
             )
         }
         // cant strip any of the type's generics
-        for (cls in cl.typeArgumentClasses()) {
-            cantStripThis(cls, filter, notStrippable, stubImportPackages, cl, "as type argument")
-        }
+        cantStripThis(cl.typeParameterList(), filter, notStrippable, stubImportPackages, cl)
         // cant strip any of the annotation elements
         // cantStripThis(cl.annotationElements(), notStrippable);
         // take care of methods
@@ -1292,7 +1321,7 @@ class ApiAnalyzer(
         for (superItem in superItems) {
             if (superItem.isHiddenOrRemoved()) {
                 // cl is a public class declared as extending a hidden superclass.
-                // this is not a desired practice but it's happened, so we deal
+                // this is not a desired practice, but it's happened, so we deal
                 // with it by finding the first super class which passes checkLevel for purposes of
                 // generating the doc & stub information, and proceeding normally.
                 if (!superItem.isFromClassPath()) {
@@ -1338,16 +1367,13 @@ class ApiAnalyzer(
             if (!filter.test(method)) {
                 continue
             }
-            for (typeParameterClass in method.typeArgumentClasses()) {
-                cantStripThis(
-                    typeParameterClass,
-                    filter,
-                    notStrippable,
-                    stubImportPackages,
-                    method,
-                    "as type parameter"
-                )
-            }
+            cantStripThis(
+                method.typeParameterList(),
+                filter,
+                notStrippable,
+                stubImportPackages,
+                method
+            )
             for (parameter in method.parameters()) {
                 cantStripThis(
                     parameter.type(),
@@ -1380,6 +1406,27 @@ class ApiAnalyzer(
     }
 
     private fun cantStripThis(
+        typeParameterList: TypeParameterList,
+        filter: Predicate<Item>,
+        notStrippable: MutableSet<ClassItem>,
+        stubImportPackages: Set<String>?,
+        context: Item
+    ) {
+        for (typeParameter in typeParameterList.typeParameters()) {
+            for (bound in typeParameter.typeBounds()) {
+                cantStripThis(
+                    bound,
+                    context,
+                    filter,
+                    notStrippable,
+                    stubImportPackages,
+                    "as type parameter"
+                )
+            }
+        }
+    }
+
+    private fun cantStripThis(
         type: TypeItem,
         context: Item,
         filter: Predicate<Item>,
@@ -1408,7 +1455,7 @@ class ApiAnalyzer(
      * Find references to hidden classes.
      *
      * This finds hidden classes that are used by public parts of the API in order to ensure the API
-     * is self consistent and does not reference classes that are not included in the stubs. Any
+     * is self-consistent and does not reference classes that are not included in the stubs. Any
      * such references cause an error to be reported.
      *
      * A reference to an imported class is not treated as an error, even though imported classes are
