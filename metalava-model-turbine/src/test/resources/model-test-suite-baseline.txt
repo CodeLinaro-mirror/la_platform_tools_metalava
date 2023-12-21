@@ -1,10 +1,4 @@
 com.android.tools.metalava.model.testsuite.CommonClassItemTest
-  Test class no super class but implements lists[turbine,java]
-  Test class no super class or implements lists[turbine,java]
-  Test class super class and implements lists[turbine,java]
-  Test class super class no implements lists[turbine,java]
-  Test interface extends list[turbine,java]
-  Test interface no extends list[turbine,java]
   empty class[turbine,java]
 
 com.android.tools.metalava.model.testsuite.packageitem.CommonPackageItemTest
@@ -16,7 +10,7 @@ com.android.tools.metalava.model.testsuite.typeitem.CommonInternalNameTest
   test[turbine,java,pkg.UnknownClass]
 
 com.android.tools.metalava.model.testsuite.typeitem.CommonTypeItemTest
-  check TypeItem asClass()[turbine,java]
+  Test inner types from classpath[turbine,java]
 
 com.android.tools.metalava.model.testsuite.typeitem.CommonTypeModifiersTest
   Test annotated array types in multiple contexts[turbine,java]

@@ -33,6 +33,8 @@ interface TypeItem {
     /** Modifiers for the type. Contains type-use annotation information. */
     val modifiers: TypeModifiers
 
+    fun accept(visitor: TypeVisitor)
+
     /**
      * Generates a string for this type.
      *
@@ -107,8 +109,6 @@ interface TypeItem {
     fun toElementType(): String {
         return toTypeString().replace("...", "").replace("[]", "")
     }
-
-    fun typeArgumentClasses(): List<ClassItem>
 
     fun convertType(from: ClassItem, to: ClassItem): TypeItem {
         val map = from.mapTypeVariables(to)
@@ -762,6 +762,10 @@ interface PrimitiveTypeItem : TypeItem {
     override fun defaultValue(): Any? = kind.defaultValue
 
     override fun defaultValueString(): String = kind.defaultValueString
+
+    override fun accept(visitor: TypeVisitor) {
+        visitor.visit(this)
+    }
 }
 
 /** Represents an array type, including vararg types. */
@@ -773,6 +777,10 @@ interface ArrayTypeItem : TypeItem {
     val isVarargs: Boolean
 
     override fun arrayDimensions(): Int = 1 + componentType.arrayDimensions()
+
+    override fun accept(visitor: TypeVisitor) {
+        visitor.visit(this)
+    }
 }
 
 /** Represents a class type. */
@@ -791,6 +799,10 @@ interface ClassTypeItem : TypeItem {
      * "test.pkg.Outer.Inner".
      */
     val className: String
+
+    override fun accept(visitor: TypeVisitor) {
+        visitor.visit(this)
+    }
 
     companion object {
         /** Computes the simple name of a class from a qualified class name. */
@@ -812,6 +824,10 @@ interface VariableTypeItem : TypeItem {
 
     /** The corresponding type parameter for this type variable. */
     val asTypeParameter: TypeParameterItem
+
+    override fun accept(visitor: TypeVisitor) {
+        visitor.visit(this)
+    }
 }
 
 /**
@@ -824,4 +840,8 @@ interface WildcardTypeItem : TypeItem {
 
     /** The type this wildcard must be a super class of. */
     val superBound: TypeItem?
+
+    override fun accept(visitor: TypeVisitor) {
+        visitor.visit(this)
+    }
 }

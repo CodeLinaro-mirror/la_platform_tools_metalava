@@ -846,6 +846,64 @@ class CommonTypeItemTest : BaseModelTest() {
     }
 
     @Test
+    fun `Test inner types from classpath`() {
+        runCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+
+                    import java.util.Map;
+
+                    public class Test {
+                        public Map.Entry<String,String> foo() {
+                            return new Map.Entry<String,String>();
+                        }
+                    }
+                """
+            ),
+            kotlin(
+                """
+                    package test.pkg
+
+                    import java.util.Map;
+
+                    class Test {
+                        fun foo(): Map.Entry<String,String> {
+                            return Map.Entry<String,String>()
+                        }
+                    }
+                """
+            ),
+            signature(
+                """
+                    // Signature format: 3.0
+                    package test.pkg {
+                      public class Test {
+                        ctor public Outer();
+                        method public java.util.Map.Entry<java.lang.String,java.lang.String> foo();
+                      }
+                    }
+                """
+                    .trimIndent()
+            )
+        ) { codebase ->
+            val method = codebase.assertClass("test.pkg.Test").methods().single()
+
+            // Map.Entry<String,String>
+            val innerType = method.returnType()
+            assertThat(innerType).isInstanceOf(ClassTypeItem::class.java)
+            assertThat((innerType as ClassTypeItem).qualifiedName).isEqualTo("java.util.Map.Entry")
+            assertThat(innerType.className).isEqualTo("Entry")
+
+            val outerType = innerType.outerClassType
+            assertThat(outerType).isNotNull()
+            assertThat(outerType!!.qualifiedName).isEqualTo("java.util.Map")
+            assertThat(outerType.className).isEqualTo("Map")
+            assertThat(outerType.outerClassType).isNull()
+        }
+    }
+
+    @Test
     fun `Test inner parameterized types`() {
         runCodebaseTest(
             java(
@@ -1065,12 +1123,12 @@ class CommonTypeItemTest : BaseModelTest() {
                 """
                     package test.pkg;
 
-                    import java.util.List;
+                    import java.util.Map.Entry;
 
                     public class Test {
                         public int field;
 
-                        public <T extends Comparable> void method(Outer<String> a,List<? extends String> b,T c,String [] ... d){}
+                        public <T extends Comparable> void method(Outer<String> a,Entry<? extends String,T> b,T c,String [] ... d){}
                     }
 
                     class Outer<P> {}
@@ -1082,7 +1140,7 @@ class CommonTypeItemTest : BaseModelTest() {
                     package test.pkg {
                       public class Test {
                         field public int field;
-                        method public <T extends java.lang.Comparable> void method(test.pkg.Outer<java.lang.String>,java.util.List<? extends java.lang.String>,T,java.lang.String[]...);
+                        method public <T extends java.lang.Comparable> void method(test.pkg.Outer<java.lang.String>,java.util.Map.Entry<? extends java.lang.String,T>,T,java.lang.String[]...);
                       }
                       public class Outer<P> {}
                     }
@@ -1090,9 +1148,6 @@ class CommonTypeItemTest : BaseModelTest() {
                     .trimIndent()
             )
         ) { codebase ->
-            for (cls in codebase.getPackages().allClasses()) {
-                println(cls.qualifiedName())
-            }
             val classItem = codebase.assertClass("test.pkg.Test")
             val methodItem1 = classItem.methods()[0]
 
@@ -1104,12 +1159,12 @@ class CommonTypeItemTest : BaseModelTest() {
 
             val outerClassItem = codebase.assertClass("test.pkg.Outer")
             val stringClassItem = codebase.assertClass("java.lang.String")
-            val listClassItem = codebase.assertClass("java.util.List")
+            val entryClassItem = codebase.assertClass("java.util.Map.Entry")
             val comparableClassItem = codebase.assertClass("java.lang.Comparable")
 
             assertThat(fieldTypeClassItem).isNull()
             assertThat(parameterTypeClassItem1).isEqualTo(outerClassItem)
-            assertThat(parameterTypeClassItem2).isEqualTo(listClassItem)
+            assertThat(parameterTypeClassItem2).isEqualTo(entryClassItem)
             assertThat(parameterTypeClassItem3).isEqualTo(comparableClassItem)
             assertThat(parameterTypeClassItem4).isEqualTo(stringClassItem)
         }

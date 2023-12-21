@@ -249,40 +249,6 @@ interface ClassItem : Item {
         visitor.visit(this)
     }
 
-    override fun acceptTypes(visitor: TypeVisitor) {
-        if (visitor.skip(this)) {
-            return
-        }
-
-        val type = toType()
-        visitor.visitType(type, this)
-
-        // TODO: Visit type parameter list (at least the bounds types, e.g. View in <T extends View>
-        superClass()?.let { visitor.visitType(it.toType(), it) }
-
-        if (visitor.includeInterfaces) {
-            for (itf in interfaceTypes()) {
-                val owner = itf.asClass()
-                owner?.let { visitor.visitType(itf, it) }
-            }
-        }
-
-        for (constructor in constructors()) {
-            constructor.acceptTypes(visitor)
-        }
-        for (field in fields()) {
-            field.acceptTypes(visitor)
-        }
-        for (method in methods()) {
-            method.acceptTypes(visitor)
-        }
-        for (cls in innerClasses()) {
-            cls.acceptTypes(visitor)
-        }
-
-        visitor.afterVisitType(type, this)
-    }
-
     companion object {
         /** Looks up the retention policy for the given class */
         fun findRetention(cls: ClassItem): AnnotationRetention {

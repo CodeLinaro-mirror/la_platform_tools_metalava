@@ -60,16 +60,6 @@ interface PackageItem : Item {
         visitor.visit(this)
     }
 
-    override fun acceptTypes(visitor: TypeVisitor) {
-        if (visitor.skip(this)) {
-            return
-        }
-
-        for (unit in topLevelClasses()) {
-            unit.acceptTypes(visitor)
-        }
-    }
-
     companion object {
         val comparator: Comparator<PackageItem> = Comparator { a, b ->
             a.qualifiedName().compareTo(b.qualifiedName())
