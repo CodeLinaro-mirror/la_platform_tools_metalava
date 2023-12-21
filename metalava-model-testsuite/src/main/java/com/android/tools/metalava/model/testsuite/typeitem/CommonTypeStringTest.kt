@@ -248,13 +248,14 @@ class CommonTypeStringTest : BaseModelTest() {
                 ) +
                 TypeStringParameters.forDefaultAndKotlinNulls(
                     name = "int varargs",
-                    sourceType = "int..."
+                    sourceType = "int...",
+                    expectedKotlinNullsTypeString = "int...!"
                 ) +
                 TypeStringParameters.forDefaultAndKotlinNulls(
                     name = "string varargs",
                     sourceType = "String...",
                     expectedDefaultTypeString = "java.lang.String...",
-                    expectedKotlinNullsTypeString = "java.lang.String!..."
+                    expectedKotlinNullsTypeString = "java.lang.String!...!"
                 ) +
                 TypeStringParameters.forDefaultAndKotlinNulls(
                     name = "string list",
@@ -264,7 +265,7 @@ class CommonTypeStringTest : BaseModelTest() {
                 TypeStringParameters.forDefaultAndKotlinNulls(
                     name = "extends string list",
                     sourceType = "java.util.List<? extends java.lang.String>",
-                    expectedKotlinNullsTypeString = "java.util.List<? extends java.lang.String>!"
+                    expectedKotlinNullsTypeString = "java.util.List<? extends java.lang.String!>!"
                 ) +
                 TypeStringParameters.forDefaultAndKotlinNulls(
                     name = "T",
@@ -540,7 +541,7 @@ class CommonTypeStringTest : BaseModelTest() {
                     sourceType =
                         "java.util.Map<? extends java.lang.Number,? super java.lang.Number>",
                     expectedKotlinNullsTypeString =
-                        "java.util.Map<? extends java.lang.Number,? super java.lang.Number>!"
+                        "java.util.Map<? extends java.lang.Number!,? super java.lang.Number!>!"
                 ) +
                 TypeStringParameters.fromConfigurations(
                     name = "annotated integer list",

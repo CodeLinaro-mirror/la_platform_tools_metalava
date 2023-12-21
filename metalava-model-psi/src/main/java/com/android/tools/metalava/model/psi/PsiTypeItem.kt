@@ -45,12 +45,14 @@ import com.intellij.psi.PsiNameHelper
 import com.intellij.psi.PsiPrimitiveType
 import com.intellij.psi.PsiRecursiveElementVisitor
 import com.intellij.psi.PsiReferenceList
+import com.intellij.psi.PsiSubstitutor
 import com.intellij.psi.PsiType
 import com.intellij.psi.PsiTypeElement
 import com.intellij.psi.PsiTypeParameter
 import com.intellij.psi.PsiTypeParameterList
 import com.intellij.psi.PsiTypes
 import com.intellij.psi.PsiWildcardType
+import com.intellij.psi.impl.source.PsiImmediateClassType
 import com.intellij.psi.util.PsiTypesUtil
 import com.intellij.psi.util.TypeConversionUtil
 import java.lang.IllegalStateException
@@ -247,7 +249,7 @@ sealed class PsiTypeItem(open val codebase: PsiBasedCodebase, open val psiType: 
             filter: Predicate<Item>?
         ): String {
             return try {
-                if (kotlinStyleNulls) {
+                if (kotlinStyleNulls && owner?.hasInheritedGenericType() != true) {
                     // Any nullness annotations on the element to merge in? When we have something
                     // like
                     //  @Nullable String foo
@@ -658,7 +660,8 @@ internal class PsiClassTypeItem(
     kotlinType: KotlinTypeInfo? = null,
     override val qualifiedName: String = computeQualifiedName(psiType),
     override val parameters: List<PsiTypeItem> = computeParameters(codebase, psiType, kotlinType),
-    override val outerClassType: PsiClassTypeItem? = computeOuterClass(psiType, codebase),
+    override val outerClassType: PsiClassTypeItem? =
+        computeOuterClass(psiType, codebase, kotlinType),
     // This should be able to use `psiType.name`, but that sometimes returns null.
     override val className: String = ClassTypeItem.computeClassName(qualifiedName),
     override val modifiers: PsiTypeModifiers =
@@ -681,7 +684,17 @@ internal class PsiClassTypeItem(
             psiType: PsiClassType,
             kotlinType: KotlinTypeInfo?
         ): List<PsiTypeItem> {
-            return psiType.parameters.mapIndexed { i, param ->
+            val psiParameters =
+                psiType.parameters.toList().ifEmpty {
+                    // Sometimes an immediate class type has no parameters even though the class
+                    // does have them -- find the class parameters and convert them to types.
+                    (psiType as? PsiImmediateClassType)?.resolve()?.typeParameters?.mapNotNull {
+                        PsiSubstitutor.EMPTY.substitute(it)
+                    }
+                        ?: emptyList()
+                }
+
+            return psiParameters.mapIndexed { i, param ->
                 create(codebase, param, kotlinType?.forParameter(i))
             }
         }
@@ -696,7 +709,8 @@ internal class PsiClassTypeItem(
 
         private fun computeOuterClass(
             psiType: PsiClassType,
-            codebase: PsiBasedCodebase
+            codebase: PsiBasedCodebase,
+            kotlinType: KotlinTypeInfo?
         ): PsiClassTypeItem? {
             // TODO(b/300081840): this drops annotations on the outer class
             return PsiNameHelper.getOuterClassReference(psiType.canonicalText).let { outerClassName
@@ -709,10 +723,12 @@ internal class PsiClassTypeItem(
                 } else {
                     val psiOuterClassType =
                         codebase.createPsiType(outerClassName, psiType.psiContext)
-                    (create(codebase, psiOuterClassType, null) as PsiClassTypeItem).apply {
-                        // An outer class reference can't be null.
-                        modifiers.setNullability(TypeNullability.NONNULL)
-                    }
+                    (create(codebase, psiOuterClassType, kotlinType?.forOuterClass())
+                            as PsiClassTypeItem)
+                        .apply {
+                            // An outer class reference can't be null.
+                            modifiers.setNullability(TypeNullability.NONNULL)
+                        }
                 }
             }
         }

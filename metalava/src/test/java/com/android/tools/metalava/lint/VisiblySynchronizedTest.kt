@@ -146,4 +146,53 @@ class VisiblySynchronizedTest : DriverTest() {
                 )
         )
     }
+
+    @Test
+    fun `Suppression of issues with previously released APIs`() {
+        check(
+            apiLint =
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public class Foo {
+                        method public void fooSynchronized();
+                      }
+                    }
+                """, // enabled
+            expectedIssues =
+                """
+                    src/test/pkg/Foo.java:5: error: Internal locks must not be exposed: method test.pkg.Foo.newSynchronized() [VisiblySynchronized]
+                """,
+            baselineApiLintTestInfo =
+                BaselineTestInfo(
+                    inputContents = "",
+                    expectedOutputContents =
+                        """
+                            // Baseline format: 1.0
+                            VisiblySynchronized: test.pkg.Foo#newSynchronized():
+                                Internal locks must not be exposed: method test.pkg.Foo.newSynchronized()
+                        """,
+                    silentUpdate = false,
+                ),
+            expectedFail =
+                """
+                    metalava wrote updated baseline to TESTROOT/update-baseline-api-lint.txt
+
+                """
+                    .trimIndent() + DefaultLintErrorMessage,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+
+                            public class Foo {
+                                public synchronized void fooSynchronized() {}
+                                public synchronized void newSynchronized() {}
+                            }
+                        """
+                    ),
+                )
+        )
+    }
 }

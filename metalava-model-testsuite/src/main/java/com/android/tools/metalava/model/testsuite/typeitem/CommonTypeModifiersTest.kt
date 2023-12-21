@@ -1467,10 +1467,10 @@ class CommonTypeModifiersTest : BaseModelTest() {
                 """
                     package test.pkg
                     class Foo {
-                        fun foo(): Outer.Inner<String>? {}
+                        fun foo(): Outer<String?>.Inner<String>? {}
                     }
                     class Outer<P1> {
-                        class Inner<P2>
+                        inner class Inner<P2>
                     }
                 """
                     .trimIndent()
@@ -1491,9 +1491,11 @@ class CommonTypeModifiersTest : BaseModelTest() {
         ) { codebase, annotations ->
             val innerClass = codebase.assertClass("test.pkg.Foo").methods().single().returnType()
             assertNullable(innerClass, annotations)
-            val outerClass = (innerClass as ClassTypeItem).outerClassType!!
+            assertNonNull((innerClass as ClassTypeItem).parameters.single(), annotations)
+            val outerClass = innerClass.outerClassType!!
             // Outer class types can't be null and don't need to be annotated.
             assertNonNull(outerClass, expectAnnotation = false)
+            assertNullable(outerClass.parameters.single(), annotations)
         }
     }
 

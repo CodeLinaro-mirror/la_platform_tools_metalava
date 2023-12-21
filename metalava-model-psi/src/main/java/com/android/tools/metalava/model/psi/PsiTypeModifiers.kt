@@ -25,9 +25,11 @@ import com.intellij.psi.PsiType
 import com.intellij.psi.PsiWildcardType
 import org.jetbrains.kotlin.analysis.api.KtAnalysisSession
 import org.jetbrains.kotlin.analysis.api.analyze
+import org.jetbrains.kotlin.analysis.api.components.buildClassType
 import org.jetbrains.kotlin.analysis.api.types.KtFunctionalType
 import org.jetbrains.kotlin.analysis.api.types.KtNonErrorClassType
 import org.jetbrains.kotlin.analysis.api.types.KtType
+import org.jetbrains.kotlin.analysis.api.types.KtTypeNullability
 import org.jetbrains.kotlin.analysis.api.types.KtTypeParameterType
 import org.jetbrains.kotlin.psi.KtCallableDeclaration
 import org.jetbrains.kotlin.psi.KtProperty
@@ -91,15 +93,18 @@ internal data class KotlinTypeInfo(val analysisSession: KtAnalysisSession?, val 
      * Finds the nullability of the [ktType]. If there is no [analysisSession] or [ktType], defaults
      * to [TypeNullability.NONNULL] since the type is from Kotlin source.
      */
-    fun nullability(): TypeNullability {
+    fun nullability(): TypeNullability? {
         return if (analysisSession != null && ktType != null) {
             analysisSession.run {
                 if (analysisSession.isInheritedGenericType(ktType)) {
                     TypeNullability.UNDEFINED
-                } else if (ktType.isMarkedNullable) {
+                } else if (ktType.nullability == KtTypeNullability.NULLABLE) {
                     TypeNullability.NULLABLE
-                } else {
+                } else if (ktType.nullability == KtTypeNullability.NON_NULLABLE) {
                     TypeNullability.NONNULL
+                } else {
+                    // No nullability information, possibly a propagated platform type.
+                    null
                 }
             }
         } else {
@@ -144,6 +149,26 @@ internal data class KotlinTypeInfo(val analysisSession: KtAnalysisSession?, val 
                     }
                 }
                     ?: (ktType as? KtNonErrorClassType)?.ownTypeArguments?.getOrNull(index)?.type
+            }
+        )
+    }
+
+    /**
+     * Creates [KotlinTypeInfo] for the outer class type of this [ktType], assuming it is a class.
+     */
+    fun forOuterClass(): KotlinTypeInfo {
+        return KotlinTypeInfo(
+            analysisSession,
+            analysisSession?.run {
+                (ktType as? KtNonErrorClassType)?.classId?.outerClassId?.let { outerClassId ->
+                    buildClassType(outerClassId) {
+                        // Add the parameters of the class type with nullability information.
+                        ktType.qualifiers
+                            .firstOrNull { it.name == outerClassId.shortClassName }
+                            ?.typeArguments
+                            ?.forEach { argument(it) }
+                    }
+                }
             }
         )
     }
