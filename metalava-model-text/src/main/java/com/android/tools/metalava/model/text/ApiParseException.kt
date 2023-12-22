@@ -27,7 +27,7 @@ class ApiParseException(
 
     internal constructor(
         message: String,
-        tokenizer: ApiFile.Tokenizer,
+        tokenizer: Tokenizer,
         cause: Exception? = null,
     ) : this(message, file = tokenizer.fileName, line = tokenizer.line, cause = cause)
 

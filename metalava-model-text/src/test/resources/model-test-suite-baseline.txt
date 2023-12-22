@@ -1,3 +1,22 @@
+com.android.tools.metalava.model.testsuite.typeitem.CommonTypeModifiersTest
+  Test implicit nullability of annotation members[text,signature]
+  Test implicit nullability of constants[text,signature]
+  Test implicit nullability of constructor returns[text,signature]
+  Test implicit nullability of equals parameter[text,signature]
+  Test implicit nullability of toString[text,signature]
+  Test nullability of arrays[text,signature]
+  Test nullability of classes with parameters[text,signature]
+  Test nullability of multi-dimensional arrays[text,signature]
+  Test nullability of outer classes[text,signature]
+  Test nullability of primitives[text,signature]
+  Test nullability of simple classes[text,signature]
+  Test nullability of varargs[text,signature]
+  Test nullability of wildcards[text,signature]
+  Test nullability set through item annotations[text,signature]
+
+com.android.tools.metalava.model.testsuite.typeitem.CommonTypeParameterItemTest
+  Test reified type parameter[text,signature]
+
 com.android.tools.metalava.model.testsuite.typeitem.CommonTypeStringTest
   Type string[text,signature,2d boolean array list - kotlin nulls]
   Type string[text,signature,2d string array - kotlin nulls]

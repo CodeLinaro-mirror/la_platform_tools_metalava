@@ -48,8 +48,7 @@ internal constructor(
     val element: PsiElement,
     override val modifiers: PsiModifierItem,
     override var documentation: String
-) : DefaultItem() {
-    @Suppress("LeakingThis") override var deprecated: Boolean = modifiers.isDeprecated()
+) : DefaultItem(modifiers) {
 
     @Suppress(
         "LeakingThis"

@@ -150,10 +150,6 @@ open class PsiMethodItem(
         }
     }
 
-    override fun typeArgumentClasses(): List<ClassItem> {
-        return PsiTypeItem.typeParameterClasses(codebase, psiMethod.typeParameterList)
-    }
-
     //    private var throwsTypes: List<ClassItem>? = null
     private lateinit var throwsTypes: List<ClassItem>
 
@@ -357,7 +353,7 @@ open class PsiMethodItem(
                 parameterModifierString,
                 parameter.modifiers,
                 parameter,
-                target = AnnotationTarget.INTERNAL
+                target = AnnotationTarget.INTERNAL,
             )
             sb.append(parameterModifierString.toString())
             sb.append(parameter.type().convertTypeString(replacementMap))

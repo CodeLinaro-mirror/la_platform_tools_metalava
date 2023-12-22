@@ -18,7 +18,6 @@ package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ArrayTypeItem
-import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.DefaultTypeItem
 import com.android.tools.metalava.model.Item
@@ -75,10 +74,17 @@ sealed class PsiTypeItem(
         annotations: Boolean,
         kotlinStyleNulls: Boolean,
         context: Item?,
-        filter: Predicate<Item>?
+        filter: Predicate<Item>?,
+        spaceBetweenParameters: Boolean
     ): String {
         if (!kotlinStyleNulls) {
-            return super.toTypeString(annotations, kotlinStyleNulls, context, filter)
+            return super.toTypeString(
+                annotations,
+                kotlinStyleNulls,
+                context,
+                filter,
+                spaceBetweenParameters
+            )
         }
 
         if (filter != null) {
@@ -170,13 +176,6 @@ sealed class PsiTypeItem(
     override fun hasTypeArguments(): Boolean {
         val type = psiType
         return type is PsiClassType && type.hasParameters()
-    }
-
-    // This method is only used when `SUPPORT_TYPE_USE_ANNOTATIONS` is hardcoded to true
-    override fun markRecent() = TODO()
-
-    override fun scrubAnnotations() {
-        toAnnotatedString = toTypeString(annotations = false)
     }
 
     /** Returns `true` if `this` type can be assigned from `other` without unboxing the other. */
@@ -578,102 +577,6 @@ sealed class PsiTypeItem(
             }
 
             return null
-        }
-
-        fun typeParameterClasses(
-            codebase: PsiBasedCodebase,
-            typeList: PsiTypeParameterList?
-        ): List<ClassItem> {
-            if (typeList != null && typeList.typeParameters.isNotEmpty()) {
-                val list = mutableListOf<ClassItem>()
-                typeList.accept(
-                    object : PsiRecursiveElementVisitor() {
-                        override fun visitElement(element: PsiElement) {
-                            if (element is PsiTypeParameterList) {
-                                val typeParameters = element.typeParameters
-                                for (parameter in typeParameters) {
-                                    visitElement(parameter)
-                                }
-                                return
-                            } else if (element is PsiTypeParameter) {
-                                val extendsList = element.extendsList
-                                val refList = extendsList.referenceElements
-                                if (refList.isNotEmpty()) {
-                                    for (refElement in refList) {
-                                        if (refElement is PsiJavaCodeReferenceElement) {
-                                            visitElement(refElement)
-                                            continue
-                                        }
-                                        val resolved = refElement.resolve()
-                                        if (resolved is PsiClass) {
-                                            addRealClass(list, codebase.findOrCreateClass(resolved))
-                                            resolved.typeParameterList?.accept(this)
-                                        }
-                                    }
-                                } else {
-                                    val extendsListTypes = element.extendsListTypes
-                                    if (extendsListTypes.isNotEmpty()) {
-                                        for (type in extendsListTypes) {
-                                            val resolved = type.resolve()
-                                            if (resolved != null) {
-                                                addRealClass(
-                                                    list,
-                                                    codebase.findOrCreateClass(resolved)
-                                                )
-                                                resolved.typeParameterList?.accept(this)
-                                            }
-                                        }
-                                    }
-                                }
-                                return
-                            } else if (element is PsiJavaCodeReferenceElement) {
-                                val resolved = element.resolve()
-                                if (resolved is PsiClass) {
-                                    addRealClass(list, codebase.findOrCreateClass(resolved))
-                                    element.parameterList?.accept(this)
-                                    return
-                                }
-                            } else if (element is PsiTypeElement) {
-                                val type = element.type
-                                if (type is PsiWildcardType) {
-                                    if (type.isBounded) {
-                                        addRealClass(codebase, list, type.bound)
-                                    }
-                                    if (type.isExtends) {
-                                        addRealClass(codebase, list, type.extendsBound)
-                                    }
-                                    if (type.isSuper) {
-                                        addRealClass(codebase, list, type.superBound)
-                                    }
-                                    return
-                                }
-                                return
-                            }
-                            super.visitElement(element)
-                        }
-                    }
-                )
-
-                return list
-            } else {
-                return emptyList()
-            }
-        }
-
-        private fun addRealClass(
-            codebase: PsiBasedCodebase,
-            classes: MutableList<ClassItem>,
-            type: PsiType?
-        ) {
-            codebase.findClass(type ?: return)?.let { addRealClass(classes, it) }
-        }
-
-        private fun addRealClass(classes: MutableList<ClassItem>, cls: ClassItem) {
-            if (
-                !cls.isTypeParameter && !classes.contains(cls)
-            ) { // typically small number of items, don't need Set
-                classes.add(cls)
-            }
         }
     }
 }

@@ -16,13 +16,12 @@
 
 package com.android.tools.metalava.model.turbine
 
-import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.TypeItem
 
 class TurbineParameterItem(
-    override val codebase: Codebase,
+    codebase: TurbineBasedCodebase,
     private val name: String,
     private val containingMethod: TurbineMethodItem,
     override val parameterIndex: Int,

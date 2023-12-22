@@ -45,6 +45,9 @@ class UnhideApisTest : DriverTest() {
                 """
             src/test/pkg/Foo.java:3: error: Class test.pkg.Hidden1 is not public but was referenced (in field type) from public field test.pkg.Foo.hidden1 [ReferencesHidden]
             src/test/pkg/Foo.java:4: error: Class test.pkg.Hidden2 is hidden but was referenced (in field type) from public field test.pkg.Foo.hidden2 [ReferencesHidden]
+            src/test/pkg/Foo.java:2: error: Class test.pkg.Hidden1 is not public but was referenced (as type parameter) from public class test.pkg.Foo [ReferencesHidden]
+            src/test/pkg/Foo.java:2: error: Class test.pkg.Hidden2 is hidden but was referenced (as type parameter) from public class test.pkg.Foo [ReferencesHidden]
+            src/test/pkg/Foo.java:2: error: Class test.pkg.Hidden3 is hidden but was referenced (as type parameter) from public class test.pkg.Foo [ReferencesHidden]
             src/test/pkg/Foo.java:5: error: Class test.pkg.Hidden1 is not public but was referenced (in parameter type) from public parameter hidden1 in test.pkg.Foo.method(test.pkg.Hidden1 hidden1, test.pkg.Hidden2 hidden2) [ReferencesHidden]
             src/test/pkg/Foo.java:5: error: Class test.pkg.Hidden2 is hidden but was referenced (in parameter type) from public parameter hidden2 in test.pkg.Foo.method(test.pkg.Hidden1 hidden1, test.pkg.Hidden2 hidden2) [ReferencesHidden]
             src/test/pkg/Foo.java:5: error: Class test.pkg.Hidden3 is hidden but was referenced (as exception) from public method test.pkg.Foo.method(test.pkg.Hidden1,test.pkg.Hidden2) [ReferencesHidden]
@@ -59,7 +62,7 @@ class UnhideApisTest : DriverTest() {
                     java(
                         """
                     package test.pkg;
-                    public class Foo extends Hidden2 {
+                    public class Foo<A extends Hidden1 & Hidden2, B extends Hidden3> extends Hidden2 {
                         public Hidden1 hidden1;
                         public Hidden2 hidden2;
                         public void method(Hidden1 hidden1, Hidden2 hidden2) throws Hidden3 {
@@ -98,7 +101,7 @@ class UnhideApisTest : DriverTest() {
             api =
                 """
                 package test.pkg {
-                  public class Foo {
+                  public class Foo<A extends test.pkg.Hidden1 & test.pkg.Hidden2, B extends test.pkg.Hidden3> {
                     ctor public Foo();
                     method public <S extends test.pkg.Hidden1, T extends test.pkg.Hidden2> S get(T);
                     method public test.pkg.Hidden1 getHidden1();

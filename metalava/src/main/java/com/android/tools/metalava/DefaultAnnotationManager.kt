@@ -35,6 +35,7 @@ import com.android.tools.metalava.model.AnnotationRetention
 import com.android.tools.metalava.model.AnnotationTarget
 import com.android.tools.metalava.model.BaseAnnotationManager
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.JAVA_LANG_PREFIX
 import com.android.tools.metalava.model.MethodItem
@@ -61,10 +62,13 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
         val showSingleAnnotations: AnnotationFilter = AnnotationFilter.emptyFilter(),
         val showForStubPurposesAnnotations: AnnotationFilter = AnnotationFilter.emptyFilter(),
         val hideAnnotations: AnnotationFilter = AnnotationFilter.emptyFilter(),
+        val revertAnnotations: AnnotationFilter = AnnotationFilter.emptyFilter(),
         val suppressCompatibilityMetaAnnotations: Set<String> = emptySet(),
         val excludeAnnotations: Set<String> = emptySet(),
         val typedefMode: TypedefMode = TypedefMode.NONE,
         val apiPredicate: Predicate<Item> = Predicate { true },
+        val previouslyReleasedCodebaseProvider: () -> Codebase? = { null },
+        val previouslyReleasedRemovedCodebaseProvider: () -> Codebase? = { null },
     )
 
     /**
@@ -105,6 +109,7 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
                 config.showSingleAnnotations,
                 config.showForStubPurposesAnnotations,
                 config.hideAnnotations,
+                config.revertAnnotations,
             )
         annotationNameToKeyFactory =
             filters
@@ -352,11 +357,12 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
             // add a separate module SDK artifact for sdk constants.
             "android.annotation.SdkConstant" -> return ANNOTATION_SDK_STUBS_ONLY
             ANDROID_FLAGGED_API ->
-                // If FlaggedApi annotations are hidden in general then do not output them at all.
-                // This means that if some FlaggedApi annotations with specific flags are not hidden
-                // then the annotations will not be written out to the signature files. That is
-                // expected as those APIs are intended to be released.
-                if (config.hideAnnotations.matchesAnnotationName(ANDROID_FLAGGED_API)) {
+                // If FlaggedApi annotations are being reverted in general then do not output them
+                // at all. This means that if some FlaggedApi annotations with specific flags are
+                // not reverted then the annotations will not be written out to the signature files.
+                // That is expected as those APIs are intended to be released and should look like
+                // any other API.
+                if (config.revertAnnotations.matchesAnnotationName(ANDROID_FLAGGED_API)) {
                     return NO_ANNOTATION_TARGETS
                 } else {
                     return ANNOTATION_SIGNATURE_ONLY
@@ -530,23 +536,75 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
         }
 
         if (item is MethodItem) {
-            // If any of a method's super methods are part of a hidden unstable API then treat the
-            // method as if it is too.
-            val hideUnstableApi =
-                item.superMethods().any { methodItem -> methodItem.showability.hideUnstableApi() }
-            if (hideUnstableApi) {
-                itemShowability = itemShowability.combineWith(LazyAnnotationInfo.HIDE_UNSTABLE_API)
+            // If any of a method's super methods are part of a unstable API that needs to be
+            // reverted then treat the method as if it is too.
+            val revertUnstableApi =
+                item.superMethods().any { methodItem -> methodItem.showability.revertUnstableApi() }
+            if (revertUnstableApi) {
+                itemShowability =
+                    itemShowability.combineWith(LazyAnnotationInfo.REVERT_UNSTABLE_API)
             }
         }
 
         val containingClass = item.containingClass()
         if (containingClass != null) {
-            if (containingClass.showability.hideUnstableApi()) {
-                itemShowability = itemShowability.combineWith(LazyAnnotationInfo.HIDE_UNSTABLE_API)
+            if (containingClass.showability.revertUnstableApi()) {
+                itemShowability =
+                    itemShowability.combineWith(LazyAnnotationInfo.REVERT_UNSTABLE_API)
+            }
+        }
+
+        // If the item is to be reverted then find the [Item] to which it will be reverted, if any,
+        // and incorporate that into the [Showability].
+        if (itemShowability == LazyAnnotationInfo.REVERT_UNSTABLE_API) {
+            val revertItem = findRevertItem(item)
+
+            // If the [revertItem] cannot be found then there is no need to modify the item
+            // showability as it is already in the correct state.
+            if (revertItem != null) {
+                // Update the item showability to revert to the [revertItem]. This intentionally
+                // does not modify it to use `SHOW` or `HIDE` but keeps it using
+                // `REVERT_UNSTABLE_API` so that it can be propagated down onto overriding methods
+                // and nested members if applicable.
+                itemShowability =
+                    itemShowability.copy(
+                        // When reverting to a previous item the item must be in the current API
+                        // surface not one that it extends. If the API surface is a complete API
+                        // (like public) then it does not extend another surface. If the API surface
+                        // is a partial API then so was the previously released API and so the
+                        // reverted item must be part of this surface. In either case it must not
+                        // be treated as part of an extended API so `forStubsOnly` is set to no
+                        // effect.
+                        forStubsOnly = ShowOrHide.NO_EFFECT,
+                        // Incorporate the item to be reverted into the [Showability].
+                        revertItem = revertItem,
+                    )
             }
         }
 
         return itemShowability
+    }
+
+    /**
+     * Find the item to which [item] will be reverted.
+     *
+     * Searches first the previously released API (if present) and then the previously released
+     * removed API (if present).
+     */
+    private fun findRevertItem(item: Item): Item? {
+        config.previouslyReleasedCodebaseProvider()?.let { oldCodebase ->
+            item.findCorrespondingItemIn(oldCodebase)?.let {
+                return it
+            }
+        }
+
+        config.previouslyReleasedRemovedCodebaseProvider()?.let { oldCodebase ->
+            item.findCorrespondingItemIn(oldCodebase)?.let {
+                return it
+            }
+        }
+
+        return null
     }
 
     override val typedefMode: TypedefMode = config.typedefMode
@@ -579,9 +637,8 @@ private class LazyAnnotationInfo(
                 config.showAnnotations.matches(annotationItem) -> SHOW
                 config.showForStubPurposesAnnotations.matches(annotationItem) -> SHOW_FOR_STUBS
                 config.showSingleAnnotations.matches(annotationItem) -> SHOW_SINGLE
-                config.hideAnnotations.matches(annotationItem) ->
-                    if (annotationItem.qualifiedName == ANDROID_FLAGGED_API) HIDE_UNSTABLE_API
-                    else HIDE
+                config.hideAnnotations.matches(annotationItem) -> HIDE
+                config.revertAnnotations.matches(annotationItem) -> REVERT_UNSTABLE_API
                 else -> Showability.NO_EFFECT
             }
         }
@@ -632,11 +689,11 @@ private class LazyAnnotationInfo(
          * The annotation will cause the annotated item (and any enclosed items unless overridden by
          * a closer annotation) to not be shown.
          */
-        val HIDE_UNSTABLE_API =
+        val REVERT_UNSTABLE_API =
             Showability(
-                show = ShowOrHide.HIDE_UNSTABLE_API,
-                recursive = ShowOrHide.HIDE_UNSTABLE_API,
-                forStubsOnly = ShowOrHide.HIDE_UNSTABLE_API,
+                show = ShowOrHide.REVERT_UNSTABLE_API,
+                recursive = ShowOrHide.REVERT_UNSTABLE_API,
+                forStubsOnly = ShowOrHide.REVERT_UNSTABLE_API,
             )
 
         /**

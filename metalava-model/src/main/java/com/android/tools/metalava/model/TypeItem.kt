@@ -38,19 +38,21 @@ interface TypeItem {
     /**
      * Generates a string for this type.
      *
-     * For a type like this: @Nullable java.util.List<@NonNull java.lang.String>, [annotations]
-     * controls whether the annotations like @Nullable and @NonNull are included. The
-     * [kotlinStyleNulls] parameter controls whether it should return "@Nullable List<String>" as
-     * "List<String!>?". Finally, [filter] specifies a filter to apply to the type annotations, if
-     * any.
-     *
-     * (The combination [outerAnnotations] = true and [innerAnnotations] = false is not allowed.)
+     * @param annotations For a type like this: @Nullable java.util.List<@NonNull java.lang.String>,
+     *   [annotations] controls whether the annotations like @Nullable and @NonNull are included.
+     * @param kotlinStyleNulls Controls whether it should return "@Nullable List<String>" as
+     *   "List<String!>?".
+     * @param filter Specifies a filter to apply to the type annotations, if any.
+     * @param spaceBetweenParameters Controls whether there should be a space between class type
+     *   parameters, e.g. "java.util.Map<java.lang.Integer, java.lang.Number>" or
+     *   "java.util.Map<java.lang.Integer,java.lang.Number>".
      */
     fun toTypeString(
         annotations: Boolean = false,
         kotlinStyleNulls: Boolean = false,
         context: Item? = null,
-        filter: Predicate<Item>? = null
+        filter: Predicate<Item>? = null,
+        spaceBetweenParameters: Boolean = false
     ): String
 
     /** Legacy alias for [toErasedTypeString]`()`. */
@@ -102,14 +104,6 @@ interface TypeItem {
         return s
     }
 
-    /**
-     * Returns the element type if the type is an array or contains a vararg. If the element is not
-     * an array or does not contain a vararg, returns the original type string.
-     */
-    fun toElementType(): String {
-        return toTypeString().replace("...", "").replace("[]", "")
-    }
-
     fun convertType(from: ClassItem, to: ClassItem): TypeItem {
         val map = from.mapTypeVariables(to)
         if (map.isNotEmpty()) {
@@ -139,63 +133,6 @@ interface TypeItem {
     fun defaultValueString(): String = "null"
 
     fun hasTypeArguments(): Boolean = toTypeString().contains("<")
-
-    /**
-     * If the item has type arguments, return a list of type arguments. If simplified is true,
-     * returns the simplified forms of the type arguments. e.g. when type arguments are <K, V
-     * extends some.arbitrary.Class>, [K, V] will be returned. If the item does not have any type
-     * arguments, return an empty list.
-     */
-    fun typeArguments(simplified: Boolean = false): List<String> {
-        if (!hasTypeArguments()) {
-            return emptyList()
-        }
-        val typeString = toTypeString()
-        val bracketRemovedTypeString =
-            typeString.indexOf('<').let { typeString.substring(it + 1, typeString.length - 1) }
-        val typeArguments = mutableListOf<String>()
-        var builder = StringBuilder()
-        var balance = 0
-        var idx = 0
-        while (idx < bracketRemovedTypeString.length) {
-            when (val s = bracketRemovedTypeString[idx]) {
-                ',' -> {
-                    if (balance == 0) {
-                        typeArguments.add(builder.toString())
-                        builder = StringBuilder()
-                    } else {
-                        builder.append(s)
-                    }
-                }
-                '<' -> {
-                    balance += 1
-                    builder.append(s)
-                }
-                '>' -> {
-                    balance -= 1
-                    builder.append(s)
-                }
-                else -> builder.append(s)
-            }
-            idx += 1
-        }
-        typeArguments.add(builder.toString())
-
-        if (simplified) {
-            return typeArguments.map { it.substringBefore(" extends ").trim() }
-        }
-        return typeArguments.map { it.trim() }
-    }
-
-    /**
-     * Mark nullness annotations in the type as recent.
-     *
-     * TODO: This isn't very clean; we should model individual annotations.
-     */
-    fun markRecent()
-
-    /** Ensure that we don't include any annotations in the type strings for this type. */
-    fun scrubAnnotations()
 
     companion object {
         /** Shortens types, if configured */
@@ -468,10 +405,17 @@ abstract class DefaultTypeItem(private val codebase: Codebase) : TypeItem {
         annotations: Boolean,
         kotlinStyleNulls: Boolean,
         context: Item?,
-        filter: Predicate<Item>?
+        filter: Predicate<Item>?,
+        spaceBetweenParameters: Boolean
     ): String {
         return toTypeString(
-            TypeStringConfiguration(codebase, annotations, kotlinStyleNulls, filter)
+            TypeStringConfiguration(
+                codebase,
+                annotations,
+                kotlinStyleNulls,
+                filter,
+                spaceBetweenParameters
+            )
         )
     }
 
@@ -511,14 +455,17 @@ abstract class DefaultTypeItem(private val codebase: Codebase) : TypeItem {
          *   for nullable, no suffix for non-null, and `!` for platform nullability. For example,
          *   the Java type `@Nullable List<String>` would be represented as `List<String!>?`.
          * @param filter A filter to apply to the type annotations, if any.
+         * @param spaceBetweenParameters Whether to include a space between class type params.
          */
         private data class TypeStringConfiguration(
             val codebase: Codebase,
             val annotations: Boolean = false,
             val kotlinStyleNulls: Boolean = false,
             val filter: Predicate<Item>? = null,
+            val spaceBetweenParameters: Boolean = false,
         ) {
-            val isDefault = !annotations && !kotlinStyleNulls && filter == null
+            val isDefault =
+                !annotations && !kotlinStyleNulls && filter == null && !spaceBetweenParameters
         }
 
         private fun StringBuilder.appendTypeString(
@@ -592,6 +539,9 @@ abstract class DefaultTypeItem(private val codebase: Codebase) : TypeItem {
                             appendTypeString(parameter, configuration)
                             if (index != type.parameters.size - 1) {
                                 append(",")
+                                if (configuration.spaceBetweenParameters) {
+                                    append(" ")
+                                }
                             }
                         }
                         append(">")

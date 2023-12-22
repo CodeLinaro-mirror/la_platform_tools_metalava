@@ -17,7 +17,6 @@
 package com.android.tools.metalava.model.turbine
 
 import com.android.tools.metalava.model.ClassItem
-import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.TypeItem
@@ -25,15 +24,16 @@ import com.android.tools.metalava.model.TypeParameterList
 import com.google.turbine.binder.sym.MethodSymbol
 
 open class TurbineMethodItem(
-    override val codebase: Codebase,
+    codebase: TurbineBasedCodebase,
     private val methodSymbol: MethodSymbol,
     private val containingClass: TurbineClassItem,
     protected var returnType: TurbineTypeItem,
-    override val modifiers: TurbineModifierItem,
+    modifiers: TurbineModifierItem,
     private val typeParameters: TypeParameterList
 ) : TurbineItem(codebase, modifiers), MethodItem {
 
     private lateinit var superMethodList: List<MethodItem>
+    internal lateinit var throwsClassNames: List<String>
     private lateinit var throwsTypes: List<ClassItem>
     internal lateinit var parameters: List<ParameterItem>
 
@@ -126,4 +126,9 @@ open class TurbineMethodItem(
     override fun findMainDocumentation(): String = TODO("b/295800205")
 
     override fun typeParameterList(): TypeParameterList = typeParameters
+
+    internal fun setThrowsTypes() {
+        val result = throwsClassNames.map { codebase.findOrCreateClass(it)!! }
+        throwsTypes = result.sortedWith(ClassItem.fullNameComparator)
+    }
 }

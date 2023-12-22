@@ -2097,6 +2097,50 @@ class ApiFileTest : DriverTest() {
     }
 
     @Test
+    fun `Remove findViewById type nullness annotation`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                    package test.pkg;
+                    import libcore.util.Nullable;
+
+                    @SuppressWarnings("ALL")
+                    public abstract class Foo {
+                        public @Nullable String findViewById(int id) { return ""; }
+                        public @Nullable String notFindViewById(int id) { return ""; }
+                    }
+                    """
+                    ),
+                    libcoreNullableSource
+                ),
+            expectedIssues =
+                """
+                src/test/pkg/Foo.java:6: warning: method test.pkg.Foo.findViewById(int) should not be annotated @Nullable; it should be left unspecified to make it a platform type [ExpectedPlatformType]
+                """,
+            extraArguments = arrayOf(ARG_WARNING, "ExpectedPlatformType"),
+            skipEmitPackages = listOf("libcore.util"),
+            format =
+                FileFormat.V5.copy(
+                    kotlinNameTypeOrder = true,
+                    includeTypeUseAnnotations = true,
+                    kotlinStyleNulls = false
+                ),
+            api =
+                """
+                package test.pkg {
+                  public abstract class Foo {
+                    ctor public Foo();
+                    method public findViewById(_: int): String;
+                    method @Nullable public notFindViewById(_: int): @Nullable String;
+                  }
+                }
+                """
+        )
+    }
+
+    @Test
     fun `Package with only hidden classes should be removed from signature files`() {
         // Checks that if we have packages that are hidden, or contain only hidden or doconly
         // classes, the entire package is omitted from the signature file. Note how the

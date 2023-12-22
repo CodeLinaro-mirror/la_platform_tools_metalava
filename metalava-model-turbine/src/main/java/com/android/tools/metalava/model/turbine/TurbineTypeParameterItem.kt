@@ -16,14 +16,13 @@
 
 package com.android.tools.metalava.model.turbine
 
-import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.google.turbine.binder.sym.TyVarSymbol
 
 internal class TurbineTypeParameterItem(
-    codebase: Codebase,
+    codebase: TurbineBasedCodebase,
     modifiers: TurbineModifierItem,
     internal val symbol: TyVarSymbol,
     name: String = symbol.name(),

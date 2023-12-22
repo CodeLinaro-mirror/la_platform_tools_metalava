@@ -164,6 +164,7 @@ const val ARG_LINTS_AS_ERRORS = "--lints-as-errors"
 const val ARG_SHOW_ANNOTATION = "--show-annotation"
 const val ARG_SHOW_SINGLE_ANNOTATION = "--show-single-annotation"
 const val ARG_HIDE_ANNOTATION = "--hide-annotation"
+const val ARG_REVERT_ANNOTATION = "--revert-annotation"
 const val ARG_SUPPRESS_COMPATIBILITY_META_ANNOTATION = "--suppress-compatibility-meta-annotation"
 const val ARG_SHOW_FOR_STUB_PURPOSES_ANNOTATION = "--show-for-stub-purposes-annotation"
 const val ARG_SHOW_UNANNOTATED = "--show-unannotated"
@@ -243,8 +244,10 @@ class Options(
     private val showSingleAnnotationsBuilder = AnnotationFilterBuilder()
     /** Internal builder backing [showForStubPurposesAnnotations] */
     private val showForStubPurposesAnnotationBuilder = AnnotationFilterBuilder()
-    /** Internal list backing [hideAnnotations] */
+    /** Internal builder backing [hideAnnotations] */
     private val hideAnnotationsBuilder = AnnotationFilterBuilder()
+    /** Internal builder backing [revertAnnotations] */
+    private val revertAnnotationsBuilder = AnnotationFilterBuilder()
     /** Internal list backing [stubImportPackages] */
     private val mutableStubImportPackages: MutableSet<String> = mutableSetOf()
     /** Internal list backing [mergeQualifierAnnotations] */
@@ -409,6 +412,9 @@ class Options(
     /** Annotations to hide */
     val hideAnnotations by lazy(hideAnnotationsBuilder::build)
 
+    /** Annotations to revert */
+    val revertAnnotations by lazy(revertAnnotationsBuilder::build)
+
     val annotationManager: AnnotationManager by lazy {
         DefaultAnnotationManager(
             DefaultAnnotationManager.Config(
@@ -418,12 +424,29 @@ class Options(
                 showSingleAnnotations = showSingleAnnotations,
                 showForStubPurposesAnnotations = showForStubPurposesAnnotations,
                 hideAnnotations = hideAnnotations,
+                revertAnnotations = revertAnnotations,
                 suppressCompatibilityMetaAnnotations = suppressCompatibilityMetaAnnotations,
                 excludeAnnotations = excludeAnnotations,
                 typedefMode = typedefMode,
                 apiPredicate = ApiPredicate(config = apiPredicateConfig),
+                previouslyReleasedCodebaseProvider = { previouslyReleasedCodebase },
+                previouslyReleasedRemovedCodebaseProvider = { previouslyReleasedRemovedCodebase },
             )
         )
+    }
+
+    internal val signatureFileCache by lazy { SignatureFileCache(annotationManager) }
+
+    private var previouslyReleasedApi: File? = null
+
+    private val previouslyReleasedCodebase by lazy {
+        previouslyReleasedApi?.let { file -> signatureFileCache.load(file) }
+    }
+
+    private var previouslyReleasedRemovedApi: File? = null
+
+    private val previouslyReleasedRemovedCodebase by lazy {
+        previouslyReleasedRemovedApi?.let { file -> signatureFileCache.load(file) }
     }
 
     /** Meta-annotations for which annotated APIs should not be checked for compatibility. */
@@ -889,6 +912,7 @@ class Options(
                 }
                 ARG_SHOW_UNANNOTATED -> showUnannotated = true
                 ARG_HIDE_ANNOTATION -> hideAnnotationsBuilder.add(getValue(args, ++index))
+                ARG_REVERT_ANNOTATION -> revertAnnotationsBuilder.add(getValue(args, ++index))
                 ARG_DOC_STUBS -> docStubsDir = stringToNewDir(getValue(args, ++index))
                 ARG_KOTLIN_STUBS -> kotlinStubs = true
                 ARG_EXCLUDE_DOCUMENTATION_FROM_STUBS -> includeDocumentationInStubs = false
@@ -974,10 +998,12 @@ class Options(
                 }
                 ARG_CHECK_COMPATIBILITY_API_RELEASED -> {
                     val file = stringToExistingFile(getValue(args, ++index))
+                    previouslyReleasedApi = file
                     mutableCompatibilityChecks.add(CheckRequest(file, ApiType.PUBLIC_API))
                 }
                 ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED -> {
                     val file = stringToExistingFile(getValue(args, ++index))
+                    previouslyReleasedRemovedApi = file
                     mutableCompatibilityChecks.add(CheckRequest(file, ApiType.REMOVED))
                 }
                 ARG_CHECK_COMPATIBILITY_BASE_API -> {
