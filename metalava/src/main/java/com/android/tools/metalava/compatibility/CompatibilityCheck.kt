@@ -16,6 +16,8 @@
 
 package com.android.tools.metalava.compatibility
 
+import com.android.tools.metalava.ANDROID_SYSTEM_API
+import com.android.tools.metalava.ANDROID_TEST_API
 import com.android.tools.metalava.ApiType
 import com.android.tools.metalava.CodebaseComparator
 import com.android.tools.metalava.ComparisonVisitor
@@ -813,9 +815,9 @@ class CompatibilityCheck(
         if (apiType == ApiType.REMOVED) {
             message += " to the removed API"
         } else if (options.allShowAnnotations.isNotEmpty()) {
-            if (options.allShowAnnotations.matchesSuffix("SystemApi")) {
+            if (options.allShowAnnotations.matchesAnnotationName(ANDROID_SYSTEM_API)) {
                 message += " to the system API"
-            } else if (options.allShowAnnotations.matchesSuffix("TestApi")) {
+            } else if (options.allShowAnnotations.matchesAnnotationName(ANDROID_TEST_API)) {
                 message += " to the test API"
             }
         }

@@ -82,6 +82,11 @@ private constructor(
 
     override fun toString(): String = "field ${containingClass.fullName()}.${name()}"
 
+    override fun finishInitialization() {
+        super.finishInitialization()
+        fieldType.finishInitialization(this)
+    }
+
     companion object {
         /**
          * Creates a new property item, given a [name], [type] and relationships to other items.

@@ -64,6 +64,7 @@ import org.jetbrains.uast.UClass
 import org.jetbrains.uast.UFile
 import org.jetbrains.uast.UastFacade
 import org.jetbrains.uast.kotlin.BaseKotlinUastResolveProviderService
+import org.jetbrains.uast.kotlin.isKotlin
 
 const val PACKAGE_ESTIMATE = 500
 const val CLASS_ESTIMATE = 15000
@@ -684,17 +685,28 @@ open class PsiBasedCodebase(
     internal fun getComment(string: String, parent: PsiElement? = null): PsiDocComment =
         getFactory().createDocCommentFromText(string, parent)
 
-    internal fun getType(psiType: PsiType): PsiTypeItem {
+    /**
+     * Returns a [PsiTypeItem] representing the [psiType]. The [context] is used to get nullability
+     * information for Kotlin types.
+     */
+    internal fun getType(psiType: PsiType, context: PsiElement? = null): PsiTypeItem {
+        val kotlinTypeInfo =
+            if (context != null && isKotlin(context)) {
+                KotlinTypeInfo.fromContext(context)
+            } else {
+                null
+            }
+
         // Note: We do *not* cache these; it turns out that storing PsiType instances
         // in a map is bad for performance; it has a very expensive equals operation
         // for some type comparisons (and we sometimes end up with unexpected results,
         // e.g. where we fetch an "equals" type from the map but its representation
         // is slightly different than we intended
-        return PsiTypeItem.create(this, psiType)
+        return PsiTypeItem.create(this, psiType, kotlinTypeInfo)
     }
 
     internal fun getType(psiClass: PsiClass): PsiTypeItem {
-        return PsiTypeItem.create(this, getFactory().createType(psiClass))
+        return PsiTypeItem.create(this, getFactory().createType(psiClass), null)
     }
 
     private fun getPackageName(clz: PsiClass): String {

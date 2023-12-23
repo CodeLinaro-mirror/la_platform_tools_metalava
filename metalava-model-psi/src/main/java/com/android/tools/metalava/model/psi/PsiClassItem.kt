@@ -186,7 +186,7 @@ internal constructor(
         private set
 
     override fun toType(): TypeItem {
-        return PsiTypeItem.create(codebase, codebase.getClassType(psiClass))
+        return codebase.getType(codebase.getClassType(psiClass))
     }
 
     override fun hasTypeVariables(): Boolean = psiClass.hasTypeParameters()
@@ -270,7 +270,7 @@ internal constructor(
         // Map them to PsiTypeItems.
         val interfaceTypes =
             interfaces.map {
-                val type = PsiTypeItem.create(codebase, it)
+                val type = codebase.getType(it)
                 // ensure that we initialize classes eagerly too, so that they're registered etc
                 type.asClass()
                 type
@@ -281,7 +281,7 @@ internal constructor(
             // Set the super class type for classes
             val superClassPsiType = psiClass.superClassType as? PsiType
             superClassPsiType?.let { superType ->
-                this.superClassType = PsiTypeItem.create(codebase, superType)
+                this.superClassType = codebase.getType(superType)
                 this.superClass = this.superClassType?.asClass()
             }
         }

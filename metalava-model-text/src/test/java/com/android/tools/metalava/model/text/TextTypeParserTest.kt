@@ -20,7 +20,9 @@ import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.Assertions
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.TypeNullability
 import com.google.common.truth.Truth.assertThat
+import org.junit.Assert
 import org.junit.Test
 
 class TextTypeParserTest : Assertions {
@@ -114,11 +116,37 @@ class TextTypeParserTest : Assertions {
 
     @Test
     fun `Test splitting Kotlin nullability suffix`() {
-        assertThat(TextTypeParser.splitNullabilitySuffix("String!")).isEqualTo(Pair("String", "!"))
-        assertThat(TextTypeParser.splitNullabilitySuffix("String?")).isEqualTo(Pair("String", "?"))
-        assertThat(TextTypeParser.splitNullabilitySuffix("String")).isEqualTo(Pair("String", ""))
+        assertThat(TextTypeParser.splitNullabilitySuffix("String!", true))
+            .isEqualTo(Pair("String", TypeNullability.PLATFORM))
+        assertThat(TextTypeParser.splitNullabilitySuffix("String?", true))
+            .isEqualTo(Pair("String", TypeNullability.NULLABLE))
+        assertThat(TextTypeParser.splitNullabilitySuffix("String", true))
+            .isEqualTo(Pair("String", TypeNullability.NONNULL))
         // Check that wildcards work
-        assertThat(TextTypeParser.splitNullabilitySuffix("?")).isEqualTo(Pair("?", ""))
+        assertThat(TextTypeParser.splitNullabilitySuffix("?", true))
+            .isEqualTo(Pair("?", TypeNullability.UNDEFINED))
+        assertThat(TextTypeParser.splitNullabilitySuffix("T", true))
+            .isEqualTo(Pair("T", TypeNullability.NONNULL))
+    }
+
+    @Test
+    fun `Test splitting Kotlin nullability suffix when kotlinStyleNulls is false`() {
+        assertThat(TextTypeParser.splitNullabilitySuffix("String", false))
+            .isEqualTo(Pair("String", null))
+        assertThat(TextTypeParser.splitNullabilitySuffix("?", false)).isEqualTo(Pair("?", null))
+
+        Assert.assertThrows(
+            "Format does not support Kotlin-style null type syntax: String!",
+            ApiParseException::class.java
+        ) {
+            TextTypeParser.splitNullabilitySuffix("String!", false)
+        }
+        Assert.assertThrows(
+            "Format does not support Kotlin-style null type syntax: String?",
+            ApiParseException::class.java
+        ) {
+            TextTypeParser.splitNullabilitySuffix("String?", false)
+        }
     }
 
     /**
