@@ -386,6 +386,8 @@ open class PsiMethodItem(
         super.finishInitialization()
 
         throwsTypes = throwsTypes(codebase, psiMethod)
+        returnType.finishInitialization(this)
+        parameters.forEach { it.finishInitialization() }
     }
 
     companion object {
@@ -422,7 +424,7 @@ open class PsiMethodItem(
             val modifiers = modifiers(codebase, psiMethod, commentText)
             val parameters = parameterList(codebase, psiMethod)
             val psiReturnType = psiMethod.returnType
-            val returnType = codebase.getType(psiReturnType!!)
+            val returnType = codebase.getType(psiReturnType!!, psiMethod)
             val method =
                 PsiMethodItem(
                     codebase = codebase,
@@ -464,7 +466,7 @@ open class PsiMethodItem(
                     name = original.name(),
                     documentation = original.documentation,
                     modifiers = PsiModifierItem.create(codebase, original.modifiers),
-                    returnType = PsiTypeItem.create(codebase, original.returnType),
+                    returnType = original.returnType.duplicate(),
                     parameters = PsiParameterItem.create(codebase, original.parameters())
                 )
             method.modifiers.setOwner(method)

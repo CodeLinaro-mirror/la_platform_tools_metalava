@@ -271,13 +271,6 @@ class AnnotationFilterTest(private val params: Params) {
     }
 
     @Test
-    fun `Test matches suffix`() {
-        val filter = buildFilter()
-
-        assertEquals(params.expectedMatchesSuffix, filter.matchesSuffix("Suffix"))
-    }
-
-    @Test
     fun `Test included names`() {
         val filter = buildFilter()
 

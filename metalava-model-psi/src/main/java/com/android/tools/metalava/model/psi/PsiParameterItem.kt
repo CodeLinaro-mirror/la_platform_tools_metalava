@@ -299,6 +299,11 @@ internal constructor(
         }
     }
 
+    override fun finishInitialization() {
+        super.finishInitialization()
+        type.finishInitialization(this)
+    }
+
     companion object {
         fun create(
             codebase: PsiBasedCodebase,
@@ -335,7 +340,7 @@ internal constructor(
                 } else {
                     psiType
                 }
-            val type = codebase.getType(workaroundPsiType)
+            val type = codebase.getType(workaroundPsiType, psiParameter)
             val parameter =
                 PsiParameterItem(
                     codebase = codebase,
@@ -359,7 +364,7 @@ internal constructor(
                     parameterIndex = original.parameterIndex,
                     documentation = original.documentation,
                     modifiers = PsiModifierItem.create(codebase, original.modifiers),
-                    type = PsiTypeItem.create(codebase, original.type)
+                    type = original.type.duplicate()
                 )
             parameter.modifiers.setOwner(parameter)
             return parameter

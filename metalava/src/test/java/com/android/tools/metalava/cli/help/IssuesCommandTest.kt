@@ -209,7 +209,7 @@ Available Issues                             |  Category                |   Defa
   UnflaggedApi                               |  api_lint                |   hidden
   UnhiddenSystemApi                          |  unknown                 |   error
   UniqueKotlinOperator                       |  api_lint                |   error
-  UnmatchedMergeAnnotation                   |  unknown                 |   warning
+  UnmatchedMergeAnnotation                   |  unknown                 |   error
   UnresolvedClass                            |  documentation           |   lint
   UnresolvedImport                           |  unknown                 |   info
   UnresolvedLink                             |  documentation           |   lint

@@ -1235,6 +1235,7 @@ class CommonTypeModifiersTest : BaseModelTest() {
                     // Signature format: 5.0
                     // - include-type-use-annotations=yes
                     // - kotlin-name-type-order=yes
+                    // - kotlin-style-nulls=no
                     package test.pkg {
                       public class Foo {
                         method public platformStringPlatformVararg(arg: String...): void;
@@ -1263,11 +1264,10 @@ class CommonTypeModifiersTest : BaseModelTest() {
                     // Signature format: 5.0
                     // - include-type-use-annotations=yes
                     // - kotlin-name-type-order=yes
-                    // - kotlin-style-nulls=no
                     package test.pkg {
                       public class Foo {
                         method public platformStringPlatformVararg(arg: String!...!): void;
-                        method public nullableStringPlatformVararg(arg: String?...): void;
+                        method public nullableStringPlatformVararg(arg: String?...!): void;
                         method public platformStringNullableVararg(arg: String!...?): void;
                         method public nullableStringNullableVararg(arg: String?...?): void;
                         method public nullableStringNonNullVararg(arg: String?...): void;
@@ -1665,7 +1665,7 @@ class CommonTypeModifiersTest : BaseModelTest() {
                         // - kotlin-style-nulls=no
                         package test.pkg {
                           public class Foo {
-                            method public @Nullable foo(): String;
+                            method @Nullable public foo(): String;
                           }
                         }
                     """
@@ -1879,6 +1879,223 @@ class CommonTypeModifiersTest : BaseModelTest() {
             val strArray = codebase.assertClass("test.pkg.Foo").methods().single().returnType()
             assertNonNull(strArray, expectAnnotation = false)
             assertNonNull((strArray as ArrayTypeItem).componentType, expectAnnotation = false)
+        }
+    }
+
+    @Test
+    fun `Test nullness of Kotlin enum members`() {
+        runCodebaseTest(
+            kotlin(
+                """
+                    package test.pkg
+                    enum class Foo {
+                        A
+                    }
+                """
+                    .trimIndent()
+            )
+        ) { codebase ->
+            val fooEnum = codebase.assertClass("test.pkg.Foo")
+
+            // enum_constant public static final A: test.pkg.Foo;
+            val enumConstant = fooEnum.fields().single()
+            assertThat(enumConstant.isEnumConstant()).isTrue()
+            assertNonNull(enumConstant.type(), expectAnnotation = false)
+
+            // method public static values(): test.pkg.Foo[];
+            val values = fooEnum.assertMethod("values", "").returnType()
+            assertNonNull(values, expectAnnotation = false)
+            assertNonNull((values as ArrayTypeItem).componentType, expectAnnotation = false)
+
+            // method public static getEntries(): kotlin.enums.EnumEntries<test.pkg.Foo>;
+            val enumEntries = fooEnum.assertMethod("getEntries", "").returnType()
+            assertNonNull(enumEntries, expectAnnotation = false)
+            val enumEntry = (enumEntries as ClassTypeItem).parameters.single()
+            assertNonNull(enumEntry, expectAnnotation = false)
+        }
+    }
+
+    @Test
+    fun `Test nullness of companion object`() {
+        runCodebaseTest(
+            kotlin(
+                """
+                    package test.pkg
+                    class Foo {
+                        companion object
+                    }
+                """
+                    .trimIndent()
+            )
+        ) { codebase ->
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+            val companionType = fooClass.fields().single().type()
+            assertNonNull(companionType, expectAnnotation = false)
+        }
+    }
+
+    @Test
+    fun `Test nullness of Kotlin lambda type`() {
+        runCodebaseTest(
+            kotlin(
+                """
+                    package test.pkg
+                    class Foo {
+                        fun noParamToString(): () -> String {}
+                        fun oneParamToString(): (String?) -> String {}
+                        fun twoParamToString(): (String, Int?) -> String? {}
+                        fun oneParamToUnit(): (String) -> Unit {}
+                    }
+                """
+                    .trimIndent()
+            )
+        ) { codebase ->
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+            // () -> String
+            val noParamToString = fooClass.assertMethod("noParamToString", "").returnType()
+            assertNonNull(noParamToString, expectAnnotation = false)
+            assertThat((noParamToString as ClassTypeItem).parameters).hasSize(1)
+            assertNonNull(noParamToString.parameters.single(), expectAnnotation = false)
+
+            // (String?) -> String
+            val oneParamToString = fooClass.assertMethod("oneParamToString", "").returnType()
+            assertNonNull(oneParamToString, expectAnnotation = false)
+            assertThat((oneParamToString as ClassTypeItem).parameters).hasSize(2)
+            assertNullable(oneParamToString.parameters[0], expectAnnotation = false)
+            assertNonNull(oneParamToString.parameters[1], expectAnnotation = false)
+
+            // (String, Int?) -> String?
+            val twoParamToString = fooClass.assertMethod("twoParamToString", "").returnType()
+            assertNonNull(twoParamToString, expectAnnotation = false)
+            assertThat((twoParamToString as ClassTypeItem).parameters).hasSize(3)
+            assertNonNull(twoParamToString.parameters[0], expectAnnotation = false)
+            assertNullable(twoParamToString.parameters[1], expectAnnotation = false)
+            assertNullable(twoParamToString.parameters[2], expectAnnotation = false)
+
+            // (String) -> Unit
+            val oneParamToUnit = fooClass.assertMethod("oneParamToUnit", "").returnType()
+            assertNonNull(oneParamToUnit, expectAnnotation = false)
+            assertThat((oneParamToUnit as ClassTypeItem).parameters).hasSize(2)
+            assertNonNull(oneParamToUnit.parameters[0], expectAnnotation = false)
+            assertNonNull(oneParamToUnit.parameters[1], expectAnnotation = false)
+        }
+    }
+
+    @Test
+    fun `Test inherited nullability of Kotlin type variables`() {
+        runCodebaseTest(
+            kotlin(
+                """
+                    package test.pkg
+                    class Foo<T> {
+                        fun foo(): T {}
+                    }
+                """
+                    .trimIndent()
+            )
+        ) { codebase ->
+            // T is unbounded, so it has an implicit `Any?` bound, making it possibly nullable, but
+            // not necessarily. That means the usage of the variable doesn't have a nullability on
+            // its own, it depends on what type is used as the parameter.
+            val tVar = codebase.assertClass("test.pkg.Foo").methods().single().returnType()
+            assertUndefinedNullness(tVar)
+        }
+    }
+
+    @Test
+    fun `Test nullability of Kotlin properties and accessors`() {
+        runCodebaseTest(
+            kotlin(
+                """
+                    package test.pkg
+                    class Foo {
+                        var nullableString: String?
+                        var nonNullListNullableString: List<String?>
+                    }
+                """
+                    .trimIndent()
+            )
+        ) { codebase ->
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+
+            val nullableStringProp = fooClass.properties().single { it.name() == "nullableString" }
+            assertNullable(nullableStringProp.type(), expectAnnotation = false)
+            assertNullable(nullableStringProp.getter!!.returnType(), expectAnnotation = false)
+            assertNullable(
+                nullableStringProp.setter!!.parameters().single().type(),
+                expectAnnotation = false
+            )
+
+            val nonNullListProp =
+                fooClass.properties().single { it.name() == "nonNullListNullableString" }
+            val propType = nonNullListProp.type()
+            val getterType = nonNullListProp.getter!!.returnType()
+            val setterType = nonNullListProp.setter!!.parameters().single().type()
+            assertNonNull(propType, expectAnnotation = false)
+            assertNonNull(getterType, expectAnnotation = false)
+            assertNonNull(setterType, expectAnnotation = false)
+            assertNullable(
+                (propType as ClassTypeItem).parameters.single(),
+                expectAnnotation = false
+            )
+            assertNullable(
+                (getterType as ClassTypeItem).parameters.single(),
+                expectAnnotation = false
+            )
+            assertNullable(
+                (setterType as ClassTypeItem).parameters.single(),
+                expectAnnotation = false
+            )
+        }
+    }
+
+    @Test
+    fun `Test nullability of extension function type`() {
+        runCodebaseTest(
+            kotlin(
+                """
+                    package test.pkg
+                    class Foo {
+                        fun foo(): String?.(Int, Int?) -> String {}
+                    }
+                """
+                    .trimIndent()
+            )
+        ) { codebase ->
+            val extensionFunctionType =
+                codebase.assertClass("test.pkg.Foo").methods().single().returnType()
+            assertNonNull(extensionFunctionType, expectAnnotation = false)
+            val receiverType = (extensionFunctionType as ClassTypeItem).parameters[0]
+            assertNullable(receiverType, expectAnnotation = false)
+            val parameter1Type = extensionFunctionType.parameters[1]
+            assertNonNull(parameter1Type, expectAnnotation = false)
+            val parameter2Type = extensionFunctionType.parameters[2]
+            assertNullable(parameter2Type, expectAnnotation = false)
+            val returnType = extensionFunctionType.parameters[3]
+            assertNonNull(returnType, expectAnnotation = false)
+        }
+    }
+
+    @Test
+    fun `Test nullability of typealias`() {
+        runCodebaseTest(
+            kotlin(
+                """
+                    package test.pkg
+                    class Foo {
+                        fun foo(): FunctionType?
+                    }
+                    typealias FunctionType = (String) -> Int?
+                """
+                    .trimIndent()
+            )
+        ) { codebase ->
+            val functionType = codebase.assertClass("test.pkg.Foo").methods().single().returnType()
+            assertNullable(functionType, expectAnnotation = false)
+            val parameterType = (functionType as ClassTypeItem).parameters[0]
+            assertNonNull(parameterType, expectAnnotation = false)
+            val returnType = functionType.parameters[1]
+            assertNullable(returnType, expectAnnotation = false)
         }
     }
 }

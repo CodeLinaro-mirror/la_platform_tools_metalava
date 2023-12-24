@@ -401,6 +401,8 @@ abstract class DefaultTypeItem(private val codebase: Codebase) : TypeItem {
     private lateinit var cachedDefaultType: String
     private lateinit var cachedErasedType: String
 
+    override fun toString(): String = toTypeString()
+
     override fun toTypeString(
         annotations: Boolean,
         kotlinStyleNulls: Boolean,

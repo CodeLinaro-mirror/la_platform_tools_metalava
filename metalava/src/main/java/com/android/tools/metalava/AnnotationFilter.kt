@@ -35,9 +35,7 @@ interface AnnotationFilter {
     fun getIncludedAnnotationNames(): Set<String>
     // Returns true if [getIncludedAnnotationNames] includes the given qualified name
     fun matchesAnnotationName(qualifiedName: String): Boolean
-    // Tells whether there exists an annotation that is accepted by this filter and that
-    // ends with the given suffix
-    fun matchesSuffix(annotationSuffix: String): Boolean
+
     // Returns true if nothing is matched by this filter
     fun isEmpty(): Boolean
     // Returns true if some annotation is matched by this filter
@@ -112,7 +110,11 @@ private class ImmutableAnnotationFilter(
     }
 
     override fun matches(annotation: AnnotationItem): Boolean {
-        if (annotation.qualifiedName == null || isEmpty()) {
+        val qualifiedName = annotation.qualifiedName
+        // If the annotation name is not in the map of annotation names that can be matched then
+        // this can never match so return immediately rather than generating the source
+        // representation of the annotation.
+        if (qualifiedName !in qualifiedNameToEntries) {
             return false
         }
         val wrapper = AnnotationFilterEntry.fromAnnotationItem(annotation)
@@ -129,12 +131,6 @@ private class ImmutableAnnotationFilter(
 
     override fun matchesAnnotationName(qualifiedName: String): Boolean {
         return qualifiedNameToEntries.contains(qualifiedName)
-    }
-
-    override fun matchesSuffix(annotationSuffix: String): Boolean {
-        return qualifiedNameToEntries.keys.any { qualifiedName ->
-            qualifiedName.endsWith(annotationSuffix)
-        }
     }
 
     override fun isEmpty(): Boolean {

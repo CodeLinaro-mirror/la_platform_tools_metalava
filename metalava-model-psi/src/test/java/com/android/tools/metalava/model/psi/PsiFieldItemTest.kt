@@ -19,6 +19,7 @@ package com.android.tools.metalava.model.psi
 import com.android.tools.metalava.testing.kotlin
 import kotlin.test.Test
 import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 import kotlin.test.assertSame
 
 class PsiFieldItemTest : BasePsiTest() {
@@ -29,6 +30,25 @@ class PsiFieldItemTest : BasePsiTest() {
 
             assertNotNull(field.property)
             assertSame(field, field.property?.backingField)
+        }
+    }
+
+    @Test
+    fun `no error for initializer of arrayOf`() {
+        testCodebase(
+            kotlin(
+                """
+                package test.pkg
+                class Foo {
+                    val x: Array<String> = arrayOf()
+                }
+            """
+            )
+        ) { codebase ->
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+            val x = fooClass.fields().single()
+            assertNull(x.initialValue(false))
+            assertNull(x.implicitNullness())
         }
     }
 }
