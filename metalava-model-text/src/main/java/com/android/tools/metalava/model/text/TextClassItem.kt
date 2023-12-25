@@ -246,10 +246,6 @@ open class TextClassItem(
 
     override fun toString(): String = "class ${qualifiedName()}"
 
-    override fun mapTypeVariables(target: ClassItem): Map<String, String> {
-        return emptyMap()
-    }
-
     override fun createDefaultConstructor(): ConstructorItem {
         return TextConstructorItem.createDefaultConstructor(codebase, this, position)
     }

@@ -435,4 +435,370 @@ class CommonClassItemTest : BaseModelTest() {
             assertEquals(false, barClass.originallyDeprecated)
         }
     }
+
+    @Test
+    fun `Test basic mapTypeVariables`() {
+        runCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+                        public class Parent<M, N> {}
+                    """
+                        .trimIndent()
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        public class Child<X, Y> extends Parent<X, Y> {}
+                    """
+                        .trimIndent()
+                )
+            ),
+            inputSet(
+                signature(
+                    """
+                        // Signature format: 5.0
+                        package test.pkg {
+                          public class Child<X, Y> extends test.pkg.Parent<X,Y> {
+                          }
+                          public class Parent<M, N> {
+                          }
+                        }
+                    """
+                        .trimIndent()
+                )
+            ),
+            inputSet(
+                kotlin(
+                    """
+                        package test.pkg
+                        open class Parent<M, N>
+                        class Child<X, Y> : Parent<X, Y>()
+                    """
+                        .trimIndent()
+                )
+            )
+        ) { codebase ->
+            val parent = codebase.assertClass("test.pkg.Parent")
+            val child = codebase.assertClass("test.pkg.Child")
+            assertEquals(mapOf("M" to "X", "N" to "Y"), child.mapTypeVariables(parent))
+
+            // Not valid uses of mapTypeVariables
+            assertEquals(emptyMap(), parent.mapTypeVariables(child))
+            assertEquals(emptyMap(), child.mapTypeVariables(child))
+        }
+    }
+
+    @Test
+    fun `Test mapTypeVariables with multiple layers of super classes`() {
+        runCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+                        public class Class4<I> {}
+                    """
+                        .trimIndent()
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        public class Class3<G, H> extends Class4<G> {}
+                    """
+                        .trimIndent()
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        public class Class2<D, E, F> extends Class3<D, F> {}
+                    """
+                        .trimIndent()
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        public class Class1<A, B, C> extends Class2<B, C, A> {}
+                    """
+                        .trimIndent()
+                )
+            ),
+            inputSet(
+                signature(
+                    """
+                        // Signature format: 5.0
+                        package test.pkg {
+                          public class Class1<A, B, C> extends test.pkg.Class2<B,C,A> {
+                          }
+                          public class Class2<D, E, F> extends test.pkg.Class3<D,F> {
+                          }
+                          public class Class3<G, H> extends test.pkg.Class4<G> {
+                          }
+                          public class Class4<I> {
+                          }
+                        }
+                    """
+                        .trimIndent()
+                )
+            ),
+            inputSet(
+                kotlin(
+                    """
+                        package test.pkg
+                        open class Class4<I>
+                        open class Class3<G, H> : Class4<G>
+                        open class Class2<D, E, F> : Class3<D, F>
+                        class Class1<A, B, C> : Class2<B, C, A>
+                    """
+                        .trimIndent()
+                )
+            )
+        ) { codebase ->
+            val c4 = codebase.assertClass("test.pkg.Class4")
+            val c3 = codebase.assertClass("test.pkg.Class3")
+            val c2 = codebase.assertClass("test.pkg.Class2")
+            val c1 = codebase.assertClass("test.pkg.Class1")
+
+            assertEquals(mapOf("I" to "G"), c3.mapTypeVariables(c4))
+
+            assertEquals(mapOf("G" to "D", "H" to "F"), c2.mapTypeVariables(c3))
+            assertEquals(mapOf("I" to "D"), c2.mapTypeVariables(c4))
+
+            assertEquals(mapOf("D" to "B", "E" to "C", "F" to "A"), c1.mapTypeVariables(c2))
+            assertEquals(mapOf("G" to "B", "H" to "A"), c1.mapTypeVariables(c3))
+            assertEquals(mapOf("I" to "B"), c1.mapTypeVariables(c4))
+        }
+    }
+
+    @Test
+    fun `Test mapTypeVariables with concrete classes`() {
+        runCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+                        public class Grandparent<A, B> {}
+                    """
+                        .trimIndent()
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        public class Parent<T> extends Grandparent<T, Parent<T>> {}
+                    """
+                        .trimIndent()
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        public class Child extends Parent<Child> {}
+                    """
+                        .trimIndent()
+                )
+            ),
+            inputSet(
+                signature(
+                    """
+                        // Signature format: 5.0
+                        package test.pkg {
+                          public class Child extends test.pkg.Parent<test.pkg.Child> {
+                          }
+                          public class Grandparent<A, B> {
+                          }
+                          public class Parent<T> extends test.pkg.Grandparent<T,test.pkg.Parent<T>> {
+                          }
+                        }
+                    """
+                        .trimIndent()
+                )
+            ),
+            inputSet(
+                kotlin(
+                    """
+                        package test.pkg
+                        open class Grandparent<A, B>
+                        open class Parent<T> : Grandparent<T, Parent<T>>
+                        class Child : Parent<Child>
+                    """
+                        .trimIndent()
+                )
+            )
+        ) { codebase ->
+            val grandparent = codebase.assertClass("test.pkg.Grandparent")
+            val parent = codebase.assertClass("test.pkg.Parent")
+            val child = codebase.assertClass("test.pkg.Child")
+
+            assertEquals(
+                mapOf("A" to "T", "B" to "test.pkg.Parent"),
+                parent.mapTypeVariables(grandparent)
+            )
+            assertEquals(mapOf("T" to "test.pkg.Child"), child.mapTypeVariables(parent))
+            assertEquals(
+                mapOf("A" to "test.pkg.Child", "B" to "test.pkg.Parent"),
+                child.mapTypeVariables(grandparent)
+            )
+        }
+    }
+
+    @Test
+    fun `Test mapTypeVariables with interfaces`() {
+        runCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+                        public interface Interface3<G, H> {}
+                    """
+                        .trimIndent()
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        public interface Interface2<E, F> extends Interface3<E, F> {}
+                    """
+                        .trimIndent()
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        public interface Interface1<C, D> {}
+                    """
+                        .trimIndent()
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        public class Class<A, B> implements Interface1<A, B>, Interface2<B, A>{}
+                    """
+                        .trimIndent()
+                )
+            ),
+            inputSet(
+                signature(
+                    """
+                        // Signature format: 5.0
+                        package test.pkg {
+                          public class Class<A, B> implements test.pkg.Interface1<A,B> test.pkg.Interface2<B,A> {
+                          }
+                          public interface Interface1<C, D> {
+                          }
+                          public interface Interface2<E, F> extends test.pkg.Interface3<E,F> {
+                          }
+                          public interface Interface3<G, H> {
+                          }
+                        }
+                    """
+                        .trimIndent()
+                )
+            ),
+            inputSet(
+                kotlin(
+                    """
+                        package test.pkg
+                        interface Interface3<G, H>
+                        interface Interface2<E, F> : Interface3<E, F>
+                        interface Interface1<C, D>
+                        class Class<A, B> : Interface1<A, B>, Interface2<B, A>
+                    """
+                        .trimIndent()
+                )
+            )
+        ) { codebase ->
+            val i3 = codebase.assertClass("test.pkg.Interface3")
+            val i2 = codebase.assertClass("test.pkg.Interface2")
+            val i1 = codebase.assertClass("test.pkg.Interface1")
+            val c = codebase.assertClass("test.pkg.Class")
+
+            assertEquals(mapOf("C" to "A", "D" to "B"), c.mapTypeVariables(i1))
+
+            assertEquals(mapOf("G" to "E", "H" to "F"), i2.mapTypeVariables(i3))
+            assertEquals(mapOf("E" to "B", "F" to "A"), c.mapTypeVariables(i2))
+            assertEquals(mapOf("G" to "B", "H" to "A"), c.mapTypeVariables(i3))
+        }
+    }
+
+    @Test
+    fun `Test mapTypeVariables with diamond interface`() {
+        runCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+                        public interface Root<T> {}
+                    """
+                        .trimIndent()
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        public interface Interface1<T1> extends Root<T1> {}
+                    """
+                        .trimIndent()
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        public interface Interface2<T2> extends Root<T2> {}
+                    """
+                        .trimIndent()
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        public class Child<X, Y> implements Interface1<X>, Interface2<Y> {}
+                    """
+                        .trimIndent()
+                )
+            ),
+            inputSet(
+                signature(
+                    """
+                        // Signature format: 5.0
+                        package test.pkg {
+                          public class Child<X, Y> implements test.pkg.Interface1<X> test.pkg.Interface2<Y> {
+                          }
+                          public interface Interface1<T1> extends test.pkg.Root<T1> {
+                          }
+                          public interface Interface2<T2> extends test.pkg.Root<T2> {
+                          }
+                          public interface Root<T> {
+                          }
+                        }
+                    """
+                        .trimIndent()
+                )
+            ),
+            inputSet(
+                kotlin(
+                    """
+                        package test.pkg
+                        interface Root<T>
+                        interface Interface1<T1> : Root<T1>
+                        interface Interface2<T2> : Root<T2>
+                        class Child<X, Y> : Interface1<X>, Interface2<Y>
+                    """
+                        .trimIndent()
+                )
+            )
+        ) { codebase ->
+            val root = codebase.assertClass("test.pkg.Root")
+            val i1 = codebase.assertClass("test.pkg.Interface1")
+            val i2 = codebase.assertClass("test.pkg.Interface2")
+            val child = codebase.assertClass("test.pkg.Child")
+            assertEquals(mapOf("T" to "T1"), i1.mapTypeVariables(root))
+            assertEquals(mapOf("T" to "T2"), i2.mapTypeVariables(root))
+            assertEquals(
+                mapOf("T1" to "X"),
+                child.mapTypeVariables(i1),
+            )
+            assertEquals(
+                mapOf("T2" to "Y"),
+                child.mapTypeVariables(i2),
+            )
+            assertEquals(
+                mapOf("T" to "X"),
+                child.mapTypeVariables(root),
+            )
+        }
+    }
 }

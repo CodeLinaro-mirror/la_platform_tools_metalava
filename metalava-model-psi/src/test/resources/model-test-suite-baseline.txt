@@ -1,11 +1,23 @@
 com.android.tools.metalava.model.testsuite.BootstrapSourceModelProviderTest
   200 - test TypeParameterList name strings[psi,java]
 
+com.android.tools.metalava.model.testsuite.CommonClassItemTest
+  Test basic mapTypeVariables[psi,kotlin]
+  Test mapTypeVariables with concrete classes[psi,kotlin]
+  Test mapTypeVariables with diamond interface[psi,kotlin]
+  Test mapTypeVariables with interfaces[psi,kotlin]
+  Test mapTypeVariables with multiple layers of super classes[psi,kotlin]
+
 com.android.tools.metalava.model.testsuite.typeitem.CommonTypeItemTest
   check TypeItem asClass()[psi,java]
 
 com.android.tools.metalava.model.testsuite.typeitem.CommonTypeModifiersTest
   Test inner parameterized types with annotations[psi,java]
+  Test nullability of outer classes[psi,java]
 
 com.android.tools.metalava.model.testsuite.typeitem.CommonTypeStringTest
+  Type string[psi,java,extends number to super number map - kotlin nulls]
+  Type string[psi,java,extends string list - kotlin nulls]
+  Type string[psi,java,int varargs - kotlin nulls]
   Type string[psi,java,null annotated parameterized inner type - annotated]
+  Type string[psi,java,string varargs - kotlin nulls]

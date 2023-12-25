@@ -30,14 +30,12 @@ import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.model.isRetention
-import com.intellij.lang.jvm.types.JvmReferenceType
 import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiCompiledFile
 import com.intellij.psi.PsiModifier
 import com.intellij.psi.PsiType
 import com.intellij.psi.PsiTypeParameter
 import com.intellij.psi.SyntheticElement
-import com.intellij.psi.impl.source.PsiClassReferenceType
 import com.intellij.psi.util.PsiUtil
 import org.jetbrains.kotlin.psi.KtParameter
 import org.jetbrains.kotlin.psi.KtProperty
@@ -306,39 +304,13 @@ internal constructor(
     }
 
     override fun mapTypeVariables(target: ClassItem): Map<String, String> {
-        val targetPsi = (target as PsiClassItem).psi()
-        val maps =
-            mapTypeVariablesToSuperclass(
-                psiClass,
-                targetPsi,
-                considerSuperClasses = true,
-                considerInterfaces = targetPsi.isInterface
-            )
-                ?: return emptyMap()
-
-        if (maps.isEmpty()) {
-            return emptyMap()
+        // TODO(316922930): Temporarily return an empty map for Kotlin because the previous
+        // implementation didn't work for Kotlin source. AndroidX signature files need to be updated
+        return if (isKotlin()) {
+            emptyMap()
+        } else {
+            super.mapTypeVariables(target)
         }
-
-        if (maps.size == 1) {
-            return maps[0]
-        }
-
-        val first = maps[0]
-        val flattened = mutableMapOf<String, String>()
-        for (key in first.keys) {
-            var variable: String? = key
-            for (map in maps) {
-                val value = map[variable]
-                variable = value
-                if (value == null) {
-                    break
-                } else {
-                    flattened[key] = value
-                }
-            }
-        }
-        return flattened
     }
 
     override fun equals(other: Any?): Boolean {
@@ -723,114 +695,6 @@ internal constructor(
             }
 
             return false
-        }
-
-        fun mapTypeVariablesToSuperclass(
-            psiClass: PsiClass,
-            targetClass: PsiClass,
-            considerSuperClasses: Boolean = true,
-            considerInterfaces: Boolean = psiClass.isInterface
-        ): MutableList<Map<String, String>>? {
-            // TODO: Prune search if type doesn't have type arguments!
-            if (considerSuperClasses) {
-                val list =
-                    mapTypeVariablesToSuperclass(
-                        psiClass.superClassType,
-                        targetClass,
-                        considerSuperClasses,
-                        considerInterfaces
-                    )
-                if (list != null) {
-                    return list
-                }
-            }
-
-            if (considerInterfaces) {
-                for (interfaceType in psiClass.interfaceTypes) {
-                    val list =
-                        mapTypeVariablesToSuperclass(
-                            interfaceType,
-                            targetClass,
-                            considerSuperClasses,
-                            considerInterfaces
-                        )
-                    if (list != null) {
-                        return list
-                    }
-                }
-            }
-
-            return null
-        }
-
-        private fun mapTypeVariablesToSuperclass(
-            type: JvmReferenceType?,
-            targetClass: PsiClass,
-            considerSuperClasses: Boolean = true,
-            considerInterfaces: Boolean = true
-        ): MutableList<Map<String, String>>? {
-            // TODO: Prune search if type doesn't have type arguments!
-            val superType = type as? PsiClassReferenceType
-            val superClass = superType?.resolve()
-            if (superClass != null) {
-                if (superClass == targetClass) {
-                    val map = mapTypeVariablesToSuperclass(superType)
-                    return if (map != null) {
-                        mutableListOf(map)
-                    } else {
-                        null
-                    }
-                } else {
-                    val list =
-                        mapTypeVariablesToSuperclass(
-                            superClass,
-                            targetClass,
-                            considerSuperClasses,
-                            considerInterfaces
-                        )
-                    if (list != null) {
-                        val map = mapTypeVariablesToSuperclass(superType)
-                        if (map != null) {
-                            list.add(map)
-                        }
-                        return list
-                    }
-                }
-            }
-
-            return null
-        }
-
-        private fun mapTypeVariablesToSuperclass(
-            superType: PsiClassReferenceType?
-        ): Map<String, String>? {
-            superType ?: return null
-
-            val map = mutableMapOf<String, String>()
-            val superClass = superType.resolve()
-            if (superClass != null && superType.hasParameters()) {
-                val superTypeParameters = superClass.typeParameters
-                superType.parameters.forEachIndexed { index, parameter ->
-                    if (parameter is PsiClassReferenceType) {
-                        val parameterClass = parameter.resolve()
-                        if (parameterClass != null) {
-                            val parameterName =
-                                parameterClass.qualifiedName
-                                    ?: parameterClass.name ?: parameter.name
-                            if (index < superTypeParameters.size) {
-                                val superTypeParameter = superTypeParameters[index]
-                                val superTypeName =
-                                    superTypeParameter.qualifiedName ?: superTypeParameter.name
-                                if (superTypeName != null) {
-                                    map[superTypeName] = parameterName
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            return map
         }
     }
 }

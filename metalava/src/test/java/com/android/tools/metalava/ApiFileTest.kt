@@ -4196,7 +4196,7 @@ class ApiFileTest : DriverTest() {
             """
             package Test.pkg {
               public class IpcDataCache<Query, Result> extends android.app.PropertyInvalidatedCache<Query,Result> {
-                ctor public IpcDataCache(int, String, String, String, android.os.IpcDataCache.QueryHandler<Query,Result>);
+                ctor public IpcDataCache(int, String, String, String, android.os.IpcDataCache.QueryHandler<Query!,Result!>);
                 method public void disableForCurrentProcess();
                 method public static void disableForCurrentProcess(String);
                 method public void invalidateCache();
