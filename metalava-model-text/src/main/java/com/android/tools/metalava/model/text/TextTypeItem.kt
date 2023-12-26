@@ -28,58 +28,9 @@ import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.WildcardTypeItem
-import java.util.function.Predicate
 
 sealed class TextTypeItem(open val codebase: TextCodebase, open val type: String) :
     DefaultTypeItem(codebase) {
-    override fun toTypeString(
-        annotations: Boolean,
-        kotlinStyleNulls: Boolean,
-        context: Item?,
-        filter: Predicate<Item>?,
-        spaceBetweenParameters: Boolean
-    ): String {
-        if (!kotlinStyleNulls) {
-            return super.toTypeString(
-                annotations,
-                kotlinStyleNulls,
-                context,
-                filter,
-                spaceBetweenParameters
-            )
-        }
-
-        val typeString = toTypeString(type, annotations)
-
-        if (
-            kotlinStyleNulls &&
-                this !is PrimitiveTypeItem &&
-                context != null &&
-                // Don't re-add a suffix if it is already present
-                !typeString.endsWith("!") &&
-                !typeString.endsWith("?")
-        ) {
-            var nullable: Boolean? = context.implicitNullness()
-
-            if (nullable == null) {
-                for (annotation in context.modifiers.annotations()) {
-                    if (annotation.isNullable()) {
-                        nullable = true
-                    } else if (annotation.isNonNull()) {
-                        nullable = false
-                    }
-                }
-            }
-            when (nullable) {
-                null -> return "$typeString!"
-                true -> return "$typeString?"
-                else -> {
-                    /* non-null: nothing to add */
-                }
-            }
-        }
-        return typeString
-    }
 
     override fun asClass(): ClassItem? {
         if (this is PrimitiveTypeItem) {

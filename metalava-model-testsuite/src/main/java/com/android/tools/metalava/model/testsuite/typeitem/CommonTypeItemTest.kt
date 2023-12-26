@@ -1169,4 +1169,48 @@ class CommonTypeItemTest : BaseModelTest() {
             assertThat(parameterTypeClassItem4).isEqualTo(stringClassItem)
         }
     }
+
+    @Test
+    fun `Test Kotlin collection removeAll parameter type`() {
+        runCodebaseTest(
+            kotlin(
+                """
+                    package test.pkg
+                    abstract class Foo<E> : MutableCollection<E> {
+                        override fun addAll(elements: Collection<E>): Boolean = true
+                        override fun removeAll(elements: Collection<E>): Boolean = true
+                    }
+                """
+                    .trimIndent()
+            )
+        ) { codebase ->
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+            val typeParam = fooClass.typeParameterList().typeParameters().single()
+
+            // Defined in `java.util.Collection` as `addAll(Collection<? extends E> c)`
+            val addAllParam =
+                fooClass.methods().single { it.name() == "addAll" }.parameters().single().type()
+            assertThat(addAllParam).isInstanceOf(ClassTypeItem::class.java)
+            assertThat((addAllParam as ClassTypeItem).qualifiedName)
+                .isEqualTo("java.util.Collection")
+            assertThat(addAllParam.parameters).hasSize(1)
+            val addAllWildcard = addAllParam.parameters.single()
+            assertThat(addAllWildcard).isInstanceOf(WildcardTypeItem::class.java)
+            val allAllE = (addAllWildcard as WildcardTypeItem).extendsBound
+            assertThat(allAllE).isInstanceOf(VariableTypeItem::class.java)
+            assertThat((allAllE as VariableTypeItem).asTypeParameter).isEqualTo(typeParam)
+
+            // Defined in `java.util.Collection` as `removeAll(Collection<?> c)`
+            // Appears in psi as a `PsiImmediateClassType` with no parameters
+            val removeAllParam =
+                fooClass.methods().single { it.name() == "removeAll" }.parameters().single().type()
+            assertThat(removeAllParam).isInstanceOf(ClassTypeItem::class.java)
+            assertThat((removeAllParam as ClassTypeItem).qualifiedName)
+                .isEqualTo("java.util.Collection")
+            assertThat(removeAllParam.parameters).hasSize(1)
+            val removeAllE = removeAllParam.parameters.single()
+            assertThat(removeAllE).isInstanceOf(VariableTypeItem::class.java)
+            assertThat((removeAllE as VariableTypeItem).asTypeParameter).isEqualTo(typeParam)
+        }
+    }
 }

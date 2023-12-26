@@ -581,8 +581,10 @@ private constructor(
         // Collect all type parameters in scope into one list
         val typeParams = typeParameterList.typeParameters() + cl.typeParameterList.typeParameters()
         val parameters = parseParameterList(api, tokenizer, typeParams)
+        // Constructors cannot return null.
+        val ctorReturn = cl.toType().duplicate(TypeNullability.NONNULL)
         method =
-            TextConstructorItem(api, name, cl, modifiers, cl.toType(), parameters, tokenizer.pos())
+            TextConstructorItem(api, name, cl, modifiers, ctorReturn, parameters, tokenizer.pos())
         method.setTypeParameterList(typeParameterList)
         if (typeParameterList is TextTypeParameterList) {
             typeParameterList.setOwner(method)
@@ -700,7 +702,7 @@ private constructor(
         token = tokenizer.current
         tokenizer.assertIdent(token)
 
-        val type: TextTypeItem
+        var type: TextTypeItem
         val name: String
         if (format.kotlinNameTypeOrder) {
             // Kotlin style: parse the name, then the type.
@@ -728,6 +730,15 @@ private constructor(
             token = tokenizer.requireToken(false)
             value = parseValue(type, token, tokenizer)
             token = tokenizer.requireToken()
+            // If this is an implicitly null constant, add the nullability.
+            if (
+                !kotlinStyleNulls &&
+                    modifiers.isFinal() &&
+                    value != null &&
+                    type.modifiers.nullability() != TypeNullability.NONNULL
+            ) {
+                type = type.duplicate(TypeNullability.NONNULL)
+            }
         }
         if (";" != token) {
             throw ApiParseException("expected ; found $token", tokenizer)
