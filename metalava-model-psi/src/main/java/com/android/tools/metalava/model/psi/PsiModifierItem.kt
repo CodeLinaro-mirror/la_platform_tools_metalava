@@ -59,7 +59,7 @@ import org.jetbrains.uast.UAnnotation
 import org.jetbrains.uast.UElement
 import org.jetbrains.uast.UMethod
 import org.jetbrains.uast.UVariable
-import org.jetbrains.uast.kotlin.KotlinUMethodWithFakeLightDelegate
+import org.jetbrains.uast.kotlin.KotlinUMethodWithFakeLightDelegateBase
 
 class PsiModifierItem
 internal constructor(
@@ -186,7 +186,7 @@ internal constructor(
                     // UAST workaround: fake light method for inline/hidden function may not have a
                     // concrete modifier list, but overrides `hasModifierProperty` to mimic
                     // modifiers.
-                    element is KotlinUMethodWithFakeLightDelegate ->
+                    element is KotlinUMethodWithFakeLightDelegateBase<*> ->
                         when {
                             element.hasModifierProperty(PsiModifier.PUBLIC) -> PUBLIC
                             element.hasModifierProperty(PsiModifier.PROTECTED) -> PROTECTED

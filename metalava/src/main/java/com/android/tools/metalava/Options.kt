@@ -132,6 +132,8 @@ var options by OptionsDelegate
 
 private const val INDENT_WIDTH = 45
 
+// Temporary feature flag: b/309149849
+const val ARG_UPDATE_KOTLIN_NULLS = "--update-kotlin-nulls"
 const val ARG_CLASS_PATH = "--classpath"
 const val ARG_SOURCE_PATH = "--source-path"
 const val ARG_SOURCE_FILES = "--source-files"
@@ -262,6 +264,9 @@ class Options(
     private val mutablePassThroughAnnotations: MutableSet<String> = mutableSetOf()
     /** Internal list backing [excludeAnnotations] */
     private val mutableExcludeAnnotations: MutableSet<String> = mutableSetOf()
+
+    /** Temporary feature flag. TODO(b/309149849): default to true, then remove. */
+    var updateKotlinNulls = false
 
     /** API to subtract from signature and stub generation. Corresponds to [ARG_SUBTRACT_API]. */
     var subtractApi: File? = null
@@ -831,6 +836,8 @@ class Options(
         var index = 0
         while (index < args.size) {
             when (val arg = args[index]) {
+                // Temporary feature flag
+                ARG_UPDATE_KOTLIN_NULLS -> updateKotlinNulls = true
                 // For now, we don't distinguish between bootclasspath and classpath
                 ARG_CLASS_PATH -> {
                     val path = getValue(args, ++index)
