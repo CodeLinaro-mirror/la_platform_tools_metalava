@@ -69,6 +69,7 @@ import com.google.turbine.type.Type.WildTy.BoundKind
 import java.io.File
 import java.util.Optional
 import javax.lang.model.SourceVersion
+import kotlin.collections.ArrayDeque
 
 /**
  * This initializer acts as an adapter between codebase and the output from Turbine parser.
@@ -405,11 +406,7 @@ open class TurbineCodebaseInitialiser(
                 }
             }
             TyKind.ARRAY_TY -> {
-                type as ArrayTy
-                val componentType = createType(type.elementType(), false)
-                val annotations = createAnnotations(type.annos())
-                val modifiers = TurbineTypeModifiers(annotations)
-                TurbineArrayTypeItem(codebase, modifiers, componentType, isVarArg)
+                createArrayType(type as ArrayTy, isVarArg)
             }
             TyKind.CLASS_TY -> {
                 type as ClassTy
@@ -471,6 +468,38 @@ open class TurbineCodebaseInitialiser(
                 )
             else -> throw IllegalStateException("Invalid type in API surface: $kind")
         }
+    }
+
+    private fun createArrayType(type: ArrayTy, isVarArg: Boolean): TurbineTypeItem {
+        // For Turbine's ArrayTy, the annotations for multidimentional arrays comes out in reverse
+        // order. This method attaches annotations in the correct order by applying them in reverse
+        val modifierStack = ArrayDeque<TurbineTypeModifiers>()
+        var curr: Type = type
+        while (curr.tyKind() == TyKind.ARRAY_TY) {
+            curr as ArrayTy
+            val annotations = createAnnotations(curr.annos())
+            modifierStack.addLast(TurbineTypeModifiers(annotations))
+            curr = curr.elementType()
+        }
+        var componentType = createType(curr, false)
+        while (modifierStack.isNotEmpty()) {
+            val modifiers = modifierStack.removeFirst()
+            if (modifierStack.isEmpty()) {
+                // Outermost array. Should be called with correct value of isvararg
+                componentType = createSimpleArrayType(modifiers, componentType, isVarArg)
+            } else {
+                componentType = createSimpleArrayType(modifiers, componentType, false)
+            }
+        }
+        return componentType
+    }
+
+    private fun createSimpleArrayType(
+        modifiers: TurbineTypeModifiers,
+        componentType: TurbineTypeItem,
+        isVarArg: Boolean
+    ): TurbineTypeItem {
+        return TurbineArrayTypeItem(codebase, modifiers, componentType, isVarArg)
     }
 
     private fun createSimpleClassType(
