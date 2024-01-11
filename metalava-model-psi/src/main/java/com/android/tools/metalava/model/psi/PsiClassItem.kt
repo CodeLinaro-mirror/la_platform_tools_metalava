@@ -353,6 +353,7 @@ internal constructor(
             }
             newMethod.setThrowsTypes(throwsTypes)
         }
+        newMethod.finishInitialization()
 
         return newMethod
     }

@@ -28,7 +28,7 @@ import com.intellij.psi.PsiMethod
 import com.intellij.psi.util.PsiTypesUtil
 import java.io.StringWriter
 import org.intellij.lang.annotations.Language
-import org.jetbrains.kotlin.name.JvmNames
+import org.jetbrains.kotlin.name.JvmStandardClassIds
 import org.jetbrains.kotlin.psi.KtFunction
 import org.jetbrains.kotlin.psi.KtNamedFunction
 import org.jetbrains.kotlin.psi.KtParameter
@@ -43,7 +43,7 @@ import org.jetbrains.uast.UMethod
 import org.jetbrains.uast.UThrowExpression
 import org.jetbrains.uast.UTryExpression
 import org.jetbrains.uast.getParentOfType
-import org.jetbrains.uast.kotlin.KotlinUMethodWithFakeLightDelegate
+import org.jetbrains.uast.kotlin.KotlinUMethodWithFakeLightDelegateBase
 import org.jetbrains.uast.toUElement
 import org.jetbrains.uast.visitor.AbstractUastVisitor
 
@@ -298,7 +298,7 @@ open class PsiMethodItem(
     override fun shouldExpandOverloads(): Boolean {
         val ktFunction = (psiMethod as? UMethod)?.sourcePsi as? KtFunction ?: return false
         return ktFunction.hasActualModifier() &&
-            psiMethod.hasAnnotation(JvmNames.JVM_OVERLOADS_FQ_NAME.asString()) &&
+            psiMethod.hasAnnotation(JvmStandardClassIds.JVM_OVERLOADS_FQ_NAME.asString()) &&
             // It is /technically/ invalid to have actual functions with default values, but
             // some places suppress the compiler error, so we should handle it here too.
             ktFunction.valueParameters.none { it.hasDefaultValue() } &&
@@ -400,7 +400,7 @@ open class PsiMethodItem(
             // UAST workaround: @JvmName for UMethod with fake LC PSI
             // TODO: https://youtrack.jetbrains.com/issue/KTIJ-25133
             val name =
-                if (psiMethod is KotlinUMethodWithFakeLightDelegate) {
+                if (psiMethod is KotlinUMethodWithFakeLightDelegateBase<*>) {
                     psiMethod.sourcePsi
                         ?.annotationEntries
                         ?.find { annoEntry ->

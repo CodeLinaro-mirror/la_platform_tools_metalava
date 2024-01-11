@@ -51,3 +51,26 @@ interface TypeParameterList {
             }
     }
 }
+
+abstract class DefaultTypeParameterList : TypeParameterList {
+    private val toString by lazy {
+        buildString {
+            if (typeParameters().isNotEmpty()) {
+                append("<")
+                var first = true
+                for (param in typeParameters()) {
+                    if (!first) {
+                        append(", ")
+                    }
+                    first = false
+                    append(param.toSource())
+                }
+                append(">")
+            }
+        }
+    }
+
+    override fun toString(): String {
+        return toString
+    }
+}
