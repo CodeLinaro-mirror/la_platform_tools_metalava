@@ -293,7 +293,6 @@ internal fun processFlags(
                 fileFormat = options.signatureFileFormat,
                 showUnannotated = options.showUnannotated,
                 apiVisitorConfig = options.apiVisitorConfig,
-                updateKotlinNulls = options.updateKotlinNulls
             )
         }
     }

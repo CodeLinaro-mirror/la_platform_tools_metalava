@@ -186,7 +186,7 @@ internal constructor(
             analyze(ktFunction) {
                 val function =
                     if (ktFunction.hasActualModifier()) {
-                        ktFunction.getSymbol().getExpectsForActual().singleOrNull()
+                        ktFunction.getSymbol().getExpectForActual()
                     } else {
                         ktFunction.getSymbol()
                     }

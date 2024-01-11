@@ -27,8 +27,7 @@ class TextTypeParameterItem(
     private var owner: TypeParameterListOwner?,
     private val typeParameterString: String,
     name: String,
-    private val isReified: Boolean,
-    private var bounds: List<TypeItem>? = null,
+    private var bounds: List<TypeItem>? = null
 ) :
     TextClassItem(
         codebase = codebase,
@@ -54,7 +53,9 @@ class TextTypeParameterItem(
         return bounds!!
     }
 
-    override fun isReified(): Boolean = isReified
+    override fun isReified(): Boolean {
+        return typeParameterString.startsWith("reified")
+    }
 
     internal fun setOwner(newOwner: TypeParameterListOwner) {
         owner = newOwner
@@ -69,29 +70,19 @@ class TextTypeParameterItem(
         ): TextTypeParameterItem {
             val length = typeParameterString.length
             var nameEnd = length
-
-            val isReified = typeParameterString.startsWith("reified ")
-            val nameStart =
-                if (isReified) {
-                    8 // "reified ".length
-                } else {
-                    0
-                }
-
-            for (i in nameStart until length) {
+            for (i in 0 until length) {
                 val c = typeParameterString[i]
                 if (!Character.isJavaIdentifierPart(c)) {
                     nameEnd = i
                     break
                 }
             }
-            val name = typeParameterString.substring(nameStart, nameEnd)
+            val name = typeParameterString.substring(0, nameEnd)
             return TextTypeParameterItem(
                 codebase = codebase,
                 owner = owner,
                 typeParameterString = typeParameterString,
                 name = name,
-                isReified = isReified,
                 bounds = bounds
             )
         }
