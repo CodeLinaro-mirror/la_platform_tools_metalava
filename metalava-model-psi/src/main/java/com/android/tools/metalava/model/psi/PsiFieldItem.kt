@@ -120,7 +120,6 @@ class PsiFieldItem(
         val duplicated = create(codebase, targetContainingClass as PsiClassItem, psiField)
         duplicated.inheritedFrom = containingClass
         duplicated.inheritedField = inheritedField
-        duplicated.finishInitialization()
 
         // Preserve flags that may have been inherited (propagated) from surrounding packages
         if (targetContainingClass.hidden) {
@@ -168,17 +167,20 @@ class PsiFieldItem(
             val isEnumConstant = psiField is PsiEnumConstant
             val initialValue = null // compute lazily
 
-            return PsiFieldItem(
-                codebase = codebase,
-                psiField = psiField,
-                containingClass = containingClass,
-                name = name,
-                documentation = commentText,
-                modifiers = modifiers,
-                fieldType = fieldType,
-                isEnumConstant = isEnumConstant,
-                initialValue = initialValue
-            )
+            val field =
+                PsiFieldItem(
+                    codebase = codebase,
+                    psiField = psiField,
+                    containingClass = containingClass,
+                    name = name,
+                    documentation = commentText,
+                    modifiers = modifiers,
+                    fieldType = fieldType,
+                    isEnumConstant = isEnumConstant,
+                    initialValue = initialValue
+                )
+            field.modifiers.setOwner(field)
+            return field
         }
     }
 

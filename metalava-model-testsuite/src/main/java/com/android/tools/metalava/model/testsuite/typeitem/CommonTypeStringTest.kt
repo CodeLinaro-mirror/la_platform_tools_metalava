@@ -414,8 +414,7 @@ class CommonTypeStringTest : BaseModelTest() {
                 ) +
                 TypeStringParameters.fromConfigurations(
                     name = "null annotated string varargs",
-                    sourceType =
-                        "java.lang.@libcore.util.Nullable String @libcore.util.NonNull ...",
+                    sourceType = "@libcore.util.Nullable String @libcore.util.NonNull ...",
                     configs =
                         listOf(
                             ConfigurationTestCase(
