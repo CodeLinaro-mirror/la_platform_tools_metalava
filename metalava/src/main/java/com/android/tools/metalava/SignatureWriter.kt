@@ -27,7 +27,6 @@ import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
-import com.android.tools.metalava.model.psi.PsiTypeItem
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import java.io.PrintWriter
@@ -43,14 +42,12 @@ class SignatureWriter(
     private val fileFormat: FileFormat,
     showUnannotated: Boolean,
     apiVisitorConfig: Config,
-    val updateKotlinNulls: Boolean = false
 ) :
     ApiVisitor(
         visitConstructorsAsMethods = false,
         nestInnerClasses = false,
         inlineInheritedFields = true,
         methodComparator = fileFormat.overloadedMethodOrder.comparator,
-        fieldComparator = FieldItem.comparator,
         filterEmit = filterEmit,
         filterReference = filterReference,
         showUnannotated = showUnannotated,
@@ -125,10 +122,10 @@ class SignatureWriter(
             // Kotlin style: write the name of the field, then the type.
             write(field.name())
             write(": ")
-            writeType(field, field.type())
+            writeType(field.type())
         } else {
             // Java style: write the type, then the name of the field.
-            writeType(field, field.type())
+            writeType(field.type())
             write(" ")
             write(field.name())
         }
@@ -148,10 +145,10 @@ class SignatureWriter(
             // Kotlin style: write the name of the property, then the type.
             write(property.name())
             write(": ")
-            writeType(property, property.type())
+            writeType(property.type())
         } else {
             // Java style: write the type, then the name of the property.
-            writeType(property, property.type())
+            writeType(property.type())
             write(" ")
             write(property.name())
         }
@@ -168,10 +165,10 @@ class SignatureWriter(
             write(method.name())
             writeParameterList(method)
             write(": ")
-            writeType(method, method.returnType())
+            writeType(method.returnType())
         } else {
             // Java style: write the type, then the name of the method and the parameters.
-            writeType(method, method.returnType())
+            writeType(method.returnType())
             write(" ")
             write(method.name())
             writeParameterList(method)
@@ -252,7 +249,6 @@ class SignatureWriter(
             typeItem.toTypeString(
                 annotations = fileFormat.includeTypeUseAnnotations,
                 kotlinStyleNulls = false,
-                context = typeItem.asClass(),
                 filter = filterReference
             )
         write(" ")
@@ -348,10 +344,10 @@ class SignatureWriter(
                 val name = parameter.publicName() ?: "_"
                 write(name)
                 write(": ")
-                writeType(parameter, parameter.type())
+                writeType(parameter.type())
             } else {
                 // Java style: write the type, then the name if it has a public name.
-                writeType(parameter, parameter.type())
+                writeType(parameter.type())
                 val name = parameter.publicName()
                 if (name != null) {
                     write(" ")
@@ -374,28 +370,15 @@ class SignatureWriter(
         write(")")
     }
 
-    private fun writeType(
-        item: Item,
-        type: TypeItem?,
-    ) {
+    private fun writeType(type: TypeItem?) {
         type ?: return
 
         var typeString =
-            if (updateKotlinNulls || !fileFormat.kotlinStyleNulls || type !is PsiTypeItem) {
-                type.toTypeString(
-                    annotations = fileFormat.includeTypeUseAnnotations,
-                    kotlinStyleNulls = fileFormat.kotlinStyleNulls,
-                    context = item,
-                    filter = filterReference
-                )
-            } else {
-                type.toTypeStringWithOldKotlinNulls(
-                    annotations = fileFormat.includeTypeUseAnnotations,
-                    kotlinStyleNulls = true,
-                    context = item,
-                    filter = filterReference
-                )
-            }
+            type.toTypeString(
+                annotations = fileFormat.includeTypeUseAnnotations,
+                kotlinStyleNulls = fileFormat.kotlinStyleNulls,
+                filter = filterReference
+            )
 
         // Strip java.lang. prefix
         typeString = TypeItem.shortenTypes(typeString)

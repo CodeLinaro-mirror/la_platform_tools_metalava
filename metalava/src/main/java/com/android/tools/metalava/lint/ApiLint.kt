@@ -206,7 +206,6 @@ private constructor(
         config = config,
         // Sort by source order such that warnings follow source line number order.
         methodComparator = MethodItem.sourceOrderComparator,
-        fieldComparator = FieldItem.comparator,
     ) {
 
     /** Predicate that checks if the item appears in the signature file. */

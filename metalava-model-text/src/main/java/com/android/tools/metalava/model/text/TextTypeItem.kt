@@ -20,7 +20,6 @@ import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.DefaultTypeItem
-import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.JAVA_LANG_PREFIX
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.TypeItem
@@ -84,17 +83,9 @@ sealed class TextTypeItem(open val codebase: TextCodebase, open val type: String
         return qualifiedTypeName().hashCode()
     }
 
-    override fun convertType(replacementMap: Map<String, String>?, owner: Item?): TypeItem {
-        return codebase.typeResolver.obtainTypeFromString(convertTypeString(replacementMap))
-    }
-
     internal abstract fun duplicate(withNullability: TypeNullability): TextTypeItem
 
     companion object {
-        fun toTypeString(
-            type: String,
-            annotations: Boolean,
-        ): String = if (annotations) type else eraseAnnotations(type)
 
         fun eraseTypeArguments(s: String): String {
             val index = s.indexOf('<')
@@ -120,89 +111,6 @@ sealed class TextTypeItem(open val codebase: TextCodebase, open val type: String
             }
             return s
         }
-
-        /**
-         * Given a type possibly using the Kotlin-style null syntax, strip out any Kotlin-style null
-         * syntax characters, e.g. "String?" -> "String", but make sure not to damage types like
-         * "Set<? extends Number>".
-         */
-        fun stripKotlinNullChars(s: String): String {
-            var found = false
-            var prev = ' '
-            for (c in s) {
-                if (c == '!' || c == '?' && (prev != '<' && prev != ',' && prev != ' ')) {
-                    found = true
-                    break
-                }
-                prev = c
-            }
-
-            if (!found) {
-                return s
-            }
-
-            val sb = StringBuilder(s.length)
-            for (c in s) {
-                if (c == '!' || c == '?' && (prev != '<' && prev != ',' && prev != ' ')) {
-                    // skip
-                } else {
-                    sb.append(c)
-                }
-                prev = c
-            }
-
-            return sb.toString()
-        }
-
-        private fun eraseAnnotations(type: String): String {
-            if (type.indexOf('@') == -1) {
-                // If using Kotlin-style null syntax, strip those markers as well
-                return stripKotlinNullChars(type)
-            }
-
-            // Assumption: top level annotations appear first
-            val length = type.length
-            var max = length
-
-            var s = type
-            while (true) {
-                val index = s.indexOf('@')
-                if (index == -1 || index >= max) {
-                    break
-                }
-
-                // Find end
-                val end = TextTypeParser.findAnnotationEnd(s, index + 1)
-                val oldLength = s.length
-                s = s.substring(0, index).trim() + s.substring(end).trim()
-                val newLength = s.length
-                val removed = oldLength - newLength
-                max -= removed
-            }
-
-            // Sometimes we have a second type after the max, such as
-            // @androidx.annotation.NonNull java.lang.reflect.@androidx.annotation.NonNull
-            // TypeVariable<...>
-            for (i in s.indices) {
-                val c = s[i]
-                if (Character.isJavaIdentifierPart(c) || c == '.') {
-                    continue
-                } else if (c == '@') {
-                    // Found embedded annotation within the type
-                    val end = TextTypeParser.findAnnotationEnd(s, i + 1)
-                    if (end == -1 || end == length) {
-                        break
-                    }
-
-                    s = s.substring(0, i).trim() + s.substring(end).trim()
-                    break
-                } else {
-                    break
-                }
-            }
-
-            return s
-        }
     }
 }
 
@@ -216,6 +124,9 @@ internal class TextPrimitiveTypeItem(
     override fun duplicate(withNullability: TypeNullability): TextTypeItem {
         return TextPrimitiveTypeItem(codebase, type, kind, modifiers.duplicate(withNullability))
     }
+
+    // Text types are immutable, so the modifiers don't actually need to be duplicated.
+    override fun duplicate(): TypeItem = this
 }
 
 /** An [ArrayTypeItem] parsed from a signature file. */
@@ -234,6 +145,10 @@ internal class TextArrayTypeItem(
             isVarargs,
             modifiers.duplicate(withNullability)
         )
+    }
+
+    override fun duplicate(componentType: TypeItem): ArrayTypeItem {
+        return TextArrayTypeItem(codebase, type, componentType, isVarargs, modifiers)
     }
 }
 
@@ -258,6 +173,10 @@ internal class TextClassTypeItem(
             modifiers.duplicate(withNullability)
         )
     }
+
+    override fun duplicate(outerClass: ClassTypeItem?, parameters: List<TypeItem>): ClassTypeItem {
+        return TextClassTypeItem(codebase, type, qualifiedName, parameters, outerClass, modifiers)
+    }
 }
 
 /** A [VariableTypeItem] parsed from a signature file. */
@@ -277,6 +196,9 @@ internal class TextVariableTypeItem(
             modifiers.duplicate(withNullability)
         )
     }
+
+    // Text types are immutable, so the modifiers don't actually need to be duplicated.
+    override fun duplicate(): TypeItem = this
 }
 
 /** A [WildcardTypeItem] parsed from a signature file. */
@@ -295,5 +217,9 @@ internal class TextWildcardTypeItem(
             superBound,
             modifiers.duplicate(withNullability)
         )
+    }
+
+    override fun duplicate(extendsBound: TypeItem?, superBound: TypeItem?): WildcardTypeItem {
+        return TextWildcardTypeItem(codebase, type, extendsBound, superBound, modifiers)
     }
 }

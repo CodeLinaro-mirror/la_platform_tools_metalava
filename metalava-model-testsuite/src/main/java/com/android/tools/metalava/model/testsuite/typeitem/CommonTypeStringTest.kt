@@ -170,7 +170,6 @@ class CommonTypeStringTest : BaseModelTest() {
                     annotations = parameters.typeStringConfiguration.annotations,
                     kotlinStyleNulls = parameters.typeStringConfiguration.kotlinStyleNulls,
                     filter = parameters.typeStringConfiguration.filter,
-                    context = param,
                     spaceBetweenParameters =
                         parameters.typeStringConfiguration.spaceBetweenParameters,
                 )

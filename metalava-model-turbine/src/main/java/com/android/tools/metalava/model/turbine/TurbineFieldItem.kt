@@ -26,11 +26,14 @@ class TurbineFieldItem(
     private val containingClass: TurbineClassItem,
     private val type: TurbineTypeItem,
     modifiers: TurbineModifierItem,
+    private val document: String,
 ) : TurbineItem(codebase, modifiers), FieldItem {
 
     override var inheritedFrom: ClassItem? = null
 
     override var inheritedField: Boolean = false
+
+    override var documentation: String = document
 
     override fun name(): String = name
 

@@ -688,38 +688,21 @@ interface ClassItem : Item {
      * those parameters by this class.
      *
      * If this class is declared as `class A<X,Y> extends B<X,Y>`, and target class `B` is declared
-     * as `class B<M,N>`, this method returns the map `{"M"->"X", "N"->"Y"}`.
+     * as `class B<M,N>`, this method returns the map `{M->X, N->Y}`.
      *
      * There could be multiple intermediate classes between this class and the target class, and in
      * some cases we could be substituting in a concrete class, e.g. if this class is declared as
      * `class MyClass extends Parent<String,Number>` and target class `Parent` is declared as `class
-     * Parent<M,N>` would return the map `{"M"->"java.lang.String", "N"->"java.lang.Number"}`.
+     * Parent<M,N>` would return the map `{M->java.lang.String, N>java.lang.Number}`.
      *
      * The target class can be an interface. If the interface can be found through multiple paths in
      * the class hierarchy, this method returns the mapping from the first path found in terms of
      * declaration order. For instance, given declarations `class C<X, Y> implements I1<X>, I2<Y>`,
      * `interface I1<T1> implements Root<T1>`, `interface I2<T2> implements Root<T2>`, and
-     * `interface Root<T>`, this method will return `{"T"->"X"}` as the mapping from `C` to `Root`,
-     * not `{"T"->"Y"}`.
+     * `interface Root<T>`, this method will return `{T->X}` as the mapping from `C` to `Root`, not
+     * `{T->Y}`.
      */
-    fun mapTypeVariables(target: ClassItem): Map<String, String> {
-        // The string representation of the type to use in the map: don't include parameters of
-        // class types, for consistency with the old psi implementation.
-        fun TypeItem.mapTypeString(): String =
-            when (this) {
-                is ClassTypeItem -> qualifiedName
-                else -> toTypeString()
-            }
-        return mapTypeVariablesAsTypes(target)
-            .map { (t1, t2) -> Pair(t1.mapTypeString(), t2.mapTypeString()) }
-            .toMap()
-    }
-
-    /**
-     * Like [mapTypeVariables], but instead of using strings for the map from type parameters of
-     * [target] to substituted types from this class, uses the actual [TypeItem]s.
-     */
-    fun mapTypeVariablesAsTypes(target: ClassItem): Map<TypeItem, TypeItem> {
+    fun mapTypeVariables(target: ClassItem): Map<TypeItem, TypeItem> {
         // Gather the supertypes to check for [target]. It is only possible for [target] to be found
         // in the class hierarchy through this class's interfaces if [target] is an interface.
         val candidates =
@@ -744,7 +727,7 @@ interface ClassItem : Item {
                 return mapTypeVariables(declaredClassType, superClassType)
             } else {
                 // This superClassType isn't target, but maybe it has target as a superclass.
-                val nextLevelMap = asClass.mapTypeVariablesAsTypes(target)
+                val nextLevelMap = asClass.mapTypeVariables(target)
                 if (nextLevelMap.isNotEmpty()) {
                     val thisLevelMap = mapTypeVariables(declaredClassType, superClassType)
                     // Link the two maps by removing intermediate type variables.
@@ -756,8 +739,19 @@ interface ClassItem : Item {
     }
 
     /** Creates a map between the parameters of [c1] and the parameters of [c2]. */
-    private fun mapTypeVariables(c1: ClassTypeItem, c2: ClassTypeItem) =
-        c1.parameters.zip(c2.parameters).toMap()
+    private fun mapTypeVariables(c1: ClassTypeItem, c2: ClassTypeItem): Map<TypeItem, TypeItem> {
+        // Don't include parameters of class types, for consistency with the old psi implementation.
+        // TODO (b/319300404): remove this section
+        val c2Params =
+            c2.parameters.map {
+                if (it is ClassTypeItem && it.parameters.isNotEmpty()) {
+                    it.duplicate(it.outerClassType, parameters = emptyList())
+                } else {
+                    it
+                }
+            }
+        return c1.parameters.zip(c2Params).toMap()
+    }
 
     /** Creates a constructor in this class */
     fun createDefaultConstructor(): ConstructorItem = codebase.unsupported()

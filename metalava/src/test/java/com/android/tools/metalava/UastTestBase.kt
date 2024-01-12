@@ -392,7 +392,7 @@ abstract class UastTestBase : DriverTest() {
                 """
                 package test.pkg {
                   public final class TestKt {
-                    method public static void foo(String![] vs, optional boolean b);
+                    method public static void foo(String[] vs, optional boolean b);
                   }
                 }
             """
@@ -465,8 +465,8 @@ abstract class UastTestBase : DriverTest() {
 
     protected fun `final modifier in enum members`(isK2: Boolean) {
         // https://youtrack.jetbrains.com/issue/KT-57567
-        val e = if (isK2) "test.pkg.Event" else "E!"
-        val s = if (isK2) "test.pkg.State" else "E!"
+        val e = "test.pkg.Event"
+        val s = "test.pkg.State"
         uastCheck(
             isK2,
             sourceFiles =
@@ -571,8 +571,8 @@ abstract class UastTestBase : DriverTest() {
     protected fun `Upper bound wildcards -- enum members`(isK2: Boolean) {
         // https://youtrack.jetbrains.com/issue/KT-57578
         val upperBound = "? extends "
-        val c = if (isK2) "test.pkg.PowerCategory" else "E!"
-        val d = if (isK2) "test.pkg.PowerCategoryDisplayLevel" else "E!"
+        val c = "test.pkg.PowerCategory"
+        val d = "test.pkg.PowerCategoryDisplayLevel"
         uastCheck(
             isK2,
             sourceFiles =
@@ -742,7 +742,7 @@ abstract class UastTestBase : DriverTest() {
                   public interface NavGraphBuilder {
                   }
                   public final class NavGraphBuilderKt {
-                    method public static Void compose(test.pkg.NavGraphBuilder, optional kotlin.jvm.functions.Function1<${wildcard1}test.pkg.AnimatedContentTransitionScope<test.pkg.NavBackStackEntry>,${wildcard2}test.pkg.EnterTransition>? enterTransition);
+                    method public static Void compose(test.pkg.NavGraphBuilder, optional kotlin.jvm.functions.Function1<${wildcard1}test.pkg.AnimatedContentTransitionScope<test.pkg.NavBackStackEntry>,${wildcard2}test.pkg.EnterTransition?>? enterTransition);
                   }
                 }
                 """

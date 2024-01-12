@@ -280,7 +280,7 @@ internal class JavaStubWriter(
                                     constructor
                                         .containingClass()
                                         .mapTypeVariables(it.containingClass())
-                                val cast = map[type.toTypeString(context = it)] ?: typeString
+                                val cast = map[type]?.toTypeString() ?: typeString
                                 writer.write(cast)
                             } else {
                                 writer.write(typeString)
@@ -290,7 +290,7 @@ internal class JavaStubWriter(
                         writer.write("null")
                     } else {
                         // Add cast for things like shorts and bytes
-                        val typeString = type.toTypeString(context = it)
+                        val typeString = type.toTypeString()
                         if (
                             typeString != "boolean" && typeString != "int" && typeString != "long"
                         ) {

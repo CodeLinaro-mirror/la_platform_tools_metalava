@@ -6,6 +6,7 @@ com.android.tools.metalava.model.testsuite.CommonClassItemTest
   Test mapTypeVariables with multiple layers of super classes[psi,kotlin]
 
 com.android.tools.metalava.model.testsuite.typeitem.CommonTypeItemTest
+  Test convertType[psi,kotlin]
   check TypeItem asClass()[psi,java]
 
 com.android.tools.metalava.model.testsuite.typeitem.CommonTypeModifiersTest

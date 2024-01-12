@@ -1213,4 +1213,240 @@ class CommonTypeItemTest : BaseModelTest() {
             assertThat((removeAllE as VariableTypeItem).asTypeParameter).isEqualTo(typeParam)
         }
     }
+
+    @Test
+    fun `Test convertType`() {
+        runCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+                        import java.util.List;
+                        import java.util.Map;
+                        public class Parent<M, N> {
+                            public M getM() {}
+                            public N[] getNArray() {}
+                            public List<M> getMList() {}
+                            public Map<M, N> getMap() {}
+                            public Parent<? extends M, ? super N> getWildcards() {}
+                        }
+                    """
+                        .trimIndent()
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        public class Child<X, Y> extends Parent<X, Y> {}
+                    """
+                        .trimIndent()
+                ),
+            ),
+            inputSet(
+                signature(
+                    """
+                        // Signature format: 5.0
+                        package test.pkg {
+                          public class Child<X, Y> extends test.pkg.Parent<X,Y> {
+                          }
+                          public class Parent<M, N> {
+                            method public M getM();
+                            method public java.util.List<M> getMList();
+                            method public java.util.Map<M,N> getMap();
+                            method public N[] getNArray();
+                            method public test.pkg.Parent<? extends M, ? super N> getWildcards();
+                          }
+                        }
+                    """
+                        .trimIndent()
+                )
+            ),
+            inputSet(
+                kotlin(
+                    """
+                        package test.pkg
+                        open class Parent<M, N> {
+                            fun getM(): M {}
+                            fun getNArray(): Array<N> {}
+                            fun getMList(): List<M> {}
+                            fun getMap(): Map<M, N> {}
+                            fun getWildcards(): Parent<out M, in N> {}
+                        }
+                        class Child<X, Y> : Parent<X, Y>()
+                    """
+                        .trimIndent()
+                )
+            )
+        ) { codebase ->
+            val parent = codebase.assertClass("test.pkg.Parent")
+            val child = codebase.assertClass("test.pkg.Child")
+            val childTypeParams = child.typeParameterList().typeParameters()
+            val x = childTypeParams[0]
+            val y = childTypeParams[1]
+
+            val mVar = parent.assertMethod("getM", "").returnType()
+            val xVar = mVar.convertType(child, parent)
+            assertThat(xVar.toTypeString()).isEqualTo("X")
+            assertThat((xVar as VariableTypeItem).asTypeParameter).isEqualTo(x)
+
+            val nArray = parent.assertMethod("getNArray", "").returnType()
+            val yArray = nArray.convertType(child, parent)
+            assertThat(yArray.toTypeString()).isEqualTo("Y[]")
+            assertThat((yArray as ArrayTypeItem).isVarargs).isFalse()
+            assertThat((yArray.componentType as VariableTypeItem).asTypeParameter).isEqualTo(y)
+
+            val mList = parent.assertMethod("getMList", "").returnType()
+            val xList = mList.convertType(child, parent)
+            assertThat(xList.toTypeString()).isEqualTo("java.util.List<X>")
+            assertThat((xList as ClassTypeItem).qualifiedName).isEqualTo("java.util.List")
+            assertThat((xList.parameters.single() as VariableTypeItem).asTypeParameter).isEqualTo(x)
+
+            val mToNMap = parent.assertMethod("getMap", "").returnType()
+            val xToYMap = mToNMap.convertType(child, parent)
+            assertThat(xToYMap.toTypeString()).isEqualTo("java.util.Map<X,Y>")
+            assertThat((xToYMap as ClassTypeItem).qualifiedName).isEqualTo("java.util.Map")
+            assertThat((xToYMap.parameters[0] as VariableTypeItem).asTypeParameter).isEqualTo(x)
+            assertThat((xToYMap.parameters[1] as VariableTypeItem).asTypeParameter).isEqualTo(y)
+
+            val wildcards = parent.assertMethod("getWildcards", "").returnType()
+            val convertedWildcards = wildcards.convertType(child, parent)
+            assertThat(convertedWildcards.toTypeString())
+                .isEqualTo("test.pkg.Parent<? extends X,? super Y>")
+            assertThat((convertedWildcards as ClassTypeItem).qualifiedName)
+                .isEqualTo("test.pkg.Parent")
+            assertThat(convertedWildcards.parameters).hasSize(2)
+
+            val extendsX = convertedWildcards.parameters[0] as WildcardTypeItem
+            assertThat((extendsX.extendsBound as VariableTypeItem).asTypeParameter).isEqualTo(x)
+            val superN = convertedWildcards.parameters[1] as WildcardTypeItem
+            assertThat((superN.superBound as VariableTypeItem).asTypeParameter).isEqualTo(y)
+        }
+    }
+
+    @Test
+    fun `Test convertType with maps`() {
+        runCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+                    import java.util.List;
+                    public class Foo<T> {
+                        public int intField;
+                        public char charField;
+                        public String stringField;
+                        public T tField;
+                        public String[] stringArrayField;
+                        public List<String> listStringField;
+                        public List<List<String>> listListStringField;
+                        public Foo<? extends String> fooExtendsStringField;
+                        public Foo<? super String> fooSuperStringField;
+                    }
+                """
+                    .trimIndent()
+            ),
+            kotlin(
+                """
+                    package test.pkg
+                    class Foo<T> {
+                        @JvmField val intField: Int
+                        @JvmField val charField: Char
+                        @JvmField val stringField: String
+                        @JvmField val tField: T
+                        @JvmField val stringArrayField: Array<String>
+                        @JvmField val listStringField: List<String>
+                        @JvmField val listListStringField: List<List<String>>
+                        @JvmField val fooExtendsStringField: Foo<out String>
+                        @JvmField  val fooSuperStringField: Foo<in String>
+                    }
+                """
+                    .trimIndent()
+            ),
+            signature(
+                """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public class Foo {
+                        field public int intField;
+                        field public char charField;
+                        field public String stringField;
+                        field public T tField;
+                        field public String[] stringArrayField;
+                        field public java.util.List<java.lang.String> listStringField;
+                        field public java.util.List<java.util.List<java.lang.String>> listListStringField;
+                        field public test.pkg.Foo<? extends java.lang.String> fooExtendsStringField;
+                        field public test.pkg.Foo<? super java.lang.String> fooSuperStringField;
+                      }
+                    }
+                """
+                    .trimIndent()
+            )
+        ) { codebase ->
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+
+            val int = fooClass.fields().single { it.name() == "intField" }.type()
+            val char = fooClass.fields().single { it.name() == "charField" }.type()
+            val string = fooClass.fields().single { it.name() == "stringField" }.type()
+            val t = fooClass.fields().single { it.name() == "tField" }.type()
+            val stringArray = fooClass.fields().single { it.name() == "stringArrayField" }.type()
+            val listString = fooClass.fields().single { it.name() == "listStringField" }.type()
+            val listListString =
+                fooClass.fields().single { it.name() == "listListStringField" }.type()
+            val fooExtendsString =
+                fooClass.fields().single { it.name() == "fooExtendsStringField" }.type()
+            val fooSuperString =
+                fooClass.fields().single { it.name() == "fooSuperStringField" }.type()
+
+            // Converting primitive when it is in map and when it isn't
+            assertThat(int.convertType(mapOf(int to string))).isEqualTo(string)
+            assertThat(int.convertType(mapOf(char to string))).isEqualTo(int)
+
+            // Converting class when it is in map and when it isn't
+            assertThat(string.convertType(mapOf(string to int))).isEqualTo(int)
+            assertThat(string.convertType(mapOf(string to stringArray))).isEqualTo(stringArray)
+            assertThat(string.convertType(mapOf(char to string))).isEqualTo(string)
+
+            // Converting variable when it is in map and when it isn't
+            assertThat(t.convertType(mapOf(t to int))).isEqualTo(int)
+            assertThat(t.convertType(mapOf(t to fooExtendsString))).isEqualTo(fooExtendsString)
+            assertThat(t.convertType(mapOf(char to string))).isEqualTo(t)
+
+            // Converting array when it is in map, when it isn't, and when component is in map
+            assertThat(stringArray.convertType(mapOf(stringArray to int))).isEqualTo(int)
+            assertThat(stringArray.convertType(mapOf(char to string))).isEqualTo(stringArray)
+            val convertedArray = stringArray.convertType(mapOf(string to int))
+            assertThat(convertedArray).isInstanceOf(ArrayTypeItem::class.java)
+            assertThat((convertedArray as ArrayTypeItem).componentType).isEqualTo(int)
+
+            // Converting class parameters
+            val convertedList = listString.convertType(mapOf(string to stringArray))
+            assertThat(convertedList).isInstanceOf(ClassTypeItem::class.java)
+            assertThat((convertedList as ClassTypeItem).qualifiedName).isEqualTo("java.util.List")
+            assertThat(convertedList.parameters.single()).isEqualTo(stringArray)
+
+            val convertedListList = listListString.convertType(mapOf(string to stringArray))
+            assertThat(convertedListList).isInstanceOf(ClassTypeItem::class.java)
+            assertThat((convertedListList as ClassTypeItem).qualifiedName)
+                .isEqualTo("java.util.List")
+            assertThat(convertedListList.parameters.single()).isEqualTo(convertedList)
+
+            // Converting extends type
+            val convertedExtendsType = fooExtendsString.convertType(mapOf(string to int))
+            assertThat(convertedExtendsType).isInstanceOf(ClassTypeItem::class.java)
+            assertThat((convertedExtendsType as ClassTypeItem).qualifiedName)
+                .isEqualTo("test.pkg.Foo")
+            val extendsType = convertedExtendsType.parameters.single()
+            assertThat(extendsType).isInstanceOf(WildcardTypeItem::class.java)
+            assertThat((extendsType as WildcardTypeItem).extendsBound).isEqualTo(int)
+            assertThat(fooExtendsString.convertType(mapOf(char to int))).isEqualTo(fooExtendsString)
+
+            // Converting super type
+            val convertedSuperType = fooSuperString.convertType(mapOf(string to int))
+            assertThat(convertedSuperType).isInstanceOf(ClassTypeItem::class.java)
+            assertThat((convertedSuperType as ClassTypeItem).qualifiedName)
+                .isEqualTo("test.pkg.Foo")
+            val superType = convertedSuperType.parameters.single()
+            assertThat(superType).isInstanceOf(WildcardTypeItem::class.java)
+            assertThat((superType as WildcardTypeItem).superBound).isEqualTo(int)
+            assertThat(fooSuperString.convertType(mapOf(char to int))).isEqualTo(fooSuperString)
+        }
+    }
 }

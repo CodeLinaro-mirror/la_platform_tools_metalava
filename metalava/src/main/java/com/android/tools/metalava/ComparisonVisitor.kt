@@ -28,7 +28,6 @@ import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.visitors.ApiVisitor
-import com.android.tools.metalava.model.visitors.VisitCandidate
 import com.intellij.util.containers.Stack
 import java.util.function.Predicate
 
@@ -477,10 +476,8 @@ class CodebaseComparator(
                                     for (i in 0 until parameterCount1) {
                                         val parameter1 = parameters1[i]
                                         val parameter2 = parameters2[i]
-                                        val type1 =
-                                            parameter1.type().toTypeString(context = parameter1)
-                                        val type2 =
-                                            parameter2.type().toTypeString(context = parameter2)
+                                        val type1 = parameter1.type().toTypeString()
+                                        val type2 = parameter2.type().toTypeString()
                                         delta = type1.compareTo(type2)
                                         if (delta != 0) {
                                             // If the parameter types aren't the same, try a little
@@ -491,10 +488,8 @@ class CodebaseComparator(
                                             //      signatures since older signature files may have
                                             // removed
                                             //      those
-                                            val simpleType1 =
-                                                parameter1.type().toCanonicalType(parameter1)
-                                            val simpleType2 =
-                                                parameter2.type().toCanonicalType(parameter2)
+                                            val simpleType1 = parameter1.type().toCanonicalType()
+                                            val simpleType2 = parameter2.type().toCanonicalType()
                                             delta = simpleType1.compareTo(simpleType2)
                                             if (delta != 0) {
                                                 // If still not the same, check the special case for

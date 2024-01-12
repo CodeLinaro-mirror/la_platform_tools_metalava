@@ -29,10 +29,6 @@ internal class PsiTypeParameterList(
         }
     }
 
-    override fun typeParameterNames(): List<String> {
-        return typeParameters.map { it.simpleName() }
-    }
-
     override fun typeParameters(): List<TypeParameterItem> {
         return typeParameters
     }
