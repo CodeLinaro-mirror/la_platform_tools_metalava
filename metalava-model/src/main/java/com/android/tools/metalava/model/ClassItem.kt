@@ -546,7 +546,6 @@ interface ClassItem : Item {
                     if (!field.originallyHidden) {
                         val duplicated = field.duplicate(this)
                         if (predicate.test(duplicated)) {
-                            duplicated.inheritedField = true
                             fields.remove(duplicated)
                             fields.add(duplicated)
                         }
@@ -756,8 +755,16 @@ interface ClassItem : Item {
     /** Creates a constructor in this class */
     fun createDefaultConstructor(): ConstructorItem = codebase.unsupported()
 
-    /** Creates a method corresponding to the given method signature in this class */
-    fun createMethod(template: MethodItem): MethodItem = codebase.unsupported()
+    /**
+     * Creates a method corresponding to the given method signature in this class.
+     *
+     * This is used to inherit a [MethodItem] from a super class that will not be part of the API
+     * into a class that will be part of the API.
+     *
+     * The [MethodItem.inheritedFrom] property in the returned [MethodItem] is set to
+     * [MethodItem.containingClass] of the [template].
+     */
+    fun inheritMethodFromNonApiAncestor(template: MethodItem): MethodItem = codebase.unsupported()
 
     fun addMethod(method: MethodItem): Unit = codebase.unsupported()
 

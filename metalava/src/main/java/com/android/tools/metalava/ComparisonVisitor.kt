@@ -28,7 +28,6 @@ import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.visitors.ApiVisitor
-import com.intellij.util.containers.Stack
 import java.util.function.Predicate
 
 /**
@@ -97,6 +96,17 @@ open class ComparisonVisitor(
 
     open fun removed(old: ParameterItem, from: MethodItem?) {}
 }
+
+/** Simple stack type built on top of an [ArrayList]. */
+private typealias Stack<E> = ArrayList<E>
+
+private fun <E> Stack<E>.push(e: E) {
+    add(e)
+}
+
+private fun <E> Stack<E>.pop(): E = removeAt(lastIndex)
+
+private fun <E> Stack<E>.peek(): E = last()
 
 class CodebaseComparator(
     @Suppress("DEPRECATION")

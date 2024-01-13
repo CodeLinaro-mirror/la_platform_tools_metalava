@@ -1819,9 +1819,9 @@ private constructor(
             val type = item.type()
             val inherited =
                 when (item) {
-                    is ParameterItem -> item.containingMethod().inheritedMethod
-                    is FieldItem -> item.inheritedField
-                    is MethodItem -> item.inheritedMethod
+                    is ParameterItem -> item.containingMethod().inheritedFromAncestor
+                    is FieldItem -> item.inheritedFromAncestor
+                    is MethodItem -> item.inheritedFromAncestor
                     else -> false
                 }
             if (inherited) {

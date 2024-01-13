@@ -21,11 +21,15 @@ import com.android.tools.metalava.model.AnnotationAttributeValue
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.BaseItemVisitor
+import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.DefaultAnnotationArrayAttributeValue
 import com.android.tools.metalava.model.DefaultAnnotationAttribute
 import com.android.tools.metalava.model.DefaultAnnotationSingleAttributeValue
 import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
+import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeParameterList
 import com.google.common.collect.ImmutableList
@@ -54,8 +58,11 @@ import com.google.turbine.model.Const.Kind
 import com.google.turbine.model.Const.Value
 import com.google.turbine.model.TurbineConstantTypeKind as PrimKind
 import com.google.turbine.model.TurbineFlag
+import com.google.turbine.tree.Tree
 import com.google.turbine.tree.Tree.CompUnit
+import com.google.turbine.tree.Tree.Expression
 import com.google.turbine.tree.Tree.Ident
+import com.google.turbine.tree.Tree.Literal
 import com.google.turbine.type.AnnoInfo
 import com.google.turbine.type.Type
 import com.google.turbine.type.Type.ArrayTy
@@ -600,12 +607,15 @@ open class TurbineCodebaseInitialiser(
                         getCommentedDoc(documentation),
                     )
                 fieldModifierItem.setOwner(fieldItem)
+                val optExpr = field.decl()?.init()
+                val expr = if (optExpr != null && optExpr.isPresent()) optExpr.get() else null
+                setInitialValue(fieldItem, field.value()?.getValue(), expr)
                 fieldItem
             }
     }
 
     private fun createMethods(classItem: TurbineClassItem, methods: List<MethodInfo>) {
-        classItem.methods =
+        val methodItems =
             methods
                 .filter { it.sym().name() != "<init>" }
                 .map { method ->
@@ -634,6 +644,8 @@ open class TurbineCodebaseInitialiser(
                     methodItem.throwsClassNames = getThrowsList(method.exceptions())
                     methodItem
                 }
+        // Ignore default enum methods
+        classItem.methods = methodItems.filter { !isDefaultEnumMethod(classItem, it) }
     }
 
     private fun createParameters(methodItem: TurbineMethodItem, parameters: List<ParamInfo>) {
@@ -749,4 +761,55 @@ open class TurbineCodebaseInitialiser(
             }
             .toString()
     }
+
+    private fun setInitialValue(fieldItem: TurbineFieldItem, value: Any?, expr: Expression?) {
+        if (value != null) {
+            fieldItem.initialValueWithRequiredConstant = value
+            fieldItem.initialValueWithoutRequiredConstant = value
+            return
+        }
+        if (expr != null) {
+            return when (expr.kind()) {
+                Tree.Kind.LITERAL -> {
+                    fieldItem.initialValueWithRequiredConstant = null
+                    fieldItem.initialValueWithoutRequiredConstant =
+                        getValue((expr as Literal).value())
+                }
+                // Class Type
+                Tree.Kind.CLASS_LITERAL -> {
+                    fieldItem.initialValueWithRequiredConstant = null
+                    fieldItem.initialValueWithoutRequiredConstant = expr
+                }
+                else -> {
+                    fieldItem.initialValueWithRequiredConstant = null
+                    fieldItem.initialValueWithoutRequiredConstant = null
+                }
+            }
+        }
+    }
+
+    /** Determines whether the given method is a default enum method ("values" or "valueOf"). */
+    private fun isDefaultEnumMethod(classItem: ClassItem, methodItem: MethodItem): Boolean =
+        classItem.isEnum() &&
+            (methodItem.name() == "values" && isValuesMethod(classItem, methodItem) ||
+                methodItem.name() == "valueOf" && isValueOfMethod(classItem, methodItem))
+
+    /** Checks if the given method matches the signature of the "values" enum method. */
+    private fun isValuesMethod(classItem: ClassItem, methodItem: MethodItem): Boolean =
+        methodItem.returnType().let { returnType ->
+            returnType is ArrayTypeItem &&
+                matchType(returnType.componentType, classItem) &&
+                methodItem.parameters().isEmpty()
+        }
+
+    /** Checks if the given method matches the signature of the "valueOf" enum method. */
+    private fun isValueOfMethod(classItem: ClassItem, methodItem: MethodItem): Boolean =
+        matchType(methodItem.returnType(), classItem) &&
+            methodItem.parameters().singleOrNull()?.type()?.let {
+                it is ClassTypeItem && it.qualifiedName == "java.lang.String"
+            }
+                ?: false
+
+    private fun matchType(typeItem: TypeItem, classItem: ClassItem): Boolean =
+        typeItem is ClassTypeItem && typeItem.qualifiedName == classItem.qualifiedName()
 }

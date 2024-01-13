@@ -21,7 +21,6 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.intellij.psi.PsiAnnotationMethod
-import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiMethod
 import org.jetbrains.kotlin.name.JvmStandardClassIds
 import org.jetbrains.kotlin.psi.KtFunction
@@ -31,7 +30,6 @@ import org.jetbrains.kotlin.psi.KtProperty
 import org.jetbrains.kotlin.psi.KtPropertyAccessor
 import org.jetbrains.uast.UAnnotation
 import org.jetbrains.uast.UAnnotationMethod
-import org.jetbrains.uast.UClass
 import org.jetbrains.uast.UElement
 import org.jetbrains.uast.UMethod
 import org.jetbrains.uast.UThrowExpression
@@ -42,20 +40,24 @@ import org.jetbrains.uast.toUElement
 import org.jetbrains.uast.visitor.AbstractUastVisitor
 
 open class PsiMethodItem(
-    override val codebase: PsiBasedCodebase,
+    codebase: PsiBasedCodebase,
     val psiMethod: PsiMethod,
-    private val containingClass: ClassItem,
-    private val name: String,
+    // Takes ClassItem as this may be duplicated from a PsiBasedCodebase on the classpath into a
+    // TextClassItem.
+    containingClass: ClassItem,
+    name: String,
     modifiers: PsiModifierItem,
     documentation: String,
     private val returnType: PsiTypeItem,
     private val parameters: List<PsiParameterItem>
 ) :
-    PsiItem(
+    PsiMemberItem(
         codebase = codebase,
         modifiers = modifiers,
         documentation = documentation,
-        element = psiMethod
+        element = psiMethod,
+        containingClass = containingClass,
+        name = name,
     ),
     MethodItem {
 
@@ -68,24 +70,12 @@ open class PsiMethodItem(
 
     override var emit: Boolean = !modifiers.isExpect()
 
-    /**
-     * If this item was created by filtering down a different codebase, this temporarily points to
-     * the original item during construction. This is used to let us initialize for example throws
-     * lists later, when all classes in the codebase have been initialized.
-     */
-    internal var source: PsiMethodItem? = null
-
-    override var inheritedMethod: Boolean = false
     override var inheritedFrom: ClassItem? = null
 
     override var property: PsiPropertyItem? = null
 
     @Deprecated("This property should not be accessed directly.")
     override var _requiresOverride: Boolean? = null
-
-    override fun name(): String = name
-
-    override fun containingClass(): ClassItem = containingClass
 
     override fun equals(other: Any?): Boolean {
         // TODO: Allow mix and matching with other MethodItems?
@@ -121,7 +111,7 @@ open class PsiMethodItem(
     override val synthetic: Boolean
         get() = isEnumSyntheticMethod()
 
-    override fun psi(): PsiMethod = psiMethod
+    override fun psi() = psiMethod
 
     private var superMethods: List<MethodItem>? = null
 
@@ -154,18 +144,6 @@ open class PsiMethodItem(
     }
 
     override fun throwsTypes(): List<ClassItem> = throwsTypes
-
-    override fun isCloned(): Boolean {
-        val psiClass = run {
-            val p = (containingClass() as? PsiClassItem)?.psi() ?: return false
-            if (p is UClass) {
-                p.sourcePsi as? PsiClass ?: return false
-            } else {
-                p
-            }
-        }
-        return psiMethod.containingClass != psiClass
-    }
 
     override fun isExtensionMethod(): Boolean {
         if (isKotlin()) {
@@ -310,6 +288,13 @@ open class PsiMethodItem(
     }
 
     companion object {
+        /**
+         * Create a [PsiMethodItem].
+         *
+         * The [containingClass] is not necessarily a [PsiClassItem] as this is used to implement
+         * [MethodItem.duplicate] as well as create [PsiMethodItem] from the underlying Psi source
+         * model.
+         */
         internal fun create(
             codebase: PsiBasedCodebase,
             containingClass: ClassItem,
@@ -372,6 +357,11 @@ open class PsiMethodItem(
             return method
         }
 
+        /**
+         * Create a [PsiMethodItem] from a [PsiMethodItem] in a hidden super class.
+         *
+         * @see ClassItem.inheritMethodFromNonApiAncestor
+         */
         internal fun create(
             codebase: PsiBasedCodebase,
             containingClass: PsiClassItem,
@@ -380,6 +370,23 @@ open class PsiMethodItem(
             val replacementMap = containingClass.mapTypeVariables(original.containingClass())
             val returnType = original.returnType.convertType(replacementMap) as PsiTypeItem
 
+            // This results in a PsiMethodItem that is inconsistent, compared with other
+            // PsiMethodItem. PsiMethodItems created directly from the source are such that:
+            //
+            //    psiMethod.containingClass === containingClass().psiClass
+            //
+            // However, the PsiMethodItem created here contains a psiMethod from a different class,
+            // usually the super class, so:
+            //
+            //    psiMethod.containingClass !== containingClass().psiClass
+            //
+            // If the method was created from the super class then:
+            //
+            //    psiMethod.containingClass === containingClass().superClass().psiClass
+            //
+            // The consequence of this is that the PsiMethodItem does not behave as might be
+            // expected. e.g. superMethods() will find super methods of the method in the super
+            // class, not the PsiMethodItem's containing class.
             val method =
                 PsiMethodItem(
                     codebase = codebase,
@@ -393,8 +400,6 @@ open class PsiMethodItem(
                         PsiParameterItem.create(codebase, original.parameters(), replacementMap)
                 )
             method.modifiers.setOwner(method)
-            method.source = original
-            method.inheritedMethod = original.inheritedMethod
 
             return method
         }

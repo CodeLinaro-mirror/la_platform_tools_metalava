@@ -80,7 +80,7 @@ class CommonTypeItemTest : BaseModelTest() {
                 """
                     .trimIndent()
             )
-        ) { codebase ->
+        ) {
             val method = codebase.assertClass("test.pkg.Foo").methods().single()
 
             val returnType = method.returnType()
@@ -136,7 +136,7 @@ class CommonTypeItemTest : BaseModelTest() {
                 """
                     .trimIndent()
             )
-        ) { codebase ->
+        ) {
             val method = codebase.assertClass("test.pkg.Foo").methods().single()
 
             val paramTypes = method.parameters().map { it.type() }
@@ -192,7 +192,7 @@ class CommonTypeItemTest : BaseModelTest() {
                 """
                     .trimIndent()
             )
-        ) { codebase ->
+        ) {
             val method = codebase.assertClass("test.pkg.Foo").methods().single()
 
             val paramTypes = method.parameters().map { it.type() }
@@ -235,7 +235,7 @@ class CommonTypeItemTest : BaseModelTest() {
                 """
                     .trimIndent()
             )
-        ) { codebase ->
+        ) {
             val method = codebase.assertClass("test.pkg.Foo").methods().single()
 
             val paramTypes = method.parameters().map { it.type() }
@@ -308,7 +308,7 @@ class CommonTypeItemTest : BaseModelTest() {
                 """
                     .trimIndent()
             )
-        ) { codebase ->
+        ) {
             val method = codebase.assertClass("test.pkg.Foo").methods().single()
 
             val paramTypes = method.parameters().map { it.type() }
@@ -378,7 +378,7 @@ class CommonTypeItemTest : BaseModelTest() {
                 """
                     .trimIndent()
             )
-        ) { codebase ->
+        ) {
             val method = codebase.assertClass("test.pkg.Foo").methods().single()
 
             val wildcardTypes =
@@ -459,7 +459,7 @@ class CommonTypeItemTest : BaseModelTest() {
                 """
                     .trimIndent()
             )
-        ) { codebase ->
+        ) {
             val clz = codebase.assertClass("test.pkg.Foo")
             val classTypeParam = clz.typeParameterList().typeParameters().single()
             val method = clz.methods().single()
@@ -518,7 +518,7 @@ class CommonTypeItemTest : BaseModelTest() {
                 """
                     .trimIndent()
             )
-        ) { codebase ->
+        ) {
             val foo = codebase.assertClass("test.pkg.Foo")
             val fooTypeParam = foo.typeParameterList().typeParameters().single()
 
@@ -585,7 +585,7 @@ class CommonTypeItemTest : BaseModelTest() {
                 """
                     .trimIndent()
             )
-        ) { codebase ->
+        ) {
             val foo = codebase.assertClass("test.pkg.Foo")
             val fooParam = foo.typeParameterList().typeParameters().single()
 
@@ -644,7 +644,7 @@ class CommonTypeItemTest : BaseModelTest() {
                 """
                     .trimIndent()
             )
-        ) { codebase ->
+        ) {
             val foo = codebase.assertClass("test.pkg.Foo")
             val fooParam = foo.typeParameterList().typeParameters().single()
 
@@ -678,7 +678,7 @@ class CommonTypeItemTest : BaseModelTest() {
                 """
                     .trimIndent()
             )
-        ) { codebase ->
+        ) {
             val foo = codebase.assertClass("test.pkg.Foo")
             val fooParam = foo.typeParameterList().typeParameters().single()
 
@@ -729,7 +729,7 @@ class CommonTypeItemTest : BaseModelTest() {
                 """
                     .trimIndent()
             )
-        ) { codebase ->
+        ) {
             val method = codebase.assertClass("test.pkg.Foo").methods().single()
             val paramTypes = method.parameters().map { it.type() }
 
@@ -819,7 +819,7 @@ class CommonTypeItemTest : BaseModelTest() {
                 """
                     .trimIndent()
             )
-        ) { codebase ->
+        ) {
             val method = codebase.assertClass("test.pkg.Outer").methods().single()
 
             // Outer.Middle.Inner
@@ -886,7 +886,7 @@ class CommonTypeItemTest : BaseModelTest() {
                 """
                     .trimIndent()
             )
-        ) { codebase ->
+        ) {
             val method = codebase.assertClass("test.pkg.Test").methods().single()
 
             // Map.Entry<String,String>
@@ -946,7 +946,7 @@ class CommonTypeItemTest : BaseModelTest() {
                 """
                     .trimIndent()
             )
-        ) { codebase ->
+        ) {
             val method = codebase.assertClass("test.pkg.Outer").methods().single()
             val methodTypeParameters = method.typeParameterList().typeParameters()
             assertThat(methodTypeParameters).hasSize(2)
@@ -1012,7 +1012,7 @@ class CommonTypeItemTest : BaseModelTest() {
                 """
                     .trimIndent()
             )
-        ) { codebase ->
+        ) {
             // Verify that the Cache superclass type uses the Cache type variables
             val cache = codebase.assertClass("test.pkg.Cache")
             val cacheTypeParams = cache.typeParameterList().typeParameters()
@@ -1090,7 +1090,7 @@ class CommonTypeItemTest : BaseModelTest() {
                     }
                 """
             )
-        ) { codebase ->
+        ) {
             val method = codebase.assertClass("test.pkg.Foo").methods().single()
 
             // java.util.Collection<java.util.List<java.lang.String>[]>
@@ -1147,7 +1147,7 @@ class CommonTypeItemTest : BaseModelTest() {
                 """
                     .trimIndent()
             )
-        ) { codebase ->
+        ) {
             val classItem = codebase.assertClass("test.pkg.Test")
             val methodItem1 = classItem.methods()[0]
 
@@ -1183,7 +1183,7 @@ class CommonTypeItemTest : BaseModelTest() {
                 """
                     .trimIndent()
             )
-        ) { codebase ->
+        ) {
             val fooClass = codebase.assertClass("test.pkg.Foo")
             val typeParam = fooClass.typeParameterList().typeParameters().single()
 
@@ -1276,7 +1276,7 @@ class CommonTypeItemTest : BaseModelTest() {
                         .trimIndent()
                 )
             )
-        ) { codebase ->
+        ) {
             val parent = codebase.assertClass("test.pkg.Parent")
             val child = codebase.assertClass("test.pkg.Child")
             val childTypeParams = child.typeParameterList().typeParameters()
@@ -1379,7 +1379,7 @@ class CommonTypeItemTest : BaseModelTest() {
                 """
                     .trimIndent()
             )
-        ) { codebase ->
+        ) {
             val fooClass = codebase.assertClass("test.pkg.Foo")
 
             val int = fooClass.fields().single { it.name() == "intField" }.type()

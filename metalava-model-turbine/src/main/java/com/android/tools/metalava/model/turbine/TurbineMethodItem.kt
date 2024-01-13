@@ -38,7 +38,6 @@ open class TurbineMethodItem(
     private lateinit var throwsTypes: List<ClassItem>
     internal lateinit var parameters: List<ParameterItem>
 
-    override var inheritedMethod: Boolean = false
     override var inheritedFrom: ClassItem? = null
 
     override var documentation: String = document

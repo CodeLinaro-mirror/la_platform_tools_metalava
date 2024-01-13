@@ -45,7 +45,7 @@ import org.jetbrains.uast.UastFacade
 
 class PsiParameterItem
 internal constructor(
-    override val codebase: PsiBasedCodebase,
+    codebase: PsiBasedCodebase,
     private val psiParameter: PsiParameter,
     private val name: String,
     override val parameterIndex: Int,
@@ -65,6 +65,8 @@ internal constructor(
     override var property: PsiPropertyItem? = null
 
     override fun name(): String = name
+
+    override fun psi() = psiParameter
 
     override fun publicName(): String? {
         if (isKotlin(psiParameter)) {

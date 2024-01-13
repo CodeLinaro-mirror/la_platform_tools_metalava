@@ -47,7 +47,7 @@ import org.jetbrains.uast.getParentOfType
 
 open class PsiClassItem
 internal constructor(
-    override val codebase: PsiBasedCodebase,
+    codebase: PsiBasedCodebase,
     val psiClass: PsiClass,
     private val name: String,
     private val fullName: String,
@@ -88,7 +88,7 @@ internal constructor(
 
     override fun isEnum(): Boolean = classType == ClassType.ENUM
 
-    override fun psi(): PsiClass = psiClass
+    override fun psi() = psiClass
 
     override fun isFromClassPath(): Boolean = fromClassPath
 
@@ -327,7 +327,7 @@ internal constructor(
         return PsiConstructorItem.createDefaultConstructor(codebase, this, psiClass)
     }
 
-    override fun createMethod(template: MethodItem): MethodItem {
+    override fun inheritMethodFromNonApiAncestor(template: MethodItem): MethodItem {
         val method = template as PsiMethodItem
         val newMethod = PsiMethodItem.create(codebase, this, method)
 
@@ -345,6 +345,9 @@ internal constructor(
             newMethod.setThrowsTypes(throwsTypes)
         }
         newMethod.finishInitialization()
+
+        // Remember which class this method was copied from.
+        newMethod.inheritedFrom = template.containingClass()
 
         return newMethod
     }

@@ -525,14 +525,12 @@ class ApiAnalyzer(
         // public
         // interfaces that are listed in this class. Create stubs for them:
         map.values.flatten().forEach {
-            val method = cls.createMethod(it)
+            val method = cls.inheritMethodFromNonApiAncestor(it)
             /* Insert comment marker: This is useful for debugging purposes but doesn't
                belong in the stub
             method.documentation = "// Inlined stub from hidden parent class ${it.containingClass().qualifiedName()}\n" +
                     method.documentation
              */
-            method.inheritedMethod = true
-            method.inheritedFrom = it.containingClass()
 
             val name = method.name()
             val candidates = existingMethodMap[name]

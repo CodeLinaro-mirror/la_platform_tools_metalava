@@ -45,7 +45,7 @@ class CommonPropertyItemTest : BaseModelTest() {
                     }
                 """
             ),
-        ) { codebase ->
+        ) {
             val barClass = codebase.assertClass("test.pkg.Bar")
             val property = barClass.properties().single()
             val methods = barClass.methods()

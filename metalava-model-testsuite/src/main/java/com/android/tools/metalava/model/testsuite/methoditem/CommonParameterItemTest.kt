@@ -60,7 +60,7 @@ class CommonParameterItemTest : BaseModelTest() {
                     }
                 """
             ),
-        ) { codebase ->
+        ) {
             val parameterItem =
                 codebase.assertClass("test.pkg.Bar").methods().single().parameters().single()
             val annotation = parameterItem.modifiers.annotations().single()
@@ -105,7 +105,7 @@ class CommonParameterItemTest : BaseModelTest() {
                     }
                 """
             ),
-        ) { codebase ->
+        ) {
             val parameterItem =
                 codebase.assertClass("test.pkg.Bar").methods().single().parameters().single()
             assertEquals("deprecated", false, parameterItem.deprecated)

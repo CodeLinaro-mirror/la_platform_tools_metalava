@@ -75,7 +75,7 @@ class CommonAnnotationItemTest : BaseModelTest() {
                     }
                 """
             ),
-        ) { codebase ->
+        ) {
             val testClass = codebase.assertClass("test.pkg.Test")
             val anno = testClass.modifiers.annotations().single()
 
@@ -134,7 +134,7 @@ class CommonAnnotationItemTest : BaseModelTest() {
                     }
                 """
             ),
-        ) { codebase ->
+        ) {
             val testClass = codebase.assertClass("test.pkg.Test")
             val anno = testClass.modifiers.annotations().single()
 
@@ -184,7 +184,7 @@ class CommonAnnotationItemTest : BaseModelTest() {
                     }
                 """
             ),
-        ) { codebase ->
+        ) {
             val testClass = codebase.assertClass("test.pkg.Test")
             val anno = testClass.modifiers.annotations().single()
 
@@ -246,7 +246,7 @@ class CommonAnnotationItemTest : BaseModelTest() {
                     }
                 """
             ),
-        ) { codebase ->
+        ) {
             val testClass = codebase.assertClass("test.pkg.Test")
             val anno = testClass.modifiers.annotations().single()
 
@@ -361,7 +361,7 @@ class CommonAnnotationItemTest : BaseModelTest() {
                     }
                 """
             ),
-        ) { codebase ->
+        ) {
             val testClass = codebase.assertClass("test.pkg.Test")
             val anno = testClass.modifiers.annotations().single()
 
@@ -431,7 +431,7 @@ class CommonAnnotationItemTest : BaseModelTest() {
                     }
                 """
             ),
-        ) { codebase ->
+        ) {
             val testClass = codebase.assertClass("test.pkg.Test")
             val anno = testClass.modifiers.annotations().single()
 
