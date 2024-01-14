@@ -32,32 +32,20 @@ import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.WildcardTypeItem
 import com.android.tools.metalava.model.findAnnotation
-import com.intellij.psi.JavaTokenType
 import com.intellij.psi.PsiArrayType
-import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiClassType
-import com.intellij.psi.PsiCompiledElement
-import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiEllipsisType
-import com.intellij.psi.PsiJavaCodeReferenceElement
-import com.intellij.psi.PsiJavaToken
 import com.intellij.psi.PsiNameHelper
 import com.intellij.psi.PsiPrimitiveType
-import com.intellij.psi.PsiRecursiveElementVisitor
-import com.intellij.psi.PsiReferenceList
 import com.intellij.psi.PsiSubstitutor
 import com.intellij.psi.PsiType
-import com.intellij.psi.PsiTypeElement
 import com.intellij.psi.PsiTypeParameter
-import com.intellij.psi.PsiTypeParameterList
 import com.intellij.psi.PsiTypes
 import com.intellij.psi.PsiWildcardType
 import com.intellij.psi.impl.source.PsiImmediateClassType
-import com.intellij.psi.util.PsiTypesUtil
 import com.intellij.psi.util.TypeConversionUtil
 import java.lang.IllegalStateException
 import java.util.function.Predicate
-import org.jetbrains.uast.kotlin.isKotlin
 
 /** Represents a type backed by PSI */
 sealed class PsiTypeItem(open val codebase: PsiBasedCodebase, open val psiType: PsiType) :
@@ -66,23 +54,12 @@ sealed class PsiTypeItem(open val codebase: PsiBasedCodebase, open val psiType: 
     private var toAnnotatedString: String? = null
     private var asClass: PsiClassItem? = null
 
-    override fun toTypeString(
+    fun toTypeStringWithOldKotlinNulls(
         annotations: Boolean,
         kotlinStyleNulls: Boolean,
         context: Item?,
-        filter: Predicate<Item>?,
-        spaceBetweenParameters: Boolean
+        filter: Predicate<Item>?
     ): String {
-        if (!kotlinStyleNulls) {
-            return super.toTypeString(
-                annotations,
-                kotlinStyleNulls,
-                context,
-                filter,
-                spaceBetweenParameters
-            )
-        }
-
         if (filter != null) {
             // No caching when specifying filter.
             // TODO: When we support type use annotations, here we need to deal with markRecent
@@ -379,220 +356,6 @@ sealed class PsiTypeItem(open val codebase: PsiBasedCodebase, open val psiType: 
                 // There are other [PsiType]s, but none can appear in API surfaces.
                 else -> throw IllegalStateException("Invalid type in API surface: $psiType")
             }
-        }
-
-        fun typeParameterList(typeList: PsiTypeParameterList?): String? {
-            if (typeList != null && typeList.typeParameters.isNotEmpty()) {
-                // TODO: Filter the type list classes? Try to construct a typelist of a private API!
-                // We can't just use typeList.text here, because that just
-                // uses the declaration from the source, which may not be
-                // fully qualified - e.g. we might get
-                //    <T extends View> instead of <T extends android.view.View>
-                // Therefore, we'll need to compute it ourselves; I can't find
-                // a utility for this
-                val sb = StringBuilder()
-                typeList.accept(
-                    object : PsiRecursiveElementVisitor() {
-                        override fun visitElement(element: PsiElement) {
-                            if (element is PsiTypeParameterList) {
-                                val typeParameters = element.typeParameters
-                                if (typeParameters.isEmpty()) {
-                                    return
-                                }
-                                sb.append("<")
-                                var first = true
-                                for (parameter in typeParameters) {
-                                    if (!first) {
-                                        sb.append(", ")
-                                    }
-                                    first = false
-                                    visitElement(parameter)
-                                }
-                                sb.append(">")
-                                return
-                            } else if (element is PsiTypeParameter) {
-                                if (PsiTypeParameterItem.isReified(element)) {
-                                    sb.append("reified ")
-                                }
-                                sb.append(element.name)
-                                // TODO: How do I get super -- e.g. "Comparable<? super T>"
-                                val extendsList = element.extendsList
-                                val refList = extendsList.referenceElements
-                                if (refList.isNotEmpty()) {
-                                    sb.append(" extends ")
-                                    var first = true
-                                    for (refElement in refList) {
-                                        if (!first) {
-                                            sb.append(" & ")
-                                        } else {
-                                            first = false
-                                        }
-
-                                        if (refElement is PsiJavaCodeReferenceElement) {
-                                            visitElement(refElement)
-                                            continue
-                                        }
-                                        val resolved = refElement.resolve()
-                                        if (resolved is PsiClass) {
-                                            sb.append(resolved.qualifiedName ?: resolved.name)
-                                            resolved.typeParameterList?.accept(this)
-                                        } else {
-                                            sb.append(refElement.referenceName)
-                                        }
-                                    }
-                                } else {
-                                    val extendsListTypes = element.extendsListTypes
-                                    if (extendsListTypes.isNotEmpty()) {
-                                        sb.append(" extends ")
-                                        var first = true
-                                        for (type in extendsListTypes) {
-                                            if (!first) {
-                                                sb.append(" & ")
-                                            } else {
-                                                first = false
-                                            }
-                                            val resolved = type.resolve()
-                                            if (resolved == null) {
-                                                sb.append(type.className)
-                                            } else {
-                                                sb.append(resolved.qualifiedName ?: resolved.name)
-                                                resolved.typeParameterList?.accept(this)
-                                            }
-                                        }
-                                    }
-                                }
-                                return
-                            } else if (element is PsiJavaCodeReferenceElement) {
-                                val resolved = element.resolve()
-                                if (resolved is PsiClass) {
-                                    if (resolved.qualifiedName == null) {
-                                        sb.append(resolved.name)
-                                    } else {
-                                        sb.append(resolved.qualifiedName)
-                                    }
-                                    val typeParameters = element.parameterList
-                                    if (typeParameters != null) {
-                                        val typeParameterElements =
-                                            typeParameters.typeParameterElements
-                                        if (typeParameterElements.isEmpty()) {
-                                            return
-                                        }
-
-                                        // When reading in this from bytecode, the order is
-                                        // sometimes wrong
-                                        // (for example, for
-                                        //    public interface BaseStream<T, S extends BaseStream<T,
-                                        // S>>
-                                        // the extends type BaseStream<T, S> will return the
-                                        // typeParameterElements
-                                        // as [S,T] instead of [T,S]. However, the
-                                        // typeParameters.typeArguments
-                                        // list is correct, so order the elements by the
-                                        // typeArguments array instead
-
-                                        // Special case: just one type argument: no sorting issue
-                                        if (typeParameterElements.size == 1) {
-                                            sb.append("<")
-                                            var first = true
-                                            for (parameter in typeParameterElements) {
-                                                if (!first) {
-                                                    sb.append(", ")
-                                                }
-                                                first = false
-                                                visitElement(parameter)
-                                            }
-                                            sb.append(">")
-                                            return
-                                        }
-
-                                        // More than one type argument
-
-                                        val typeArguments = typeParameters.typeArguments
-                                        if (typeArguments.isNotEmpty()) {
-                                            sb.append("<")
-                                            var first = true
-                                            for (parameter in typeArguments) {
-                                                if (!first) {
-                                                    sb.append(", ")
-                                                }
-                                                first = false
-                                                // Try to match up a type parameter element
-                                                var found = false
-                                                for (typeElement in typeParameterElements) {
-                                                    if (parameter == typeElement.type) {
-                                                        found = true
-                                                        visitElement(typeElement)
-                                                        break
-                                                    }
-                                                }
-                                                if (!found) {
-                                                    // No type element matched: use type instead
-                                                    val classType =
-                                                        PsiTypesUtil.getPsiClass(parameter)
-                                                    if (classType != null) {
-                                                        visitElement(classType)
-                                                    } else {
-                                                        sb.append(parameter.canonicalText)
-                                                    }
-                                                }
-                                            }
-                                            sb.append(">")
-                                        }
-                                    }
-                                    return
-                                }
-                            } else if (element is PsiTypeElement) {
-                                val type = element.type
-                                if (type is PsiWildcardType) {
-                                    sb.append("?")
-                                    if (type.isBounded) {
-                                        if (type.isExtends) {
-                                            sb.append(" extends ")
-                                            sb.append(type.extendsBound.canonicalText)
-                                        }
-                                        if (type.isSuper) {
-                                            sb.append(" super ")
-                                            sb.append(type.superBound.canonicalText)
-                                        }
-                                    }
-                                    return
-                                }
-                                sb.append(type.canonicalText)
-                                return
-                            } else if (
-                                element is PsiJavaToken && element.tokenType == JavaTokenType.COMMA
-                            ) {
-                                sb.append(",")
-                                return
-                            }
-                            if (element.firstChild == null) { // leaf nodes only
-                                if (element is PsiCompiledElement) {
-                                    if (element is PsiReferenceList) {
-                                        val referencedTypes = element.referencedTypes
-                                        var first = true
-                                        for (referenceType in referencedTypes) {
-                                            if (first) {
-                                                first = false
-                                            } else {
-                                                sb.append(", ")
-                                            }
-                                            sb.append(referenceType.canonicalText)
-                                        }
-                                    }
-                                } else {
-                                    sb.append(element.text)
-                                }
-                            }
-                            super.visitElement(element)
-                        }
-                    }
-                )
-
-                val typeString = sb.toString()
-                return TypeItem.cleanupGenerics(typeString)
-            }
-
-            return null
         }
     }
 }

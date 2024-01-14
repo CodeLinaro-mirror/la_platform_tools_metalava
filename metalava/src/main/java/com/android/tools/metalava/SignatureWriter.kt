@@ -27,6 +27,7 @@ import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
+import com.android.tools.metalava.model.psi.PsiTypeItem
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import java.io.PrintWriter
@@ -42,6 +43,7 @@ class SignatureWriter(
     private val fileFormat: FileFormat,
     showUnannotated: Boolean,
     apiVisitorConfig: Config,
+    val updateKotlinNulls: Boolean = false
 ) :
     ApiVisitor(
         visitConstructorsAsMethods = false,
@@ -379,12 +381,21 @@ class SignatureWriter(
         type ?: return
 
         var typeString =
-            type.toTypeString(
-                annotations = fileFormat.includeTypeUseAnnotations,
-                kotlinStyleNulls = fileFormat.kotlinStyleNulls,
-                context = item,
-                filter = filterReference
-            )
+            if (updateKotlinNulls || !fileFormat.kotlinStyleNulls || type !is PsiTypeItem) {
+                type.toTypeString(
+                    annotations = fileFormat.includeTypeUseAnnotations,
+                    kotlinStyleNulls = fileFormat.kotlinStyleNulls,
+                    context = item,
+                    filter = filterReference
+                )
+            } else {
+                type.toTypeStringWithOldKotlinNulls(
+                    annotations = fileFormat.includeTypeUseAnnotations,
+                    kotlinStyleNulls = true,
+                    context = item,
+                    filter = filterReference
+                )
+            }
 
         // Strip java.lang. prefix
         typeString = TypeItem.shortenTypes(typeString)
