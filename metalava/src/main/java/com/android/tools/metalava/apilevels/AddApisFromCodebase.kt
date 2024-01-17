@@ -16,17 +16,35 @@
 
 package com.android.tools.metalava.apilevels
 
-import com.android.tools.metalava.internalName
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.FieldItem
+import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.visitors.ApiVisitor
+import java.util.function.Predicate
 
-/** Visits the API codebase and inserts into the [Api] the classes, methods and fields */
-fun addApisFromCodebase(api: Api, apiLevel: Int, codebase: Codebase, useInternalNames: Boolean) {
+/**
+ * Visits the API codebase and inserts into the [Api] the classes, methods and fields. If
+ * [providedFilterEmit] and [providedFilterReference] are non-null, they are used to determine which
+ * [Item]s should be added to the [api]. Otherwise, the [ApiVisitor] default filters are used.
+ */
+fun addApisFromCodebase(
+    api: Api,
+    apiLevel: Int,
+    codebase: Codebase,
+    useInternalNames: Boolean,
+    providedFilterEmit: Predicate<Item>? = null,
+    providedFilterReference: Predicate<Item>? = null
+) {
     codebase.accept(
-        object : ApiVisitor(visitConstructorsAsMethods = true, nestInnerClasses = false) {
+        object :
+            ApiVisitor(
+                visitConstructorsAsMethods = true,
+                nestInnerClasses = false,
+                filterEmit = providedFilterEmit,
+                filterReference = providedFilterReference
+            ) {
 
             var currentClass: ApiClass? = null
 

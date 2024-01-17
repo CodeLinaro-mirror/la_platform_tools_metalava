@@ -75,7 +75,23 @@ interface Item {
      */
     var removed: Boolean
 
-    /** True if this element has been marked deprecated */
+    /** True if this item has been marked deprecated. */
+    val originallyDeprecated: Boolean
+
+    /**
+     * True if this item has been marked as deprecated or is a descendant of a non-package item that
+     * has been marked as deprecated.
+     */
+    var effectivelyDeprecated: Boolean
+
+    /**
+     * True if this item has been marked deprecated.
+     *
+     * The meaning of this property changes over time. Initially, when reading sources it indicates
+     * whether the item has been marked as deprecated (either using `@deprecated` javadoc tag or
+     * `@Deprecated` annotation). However, during processing it is updated to `true` if any of its
+     * non-package ancestors have set this to `true`.
+     */
     var deprecated: Boolean
 
     /** True if this element is only intended for documentation */
@@ -92,9 +108,6 @@ interface Item {
 
     /** Visits this element using the given [visitor] */
     fun accept(visitor: ItemVisitor)
-
-    /** Visits all types in this item hierarchy */
-    fun acceptTypes(visitor: TypeVisitor)
 
     /** Get a mutable version of modifiers for this item */
     fun mutableModifiers(): MutableModifierList
@@ -203,14 +216,6 @@ interface Item {
      */
     fun hasShowSingleAnnotation(): Boolean = showability.showNonRecursive()
 
-    /**
-     * Returns true if this item has any show for stub purposes annotations and that is the only
-     * show annotation.
-     *
-     * See [Showability.forStubsOnly]
-     */
-    fun onlyShowForStubPurposes(): Boolean = showability.showForStubsOnly()
-
     /** Returns true if this modifier list contains any hide annotations */
     fun hasHideAnnotation(): Boolean =
         modifiers.codebase.annotationManager.hasHideAnnotations(modifiers)
@@ -218,27 +223,7 @@ interface Item {
     fun hasSuppressCompatibilityMetaAnnotation(): Boolean =
         modifiers.hasSuppressCompatibilityMetaAnnotations()
 
-    /**
-     * Same as [hasShowAnnotation], except if it's a method, take into account super methods'
-     * annotations.
-     *
-     * Unlike classes or fields, methods implicitly inherits visibility annotations, and for some
-     * visibility calculation we need to take it into account. (See ShowAnnotationTest.`Methods
-     * inherit showAnnotations but fields and classes don't`.)
-     */
-    fun hasShowAnnotationInherited(): Boolean = hasShowAnnotation()
-
-    /**
-     * Same as [onlyShowForStubPurposes], except if it's a method, take into account super methods'
-     * annotations.
-     *
-     * Unlike classes or fields, methods implicitly inherits visibility annotations, and for some
-     * visibility calculation we need to take it into account. (See ShowAnnotationTest.`Methods
-     * inherit showAnnotations but fields and classes don't`.)
-     */
-    fun onlyShowForStubPurposesInherited(): Boolean = onlyShowForStubPurposes()
-
-    fun sourceFile(): SourceFileItem? {
+    fun sourceFile(): SourceFile? {
         var curr: Item? = this
         while (curr != null) {
             if (curr is ClassItem && curr.isTopLevelClass()) {
@@ -282,6 +267,12 @@ interface Item {
      * files, it's null.
      */
     fun type(): TypeItem?
+
+    /**
+     * Find the [Item] in [codebase] that corresponds to this item, or `null` if there is no such
+     * item.
+     */
+    fun findCorrespondingItemIn(codebase: Codebase): Item?
 
     companion object {
         fun describe(item: Item, capitalize: Boolean = false): String {
@@ -400,7 +391,16 @@ interface Item {
     }
 }
 
-abstract class DefaultItem(override val sortingRank: Int = nextRank.getAndIncrement()) : Item {
+abstract class DefaultItem(modifiers: DefaultModifierList) : Item {
+
+    final override val sortingRank: Int = nextRank.getAndIncrement()
+
+    final override var originallyDeprecated = modifiers.isDeprecated()
+
+    final override var effectivelyDeprecated = originallyDeprecated
+
+    final override var deprecated = originallyDeprecated
+
     override val isPublic: Boolean
         get() = modifiers.isPublic()
 

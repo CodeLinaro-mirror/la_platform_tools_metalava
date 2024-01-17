@@ -24,6 +24,12 @@ interface ParameterItem : Item {
     /** The type of this field */
     @MetalavaApi override fun type(): TypeItem
 
+    override fun findCorrespondingItemIn(codebase: Codebase) =
+        containingMethod()
+            .findCorrespondingItemIn(codebase)
+            ?.parameters()
+            ?.getOrNull(parameterIndex)
+
     /** The containing method */
     fun containingMethod(): MethodItem
 
@@ -80,16 +86,6 @@ interface ParameterItem : Item {
 
     override fun accept(visitor: ItemVisitor) {
         visitor.visit(this)
-    }
-
-    override fun acceptTypes(visitor: TypeVisitor) {
-        if (visitor.skip(this)) {
-            return
-        }
-
-        val type = type()
-        visitor.visitType(type, this)
-        visitor.afterVisitType(type, this)
     }
 
     override fun requiresNullnessInfo(): Boolean {

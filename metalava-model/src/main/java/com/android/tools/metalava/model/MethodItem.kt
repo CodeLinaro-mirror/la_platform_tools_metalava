@@ -44,6 +44,9 @@ interface MethodItem : MemberItem {
 
     override fun type(): TypeItem? = returnType()
 
+    override fun findCorrespondingItemIn(codebase: Codebase) =
+        containingClass().findCorrespondingItemIn(codebase)?.findMethod(this)
+
     /** Returns the main documentation for the method (the documentation before any tags). */
     fun findMainDocumentation(): String
 
@@ -60,9 +63,6 @@ interface MethodItem : MemberItem {
      * names)
      */
     @MetalavaApi fun typeParameterList(): TypeParameterList
-
-    /** Returns the classes that are part of the type parameters of this method, if any */
-    fun typeArgumentClasses(): List<ClassItem> = codebase.unsupported()
 
     /** Types of exceptions that this method can throw */
     fun throwsTypes(): List<ClassItem>
@@ -165,30 +165,6 @@ interface MethodItem : MemberItem {
         visitor.visit(this)
     }
 
-    override fun acceptTypes(visitor: TypeVisitor) {
-        if (visitor.skip(this)) {
-            return
-        }
-
-        if (!isConstructor()) {
-            val type = returnType()
-            visitor.visitType(type, this)
-        }
-
-        for (parameter in parameters()) {
-            parameter.acceptTypes(visitor)
-        }
-
-        for (exception in throwsTypes()) {
-            exception.acceptTypes(visitor)
-        }
-
-        if (!isConstructor()) {
-            val type = returnType()
-            visitor.visitType(type, this)
-        }
-    }
-
     companion object {
         private fun compareMethods(
             o1: MethodItem,
@@ -259,9 +235,7 @@ interface MethodItem : MemberItem {
          *   if so, that should be included
          */
         private fun sameType(
-            context1: MethodItem,
             t1: TypeItem,
-            context2: MethodItem,
             t2: TypeItem,
             addAdditionalOverrides: Boolean,
         ): Boolean {
@@ -277,8 +251,7 @@ interface MethodItem : MemberItem {
             //    methods overrides in the signature file so only do it when adding additional
             //    overrides.
             return t1 == t2 &&
-                (!addAdditionalOverrides ||
-                    t1.toErasedTypeString(context1) == t2.toErasedTypeString(context2))
+                (!addAdditionalOverrides || t1.toErasedTypeString() == t2.toErasedTypeString())
         }
 
         fun sameSignature(
@@ -290,9 +263,7 @@ interface MethodItem : MemberItem {
             // subclass overrides with more specific return type)
             if (
                 !sameType(
-                    method,
                     method.returnType(),
-                    superMethod,
                     superMethod.returnType(),
                     addAdditionalOverrides = addAdditionalOverrides
                 )
@@ -324,7 +295,7 @@ interface MethodItem : MemberItem {
                 val pt1 = p1.type()
                 val pt2 = p2.type()
 
-                if (!sameType(method, pt1, superMethod, pt2, addAdditionalOverrides)) {
+                if (!sameType(pt1, pt2, addAdditionalOverrides)) {
                     return false
                 }
             }
@@ -476,8 +447,8 @@ interface MethodItem : MemberItem {
             if (typeString1 == typeString2) {
                 continue
             }
-            val type1 = parameter1.type().toErasedTypeString(this)
-            val type2 = parameter2.type().toErasedTypeString(other)
+            val type1 = parameter1.type().toErasedTypeString()
+            val type2 = parameter2.type().toErasedTypeString()
 
             if (type1 != type2) {
                 if (!checkGenericParameterTypes(typeString1, typeString2)) {
@@ -509,56 +480,33 @@ interface MethodItem : MemberItem {
      */
     fun hasHiddenType(filterReference: Predicate<Item>): Boolean {
         for (parameter in parameters()) {
-            val type = parameter.type()
-            if (type.hasTypeArguments()) {
-                for (argument in type.typeArgumentClasses()) {
-                    if (!filterReference.test(argument)) {
-                        return true
-                    }
-                }
-            }
-            val clz = type.asClass() ?: continue
-            if (!filterReference.test(clz)) {
-                return true
-            }
+            if (parameter.type().hasHiddenType(filterReference)) return true
         }
 
-        val returnType = returnType()
-        val returnTypeClass = returnType.asClass()
-        if (returnTypeClass != null && !filterReference.test(returnTypeClass)) {
-            return true
-        }
-        if (returnType.hasTypeArguments()) {
-            for (argument in returnType.typeArgumentClasses()) {
-                if (!filterReference.test(argument)) {
-                    return true
-                }
-            }
-        }
+        if (returnType().hasHiddenType(filterReference)) return true
 
-        if (typeParameterList().typeParameterCount() > 0) {
-            for (argument in typeArgumentClasses()) {
-                if (!filterReference.test(argument)) {
-                    return true
-                }
-            }
+        for (typeParameter in typeParameterList().typeParameters()) {
+            if (typeParameter.typeBounds().any { it.hasHiddenType(filterReference) }) return true
         }
 
         return false
     }
 
-    override fun hasShowAnnotationInherited(): Boolean {
-        if (super.hasShowAnnotationInherited()) {
-            return true
+    /** Checks if there is a reference to a hidden class anywhere in the type. */
+    private fun TypeItem.hasHiddenType(filterReference: Predicate<Item>): Boolean {
+        return when (this) {
+            is PrimitiveTypeItem -> false
+            is ArrayTypeItem -> componentType.hasHiddenType(filterReference)
+            is ClassTypeItem ->
+                asClass()?.let { !filterReference.test(it) } == true ||
+                    outerClassType?.hasHiddenType(filterReference) == true ||
+                    parameters.any { it.hasHiddenType(filterReference) }
+            is VariableTypeItem -> !filterReference.test(asTypeParameter)
+            is WildcardTypeItem ->
+                extendsBound?.hasHiddenType(filterReference) == true ||
+                    superBound?.hasHiddenType(filterReference) == true
+            else -> throw IllegalStateException("Unrecognized type: $this")
         }
-        return superMethods().any { it.hasShowAnnotationInherited() }
-    }
-
-    override fun onlyShowForStubPurposesInherited(): Boolean {
-        if (super.onlyShowForStubPurposesInherited()) {
-            return true
-        }
-        return superMethods().any { it.onlyShowForStubPurposesInherited() }
     }
 
     /** Whether this method is a getter/setter for an underlying Kotlin property (val/var) */
@@ -597,7 +545,10 @@ interface MethodItem : MemberItem {
 
     private fun computeRequiresOverride(): Boolean {
         val isVisible = !hidden || hasShowAnnotation()
-        return if (!modifiers.isAbstract()) {
+
+        // When the method is a concrete, non-default method, its overriding method is not required
+        // to be shown in the signature file.
+        return if (!modifiers.isAbstract() && !modifiers.isDefault()) {
             false
         } else if (superMethods().isEmpty()) {
             // If the method is abstract and is not overriding any parent methods,

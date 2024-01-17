@@ -77,6 +77,9 @@ private constructor(
     /** Map from issue id to element id to message */
     private val map = HashMap<Issues.Issue, MutableMap<String, String>>()
 
+    /** Count of the number of issues read in. */
+    private var readCount = 0
+
     init {
         if (file?.isFile == true && !silentUpdate) {
             // We've set a baseline from an existing file: read it
@@ -189,6 +192,7 @@ private constructor(
                 newIdMap[elementId] = message
             }
         }
+        readCount = map.values.sumOf { it.size }
     }
 
     private fun write(): Boolean {
@@ -222,7 +226,10 @@ private constructor(
         } else {
             updateFile.delete()
         }
-        return true
+        // Only output a message saying that the baseline file has been written if the map has had
+        // extra issues added to it since it was read in.
+        val totalCount = map.values.sumOf { it.size }
+        return totalCount > readCount
     }
 
     fun dumpStats(writer: PrintWriter) {

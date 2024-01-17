@@ -24,7 +24,6 @@ const val UNKNOWN_DEFAULT_VALUE = "__unknown_default_value__"
 
 class TextParameterItem(
     codebase: TextCodebase,
-    private val containingMethod: TextMethodItem,
     private var name: String,
     private var publicName: String?,
     private val hasDefaultValue: Boolean,
@@ -42,8 +41,10 @@ class TextParameterItem(
         modifiers.setOwner(this)
     }
 
+    internal lateinit var containingMethod: TextMethodItem
+
     override fun isVarArgs(): Boolean {
-        return type.toString().contains("...")
+        return modifiers.isVarArg()
     }
 
     override val synthetic: Boolean

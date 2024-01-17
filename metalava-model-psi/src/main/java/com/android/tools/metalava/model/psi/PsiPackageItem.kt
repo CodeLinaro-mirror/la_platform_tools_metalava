@@ -28,6 +28,7 @@ internal constructor(
     private val qualifiedName: String,
     modifiers: PsiModifierItem,
     documentation: String,
+    override val overviewDocumentation: String?,
     /** True if this package is from the classpath (dependencies). Exposed in [isFromClassPath]. */
     private val fromClassPath: Boolean
 ) :
@@ -142,6 +143,7 @@ internal constructor(
             codebase: PsiBasedCodebase,
             psiPackage: PsiPackage,
             extraDocs: String?,
+            overviewHtml: String?,
             fromClassPath: Boolean
         ): PsiPackageItem {
             val commentText = javadoc(psiPackage) + if (extraDocs != null) "\n$extraDocs" else ""
@@ -158,22 +160,9 @@ internal constructor(
                     psiPackage = psiPackage,
                     qualifiedName = qualifiedName,
                     documentation = commentText,
+                    overviewDocumentation = overviewHtml,
                     modifiers = modifiers,
                     fromClassPath = fromClassPath
-                )
-            pkg.modifiers.setOwner(pkg)
-            return pkg
-        }
-
-        fun create(codebase: PsiBasedCodebase, original: PsiPackageItem): PsiPackageItem {
-            val pkg =
-                PsiPackageItem(
-                    codebase = codebase,
-                    psiPackage = original.psiPackage,
-                    qualifiedName = original.qualifiedName,
-                    documentation = original.documentation,
-                    modifiers = PsiModifierItem.create(codebase, original.modifiers),
-                    fromClassPath = original.isFromClassPath()
                 )
             pkg.modifiers.setOwner(pkg)
             return pkg

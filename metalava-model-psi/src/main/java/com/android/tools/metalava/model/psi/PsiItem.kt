@@ -21,18 +21,15 @@ import com.android.tools.metalava.model.Location
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.MutableModifierList
 import com.android.tools.metalava.model.ParameterItem
+import com.android.tools.metalava.model.psi.KotlinTypeInfo.Companion.isInheritedGenericType
 import com.intellij.psi.PsiCompiledElement
 import com.intellij.psi.PsiDocCommentOwner
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiModifierListOwner
 import kotlin.properties.ReadWriteProperty
 import kotlin.reflect.KProperty
-import org.jetbrains.kotlin.analysis.api.KtAnalysisSession
 import org.jetbrains.kotlin.analysis.api.analyze
 import org.jetbrains.kotlin.analysis.api.symbols.KtCallableSymbol
-import org.jetbrains.kotlin.analysis.api.types.KtType
-import org.jetbrains.kotlin.analysis.api.types.KtTypeNullability
-import org.jetbrains.kotlin.analysis.api.types.KtTypeParameterType
 import org.jetbrains.kotlin.idea.KotlinLanguage
 import org.jetbrains.kotlin.kdoc.psi.api.KDoc
 import org.jetbrains.kotlin.psi.KtCallableDeclaration
@@ -48,8 +45,7 @@ internal constructor(
     val element: PsiElement,
     override val modifiers: PsiModifierItem,
     override var documentation: String
-) : DefaultItem() {
-    @Suppress("LeakingThis") override var deprecated: Boolean = modifiers.isDeprecated()
+) : DefaultItem(modifiers) {
 
     @Suppress(
         "LeakingThis"
@@ -132,20 +128,6 @@ internal constructor(
             }
             else -> false
         }
-    }
-
-    // Mimic `hasInheritedGenericType` in `...uast.kotlin.FirKotlinUastResolveProviderService`
-    private fun KtAnalysisSession.isInheritedGenericType(ktType: KtType): Boolean {
-        return ktType is KtTypeParameterType &&
-            // explicitly nullable, e.g., T?
-            !ktType.isMarkedNullable &&
-            // non-null upper bound, e.g., T : Any
-            nullability(ktType) != KtTypeNullability.NON_NULLABLE
-    }
-
-    // Mimic `nullability` in `...uast.kotlin.internal.firKotlinInternalUastUtils`
-    private fun KtAnalysisSession.nullability(ktType: KtType): KtTypeNullability {
-        return if (ktType.canBeNull) KtTypeNullability.NULLABLE else KtTypeNullability.NON_NULLABLE
     }
 
     /** Get a mutable version of modifiers for this item */

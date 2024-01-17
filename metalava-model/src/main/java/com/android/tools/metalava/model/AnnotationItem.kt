@@ -159,6 +159,12 @@ interface AnnotationItem {
 
     fun isSuppressCompatibilityAnnotation(): Boolean
 
+    /**
+     * Returns true iff this annotation is a showability annotation, i.e. one that will affect
+     * [showability].
+     */
+    fun isShowabilityAnnotation(): Boolean
+
     /** Returns the retention of this annotation */
     val retention: AnnotationRetention
         get() {
@@ -208,13 +214,14 @@ interface AnnotationItem {
         fun unshortenAnnotation(source: String): String {
             return when {
                 source == "@Deprecated" -> "@java.lang.Deprecated"
-                // The first 3 annotations are in the android.annotation. package, not
+                // The first 4 annotations are in the android.annotation. package, not
                 // androidx.annotation
                 // Nullability annotations are written as @NonNull and @Nullable in API text files,
                 // and these should be linked no android.annotation package when generating stubs.
                 source.startsWith("@SystemService") ||
                     source.startsWith("@TargetApi") ||
                     source.startsWith("@SuppressLint") ||
+                    source.startsWith("@FlaggedApi") ||
                     source.startsWith("@Nullable") ||
                     source.startsWith("@NonNull") -> "@android.annotation." + source.substring(1)
                 // If the first character of the name (after "@") is lower-case, then
@@ -421,9 +428,11 @@ private constructor(
 
     override fun isShowForStubPurposes(): Boolean = info.showability.showForStubsOnly()
 
-    override fun isHideAnnotation(): Boolean = info.hide
+    override fun isHideAnnotation(): Boolean = info.showability.hide()
 
     override fun isSuppressCompatibilityAnnotation(): Boolean = info.suppressCompatibility
+
+    override fun isShowabilityAnnotation(): Boolean = info.showability != Showability.NO_EFFECT
 
     override fun equals(other: Any?): Boolean {
         if (other !is AnnotationItem) return false

@@ -28,6 +28,7 @@ import com.intellij.pom.java.LanguageLevel
 import com.intellij.psi.javadoc.CustomJavadocTagProvider
 import com.intellij.psi.javadoc.JavadocTagInfo
 import java.io.File
+import kotlin.io.path.createTempDirectory
 import org.jetbrains.kotlin.config.CommonConfigurationKeys
 
 /** Manages the [UastEnvironment] objects created when processing sources. */
@@ -35,6 +36,18 @@ class PsiEnvironmentManager(
     private val disableStderrDumping: Boolean = false,
     private val forTesting: Boolean = false,
 ) : EnvironmentManager {
+
+    /**
+     * An empty directory, used when it is necessary to create an environment without any source.
+     * Simply providing an empty list of source roots will cause it to use the current working
+     * directory.
+     */
+    internal val emptyDir by lazy {
+        val path = createTempDirectory()
+        val file = path.toFile()
+        file.deleteOnExit()
+        file
+    }
 
     /**
      * Determines whether the manager has been closed. Used to prevent creating new environments

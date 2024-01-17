@@ -27,6 +27,9 @@ interface FieldItem : MemberItem {
     /** The type of this field */
     @MetalavaApi override fun type(): TypeItem
 
+    override fun findCorrespondingItemIn(codebase: Codebase) =
+        containingClass().findCorrespondingItemIn(codebase)?.findField(name())
+
     /**
      * The initial/constant value, if any. If [requireConstant] the initial value will only be
      * returned if it's constant.
@@ -59,16 +62,6 @@ interface FieldItem : MemberItem {
 
     override fun accept(visitor: ItemVisitor) {
         visitor.visit(this)
-    }
-
-    override fun acceptTypes(visitor: TypeVisitor) {
-        if (visitor.skip(this)) {
-            return
-        }
-
-        val type = type()
-        visitor.visitType(type, this)
-        visitor.afterVisitType(type, this)
     }
 
     /**

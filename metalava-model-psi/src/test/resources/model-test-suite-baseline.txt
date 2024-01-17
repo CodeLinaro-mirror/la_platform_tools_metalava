@@ -1,10 +1,11 @@
+com.android.tools.metalava.model.testsuite.BootstrapSourceModelProviderTest
+  200 - test TypeParameterList name strings[psi,java]
+
+com.android.tools.metalava.model.testsuite.typeitem.CommonTypeItemTest
+  check TypeItem asClass()[psi,java]
+
 com.android.tools.metalava.model.testsuite.typeitem.CommonTypeModifiersTest
   Test inner parameterized types with annotations[psi,java]
 
-com.android.tools.metalava.model.testsuite.typeitem.CommonTypeParameterItemTest
-  Test typeBounds extends Comparable[psi,java]
-  Test typeBounds extends Comparable[psi,kotlin]
-  Test typeBounds multiple[psi,java]
-  Test typeBounds multiple[psi,kotlin]
-  Test typeBounds no extends[psi,java]
-  Test typeBounds no extends[psi,kotlin]
+com.android.tools.metalava.model.testsuite.typeitem.CommonTypeStringTest
+  Type string[psi,java,null annotated parameterized inner type - annotated]

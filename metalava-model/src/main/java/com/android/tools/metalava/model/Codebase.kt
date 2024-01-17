@@ -38,12 +38,6 @@ interface Codebase {
     /** The packages in the codebase (may include packages that are not included in the API) */
     fun getPackages(): PackageList
 
-    /**
-     * The package documentation, if any - this returns overview.html files for each package that
-     * provided one. Not all codebases provide this.
-     */
-    fun getPackageDocs(): PackageDocs?
-
     /** The rough size of the codebase (package count) */
     fun size(): Int
 
@@ -65,10 +59,6 @@ interface Codebase {
 
     fun accept(visitor: ItemVisitor) {
         getPackages().accept(visitor)
-    }
-
-    fun acceptTypes(visitor: TypeVisitor) {
-        getPackages().acceptTypes(visitor)
     }
 
     /** Creates an annotation item for the given (fully qualified) Java source */
@@ -107,8 +97,6 @@ abstract class DefaultCodebase(
     final override val annotationManager: AnnotationManager,
 ) : Codebase {
     final override var original: Codebase? = null
-
-    override fun getPackageDocs(): PackageDocs? = null
 
     override fun unsupported(desc: String?): Nothing {
         error(

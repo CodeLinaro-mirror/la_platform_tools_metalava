@@ -77,12 +77,10 @@ Available Issues                             |  Category                |   Defa
   ChangedType                                |  compatibility           |   error
   ChangedValue                               |  compatibility           |   error
   ChangedVolatile                            |  compatibility           |   error
-  CommonArgsFirst                            |  api_lint                |   warning
   CompileTimeConstant                        |  api_lint                |   error
   ConcreteCollection                         |  api_lint                |   error
   ConfigFieldName                            |  api_lint                |   error
   ConflictingShowAnnotations                 |  unknown                 |   error
-  ConsistentArgumentOrder                    |  api_lint                |   error
   ContextFirst                               |  api_lint                |   error
   ContextNameSuffix                          |  api_lint                |   error
   DefaultValueChange                         |  api_lint                |   error
@@ -211,7 +209,7 @@ Available Issues                             |  Category                |   Defa
   UnflaggedApi                               |  api_lint                |   hidden
   UnhiddenSystemApi                          |  unknown                 |   error
   UniqueKotlinOperator                       |  api_lint                |   error
-  UnmatchedMergeAnnotation                   |  unknown                 |   warning
+  UnmatchedMergeAnnotation                   |  unknown                 |   error
   UnresolvedClass                            |  documentation           |   lint
   UnresolvedImport                           |  unknown                 |   info
   UnresolvedLink                             |  documentation           |   lint

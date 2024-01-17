@@ -150,10 +150,6 @@ open class PsiMethodItem(
         }
     }
 
-    override fun typeArgumentClasses(): List<ClassItem> {
-        return PsiTypeItem.typeParameterClasses(codebase, psiMethod.typeParameterList)
-    }
-
     //    private var throwsTypes: List<ClassItem>? = null
     private lateinit var throwsTypes: List<ClassItem>
 
@@ -357,7 +353,7 @@ open class PsiMethodItem(
                 parameterModifierString,
                 parameter.modifiers,
                 parameter,
-                target = AnnotationTarget.INTERNAL
+                target = AnnotationTarget.INTERNAL,
             )
             sb.append(parameterModifierString.toString())
             sb.append(parameter.type().convertTypeString(replacementMap))
@@ -390,6 +386,8 @@ open class PsiMethodItem(
         super.finishInitialization()
 
         throwsTypes = throwsTypes(codebase, psiMethod)
+        returnType.finishInitialization(this)
+        parameters.forEach { it.finishInitialization() }
     }
 
     companion object {
@@ -426,7 +424,7 @@ open class PsiMethodItem(
             val modifiers = modifiers(codebase, psiMethod, commentText)
             val parameters = parameterList(codebase, psiMethod)
             val psiReturnType = psiMethod.returnType
-            val returnType = codebase.getType(psiReturnType!!)
+            val returnType = codebase.getType(psiReturnType!!, psiMethod)
             val method =
                 PsiMethodItem(
                     codebase = codebase,
@@ -468,7 +466,7 @@ open class PsiMethodItem(
                     name = original.name(),
                     documentation = original.documentation,
                     modifiers = PsiModifierItem.create(codebase, original.modifiers),
-                    returnType = PsiTypeItem.create(codebase, original.returnType),
+                    returnType = original.returnType.duplicate(),
                     parameters = PsiParameterItem.create(codebase, original.parameters())
                 )
             method.modifiers.setOwner(method)

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018 The Android Open Source Project
+ * Copyright (C) 2023 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,12 +14,14 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava.model
+package com.android.tools.metalava.model.turbine
 
-data class PackageDocs(
-    val packageDocs: MutableMap<String, String>,
-    val overviewDocs: MutableMap<String, String>,
-    val hiddenPackages: MutableSet<String>
-) {
-    fun getOverviewDocumentation(pkg: PackageItem): String? = overviewDocs[pkg.qualifiedName()]
-}
+import com.android.tools.metalava.model.AnnotationAttribute
+import com.android.tools.metalava.model.DefaultAnnotationItem
+
+class TurbineAnnotationItem
+constructor(
+    override val codebase: TurbineBasedCodebase,
+    originalName: String?,
+    val annotationAttribute: List<AnnotationAttribute>,
+) : DefaultAnnotationItem(codebase, originalName, { annotationAttribute }) {}

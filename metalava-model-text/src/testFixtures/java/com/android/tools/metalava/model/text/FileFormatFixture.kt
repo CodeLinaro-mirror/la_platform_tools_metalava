@@ -14,7 +14,23 @@
  * limitations under the License.
  */
 
+@file:Suppress("PrivatePropertyName", "MayBeConstant")
+
 package com.android.tools.metalava.model.text
 
-const val FILE_FORMAT_PROPERTIES =
-    "'add-additional-overrides', 'concise-default-values', 'kotlin-style-nulls', 'language', 'migrating', 'name', 'overloaded-method-order', 'surface'"
+private val FILE_FORMAT_PROPERTY_NAMES =
+    listOf(
+        "add-additional-overrides",
+        "concise-default-values",
+        "include-type-use-annotations",
+        "kotlin-name-type-order",
+        "kotlin-style-nulls",
+        "language",
+        "migrating",
+        "name",
+        "overloaded-method-order",
+        "sort-whole-extends-list",
+        "surface",
+    )
+
+val FILE_FORMAT_PROPERTIES = FILE_FORMAT_PROPERTY_NAMES.joinToString { "'$it'" }

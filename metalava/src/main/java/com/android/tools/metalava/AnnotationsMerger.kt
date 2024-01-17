@@ -55,10 +55,9 @@ import com.android.tools.metalava.model.DefaultAnnotationAttribute
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ModifierList
+import com.android.tools.metalava.model.TraversingVisitor
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.psi.PsiAnnotationItem
-import com.android.tools.metalava.model.psi.PsiBasedCodebase
-import com.android.tools.metalava.model.psi.PsiTypeItem
 import com.android.tools.metalava.model.psi.extractRoots
 import com.android.tools.metalava.model.source.SourceCodebase
 import com.android.tools.metalava.model.source.SourceParser
@@ -111,27 +110,37 @@ class AnnotationsMerger(
         )
     }
 
+    /**
+     * Given a list of directories containing various files, scan those files merging them into the
+     * [codebase].
+     *
+     * All `.java` files are collated and
+     */
     private fun mergeAll(
         mergeAnnotations: List<File>,
         mergeFile: (File) -> Unit,
         mergeJavaStubsCodebase: (SourceCodebase) -> Unit
     ) {
-        val javaStubFiles = mutableListOf<File>()
-        mergeAnnotations.forEach { mergeFileOrDir(it, mergeFile, javaStubFiles) }
-        if (javaStubFiles.isNotEmpty()) {
-            // Set up class path to contain our main sources such that we can
-            // resolve types in the stubs
-            val roots = mutableListOf<File>()
-            extractRoots(reporter, options.sources, roots)
-            roots.addAll(options.sourcePath)
-            val javaStubsCodebase =
-                sourceParser.parseSources(
-                    javaStubFiles,
-                    "Codebase loaded from stubs",
-                    sourcePath = roots,
-                    classPath = options.classpath
-                )
-            mergeJavaStubsCodebase(javaStubsCodebase)
+        // Process each file (which are almost certainly directories) separately. That allows for a
+        // single Java class to merge in annotations from multiple separate files.
+        mergeAnnotations.forEach {
+            val javaStubFiles = mutableListOf<File>()
+            mergeFileOrDir(it, mergeFile, javaStubFiles)
+            if (javaStubFiles.isNotEmpty()) {
+                // Set up class path to contain our main sources such that we can
+                // resolve types in the stubs
+                val roots = mutableListOf<File>()
+                extractRoots(reporter, options.sources, roots)
+                roots.addAll(options.sourcePath)
+                val javaStubsCodebase =
+                    sourceParser.parseSources(
+                        javaStubFiles,
+                        "Codebase loaded from stubs",
+                        sourcePath = roots,
+                        classPath = options.classpath
+                    )
+                mergeJavaStubsCodebase(javaStubsCodebase)
+            }
         }
     }
 
@@ -266,6 +275,14 @@ class AnnotationsMerger(
                 }
 
                 override fun removed(old: Item, from: Item?) {
+                    // Do not report missing items if there are no annotations to copy.
+                    if (old.modifiers.annotations().isEmpty()) {
+                        old.type()?.let { typeItem ->
+                            if (typeItem.modifiers.annotations().isEmpty()) return
+                        }
+                            ?: return
+                    }
+
                     reporter.report(
                         Issues.UNMATCHED_MERGE_ANNOTATION,
                         old,
@@ -303,14 +320,8 @@ class AnnotationsMerger(
                 }
 
                 private fun mergeTypeAnnotations(typeItem: TypeItem, new: Item) {
-                    val type = (typeItem as? PsiTypeItem)?.psiType ?: return
-                    val typeAnnotations = type.annotations
-                    if (typeAnnotations.isNotEmpty()) {
-                        for (annotation in typeAnnotations) {
-                            val codebase = new.codebase as PsiBasedCodebase
-                            val annotationItem = PsiAnnotationItem.create(codebase, annotation)
-                            mergeAnnotation(annotationItem, new.modifiers, new)
-                        }
+                    for (annotation in typeItem.modifiers.annotations()) {
+                        mergeAnnotation(annotation, new.modifiers, new)
                     }
                 }
             }
@@ -319,36 +330,61 @@ class AnnotationsMerger(
     }
 
     private fun mergeInclusionAnnotationsFromCodebase(externalCodebase: Codebase) {
-        val showAnnotations = options.allShowAnnotations
-        val hideAnnotations = options.hideAnnotations
-        if (showAnnotations.isNotEmpty() || hideAnnotations.isNotEmpty()) {
-            val visitor =
-                object : ComparisonVisitor() {
-                    override fun compare(old: Item, new: Item) {
-                        // Transfer any show/hide annotations from the external to the main
-                        // codebase.
-                        for (annotation in old.modifiers.annotations()) {
-                            val qualifiedName = annotation.qualifiedName ?: continue
-                            if (
-                                (annotation.isShowAnnotation() || annotation.isHideAnnotation()) &&
-                                    new.modifiers.findAnnotation(qualifiedName) == null
-                            ) {
-                                new.mutableModifiers().addAnnotation(annotation)
+        val visitor =
+            object : TraversingVisitor() {
+                override fun visitItem(item: Item): TraversalAction {
+                    // Find any show/hide annotations or FlaggedApi annotations to copy from the
+                    // external to the main codebase. If there are none to copy then return.
+                    val annotationsToCopy =
+                        item.modifiers.annotations().filter { annotation ->
+                            val qualifiedName = annotation.qualifiedName
+                            annotation.isShowabilityAnnotation() ||
+                                qualifiedName == ANDROID_FLAGGED_API
+                        }
+                    if (annotationsToCopy.isEmpty()) {
+                        // Just because there are no annotations on an [Item] does not mean that
+                        // there will not be on the children so make sure to visit them as normal.
+                        return TraversalAction.CONTINUE
+                    }
+
+                    // Find the item to which the annotations should be copied, reporting an issue
+                    // if it could not be found.
+                    val mainItem =
+                        item.findCorrespondingItemIn(codebase)
+                            ?: run {
+                                reporter.report(
+                                    Issues.UNMATCHED_MERGE_ANNOTATION,
+                                    item,
+                                    "inclusion annotations were given for $item but no matching item was found"
+                                )
+
+                                // If an [Item] cannot be found then there is no point in visiting
+                                // its children as they will not be found either.
+                                return TraversalAction.SKIP_CHILDREN
                             }
-                        }
-                        // The hidden field in the main codebase is already initialized. So if the
-                        // element is hidden in the external codebase, hide it in the main codebase
-                        // too.
-                        if (old.hidden) {
-                            new.hidden = true
-                        }
-                        if (old.originallyHidden) {
-                            new.originallyHidden = true
+
+                    // Copy the annotations to the main item.
+                    val modifiers = mainItem.mutableModifiers()
+                    for (annotation in annotationsToCopy) {
+                        if (modifiers.findAnnotation(annotation.qualifiedName!!) == null) {
+                            modifiers.addAnnotation(annotation)
                         }
                     }
+
+                    // The hidden field in the main codebase is already initialized. So if the
+                    // element is hidden in the external codebase, hide it in the main codebase
+                    // too.
+                    if (item.hidden) {
+                        mainItem.hidden = true
+                    }
+                    if (item.originallyHidden) {
+                        mainItem.originallyHidden = true
+                    }
+
+                    return TraversalAction.CONTINUE
                 }
-            CodebaseComparator().compare(visitor, externalCodebase, codebase)
-        }
+            }
+        externalCodebase.accept(visitor)
     }
 
     internal fun error(message: String) {

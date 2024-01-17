@@ -26,7 +26,6 @@ import com.android.tools.metalava.model.DefaultCodebase
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MethodItem
-import com.android.tools.metalava.model.PackageDocs
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PackageList
 import com.android.tools.metalava.model.source.SourceCodebase
@@ -65,6 +64,7 @@ import org.jetbrains.uast.UClass
 import org.jetbrains.uast.UFile
 import org.jetbrains.uast.UastFacade
 import org.jetbrains.uast.kotlin.BaseKotlinUastResolveProviderService
+import org.jetbrains.uast.kotlin.isKotlin
 
 const val PACKAGE_ESTIMATE = 500
 const val CLASS_ESTIMATE = 15000
@@ -155,8 +155,6 @@ open class PsiBasedCodebase(
      */
     private var initializing = false
 
-    private var packageDocs: PackageDocs? = null
-
     private var hideClassesFromJars = true
 
     private lateinit var emptyPackage: PsiPackageItem
@@ -168,13 +166,12 @@ open class PsiBasedCodebase(
     ) {
         initializing = true
         this.units = psiFiles
-        packageDocs = packages
 
         this.uastEnvironment = uastEnvironment
         // there are currently ~230 packages in the public SDK, but here we need to account for
         // internal ones too
         val hiddenPackages: MutableSet<String> = packages.hiddenPackages
-        val packageDocs: MutableMap<String, String> = packages.packageDocs
+        val packageDocs = packages.packageDocs
         this.hiddenPackages = HashMap(100)
         for (pkgName in hiddenPackages) {
             this.hiddenPackages[pkgName] = true
@@ -288,6 +285,7 @@ open class PsiBasedCodebase(
         }
 
         // Next construct packages
+        val overviewDocs = packages.overviewDocs
         for ((pkgName, classes) in packageClasses) {
             val psiPackage = findPsiPackage(pkgName)
             if (psiPackage == null) {
@@ -296,7 +294,13 @@ open class PsiBasedCodebase(
             }
 
             val sortedClasses = classes.toMutableList().sortedWith(ClassItem.fullNameComparator)
-            registerPackage(psiPackage, sortedClasses, packageDocs[pkgName], pkgName)
+            registerPackage(
+                pkgName,
+                psiPackage,
+                sortedClasses,
+                packageDocs[pkgName],
+                overviewDocs[pkgName],
+            )
         }
         initializing = false
 
@@ -306,8 +310,8 @@ open class PsiBasedCodebase(
         val initialPackages = ArrayList(packageMap.values)
         var registeredCount =
             packageMap.size // classes added after this point will have indices >= original
-        for (cls in initialPackages) {
-            cls.finishInitialization()
+        for (pkg in initialPackages) {
+            pkg.finishInitialization()
         }
 
         // Finish initialization of any additional classes that were registered during
@@ -357,8 +361,7 @@ open class PsiBasedCodebase(
         for (pkgName in missingPackages) {
             val psiPackage = findPsiPackage(pkgName) ?: continue
             val sortedClasses = emptyList<PsiClassItem>()
-            val packageHtml = null
-            registerPackage(psiPackage, sortedClasses, packageHtml, pkgName)
+            registerPackage(pkgName, psiPackage, sortedClasses)
         }
 
         // Connect up all the package items
@@ -383,16 +386,18 @@ open class PsiBasedCodebase(
     }
 
     private fun registerPackage(
+        pkgName: String,
         psiPackage: PsiPackage,
         sortedClasses: List<PsiClassItem>?,
-        packageHtml: String?,
-        pkgName: String
+        packageHtml: String? = null,
+        overviewHtml: String? = null,
     ): PsiPackageItem {
         val packageItem =
             PsiPackageItem.create(
                 this,
                 psiPackage,
                 packageHtml,
+                overviewHtml,
                 fromClassPath = fromClasspath || !initializing
             )
         packageItem.emit = !packageItem.isFromClassPath()
@@ -485,18 +490,8 @@ open class PsiBasedCodebase(
             }
 
             packageClasses.sortWith(ClassItem.fullNameComparator)
-            // TODO: How do we obtain the package docs? We generally don't have them, but it *would*
-            // be
-            // nice if we picked up "overview.html" bundled files and added them. But since the docs
-            // are generally missing for all elements *anyway*, let's not bother.
-            val docs = packageDocs?.packageDocs
-            val packageHtml: String? =
-                if (docs != null) {
-                    docs[pkgName]
-                } else {
-                    null
-                }
-            registerPackage(psiPackage, packageClasses, packageHtml, pkgName)
+            // When loading from a jar there is no package documentation.
+            registerPackage(pkgName, psiPackage, packageClasses)
         }
 
         emptyPackage = findPackage("")!!
@@ -586,13 +581,9 @@ open class PsiBasedCodebase(
             val pkgName = getPackageName(clz)
             val pkg = findPackage(pkgName)
             if (pkg == null) {
-                // val packageHtml: String? = packageDocs?.packageDocs!![pkgName]
-                // dynamically discovered packages should NOT be included
-                // val packageHtml = "/** @hide */"
-                val packageHtml = null
                 val psiPackage = findPsiPackage(pkgName)
                 if (psiPackage != null) {
-                    val packageItem = registerPackage(psiPackage, null, packageHtml, pkgName)
+                    val packageItem = registerPackage(pkgName, psiPackage, null)
                     packageItem.addClass(classItem)
                 }
             } else {
@@ -609,10 +600,6 @@ open class PsiBasedCodebase(
             this,
             packageMap.values.toMutableList().sortedWith(PackageItem.comparator)
         )
-    }
-
-    override fun getPackageDocs(): PackageDocs? {
-        return packageDocs
     }
 
     override fun size(): Int {
@@ -698,17 +685,28 @@ open class PsiBasedCodebase(
     internal fun getComment(string: String, parent: PsiElement? = null): PsiDocComment =
         getFactory().createDocCommentFromText(string, parent)
 
-    internal fun getType(psiType: PsiType): PsiTypeItem {
+    /**
+     * Returns a [PsiTypeItem] representing the [psiType]. The [context] is used to get nullability
+     * information for Kotlin types.
+     */
+    internal fun getType(psiType: PsiType, context: PsiElement? = null): PsiTypeItem {
+        val kotlinTypeInfo =
+            if (context != null && isKotlin(context)) {
+                KotlinTypeInfo.fromContext(context)
+            } else {
+                null
+            }
+
         // Note: We do *not* cache these; it turns out that storing PsiType instances
         // in a map is bad for performance; it has a very expensive equals operation
         // for some type comparisons (and we sometimes end up with unexpected results,
         // e.g. where we fetch an "equals" type from the map but its representation
         // is slightly different than we intended
-        return PsiTypeItem.create(this, psiType)
+        return PsiTypeItem.create(this, psiType, kotlinTypeInfo)
     }
 
     internal fun getType(psiClass: PsiClass): PsiTypeItem {
-        return PsiTypeItem.create(this, getFactory().createType(psiClass))
+        return PsiTypeItem.create(this, getFactory().createType(psiClass), null)
     }
 
     private fun getPackageName(clz: PsiClass): String {

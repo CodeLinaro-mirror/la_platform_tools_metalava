@@ -29,4 +29,29 @@ interface TypeParameterItem : ClassItem {
     fun typeBounds(): List<TypeItem>
 
     fun isReified(): Boolean
+
+    fun toSource(): String {
+        return buildString {
+            if (isReified()) {
+                append("reified ")
+            }
+            append(simpleName())
+            // If the only bound is Object, omit it because it is implied.
+            if (
+                typeBounds().isNotEmpty() && typeBounds().singleOrNull()?.isJavaLangObject() != true
+            ) {
+                append(" extends ")
+                var first = true
+                for (bound in typeBounds()) {
+                    if (!first) {
+                        append(" ")
+                        append("&")
+                        append(" ")
+                    }
+                    first = false
+                    append(bound.toTypeString(spaceBetweenParameters = true))
+                }
+            }
+        }
+    }
 }

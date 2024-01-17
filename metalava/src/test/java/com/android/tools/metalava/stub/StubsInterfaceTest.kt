@@ -454,7 +454,7 @@ class StubsInterfaceTest : AbstractStubsTest() {
                         """
                     package android.content.res;
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
-                    public interface XmlResourceParser extends org.xmlpull.v1.XmlPullParser,  android.util.AttributeSet, java.lang.AutoCloseable {
+                    public interface XmlResourceParser extends org.xmlpull.v1.XmlPullParser, android.util.AttributeSet, java.lang.AutoCloseable {
                     public void close();
                     }
                     """
@@ -518,7 +518,7 @@ class StubsInterfaceTest : AbstractStubsTest() {
                         package test.pkg
                         @file:Suppress("ALL")
                         class MainClass : test.pkg.MyParentClass(), test.pkg.MyInterface1, test.pkg.MyInterface2 {
-                        open fun MainClass(): test.pkg.MainClass! = error("Stub!")
+                        open fun MainClass(): test.pkg.MainClass = error("Stub!")
                         }
                     """
                     )

@@ -105,7 +105,7 @@ object Issues {
     val RETURNING_UNEXPECTED_CONSTANT = Issue(Severity.WARNING)
     val DEPRECATED_OPTION = Issue(Severity.WARNING)
     val BOTH_PACKAGE_INFO_AND_HTML = Issue(Severity.WARNING, Category.DOCUMENTATION)
-    val UNMATCHED_MERGE_ANNOTATION = Issue(Severity.WARNING)
+    val UNMATCHED_MERGE_ANNOTATION = Issue(Severity.ERROR)
     // The plan is for this to be set as an error once (1) existing code is marked as @deprecated
     // and (2) the principle is adopted by the API council
     val REFERENCES_DEPRECATED = Issue(Severity.HIDDEN)
@@ -201,8 +201,6 @@ object Issues {
     val USE_PARCEL_FILE_DESCRIPTOR = Issue(Severity.ERROR, Category.API_LINT)
     val NO_BYTE_OR_SHORT = Issue(Severity.WARNING, Category.API_LINT)
     val SINGLETON_CONSTRUCTOR = Issue(Severity.ERROR, Category.API_LINT)
-    val COMMON_ARGS_FIRST = Issue(Severity.WARNING, Category.API_LINT)
-    val CONSISTENT_ARGUMENT_ORDER = Issue(Severity.ERROR, Category.API_LINT)
     val KOTLIN_KEYWORD = Issue(Severity.ERROR, Category.API_LINT)
     val UNIQUE_KOTLIN_OPERATOR = Issue(Severity.ERROR, Category.API_LINT)
     val SAM_SHOULD_BE_LAST = Issue(Severity.WARNING, Category.API_LINT)

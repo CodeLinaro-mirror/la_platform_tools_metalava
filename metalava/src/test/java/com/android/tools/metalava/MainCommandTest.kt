@@ -66,12 +66,6 @@ Options:
                                              itself part of the API and is not included as a class
 
                                              inline - will include the constants themselves into each usage site
-  --add-nonessential-overrides-classes TEXT  Specifies a list of qualified class names where all visible overriding
-                                             methods are added to signature files. This is a no-op when --format does
-                                             not specify --add-additional-overrides=yes.
-
-                                             The list of qualified class names should be separated with ':'(colon).
-                                             (default: [])
   -h, --help                                 Show this message and exit
 
 $ISSUE_REPORTING_OPTIONS_HELP
@@ -210,13 +204,6 @@ Generating Stubs:
                                              Exclude element documentation (javadoc and kdoc) from the generated stubs.
                                              (Copyright notices are not affected by this, they are always included.
                                              Documentation stubs (--doc-stubs) are not affected.)
---write-stubs-source-list <file>
-                                             Write the list of generated stub files into the given source list file. If
-                                             generating documentation stubs and you haven't also specified
-                                             --write-doc-stubs-source-list, this list will refer to the documentation
-                                             stubs; otherwise it's the non-documentation stubs.
---write-doc-stubs-source-list <file>
-                                             Write the list of generated doc stub files into the given source list file
 
 
 Diffs and Checks:

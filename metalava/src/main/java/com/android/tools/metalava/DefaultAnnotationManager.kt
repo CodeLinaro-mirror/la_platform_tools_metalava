@@ -35,32 +35,25 @@ import com.android.tools.metalava.model.AnnotationRetention
 import com.android.tools.metalava.model.AnnotationTarget
 import com.android.tools.metalava.model.BaseAnnotationManager
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.JAVA_LANG_PREFIX
+import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ModifierList
 import com.android.tools.metalava.model.ModifierList.Companion.SUPPRESS_COMPATIBILITY_ANNOTATION
 import com.android.tools.metalava.model.NO_ANNOTATION_TARGETS
+import com.android.tools.metalava.model.ShowOrHide
 import com.android.tools.metalava.model.Showability
 import com.android.tools.metalava.model.TypedefMode
 import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.model.isNonNullAnnotation
 import com.android.tools.metalava.model.isNullableAnnotation
-import com.android.tools.metalava.reporter.Issues
-import com.android.tools.metalava.reporter.Reporter
 import java.util.function.Predicate
 
 /** The type of lambda that can construct a key from an [AnnotationItem] */
 typealias KeyFactory = (annotationItem: AnnotationItem) -> String
 
-class DefaultAnnotationManager(
-    /**
-     * The optional reporter.
-     *
-     * This is optional as at the moment not all callers have or need a [Reporter].
-     */
-    private val reporter: Reporter? = null,
-    private val config: Config = Config()
-) : BaseAnnotationManager() {
+class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnnotationManager() {
 
     data class Config(
         val passThroughAnnotations: Set<String> = emptySet(),
@@ -69,10 +62,13 @@ class DefaultAnnotationManager(
         val showSingleAnnotations: AnnotationFilter = AnnotationFilter.emptyFilter(),
         val showForStubPurposesAnnotations: AnnotationFilter = AnnotationFilter.emptyFilter(),
         val hideAnnotations: AnnotationFilter = AnnotationFilter.emptyFilter(),
+        val revertAnnotations: AnnotationFilter = AnnotationFilter.emptyFilter(),
         val suppressCompatibilityMetaAnnotations: Set<String> = emptySet(),
         val excludeAnnotations: Set<String> = emptySet(),
         val typedefMode: TypedefMode = TypedefMode.NONE,
         val apiPredicate: Predicate<Item> = Predicate { true },
+        val previouslyReleasedCodebaseProvider: () -> Codebase? = { null },
+        val previouslyReleasedRemovedCodebaseProvider: () -> Codebase? = { null },
     )
 
     /**
@@ -113,6 +109,7 @@ class DefaultAnnotationManager(
                 config.showSingleAnnotations,
                 config.showForStubPurposesAnnotations,
                 config.hideAnnotations,
+                config.revertAnnotations,
             )
         annotationNameToKeyFactory =
             filters
@@ -244,8 +241,8 @@ class DefaultAnnotationManager(
             // These aren't support annotations
             "android.annotation.AppIdInt",
             "android.annotation.SuppressAutoDoc",
-            "android.annotation.SystemApi",
-            "android.annotation.TestApi",
+            ANDROID_SYSTEM_API,
+            ANDROID_TEST_API,
             "android.annotation.CallbackExecutor",
             "android.annotation.Condemned",
             "android.annotation.Hide",
@@ -359,7 +356,17 @@ class DefaultAnnotationManager(
             // from those. This is useful for modularizing the main SDK stubs without having to
             // add a separate module SDK artifact for sdk constants.
             "android.annotation.SdkConstant" -> return ANNOTATION_SDK_STUBS_ONLY
-            ANDROID_FLAGGED_API -> return ANNOTATION_SIGNATURE_ONLY
+            ANDROID_FLAGGED_API ->
+                // If FlaggedApi annotations are being reverted in general then do not output them
+                // at all. This means that if some FlaggedApi annotations with specific flags are
+                // not reverted then the annotations will not be written out to the signature files.
+                // That is expected as those APIs are intended to be released and should look like
+                // any other API.
+                if (config.revertAnnotations.matchesAnnotationName(ANDROID_FLAGGED_API)) {
+                    return NO_ANNOTATION_TARGETS
+                } else {
+                    return ANNOTATION_SIGNATURE_ONLY
+                }
 
             // Skip known annotations that we (a) never want in external annotations and (b) we
             // are
@@ -515,44 +522,89 @@ class DefaultAnnotationManager(
         // * `show=true` beats `show=false`
         // * `recurse=true` beats `recurse=false`
         // * `forStubsOnly=false` beats `forStubsOnly=true`
-        // This implementation is not implemented in terms of those properties as not all
-        // combinations are currently supported. Also, it is not clear how to combine something like
-        // SHOW_SINGLE and SHOW_FOR_STUBS, so if found they will result in an error. However, that
-        // should not be an issue in practices as the existing uses do not use both together.
 
         // The resulting showability of the item.
         var itemShowability = Showability.NO_EFFECT
 
-        // The annotation whose showability won.
-        var primaryAnnotation: AnnotationItem? = null
         for (annotation in item.modifiers.annotations()) {
             val showability = annotation.showability
-            if (itemShowability == Showability.NO_EFFECT) {
-                // NO_EFFECT is beaten by anything.
-                itemShowability = showability
-                primaryAnnotation = annotation
-            } else if (showability != Showability.NO_EFFECT && showability != itemShowability) {
-                // If an annotation has a different and significant showability then if it is SHOW
-                // then it wins, otherwise it is an error.
-                if (showability == LazyAnnotationInfo.SHOW) {
-                    // SHOW cannot be beaten so break out.
-                    itemShowability = showability
-                    break
-                } else {
-                    val message =
-                        "${item.describe(capitalize = true)} has conflicting show annotations $primaryAnnotation ($itemShowability) and $annotation ($showability)"
-                    reporter?.report(Issues.CONFLICTING_SHOW_ANNOTATIONS, item, message)
-                        ?: throw IllegalStateException(message)
-                    break
-                }
+            if (showability == Showability.NO_EFFECT) {
+                // NO_EFFECT has no effect on the result so just ignore it.
+                continue
             }
+            itemShowability = itemShowability.combineWith(showability)
+        }
 
-            // SHOW cannot be beaten so break out.
-            if (itemShowability == LazyAnnotationInfo.SHOW) {
-                break
+        if (item is MethodItem) {
+            // If any of a method's super methods are part of a unstable API that needs to be
+            // reverted then treat the method as if it is too.
+            val revertUnstableApi =
+                item.superMethods().any { methodItem -> methodItem.showability.revertUnstableApi() }
+            if (revertUnstableApi) {
+                itemShowability =
+                    itemShowability.combineWith(LazyAnnotationInfo.REVERT_UNSTABLE_API)
             }
         }
+
+        val containingClass = item.containingClass()
+        if (containingClass != null) {
+            if (containingClass.showability.revertUnstableApi()) {
+                itemShowability =
+                    itemShowability.combineWith(LazyAnnotationInfo.REVERT_UNSTABLE_API)
+            }
+        }
+
+        // If the item is to be reverted then find the [Item] to which it will be reverted, if any,
+        // and incorporate that into the [Showability].
+        if (itemShowability == LazyAnnotationInfo.REVERT_UNSTABLE_API) {
+            val revertItem = findRevertItem(item)
+
+            // If the [revertItem] cannot be found then there is no need to modify the item
+            // showability as it is already in the correct state.
+            if (revertItem != null) {
+                // Update the item showability to revert to the [revertItem]. This intentionally
+                // does not modify it to use `SHOW` or `HIDE` but keeps it using
+                // `REVERT_UNSTABLE_API` so that it can be propagated down onto overriding methods
+                // and nested members if applicable.
+                itemShowability =
+                    itemShowability.copy(
+                        // When reverting to a previous item the item must be in the current API
+                        // surface not one that it extends. If the API surface is a complete API
+                        // (like public) then it does not extend another surface. If the API surface
+                        // is a partial API then so was the previously released API and so the
+                        // reverted item must be part of this surface. In either case it must not
+                        // be treated as part of an extended API so `forStubsOnly` is set to no
+                        // effect.
+                        forStubsOnly = ShowOrHide.NO_EFFECT,
+                        // Incorporate the item to be reverted into the [Showability].
+                        revertItem = revertItem,
+                    )
+            }
+        }
+
         return itemShowability
+    }
+
+    /**
+     * Find the item to which [item] will be reverted.
+     *
+     * Searches first the previously released API (if present) and then the previously released
+     * removed API (if present).
+     */
+    private fun findRevertItem(item: Item): Item? {
+        config.previouslyReleasedCodebaseProvider()?.let { oldCodebase ->
+            item.findCorrespondingItemIn(oldCodebase)?.let {
+                return it
+            }
+        }
+
+        config.previouslyReleasedRemovedCodebaseProvider()?.let { oldCodebase ->
+            item.findCorrespondingItemIn(oldCodebase)?.let {
+                return it
+            }
+        }
+
+        return null
     }
 
     override val typedefMode: TypedefMode = config.typedefMode
@@ -585,6 +637,8 @@ private class LazyAnnotationInfo(
                 config.showAnnotations.matches(annotationItem) -> SHOW
                 config.showForStubPurposesAnnotations.matches(annotationItem) -> SHOW_FOR_STUBS
                 config.showSingleAnnotations.matches(annotationItem) -> SHOW_SINGLE
+                config.hideAnnotations.matches(annotationItem) -> HIDE
+                config.revertAnnotations.matches(annotationItem) -> REVERT_UNSTABLE_API
                 else -> Showability.NO_EFFECT
             }
         }
@@ -594,16 +648,53 @@ private class LazyAnnotationInfo(
          * The annotation will cause the annotated item (and any enclosed items unless overridden by
          * a closer annotation) to be shown.
          */
-        val SHOW = Showability(show = true, recursive = true, forStubsOnly = false)
+        val SHOW =
+            Showability(
+                show = ShowOrHide.SHOW,
+                recursive = ShowOrHide.SHOW,
+                forStubsOnly = ShowOrHide.NO_EFFECT,
+            )
 
         /**
          * The annotation will cause the annotated item (and any enclosed items unless overridden by
          * a closer annotation) to be shown in the stubs only.
          */
-        val SHOW_FOR_STUBS = Showability(show = true, recursive = true, forStubsOnly = true)
+        val SHOW_FOR_STUBS =
+            Showability(
+                show = ShowOrHide.NO_EFFECT,
+                recursive = ShowOrHide.NO_EFFECT,
+                forStubsOnly = ShowOrHide.SHOW,
+            )
 
         /** The annotation will cause the annotated item (but not enclosed items) to be shown. */
-        val SHOW_SINGLE = Showability(show = true, recursive = false, forStubsOnly = false)
+        val SHOW_SINGLE =
+            Showability(
+                show = ShowOrHide.SHOW,
+                recursive = ShowOrHide.NO_EFFECT,
+                forStubsOnly = ShowOrHide.NO_EFFECT,
+            )
+
+        /**
+         * The annotation will cause the annotated item (and any enclosed items unless overridden by
+         * a closer annotation) to not be shown.
+         */
+        val HIDE =
+            Showability(
+                show = ShowOrHide.HIDE,
+                recursive = ShowOrHide.HIDE,
+                forStubsOnly = ShowOrHide.NO_EFFECT,
+            )
+
+        /**
+         * The annotation will cause the annotated item (and any enclosed items unless overridden by
+         * a closer annotation) to not be shown.
+         */
+        val REVERT_UNSTABLE_API =
+            Showability(
+                show = ShowOrHide.REVERT_UNSTABLE_API,
+                recursive = ShowOrHide.REVERT_UNSTABLE_API,
+                forStubsOnly = ShowOrHide.REVERT_UNSTABLE_API,
+            )
 
         /**
          * Fully-qualified version of [SUPPRESS_COMPATIBILITY_ANNOTATION].
@@ -647,18 +738,6 @@ private class LazyAnnotationInfo(
             isCheckingResolvedAnnotationClass = false
         }
     }
-
-    /**
-     * Compute lazily to avoid doing any more work than strictly necessary.
-     *
-     * This is `true` either if an annotation is matched by [Config.hideAnnotations] or the
-     * annotation is itself annotated with an annotation whose [hideMeta] is `true`.
-     */
-    override val hide: Boolean by
-        lazy(LazyThreadSafetyMode.NONE) {
-            val hideAnnotations = config.hideAnnotations
-            hideAnnotations.isNotEmpty() && hideAnnotations.matches(annotationItem)
-        }
 
     /**
      * If true then this annotation will suppress compatibility checking on annotated items.

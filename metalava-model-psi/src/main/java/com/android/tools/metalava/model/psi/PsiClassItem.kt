@@ -24,7 +24,7 @@ import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PropertyItem
-import com.android.tools.metalava.model.SourceFileItem
+import com.android.tools.metalava.model.SourceFile
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VisibilityLevel
@@ -32,7 +32,6 @@ import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.model.isRetention
 import com.intellij.lang.jvm.types.JvmReferenceType
 import com.intellij.psi.PsiClass
-import com.intellij.psi.PsiClassType
 import com.intellij.psi.PsiCompiledFile
 import com.intellij.psi.PsiModifier
 import com.intellij.psi.PsiType
@@ -101,11 +100,6 @@ internal constructor(
     override fun superClass(): ClassItem? = superClass
 
     override fun superClassType(): TypeItem? = superClassType
-
-    override fun setSuperClass(superClass: ClassItem?, superClassType: TypeItem?) {
-        this.superClass = superClass
-        this.superClassType = superClassType
-    }
 
     override var stubConstructor: ConstructorItem? = null
     override var artifact: String? = null
@@ -192,7 +186,7 @@ internal constructor(
         private set
 
     override fun toType(): TypeItem {
-        return PsiTypeItem.create(codebase, codebase.getClassType(psiClass))
+        return codebase.getType(codebase.getClassType(psiClass))
     }
 
     override fun hasTypeVariables(): Boolean = psiClass.hasTypeParameters()
@@ -208,14 +202,10 @@ internal constructor(
         }
     }
 
-    override fun typeArgumentClasses(): List<ClassItem> {
-        return PsiTypeItem.typeParameterClasses(codebase, psiClass.typeParameterList)
-    }
-
     override val isTypeParameter: Boolean
         get() = psiClass is PsiTypeParameter
 
-    override fun getSourceFile(): SourceFileItem? {
+    override fun getSourceFile(): SourceFile? {
         if (isInnerClass()) {
             return null
         }
@@ -232,7 +222,7 @@ internal constructor(
                 null
             }
 
-        return PsiSourceFileItem(codebase, containingFile, uFile)
+        return PsiSourceFile(codebase, containingFile, uFile)
     }
 
     override fun finishInitialization() {
@@ -264,38 +254,37 @@ internal constructor(
     }
 
     private fun initializeSuperClasses() {
-        val extendsListTypes = psiClass.extendsListTypes
-        if (extendsListTypes.isNotEmpty()) {
-            val type = PsiTypeItem.create(codebase, extendsListTypes[0])
-            this.superClassType = type
-            this.superClass = type.asClass()
-        } else {
-            val superType = psiClass.superClassType
-            if (superType is PsiType) {
-                this.superClassType = PsiTypeItem.create(codebase, superType)
+        val isInterface = isInterface()
+
+        // Get the interfaces from the appropriate list.
+        val interfaces =
+            if (isInterface || isAnnotationType()) {
+                // An interface uses "extends <interfaces>", either explicitly for normal interfaces
+                // or implicitly for annotations.
+                psiClass.extendsListTypes
+            } else {
+                // A class uses "extends <interfaces>".
+                psiClass.implementsListTypes
+            }
+
+        // Map them to PsiTypeItems.
+        val interfaceTypes =
+            interfaces.map {
+                val type = codebase.getType(it)
+                // ensure that we initialize classes eagerly too, so that they're registered etc
+                type.asClass()
+                type
+            }
+        setInterfaces(interfaceTypes)
+
+        if (!isInterface) {
+            // Set the super class type for classes
+            val superClassPsiType = psiClass.superClassType as? PsiType
+            superClassPsiType?.let { superType ->
+                this.superClassType = codebase.getType(superType)
                 this.superClass = this.superClassType?.asClass()
             }
         }
-
-        // Add interfaces. If this class is an interface, it can implement both
-        // classes from the extends clause and from the implements clause.
-        val interfaces = psiClass.implementsListTypes
-        setInterfaces(
-            if (interfaces.isEmpty() && extendsListTypes.size <= 1) {
-                emptyList()
-            } else {
-                val result = ArrayList<PsiTypeItem>(interfaces.size + extendsListTypes.size - 1)
-                val create: (PsiClassType) -> PsiTypeItem = {
-                    val type = PsiTypeItem.create(codebase, it)
-                    type.asClass() // ensure that we initialize classes eagerly too such that
-                    // they're registered etc
-                    type
-                }
-                (1 until extendsListTypes.size).mapTo(result) { create(extendsListTypes[it]) }
-                interfaces.mapTo(result) { create(it) }
-                result
-            }
-        )
 
         for (inner in innerClasses) {
             inner.initializeSuperClasses()

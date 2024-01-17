@@ -61,21 +61,46 @@ else
 fi
 
 echo -n "Extracting bugs from merged in changes"
-BUGS=$(git log ${MERGE_BASE}..${SOURCE_BRANCH} | (grep -E "^ *Bug: *[0-9]+" || true) | sed "s/Bug://" | sort -u)
+BUGS=$(git log ${MERGE_BASE}..${SOURCE_BRANCH} | (grep -E "^ *Bug: *[0-9]+" || true) | sed "s/Bug://" | sort -u -n)
+echo " - DONE"
+
+echo -n "Extracting change list from merged in changes"
+
+# Get the Change-Id from the non-merge changes.
+# This uses the Change-Id rather than the SHA as the Change-Id is consistent
+# across branches but the SHA might not be.
+CHANGE_IDS=$(git log ${MERGE_BASE}..${SOURCE_BRANCH} --no-merges | (grep -E "^ *Change-Id: I*[0-9a-f]+" || true) | sed "s/^ *Change-Id: //")
+
+# Generate a query which will find only those changes which are from metalava-main.
+# All changes to tools/metalava must come from metalava-main or main (build changes).
+QUERY="(branch:metalava-main or branch:main) and ($(echo $CHANGE_IDS | sed 's/ / or /g')) and status:merged"
+
+# Generate a list of changes to insert in the commit message.
+# This queries the Android Gerrit as metalava development is always done in AOSP.
+CHANGE_LIST=$(/google/data/ro/projects/android/gerrit -g android -r --custom_raw_format '{o.number} {o.subject}' search "$QUERY" | while read NUMBER SUBJECT
+do
+  echo "* $SUBJECT"
+  echo "  - https://r.android.com/$NUMBER"
+done)
 echo " - DONE"
 
 echo -n "Performing the merge"
 MESSAGE_FILE=$(mktemp)
 trap "rm -f ${MESSAGE_FILE}" EXIT
 
+SCRIPT_PATH=${0##*metalava/}
+
 cat > ${MESSAGE_FILE} <<EOF
 Merge remote-tracking branch '${SOURCE_BRANCH}' into '${CURRENT_BRANCH}'
 
 Merge performed by:
-  $0${1+ $@}
+  ${SCRIPT_PATH}${1+ $@}
+
+Changes includes in this merge (from newest to oldest):
+${CHANGE_LIST}
 
 This merge includes a number of changes so this contains a list of all
-the affected bugs.
+the affected bugs in order from oldest to newest.
 
 $(for BUG in $BUGS; do echo "Bug: $BUG"; done)
 Test: m checkapi

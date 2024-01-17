@@ -88,10 +88,6 @@ internal open class MetalavaCommand(
                     { common.terminal },
                     localization,
                 )
-
-            // Disable argument file expansion (i.e. @argfile) as it causes issues with some uses
-            // that prefix annotation names with `@`, e.g. `--show-annotation @foo.Show`.
-            expandArgumentFiles = false
         }
 
         // Print the version number if requested.

@@ -41,7 +41,7 @@ class SignatureWriter(
     private var emitHeader: EmitFileHeader = EmitFileHeader.ALWAYS,
     private val fileFormat: FileFormat,
     showUnannotated: Boolean,
-    apiVisitorConfig: ApiVisitor.Config,
+    apiVisitorConfig: Config,
 ) :
     ApiVisitor(
         visitConstructorsAsMethods = false,
@@ -118,9 +118,19 @@ class SignatureWriter(
         write(name)
         write(" ")
         writeModifiers(field)
-        writeType(field, field.type())
-        write(" ")
-        write(field.name())
+
+        if (fileFormat.kotlinNameTypeOrder) {
+            // Kotlin style: write the name of the field, then the type.
+            write(field.name())
+            write(": ")
+            writeType(field, field.type())
+        } else {
+            // Java style: write the type, then the name of the field.
+            writeType(field, field.type())
+            write(" ")
+            write(field.name())
+        }
+
         field.writeValueWithSemicolon(
             writer,
             allowDefaultValue = false,
@@ -132,9 +142,17 @@ class SignatureWriter(
     override fun visitProperty(property: PropertyItem) {
         write("    property ")
         writeModifiers(property)
-        writeType(property, property.type())
-        write(" ")
-        write(property.name())
+        if (fileFormat.kotlinNameTypeOrder) {
+            // Kotlin style: write the name of the property, then the type.
+            write(property.name())
+            write(": ")
+            writeType(property, property.type())
+        } else {
+            // Java style: write the type, then the name of the property.
+            writeType(property, property.type())
+            write(" ")
+            write(property.name())
+        }
         write(";\n")
     }
 
@@ -143,10 +161,20 @@ class SignatureWriter(
         writeModifiers(method)
         writeTypeParameterList(method.typeParameterList(), addSpace = true)
 
-        writeType(method, method.returnType())
-        write(" ")
-        write(method.name())
-        writeParameterList(method)
+        if (fileFormat.kotlinNameTypeOrder) {
+            // Kotlin style: write the name of the method and the parameters, then the type.
+            write(method.name())
+            writeParameterList(method)
+            write(": ")
+            writeType(method, method.returnType())
+        } else {
+            // Java style: write the type, then the name of the method and the parameters.
+            writeType(method, method.returnType())
+            write(" ")
+            write(method.name())
+            writeParameterList(method)
+        }
+
         writeThrowsList(method)
 
         if (method.containingClass().isAnnotationType()) {
@@ -193,29 +221,40 @@ class SignatureWriter(
             modifiers = item.modifiers,
             item = item,
             target = AnnotationTarget.SIGNATURE_FILE,
-            includeDeprecated = true,
             skipNullnessAnnotations = fileFormat.kotlinStyleNulls,
             omitCommonPackages = true
         )
     }
 
+    /** Get the filtered super class type, ignoring java.lang.Object. */
+    private fun getFilteredSuperClassTypeFor(cls: ClassItem): TypeItem? {
+        val superClassItem =
+            if (preFiltered) cls.superClassType() else cls.filteredSuperClassType(filterReference)
+        return if (superClassItem == null || superClassItem.isJavaLangObject()) null
+        else superClassItem
+    }
+
     private fun writeSuperClassStatement(cls: ClassItem) {
-        if (cls.isEnum() || cls.isAnnotationType()) {
+        if (cls.isEnum() || cls.isAnnotationType() || cls.isInterface()) {
             return
         }
 
-        val superClass =
-            if (preFiltered) cls.superClassType() else cls.filteredSuperClassType(filterReference)
-        if (superClass != null && !superClass.isJavaLangObject()) {
-            val superClassString =
-                superClass.toTypeString(
-                    kotlinStyleNulls = false,
-                    context = superClass.asClass(),
-                    filter = filterReference
-                )
-            write(" extends ")
-            write(superClassString)
+        getFilteredSuperClassTypeFor(cls)?.let { superClassType ->
+            write(" extends")
+            writeExtendsOrImplementsType(superClassType)
         }
+    }
+
+    private fun writeExtendsOrImplementsType(typeItem: TypeItem) {
+        val superClassString =
+            typeItem.toTypeString(
+                annotations = fileFormat.includeTypeUseAnnotations,
+                kotlinStyleNulls = false,
+                context = typeItem.asClass(),
+                filter = filterReference
+            )
+        write(" ")
+        write(superClassString)
     }
 
     private fun writeInterfaceList(cls: ClassItem) {
@@ -224,36 +263,55 @@ class SignatureWriter(
         }
         val isInterface = cls.isInterface()
 
+        val unfilteredInterfaceTypes = cls.interfaceTypes()
         val interfaces =
-            if (preFiltered) cls.interfaceTypes().asSequence()
-            else cls.filteredInterfaceTypes(filterReference).asSequence()
+            if (preFiltered) unfilteredInterfaceTypes
+            else cls.filteredInterfaceTypes(filterReference)
+        if (interfaces.isEmpty()) {
+            return
+        }
 
-        if (interfaces.any()) {
-            val label =
-                if (isInterface) {
-                    val superInterface = cls.filteredSuperclass(filterReference)
-                    if (superInterface != null && !superInterface.isJavaLangObject()) {
-                        // For interfaces we've already listed "extends <super interface>"; we don't
-                        // want to repeat "extends " here
-                        ""
-                    } else {
-                        " extends"
+        // Sort before prepending the super class (if this is an interface) as the super class
+        // always comes first because it was previously written out by writeSuperClassStatement.
+        @Suppress("DEPRECATION")
+        val comparator =
+            if (fileFormat.sortWholeExtendsList) TypeItem.totalComparator
+            else TypeItem.partialComparator
+        val sortedInterfaces = interfaces.sortedWith(comparator)
+
+        // Combine the super class and interfaces into a full list of them.
+        val fullInterfaces =
+            if (isInterface && !fileFormat.sortWholeExtendsList) {
+                // Previously, when the first interface in the extends list was stored in
+                // superClass, if that interface was visible in the signature then it would always
+                // be first even though the other interfaces are sorted in alphabetical order. This
+                // implements similar logic.
+                val firstUnfilteredInterfaceType = unfilteredInterfaceTypes.first()
+                val firstFilteredInterfaceType = interfaces.first()
+                if (firstFilteredInterfaceType == firstUnfilteredInterfaceType) {
+                    buildList {
+                        // The first interface in the interfaces list is also the first interface in
+                        // the filtered interfaces list so add it first.
+                        add(firstFilteredInterfaceType)
+
+                        // Add the remaining interfaces in sorted order.
+                        if (sortedInterfaces.size > 1) {
+                            for (interfaceType in sortedInterfaces) {
+                                if (interfaceType != firstFilteredInterfaceType) {
+                                    add(interfaceType)
+                                }
+                            }
+                        }
                     }
                 } else {
-                    " implements"
+                    sortedInterfaces
                 }
-            write(label)
-            interfaces.sortedWith(TypeItem.comparator).forEach { item ->
-                write(" ")
-                write(
-                    item.toTypeString(
-                        kotlinStyleNulls = false,
-                        context = item.asClass(),
-                        filter = filterReference
-                    )
-                )
-            }
-        }
+            } else sortedInterfaces
+
+        val label = if (isInterface) " extends" else " implements"
+        write(label)
+
+        fullInterfaces.forEach { typeItem -> writeExtendsOrImplementsType(typeItem) }
     }
 
     private fun writeTypeParameterList(typeList: TypeParameterList, addSpace: Boolean) {
@@ -281,12 +339,24 @@ class SignatureWriter(
                 write("optional ")
             }
             writeModifiers(parameter)
-            writeType(parameter, parameter.type())
-            val name = parameter.publicName()
-            if (name != null) {
-                write(" ")
+
+            if (fileFormat.kotlinNameTypeOrder) {
+                // Kotlin style: the parameter must have a name (use `_` if it doesn't have a public
+                // name). Write the name and then the type.
+                val name = parameter.publicName() ?: "_"
                 write(name)
+                write(": ")
+                writeType(parameter, parameter.type())
+            } else {
+                // Java style: write the type, then the name if it has a public name.
+                writeType(parameter, parameter.type())
+                val name = parameter.publicName()
+                if (name != null) {
+                    write(" ")
+                    write(name)
+                }
             }
+
             if (parameter.isDefaultValueKnown() && !fileFormat.conciseDefaultValues) {
                 write(" = ")
                 val defaultValue = parameter.defaultValue()
@@ -310,9 +380,7 @@ class SignatureWriter(
 
         var typeString =
             type.toTypeString(
-                outerAnnotations = false,
-                innerAnnotations = true,
-                erased = false,
+                annotations = fileFormat.includeTypeUseAnnotations,
                 kotlinStyleNulls = fileFormat.kotlinStyleNulls && !item.hasInheritedGenericType(),
                 context = item,
                 filter = filterReference

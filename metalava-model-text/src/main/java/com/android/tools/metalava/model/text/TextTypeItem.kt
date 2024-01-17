@@ -19,43 +19,46 @@ package com.android.tools.metalava.model.text
 import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassTypeItem
+import com.android.tools.metalava.model.DefaultTypeItem
 import com.android.tools.metalava.model.Item
-import com.android.tools.metalava.model.JAVA_LANG_OBJECT
 import com.android.tools.metalava.model.JAVA_LANG_PREFIX
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.TypeItem
-import com.android.tools.metalava.model.TypeModifiers
+import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeParameterItem
-import com.android.tools.metalava.model.TypeParameterListOwner
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.WildcardTypeItem
 import java.util.function.Predicate
-import kotlin.math.min
 
-sealed class TextTypeItem(open val codebase: TextCodebase, open val type: String) : TypeItem {
-    override fun toString(): String = type
-
-    override fun toErasedTypeString(context: Item?): String {
-        return toTypeString(
-            outerAnnotations = false,
-            innerAnnotations = false,
-            erased = true,
-            kotlinStyleNulls = false,
-            context = context
-        )
-    }
-
+sealed class TextTypeItem(open val codebase: TextCodebase, open val type: String) :
+    DefaultTypeItem(codebase) {
     override fun toTypeString(
-        outerAnnotations: Boolean,
-        innerAnnotations: Boolean,
-        erased: Boolean,
+        annotations: Boolean,
         kotlinStyleNulls: Boolean,
         context: Item?,
-        filter: Predicate<Item>?
+        filter: Predicate<Item>?,
+        spaceBetweenParameters: Boolean
     ): String {
-        val typeString = toTypeString(type, outerAnnotations, innerAnnotations, erased, context)
+        if (!kotlinStyleNulls) {
+            return super.toTypeString(
+                annotations,
+                kotlinStyleNulls,
+                context,
+                filter,
+                spaceBetweenParameters
+            )
+        }
 
-        if (innerAnnotations && kotlinStyleNulls && this !is PrimitiveTypeItem && context != null) {
+        val typeString = toTypeString(type, annotations)
+
+        if (
+            kotlinStyleNulls &&
+                this !is PrimitiveTypeItem &&
+                context != null &&
+                // Don't re-add a suffix if it is already present
+                !typeString.endsWith("!") &&
+                !typeString.endsWith("?")
+        ) {
             var nullable: Boolean? = context.implicitNullness()
 
             if (nullable == null) {
@@ -95,7 +98,7 @@ sealed class TextTypeItem(open val codebase: TextCodebase, open val type: String
         return codebase.getOrCreateClass(cls)
     }
 
-    fun qualifiedTypeName(): String = type
+    private fun qualifiedTypeName(): String = type
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -130,64 +133,17 @@ sealed class TextTypeItem(open val codebase: TextCodebase, open val type: String
         return qualifiedTypeName().hashCode()
     }
 
-    override fun typeArgumentClasses(): List<ClassItem> = codebase.unsupported()
-
     override fun convertType(replacementMap: Map<String, String>?, owner: Item?): TypeItem {
         return codebase.typeResolver.obtainTypeFromString(convertTypeString(replacementMap))
     }
 
-    override fun markRecent() = codebase.unsupported()
-
-    override fun scrubAnnotations() = codebase.unsupported()
+    internal abstract fun duplicate(withNullability: TypeNullability): TextTypeItem
 
     companion object {
         fun toTypeString(
             type: String,
-            outerAnnotations: Boolean,
-            innerAnnotations: Boolean,
-            erased: Boolean,
-            context: Item? = null
-        ): String {
-            return if (erased) {
-                val raw = eraseTypeArguments(type)
-                val rawNoEllipsis = raw.replace("...", "[]")
-                val concrete = eraseTypeArguments(substituteTypeParameters(rawNoEllipsis, context))
-                if (outerAnnotations && innerAnnotations) {
-                    concrete
-                } else {
-                    eraseAnnotations(concrete, outerAnnotations, innerAnnotations)
-                }
-            } else {
-                if (outerAnnotations && innerAnnotations) {
-                    type
-                } else {
-                    eraseAnnotations(type, outerAnnotations, innerAnnotations)
-                }
-            }
-        }
-
-        private fun substituteTypeParameters(s: String, context: Item?): String {
-            if (context is TypeParameterListOwner) {
-                var end = s.indexOf('[')
-                if (end == -1) {
-                    end = s.length
-                }
-                if (s[0].isUpperCase() && s.lastIndexOf('.', end) == -1) {
-                    val v = s.substring(0, end)
-                    val parameter = context.resolveParameter(v)
-                    if (parameter != null) {
-                        val bounds = parameter.typeBounds()
-                        if (bounds.isNotEmpty()) {
-                            return bounds.first().toTypeString() + s.substring(end)
-                        }
-
-                        return JAVA_LANG_OBJECT + s.substring(end)
-                    }
-                }
-            }
-
-            return s
-        }
+            annotations: Boolean,
+        ): String = if (annotations) type else eraseAnnotations(type)
 
         fun eraseTypeArguments(s: String): String {
             val index = s.indexOf('<')
@@ -247,37 +203,15 @@ sealed class TextTypeItem(open val codebase: TextCodebase, open val type: String
             return sb.toString()
         }
 
-        private fun eraseAnnotations(type: String, outer: Boolean, inner: Boolean): String {
+        private fun eraseAnnotations(type: String): String {
             if (type.indexOf('@') == -1) {
                 // If using Kotlin-style null syntax, strip those markers as well
                 return stripKotlinNullChars(type)
             }
 
-            assert(inner || !outer) // Can't supply outer=true,inner=false
-
             // Assumption: top level annotations appear first
             val length = type.length
-            var max =
-                if (!inner) length
-                else {
-                    val space = type.indexOf(' ')
-                    val generics = type.indexOf('<')
-                    val first =
-                        if (space != -1) {
-                            if (generics != -1) {
-                                min(space, generics)
-                            } else {
-                                space
-                            }
-                        } else {
-                            generics
-                        }
-                    if (first != -1) {
-                        first
-                    } else {
-                        length
-                    }
-                }
+            var max = length
 
             var s = type
             while (true) {
@@ -326,8 +260,12 @@ internal class TextPrimitiveTypeItem(
     override val codebase: TextCodebase,
     override val type: String,
     override val kind: PrimitiveTypeItem.Primitive,
-    override val modifiers: TypeModifiers
-) : PrimitiveTypeItem, TextTypeItem(codebase, type)
+    override val modifiers: TextTypeModifiers
+) : PrimitiveTypeItem, TextTypeItem(codebase, type) {
+    override fun duplicate(withNullability: TypeNullability): TextTypeItem {
+        return TextPrimitiveTypeItem(codebase, type, kind, modifiers.duplicate(withNullability))
+    }
+}
 
 /** An [ArrayTypeItem] parsed from a signature file. */
 internal class TextArrayTypeItem(
@@ -335,8 +273,18 @@ internal class TextArrayTypeItem(
     override val type: String,
     override val componentType: TypeItem,
     override val isVarargs: Boolean,
-    override val modifiers: TypeModifiers
-) : ArrayTypeItem, TextTypeItem(codebase, type)
+    override val modifiers: TextTypeModifiers
+) : ArrayTypeItem, TextTypeItem(codebase, type) {
+    override fun duplicate(withNullability: TypeNullability): TextTypeItem {
+        return TextArrayTypeItem(
+            codebase,
+            type,
+            componentType,
+            isVarargs,
+            modifiers.duplicate(withNullability)
+        )
+    }
+}
 
 /** A [ClassTypeItem] parsed from a signature file. */
 internal class TextClassTypeItem(
@@ -345,8 +293,21 @@ internal class TextClassTypeItem(
     override val qualifiedName: String,
     override val parameters: List<TypeItem>,
     override val outerClassType: ClassTypeItem?,
-    override val modifiers: TypeModifiers
-) : ClassTypeItem, TextTypeItem(codebase, type)
+    override val modifiers: TextTypeModifiers
+) : ClassTypeItem, TextTypeItem(codebase, type) {
+    override val className: String = ClassTypeItem.computeClassName(qualifiedName)
+
+    override fun duplicate(withNullability: TypeNullability): TextTypeItem {
+        return TextClassTypeItem(
+            codebase,
+            type,
+            qualifiedName,
+            parameters,
+            outerClassType,
+            modifiers.duplicate(withNullability)
+        )
+    }
+}
 
 /** A [VariableTypeItem] parsed from a signature file. */
 internal class TextVariableTypeItem(
@@ -354,8 +315,18 @@ internal class TextVariableTypeItem(
     override val type: String,
     override val name: String,
     override val asTypeParameter: TypeParameterItem,
-    override val modifiers: TypeModifiers
-) : VariableTypeItem, TextTypeItem(codebase, type)
+    override val modifiers: TextTypeModifiers
+) : VariableTypeItem, TextTypeItem(codebase, type) {
+    override fun duplicate(withNullability: TypeNullability): TextTypeItem {
+        return TextVariableTypeItem(
+            codebase,
+            type,
+            name,
+            asTypeParameter,
+            modifiers.duplicate(withNullability)
+        )
+    }
+}
 
 /** A [WildcardTypeItem] parsed from a signature file. */
 internal class TextWildcardTypeItem(
@@ -363,5 +334,15 @@ internal class TextWildcardTypeItem(
     override val type: String,
     override val extendsBound: TypeItem?,
     override val superBound: TypeItem?,
-    override val modifiers: TypeModifiers
-) : WildcardTypeItem, TextTypeItem(codebase, type)
+    override val modifiers: TextTypeModifiers
+) : WildcardTypeItem, TextTypeItem(codebase, type) {
+    override fun duplicate(withNullability: TypeNullability): TextTypeItem {
+        return TextWildcardTypeItem(
+            codebase,
+            type,
+            extendsBound,
+            superBound,
+            modifiers.duplicate(withNullability)
+        )
+    }
+}
