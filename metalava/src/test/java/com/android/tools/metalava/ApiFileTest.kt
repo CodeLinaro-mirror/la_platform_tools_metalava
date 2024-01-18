@@ -6211,4 +6211,45 @@ class ApiFileTest : DriverTest() {
                 "src/test/pkg/Foo.java:3: warning: Public class test.pkg.Foo stripped of unavailable superclass test.pkg.HiddenInterface [HiddenSuperclass]"
         )
     }
+
+    @Test
+    fun `sealed class with internal setter`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                            package test.pkg
+
+                            sealed class TransitionState<S> {
+                              abstract var currentState: S
+                                internal set
+                            }
+
+                            class SeekableTransitionState<S>(
+                                initialState: S
+                            ) : TransitionState<S>() {
+                              override var currentState: S = initialState
+                                internal set
+                            }
+                        """
+                    )
+                ),
+            api =
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public final class SeekableTransitionState<S> extends test.pkg.TransitionState<S> {
+                    ctor public SeekableTransitionState(S initialState);
+                    method public S getCurrentState();
+                    property public S currentState;
+                  }
+                  public abstract sealed class TransitionState<S> {
+                    method public abstract S getCurrentState();
+                    property public abstract S currentState;
+                  }
+                }
+                """
+        )
+    }
 }

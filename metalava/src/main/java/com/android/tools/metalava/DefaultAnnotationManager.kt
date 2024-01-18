@@ -67,8 +67,10 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
         val excludeAnnotations: Set<String> = emptySet(),
         val typedefMode: TypedefMode = TypedefMode.NONE,
         val apiPredicate: Predicate<Item> = Predicate { true },
-        val previouslyReleasedCodebaseProvider: () -> Codebase? = { null },
-        val previouslyReleasedRemovedCodebaseProvider: () -> Codebase? = { null },
+        /**
+         * Provider of a [List] of [Codebase] objects that will be used when reverting flagged APIs.
+         */
+        val previouslyReleasedCodebasesProvider: () -> List<Codebase> = { emptyList() },
     )
 
     /**
@@ -592,13 +594,7 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
      * removed API (if present).
      */
     private fun findRevertItem(item: Item): Item? {
-        config.previouslyReleasedCodebaseProvider()?.let { oldCodebase ->
-            item.findCorrespondingItemIn(oldCodebase)?.let {
-                return it
-            }
-        }
-
-        config.previouslyReleasedRemovedCodebaseProvider()?.let { oldCodebase ->
+        for (oldCodebase in config.previouslyReleasedCodebasesProvider()) {
             item.findCorrespondingItemIn(oldCodebase)?.let {
                 return it
             }

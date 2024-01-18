@@ -957,7 +957,7 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
     }
 
     @Test
-    fun `260 - test enum class and field`() {
+    fun `250 - test enum class and field`() {
         runSourceCodebaseTest(
             java(
                 """
@@ -997,6 +997,37 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
             assertEquals(true, classItem1.isEnum())
             assertEquals(0, classItem1.methods().count())
             assertEquals(false, nonEnumClassField.isEnumConstant())
+        }
+    }
+
+    @Test
+    fun `260 - test doconly members`() {
+        runSourceCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+
+                    public class Test {
+                        /** @doconly */
+                        public class Inner {
+                            public int InnerField;
+                        }
+
+                        /** @doconly Some docs here */
+                        public int Field;
+                    }
+                """
+            ),
+        ) {
+            val classItem = codebase.assertClass("test.pkg.Test")
+            val innerClassItem = codebase.assertClass("test.pkg.Test.Inner")
+            val fieldItem = classItem.assertField("Field")
+            val innerFieldItem = innerClassItem.assertField("InnerField")
+
+            assertEquals(false, classItem.docOnly)
+            assertEquals(true, innerClassItem.docOnly)
+            assertEquals(false, innerFieldItem.docOnly)
+            assertEquals(true, fieldItem.docOnly)
         }
     }
 }

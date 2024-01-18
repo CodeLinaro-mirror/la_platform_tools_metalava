@@ -30,8 +30,8 @@ open class TurbineMethodItem(
     protected var returnType: TurbineTypeItem,
     modifiers: TurbineModifierItem,
     private val typeParameters: TypeParameterList,
-    private val document: String,
-) : TurbineItem(codebase, modifiers), MethodItem {
+    documentation: String,
+) : TurbineItem(codebase, modifiers, documentation), MethodItem {
 
     private lateinit var superMethodList: List<MethodItem>
     internal lateinit var throwsClassNames: List<String>
@@ -39,8 +39,6 @@ open class TurbineMethodItem(
     internal lateinit var parameters: List<ParameterItem>
 
     override var inheritedFrom: ClassItem? = null
-
-    override var documentation: String = document
 
     override fun name(): String = methodSymbol.name()
 

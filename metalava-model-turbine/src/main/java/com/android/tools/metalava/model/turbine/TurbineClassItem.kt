@@ -38,13 +38,11 @@ open class TurbineClassItem(
     modifiers: TurbineModifierItem,
     private val classType: TurbineClassType,
     private val typeParameters: TypeParameterList,
-    private val document: String,
+    documentation: String,
     private val source: SourceFile?
-) : TurbineItem(codebase, modifiers), ClassItem {
+) : TurbineItem(codebase, modifiers, documentation), ClassItem {
 
     override var artifact: String? = null
-
-    override var documentation: String = document
 
     override var hasPrivateConstructor: Boolean = false
 

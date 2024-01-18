@@ -178,54 +178,37 @@ interface ModifierList {
     }
 
     companion object {
+        /**
+         * Write the modifier list (possibly including annotations) to the supplied [writer].
+         *
+         * @param target can be one of [AnnotationTarget.SIGNATURE_FILE],
+         *   [AnnotationTarget.SDK_STUBS_FILE] or [AnnotationTarget.DOC_STUBS_FILE].
+         */
         fun write(
             writer: Writer,
-            modifiers: ModifierList,
             item: Item,
             target: AnnotationTarget,
             runtimeAnnotationsOnly: Boolean = false,
             skipNullnessAnnotations: Boolean = false,
-            omitCommonPackages: Boolean = false,
             removeAbstract: Boolean = false,
-            removeFinal: Boolean = false,
-            addPublic: Boolean = false,
-            separateLines: Boolean = false,
             language: Language = Language.JAVA
         ) {
-            val list =
-                if (removeAbstract || removeFinal || addPublic) {
-                    class AbstractFiltering : ModifierList by modifiers {
-                        override fun isAbstract(): Boolean {
-                            return if (removeAbstract) false else modifiers.isAbstract()
-                        }
-
-                        override fun isFinal(): Boolean {
-                            return if (removeFinal) false else modifiers.isFinal()
-                        }
-
-                        override fun getVisibilityLevel(): VisibilityLevel {
-                            return if (addPublic) VisibilityLevel.PUBLIC
-                            else modifiers.getVisibilityLevel()
-                        }
-                    }
-                    AbstractFiltering()
-                } else {
-                    modifiers
-                }
-
             writeAnnotations(
+                writer,
                 item,
                 target,
                 runtimeAnnotationsOnly,
-                writer,
-                separateLines,
-                list,
                 skipNullnessAnnotations,
-                omitCommonPackages
             )
 
-            if (item is PackageItem) {
-                // Packages use a modifier list, but only annotations apply
+            if (
+                item is PackageItem ||
+                    (target != AnnotationTarget.SIGNATURE_FILE &&
+                        item is FieldItem &&
+                        item.isEnumConstant())
+            ) {
+                // Packages and enum constants (in a stubs file) use a modifier list, but only
+                // annotations apply.
                 return
             }
 
@@ -236,6 +219,7 @@ interface ModifierList {
             val classItem = item as? ClassItem
             val methodItem = item as? MethodItem
 
+            val list = item.modifiers
             val visibilityLevel = list.getVisibilityLevel()
             val modifier =
                 if (language == Language.JAVA) {
@@ -255,6 +239,7 @@ interface ModifierList {
 
             if (
                 list.isAbstract() &&
+                    !removeAbstract &&
                     classItem?.isEnum() != true &&
                     classItem?.isAnnotationType() != true &&
                     !isInterface
@@ -333,51 +318,43 @@ interface ModifierList {
             }
         }
 
-        fun writeAnnotations(
+        private fun writeAnnotations(
+            writer: Writer,
             item: Item,
             target: AnnotationTarget,
-            runtimeAnnotationsOnly: Boolean,
-            writer: Writer,
-            separateLines: Boolean,
-            list: ModifierList,
-            skipNullnessAnnotations: Boolean,
-            omitCommonPackages: Boolean
+            runtimeAnnotationsOnly: Boolean = false,
+            skipNullnessAnnotations: Boolean = false,
         ) {
-            if (item.deprecated) {
-                // Do not write @Deprecated for a parameter unless it was explicitly marked as
-                // deprecated.
-                if (item !is ParameterItem || item.originallyDeprecated) {
-                    writer.write("@Deprecated")
+            // Generate annotations on separate lines in stub files for packages, classes and
+            // methods and also for enum constants.
+            val separateLines =
+                target != AnnotationTarget.SIGNATURE_FILE &&
+                    when (item) {
+                        is MethodItem,
+                        is ClassItem,
+                        is PackageItem -> true
+                        is FieldItem -> item.isEnumConstant()
+                        else -> false
+                    }
+
+            // Do not write deprecate or suppress compatibility annotations on a package.
+            if (item !is PackageItem) {
+                if (item.deprecated) {
+                    // Do not write @Deprecated for a parameter unless it was explicitly marked as
+                    // deprecated.
+                    if (item !is ParameterItem || item.originallyDeprecated) {
+                        writer.write("@Deprecated")
+                        writer.write(if (separateLines) "\n" else " ")
+                    }
+                }
+
+                if (item.hasSuppressCompatibilityMetaAnnotation()) {
+                    writer.write("@$SUPPRESS_COMPATIBILITY_ANNOTATION")
                     writer.write(if (separateLines) "\n" else " ")
                 }
             }
 
-            if (item.hasSuppressCompatibilityMetaAnnotation()) {
-                writer.write("@$SUPPRESS_COMPATIBILITY_ANNOTATION")
-                writer.write(if (separateLines) "\n" else " ")
-            }
-
-            writeAnnotations(
-                list = list,
-                runtimeAnnotationsOnly = runtimeAnnotationsOnly,
-                skipNullnessAnnotations = skipNullnessAnnotations,
-                omitCommonPackages = omitCommonPackages,
-                separateLines = separateLines,
-                writer = writer,
-                target = target
-            )
-        }
-
-        fun writeAnnotations(
-            list: ModifierList,
-            skipNullnessAnnotations: Boolean = false,
-            runtimeAnnotationsOnly: Boolean = false,
-            omitCommonPackages: Boolean = false,
-            separateLines: Boolean = false,
-            filterDuplicates: Boolean = false,
-            writer: Writer,
-            target: AnnotationTarget
-        ) {
+            val list = item.modifiers
             var annotations = list.annotations()
 
             // Ensure stable signature file order
@@ -386,6 +363,8 @@ interface ModifierList {
             }
 
             if (annotations.isNotEmpty()) {
+                // Omit common packages in signature files.
+                val omitCommonPackages = target == AnnotationTarget.SIGNATURE_FILE
                 var index = -1
                 for (annotation in annotations) {
                     index++
@@ -429,22 +408,6 @@ interface ModifierList {
                             } else {
                                 writer.write(" ")
                             }
-                            continue
-                        }
-                    }
-
-                    // Optionally filter out duplicates
-                    if (index > 0 && filterDuplicates) {
-                        val qualifiedName = annotation.qualifiedName
-                        var found = false
-                        for (i in 0 until index) {
-                            val prev = annotations[i]
-                            if (prev.qualifiedName == qualifiedName) {
-                                found = true
-                                break
-                            }
-                        }
-                        if (found) {
                             continue
                         }
                     }

@@ -26,8 +26,8 @@ class TurbineFieldItem(
     private val containingClass: TurbineClassItem,
     private val type: TurbineTypeItem,
     modifiers: TurbineModifierItem,
-    private val document: String,
-) : TurbineItem(codebase, modifiers), FieldItem {
+    documentation: String,
+) : TurbineItem(codebase, modifiers, documentation), FieldItem {
 
     internal var initialValueWithRequiredConstant: Any? = null
 
@@ -40,8 +40,6 @@ class TurbineFieldItem(
     }
 
     override var inheritedFrom: ClassItem? = null
-
-    override var documentation: String = document
 
     override fun name(): String = name
 

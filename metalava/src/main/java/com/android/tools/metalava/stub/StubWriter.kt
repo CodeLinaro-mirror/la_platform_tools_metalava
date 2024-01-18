@@ -112,14 +112,13 @@ internal class StubWriter(
             appendDocumentation(pkg, packageInfoWriter, config)
 
             if (annotations.isNotEmpty()) {
-                ModifierList.writeAnnotations(
-                    list = pkg.modifiers,
-                    separateLines = true,
-                    // Some bug in UAST triggers duplicate nullability annotations
-                    // here; make sure they are filtered out
-                    filterDuplicates = true,
+                // Write the modifier list even though the package info does not actually have
+                // modifiers as that will write the annotations which it does have and ignore the
+                // modifiers.
+                ModifierList.write(
+                    writer = packageInfoWriter,
+                    item = pkg,
                     target = annotationTarget,
-                    writer = packageInfoWriter
                 )
             }
             packageInfoWriter.println("package ${pkg.qualifiedName()};")
