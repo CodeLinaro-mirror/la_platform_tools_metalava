@@ -3449,7 +3449,7 @@ class CompatibilityCheckTest : DriverTest() {
                 package android.content {
                   public class Context {
                     field public static final String BUGREPORT_SERVICE = "bugreport";
-                    method public File getPreloadsFileCache();
+                    method public java.io.File getPreloadsFileCache();
                   }
                 }
                 """,
@@ -3460,6 +3460,7 @@ class CompatibilityCheckTest : DriverTest() {
                     package android.content;
 
                     import android.annotation.SystemApi;
+                    import java.io.File;
 
                     public class Context {
                         public static final String BUGREPORT_SERVICE = "bugreport";
@@ -5156,6 +5157,60 @@ class CompatibilityCheckTest : DriverTest() {
                       }
                     }
                 """,
+        )
+    }
+
+    @Test
+    fun `Test adding method with same name as method with type parameter`() {
+        check(
+            checkCompatibilityApiReleased =
+                """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public final class TestKt {
+                        method public static <T> T! foo(T! target);
+                      }
+                    }
+                """,
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                            package test.pkg
+                            fun <T> foo(target: T) = target
+                            fun foo(target: String) = target
+                        """
+                    )
+                ),
+        )
+    }
+
+    @Test
+    fun `Test that parent method with type parameter matches child override`() {
+        check(
+            checkCompatibilityApiReleased =
+                """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public final class Child extends test.pkg.Parent<java.lang.Integer> {
+                        method public void foo(Integer t);
+                      }
+                      public class Parent<T> {
+                        method public void foo(T! t);
+                      }
+                    }
+                """,
+            signatureSource =
+                """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public final class Child extends test.pkg.Parent<java.lang.Integer> {
+                      }
+                      public class Parent<T> {
+                        method public void foo(T! t);
+                      }
+                    }
+                """
         )
     }
 

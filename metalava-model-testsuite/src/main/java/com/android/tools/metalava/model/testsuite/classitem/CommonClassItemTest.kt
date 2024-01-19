@@ -18,9 +18,11 @@ package com.android.tools.metalava.model.testsuite.classitem
 
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassTypeItem
+import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
+import com.google.common.truth.Truth.assertThat
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 import kotlin.test.assertSame
@@ -884,6 +886,37 @@ class CommonClassItemTest : BaseModelTest() {
             val inheritedMethod = publicClass.inheritMethodFromNonApiAncestor(hiddenClassMethod)
             assertSame(hiddenClass, inheritedMethod.inheritedFrom)
             assertTrue(inheritedMethod.inheritedFromAncestor)
+        }
+    }
+
+    @Test
+    fun `Test toType for outer class with type parameter`() {
+        runCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+                    public class Outer<T> {
+                        public class Inner {}
+                    }
+                """
+            )
+        ) {
+            val innerClass = codebase.assertClass("test.pkg.Outer.Inner")
+            val outerClass = codebase.assertClass("test.pkg.Outer")
+            val outerClassParameter = outerClass.typeParameterList().typeParameters().single()
+
+            val innerType = innerClass.toType()
+            assertThat(innerType).isInstanceOf(ClassTypeItem::class.java)
+            assertThat((innerType as ClassTypeItem).qualifiedName).isEqualTo("test.pkg.Outer.Inner")
+
+            val outerType = innerType.outerClassType
+            assertThat(outerType).isNotNull()
+            assertThat(outerType!!.qualifiedName).isEqualTo("test.pkg.Outer")
+
+            val outerClassVariable = outerType.parameters.single()
+            assertThat(outerClassVariable).isInstanceOf(VariableTypeItem::class.java)
+            assertThat((outerClassVariable as VariableTypeItem).name).isEqualTo("T")
+            assertThat(outerClassVariable.asTypeParameter).isEqualTo(outerClassParameter)
         }
     }
 }

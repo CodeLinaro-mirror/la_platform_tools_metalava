@@ -16,6 +16,8 @@
 
 package com.android.tools.metalava.model
 
+import com.android.tools.metalava.model.TypeItem.Companion.equals
+import java.util.Objects
 import java.util.function.Predicate
 
 /**
@@ -34,6 +36,24 @@ interface TypeItem {
     val modifiers: TypeModifiers
 
     fun accept(visitor: TypeVisitor)
+
+    /**
+     * Whether this type is equal to [other], not considering modifiers.
+     *
+     * This is implemented on each sub-interface of [TypeItem] instead of [equals] because
+     * interfaces are not allowed to implement [equals]. An [equals] implementation is provided by
+     * [DefaultTypeItem].
+     */
+    fun equalToType(other: TypeItem?): Boolean
+
+    /**
+     * Hashcode for the type.
+     *
+     * This is implemented on each sub-interface of [TypeItem] instead of [hashCode] because
+     * interfaces are not allowed to implement [hashCode]. A [hashCode] implementation is provided
+     * by [DefaultTypeItem].
+     */
+    fun hashCodeForType(): Int
 
     /**
      * Generates a string for this type.
@@ -312,47 +332,6 @@ interface TypeItem {
 
         /** Prefix of Kotlin JVM function types, used for lambdas. */
         private const val KOTLIN_FUNCTION_PREFIX = "kotlin.jvm.functions.Function"
-
-        /** Compares two strings, ignoring space diffs (spaces, not whitespace in general) */
-        fun equalsWithoutSpace(s1: String, s2: String): Boolean {
-            if (s1 == s2) {
-                return true
-            }
-            val sp1 = s1.indexOf(' ') // first space
-            val sp2 = s2.indexOf(' ')
-            if (sp1 == -1 && sp2 == -1) {
-                // no spaces in strings and aren't equal
-                return false
-            }
-
-            val l1 = s1.length
-            val l2 = s2.length
-            var i1 = 0
-            var i2 = 0
-
-            while (i1 < l1 && i2 < l2) {
-                var c1 = s1[i1++]
-                var c2 = s2[i2++]
-
-                while (c1 == ' ' && i1 < l1) {
-                    c1 = s1[i1++]
-                }
-                while (c2 == ' ' && i2 < l2) {
-                    c2 = s2[i2++]
-                }
-                if (c1 != c2) {
-                    return false
-                }
-            }
-            // Skip trailing spaces
-            while (i1 < l1 && s1[i1] == ' ') {
-                i1++
-            }
-            while (i2 < l2 && s2[i2] == ' ') {
-                i2++
-            }
-            return i1 == l1 && i2 == l2
-        }
     }
 }
 
@@ -405,6 +384,13 @@ abstract class DefaultTypeItem(private val codebase: Codebase) : TypeItem {
         // Default implementation; PSI subclass is more accurate
         return toSlashFormat(toErasedTypeString())
     }
+
+    override fun equals(other: Any?): Boolean {
+        if (other !is TypeItem) return false
+        return equalToType(other)
+    }
+
+    override fun hashCode(): Int = hashCodeForType()
 
     companion object {
         /**
@@ -699,6 +685,12 @@ interface PrimitiveTypeItem : TypeItem {
     override fun convertType(replacementMap: Map<TypeItem, TypeItem>): TypeItem {
         return (replacementMap[this] ?: this).duplicate()
     }
+
+    override fun equalToType(other: TypeItem?): Boolean {
+        return (other as? PrimitiveTypeItem)?.kind == kind
+    }
+
+    override fun hashCodeForType(): Int = kind.hashCode()
 }
 
 /** Represents an array type, including vararg types. */
@@ -727,6 +719,13 @@ interface ArrayTypeItem : TypeItem {
         return replacementMap[this]?.duplicate()
             ?: duplicate(componentType.convertType(replacementMap))
     }
+
+    override fun equalToType(other: TypeItem?): Boolean {
+        if (other !is ArrayTypeItem) return false
+        return isVarargs == other.isVarargs && componentType.equalToType(other.componentType)
+    }
+
+    override fun hashCodeForType(): Int = Objects.hash(isVarargs, componentType)
 }
 
 /** Represents a class type. */
@@ -772,6 +771,17 @@ interface ClassTypeItem : TypeItem {
             )
     }
 
+    override fun equalToType(other: TypeItem?): Boolean {
+        if (other !is ClassTypeItem) return false
+        return qualifiedName == other.qualifiedName &&
+            parameters.size == other.parameters.size &&
+            parameters.zip(other.parameters).all { (p1, p2) -> p1.equalToType(p2) } &&
+            ((outerClassType == null && other.outerClassType == null) ||
+                outerClassType?.equalToType(other.outerClassType) == true)
+    }
+
+    override fun hashCodeForType(): Int = Objects.hash(qualifiedName, outerClassType, parameters)
+
     companion object {
         /** Computes the simple name of a class from a qualified class name. */
         fun computeClassName(qualifiedName: String): String {
@@ -800,6 +810,12 @@ interface VariableTypeItem : TypeItem {
     override fun convertType(replacementMap: Map<TypeItem, TypeItem>): TypeItem {
         return (replacementMap[this] ?: this).duplicate()
     }
+
+    override fun equalToType(other: TypeItem?): Boolean {
+        return (other as? VariableTypeItem)?.name == name
+    }
+
+    override fun hashCodeForType(): Int = name.hashCode()
 }
 
 /**
@@ -834,4 +850,12 @@ interface WildcardTypeItem : TypeItem {
                 superBound?.convertType(replacementMap)
             )
     }
+
+    override fun equalToType(other: TypeItem?): Boolean {
+        if (other !is WildcardTypeItem) return false
+        return extendsBound?.equalToType(other.extendsBound) != false &&
+            superBound?.equalToType(other.superBound) != false
+    }
+
+    override fun hashCodeForType(): Int = Objects.hash(extendsBound, superBound)
 }

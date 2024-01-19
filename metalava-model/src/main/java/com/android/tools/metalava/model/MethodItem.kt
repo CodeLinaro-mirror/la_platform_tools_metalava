@@ -427,39 +427,17 @@ interface MethodItem : MemberItem {
         }
 
         for (i in parameters1.indices) {
-            val parameter1 = parameters1[i]
-            val parameter2 = parameters2[i]
-            val typeString1 = parameter1.type().toString()
-            val typeString2 = parameter2.type().toString()
-            if (typeString1 == typeString2) {
-                continue
-            }
-            val type1 = parameter1.type().toErasedTypeString()
-            val type2 = parameter2.type().toErasedTypeString()
+            val parameter1Type = parameters1[i].type()
+            val parameter2Type = parameters2[i].type()
+            if (parameter1Type == parameter2Type) continue
+            if (parameter1Type.toErasedTypeString() == parameter2Type.toErasedTypeString()) continue
 
-            if (type1 != type2) {
-                if (!checkGenericParameterTypes(typeString1, typeString2)) {
-                    return false
-                }
-            }
+            val convertedType =
+                parameter1Type.convertType(other.containingClass(), containingClass())
+            if (convertedType != parameter2Type) return false
         }
         return true
     }
-
-    /**
-     * Perform an additional check on possibly generic parameter types that do not match.
-     *
-     * Workaround for signature-based codebase, where we can't always resolve generic parameters. If
-     * we see a mismatch here which looks like a failure to erase say `T` into `java.lang.Object`,
-     * don't treat that as a mismatch.
-     *
-     * (Similar common case: `T[]` and `Object[]`)
-     *
-     * @param typeString1 the un-erased type for the parameter from this method.
-     * @param typeString2 the un-erased type for the corresponding parameter from another method
-     *   against which this is being matched.
-     */
-    fun checkGenericParameterTypes(typeString1: String, typeString2: String): Boolean = false
 
     /**
      * Returns whether this method has any types in its signature that does not match the given

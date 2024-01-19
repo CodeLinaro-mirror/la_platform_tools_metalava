@@ -45,19 +45,6 @@ sealed class TurbineTypeItem(
         }
         return null
     }
-
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-
-        return when (other) {
-            is TypeItem -> TypeItem.equalsWithoutSpace(toTypeString(), other.toTypeString())
-            else -> false
-        }
-    }
-
-    override fun hashCode(): Int {
-        return toTypeString().hashCode()
-    }
 }
 
 internal class TurbinePrimitiveTypeItem(

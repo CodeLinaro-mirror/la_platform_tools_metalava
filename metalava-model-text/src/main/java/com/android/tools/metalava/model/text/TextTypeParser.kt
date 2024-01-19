@@ -32,27 +32,13 @@ internal class TextTypeParser(val codebase: TextCodebase, var kotlinStyleNulls: 
      */
     fun obtainTypeFromClass(cl: TextClassItem): TextTypeItem {
         val params = cl.typeParameterList.typeParameters().map { it.toType() }
-        return TextClassTypeItem(
-            codebase,
-            cl.qualifiedTypeName,
-            cl.qualifiedName,
-            params,
-            null,
-            emptyModifiers
-        )
+        return TextClassTypeItem(codebase, cl.qualifiedName, params, null, emptyModifiers)
     }
 
     /** Creates or retrieves from cache a [TextTypeItem] representing `java.lang.Object` */
     fun obtainObjectType(): TextTypeItem {
         return typeCache.obtain(JAVA_LANG_OBJECT) {
-            TextClassTypeItem(
-                codebase,
-                JAVA_LANG_OBJECT,
-                JAVA_LANG_OBJECT,
-                emptyList(),
-                null,
-                emptyModifiers
-            )
+            TextClassTypeItem(codebase, JAVA_LANG_OBJECT, emptyList(), null, emptyModifiers)
         }
     }
 
@@ -92,15 +78,15 @@ internal class TextTypeParser(val codebase: TextCodebase, var kotlinStyleNulls: 
 
         // Figure out what kind of type this is. Start with the simple cases: primitive or variable.
         return asPrimitive(type, trimmed, allAnnotations, nullability)
-            ?: asVariable(type, trimmed, typeParams, allAnnotations, nullability)
+            ?: asVariable(trimmed, typeParams, allAnnotations, nullability)
             // Try parsing as a wildcard before trying to parse as an array.
             // `? extends java.lang.String[]` should be parsed as a wildcard with an array bound,
             // not as an array of wildcards, for consistency with how this would be compiled.
-            ?: asWildcard(type, trimmed, typeParams, allAnnotations, nullability)
+            ?: asWildcard(trimmed, typeParams, allAnnotations, nullability)
             // Try parsing as an array.
             ?: asArray(trimmed, allAnnotations, nullability, typeParams)
             // If it isn't anything else, parse the type as a class.
-            ?: asClass(type, trimmed, typeParams, allAnnotations, nullability)
+            ?: asClass(trimmed, typeParams, allAnnotations, nullability)
     }
 
     /**
@@ -135,7 +121,6 @@ internal class TextTypeParser(val codebase: TextCodebase, var kotlinStyleNulls: 
         }
         return TextPrimitiveTypeItem(
             codebase,
-            original,
             kind,
             modifiers(annotations, TypeNullability.NONNULL)
         )
@@ -224,73 +209,11 @@ internal class TextTypeParser(val codebase: TextCodebase, var kotlinStyleNulls: 
         // Create the component type of the outermost array by building up the inner component type.
         val componentType =
             componentModifiers.fold(deepComponentType) { component, modifiers ->
-                TextArrayTypeItem(codebase, "$component[]", component, false, modifiers)
+                TextArrayTypeItem(codebase, component, false, modifiers)
             }
 
         // Create the outer array.
-        val reassembledTypeString =
-            reassembleArrayTypeString(
-                deepComponentType,
-                componentAnnotations,
-                allAnnotations,
-                allNullability,
-                varargs
-            )
-        return TextArrayTypeItem(
-            codebase,
-            reassembledTypeString,
-            componentType,
-            varargs,
-            arrayModifiers
-        )
-    }
-
-    /**
-     * Reassemble the full text of the array. The reason this is needed instead of simply using the
-     * original type like the other constructors do is that the component type might be an implicit
-     * `java.lang` type. If that's true, we need to add the `java.lang` prefix to the array type
-     * too. Once annotations and nullability are properly handled (b/300081840), this shouldn't be
-     * necessary.
-     *
-     * This isn't the case for any other complex types, because java.lang is only stripped from the
-     * beginning of a type string and wildcard bounds and class parameters are at the end.
-     */
-    private fun reassembleArrayTypeString(
-        deepComponentType: TextTypeItem,
-        deepComponentAnnotations: List<String>,
-        allArrayAnnotations: List<List<String>>,
-        allNullability: List<TypeNullability?>,
-        varargs: Boolean
-    ): String {
-        if (allArrayAnnotations.isNotEmpty()) {
-            // This is an array type -- make the component string, then add modifiers.
-            val component =
-                reassembleArrayTypeString(
-                    deepComponentType = deepComponentType,
-                    deepComponentAnnotations = deepComponentAnnotations,
-                    // Drop the modifiers for the outermost level of the string.
-                    allArrayAnnotations = allArrayAnnotations.drop(1),
-                    allNullability = allNullability.drop(1),
-                    // Inner array types can't be varargs
-                    varargs = false
-                )
-            val outerArrayAnnotations = allArrayAnnotations.first()
-            val trailingAnnotations =
-                if (outerArrayAnnotations.isEmpty()) ""
-                else {
-                    " " + outerArrayAnnotations.joinToString(" ") + " "
-                }
-            val suffix = (if (varargs) "..." else "[]") + allNullability.first()?.suffix.orEmpty()
-            return "$component$trailingAnnotations$suffix"
-        } else {
-            // End of the recursion, create a string for the non-array component type.
-            val leadingAnnotations =
-                if (deepComponentAnnotations.isEmpty()) ""
-                else {
-                    deepComponentAnnotations.joinToString(" ") + " "
-                }
-            return "$leadingAnnotations${deepComponentType.type}"
-        }
+        return TextArrayTypeItem(codebase, componentType, varargs, arrayModifiers)
     }
 
     /**
@@ -299,12 +222,9 @@ internal class TextTypeParser(val codebase: TextCodebase, var kotlinStyleNulls: 
      *
      * The context [typeParams] are needed to parse the bounds of the wildcard.
      *
-     * [type] should have annotations and nullability markers stripped, with [original] as the
-     * complete annotated type. Once annotations are properly handled (b/300081840), preserving
-     * [original] won't be necessary.
+     * [type] should have annotations and nullability markers stripped.
      */
     private fun asWildcard(
-        original: String,
         type: String,
         typeParams: List<TypeParameterItem>,
         annotations: List<String>,
@@ -317,7 +237,6 @@ internal class TextTypeParser(val codebase: TextCodebase, var kotlinStyleNulls: 
         if (type == "?")
             return TextWildcardTypeItem(
                 codebase,
-                type,
                 obtainObjectType(),
                 null,
                 modifiers(annotations, TypeNullability.UNDEFINED)
@@ -329,7 +248,6 @@ internal class TextTypeParser(val codebase: TextCodebase, var kotlinStyleNulls: 
             val extendsBound = bound.substring(8)
             TextWildcardTypeItem(
                 codebase,
-                original,
                 obtainTypeFromString(extendsBound, typeParams),
                 null,
                 modifiers(annotations, TypeNullability.UNDEFINED)
@@ -338,7 +256,6 @@ internal class TextTypeParser(val codebase: TextCodebase, var kotlinStyleNulls: 
             val superBound = bound.substring(6)
             TextWildcardTypeItem(
                 codebase,
-                original,
                 // All wildcards have an implicit Object extends bound
                 obtainObjectType(),
                 obtainTypeFromString(superBound, typeParams),
@@ -355,25 +272,16 @@ internal class TextTypeParser(val codebase: TextCodebase, var kotlinStyleNulls: 
      * Try parsing [type] as a type variable. This will return a non-null [TextVariableTypeItem] if
      * [type] matches a parameter from [typeParams].
      *
-     * [type] should have annotations and nullability markers stripped, with [original] as the
-     * complete annotated type. Once annotations are properly handled (b/300081840), preserving
-     * [original] won't be necessary.
+     * [type] should have annotations and nullability markers stripped.
      */
     private fun asVariable(
-        original: String,
         type: String,
         typeParams: List<TypeParameterItem>,
         annotations: List<String>,
         nullability: TypeNullability?
     ): TextVariableTypeItem? {
         val param = typeParams.firstOrNull { it.simpleName() == type } ?: return null
-        return TextVariableTypeItem(
-            codebase,
-            original,
-            type,
-            param,
-            modifiers(annotations, nullability)
-        )
+        return TextVariableTypeItem(codebase, type, param, modifiers(annotations, nullability))
     }
 
     /**
@@ -382,18 +290,15 @@ internal class TextTypeParser(val codebase: TextCodebase, var kotlinStyleNulls: 
      *
      * The context [typeParams] are used to parse the parameters of the class type.
      *
-     * [type] should have annotations and nullability markers stripped, with [original] as the
-     * complete annotated type. Once annotations are properly handled (b/300081840), preserving
-     * [original] won't be necessary.
+     * [type] should have annotations and nullability markers stripped.
      */
     private fun asClass(
-        original: String,
         type: String,
         typeParams: List<TypeParameterItem>,
         annotations: List<String>,
         nullability: TypeNullability?
     ): TextClassTypeItem {
-        return createClassType(original, type, null, typeParams, annotations, nullability)
+        return createClassType(type, null, typeParams, annotations, nullability)
     }
 
     /**
@@ -403,7 +308,6 @@ internal class TextTypeParser(val codebase: TextCodebase, var kotlinStyleNulls: 
      * from the [original] type `test.pkg.Outer<P1>.Inner<P2>`.
      */
     private fun createClassType(
-        original: String,
         type: String,
         outerClassType: TextClassTypeItem?,
         typeParams: List<TypeParameterItem>,
@@ -412,15 +316,15 @@ internal class TextTypeParser(val codebase: TextCodebase, var kotlinStyleNulls: 
     ): TextClassTypeItem {
         val (name, afterName, classAnnotations) = splitClassType(type)
 
-        val (qualifiedName, fullName) =
+        val qualifiedName =
             if (outerClassType != null) {
                 // This is an inner type, add the prefix of the outer name
-                Pair("${outerClassType.qualifiedName}.$name", original)
+                "${outerClassType.qualifiedName}.$name"
             } else if (!name.contains('.')) {
                 // Reverse the effect of [TypeItem.stripJavaLangPrefix].
-                Pair("java.lang.$name", "java.lang.$original")
+                "java.lang.$name"
             } else {
-                Pair(name, original)
+                name
             }
 
         val (paramStrings, remainder) = typeParameterStringsWithRemainder(afterName)
@@ -434,14 +338,7 @@ internal class TextTypeParser(val codebase: TextCodebase, var kotlinStyleNulls: 
                 modifiers(classAnnotations + annotations, nullability)
             }
         val classType =
-            TextClassTypeItem(
-                codebase,
-                fullName,
-                qualifiedName,
-                params,
-                outerClassType,
-                classModifiers
-            )
+            TextClassTypeItem(codebase, qualifiedName, params, outerClassType, classModifiers)
 
         if (remainder != null) {
             if (!remainder.startsWith('.')) {
@@ -451,7 +348,6 @@ internal class TextTypeParser(val codebase: TextCodebase, var kotlinStyleNulls: 
             }
             // This is an inner class type, recur with the new outer class
             return createClassType(
-                fullName,
                 remainder.substring(1),
                 classType,
                 typeParams,
