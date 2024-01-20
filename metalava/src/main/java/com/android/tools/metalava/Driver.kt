@@ -39,7 +39,6 @@ import com.android.tools.metalava.cli.signature.UpdateSignatureHeaderCommand
 import com.android.tools.metalava.compatibility.CompatibilityCheck
 import com.android.tools.metalava.doc.DocAnalyzer
 import com.android.tools.metalava.lint.ApiLint
-import com.android.tools.metalava.model.AnnotationTarget
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.Codebase
@@ -786,13 +785,10 @@ private fun createStubFiles(
 
     val stubWriter =
         StubWriter(
-            codebase = codebase,
             stubsDir = stubDir,
             generateAnnotations = options.generateAnnotations,
             preFiltered = codebase.preFiltered,
             docStubs = docStubs,
-            annotationTarget =
-                if (docStubs) AnnotationTarget.DOC_STUBS_FILE else AnnotationTarget.SDK_STUBS_FILE,
             reporter = options.reporter,
             config = stubWriterConfig,
         )

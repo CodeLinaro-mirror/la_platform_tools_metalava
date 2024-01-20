@@ -305,16 +305,6 @@ internal constructor(
         this.fields = fields
     }
 
-    override fun mapTypeVariables(target: ClassItem): Map<TypeItem, TypeItem> {
-        // TODO(316922930): Temporarily return an empty map for Kotlin because the previous
-        // implementation didn't work for Kotlin source. AndroidX signature files need to be updated
-        return if (isKotlin()) {
-            emptyMap()
-        } else {
-            super.mapTypeVariables(target)
-        }
-    }
-
     override fun equals(other: Any?): Boolean {
         if (this === other) {
             return true
