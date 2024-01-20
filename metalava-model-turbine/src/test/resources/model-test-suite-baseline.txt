@@ -17,13 +17,6 @@ com.android.tools.metalava.model.testsuite.fielditem.SourceFieldItemTest
   test default value of an enum constant field[turbine,java]
   test non final field with default value as constant expression[turbine,java]
 
-com.android.tools.metalava.model.testsuite.methoditem.CommonSuperMethodsTest
-  Test multiple super methods from parent and grand parent interfaces[turbine,java]
-  Test no super method from parent class as private[turbine,java]
-  Test no super method from parent class as static[turbine,java]
-  Test super method with generic array parameter from generic class[turbine,java]
-  Test super method with generic parameter from generic class[turbine,java]
-
 com.android.tools.metalava.model.testsuite.packageitem.CommonPackageItemTest
   Test @hide in package html[turbine,java]
   Test nullability annotation in package info[turbine,java]

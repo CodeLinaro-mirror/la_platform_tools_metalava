@@ -23,7 +23,7 @@ java_library_host {
         "src/main/java/**/*.java",
         "src/main/java/**/*.kt",
     ],
-    java_resource_dirs: ["metalava-model-turbine/src/main/resources/"],
+    java_resource_dirs: ["src/main/resources/"],
     libs: [
         "metalava-model",
         "metalava-reporter",

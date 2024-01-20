@@ -20,6 +20,7 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
+import com.android.tools.metalava.model.computeSuperMethods
 import com.intellij.psi.PsiAnnotationMethod
 import com.intellij.psi.PsiMethod
 import org.jetbrains.kotlin.name.JvmStandardClassIds
@@ -117,9 +118,7 @@ open class PsiMethodItem(
 
     override fun superMethods(): List<MethodItem> {
         if (superMethods == null) {
-            val result = mutableListOf<MethodItem>()
-            psiMethod.findSuperMethods().mapTo(result) { codebase.findMethod(it) }
-            superMethods = result
+            superMethods = computeSuperMethods()
         }
 
         return superMethods!!

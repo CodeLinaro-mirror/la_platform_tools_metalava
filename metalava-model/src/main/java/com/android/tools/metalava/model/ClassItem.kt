@@ -90,7 +90,11 @@ interface ClassItem : Item {
             fullName().replace('.', '$')
     }
 
-    /** The super class of this class, if any */
+    /**
+     * The super class of this class, if any.
+     *
+     * Interfaces always return `null` for this.
+     */
     @MetalavaApi fun superClass(): ClassItem?
 
     /** All super classes, if any */
