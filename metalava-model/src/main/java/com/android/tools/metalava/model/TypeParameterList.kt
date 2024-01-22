@@ -28,22 +28,17 @@ interface TypeParameterList {
      */
     override fun toString(): String
 
-    /** Returns the names of the type parameters, if any */
-    fun typeParameterNames(): List<String>
-
     /** Returns the type parameters, if any */
     @MetalavaApi fun typeParameters(): List<TypeParameterItem>
 
     /** Returns the number of type parameters */
-    fun typeParameterCount() = typeParameterNames().size
+    fun typeParameterCount() = typeParameters().size
 
     companion object {
         /** Type parameter list when there are no type parameters */
         val NONE =
             object : TypeParameterList {
                 override fun toString(): String = ""
-
-                override fun typeParameterNames(): List<String> = emptyList()
 
                 override fun typeParameters(): List<TypeParameterItem> = emptyList()
 

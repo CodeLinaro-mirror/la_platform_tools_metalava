@@ -26,16 +26,8 @@ class TextTypeParameterList(
     private val typeListString: String
 ) : TypeParameterList {
     private var typeParameters: List<TextTypeParameterItem>? = null
-    private var typeParameterNames: List<String>? = null
 
     override fun toString(): String = typeListString
-
-    override fun typeParameterNames(): List<String> {
-        if (typeParameterNames == null) {
-            typeParameterNames = typeParameters().map { it.simpleName() }
-        }
-        return typeParameterNames!!
-    }
 
     override fun typeParameters(): List<TypeParameterItem> {
         if (typeParameters == null) {

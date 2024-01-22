@@ -34,7 +34,7 @@ class CommonModelTest : BaseModelTest() {
                     // Signature format: 2.0
                 """),
             java(""),
-        ) { codebase ->
+        ) {
             assertNotNull(codebase)
         }
     }
@@ -79,7 +79,7 @@ class CommonModelTest : BaseModelTest() {
                     """
                 ),
             ),
-        ) { codebase ->
+        ) {
             // Iterate over the codebase and try and find every item that is visited.
             codebase.accept(
                 object : BaseItemVisitor() {

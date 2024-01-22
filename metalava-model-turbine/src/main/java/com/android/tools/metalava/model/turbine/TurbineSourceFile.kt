@@ -16,14 +16,19 @@
 
 package com.android.tools.metalava.model.turbine
 
-import com.android.tools.metalava.model.Codebase
-import com.android.tools.metalava.model.DefaultTypeParameterList
+import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.SourceFile
 
-internal class TurbineTypeParameterList(
-    val codebase: Codebase,
-) : DefaultTypeParameterList() {
+internal class TurbineSourceFile(
+    val codebase: TurbineBasedCodebase,
+    val source: String,
+) : SourceFile {
 
-    internal lateinit var typeParameters: List<TurbineTypeParameterItem>
+    override fun getHeaderComments(): String? {
+        val packageIndex = source.indexOf("package")
+        // Return everything before "package" keyword
+        return if (packageIndex == -1) "" else source.substring(0, packageIndex)
+    }
 
-    override fun typeParameters(): List<TurbineTypeParameterItem> = typeParameters
+    override fun classes(): Sequence<ClassItem> = TODO("b/295800205")
 }

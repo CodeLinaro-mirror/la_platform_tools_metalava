@@ -53,7 +53,6 @@ internal class StubWriter(
         visitConstructorsAsMethods = false,
         nestInnerClasses = true,
         inlineInheritedFields = true,
-        fieldComparator = FieldItem.comparator,
         // Methods are by default sorted in source order in stubs, to encourage methods
         // that are near each other in the source to show up near each other in the documentation
         methodComparator = MethodItem.sourceOrderComparator,

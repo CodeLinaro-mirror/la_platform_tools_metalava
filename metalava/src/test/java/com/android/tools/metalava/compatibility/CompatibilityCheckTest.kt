@@ -5128,6 +5128,37 @@ class CompatibilityCheckTest : DriverTest() {
         )
     }
 
+    @Test
+    fun `Check compatibility against overridden method with type variable substitution`() {
+        check(
+            // The remove method isn't listed in this file, but it exists on Properties with return
+            // type `java.lang.Object`.
+            checkCompatibilityApiReleased =
+                """
+                    package test.pkg {
+                      public class Properties extends test.pkg.Hashtable<java.lang.Object,java.lang.Object> {
+                      }
+
+                      public class Hashtable<K, V> {
+                        method public V remove(Object);
+                      }
+                    }
+                """,
+            signatureSource =
+                """
+                    package test.pkg {
+                      public class Properties extends test.pkg.Hashtable<java.lang.Object,java.lang.Object> {
+                        method public Object remove(Object);
+                      }
+
+                      public class Hashtable<K, V> extends java.util.Dictionary<K,V> implements java.lang.Cloneable java.util.Map<K,V> java.io.Serializable {
+                        method public V remove(Object);
+                      }
+                    }
+                """,
+        )
+    }
+
     // TODO: Check method signatures changing incompatibly (look especially out for adding new
     // overloaded methods and comparator getting confused!)
     //   ..equals on the method items should actually be very useful!

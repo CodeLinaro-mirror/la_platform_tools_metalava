@@ -16,9 +16,12 @@
 
 package com.android.tools.metalava.model.turbine
 
+import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.findAnnotation
+import com.android.tools.metalava.model.hasAnnotation
 
 class TurbineParameterItem(
     codebase: TurbineBasedCodebase,
@@ -31,15 +34,24 @@ class TurbineParameterItem(
 
     override fun name(): String = name
 
-    override fun publicName(): String? = TODO("b/295800205")
+    override fun publicName(): String? {
+        // Java: Look for @ParameterName annotation
+        val annotation = modifiers.findAnnotation(AnnotationItem::isParameterName)
+        return annotation?.attributes?.firstOrNull()?.value?.value()?.toString()
+    }
 
     override fun containingMethod(): MethodItem = containingMethod
 
-    override fun hasDefaultValue(): Boolean = TODO("b/295800205")
+    override fun hasDefaultValue(): Boolean = isDefaultValueKnown()
 
-    override fun isDefaultValueKnown(): Boolean = TODO("b/295800205")
+    override fun isDefaultValueKnown(): Boolean {
+        return modifiers.hasAnnotation(AnnotationItem::isDefaultValue)
+    }
 
-    override fun defaultValue(): String? = TODO("b/295800205")
+    override fun defaultValue(): String? {
+        val annotation = modifiers.findAnnotation(AnnotationItem::isDefaultValue)
+        return annotation?.attributes?.firstOrNull()?.value?.value()?.toString()
+    }
 
     override fun equals(other: Any?): Boolean = TODO("b/295800205")
 

@@ -622,4 +622,64 @@ class AddAdditionalOverridesTest : DriverTest() {
                 """,
         )
     }
+
+    @Test
+    fun `Do not elide method inherited from inaccessible class and default method from interface`() {
+        checkAddAdditionalOverrides(
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                        package test.pkg;
+
+                        public interface ParentInterface {
+                            default void bar() {}
+                        }
+                        """
+                    ),
+                    java(
+                        """
+                        package test.pkg;
+
+                        class InaccessibleClass implements ParentInterface {
+                            public void bar() {}
+                        }
+                        """
+                    ),
+                    java(
+                        """
+                        package test.pkg;
+
+                        public class ChildClass extends InaccessibleClass implements ParentInterface {
+                        }
+                        """
+                    ),
+                ),
+            apiOriginal =
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public class ChildClass implements test.pkg.ParentInterface {
+                        ctor public ChildClass();
+                      }
+                      public interface ParentInterface {
+                        method public default void bar();
+                      }
+                    }
+                """,
+            apiWithAdditionalOverrides =
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public class ChildClass implements test.pkg.ParentInterface {
+                        ctor public ChildClass();
+                        method public void bar();
+                      }
+                      public interface ParentInterface {
+                        method public default void bar();
+                      }
+                    }
+                """,
+        )
+    }
 }

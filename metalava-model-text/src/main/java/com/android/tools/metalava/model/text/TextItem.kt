@@ -48,8 +48,6 @@ abstract class TextItem(
     override fun isKotlin(): Boolean =
         codebase.unsupported() // source language not recorded in signature files
 
-    override fun isCloned(): Boolean = false
-
     override fun location(): Location {
         val path = if (position == SourcePositionInfo.UNKNOWN) null else Path.of(position.file)
         val line = position.line

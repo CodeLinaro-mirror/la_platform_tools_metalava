@@ -32,7 +32,7 @@ open class TextMethodItem(
     name: String,
     containingClass: ClassItem,
     modifiers: DefaultModifierList,
-    private val returnType: TextTypeItem,
+    private val returnType: TypeItem,
     private val parameters: List<TextParameterItem>,
     position: SourcePositionInfo
 ) :
@@ -136,16 +136,15 @@ open class TextMethodItem(
     }
 
     override fun duplicate(targetContainingClass: ClassItem): MethodItem {
+        val typeVariableMap = targetContainingClass.mapTypeVariables(containingClass())
         val duplicated =
             TextMethodItem(
                 codebase,
                 name(),
                 targetContainingClass,
                 modifiers.duplicate(),
-                returnType,
-                // Consider cloning these: they have back references to the parent method (though
-                // it's unlikely anyone will care about the difference in parent methods)
-                parameters,
+                returnType.convertType(typeVariableMap),
+                parameters.map { it.duplicate(typeVariableMap) },
                 position
             )
         duplicated.inheritedFrom = containingClass()
@@ -199,7 +198,6 @@ open class TextMethodItem(
 
     override fun isExtensionMethod(): Boolean = codebase.unsupported()
 
-    override var inheritedMethod: Boolean = false
     override var inheritedFrom: ClassItem? = null
 
     @Deprecated("This property should not be accessed directly.")

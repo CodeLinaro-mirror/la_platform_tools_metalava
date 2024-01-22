@@ -64,8 +64,6 @@ private constructor(
 
     override var superConstructor: ConstructorItem? = null
 
-    override fun isCloned(): Boolean = false
-
     override fun superMethods(): List<MethodItem> = emptyList()
 
     /**
@@ -76,10 +74,10 @@ private constructor(
         // If no PSI element, is this a synthetic/implicit constructor? If so
         // grab the parent class' PSI element instead for file/location purposes
         val element =
-            if (implicitConstructor && element.containingFile?.virtualFile == null) {
+            if (implicitConstructor && psiMethod.containingFile?.virtualFile == null) {
                 (containingClass() as PsiClassItem).psi()
             } else {
-                element
+                psiMethod
             }
 
         return PsiLocationProvider.elementToLocation(element, Location.getBaselineKeyForItem(this))

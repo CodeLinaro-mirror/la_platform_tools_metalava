@@ -195,7 +195,7 @@ class CommonErasedTypeStringTest : BaseModelTest() {
 
     @Test
     fun `Erased type string`() {
-        runCodebaseTest(javaTestFile(), signatureTestFile()) { codebase ->
+        runCodebaseTest(javaTestFile(), signatureTestFile()) {
             val fooMethod = codebase.assertClass("test.pkg.Foo").methods().single()
             val erasedParameters =
                 fooMethod.parameters().joinToString { parameter ->
@@ -210,7 +210,7 @@ class CommonErasedTypeStringTest : BaseModelTest() {
 
     @Test
     fun `Find method`() {
-        runCodebaseTest(javaTestFile(), signatureTestFile()) { codebase ->
+        runCodebaseTest(javaTestFile(), signatureTestFile()) {
             val fooClass = codebase.assertClass("test.pkg.Foo")
 
             val fooMethod = fooClass.methods().single()

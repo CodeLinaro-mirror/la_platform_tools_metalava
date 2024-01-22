@@ -54,7 +54,7 @@ class CommonMethodItemTest : BaseModelTest() {
                     }
                 """
             ),
-        ) { codebase ->
+        ) {
             val testClass = codebase.assertClass("test.pkg.Test")
 
             val actual = buildString {
@@ -122,7 +122,7 @@ class CommonMethodItemTest : BaseModelTest() {
                     """
                 ),
             ),
-        ) { codebase ->
+        ) {
             val testClass = codebase.assertClass("test.pkg.Test")
             val testConstructor = testClass.constructors().single()
             assertEquals(emptyList(), testConstructor.superMethods())
@@ -171,7 +171,7 @@ class CommonMethodItemTest : BaseModelTest() {
                     """
                 ),
             ),
-        ) { codebase ->
+        ) {
             val baseClass = codebase.assertClass("test.pkg.Base")
             val testClass = codebase.assertClass("test.pkg.Test")
 

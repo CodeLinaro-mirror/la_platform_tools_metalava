@@ -45,7 +45,7 @@ import org.jetbrains.uast.UastFacade
 
 class PsiParameterItem
 internal constructor(
-    override val codebase: PsiBasedCodebase,
+    codebase: PsiBasedCodebase,
     private val psiParameter: PsiParameter,
     private val name: String,
     override val parameterIndex: Int,
@@ -65,6 +65,8 @@ internal constructor(
     override var property: PsiPropertyItem? = null
 
     override fun name(): String = name
+
+    override fun psi() = psiParameter
 
     override fun publicName(): String? {
         if (isKotlin(psiParameter)) {
@@ -355,7 +357,12 @@ internal constructor(
             return parameter
         }
 
-        fun create(codebase: PsiBasedCodebase, original: PsiParameterItem): PsiParameterItem {
+        fun create(
+            codebase: PsiBasedCodebase,
+            original: PsiParameterItem,
+            replacementMap: Map<TypeItem, TypeItem>
+        ): PsiParameterItem {
+            val type = original.type.convertType(replacementMap) as PsiTypeItem
             val parameter =
                 PsiParameterItem(
                     codebase = codebase,
@@ -364,7 +371,7 @@ internal constructor(
                     parameterIndex = original.parameterIndex,
                     documentation = original.documentation,
                     modifiers = PsiModifierItem.create(codebase, original.modifiers),
-                    type = original.type.duplicate()
+                    type = type
                 )
             parameter.modifiers.setOwner(parameter)
             return parameter
@@ -372,9 +379,10 @@ internal constructor(
 
         fun create(
             codebase: PsiBasedCodebase,
-            original: List<ParameterItem>
+            original: List<ParameterItem>,
+            replacementMap: Map<TypeItem, TypeItem>
         ): List<PsiParameterItem> {
-            return original.map { create(codebase, it as PsiParameterItem) }
+            return original.map { create(codebase, it as PsiParameterItem, replacementMap) }
         }
 
         private fun createParameterModifiers(

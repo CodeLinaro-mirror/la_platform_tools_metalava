@@ -43,22 +43,11 @@ interface FieldItem : MemberItem {
     fun isEnumConstant(): Boolean
 
     /**
-     * If this field is inherited from a hidden super class, this property is set. This is necessary
-     * because these fields should not be listed in signature files, whereas in stub files it's
-     * necessary for them to be included.
+     * Duplicates this field item.
+     *
+     * Override to specialize the return type.
      */
-    var inheritedField: Boolean
-
-    /**
-     * If this field is copied from a super class (typically via [duplicate]) this field points to
-     * the original class it was copied from
-     */
-    var inheritedFrom: ClassItem?
-
-    /**
-     * Duplicates this field item. Used when we need to insert inherited fields from interfaces etc.
-     */
-    fun duplicate(targetContainingClass: ClassItem): FieldItem
+    override fun duplicate(targetContainingClass: ClassItem): FieldItem
 
     override fun accept(visitor: ItemVisitor) {
         visitor.visit(this)
@@ -196,6 +185,11 @@ interface FieldItem : MemberItem {
                         value == Float.POSITIVE_INFINITY -> writer.print("(1.0f/0.0f);")
                         value == Float.NEGATIVE_INFINITY -> writer.print("(-1.0f/0.0f);")
                         java.lang.Float.isNaN(value) -> writer.print("(0.0f/0.0f);")
+                        // Force MIN_NORMAL to use the String representation created by
+                        // java.lang.Float.toString() before the bug fix in JDK 19  - see
+                        // https://inside.java/2022/09/23/quality-heads-up/ for details.
+                        value == java.lang.Float.MIN_NORMAL ->
+                            writer.format("1.17549435E-38f;", value)
                         else -> {
                             writer.print(canonicalizeFloatingPointString(value.toString()))
                             writer.print("f;")

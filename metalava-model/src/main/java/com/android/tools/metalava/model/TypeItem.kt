@@ -50,7 +50,6 @@ interface TypeItem {
     fun toTypeString(
         annotations: Boolean = false,
         kotlinStyleNulls: Boolean = false,
-        context: Item? = null,
         filter: Predicate<Item>? = null,
         spaceBetweenParameters: Boolean = false
     ): String
@@ -92,8 +91,8 @@ interface TypeItem {
      * parsing, which may have slightly different formats, e.g. varargs ("...") versus arrays
      * ("[]"), java.lang. prefixes removed in wildcard signatures, etc.
      */
-    fun toCanonicalType(context: Item? = null): String {
-        var s = toTypeString(context = context)
+    fun toCanonicalType(): String {
+        var s = toTypeString()
         while (s.contains(JAVA_LANG_PREFIX)) {
             s = s.replace(JAVA_LANG_PREFIX, "")
         }
@@ -104,6 +103,17 @@ interface TypeItem {
         return s
     }
 
+    /**
+     * Makes substitutions to the type based on the [replacementMap]. For instance, if the
+     * [replacementMap] contains `{T -> String}`, calling this method on `T` would return `String`,
+     * and calling it on `List<T>` would return `List<String>` (in both cases the modifiers on the
+     * `String` will be independently mutable from the `String` in the [replacementMap]). Calling it
+     * on an unrelated type like `int` would return a duplicate of that type.
+     *
+     * This method is intended to be used in conjunction with [ClassItem.mapTypeVariables],
+     */
+    fun convertType(replacementMap: Map<TypeItem, TypeItem>): TypeItem
+
     fun convertType(from: ClassItem, to: ClassItem): TypeItem {
         val map = from.mapTypeVariables(to)
         if (map.isNotEmpty()) {
@@ -111,13 +121,6 @@ interface TypeItem {
         }
 
         return this
-    }
-
-    fun convertType(replacementMap: Map<String, String>?, owner: Item? = null): TypeItem
-
-    fun convertTypeString(replacementMap: Map<String, String>?): String {
-        val typeString = toTypeString(annotations = true, kotlinStyleNulls = false)
-        return convertTypeString(typeString, replacementMap)
     }
 
     fun isJavaLangObject(): Boolean = false
@@ -129,6 +132,9 @@ interface TypeItem {
     fun defaultValueString(): String = "null"
 
     fun hasTypeArguments(): Boolean = toTypeString().contains("<")
+
+    /** Creates an identical type, with a copy of this type's modifiers so they can be mutated. */
+    fun duplicate(): TypeItem
 
     companion object {
         /** Shortens types, if configured */
@@ -169,20 +175,6 @@ interface TypeItem {
             }
 
             return type
-        }
-
-        fun formatType(type: String?): String {
-            return if (type == null) {
-                ""
-            } else cleanupGenerics(type)
-        }
-
-        fun cleanupGenerics(signature: String): String {
-            // <T extends java.lang.Object> is the same as <T>
-            //  but NOT for <T extends Object & java.lang.Comparable> -- you can't
-            //  shorten this to <T & java.lang.Comparable
-            // return type.replace(" extends java.lang.Object", "")
-            return signature.replace(" extends java.lang.Object>", ">")
         }
 
         /**
@@ -230,34 +222,6 @@ interface TypeItem {
                 ClassItem.fullNameComparator.compare(cls1, cls2)
             } else {
                 type1.toTypeString().compareTo(type2.toTypeString())
-            }
-        }
-
-        fun convertTypeString(typeString: String, replacementMap: Map<String, String>?): String {
-            var string = typeString
-            if (replacementMap != null && replacementMap.isNotEmpty()) {
-                // This is a moved method (typically an implementation of an interface
-                // method provided in a hidden superclass), with generics signatures.
-                // We need to rewrite the generics variables in case they differ
-                // between the classes.
-                if (replacementMap.isNotEmpty()) {
-                    replacementMap.forEach { (from, to) ->
-                        // We can't just replace one string at a time:
-                        // what if I have a map of {"A"->"B", "B"->"C"} and I tried to convert
-                        // A,B,C?
-                        // If I do the replacements one letter at a time I end up with C,C,C; if I
-                        // do the substitutions
-                        // simultaneously I get B,C,C. Therefore, we insert "___" as a magical
-                        // prefix to prevent
-                        // scenarios like this, and then we'll drop them afterwards.
-                        string =
-                            string.replace(Regex(pattern = """\b$from\b"""), replacement = "___$to")
-                    }
-                }
-                string = string.replace("___", "")
-                return string
-            } else {
-                return string
             }
         }
 
@@ -402,7 +366,6 @@ abstract class DefaultTypeItem(private val codebase: Codebase) : TypeItem {
     override fun toTypeString(
         annotations: Boolean,
         kotlinStyleNulls: Boolean,
-        context: Item?,
         filter: Predicate<Item>?,
         spaceBetweenParameters: Boolean
     ): String {
@@ -732,6 +695,10 @@ interface PrimitiveTypeItem : TypeItem {
     override fun accept(visitor: TypeVisitor) {
         visitor.visit(this)
     }
+
+    override fun convertType(replacementMap: Map<TypeItem, TypeItem>): TypeItem {
+        return (replacementMap[this] ?: this).duplicate()
+    }
 }
 
 /** Represents an array type, including vararg types. */
@@ -746,6 +713,19 @@ interface ArrayTypeItem : TypeItem {
 
     override fun accept(visitor: TypeVisitor) {
         visitor.visit(this)
+    }
+
+    override fun duplicate(): ArrayTypeItem = duplicate(componentType.duplicate())
+
+    /**
+     * Duplicates this type (including duplicating the modifiers so they can be independently
+     * mutated), but substituting in the provided [componentType] in place of this type's component.
+     */
+    fun duplicate(componentType: TypeItem): ArrayTypeItem
+
+    override fun convertType(replacementMap: Map<TypeItem, TypeItem>): TypeItem {
+        return replacementMap[this]?.duplicate()
+            ?: duplicate(componentType.convertType(replacementMap))
     }
 }
 
@@ -774,6 +754,24 @@ interface ClassTypeItem : TypeItem {
 
     override fun isJavaLangObject(): Boolean = qualifiedName == JAVA_LANG_OBJECT
 
+    override fun duplicate(): ClassTypeItem =
+        duplicate(outerClassType?.duplicate(), parameters.map { it.duplicate() })
+
+    /**
+     * Duplicates this type (including duplicating the modifiers so they can be independently
+     * mutated), but substituting in the provided [outerClass] and [parameters] in place of this
+     * type's outer class and parameters.
+     */
+    fun duplicate(outerClass: ClassTypeItem?, parameters: List<TypeItem>): ClassTypeItem
+
+    override fun convertType(replacementMap: Map<TypeItem, TypeItem>): TypeItem {
+        return replacementMap[this]?.duplicate()
+            ?: duplicate(
+                outerClassType?.convertType(replacementMap) as? ClassTypeItem,
+                parameters.map { it.convertType(replacementMap) }
+            )
+    }
+
     companion object {
         /** Computes the simple name of a class from a qualified class name. */
         fun computeClassName(qualifiedName: String): String {
@@ -798,6 +796,10 @@ interface VariableTypeItem : TypeItem {
     override fun accept(visitor: TypeVisitor) {
         visitor.visit(this)
     }
+
+    override fun convertType(replacementMap: Map<TypeItem, TypeItem>): TypeItem {
+        return (replacementMap[this] ?: this).duplicate()
+    }
 }
 
 /**
@@ -813,5 +815,23 @@ interface WildcardTypeItem : TypeItem {
 
     override fun accept(visitor: TypeVisitor) {
         visitor.visit(this)
+    }
+
+    override fun duplicate(): WildcardTypeItem =
+        duplicate(extendsBound?.duplicate(), superBound?.duplicate())
+
+    /**
+     * Duplicates this type (including duplicating the modifiers so they can be independently
+     * mutated), but substituting in the provided [extendsBound] and [superBound] in place of this
+     * type's bounds.
+     */
+    fun duplicate(extendsBound: TypeItem?, superBound: TypeItem?): WildcardTypeItem
+
+    override fun convertType(replacementMap: Map<TypeItem, TypeItem>): TypeItem {
+        return replacementMap[this]?.duplicate()
+            ?: duplicate(
+                extendsBound?.convertType(replacementMap),
+                superBound?.convertType(replacementMap)
+            )
     }
 }

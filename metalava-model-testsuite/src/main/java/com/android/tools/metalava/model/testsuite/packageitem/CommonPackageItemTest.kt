@@ -51,7 +51,7 @@ class CommonPackageItemTest : BaseModelTest() {
                         .trimIndent()
                 ),
             ),
-        ) { codebase ->
+        ) {
             val packageItem = codebase.assertPackage("test.pkg")
             assertEquals(true, packageItem.originallyHidden)
         }
@@ -79,7 +79,7 @@ class CommonPackageItemTest : BaseModelTest() {
                         .trimIndent()
                 ),
             ),
-        ) { codebase ->
+        ) {
             val packageItem = codebase.assertPackage("test.pkg")
             assertEquals(true, packageItem.originallyHidden)
         }
