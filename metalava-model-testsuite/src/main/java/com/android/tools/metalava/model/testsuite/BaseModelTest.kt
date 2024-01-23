@@ -168,6 +168,14 @@ abstract class BaseModelTest : Assertions {
     }
 
     /**
+     * Context within which the main body of tests that check the state of the [Codebase] will run.
+     */
+    class CodebaseContext<C : Codebase>(
+        /** The newly created [Codebase]. */
+        val codebase: C,
+    )
+
+    /**
      * Create a [Codebase] from one of the supplied [inputSets] and then run a test on that
      * [Codebase].
      *
@@ -183,7 +191,7 @@ abstract class BaseModelTest : Assertions {
             .singleOrNull { it.inputFormat == inputFormat }
             ?.let {
                 val tempDir = temporaryFolder.newFolder()
-                runner.createCodebaseAndRun(tempDir, it.testFiles, test)
+                runner.createCodebaseAndRun(tempDir, it.testFiles) { codebase -> test(codebase) }
             }
     }
 
@@ -200,7 +208,7 @@ abstract class BaseModelTest : Assertions {
      */
     fun runCodebaseTest(
         vararg sources: TestFile,
-        test: (Codebase) -> Unit,
+        test: CodebaseContext<Codebase>.() -> Unit,
     ) {
         runCodebaseTest(
             sources = testFilesToInputSets(sources),
@@ -216,12 +224,14 @@ abstract class BaseModelTest : Assertions {
      */
     fun runCodebaseTest(
         vararg sources: InputSet,
-        test: (Codebase) -> Unit,
+        test: CodebaseContext<Codebase>.() -> Unit,
     ) {
         createCodebaseFromInputSetAndRun(
             *sources,
-            test = test,
-        )
+        ) { codebase ->
+            val context = CodebaseContext(codebase)
+            context.test()
+        }
     }
 
     /**
@@ -233,7 +243,7 @@ abstract class BaseModelTest : Assertions {
      */
     fun runSourceCodebaseTest(
         vararg sources: TestFile,
-        test: (SourceCodebase) -> Unit,
+        test: CodebaseContext<SourceCodebase>.() -> Unit,
     ) {
         runSourceCodebaseTest(
             sources = testFilesToInputSets(sources),
@@ -249,12 +259,14 @@ abstract class BaseModelTest : Assertions {
      */
     fun runSourceCodebaseTest(
         vararg sources: InputSet,
-        test: (SourceCodebase) -> Unit,
+        test: CodebaseContext<SourceCodebase>.() -> Unit,
     ) {
         createCodebaseFromInputSetAndRun(
             *sources,
-        ) {
-            test(it as SourceCodebase)
+        ) { codebase ->
+            codebase as SourceCodebase
+            val context = CodebaseContext(codebase)
+            context.test()
         }
     }
 

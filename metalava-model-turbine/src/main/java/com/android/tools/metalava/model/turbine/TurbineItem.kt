@@ -44,7 +44,5 @@ abstract class TurbineItem(
         TODO("b/295800205")
     }
 
-    override fun isCloned(): Boolean = false
-
     override fun mutableModifiers(): MutableModifierList = modifiers
 }

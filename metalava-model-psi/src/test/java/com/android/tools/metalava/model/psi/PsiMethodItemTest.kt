@@ -317,7 +317,7 @@ class PsiMethodItemTest : BasePsiTest() {
             assertEquals(TypeNullability.NONNULL, toString.returnType().modifiers.nullability())
 
             val barClass = codebase.assertClass("test.pkg.Bar")
-            val duplicated = barClass.createMethod(toString)
+            val duplicated = barClass.inheritMethodFromNonApiAncestor(toString)
             assertEquals(TypeNullability.NONNULL, duplicated.returnType().modifiers.nullability())
         }
     }

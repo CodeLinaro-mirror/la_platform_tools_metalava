@@ -161,7 +161,7 @@ class CommonTypeStringTest : BaseModelTest() {
 
     @Test
     fun `Type string`() {
-        runCodebaseTest(javaTestFiles(), signatureTestFile()) { codebase ->
+        runCodebaseTest(javaTestFiles(), signatureTestFile()) {
             val method = codebase.assertClass("test.pkg.Foo").methods().single()
             val param = method.parameters().single()
             val type = param.type()
@@ -170,7 +170,6 @@ class CommonTypeStringTest : BaseModelTest() {
                     annotations = parameters.typeStringConfiguration.annotations,
                     kotlinStyleNulls = parameters.typeStringConfiguration.kotlinStyleNulls,
                     filter = parameters.typeStringConfiguration.filter,
-                    context = param,
                     spaceBetweenParameters =
                         parameters.typeStringConfiguration.spaceBetweenParameters,
                 )

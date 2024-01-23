@@ -52,7 +52,11 @@ import org.jetbrains.kotlin.psi.KtModifierList
 import org.jetbrains.kotlin.psi.KtModifierListOwner
 import org.jetbrains.kotlin.psi.KtNamedFunction
 import org.jetbrains.kotlin.psi.KtPropertyAccessor
+import org.jetbrains.kotlin.psi.psiUtil.hasActualModifier
+import org.jetbrains.kotlin.psi.psiUtil.hasExpectModifier
 import org.jetbrains.kotlin.psi.psiUtil.hasFunModifier
+import org.jetbrains.kotlin.psi.psiUtil.hasSuspendModifier
+import org.jetbrains.kotlin.psi.psiUtil.hasValueModifier
 import org.jetbrains.kotlin.psi.psiUtil.visibilityModifier
 import org.jetbrains.uast.UAnnotated
 import org.jetbrains.uast.UAnnotation
@@ -248,10 +252,10 @@ internal constructor(
                         visibilityFlags = PUBLIC
                     }
                 }
-                if (ktModifierList.hasModifier(KtTokens.VALUE_KEYWORD)) {
+                if (ktModifierList.hasValueModifier()) {
                     flags = flags or VALUE
                 }
-                if (ktModifierList.hasModifier(KtTokens.SUSPEND_KEYWORD)) {
+                if (ktModifierList.hasSuspendModifier()) {
                     flags = flags or SUSPEND
                 }
                 if (ktModifierList.hasModifier(KtTokens.COMPANION_KEYWORD)) {
@@ -262,6 +266,12 @@ internal constructor(
                 }
                 if (ktModifierList.hasModifier(KtTokens.DATA_KEYWORD)) {
                     flags = flags or DATA
+                }
+                if (ktModifierList.hasExpectModifier()) {
+                    flags = flags or EXPECT
+                }
+                if (ktModifierList.hasActualModifier()) {
+                    flags = flags or ACTUAL
                 }
             }
             // Methods that are property accessors inherit visibility from the source element

@@ -344,7 +344,7 @@ class ApiAnalyzer(
                     if (hiddenInterfaceClass.hasTypeVariables()) {
                         val mapping = cls.mapTypeVariables(hiddenSuperClass)
                         if (mapping.isNotEmpty()) {
-                            val mappedType: TypeItem = hiddenInterface.convertType(mapping, cls)
+                            val mappedType: TypeItem = hiddenInterface.convertType(mapping)
                             interfaceTypes.add(mappedType)
                             continue
                         }
@@ -525,14 +525,12 @@ class ApiAnalyzer(
         // public
         // interfaces that are listed in this class. Create stubs for them:
         map.values.flatten().forEach {
-            val method = cls.createMethod(it)
+            val method = cls.inheritMethodFromNonApiAncestor(it)
             /* Insert comment marker: This is useful for debugging purposes but doesn't
                belong in the stub
             method.documentation = "// Inlined stub from hidden parent class ${it.containingClass().qualifiedName()}\n" +
                     method.documentation
              */
-            method.inheritedMethod = true
-            method.inheritedFrom = it.containingClass()
 
             val name = method.name()
             val candidates = existingMethodMap[name]
@@ -572,10 +570,12 @@ class ApiAnalyzer(
                     // a facade class needs to be emitted if it has any top-level fun/prop to emit
                     cls.members().none { member ->
                         // a member needs to be emitted if
-                        //  1) it doesn't have a hide annotation and
-                        //  2) it is either public or has a show annotation
+                        //  1) it doesn't have a hide annotation;
+                        //  2) it is either public or has a show annotation;
+                        //  3) it is not `expect`
                         !member.hasHideAnnotation() &&
-                            (member.isPublic || member.hasShowAnnotation())
+                            (member.isPublic || member.hasShowAnnotation()) &&
+                            !member.modifiers.isExpect()
                     }
             ) {
                 cls.emit = false

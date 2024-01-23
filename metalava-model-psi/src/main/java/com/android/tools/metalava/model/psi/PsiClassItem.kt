@@ -47,7 +47,7 @@ import org.jetbrains.uast.getParentOfType
 
 open class PsiClassItem
 internal constructor(
-    override val codebase: PsiBasedCodebase,
+    codebase: PsiBasedCodebase,
     val psiClass: PsiClass,
     private val name: String,
     private val fullName: String,
@@ -66,6 +66,8 @@ internal constructor(
         element = psiClass
     ),
     ClassItem {
+
+    override var emit: Boolean = !modifiers.isExpect()
 
     lateinit var containingPackage: PsiPackageItem
 
@@ -86,7 +88,7 @@ internal constructor(
 
     override fun isEnum(): Boolean = classType == ClassType.ENUM
 
-    override fun psi(): PsiClass = psiClass
+    override fun psi() = psiClass
 
     override fun isFromClassPath(): Boolean = fromClassPath
 
@@ -303,7 +305,7 @@ internal constructor(
         this.fields = fields
     }
 
-    override fun mapTypeVariables(target: ClassItem): Map<String, String> {
+    override fun mapTypeVariables(target: ClassItem): Map<TypeItem, TypeItem> {
         // TODO(316922930): Temporarily return an empty map for Kotlin because the previous
         // implementation didn't work for Kotlin source. AndroidX signature files need to be updated
         return if (isKotlin()) {
@@ -325,20 +327,9 @@ internal constructor(
         return PsiConstructorItem.createDefaultConstructor(codebase, this, psiClass)
     }
 
-    override fun createMethod(template: MethodItem): MethodItem {
+    override fun inheritMethodFromNonApiAncestor(template: MethodItem): MethodItem {
         val method = template as PsiMethodItem
-
-        val replacementMap = mapTypeVariables(template.containingClass())
-        val newMethod: PsiMethodItem
-        if (replacementMap.isEmpty()) {
-            newMethod = PsiMethodItem.create(codebase, this, method)
-        } else {
-            val stub = method.toStubForCloning(replacementMap)
-            val psiMethod = codebase.createPsiMethod(stub, psiClass)
-            newMethod = PsiMethodItem.create(codebase, this, psiMethod)
-            newMethod.inheritedMethod = method.inheritedMethod
-            newMethod.documentation = method.documentation
-        }
+        val newMethod = PsiMethodItem.create(codebase, this, method)
 
         if (template.throwsTypes().isEmpty()) {
             newMethod.setThrowsTypes(emptyList())
@@ -354,6 +345,9 @@ internal constructor(
             newMethod.setThrowsTypes(throwsTypes)
         }
         newMethod.finishInitialization()
+
+        // Remember which class this method was copied from.
+        newMethod.inheritedFrom = template.containingClass()
 
         return newMethod
     }

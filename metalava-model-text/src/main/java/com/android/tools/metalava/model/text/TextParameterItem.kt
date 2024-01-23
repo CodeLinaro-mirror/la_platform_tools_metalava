@@ -19,6 +19,7 @@ package com.android.tools.metalava.model.text
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ParameterItem
+import com.android.tools.metalava.model.TypeItem
 
 const val UNKNOWN_DEFAULT_VALUE = "__unknown_default_value__"
 
@@ -29,7 +30,7 @@ class TextParameterItem(
     private val hasDefaultValue: Boolean,
     private var defaultValueBody: String? = UNKNOWN_DEFAULT_VALUE,
     override val parameterIndex: Int,
-    private var type: TextTypeItem,
+    private var type: TypeItem,
     modifiers: DefaultModifierList,
     position: SourcePositionInfo
 ) :
@@ -50,7 +51,7 @@ class TextParameterItem(
     override val synthetic: Boolean
         get() = containingMethod.isEnumSyntheticMethod()
 
-    override fun type(): TextTypeItem = type
+    override fun type(): TypeItem = type
 
     override fun name(): String = name
 
@@ -74,4 +75,18 @@ class TextParameterItem(
     override fun hashCode(): Int = parameterIndex
 
     override fun toString(): String = "parameter ${name()}"
+
+    internal fun duplicate(typeVariableMap: Map<TypeItem, TypeItem>): TextParameterItem {
+        return TextParameterItem(
+            codebase,
+            name,
+            publicName,
+            hasDefaultValue,
+            defaultValueBody,
+            parameterIndex,
+            type.convertType(typeVariableMap),
+            modifiers.duplicate(),
+            position
+        )
+    }
 }

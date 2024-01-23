@@ -42,7 +42,6 @@ import com.android.tools.metalava.model.AnnotationTarget
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.Codebase
-import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.psi.gatherSources
 import com.android.tools.metalava.model.source.EnvironmentManager
 import com.android.tools.metalava.model.source.SourceParser
@@ -60,7 +59,6 @@ import java.io.PrintWriter
 import java.io.StringWriter
 import java.util.Arrays
 import java.util.concurrent.TimeUnit.SECONDS
-import java.util.function.Predicate
 import kotlin.system.exitProcess
 
 const val PROGRAM_NAME = "metalava"
@@ -292,8 +290,7 @@ internal fun processFlags(
                 codebase.preFiltered,
                 fileFormat = options.signatureFileFormat,
                 showUnannotated = options.showUnannotated,
-                apiVisitorConfig = options.apiVisitorConfig,
-                updateKotlinNulls = options.updateKotlinNulls
+                apiVisitorConfig = options.apiVisitorConfig
             )
         }
     }
@@ -346,11 +343,9 @@ internal fun processFlags(
     val apiReferenceIgnoreShown = ApiPredicate(config = apiPredicateConfigIgnoreShown)
     options.dexApiFile?.let { apiFile ->
         val apiFilter = FilterPredicate(ApiPredicate())
-        val memberIsNotCloned: Predicate<Item> = Predicate { !it.isCloned() }
-        val dexApiEmit = memberIsNotCloned.and(apiFilter)
 
         createReportFile(progressTracker, codebase, apiFile, "DEX API") { printWriter ->
-            DexApiWriter(printWriter, dexApiEmit, apiReferenceIgnoreShown, options.apiVisitorConfig)
+            DexApiWriter(printWriter, apiFilter, apiReferenceIgnoreShown, options.apiVisitorConfig)
         }
     }
 

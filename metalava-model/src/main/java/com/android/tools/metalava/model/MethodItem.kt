@@ -115,29 +115,16 @@ interface MethodItem : MemberItem {
     }
 
     /**
-     * If this method is inherited from a hidden super class, but implements a method from a public
-     * interface, this property is set. This is necessary because these methods should not be listed
-     * in signature files (at least not in compatibility mode), whereas in stub files it's necessary
-     * for them to be included (otherwise subclasses may think the method required and not yet
-     * implemented, e.g. the class must be abstract.)
-     */
-    var inheritedMethod: Boolean
-
-    /**
-     * If this method is inherited from a super class (typically via [duplicate]) this field points
-     * to the original class it was inherited from
-     */
-    var inheritedFrom: ClassItem?
-
-    /**
      * If this method requires override in the child class to prevent error when compiling the stubs
      */
     @Deprecated("This property should not be accessed directly.") var _requiresOverride: Boolean?
 
     /**
-     * Duplicates this field item. Used when we need to insert inherited fields from interfaces etc.
+     * Duplicates this method item.
+     *
+     * Override to specialize the return type.
      */
-    fun duplicate(targetContainingClass: ClassItem): MethodItem
+    override fun duplicate(targetContainingClass: ClassItem): MethodItem
 
     fun findPredicateSuperMethod(predicate: Predicate<Item>): MethodItem? {
         if (isConstructor()) {

@@ -165,6 +165,14 @@ open class DefaultModifierList(
         return isSet(DATA)
     }
 
+    override fun isExpect(): Boolean {
+        return isSet(EXPECT)
+    }
+
+    override fun isActual(): Boolean {
+        return isSet(ACTUAL)
+    }
+
     override fun setVisibilityLevel(level: VisibilityLevel) {
         flags = (flags and VISIBILITY_MASK.inv()) or level.visibilityFlagValue
     }
@@ -241,12 +249,20 @@ open class DefaultModifierList(
         set(DEPRECATED, deprecated)
     }
 
-    fun setSuspend(suspend: Boolean) {
+    override fun setSuspend(suspend: Boolean) {
         set(SUSPEND, suspend)
     }
 
-    fun setCompanion(companion: Boolean) {
+    override fun setCompanion(companion: Boolean) {
         set(COMPANION, companion)
+    }
+
+    override fun setExpect(expect: Boolean) {
+        set(EXPECT, expect)
+    }
+
+    override fun setActual(actual: Boolean) {
+        set(ACTUAL, actual)
     }
 
     override fun addAnnotation(annotation: AnnotationItem) {
@@ -396,10 +412,12 @@ open class DefaultModifierList(
         const val CONST = 1 shl 21
         const val DATA = 1 shl 22
         const val VALUE = 1 shl 23
+        const val EXPECT = 1 shl 24
+        const val ACTUAL = 1 shl 25
 
         /**
          * Modifiers considered significant to include signature files (and similarly to consider
-         * whether an override of a method is different from its super implementation
+         * whether an override of a method is different from its super implementation)
          */
         private const val EQUIVALENCE_MASK =
             VISIBILITY_MASK or

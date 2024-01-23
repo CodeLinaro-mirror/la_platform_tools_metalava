@@ -488,22 +488,6 @@ internal class TextTypeParser(val codebase: TextCodebase, var kotlinStyleNulls: 
     }
 
     companion object {
-        /** Whether the string represents a primitive type. */
-        fun isPrimitive(type: String): Boolean {
-            return when (type) {
-                "byte",
-                "char",
-                "double",
-                "float",
-                "int",
-                "long",
-                "short",
-                "boolean",
-                "void" -> true
-                else -> false
-            }
-        }
-
         /**
          * Splits the Kotlin-style nullability marker off the type string, returning a pair of the
          * cleaned type string and the nullability suffix.

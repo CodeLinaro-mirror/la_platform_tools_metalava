@@ -19,20 +19,18 @@ package com.android.tools.metalava.model.psi
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.TypeItem
-import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiMethod
 import org.jetbrains.kotlin.descriptors.annotations.AnnotationUseSiteTarget
 import org.jetbrains.kotlin.psi.KtPropertyAccessor
 import org.jetbrains.uast.UAnnotation
-import org.jetbrains.uast.UClass
 import org.jetbrains.uast.toUElement
 
 class PsiPropertyItem
 private constructor(
-    override val codebase: PsiBasedCodebase,
+    codebase: PsiBasedCodebase,
     private val psiMethod: PsiMethod,
-    private val containingClass: PsiClassItem,
-    private val name: String,
+    containingClass: PsiClassItem,
+    name: String,
     modifiers: PsiModifierItem,
     documentation: String,
     private val fieldType: PsiTypeItem,
@@ -41,31 +39,21 @@ private constructor(
     override val constructorParameter: PsiParameterItem?,
     override val backingField: PsiFieldItem?
 ) :
-    PsiItem(
+    PsiMemberItem(
         codebase = codebase,
         modifiers = modifiers,
         documentation = documentation,
-        element = psiMethod
+        element = psiMethod,
+        containingClass = containingClass,
+        name = name,
     ),
     PropertyItem {
 
+    override var emit: Boolean = !modifiers.isExpect()
+
     override fun type(): TypeItem = fieldType
 
-    override fun name(): String = name
-
-    override fun containingClass(): PsiClassItem = containingClass
-
-    override fun isCloned(): Boolean {
-        val psiClass = run {
-            val p = containingClass().psi()
-            if (p is UClass) {
-                p.sourcePsi as? PsiClass ?: return false
-            } else {
-                p
-            }
-        }
-        return psiMethod.containingClass != psiClass
-    }
+    override fun psi() = psiMethod
 
     override fun equals(other: Any?): Boolean {
         if (this === other) {
