@@ -17,7 +17,6 @@
 package com.android.tools.metalava.lint
 
 import com.android.tools.metalava.ARG_API_LINT
-import com.android.tools.metalava.ARG_API_LINT_IGNORE_PREFIX
 import com.android.tools.metalava.DriverTest
 import com.android.tools.metalava.androidxNonNullSource
 import com.android.tools.metalava.androidxNullableSource
@@ -35,15 +34,7 @@ class ApiLintTest : DriverTest() {
         // Make sure we only flag issues in new API
         check(
             apiLint = "", // enabled
-            extraArguments =
-                arrayOf(
-                    ARG_API_LINT_IGNORE_PREFIX,
-                    "android.icu.",
-                    ARG_API_LINT_IGNORE_PREFIX,
-                    "java.",
-                    ARG_HIDE,
-                    "MissingNullability"
-                ),
+            extraArguments = arrayOf(ARG_HIDE, "MissingNullability"),
             expectedIssues =
                 """
                 src/Dp.kt:3: warning: Acronyms should not be capitalized in method names: was `badCALL`, should this be `badCall`? [AcronymName]
@@ -102,63 +93,6 @@ class ApiLintTest : DriverTest() {
                     }
                     """
                     ),
-                    java(
-                        """
-                    package android.icu;
-
-                    import androidx.annotation.Nullable;
-
-                    // Same as above android.pkg.badlyNamedClass but in a package
-                    // that API lint is supposed to ignore (see ARG_API_LINT_IGNORE_PREFIX)
-                    public class badlyNamedClass {
-                        public static final int BadlyNamedField = 1;
-                        public void BadlyNamedMethod1() { }
-
-                        public void toXML() { }
-                        @Nullable
-                        public String getID() { return null; }
-                        public void setZOrderOnTop() { }
-                    }
-                    """
-                    ),
-                    java(
-                        """
-                    package android.icu.sub;
-
-                    import androidx.annotation.Nullable;
-
-                    // Same as above android.pkg.badlyNamedClass but in a package
-                    // that API lint is supposed to ignore (see ARG_API_LINT_IGNORE_PREFIX)
-                    public class badlyNamedClass {
-                        public static final int BadlyNamedField = 1;
-                        public void BadlyNamedMethod1() { }
-
-                        public void toXML() { }
-                        @Nullable
-                        public String getID() { return null; }
-                        public void setZOrderOnTop() { }
-                    }
-                    """
-                    ),
-                    java(
-                        """
-                    package java;
-
-                    import androidx.annotation.Nullable;
-
-                    // Same as above android.pkg.badlyNamedClass but in a package
-                    // that API lint is supposed to ignore (see ARG_API_LINT_IGNORE_PREFIX)
-                    public class badlyNamedClass {
-                        public static final int BadlyNamedField = 1;
-                        public void BadlyNamedMethod1() { }
-
-                        public void toXML() { }
-                        @Nullable
-                        public String getID() { return null; }
-                        public void setZOrderOnTop() { }
-                    }
-                    """
-                    ),
                     kotlin(
                         """
                     inline class Dp(val value: Float)
@@ -168,12 +102,6 @@ class ApiLintTest : DriverTest() {
                     ),
                     androidxNullableSource
                 )
-            /*
-            expectedOutput = """
-                9 new API lint issues were found.
-                See tools/metalava/API-LINT.md for how to handle these.
-            """
-             */
         )
     }
 
@@ -3156,37 +3084,6 @@ class ApiLintTest : DriverTest() {
                     """
                     ),
                     androidxNullableSource
-                )
-        )
-    }
-
-    @Test
-    fun `No issues for ignored packages`() {
-        check(
-            apiLint =
-                """
-                package java.math {
-                  public class BigInteger {
-                    ctor public BigInteger();
-                  }
-                }
-            """
-                    .trimIndent(),
-            extraArguments = arrayOf(ARG_API_LINT_IGNORE_PREFIX, "java."),
-            expectedIssues = "",
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
-                    package java.math;
-
-                    public class BigInteger {
-                        public byte newMethod() {
-                            return 0;
-                        }
-                    }
-                    """
-                    )
                 )
         )
     }

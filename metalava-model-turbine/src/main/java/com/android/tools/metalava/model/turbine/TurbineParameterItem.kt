@@ -30,7 +30,7 @@ class TurbineParameterItem(
     override val parameterIndex: Int,
     private val type: TurbineTypeItem,
     modifiers: TurbineModifierItem,
-) : TurbineItem(codebase, modifiers), ParameterItem {
+) : TurbineItem(codebase, modifiers, ""), ParameterItem {
 
     override fun name(): String = name
 

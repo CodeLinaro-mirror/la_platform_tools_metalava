@@ -16,13 +16,12 @@
 
 package com.android.tools.metalava
 
-import com.android.tools.metalava.model.AnnotationTarget
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MethodItem
-import com.android.tools.metalava.model.ModifierList
+import com.android.tools.metalava.model.ModifierListWriter
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.TypeItem
@@ -59,6 +58,12 @@ class SignatureWriter(
             writer.print(fileFormat.header())
         }
     }
+
+    private val modifierListWriter =
+        ModifierListWriter.forSignature(
+            writer = writer,
+            skipNullnessAnnotations = fileFormat.kotlinStyleNulls,
+        )
 
     internal fun write(text: String) {
         // If a header must only be written out when the file is not empty then write it here as
@@ -215,14 +220,7 @@ class SignatureWriter(
     }
 
     private fun writeModifiers(item: Item) {
-        ModifierList.write(
-            writer = writer,
-            modifiers = item.modifiers,
-            item = item,
-            target = AnnotationTarget.SIGNATURE_FILE,
-            skipNullnessAnnotations = fileFormat.kotlinStyleNulls,
-            omitCommonPackages = true
-        )
+        modifierListWriter.write(item)
     }
 
     /** Get the filtered super class type, ignoring java.lang.Object. */

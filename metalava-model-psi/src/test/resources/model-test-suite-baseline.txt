@@ -1,3 +1,6 @@
+com.android.tools.metalava.model.testsuite.annotationitem.CommonAnnotationItemTest
+  annotation with enum values[psi,java]
+
 com.android.tools.metalava.model.testsuite.classitem.CommonClassItemTest
   Test basic mapTypeVariables[psi,kotlin]
   Test mapTypeVariables with concrete classes[psi,kotlin]

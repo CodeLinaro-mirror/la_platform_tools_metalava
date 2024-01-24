@@ -47,15 +47,6 @@ sealed class PsiTypeItem(open val codebase: PsiBasedCodebase, open val psiType: 
     DefaultTypeItem(codebase) {
     private var asClass: PsiClassItem? = null
 
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-
-        return when (other) {
-            is TypeItem -> TypeItem.equalsWithoutSpace(toTypeString(), other.toTypeString())
-            else -> false
-        }
-    }
-
     override fun asClass(): PsiClassItem? {
         if (this is PrimitiveTypeItem) {
             return null
@@ -64,10 +55,6 @@ sealed class PsiTypeItem(open val codebase: PsiBasedCodebase, open val psiType: 
             asClass = codebase.findClass(psiType)
         }
         return asClass
-    }
-
-    override fun hashCode(): Int {
-        return psiType.hashCode()
     }
 
     override fun hasTypeArguments(): Boolean {
@@ -279,7 +266,14 @@ internal class PsiClassTypeItem(
                     null
                 } else {
                     val psiOuterClassType =
-                        codebase.createPsiType(outerClassName, psiType.psiContext)
+                        codebase.createPsiType(
+                            outerClassName,
+                            // The context psi element allows variable types to be resolved (with no
+                            // context, they would be interpreted as class types). The [psiContext]
+                            // works in most cases, but is null when creating a type directly from a
+                            // class declaration, so the resolved [psiType] provides context then.
+                            psiType.psiContext ?: psiType.resolve()
+                        )
                     (create(codebase, psiOuterClassType, kotlinType?.forOuterClass())
                             as PsiClassTypeItem)
                         .apply {

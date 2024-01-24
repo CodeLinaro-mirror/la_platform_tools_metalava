@@ -37,24 +37,6 @@ class TypeItemTest {
     }
 
     @Test
-    fun testEqualsWithoutSpace() {
-        assertThat(TypeItem.equalsWithoutSpace("", "")).isTrue()
-        assertThat(TypeItem.equalsWithoutSpace(" ", "")).isTrue()
-        assertThat(TypeItem.equalsWithoutSpace("", " ")).isTrue()
-        assertThat(TypeItem.equalsWithoutSpace(" ", " ")).isTrue()
-        assertThat(TypeItem.equalsWithoutSpace("true", "tr ue")).isTrue()
-        assertThat(TypeItem.equalsWithoutSpace("tr ue", "true")).isTrue()
-        assertThat(TypeItem.equalsWithoutSpace("true", "true ")).isTrue()
-        assertThat(TypeItem.equalsWithoutSpace("true ", "true")).isTrue()
-        assertThat(TypeItem.equalsWithoutSpace("true ", "true")).isTrue()
-        assertThat(TypeItem.equalsWithoutSpace("true", " true")).isTrue()
-
-        assertThat(TypeItem.equalsWithoutSpace("true", "false")).isFalse()
-        assertThat(TypeItem.equalsWithoutSpace("true", " true  false")).isFalse()
-        assertThat(TypeItem.equalsWithoutSpace("false ", "falser")).isFalse()
-    }
-
-    @Test
     fun testToLambdaFormat() {
         fun check(typeName: String, expected: String = typeName) {
             assertThat(TypeItem.toLambdaFormat(typeName)).isEqualTo(expected)

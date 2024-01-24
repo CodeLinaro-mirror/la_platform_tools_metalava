@@ -169,7 +169,7 @@ open class TurbineCodebaseInitialiser(
 
     private fun createAllPackages() {
         // Root package
-        findOrCreatePackage("")
+        findOrCreatePackage("", "")
 
         for (unit in units) {
             val optPkg = unit.pkg()
@@ -179,7 +179,13 @@ open class TurbineCodebaseInitialiser(
                 val pkgNameList = pkg.name().map { it.value() }
                 pkgName = pkgNameList.joinToString(separator = ".")
             }
-            findOrCreatePackage(pkgName)
+            var doc = ""
+            // No class declarations. Will be a case of package-info file
+            if (unit.decls().isEmpty()) {
+                val source = unit.source().source()
+                doc = codebase.getHeaderComments(source)
+            }
+            findOrCreatePackage(pkgName, doc)
         }
     }
 
@@ -187,13 +193,13 @@ open class TurbineCodebaseInitialiser(
      * Searches for the package with supplied name in the codebase's package map and if not found
      * creates the corresponding TurbinePackageItem and adds it to the package map.
      */
-    private fun findOrCreatePackage(name: String): TurbinePackageItem {
+    private fun findOrCreatePackage(name: String, document: String): TurbinePackageItem {
         val pkgItem = codebase.findPackage(name)
         if (pkgItem != null) {
             return pkgItem as TurbinePackageItem
         } else {
             val modifiers = TurbineModifierItem.create(codebase, 0, null, false)
-            val turbinePkgItem = TurbinePackageItem.create(codebase, name, modifiers)
+            val turbinePkgItem = TurbinePackageItem.create(codebase, name, modifiers, document)
             modifiers.setOwner(turbinePkgItem)
             codebase.addPackage(turbinePkgItem)
             return turbinePkgItem
@@ -260,7 +266,7 @@ open class TurbineCodebaseInitialiser(
 
         // Get the package item
         val pkgName = sym.packageName().replace('/', '.')
-        val pkgItem = findOrCreatePackage(pkgName)
+        val pkgItem = findOrCreatePackage(pkgName, "")
 
         // Create class
         val qualifiedName = getQualifiedName(sym.binaryName())

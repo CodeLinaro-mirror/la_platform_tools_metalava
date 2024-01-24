@@ -1,3 +1,21 @@
+com.android.tools.metalava.model.testsuite.annotationitem.CommonAnnotationItemTest
+  annotation toSource() with boolean values[text,signature]
+  annotation toSource() with char values[text,signature]
+  annotation toSource() with class values[text,signature]
+  annotation toSource() with compound expression values[text,signature]
+  annotation toSource() with enum values[text,signature]
+  annotation toSource() with number values[text,signature]
+  annotation toSource() with string values[text,signature]
+  annotation with infinity values[text,signature]
+  annotation with negative values[text,signature]
+  annotation with type cast values[text,signature]
+
+com.android.tools.metalava.model.testsuite.methoditem.CommonSuperMethodsTest
+  Test multiple super methods from parent and grand parent interfaces[text,signature]
+  Test no super method from parent class as static[text,signature]
+  Test single super method from grand parent interface[text,signature]
+  Test super method with generic array parameter from generic class[text,signature]
+
 com.android.tools.metalava.model.testsuite.typeitem.CommonTypeModifiersTest
   Test implicit nullability of annotation members[text,signature]
   Test implicit nullability of equals parameter[text,signature]

@@ -93,7 +93,7 @@ open class TurbineBasedCodebase(
         return packageMap.size
     }
 
-    override fun supportsDocumentation(): Boolean = false
+    override fun supportsDocumentation(): Boolean = true
 
     override fun getTopLevelClassesFromSource(): List<ClassItem> {
         return topLevelClassesFromSource
@@ -121,5 +121,11 @@ open class TurbineBasedCodebase(
         typeParameterMap = HashMap(CLASS_ESTIMATE)
         initializer = TurbineCodebaseInitialiser(units, this, classpath)
         initializer.initialize()
+    }
+
+    internal fun getHeaderComments(source: String): String {
+        val packageIndex = source.indexOf("package")
+        // Return everything before "package" keyword
+        return if (packageIndex == -1) "" else source.substring(0, packageIndex)
     }
 }
