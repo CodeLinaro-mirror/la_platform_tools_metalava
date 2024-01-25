@@ -248,7 +248,9 @@ private constructor(
     private fun check() {
         if (oldCodebase != null) {
             // Only check the new APIs
-            CodebaseComparator()
+            CodebaseComparator(
+                    apiVisitorConfig = @Suppress("DEPRECATION") options.apiVisitorConfig,
+                )
                 .compare(
                     object : ComparisonVisitor() {
                         override fun added(new: Item) {

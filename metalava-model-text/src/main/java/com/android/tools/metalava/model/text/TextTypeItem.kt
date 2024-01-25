@@ -27,7 +27,7 @@ import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.WildcardTypeItem
 
-sealed class TextTypeItem(open val codebase: TextCodebase) : DefaultTypeItem(codebase) {
+internal sealed class TextTypeItem(open val codebase: TextCodebase) : DefaultTypeItem(codebase) {
 
     override fun asClass(): ClassItem? {
         if (this is PrimitiveTypeItem) {

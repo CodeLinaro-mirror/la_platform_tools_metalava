@@ -132,4 +132,20 @@ object KnownSourceFiles {
         """
             )
             .indented()
+
+    val supportParameterName =
+        java(
+            """
+                package androidx.annotation;
+                import java.lang.annotation.*;
+                import static java.lang.annotation.ElementType.*;
+                import static java.lang.annotation.RetentionPolicy.SOURCE;
+                @SuppressWarnings("WeakerAccess")
+                @Retention(SOURCE)
+                @Target({METHOD, PARAMETER, FIELD})
+                public @interface ParameterName {
+                    String value();
+                }
+            """
+        )
 }

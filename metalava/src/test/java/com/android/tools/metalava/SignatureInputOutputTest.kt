@@ -23,7 +23,6 @@ import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.text.ApiFile
 import com.android.tools.metalava.model.text.FileFormat
-import com.android.tools.metalava.model.text.TextMethodItem
 import com.android.tools.metalava.model.text.assertSignatureFilesMatch
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.google.common.truth.Truth.assertThat
@@ -352,7 +351,6 @@ class SignatureInputOutputTest {
             assertThat((param.type() as ArrayTypeItem).isVarargs).isTrue()
             assertThat(param.isVarArgs()).isTrue()
             assertThat(param.modifiers.isVarArg()).isTrue()
-            assertThat((method as TextMethodItem).isVarArg()).isTrue()
         }
     }
 

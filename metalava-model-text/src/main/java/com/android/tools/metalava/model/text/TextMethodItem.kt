@@ -28,7 +28,7 @@ import com.android.tools.metalava.model.TypeParameterListOwner
 import com.android.tools.metalava.model.computeSuperMethods
 import java.util.function.Predicate
 
-open class TextMethodItem(
+internal open class TextMethodItem(
     codebase: TextCodebase,
     name: String,
     containingClass: ClassItem,
@@ -183,10 +183,6 @@ open class TextMethodItem(
     fun addException(throwsType: String) {
         throwsTypes += throwsType
     }
-
-    private val varargs: Boolean = parameters.any { it.isVarArgs() }
-
-    fun isVarArg(): Boolean = varargs
 
     override fun isExtensionMethod(): Boolean = codebase.unsupported()
 

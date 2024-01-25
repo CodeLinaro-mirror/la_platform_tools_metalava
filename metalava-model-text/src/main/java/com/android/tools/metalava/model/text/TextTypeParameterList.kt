@@ -20,7 +20,7 @@ import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.TypeParameterListOwner
 
-class TextTypeParameterList(
+internal class TextTypeParameterList(
     val codebase: TextCodebase,
     private var owner: TypeParameterListOwner?,
     private val typeListString: String
@@ -32,9 +32,7 @@ class TextTypeParameterList(
     override fun typeParameters(): List<TypeParameterItem> {
         if (typeParameters == null) {
             val strings = TextTypeParser.typeParameterStrings(typeListString)
-            val list = ArrayList<TextTypeParameterItem>(strings.size)
-            strings.mapTo(list) { TextTypeParameterItem.create(codebase, owner, it) }
-            typeParameters = list
+            typeParameters = strings.map { TextTypeParameterItem.create(codebase, owner, it) }
         }
         return typeParameters!!
     }

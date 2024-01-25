@@ -33,7 +33,7 @@ import java.util.HashMap
 // Copy of ApiInfo in doclava1 (converted to Kotlin + some cleanup to make it work with metalava's
 // data structures.
 // (Converted to Kotlin such that I can inherit behavior via interfaces, in particular Codebase.)
-class TextCodebase(
+internal class TextCodebase(
     location: File,
     annotationManager: AnnotationManager,
 ) : DefaultCodebase(location, "Codebase", true, annotationManager) {

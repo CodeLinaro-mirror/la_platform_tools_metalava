@@ -1628,22 +1628,7 @@ val androidxIntRangeSource: TestFile =
         )
         .indented()
 
-val supportParameterName: TestFile =
-    java(
-            """
-    package androidx.annotation;
-    import java.lang.annotation.*;
-    import static java.lang.annotation.ElementType.*;
-    import static java.lang.annotation.RetentionPolicy.SOURCE;
-    @SuppressWarnings("WeakerAccess")
-    @Retention(SOURCE)
-    @Target({METHOD, PARAMETER, FIELD})
-    public @interface ParameterName {
-        String value();
-    }
-    """
-        )
-        .indented()
+val supportParameterName = KnownSourceFiles.supportParameterName
 
 val supportDefaultValue: TestFile =
     java(

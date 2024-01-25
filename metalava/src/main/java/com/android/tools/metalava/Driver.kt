@@ -46,7 +46,6 @@ import com.android.tools.metalava.model.psi.gatherSources
 import com.android.tools.metalava.model.source.EnvironmentManager
 import com.android.tools.metalava.model.source.SourceParser
 import com.android.tools.metalava.model.text.ApiClassResolution
-import com.android.tools.metalava.model.text.TextCodebase
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
@@ -418,14 +417,13 @@ internal fun processFlags(
 @Suppress("DEPRECATION")
 private fun addMissingItemsRequiredForGeneratingStubs(
     sourceParser: SourceParser,
-    textCodebase: TextCodebase,
+    codebase: Codebase,
     reporterApiLint: Reporter,
 ) {
     // Reuse the existing ApiAnalyzer support for adding constructors that is used in
     // [loadFromSources], to make sure that the constructors are correct when generating stubs
     // from source files.
-    val analyzer =
-        ApiAnalyzer(sourceParser, textCodebase, reporterApiLint, options.apiAnalyzerConfig)
+    val analyzer = ApiAnalyzer(sourceParser, codebase, reporterApiLint, options.apiAnalyzerConfig)
     analyzer.addConstructors { _ -> true }
 }
 
@@ -446,7 +444,9 @@ private fun ActionContext.subtractApi(
         }
 
     @Suppress("DEPRECATION")
-    CodebaseComparator()
+    CodebaseComparator(
+            apiVisitorConfig = @Suppress("DEPRECATION") options.apiVisitorConfig,
+        )
         .compare(
             object : ComparisonVisitor() {
                 override fun compare(old: ClassItem, new: ClassItem) {
@@ -755,16 +755,6 @@ private fun createStubFiles(
     codebase: Codebase,
     docStubs: Boolean,
 ) {
-    if (codebase is TextCodebase) {
-        if (options.verbose) {
-            options.stdout.println(
-                "Generating stubs from text based codebase is an experimental feature. " +
-                    "It is not guaranteed that stubs generated from text based codebase are " +
-                    "class level equivalent to the stubs generated from source files. "
-            )
-        }
-    }
-
     if (docStubs) {
         progressTracker.progress("Generating documentation stub files: ")
     } else {

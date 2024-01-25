@@ -22,13 +22,12 @@ import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.TypeParameterListOwner
 
-class TextTypeParameterItem(
+internal class TextTypeParameterItem(
     codebase: TextCodebase,
     private var owner: TypeParameterListOwner?,
     private val typeParameterString: String,
     name: String,
     private val isReified: Boolean,
-    private var bounds: List<TypeItem>? = null,
 ) :
     TextClassItem(
         codebase = codebase,
@@ -38,6 +37,8 @@ class TextTypeParameterItem(
         typeParameterList = TypeParameterList.NONE
     ),
     TypeParameterItem {
+
+    private var bounds: List<TypeItem>? = null
 
     override fun toType(): TextTypeItem {
         return TextVariableTypeItem(
@@ -74,7 +75,6 @@ class TextTypeParameterItem(
             codebase: TextCodebase,
             owner: TypeParameterListOwner?,
             typeParameterString: String,
-            bounds: List<TypeItem>? = null
         ): TextTypeParameterItem {
             val length = typeParameterString.length
             var nameEnd = length
@@ -101,7 +101,6 @@ class TextTypeParameterItem(
                 typeParameterString = typeParameterString,
                 name = name,
                 isReified = isReified,
-                bounds = bounds
             )
         }
 

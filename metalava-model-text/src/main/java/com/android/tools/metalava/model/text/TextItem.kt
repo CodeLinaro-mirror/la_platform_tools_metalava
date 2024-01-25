@@ -22,7 +22,7 @@ import com.android.tools.metalava.model.Location
 import com.android.tools.metalava.model.MutableModifierList
 import java.nio.file.Path
 
-abstract class TextItem(
+internal abstract class TextItem(
     override val codebase: TextCodebase,
     internal val position: SourcePositionInfo,
     override var docOnly: Boolean = false,

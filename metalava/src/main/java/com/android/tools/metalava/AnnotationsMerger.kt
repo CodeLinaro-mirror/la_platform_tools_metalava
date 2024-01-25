@@ -242,9 +242,12 @@ class AnnotationsMerger(
 
     private fun mergeAnnotationsSignatureFile(path: String) {
         try {
-            val signatureCodebase = ApiFile.parseApi(File(path), codebase.annotationManager)
-            signatureCodebase.description =
-                "Signature files for annotation merger: loaded from $path"
+            val signatureCodebase =
+                ApiFile.parseApi(
+                    File(path),
+                    codebase.annotationManager,
+                    "Signature files for annotation merger: loaded from $path"
+                )
             mergeQualifierAnnotationsFromCodebase(signatureCodebase)
         } catch (ex: ApiParseException) {
             val message = "Unable to parse signature file $path: ${ex.message}"
@@ -327,7 +330,10 @@ class AnnotationsMerger(
                 }
             }
 
-        CodebaseComparator().compare(visitor, externalCodebase, codebase)
+        CodebaseComparator(
+                apiVisitorConfig = @Suppress("DEPRECATION") options.apiVisitorConfig,
+            )
+            .compare(visitor, externalCodebase, codebase)
     }
 
     private fun mergeInclusionAnnotationsFromCodebase(externalCodebase: Codebase) {
