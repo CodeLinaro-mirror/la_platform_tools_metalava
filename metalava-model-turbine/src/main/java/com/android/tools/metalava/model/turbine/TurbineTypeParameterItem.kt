@@ -48,4 +48,8 @@ internal class TurbineTypeParameterItem(
     override fun isReified(): Boolean = false
 
     override fun typeBounds(): List<TypeItem> = bounds
+
+    override fun toType(): TurbineTypeItem {
+        return TurbineVariableTypeItem(codebase, TurbineTypeModifiers(emptyList()), symbol)
+    }
 }

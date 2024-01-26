@@ -29,7 +29,7 @@ class TurbineConstructorItem(
     returnType: TurbineTypeItem,
     modifiers: TurbineModifierItem,
     typeParameters: TypeParameterList,
-    document: String,
+    documentation: String,
 ) :
     TurbineMethodItem(
         codebase,
@@ -38,7 +38,7 @@ class TurbineConstructorItem(
         returnType,
         modifiers,
         typeParameters,
-        document
+        documentation
     ),
     ConstructorItem {
 

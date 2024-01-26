@@ -28,6 +28,8 @@ import com.android.tools.metalava.cli.common.MetalavaCommand
 import com.android.tools.metalava.cli.common.SignatureFileLoader
 import com.android.tools.metalava.cli.common.VersionCommand
 import com.android.tools.metalava.cli.common.commonOptions
+import com.android.tools.metalava.cli.compatibility.ARG_CHECK_COMPATIBILITY_BASE_API
+import com.android.tools.metalava.cli.compatibility.CompatibilityCheckOptions.CheckRequest
 import com.android.tools.metalava.cli.help.HelpCommand
 import com.android.tools.metalava.cli.internal.MakeAnnotationsPackagePrivateCommand
 import com.android.tools.metalava.cli.signature.MergeSignaturesCommand
@@ -35,7 +37,6 @@ import com.android.tools.metalava.cli.signature.SignatureToDexCommand
 import com.android.tools.metalava.cli.signature.SignatureToJDiffCommand
 import com.android.tools.metalava.cli.signature.UpdateSignatureHeaderCommand
 import com.android.tools.metalava.compatibility.CompatibilityCheck
-import com.android.tools.metalava.compatibility.CompatibilityCheck.CheckRequest
 import com.android.tools.metalava.doc.DocAnalyzer
 import com.android.tools.metalava.lint.ApiLint
 import com.android.tools.metalava.model.AnnotationTarget
@@ -470,6 +471,31 @@ private fun ActionContext.checkCompatibility(
     progressTracker.progress("Checking API compatibility ($check): ")
     val signatureFile = check.file
 
+    val apiType = check.apiType
+    val generatedApiFile =
+        when (apiType) {
+            ApiType.PUBLIC_API -> options.apiFile
+            ApiType.REMOVED -> options.removedApiFile
+            else -> error("unsupported $apiType")
+        }
+
+    // Fast path: if we've already generated a signature file, and it's identical to the previously
+    // released API then we're good.
+    //
+    // Some things to watch out for:
+    // * There is no guarantee that the signature file is actually a txt file, it could also be
+    //   a `jar` file, so double check that first.
+    // * Reading two files that may be a couple of MBs each isn't a particularly fast path so
+    //   check the lengths first and then compare contents byte for byte so that it exits
+    //   quickly if they're different and does not do all the UTF-8 conversions.
+    generatedApiFile?.let { apiFile ->
+        val compatibilityCheckCanBeSkipped =
+            signatureFile.extension == "txt" && compareFileContents(apiFile, signatureFile)
+        // TODO(b/301282006): Remove global variable use when this can be tested properly
+        fastPathCheckResult = compatibilityCheckCanBeSkipped
+        if (compatibilityCheckCanBeSkipped) return
+    }
+
     val oldCodebase =
         if (signatureFile.path.endsWith(DOT_JAR)) {
             loadFromJarFile(signatureFile)
@@ -479,24 +505,7 @@ private fun ActionContext.checkCompatibility(
 
     var baseApi: Codebase? = null
 
-    val apiType = check.apiType
-
     if (options.showUnannotated && apiType == ApiType.PUBLIC_API) {
-        // Fast path: if we've already generated a signature file, and it's identical, we're good!
-        // Some things to watch out for:
-        // * There is no guarantee that the signature file is actually a txt file, it could also be
-        //   a `jar` file, so double check that first.
-        // * Reading two files that may be a couple of MBs each isn't a particularly fast path so
-        //   check the lengths first and then compare contents byte for byte so that it exits
-        //   quickly if they're different and does not do all the UTF-8 conversions.
-        options.apiFile?.let { apiFile ->
-            val compatibilityCheckCanBeSkipped =
-                signatureFile.extension == "txt" && compareFileContents(apiFile, signatureFile)
-            // TODO(b/301282006): Remove global variable use when this can be tested properly
-            fastPathCheckResult = compatibilityCheckCanBeSkipped
-            if (compatibilityCheckCanBeSkipped) return
-        }
-
         val baseApiFile = options.baseApiForCompatCheck
         if (baseApiFile != null) {
             baseApi = signatureFileCache.load(file = baseApiFile)

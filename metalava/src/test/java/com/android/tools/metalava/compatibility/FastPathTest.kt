@@ -18,12 +18,13 @@ package com.android.tools.metalava.compatibility
 
 import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.lint.checks.infrastructure.TestFiles
+import com.android.tools.metalava.ApiType
 import com.android.tools.metalava.DriverTest
 import com.android.tools.metalava.fastPathCheckResult
 import com.android.tools.metalava.model.text.FileFormat
+import com.android.tools.metalava.model.text.stripBlankLines
 import com.android.tools.metalava.testing.getAndroidJar
 import com.android.tools.metalava.testing.java
-import java.io.File
 import org.junit.Assert
 import org.junit.Ignore
 import org.junit.Test
@@ -40,12 +41,30 @@ package test.pkg {
 
 """
 
+const val REMOVED_CONTENTS =
+    """// Signature format: 2.0
+package test.pkg {
+
+  public abstract class Class {
+    method public abstract void foo();
+  }
+
+}
+
+"""
+
+@Suppress("JavadocDeclaration")
 private const val SOURCE_FILE_CONTENTS =
     """
 package test.pkg;
 
 public abstract class Class {
     private Class() {}
+
+    /**
+     * @removed
+     */
+    public abstract void foo();
 }
 """
 
@@ -60,45 +79,60 @@ public abstract class Class {
 class FastPathTest : DriverTest() {
 
     private fun checkFastPath(
+        apiType: ApiType = ApiType.PUBLIC_API,
         releaseSignatureContents: String,
         sourceFile: TestFile,
-        expectedFastPathResult: Boolean,
+        expectedFastPathResult: Boolean?,
     ) {
         // Create the previously released API directly to give greater control over the contents as
         // passing in the contents to the check() method means it goes through various steps before
         // being written out, each of which strips off some (or all) trailing blank lines which are
         // important.
         val signatureFile =
-            TestFiles.source("released-api.txt", releaseSignatureContents)
+            TestFiles.source("released-${apiType.displayName}.txt", releaseSignatureContents)
                 .createFile(temporaryFolder.newFolder())
 
-        checkFastPath(
-            releasedSignatureFile = signatureFile,
-            expectedFastPathResult = expectedFastPathResult,
-            sourceFile = sourceFile,
-        )
+        val format = FileFormat.V2
+        val strippedContents = releaseSignatureContents.stripBlankLines()
+        val releaseSignatureFilePath = signatureFile.path
+        val sourceFiles = arrayOf(sourceFile)
+
+        checkFastPath(expectedFastPathResult = expectedFastPathResult) {
+            when (apiType) {
+                ApiType.PUBLIC_API ->
+                    check(
+                        format = format,
+                        api = strippedContents,
+                        checkCompatibilityApiReleased = releaseSignatureFilePath,
+                        sourceFiles = sourceFiles,
+                    )
+                ApiType.REMOVED ->
+                    check(
+                        format = format,
+                        removedApi = strippedContents,
+                        checkCompatibilityRemovedApiReleased = releaseSignatureFilePath,
+                        sourceFiles = sourceFiles,
+                    )
+                else -> error("unsupported $apiType")
+            }
+        }
     }
 
     private fun checkFastPath(
-        releasedSignatureFile: File,
-        expectedFastPathResult: Boolean,
-        sourceFile: TestFile? = null,
-        apiJar: File? = null,
+        expectedFastPathResult: Boolean?,
+        test: () -> Unit,
     ) {
         // Set the global variable to `null` to detect whether the fast path check was made.
         fastPathCheckResult = null
 
-        check(
-            format = FileFormat.V2,
-            checkCompatibilityApiReleased = releasedSignatureFile.path,
-            sourceFiles = sourceFile?.let { arrayOf(sourceFile) } ?: emptyArray(),
-            apiJar = apiJar,
-        )
+        test()
 
-        when (fastPathCheckResult) {
-            null -> Assert.fail("fast path check not performed")
-            false -> if (expectedFastPathResult) Assert.fail("fast path check failed")
-            true -> if (!expectedFastPathResult) Assert.fail("fast path check did not fail")
+        if (expectedFastPathResult != fastPathCheckResult) {
+            when (fastPathCheckResult) {
+                null -> Assert.fail("fast path check not performed")
+                false -> Assert.fail("fast path check failed")
+                true -> Assert.fail("fast path check did not fail")
+            }
         }
     }
 
@@ -113,11 +147,34 @@ class FastPathTest : DriverTest() {
 
     @Test
     fun `Check fast path not taken`() {
-        // The fast path check is byte for byte to just trim some white lines off the end of the
-        // contents and the fast path should not be taken.
         checkFastPath(
+            // The fast path check is byte for byte to just trim some white lines off the end of the
+            // contents and the fast path should not be taken.
             releaseSignatureContents = SIGNATURE_CONTENTS.trim(),
             sourceFile = java(SOURCE_FILE_CONTENTS),
+            expectedFastPathResult = false,
+        )
+    }
+
+    @Test
+    fun `Check fast path taken for removed`() {
+        checkFastPath(
+            apiType = ApiType.REMOVED,
+            releaseSignatureContents = REMOVED_CONTENTS,
+            sourceFile = java(SOURCE_FILE_CONTENTS),
+            expectedFastPathResult = true,
+        )
+    }
+
+    @Test
+    fun `Check fast path not taken for removed`() {
+        checkFastPath(
+            apiType = ApiType.REMOVED,
+            // The fast path check is byte for byte to just trim some white lines off the end of the
+            // contents and the fast path should not be taken.
+            releaseSignatureContents = REMOVED_CONTENTS.trim(),
+            sourceFile = java(SOURCE_FILE_CONTENTS),
+            // An expected result of `null` indicates that it was not actually checked.
             expectedFastPathResult = false,
         )
     }
@@ -131,10 +188,12 @@ class FastPathTest : DriverTest() {
         // pathological heap growth compared to the size of the file being read. Having the other
         // codebase in memory is enough to push the test over the 512MB heap size.
         val androidJar = getAndroidJar()
-        checkFastPath(
-            releasedSignatureFile = androidJar,
-            expectedFastPathResult = false,
-            apiJar = androidJar,
-        )
+        checkFastPath(expectedFastPathResult = false) {
+            check(
+                format = FileFormat.V2,
+                checkCompatibilityApiReleased = androidJar.path,
+                apiJar = androidJar,
+            )
+        }
     }
 }

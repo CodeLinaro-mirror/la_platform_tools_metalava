@@ -397,4 +397,38 @@ class CommonTypeParameterItemTest : BaseModelTest() {
                 .isEqualTo("U extends java.lang.Object & java.lang.Comparable<U>")
         }
     }
+
+    @Test
+    fun `Test toType`() {
+        runCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+                    public class Foo {
+                        public <T> T foo() {}
+                    }
+                """
+            ),
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public class Foo {
+                        method public <T> T foo();
+                      }
+                    }
+                """
+                    .trimIndent()
+            )
+        ) {
+            val method = codebase.assertClass("test.pkg.Foo").assertMethod("foo", "")
+            val typeParameter = method.typeParameterList().typeParameters().single()
+            val typeVariable = method.returnType()
+
+            assertThat(typeVariable).isInstanceOf(VariableTypeItem::class.java)
+            val toType = typeParameter.toType()
+            assertThat(toType).isEqualTo(typeVariable)
+            assertThat(toType).isInstanceOf(VariableTypeItem::class.java)
+        }
+    }
 }

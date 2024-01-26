@@ -26,7 +26,7 @@ import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MethodItem
-import com.android.tools.metalava.model.ModifierList
+import com.android.tools.metalava.model.ModifierListWriter
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.psi.trimDocIndent
 import com.android.tools.metalava.model.visitors.ApiVisitor
@@ -112,15 +112,10 @@ internal class StubWriter(
             appendDocumentation(pkg, packageInfoWriter, config)
 
             if (annotations.isNotEmpty()) {
-                ModifierList.writeAnnotations(
-                    list = pkg.modifiers,
-                    separateLines = true,
-                    // Some bug in UAST triggers duplicate nullability annotations
-                    // here; make sure they are filtered out
-                    filterDuplicates = true,
-                    target = annotationTarget,
-                    writer = packageInfoWriter
-                )
+                // Write the modifier list even though the package info does not actually have
+                // modifiers as that will write the annotations which it does have and ignore the
+                // modifiers.
+                ModifierListWriter.forStubs(packageInfoWriter, annotationTarget).write(pkg)
             }
             packageInfoWriter.println("package ${pkg.qualifiedName()};")
 

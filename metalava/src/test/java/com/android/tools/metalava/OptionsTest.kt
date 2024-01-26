@@ -16,9 +16,7 @@
 
 package com.android.tools.metalava
 
-import com.android.tools.lint.checks.infrastructure.TestFiles
 import com.android.tools.metalava.cli.common.ARG_NO_COLOR
-import java.io.File
 import java.io.StringWriter
 import org.junit.Assert.assertEquals
 import org.junit.Test
@@ -117,28 +115,5 @@ Sub-commands:
                 .trimIndent(),
             stdout.toString()
         )
-    }
-
-    @Test
-    fun `Test for @file`() {
-        val dir = temporaryFolder.newFolder()
-        val files = (1..4).map { TestFiles.source("File$it.txt", "File$it").createFile(dir) }
-        val fileList =
-            TestFiles.source(
-                "files.lst",
-                """
-            ${files[0]}
-            ${files[1]} ${files[2]}
-            ${files[3]}
-        """
-                    .trimIndent()
-            )
-
-        val file = fileList.createFile(dir)
-        val options = Options()
-        val (executionEnvironment, _, _) = ExecutionEnvironment.forTest()
-        options.parse(executionEnvironment, arrayOf("@$file"))
-        fun normalize(f: File): String = f.relativeTo(dir).path
-        assertEquals(files.map { normalize(it) }, options.sources.map { normalize(it) })
     }
 }

@@ -70,6 +70,21 @@ open class TextMethodItem(
                 return false
             }
         }
+
+        val typeParameters1 = typeParameterList().typeParameters()
+        val typeParameters2 = other.typeParameterList().typeParameters()
+
+        if (typeParameters1.size != typeParameters2.size) {
+            return false
+        }
+
+        for (i in typeParameters1.indices) {
+            val typeParameter1 = typeParameters1[i]
+            val typeParameter2 = typeParameters2[i]
+            if (typeParameter1.typeBounds() != typeParameter2.typeBounds()) {
+                return false
+            }
+        }
         return true
     }
 
@@ -217,15 +232,5 @@ open class TextMethodItem(
 
     override fun defaultValue(): String {
         return annotationDefault
-    }
-
-    override fun checkGenericParameterTypes(typeString1: String, typeString2: String): Boolean {
-        if (typeString1[0].isUpperCase() && typeString1.length == 1) {
-            return true
-        }
-        if (typeString2.length >= 2 && !typeString2[1].isLetterOrDigit()) {
-            return true
-        }
-        return false
     }
 }

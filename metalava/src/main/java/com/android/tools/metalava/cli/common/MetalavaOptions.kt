@@ -505,3 +505,43 @@ internal fun Option.decompose(): Sequence<Option> {
         copy(names = setOf(name), metavar = metavar, help = help)
     }
 }
+
+/**
+ * Clikt does not allow `:` in option names but Metalava uses that for creating structured option
+ * names, e.g. --part1:part2:part3.
+ *
+ * This method can be used to circumvent the built-in check and use a custom check that allows for
+ * structure option names. Call it at the end of the `option(...)....allowStructureOptionName()`
+ * call chain.
+ */
+fun <T> OptionWithValues<T, *, *>.allowStructuredOptionName(): OptionDelegate<T> {
+    return StructuredOptionName(this)
+}
+
+/** Allows the same format for option names as Clikt with the addition of the ':' character. */
+private fun checkStructuredOptionNames(names: Set<String>) {
+    val invalidName = names.find { !it.matches(Regex("""[\-@/+]{1,2}[\w\-_:]+""")) }
+    require(invalidName == null) { "Invalid option name \"$invalidName\"" }
+}
+
+/** Circumvents the usual Clikt name format check and substitutes its own name format check. */
+class StructuredOptionName<T>(private val delegate: OptionDelegate<T>) :
+    OptionDelegate<T> by delegate {
+
+    override fun provideDelegate(
+        thisRef: ParameterHolder,
+        prop: KProperty<*>
+    ): ReadOnlyProperty<ParameterHolder, T> {
+        // If no names are provided then delegate this to the built-in method to infer the option
+        // name as that name is guaranteed not to contain a ':'.
+        if (names.isEmpty()) {
+            return delegate.provideDelegate(thisRef, prop)
+        }
+        require(secondaryNames.isEmpty()) {
+            "Secondary option names are only allowed on flag options."
+        }
+        checkStructuredOptionNames(names)
+        thisRef.registerOption(delegate)
+        return this
+    }
+}

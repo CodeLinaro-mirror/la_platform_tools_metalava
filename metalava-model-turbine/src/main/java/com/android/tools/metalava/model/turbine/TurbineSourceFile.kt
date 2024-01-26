@@ -24,11 +24,7 @@ internal class TurbineSourceFile(
     val source: String,
 ) : SourceFile {
 
-    override fun getHeaderComments(): String? {
-        val packageIndex = source.indexOf("package")
-        // Return everything before "package" keyword
-        return if (packageIndex == -1) "" else source.substring(0, packageIndex)
-    }
+    override fun getHeaderComments(): String? = codebase.getHeaderComments(source)
 
     override fun classes(): Sequence<ClassItem> = TODO("b/295800205")
 }
