@@ -23,7 +23,7 @@ import com.android.tools.metalava.reporter.Reporter
 import java.io.File
 
 /** Manages the objects created when processing sources. */
-class TurbineEnvironmentManager() : EnvironmentManager {
+internal class TurbineEnvironmentManager() : EnvironmentManager {
 
     override fun createSourceParser(
         reporter: Reporter,

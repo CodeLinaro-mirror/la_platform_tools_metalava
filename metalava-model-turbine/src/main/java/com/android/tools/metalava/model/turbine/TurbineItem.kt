@@ -21,7 +21,7 @@ import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.MutableModifierList
 import com.android.tools.metalava.model.source.utils.LazyDelegate
 
-abstract class TurbineItem(
+internal abstract class TurbineItem(
     override val codebase: TurbineBasedCodebase,
     override val modifiers: DefaultModifierList,
     override var documentation: String,

@@ -67,6 +67,10 @@ class SourceMethodItemTest : BaseModelTest() {
                 listOf("A", "B"),
                 duplicateMethod.parameters().map { it.type().toTypeString() }
             )
+            assertEquals(
+                methodItem.typeParameterList().typeParameters(),
+                duplicateMethod.typeParameterList().typeParameters()
+            )
             assertEquals(methodItem.throwsTypes(), duplicateMethod.throwsTypes())
             assertEquals(classItem, duplicateMethod.inheritedFrom)
 
@@ -81,6 +85,10 @@ class SourceMethodItemTest : BaseModelTest() {
             assertEquals(
                 listOf("C", "D"),
                 duplicateMethod1.parameters().map { it.type().toTypeString() }
+            )
+            assertEquals(
+                methodItem1.typeParameterList().typeParameters(),
+                duplicateMethod1.typeParameterList().typeParameters()
             )
             assertEquals(methodItem1.throwsTypes(), duplicateMethod1.throwsTypes())
             assertEquals(classItem, duplicateMethod1.inheritedFrom)
@@ -128,6 +136,10 @@ class SourceMethodItemTest : BaseModelTest() {
                 listOf("M", "String"),
                 inheritedMethod.parameters().map { it.type().toTypeString() }
             )
+            assertEquals(
+                methodItem.typeParameterList().typeParameters(),
+                inheritedMethod.typeParameterList().typeParameters()
+            )
             assertEquals(methodItem.throwsTypes(), inheritedMethod.throwsTypes())
             assertEquals(classItem, inheritedMethod.inheritedFrom)
 
@@ -144,6 +156,11 @@ class SourceMethodItemTest : BaseModelTest() {
                 listOf("C", "D"),
                 inheritedMethod1.parameters().map { it.type().toTypeString() }
             )
+            assertEquals(
+                methodItem1.typeParameterList().typeParameters(),
+                inheritedMethod1.typeParameterList().typeParameters()
+            )
+            assertEquals(methodItem1.throwsTypes(), inheritedMethod1.throwsTypes())
             assertEquals(classItem, inheritedMethod1.inheritedFrom)
         }
     }

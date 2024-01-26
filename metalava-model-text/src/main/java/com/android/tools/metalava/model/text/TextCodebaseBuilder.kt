@@ -18,7 +18,6 @@ package com.android.tools.metalava.model.text
 
 import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.ClassItem
-import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.DefaultModifierList
@@ -43,7 +42,12 @@ class TextCodebaseBuilder private constructor(private val codebase: TextCodebase
             annotationManager: AnnotationManager,
             block: TextCodebaseBuilder.() -> Unit
         ): Codebase {
-            val codebase = TextCodebase(location, annotationManager)
+            val codebase =
+                TextCodebase(
+                    location = location,
+                    annotationManager = annotationManager,
+                    classResolver = null,
+                )
             val builder = TextCodebaseBuilder(codebase)
             builder.block()
 
@@ -54,8 +58,6 @@ class TextCodebaseBuilder private constructor(private val codebase: TextCodebase
                     override fun namesOfInterfaces(cl: ClassItem): List<String>? = null
 
                     override fun nameOfSuperClass(cl: ClassItem): String? = null
-
-                    override val classResolver: ClassResolver? = null
                 }
 
             // All this actually does is add in an appropriate super class depending on the class

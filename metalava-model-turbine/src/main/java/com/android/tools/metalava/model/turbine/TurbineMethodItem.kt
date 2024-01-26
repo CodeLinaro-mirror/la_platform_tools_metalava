@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model.turbine
 
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.TypeItem
@@ -24,12 +25,12 @@ import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.computeSuperMethods
 import com.google.turbine.binder.sym.MethodSymbol
 
-open class TurbineMethodItem(
+internal open class TurbineMethodItem(
     codebase: TurbineBasedCodebase,
     private val methodSymbol: MethodSymbol,
-    private val containingClass: TurbineClassItem,
+    private val containingClass: ClassItem,
     protected var returnType: TurbineTypeItem,
-    modifiers: TurbineModifierItem,
+    modifiers: DefaultModifierList,
     private val typeParameters: TypeParameterList,
     documentation: String,
 ) : TurbineItem(codebase, modifiers, documentation), MethodItem {
@@ -94,8 +95,42 @@ open class TurbineMethodItem(
     @Deprecated("This property should not be accessed directly.")
     override var _requiresOverride: Boolean? = null
 
-    override fun duplicate(targetContainingClass: ClassItem): TurbineMethodItem =
-        TODO("b/295800205")
+    override fun duplicate(targetContainingClass: ClassItem): TurbineMethodItem {
+        // Duplicate the parameters
+        val params = parameters.map { TurbineParameterItem.duplicate(codebase, it, emptyMap()) }
+        val retType = returnType.duplicate()
+        val mods = modifiers.duplicate()
+        val duplicateMethod =
+            TurbineMethodItem(
+                codebase,
+                methodSymbol,
+                targetContainingClass,
+                retType as TurbineTypeItem,
+                mods,
+                typeParameters,
+                documentation
+            )
+        mods.setOwner(duplicateMethod)
+        duplicateMethod.parameters = params
+        duplicateMethod.inheritedFrom = containingClass
+        duplicateMethod.throwsTypes = throwsTypes
+
+        // Preserve flags that may have been inherited (propagated) from surrounding packages
+        if (targetContainingClass.hidden) {
+            duplicateMethod.hidden = true
+        }
+        if (targetContainingClass.removed) {
+            duplicateMethod.removed = true
+        }
+        if (targetContainingClass.docOnly) {
+            duplicateMethod.docOnly = true
+        }
+        if (targetContainingClass.deprecated) {
+            duplicateMethod.deprecated = true
+        }
+
+        return duplicateMethod
+    }
 
     override fun findMainDocumentation(): String = TODO("b/295800205")
 
@@ -105,4 +140,10 @@ open class TurbineMethodItem(
         val result = throwsClassNames.map { codebase.findOrCreateClass(it)!! }
         throwsTypes = result.sortedWith(ClassItem.fullNameComparator)
     }
+
+    internal fun setThrowsTypes(throwsList: List<ClassItem>) {
+        throwsTypes = throwsList
+    }
+
+    internal fun getSymbol(): MethodSymbol = methodSymbol
 }

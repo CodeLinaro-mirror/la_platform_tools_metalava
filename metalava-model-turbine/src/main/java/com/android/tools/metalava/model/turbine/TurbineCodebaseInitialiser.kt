@@ -85,7 +85,7 @@ import kotlin.collections.ArrayDeque
  * This is used for populating all the classes,packages and other items from the data present in the
  * parsed Tree
  */
-open class TurbineCodebaseInitialiser(
+internal open class TurbineCodebaseInitialiser(
     val units: List<CompUnit>,
     val codebase: TurbineBasedCodebase,
     val classpath: List<File>,

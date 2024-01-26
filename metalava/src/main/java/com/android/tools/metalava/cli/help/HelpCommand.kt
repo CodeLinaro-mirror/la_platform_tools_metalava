@@ -126,11 +126,11 @@ option.
   signature files. Applies to the contents of the files specified on `--api` and `--removed-api`.
 
   `source` - preserves the order in which overloaded methods appear in the source files. This means
-   that refactorings of the source files which change the order but not the API can cause 
+   that refactorings of the source files which change the order but not the API can cause
    unnecessary changes in the API signature files.
 
-  `signature` (default) - sorts overloaded methods by their signature. This means that refactorings 
-  of the source files which change the order but not the API will have no effect on the API 
+  `signature` (default) - sorts overloaded methods by their signature. This means that refactorings
+  of the source files which change the order but not the API will have no effect on the API
   signature files.
 
 Currently, metalava supports the following versions:

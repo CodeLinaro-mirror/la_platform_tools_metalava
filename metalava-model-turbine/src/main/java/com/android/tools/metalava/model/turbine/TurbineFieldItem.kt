@@ -21,7 +21,7 @@ import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.TypeItem
 
-class TurbineFieldItem(
+internal class TurbineFieldItem(
     codebase: TurbineBasedCodebase,
     private val name: String,
     private val containingClass: ClassItem,

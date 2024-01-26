@@ -441,7 +441,7 @@ class Options(
                 ARG_SUPPRESS_COMPATIBILITY_META_ANNOTATION,
                 help =
                     """
-                       Suppress compatibility checks for any elements within the scope of an 
+                       Suppress compatibility checks for any elements within the scope of an
                        annotation which is itself annotated with the given meta-annotation.
                     """
                         .trimIndent(),

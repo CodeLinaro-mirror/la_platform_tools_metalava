@@ -22,15 +22,14 @@ import com.android.tools.metalava.model.DefaultTypeItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
 import com.android.tools.metalava.model.TypeItem
-import com.android.tools.metalava.model.TypeModifiers
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.WildcardTypeItem
 import com.google.turbine.binder.sym.TyVarSymbol
 
-sealed class TurbineTypeItem(
-    open val codebase: TurbineBasedCodebase,
-    override val modifiers: TypeModifiers,
+internal sealed class TurbineTypeItem(
+    val codebase: TurbineBasedCodebase,
+    override val modifiers: TurbineTypeModifiers,
 ) : DefaultTypeItem(codebase) {
 
     override fun asClass(): TurbineClassItem? {
@@ -48,8 +47,8 @@ sealed class TurbineTypeItem(
 }
 
 internal class TurbinePrimitiveTypeItem(
-    override val codebase: TurbineBasedCodebase,
-    override val modifiers: TurbineTypeModifiers,
+    codebase: TurbineBasedCodebase,
+    modifiers: TurbineTypeModifiers,
     override val kind: Primitive,
 ) : PrimitiveTypeItem, TurbineTypeItem(codebase, modifiers) {
     override fun duplicate(): TypeItem =
@@ -57,8 +56,8 @@ internal class TurbinePrimitiveTypeItem(
 }
 
 internal class TurbineArrayTypeItem(
-    override val codebase: TurbineBasedCodebase,
-    override val modifiers: TurbineTypeModifiers,
+    codebase: TurbineBasedCodebase,
+    modifiers: TurbineTypeModifiers,
     override val componentType: TurbineTypeItem,
     override val isVarargs: Boolean,
 ) : ArrayTypeItem, TurbineTypeItem(codebase, modifiers) {
@@ -73,8 +72,8 @@ internal class TurbineArrayTypeItem(
 }
 
 internal class TurbineClassTypeItem(
-    override val codebase: TurbineBasedCodebase,
-    override val modifiers: TurbineTypeModifiers,
+    codebase: TurbineBasedCodebase,
+    modifiers: TurbineTypeModifiers,
     override val qualifiedName: String,
     override val parameters: List<TurbineTypeItem>,
     override val outerClassType: TurbineClassTypeItem?,
@@ -93,8 +92,8 @@ internal class TurbineClassTypeItem(
 }
 
 internal class TurbineVariableTypeItem(
-    override val codebase: TurbineBasedCodebase,
-    override val modifiers: TurbineTypeModifiers,
+    codebase: TurbineBasedCodebase,
+    modifiers: TurbineTypeModifiers,
     private val symbol: TyVarSymbol
 ) : VariableTypeItem, TurbineTypeItem(codebase, modifiers) {
     override val name: String = symbol.name()
@@ -105,8 +104,8 @@ internal class TurbineVariableTypeItem(
 }
 
 internal class TurbineWildcardTypeItem(
-    override val codebase: TurbineBasedCodebase,
-    override val modifiers: TurbineTypeModifiers,
+    codebase: TurbineBasedCodebase,
+    modifiers: TurbineTypeModifiers,
     override val extendsBound: TurbineTypeItem?,
     override val superBound: TurbineTypeItem?,
 ) : WildcardTypeItem, TurbineTypeItem(codebase, modifiers) {

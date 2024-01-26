@@ -321,19 +321,7 @@ internal constructor(
         val method = template as PsiMethodItem
         val newMethod = PsiMethodItem.create(codebase, this, method)
 
-        if (template.throwsTypes().isEmpty()) {
-            newMethod.setThrowsTypes(emptyList())
-        } else {
-            val throwsTypes = mutableListOf<ClassItem>()
-            for (type in template.throwsTypes()) {
-                if (type.codebase === codebase) {
-                    throwsTypes.add(type)
-                } else {
-                    throwsTypes.add(codebase.findOrCreateClass(((type as PsiClassItem).psiClass)))
-                }
-            }
-            newMethod.setThrowsTypes(throwsTypes)
-        }
+        newMethod.setThrowsTypes(method.throwsTypes())
         newMethod.finishInitialization()
 
         // Remember which class this method was copied from.

@@ -33,7 +33,7 @@ import java.io.File
 const val PACKAGE_ESTIMATE = 500
 const val CLASS_ESTIMATE = 15000
 
-open class TurbineBasedCodebase(
+internal open class TurbineBasedCodebase(
     location: File,
     description: String = "Unknown",
     annotationManager: AnnotationManager,

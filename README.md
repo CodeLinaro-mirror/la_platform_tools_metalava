@@ -33,7 +33,7 @@ It puts build artifacts in `../../out/metalava/`.
 
 To run the metalava executable:
 
-### Through Gradle 
+### Through Gradle
 
 To list all the options:
 
