@@ -23,6 +23,7 @@ import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.computeSuperMethods
 import com.intellij.psi.PsiAnnotationMethod
 import com.intellij.psi.PsiMethod
+import com.intellij.psi.PsiTypeParameter
 import org.jetbrains.kotlin.name.JvmStandardClassIds
 import org.jetbrains.kotlin.psi.KtFunction
 import org.jetbrains.kotlin.psi.KtNamedFunction
@@ -366,8 +367,8 @@ open class PsiMethodItem(
             containingClass: PsiClassItem,
             original: PsiMethodItem
         ): PsiMethodItem {
-            val replacementMap = containingClass.mapTypeVariables(original.containingClass())
-            val returnType = original.returnType.convertType(replacementMap) as PsiTypeItem
+            val typeParameterBindings = containingClass.mapTypeVariables(original.containingClass())
+            val returnType = original.returnType.convertType(typeParameterBindings) as PsiTypeItem
 
             // This results in a PsiMethodItem that is inconsistent, compared with other
             // PsiMethodItem. PsiMethodItems created directly from the source are such that:
@@ -396,7 +397,11 @@ open class PsiMethodItem(
                     modifiers = PsiModifierItem.create(codebase, original.modifiers),
                     returnType = returnType,
                     parameters =
-                        PsiParameterItem.create(codebase, original.parameters(), replacementMap)
+                        PsiParameterItem.create(
+                            codebase,
+                            original.parameters(),
+                            typeParameterBindings
+                        )
                 )
             method.modifiers.setOwner(method)
 
@@ -419,23 +424,29 @@ open class PsiMethodItem(
         }
 
         private fun throwsTypes(codebase: PsiBasedCodebase, psiMethod: PsiMethod): List<ClassItem> {
-            val interfaces = psiMethod.throwsList.referencedTypes
-            if (interfaces.isEmpty()) {
+            val throwsClassTypes = psiMethod.throwsList.referencedTypes
+            if (throwsClassTypes.isEmpty()) {
                 return emptyList()
             }
 
-            val result = ArrayList<ClassItem>(interfaces.size)
-            for (cls in interfaces) {
-                result.add(codebase.findClass(cls) ?: continue)
-            }
-
-            // We're sorting the names here even though outputs typically do their own sorting,
-            // since for example the MethodItem.sameSignature check wants to do an
-            // element-by-element
-            // comparison to see if the signature matches, and that should match overrides even if
-            // they specify their elements in different orders.
-            result.sortWith(ClassItem.fullNameComparator)
-            return result
+            return throwsClassTypes
+                // Resolve the type to a PsiClass, may return null.
+                .mapNotNull { psiType -> psiType.resolve() }
+                // Find or create a PsiClassItem or PsiTypeParameterItem for the underlying
+                // PsiClass.
+                .map { throwsClass ->
+                    // PsiTypeParameterItem have to be created separately to PsiClassItem.
+                    if (throwsClass is PsiTypeParameter) {
+                        codebase.findOrCreateTypeParameter(throwsClass)
+                    } else {
+                        codebase.findOrCreateClass(throwsClass)
+                    }
+                }
+                // We're sorting the names here even though outputs typically do their own sorting,
+                // since for example the MethodItem.sameSignature check wants to do an
+                // element-by-element comparison to see if the signature matches, and that should
+                // match overrides even if they specify their elements in different orders.
+                .sortedWith(ClassItem.fullNameComparator)
         }
     }
 

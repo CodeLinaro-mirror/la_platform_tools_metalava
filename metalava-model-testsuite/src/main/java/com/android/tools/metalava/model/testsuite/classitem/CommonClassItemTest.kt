@@ -24,6 +24,7 @@ import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import com.google.common.truth.Truth.assertThat
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
@@ -487,8 +488,8 @@ class CommonClassItemTest : BaseModelTest() {
         ) {
             val parent = codebase.assertClass("test.pkg.Parent")
             val parentTypeParams = parent.typeParameterList().typeParameters()
-            val m = parentTypeParams[0].toType()
-            val n = parentTypeParams[1].toType()
+            val m = parentTypeParams[0]
+            val n = parentTypeParams[1]
 
             val child = codebase.assertClass("test.pkg.Child")
             val childTypeParams = child.typeParameterList().typeParameters()
@@ -568,33 +569,36 @@ class CommonClassItemTest : BaseModelTest() {
             )
         ) {
             val c4 = codebase.assertClass("test.pkg.Class4")
-            val i = c4.typeParameterList().typeParameters()[0].toType()
+            val i = c4.typeParameterList().typeParameters()[0]
 
             val c3 = codebase.assertClass("test.pkg.Class3")
             val c3TypeParams = c3.typeParameterList().typeParameters()
-            val g = c3TypeParams[0].toType()
-            val h = c3TypeParams[1].toType()
+            val g = c3TypeParams[0]
+            val gType = g.toType()
+            val h = c3TypeParams[1]
 
             val c2 = codebase.assertClass("test.pkg.Class2")
             val c2TypeParams = c2.typeParameterList().typeParameters()
-            val d = c2TypeParams[0].toType()
-            val e = c2TypeParams[1].toType()
-            val f = c2TypeParams[2].toType()
+            val d = c2TypeParams[0]
+            val dType = d.toType()
+            val e = c2TypeParams[1]
+            val f = c2TypeParams[2]
+            val fType = f.toType()
 
             val c1 = codebase.assertClass("test.pkg.Class1")
             val c1TypeParams = c1.typeParameterList().typeParameters()
-            val a = c1TypeParams[0].toType()
-            val b = c1TypeParams[1].toType()
-            val c = c1TypeParams[2].toType()
+            val aType = c1TypeParams[0].toType()
+            val bType = c1TypeParams[1].toType()
+            val cType = c1TypeParams[2].toType()
 
-            assertEquals(mapOf(i to g), c3.mapTypeVariables(c4))
+            assertEquals(mapOf(i to gType), c3.mapTypeVariables(c4))
 
-            assertEquals(mapOf(g to d, h to f), c2.mapTypeVariables(c3))
-            assertEquals(mapOf(i to d), c2.mapTypeVariables(c4))
+            assertEquals(mapOf(g to dType, h to fType), c2.mapTypeVariables(c3))
+            assertEquals(mapOf(i to dType), c2.mapTypeVariables(c4))
 
-            assertEquals(mapOf(d to b, e to c, f to a), c1.mapTypeVariables(c2))
-            assertEquals(mapOf(g to b, h to a), c1.mapTypeVariables(c3))
-            assertEquals(mapOf(i to b), c1.mapTypeVariables(c4))
+            assertEquals(mapOf(d to bType, e to cType, f to aType), c1.mapTypeVariables(c2))
+            assertEquals(mapOf(g to bType, h to aType), c1.mapTypeVariables(c3))
+            assertEquals(mapOf(i to bType), c1.mapTypeVariables(c4))
         }
     }
 
@@ -654,16 +658,20 @@ class CommonClassItemTest : BaseModelTest() {
         ) {
             val grandparent = codebase.assertClass("test.pkg.Grandparent")
             val grandparentTypeParams = grandparent.typeParameterList().typeParameters()
-            val a = grandparentTypeParams[0].toType()
-            val b = grandparentTypeParams[1].toType()
+            val a = grandparentTypeParams[0]
+            val b = grandparentTypeParams[1]
 
             val parent = codebase.assertClass("test.pkg.Parent")
-            val t = parent.typeParameterList().typeParameters()[0].toType()
+            val t = parent.typeParameterList().typeParameters()[0]
+            val tType = t.toType()
 
             val child = codebase.assertClass("test.pkg.Child")
 
             val erasedParentType = (parent.toType() as ClassTypeItem).duplicate(null, emptyList())
-            assertEquals(mapOf(a to t, b to erasedParentType), parent.mapTypeVariables(grandparent))
+            assertEquals(
+                mapOf(a to tType, b to erasedParentType),
+                parent.mapTypeVariables(grandparent)
+            )
             assertEquals(mapOf(t to child.toType()), child.mapTypeVariables(parent))
             assertEquals(
                 mapOf(a to child.toType(), b to erasedParentType),
@@ -738,29 +746,31 @@ class CommonClassItemTest : BaseModelTest() {
         ) {
             val i3 = codebase.assertClass("test.pkg.Interface3")
             val i3TypeParams = i3.typeParameterList().typeParameters()
-            val g = i3TypeParams[0].toType()
-            val h = i3TypeParams[1].toType()
+            val g = i3TypeParams[0]
+            val h = i3TypeParams[1]
 
             val i2 = codebase.assertClass("test.pkg.Interface2")
             val i2TypeParams = i2.typeParameterList().typeParameters()
-            val e = i2TypeParams[0].toType()
-            val f = i2TypeParams[1].toType()
+            val e = i2TypeParams[0]
+            val eType = e.toType()
+            val f = i2TypeParams[1]
+            val fType = f.toType()
 
             val i1 = codebase.assertClass("test.pkg.Interface1")
             val i1TypeParams = i1.typeParameterList().typeParameters()
-            val c = i1TypeParams[0].toType()
-            val d = i1TypeParams[1].toType()
+            val c = i1TypeParams[0]
+            val d = i1TypeParams[1]
 
             val cls = codebase.assertClass("test.pkg.Class")
             val clsTypeParams = cls.typeParameterList().typeParameters()
-            val a = clsTypeParams[0].toType()
-            val b = clsTypeParams[1].toType()
+            val aType = clsTypeParams[0].toType()
+            val bType = clsTypeParams[1].toType()
 
-            assertEquals(mapOf(c to a, d to b), cls.mapTypeVariables(i1))
+            assertEquals(mapOf(c to aType, d to bType), cls.mapTypeVariables(i1))
 
-            assertEquals(mapOf(g to e, h to f), i2.mapTypeVariables(i3))
-            assertEquals(mapOf(e to b, f to a), cls.mapTypeVariables(i2))
-            assertEquals(mapOf(g to b, h to a), cls.mapTypeVariables(i3))
+            assertEquals(mapOf(g to eType, h to fType), i2.mapTypeVariables(i3))
+            assertEquals(mapOf(e to bType, f to aType), cls.mapTypeVariables(i2))
+            assertEquals(mapOf(g to bType, h to aType), cls.mapTypeVariables(i3))
         }
     }
 
@@ -829,31 +839,33 @@ class CommonClassItemTest : BaseModelTest() {
             )
         ) {
             val root = codebase.assertClass("test.pkg.Root")
-            val t = root.typeParameterList().typeParameters()[0].toType()
+            val t = root.typeParameterList().typeParameters()[0]
 
             val i1 = codebase.assertClass("test.pkg.Interface1")
-            val t1 = i1.typeParameterList().typeParameters()[0].toType()
+            val t1 = i1.typeParameterList().typeParameters()[0]
+            val t1Type = t1.toType()
 
             val i2 = codebase.assertClass("test.pkg.Interface2")
-            val t2 = i2.typeParameterList().typeParameters()[0].toType()
+            val t2 = i2.typeParameterList().typeParameters()[0]
+            val t2Type = t2.toType()
 
             val child = codebase.assertClass("test.pkg.Child")
             val childParameterList = child.typeParameterList().typeParameters()
-            val x = childParameterList[0].toType()
-            val y = childParameterList[1].toType()
+            val xType = childParameterList[0].toType()
+            val yType = childParameterList[1].toType()
 
-            assertEquals(mapOf(t to t1), i1.mapTypeVariables(root))
-            assertEquals(mapOf(t to t2), i2.mapTypeVariables(root))
+            assertEquals(mapOf(t to t1Type), i1.mapTypeVariables(root))
+            assertEquals(mapOf(t to t2Type), i2.mapTypeVariables(root))
             assertEquals(
-                mapOf(t1 to x),
+                mapOf(t1 to xType),
                 child.mapTypeVariables(i1),
             )
             assertEquals(
-                mapOf(t2 to y),
+                mapOf(t2 to yType),
                 child.mapTypeVariables(i2),
             )
             assertEquals(
-                mapOf(t to x),
+                mapOf(t to xType),
                 child.mapTypeVariables(root),
             )
         }
@@ -899,6 +911,17 @@ class CommonClassItemTest : BaseModelTest() {
                         public class Inner {}
                     }
                 """
+            ),
+            signature(
+                """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public class Outer<T> {
+                      }
+                      public class Outer.Inner {
+                      }
+                    }
+                """
             )
         ) {
             val innerClass = codebase.assertClass("test.pkg.Outer.Inner")
@@ -913,10 +936,44 @@ class CommonClassItemTest : BaseModelTest() {
             assertThat(outerType).isNotNull()
             assertThat(outerType!!.qualifiedName).isEqualTo("test.pkg.Outer")
 
-            val outerClassVariable = outerType.parameters.single()
+            val outerClassVariable = outerType.arguments.single()
             assertThat(outerClassVariable).isInstanceOf(VariableTypeItem::class.java)
             assertThat((outerClassVariable as VariableTypeItem).name).isEqualTo("T")
             assertThat(outerClassVariable.asTypeParameter).isEqualTo(outerClassParameter)
+        }
+    }
+
+    @Test
+    fun `Check isTypeParameter`() {
+        runCodebaseTest(
+            signature(
+                """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public class Generic<T> {
+                      }
+                    }
+                """
+            ),
+            java(
+                """
+                    package test.pkg;
+                    public class Generic<T> {
+                    }
+                """
+            ),
+            kotlin(
+                """
+                    package test.pkg
+                    class Generic<T>
+                """
+            )
+        ) {
+            val genericClass = codebase.assertClass("test.pkg.Generic")
+            val typeParameter = genericClass.typeParameterList().typeParameters().single()
+
+            assertFalse(genericClass.isTypeParameter, message = "generic class")
+            assertTrue(typeParameter.isTypeParameter, message = "type parameter")
         }
     }
 }

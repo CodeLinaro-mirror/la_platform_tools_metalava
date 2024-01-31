@@ -20,6 +20,7 @@ import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.TypeParameterBindings
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.findAnnotation
 import com.android.tools.metalava.model.hasAnnotation
@@ -365,9 +366,9 @@ internal constructor(
         fun create(
             codebase: PsiBasedCodebase,
             original: PsiParameterItem,
-            replacementMap: Map<TypeItem, TypeItem>
+            typeParameterBindings: TypeParameterBindings
         ): PsiParameterItem {
-            val type = original.type.convertType(replacementMap) as PsiTypeItem
+            val type = original.type.convertType(typeParameterBindings) as PsiTypeItem
             val parameter =
                 PsiParameterItem(
                     codebase = codebase,
@@ -385,9 +386,9 @@ internal constructor(
         fun create(
             codebase: PsiBasedCodebase,
             original: List<ParameterItem>,
-            replacementMap: Map<TypeItem, TypeItem>
+            typeParameterBindings: TypeParameterBindings
         ): List<PsiParameterItem> {
-            return original.map { create(codebase, it as PsiParameterItem, replacementMap) }
+            return original.map { create(codebase, it as PsiParameterItem, typeParameterBindings) }
         }
 
         private fun createParameterModifiers(

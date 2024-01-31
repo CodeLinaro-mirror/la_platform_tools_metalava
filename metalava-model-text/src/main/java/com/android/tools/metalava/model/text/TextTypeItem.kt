@@ -20,6 +20,7 @@ import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.DefaultTypeItem
+import com.android.tools.metalava.model.JAVA_LANG_OBJECT
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeNullability
@@ -32,52 +33,7 @@ internal sealed class TextTypeItem(
     override val modifiers: TextTypeModifiers,
 ) : DefaultTypeItem(codebase) {
 
-    override fun asClass(): ClassItem? {
-        if (this is PrimitiveTypeItem) {
-            return null
-        }
-        val cls = run {
-            val erased = toErasedTypeString()
-            // Also chop off array dimensions
-            val index = erased.indexOf('[')
-            if (index != -1) {
-                erased.substring(0, index)
-            } else {
-                erased
-            }
-        }
-        return codebase.getOrCreateClass(cls)
-    }
-
     internal abstract fun duplicate(withNullability: TypeNullability): TextTypeItem
-
-    companion object {
-
-        fun eraseTypeArguments(s: String): String {
-            val index = s.indexOf('<')
-            if (index != -1) {
-                var balance = 0
-                for (i in index..s.length) {
-                    val c = s[i]
-                    if (c == '<') {
-                        balance++
-                    } else if (c == '>') {
-                        balance--
-                        if (balance == 0) {
-                            return if (i == s.length - 1) {
-                                s.substring(0, index)
-                            } else {
-                                s.substring(0, index) + s.substring(i + 1)
-                            }
-                        }
-                    }
-                }
-
-                return s.substring(0, index)
-            }
-            return s
-        }
-    }
 }
 
 /** A [PrimitiveTypeItem] parsed from a signature file. */
@@ -91,7 +47,7 @@ internal class TextPrimitiveTypeItem(
     }
 
     // Text types are immutable, so the modifiers don't actually need to be duplicated.
-    override fun duplicate(): TypeItem = this
+    override fun duplicate(): PrimitiveTypeItem = this
 }
 
 /** An [ArrayTypeItem] parsed from a signature file. */
@@ -119,24 +75,28 @@ internal class TextArrayTypeItem(
 internal class TextClassTypeItem(
     codebase: TextCodebase,
     override val qualifiedName: String,
-    override val parameters: List<TypeItem>,
+    override val arguments: List<TypeItem>,
     override val outerClassType: ClassTypeItem?,
     modifiers: TextTypeModifiers
 ) : ClassTypeItem, TextTypeItem(codebase, modifiers) {
     override val className: String = ClassTypeItem.computeClassName(qualifiedName)
 
+    override fun asClass(): ClassItem {
+        return codebase.getOrCreateClass(qualifiedName)
+    }
+
     override fun duplicate(withNullability: TypeNullability): TextTypeItem {
         return TextClassTypeItem(
             codebase,
             qualifiedName,
-            parameters,
+            arguments,
             outerClassType,
             modifiers.duplicate(withNullability)
         )
     }
 
-    override fun duplicate(outerClass: ClassTypeItem?, parameters: List<TypeItem>): ClassTypeItem {
-        return TextClassTypeItem(codebase, qualifiedName, parameters, outerClass, modifiers)
+    override fun duplicate(outerClass: ClassTypeItem?, arguments: List<TypeItem>): ClassTypeItem {
+        return TextClassTypeItem(codebase, qualifiedName, arguments, outerClass, modifiers)
     }
 }
 
@@ -147,6 +107,12 @@ internal class TextVariableTypeItem(
     override val asTypeParameter: TypeParameterItem,
     modifiers: TextTypeModifiers
 ) : VariableTypeItem, TextTypeItem(codebase, modifiers) {
+
+    override fun asClass(): ClassItem {
+        return asTypeParameter.typeBounds().firstOrNull()?.asClass()
+            ?: codebase.getOrCreateClass(JAVA_LANG_OBJECT)
+    }
+
     override fun duplicate(withNullability: TypeNullability): TextTypeItem {
         return TextVariableTypeItem(
             codebase,
@@ -157,7 +123,7 @@ internal class TextVariableTypeItem(
     }
 
     // Text types are immutable, so the modifiers don't actually need to be duplicated.
-    override fun duplicate(): TypeItem = this
+    override fun duplicate(): VariableTypeItem = this
 }
 
 /** A [WildcardTypeItem] parsed from a signature file. */

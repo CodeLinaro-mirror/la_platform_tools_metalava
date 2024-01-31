@@ -67,16 +67,11 @@ interface MethodItem : MemberItem {
     /** Types of exceptions that this method can throw */
     fun throwsTypes(): List<ClassItem>
 
-    /** Returns true if this class throws the given exception */
+    /** Returns true if this method throws the given exception */
     fun throws(qualifiedName: String): Boolean {
         for (type in throwsTypes()) {
-            if (type.extends(qualifiedName)) {
-                return true
-            }
-        }
-
-        for (type in throwsTypes()) {
-            if (type.qualifiedName() == qualifiedName) {
+            val throwableClass = type.throwableClass ?: continue
+            if (throwableClass.extends(qualifiedName)) {
                 return true
             }
         }
@@ -100,15 +95,10 @@ interface MethodItem : MemberItem {
                 classes.add(cls)
             } else {
                 // Excluded, but it may have super class throwables that are included; if so,
-                // include those
-                var curr = cls.superClass()
-                while (curr != null) {
-                    if (predicate.test(curr)) {
-                        classes.add(curr)
-                        break
-                    }
-                    curr = curr.superClass()
-                }
+                // include those.
+                cls.allSuperClasses()
+                    .firstOrNull { superClass -> predicate.test(superClass) }
+                    ?.let { superClass -> classes.add(superClass) }
             }
         }
         return classes
@@ -465,7 +455,7 @@ interface MethodItem : MemberItem {
             is ClassTypeItem ->
                 asClass()?.let { !filterReference.test(it) } == true ||
                     outerClassType?.hasHiddenType(filterReference) == true ||
-                    parameters.any { it.hasHiddenType(filterReference) }
+                    arguments.any { it.hasHiddenType(filterReference) }
             is VariableTypeItem -> !filterReference.test(asTypeParameter)
             is WildcardTypeItem ->
                 extendsBound?.hasHiddenType(filterReference) == true ||

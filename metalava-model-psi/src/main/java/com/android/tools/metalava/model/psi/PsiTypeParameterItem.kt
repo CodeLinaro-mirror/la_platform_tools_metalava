@@ -77,6 +77,7 @@ internal class PsiTypeParameterItem(
                 )
             item.modifiers.setOwner(item)
             item.initialize(emptyList(), emptyList(), emptyList(), emptyList(), emptyList())
+            item.finishInitialization()
             return item
         }
 

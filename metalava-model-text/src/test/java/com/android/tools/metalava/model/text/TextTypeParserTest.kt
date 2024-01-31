@@ -453,17 +453,17 @@ class TextTypeParserTest : Assertions {
 
     /**
      * Tests that [inputType] is parsed as a [ClassTypeItem] with qualified name equal to
-     * [expectedQualifiedName] and parameters equal to [expectedParameterTypes].
+     * [expectedQualifiedName] and [ClassTypeItem.arguments] is equal to [expectedTypeArguments].
      */
     private fun testClassType(
         inputType: String,
         expectedQualifiedName: String,
-        expectedParameterTypes: List<TypeItem>
+        expectedTypeArguments: List<TypeItem>
     ) {
         val type = parseType(inputType)
         assertThat(type).isInstanceOf(ClassTypeItem::class.java)
         assertThat((type as ClassTypeItem).qualifiedName).isEqualTo(expectedQualifiedName)
-        assertThat((type as ClassTypeItem).parameters).isEqualTo(expectedParameterTypes)
+        assertThat((type as ClassTypeItem).arguments).isEqualTo(expectedTypeArguments)
     }
 
     @Test
@@ -471,7 +471,7 @@ class TextTypeParserTest : Assertions {
         testClassType(
             inputType = "String",
             expectedQualifiedName = "java.lang.String",
-            expectedParameterTypes = emptyList()
+            expectedTypeArguments = emptyList()
         )
         testArrayType(
             inputType = "String[]",
@@ -490,27 +490,27 @@ class TextTypeParserTest : Assertions {
         testClassType(
             inputType = "@A @B test.pkg.Foo",
             expectedQualifiedName = "test.pkg.Foo",
-            expectedParameterTypes = emptyList()
+            expectedTypeArguments = emptyList()
         )
         testClassType(
             inputType = "@A @B test.pkg.Foo",
             expectedQualifiedName = "test.pkg.Foo",
-            expectedParameterTypes = emptyList()
+            expectedTypeArguments = emptyList()
         )
         testClassType(
             inputType = "java.lang.annotation.@NonNull Annotation",
             expectedQualifiedName = "java.lang.annotation.Annotation",
-            expectedParameterTypes = emptyList()
+            expectedTypeArguments = emptyList()
         )
         testClassType(
             inputType = "java.util.Map.@NonNull Entry<a.A,b.B>",
             expectedQualifiedName = "java.util.Map.Entry",
-            expectedParameterTypes = listOf(parseType("a.A"), parseType("b.B"))
+            expectedTypeArguments = listOf(parseType("a.A"), parseType("b.B"))
         )
         testClassType(
             inputType = "java.util.@NonNull Set<java.util.Map.@NonNull Entry<a.A,b.B>>",
             expectedQualifiedName = "java.util.Set",
-            expectedParameterTypes = listOf(parseType("java.util.Map.@NonNull Entry<a.A,b.B>"))
+            expectedTypeArguments = listOf(parseType("java.util.Map.@NonNull Entry<a.A,b.B>"))
         )
     }
 }

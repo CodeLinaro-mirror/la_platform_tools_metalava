@@ -46,8 +46,6 @@ internal open class TurbineClassItem(
 
     override var hasPrivateConstructor: Boolean = false
 
-    override val isTypeParameter: Boolean = false
-
     override var stubConstructor: ConstructorItem? = null
 
     internal lateinit var innerClasses: List<TurbineClassItem>

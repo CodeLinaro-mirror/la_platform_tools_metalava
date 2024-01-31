@@ -3,21 +3,23 @@ com.android.tools.metalava.model.testsuite.annotationitem.CommonAnnotationItemTe
   annotation toSource() with char values[text,signature]
   annotation toSource() with class values[text,signature]
   annotation toSource() with compound expression values[text,signature]
+  annotation toSource() with constant literal values[text,signature]
   annotation toSource() with enum values[text,signature]
   annotation toSource() with number values[text,signature]
   annotation toSource() with string values[text,signature]
+  annotation with constant literal values[text,signature]
   annotation with infinity values[text,signature]
-  annotation with negative values[text,signature]
+  annotation with negative number values[text,signature]
   annotation with type cast values[text,signature]
 
 com.android.tools.metalava.model.testsuite.classitem.CommonClassItemTest
   Test class no super class but implements lists[text,signature]
   Test class no super class or implements lists[text,signature]
 
-com.android.tools.metalava.model.testsuite.typeitem.CommonParameterizedTypeItemTest
-  Test asClass[text,signature,int[]]
-
 com.android.tools.metalava.model.testsuite.typeitem.CommonTypeModifiersTest
   Test implicit nullability of annotation members[text,signature]
   Test implicit nullability of equals parameter[text,signature]
   Test implicit nullability of toString[text,signature]
+
+com.android.tools.metalava.model.testsuite.typeitem.CommonTypeParameterItemTest
+  Test type parameter with annotations[text,signature]

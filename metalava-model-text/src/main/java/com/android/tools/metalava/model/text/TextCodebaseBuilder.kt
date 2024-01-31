@@ -55,9 +55,9 @@ class TextCodebaseBuilder private constructor(private val codebase: TextCodebase
             // context to use so just use an empty context.
             val context =
                 object : ResolverContext {
-                    override fun namesOfInterfaces(cl: ClassItem): List<String>? = null
+                    override fun superInterfaceTypeStrings(cl: ClassItem): List<String>? = null
 
-                    override fun nameOfSuperClass(cl: ClassItem): String? = null
+                    override fun superClassTypeString(cl: ClassItem): String? = null
                 }
 
             // All this actually does is add in an appropriate super class depending on the class
@@ -129,7 +129,6 @@ class TextCodebaseBuilder private constructor(private val codebase: TextCodebase
                 textClass.isInterface(),
                 textClass.isEnum(),
                 textClass.isAnnotationType(),
-                textClass.qualifiedName,
                 textClass.qualifiedName,
                 textClass.name,
                 textClass.annotations,

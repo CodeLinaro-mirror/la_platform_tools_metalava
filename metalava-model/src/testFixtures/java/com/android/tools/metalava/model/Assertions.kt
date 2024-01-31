@@ -57,9 +57,9 @@ interface Assertions {
     }
 
     /** Get the annotation from the [Item], failing if it does not exist. */
-    fun Item.assertAnnotation(parameters: String): AnnotationItem {
-        val annoItem = modifiers.annotations().firstOrNull { it.qualifiedName == parameters }
-        assertNotNull(annoItem, message = "Expected item to be annotated with ($parameters)")
+    fun Item.assertAnnotation(qualifiedName: String): AnnotationItem {
+        val annoItem = modifiers.findAnnotation(qualifiedName)
+        assertNotNull(annoItem, message = "Expected item to be annotated with ($qualifiedName)")
         return assertIs(annoItem)
     }
 }

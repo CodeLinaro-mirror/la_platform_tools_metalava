@@ -77,10 +77,8 @@ class PsiTypeItemAssignabilityTest : BasePsiTest() {
             )
 
         testCodebase(sources = sourceFiles, classPath = listOf(getAndroidJar())) { codebase ->
-            val javaSubject =
-                codebase.findClass("test.foo.JavaSubject") ?: error("Cannot find java subject")
-            val kotlinSubject =
-                codebase.findClass("test.foo.KotlinSubject") ?: error("Cannot find subject")
+            val javaSubject = codebase.assertClass("test.foo.JavaSubject")
+            val kotlinSubject = codebase.assertClass("test.foo.KotlinSubject")
             val testSubjects = listOf(javaSubject, kotlinSubject)
             // helper method to check assignability between fields
             fun String.isAssignableFromWithoutUnboxing(otherField: String): Boolean {

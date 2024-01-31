@@ -17,9 +17,11 @@
 package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.model.ArrayTypeItem
+import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.DefaultTypeItem
 import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.model.JAVA_LANG_OBJECT
 import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
@@ -45,17 +47,6 @@ import java.lang.IllegalStateException
 /** Represents a type backed by PSI */
 sealed class PsiTypeItem(val codebase: PsiBasedCodebase, val psiType: PsiType) :
     DefaultTypeItem(codebase) {
-    private var asClass: PsiClassItem? = null
-
-    override fun asClass(): PsiClassItem? {
-        if (this is PrimitiveTypeItem) {
-            return null
-        }
-        if (asClass == null) {
-            asClass = codebase.findClass(psiType)
-        }
-        return asClass
-    }
 
     /** Returns `true` if `this` type can be assigned from `other` without unboxing the other. */
     fun isAssignableFromWithoutUnboxing(other: PsiTypeItem): Boolean {
@@ -243,17 +234,27 @@ internal class PsiClassTypeItem(
     codebase: PsiBasedCodebase,
     psiType: PsiType,
     override val qualifiedName: String,
-    override val parameters: List<PsiTypeItem>,
+    override val arguments: List<PsiTypeItem>,
     override val outerClassType: PsiClassTypeItem?,
     override val className: String,
     override val modifiers: PsiTypeModifiers,
 ) : ClassTypeItem, PsiTypeItem(codebase, psiType) {
-    override fun duplicate(outerClass: ClassTypeItem?, parameters: List<TypeItem>): ClassTypeItem =
+
+    private var asClass: ClassItem? = null
+
+    override fun asClass(): ClassItem? {
+        if (asClass == null) {
+            asClass = codebase.findClass(psiType)
+        }
+        return asClass
+    }
+
+    override fun duplicate(outerClass: ClassTypeItem?, arguments: List<TypeItem>): ClassTypeItem =
         PsiClassTypeItem(
             codebase = codebase,
             psiType = psiType,
             qualifiedName = qualifiedName,
-            parameters = parameters.map { it as PsiTypeItem },
+            arguments = arguments.map { it as PsiTypeItem },
             outerClassType = outerClass as? PsiClassTypeItem,
             className = className,
             modifiers = modifiers.duplicate()
@@ -270,7 +271,7 @@ internal class PsiClassTypeItem(
                 codebase = codebase,
                 psiType = psiType,
                 qualifiedName = qualifiedName,
-                parameters = computeParameters(codebase, psiType, kotlinType),
+                arguments = computeTypeArguments(codebase, psiType, kotlinType),
                 outerClassType = computeOuterClass(psiType, codebase, kotlinType),
                 // This should be able to use `psiType.name`, but that sometimes returns null.
                 className = ClassTypeItem.computeClassName(qualifiedName),
@@ -278,7 +279,7 @@ internal class PsiClassTypeItem(
             )
         }
 
-        private fun computeParameters(
+        private fun computeTypeArguments(
             codebase: PsiBasedCodebase,
             psiType: PsiClassType,
             kotlinType: KotlinTypeInfo?
@@ -349,7 +350,19 @@ internal class PsiVariableTypeItem(
     override val modifiers: PsiTypeModifiers,
 ) : VariableTypeItem, PsiTypeItem(codebase, psiType) {
     override val asTypeParameter: TypeParameterItem by lazy {
-        codebase.findClass(psiType) as TypeParameterItem
+        val cls = (psiType as PsiClassType).resolve() ?: error("Could not resolve $psiType")
+        codebase.findOrCreateTypeParameter(cls as PsiTypeParameter)
+    }
+
+    private var asClass: ClassItem? = null
+
+    override fun asClass(): ClassItem? {
+        if (asClass == null) {
+            asClass =
+                asTypeParameter.typeBounds().firstOrNull()?.asClass()
+                    ?: codebase.findClass(JAVA_LANG_OBJECT)
+        }
+        return asClass
     }
 
     override fun duplicate(): PsiVariableTypeItem =

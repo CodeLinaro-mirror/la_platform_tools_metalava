@@ -361,10 +361,11 @@ internal constructor(
             codebase: PsiBasedCodebase,
             element: PsiModifierListOwner
         ): PsiModifierItem {
-            val modifierList = element.modifierList ?: return PsiModifierItem(codebase)
-            var flags = computeFlag(element, modifierList)
+            var flags =
+                element.modifierList?.let { modifierList -> computeFlag(element, modifierList) }
+                    ?: PACKAGE_PRIVATE
 
-            val psiAnnotations = modifierList.annotations
+            val psiAnnotations = element.annotations
             return if (psiAnnotations.isEmpty()) {
                 PsiModifierItem(codebase, flags)
             } else {

@@ -16,14 +16,22 @@
 
 package com.android.tools.metalava.model.text
 
+import com.android.tools.lint.checks.infrastructure.TestFile
+import com.android.tools.lint.checks.infrastructure.TestFiles
 import com.android.tools.metalava.model.Assertions
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassResolver
+import com.android.tools.metalava.testing.createFiles
+import java.io.File
 import kotlin.test.assertNull
 import kotlin.test.assertSame
+import org.junit.Rule
 import org.junit.Test
+import org.junit.rules.TemporaryFolder
 
 class ApiFileTest : Assertions {
+
+    @get:Rule val temporaryFolder = TemporaryFolder()
 
     @Test
     fun `Test parse from InputStream`() {
@@ -177,6 +185,67 @@ class ApiFileTest : Assertions {
         val exception =
             codebase.assertClass("test.pkg.Foo").assertMethod("foo", "").throwsTypes().first()
         assertSame(unknownExceptionClass, exception)
+    }
+
+    fun signature(filename: String, contents: String): TestFile =
+        TestFiles.source(filename, contents.trimIndent())
+
+    @Test
+    fun `Test parse multiple files correctly updates super class`() {
+        val testFiles =
+            listOf(
+                signature(
+                    "first.txt",
+                    """
+                    // Signature format: 2.0
+                    package test.pkg {
+                        public class Foo {
+                        }
+                    }
+                """
+                ),
+                signature(
+                    "second.txt",
+                    """
+                        // Signature format: 2.0
+                        package test.pkg {
+                            public class Bar {
+                            }
+                            public class Foo extends test.pkg.Bar {
+                            }
+                        }
+                    """
+                ),
+                signature(
+                    "third.txt",
+                    """
+                    // Signature format: 2.0
+                    package test.pkg {
+                        public class Bar {
+                        }
+                        public class Baz {
+                        }
+                        public class Foo extends test.pkg.Baz {
+                        }
+                    }
+                """
+                ),
+            )
+
+        fun checkSuperClass(files: List<File>, order: String, expectedSuperClass: String) {
+            val codebase = ApiFile.parseApi(files)
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+            assertSame(
+                codebase.assertClass(expectedSuperClass),
+                fooClass.superClass(),
+                message = "incorrect super class from $order"
+            )
+        }
+
+        // Order matters, the last, non-null super class wins.
+        val files = testFiles.createFiles(temporaryFolder.newFolder())
+        checkSuperClass(files, "narrowest to widest", "test.pkg.Baz")
+        checkSuperClass(files.reversed(), "widest to narrowest", "test.pkg.Bar")
     }
 
     class TestClassItem private constructor(delegate: ClassItem) : ClassItem by delegate {

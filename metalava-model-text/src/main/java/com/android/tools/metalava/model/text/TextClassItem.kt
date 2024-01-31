@@ -18,6 +18,7 @@ package com.android.tools.metalava.model.text
 
 import com.android.tools.metalava.model.AnnotationRetention
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.FieldItem
@@ -39,7 +40,6 @@ internal open class TextClassItem(
     private var isEnum: Boolean = false,
     internal var isAnnotation: Boolean = false,
     val qualifiedName: String = "",
-    val qualifiedTypeName: String = qualifiedName,
     var name: String = qualifiedName.substring(qualifiedName.lastIndexOf('.') + 1),
     val annotations: List<String>? = null,
     val typeParameterList: TypeParameterList = TypeParameterList.NONE
@@ -55,13 +55,13 @@ internal open class TextClassItem(
         }
     }
 
-    override val isTypeParameter: Boolean = false
-
     override var artifact: String? = null
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
-        if (other !is ClassItem) return false
+        if (javaClass != other?.javaClass) return false
+
+        other as TextClassItem
 
         return qualifiedName == other.qualifiedName()
     }
@@ -160,7 +160,16 @@ internal open class TextClassItem(
 
     override fun toType(): TextTypeItem {
         if (typeInfo == null) {
-            typeInfo = codebase.typeResolver.obtainTypeFromClass(this)
+            val params = typeParameterList.typeParameters().map { it.toType() }
+            // Create a [TextTypeItem] representing the type of this class.
+            typeInfo =
+                TextClassTypeItem(
+                    codebase,
+                    qualifiedName,
+                    params,
+                    containingClass()?.toType() as? ClassTypeItem,
+                    codebase.emptyTypeModifiers,
+                )
         }
         return typeInfo!!
     }
@@ -253,17 +262,9 @@ internal open class TextClassItem(
     companion object {
         internal fun createStubClass(
             codebase: TextCodebase,
-            name: String,
+            qualifiedName: String,
             isInterface: Boolean
         ): TextClassItem {
-            val index = if (name.endsWith(">")) name.indexOf('<') else -1
-            val qualifiedName = if (index == -1) name else name.substring(0, index)
-            val typeParameterList =
-                if (index == -1) {
-                    TypeParameterList.NONE
-                } else {
-                    TextTypeParameterList.create(codebase, name.substring(index))
-                }
             val fullName = getFullName(qualifiedName)
             val cls =
                 TextClassItem(
@@ -272,7 +273,6 @@ internal open class TextClassItem(
                     qualifiedName = qualifiedName,
                     isInterface = isInterface,
                     modifiers = DefaultModifierList(codebase, DefaultModifierList.PUBLIC),
-                    typeParameterList = typeParameterList
                 )
             cls.emit = false // it's a stub
 
