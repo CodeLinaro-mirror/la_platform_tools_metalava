@@ -70,7 +70,7 @@ internal class TurbineConstructorItem(
                     name,
                     symbol,
                     containingClass,
-                    containingClass.toType(),
+                    containingClass.type(),
                     modifiers,
                     parameters,
                     "",

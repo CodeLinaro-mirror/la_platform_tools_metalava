@@ -70,7 +70,7 @@ class ApiFileTest : Assertions {
         // Make sure the stub Throwable is used in the throws types.
         val exception =
             codebase.assertClass("test.pkg.Foo").assertMethod("foo", "").throwsTypes().first()
-        assertSame(throwable, exception)
+        assertSame(throwable, exception.classItem)
     }
 
     @Test
@@ -100,7 +100,7 @@ class ApiFileTest : Assertions {
         // Make sure the stub Throwable is used in the throws types.
         val exception =
             codebase.assertClass("test.pkg.Foo").assertMethod("foo", "").throwsTypes().first()
-        assertSame(error, exception)
+        assertSame(error, exception.classItem)
     }
 
     @Test
@@ -126,7 +126,7 @@ class ApiFileTest : Assertions {
         // Make sure the stub Throwable is used in the throws types.
         val exception =
             codebase.assertClass("test.pkg.Foo").assertMethod("foo", "").throwsTypes().first()
-        assertSame(throwable, exception)
+        assertSame(throwable, exception.classItem)
     }
 
     @Test
@@ -153,7 +153,7 @@ class ApiFileTest : Assertions {
         // Make sure the stub UnknownException is used in the throws types.
         val exception =
             codebase.assertClass("test.pkg.Foo").assertMethod("foo", "").throwsTypes().first()
-        assertSame(unknownExceptionClass, exception)
+        assertSame(unknownExceptionClass, exception.classItem)
     }
 
     @Test
@@ -184,7 +184,7 @@ class ApiFileTest : Assertions {
         // types.
         val exception =
             codebase.assertClass("test.pkg.Foo").assertMethod("foo", "").throwsTypes().first()
-        assertSame(unknownExceptionClass, exception)
+        assertSame(unknownExceptionClass, exception.classItem)
     }
 
     fun signature(filename: String, contents: String): TestFile =

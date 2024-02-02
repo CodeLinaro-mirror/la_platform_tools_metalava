@@ -18,38 +18,42 @@ package com.android.tools.metalava.model.turbine
 
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterItem
-import com.android.tools.metalava.model.TypeParameterList
-import com.google.turbine.binder.sym.ClassSymbol
+import com.android.tools.metalava.model.VariableTypeItem
 import com.google.turbine.binder.sym.TyVarSymbol
 
 internal class TurbineTypeParameterItem(
     codebase: TurbineBasedCodebase,
     modifiers: TurbineModifierItem,
     internal val symbol: TyVarSymbol,
-    name: String = symbol.name(),
+    private val name: String = symbol.name(),
     private val bounds: List<TypeItem>,
-    private val document: String = "",
 ) :
-    TurbineClassItem(
+    TurbineItem(
         codebase,
-        name,
-        name,
-        name,
-        ClassSymbol(name),
         modifiers,
-        TurbineClassType.TYPE_PARAMETER,
-        TypeParameterList.NONE,
-        document,
-        null,
+        "",
     ),
     TypeParameterItem {
+
+    override fun name() = name
 
     // Java does not supports reified generics
     override fun isReified(): Boolean = false
 
     override fun typeBounds(): List<TypeItem> = bounds
 
-    override fun toType(): TurbineTypeItem {
+    override fun type(): VariableTypeItem {
         return TurbineVariableTypeItem(codebase, TurbineTypeModifiers(emptyList()), symbol)
+    }
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is TypeParameterItem) return false
+
+        return name == other.name()
+    }
+
+    override fun hashCode(): Int {
+        return name.hashCode()
     }
 }

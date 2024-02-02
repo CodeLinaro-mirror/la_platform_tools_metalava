@@ -39,9 +39,7 @@ import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.VariableTypeItem
-import com.android.tools.metalava.model.description
 import com.android.tools.metalava.model.psi.PsiItem
-import com.android.tools.metalava.model.throwableClass
 import com.android.tools.metalava.options
 import com.android.tools.metalava.reporter.IssueConfiguration
 import com.android.tools.metalava.reporter.Issues
@@ -660,7 +658,7 @@ class CompatibilityCheck(
                         "${describe(
                         new,
                         capitalize = true
-                    )} made type variable ${newTypes[i].simpleName()} reified: incompatible change"
+                    )} made type variable ${newTypes[i].name()} reified: incompatible change"
                     report(Issues.ADDED_REIFIED, new, message)
                 }
             }

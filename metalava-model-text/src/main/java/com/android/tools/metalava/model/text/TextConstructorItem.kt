@@ -53,7 +53,7 @@ internal class TextConstructorItem(
                     name = name,
                     containingClass = containingClass,
                     modifiers = modifiers,
-                    returnType = containingClass.toType(),
+                    returnType = containingClass.type(),
                     parameters = emptyList(),
                     position = position,
                 )

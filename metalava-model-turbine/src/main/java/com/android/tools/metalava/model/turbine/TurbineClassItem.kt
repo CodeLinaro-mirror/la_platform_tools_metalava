@@ -18,13 +18,13 @@ package com.android.tools.metalava.model.turbine
 
 import com.android.tools.metalava.model.AnnotationRetention
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.SourceFile
-import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.google.turbine.binder.sym.ClassSymbol
 import com.google.turbine.binder.sym.MethodSymbol
@@ -52,7 +52,7 @@ internal open class TurbineClassItem(
 
     private var superClass: TurbineClassItem? = null
 
-    private var superClassType: TypeItem? = null
+    private var superClassType: ClassTypeItem? = null
 
     internal lateinit var directInterfaces: List<TurbineClassItem>
 
@@ -68,9 +68,9 @@ internal open class TurbineClassItem(
 
     internal var containingClass: TurbineClassItem? = null
 
-    private lateinit var interfaceTypesList: List<TypeItem>
+    private lateinit var interfaceTypesList: List<ClassTypeItem>
 
-    private var asType: TurbineTypeItem? = null
+    private var asType: TurbineClassTypeItem? = null
 
     internal var hasImplicitDefaultConstructor = false
 
@@ -134,7 +134,7 @@ internal open class TurbineClassItem(
 
     override fun innerClasses(): List<ClassItem> = innerClasses
 
-    override fun interfaceTypes(): List<TypeItem> = interfaceTypesList
+    override fun interfaceTypes(): List<ClassTypeItem> = interfaceTypesList
 
     override fun isAnnotationType(): Boolean = classType == TurbineClassType.ANNOTATION
 
@@ -160,27 +160,27 @@ internal open class TurbineClassItem(
 
     override fun fullName(): String = fullName
 
-    override fun setInterfaceTypes(interfaceTypes: List<TypeItem>) {
+    override fun setInterfaceTypes(interfaceTypes: List<ClassTypeItem>) {
         interfaceTypesList = interfaceTypes
     }
 
-    internal fun setSuperClass(superClass: ClassItem?, superClassType: TypeItem?) {
+    internal fun setSuperClass(superClass: ClassItem?, superClassType: ClassTypeItem?) {
         this.superClass = superClass as? TurbineClassItem
         this.superClassType = superClassType
     }
 
     override fun superClass(): TurbineClassItem? = superClass
 
-    override fun superClassType(): TypeItem? = superClassType
+    override fun superClassType(): ClassTypeItem? = superClassType
 
-    override fun toType(): TurbineTypeItem {
+    override fun type(): TurbineClassTypeItem {
         if (asType == null) {
             val parameters =
                 typeParameterList().typeParameters().map {
                     createVariableType(it as TurbineTypeParameterItem)
                 }
             val mods = TurbineTypeModifiers(modifiers.annotations())
-            val outerClassType = containingClass?.let { it.toType() as TurbineClassTypeItem }
+            val outerClassType = containingClass?.type()
             asType = TurbineClassTypeItem(codebase, mods, qualifiedName, parameters, outerClassType)
         }
         return asType!!

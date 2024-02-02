@@ -108,7 +108,7 @@ interface ClassItem : Item {
      * List<String>" the super class is java.util.List and the super class type is
      * java.util.List<java.lang.String>.
      */
-    fun superClassType(): TypeItem?
+    fun superClassType(): ClassTypeItem?
 
     /** Returns true if this class extends the given class (includes self) */
     fun extends(qualifiedName: String): Boolean {
@@ -151,7 +151,7 @@ interface ClassItem : Item {
         extends(qualifiedName) || implements(qualifiedName)
 
     /** Any interfaces implemented by this class */
-    @MetalavaApi fun interfaceTypes(): List<TypeItem>
+    @MetalavaApi fun interfaceTypes(): List<ClassTypeItem>
 
     /**
      * All classes and interfaces implemented (by this class and its super classes and the
@@ -201,9 +201,7 @@ interface ClassItem : Item {
     override fun containingPackage(): PackageItem
 
     /** Gets the type for this class */
-    fun toType(): TypeItem
-
-    override fun type(): TypeItem? = null
+    override fun type(): ClassTypeItem
 
     override fun findCorrespondingItemIn(codebase: Codebase) = codebase.findClass(qualifiedName())
 
@@ -223,14 +221,7 @@ interface ClassItem : Item {
     // Mutation APIs: Used to "fix up" the API hierarchy to only expose visible parts of the API.
 
     // This replaces the interface types implemented by this class
-    fun setInterfaceTypes(interfaceTypes: List<TypeItem>)
-
-    /**
-     * Whether this class is a generic type parameter, such as T, rather than a non-generic type,
-     * like String
-     */
-    val isTypeParameter
-        get() = this is TypeParameterItem
+    fun setInterfaceTypes(interfaceTypes: List<ClassTypeItem>)
 
     var hasPrivateConstructor: Boolean
 

@@ -19,13 +19,13 @@ package com.android.tools.metalava.model.psi
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.AnnotationRetention
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.SourceFile
-import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.hasAnnotation
@@ -95,11 +95,11 @@ internal constructor(
     override fun hasImplicitDefaultConstructor(): Boolean = hasImplicitDefaultConstructor
 
     private var superClass: ClassItem? = null
-    private var superClassType: TypeItem? = null
+    private var superClassType: ClassTypeItem? = null
 
     override fun superClass(): ClassItem? = superClass
 
-    override fun superClassType(): TypeItem? = superClassType
+    override fun superClassType(): ClassTypeItem? = superClassType
 
     override var stubConstructor: ConstructorItem? = null
     override var artifact: String? = null
@@ -110,13 +110,9 @@ internal constructor(
 
     override var hasPrivateConstructor: Boolean = false
 
-    override fun interfaceTypes(): List<TypeItem> = interfaceTypes
+    override fun interfaceTypes(): List<ClassTypeItem> = interfaceTypes
 
-    override fun setInterfaceTypes(interfaceTypes: List<TypeItem>) {
-        @Suppress("UNCHECKED_CAST") setInterfaces(interfaceTypes as List<PsiTypeItem>)
-    }
-
-    private fun setInterfaces(interfaceTypes: List<PsiTypeItem>) {
+    override fun setInterfaceTypes(interfaceTypes: List<ClassTypeItem>) {
         this.interfaceTypes = interfaceTypes
     }
 
@@ -159,7 +155,7 @@ internal constructor(
     }
 
     private lateinit var innerClasses: List<PsiClassItem>
-    private lateinit var interfaceTypes: List<TypeItem>
+    private lateinit var interfaceTypes: List<ClassTypeItem>
     private lateinit var constructors: List<PsiConstructorItem>
     private lateinit var methods: List<PsiMethodItem>
     private lateinit var properties: List<PsiPropertyItem>
@@ -185,9 +181,8 @@ internal constructor(
     final override var primaryConstructor: PsiConstructorItem? = null
         private set
 
-    override fun toType(): TypeItem {
-        return codebase.getType(codebase.getClassType(psiClass))
-    }
+    override fun type(): ClassTypeItem =
+        codebase.getType(codebase.getClassType(psiClass)) as ClassTypeItem
 
     override fun hasTypeVariables(): Boolean = psiClass.hasTypeParameters()
 
@@ -270,15 +265,15 @@ internal constructor(
                 val type = codebase.getType(it)
                 // ensure that we initialize classes eagerly too, so that they're registered etc
                 type.asClass()
-                type
+                type as ClassTypeItem
             }
-        setInterfaces(interfaceTypes)
+        setInterfaceTypes(interfaceTypes)
 
         if (!isInterface) {
             // Set the super class type for classes
             val superClassPsiType = psiClass.superClassType as? PsiType
             superClassPsiType?.let { superType ->
-                this.superClassType = codebase.getType(superType)
+                this.superClassType = codebase.getType(superType) as ClassTypeItem
                 this.superClass = this.superClassType?.asClass()
             }
         }
@@ -286,20 +281,6 @@ internal constructor(
         for (inner in innerClasses) {
             inner.initializeSuperClasses()
         }
-    }
-
-    internal fun initialize(
-        innerClasses: List<PsiClassItem>,
-        interfaceTypes: List<TypeItem>,
-        constructors: List<PsiConstructorItem>,
-        methods: List<PsiMethodItem>,
-        fields: List<FieldItem>
-    ) {
-        this.innerClasses = innerClasses
-        this.interfaceTypes = interfaceTypes
-        this.constructors = constructors
-        this.methods = methods
-        this.fields = fields
     }
 
     override fun equals(other: Any?): Boolean {

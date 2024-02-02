@@ -18,6 +18,7 @@ package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.MethodItem
+import com.android.tools.metalava.model.ThrowableType
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.computeSuperMethods
@@ -137,13 +138,13 @@ open class PsiMethodItem(
     }
 
     //    private var throwsTypes: List<ClassItem>? = null
-    private lateinit var throwsTypes: List<ClassItem>
+    private lateinit var throwsTypes: List<ThrowableType>
 
-    internal fun setThrowsTypes(throwsTypes: List<ClassItem>) {
+    internal fun setThrowsTypes(throwsTypes: List<ThrowableType>) {
         this.throwsTypes = throwsTypes
     }
 
-    override fun throwsTypes(): List<ClassItem> = throwsTypes
+    override fun throwsTypes(): List<ThrowableType> = throwsTypes
 
     override fun isExtensionMethod(): Boolean {
         if (isKotlin()) {
@@ -423,7 +424,10 @@ open class PsiMethodItem(
             }
         }
 
-        private fun throwsTypes(codebase: PsiBasedCodebase, psiMethod: PsiMethod): List<ClassItem> {
+        private fun throwsTypes(
+            codebase: PsiBasedCodebase,
+            psiMethod: PsiMethod
+        ): List<ThrowableType> {
             val throwsClassTypes = psiMethod.throwsList.referencedTypes
             if (throwsClassTypes.isEmpty()) {
                 return emptyList()
@@ -437,16 +441,18 @@ open class PsiMethodItem(
                 .map { throwsClass ->
                     // PsiTypeParameterItem have to be created separately to PsiClassItem.
                     if (throwsClass is PsiTypeParameter) {
-                        codebase.findOrCreateTypeParameter(throwsClass)
+                        ThrowableType.ofTypeParameter(
+                            codebase.findOrCreateTypeParameter(throwsClass)
+                        )
                     } else {
-                        codebase.findOrCreateClass(throwsClass)
+                        ThrowableType.ofClass(codebase.findOrCreateClass(throwsClass))
                     }
                 }
                 // We're sorting the names here even though outputs typically do their own sorting,
                 // since for example the MethodItem.sameSignature check wants to do an
                 // element-by-element comparison to see if the signature matches, and that should
                 // match overrides even if they specify their elements in different orders.
-                .sortedWith(ClassItem.fullNameComparator)
+                .sortedWith(ThrowableType.fullNameComparator)
         }
     }
 

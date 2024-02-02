@@ -23,7 +23,6 @@ internal enum class ClassType {
     INTERFACE,
     ENUM,
     ANNOTATION_TYPE,
-    TYPE_PARAMETER,
     CLASS;
 
     companion object {

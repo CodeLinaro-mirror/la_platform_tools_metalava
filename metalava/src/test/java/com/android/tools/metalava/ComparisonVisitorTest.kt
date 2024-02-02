@@ -80,7 +80,7 @@ class ComparisonVisitorTest {
             .compare(
                 object : ComparisonVisitor() {
                     override fun added(new: MethodItem) {
-                        methodType = new.type()?.toSimpleType()
+                        methodType = new.type().toSimpleType()
                     }
                 },
                 old,

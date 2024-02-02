@@ -33,6 +33,7 @@ import com.android.tools.metalava.model.MetalavaApi
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
+import com.android.tools.metalava.model.ThrowableType
 import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.TypeParameterList
@@ -598,7 +599,7 @@ private constructor(
         val typeParams = typeParameterList.typeParameters() + cl.typeParameterList.typeParameters()
         val parameters = parseParameterList(api, tokenizer, typeParams)
         // Constructors cannot return null.
-        val ctorReturn = cl.toType().duplicate(TypeNullability.NONNULL)
+        val ctorReturn = cl.type().duplicate(TypeNullability.NONNULL)
         method =
             TextConstructorItem(api, name, cl, modifiers, ctorReturn, parameters, tokenizer.pos())
         method.setTypeParameterList(typeParameterList)
@@ -1418,8 +1419,10 @@ internal class ReferenceResolver(
                     // Search in this codebase, then possibly check for a type parameter, if not
                     // found then fall back to searching in a base codebase and finally creating a
                     // stub.
-                    codebase.findClass(exception)
-                        ?: findTypeParameterItem(typeParametersInScope, exception)
+                    codebase.findClass(exception)?.let { ThrowableType.ofClass(it) }
+                        ?: findTypeParameterItem(typeParametersInScope, exception)?.let {
+                            ThrowableType.ofTypeParameter(it)
+                        }
                             ?: getOrCreateThrowableClass(exception)
                 }
             methodInfo.setThrowsList(throwsList)
@@ -1434,11 +1437,11 @@ internal class ReferenceResolver(
             null
         } else {
             // The exception name does not have a '.' so it might be a type parameter name.
-            typeParametersInScope.firstOrNull { it.simpleName() == exception }
+            typeParametersInScope.firstOrNull { it.name() == exception }
         }
     }
 
-    private fun getOrCreateThrowableClass(exception: String): ClassItem {
+    private fun getOrCreateThrowableClass(exception: String): ThrowableType {
         // Exception not provided by this codebase. Either try and retrieve it from a base codebase
         // or create a stub.
         val exceptionClass = codebase.getOrCreateClass(exception)
@@ -1452,11 +1455,11 @@ internal class ReferenceResolver(
             // which case it does not need modifying.
             if (exception != JAVA_LANG_THROWABLE) {
                 val throwableClass = codebase.getOrCreateClass(JAVA_LANG_THROWABLE)
-                exceptionClass.setSuperClass(throwableClass, throwableClass.toType())
+                exceptionClass.setSuperClass(throwableClass, throwableClass.type())
             }
         }
 
-        return exceptionClass
+        return ThrowableType.ofClass(exceptionClass)
     }
 
     private fun resolveInnerClasses() {

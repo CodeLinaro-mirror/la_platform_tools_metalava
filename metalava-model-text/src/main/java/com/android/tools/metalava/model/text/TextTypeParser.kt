@@ -277,7 +277,7 @@ internal class TextTypeParser(val codebase: TextCodebase, var kotlinStyleNulls: 
         annotations: List<String>,
         nullability: TypeNullability?
     ): TextVariableTypeItem? {
-        val param = typeParams.firstOrNull { it.simpleName() == type } ?: return null
+        val param = typeParams.firstOrNull { it.name() == type } ?: return null
         return TextVariableTypeItem(codebase, type, param, modifiers(annotations, nullability))
     }
 

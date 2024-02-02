@@ -313,7 +313,8 @@ internal open class TurbineCodebaseInitialiser(
                 cls.superclass()?.let { superClass -> findOrCreateClass(superClass) }
             val superClassType = cls.superClassType()
             val superClassTypeItem =
-                if (superClassType == null) null else createType(superClassType, false)
+                if (superClassType == null) null
+                else createType(superClassType, false) as ClassTypeItem
             classItem.setSuperClass(superClassItem, superClassTypeItem)
         }
 
@@ -321,7 +322,9 @@ internal open class TurbineCodebaseInitialiser(
         classItem.directInterfaces = cls.interfaces().map { itf -> findOrCreateClass(itf) }
 
         // Set interface types
-        classItem.setInterfaceTypes(cls.interfaceTypes().map { createType(it, false) })
+        classItem.setInterfaceTypes(
+            cls.interfaceTypes().map { createType(it, false) as ClassTypeItem }
+        )
 
         // Create fields
         createFields(classItem, cls.fields())
@@ -838,7 +841,7 @@ internal open class TurbineCodebaseInitialiser(
     private fun fixCtorReturnType(classItem: TurbineClassItem) {
         val result =
             classItem.constructors.map {
-                it.setReturnType(classItem.toType())
+                it.setReturnType(classItem.type())
                 it
             }
         classItem.constructors = result

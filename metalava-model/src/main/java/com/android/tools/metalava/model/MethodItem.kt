@@ -42,7 +42,7 @@ interface MethodItem : MemberItem {
     /** Returns the super methods that this method is overriding */
     fun superMethods(): List<MethodItem>
 
-    override fun type(): TypeItem? = returnType()
+    override fun type() = returnType()
 
     override fun findCorrespondingItemIn(codebase: Codebase) =
         containingClass().findCorrespondingItemIn(codebase)?.findMethod(this)
@@ -65,7 +65,7 @@ interface MethodItem : MemberItem {
     @MetalavaApi fun typeParameterList(): TypeParameterList
 
     /** Types of exceptions that this method can throw */
-    fun throwsTypes(): List<ClassItem>
+    fun throwsTypes(): List<ThrowableType>
 
     /** Returns true if this method throws the given exception */
     fun throws(qualifiedName: String): Boolean {
@@ -79,7 +79,7 @@ interface MethodItem : MemberItem {
         return false
     }
 
-    fun filteredThrowsTypes(predicate: Predicate<Item>): Collection<ClassItem> {
+    fun filteredThrowsTypes(predicate: Predicate<Item>): Collection<ThrowableType> {
         if (throwsTypes().isEmpty()) {
             return emptyList()
         }
@@ -88,20 +88,21 @@ interface MethodItem : MemberItem {
 
     private fun filteredThrowsTypes(
         predicate: Predicate<Item>,
-        classes: LinkedHashSet<ClassItem>
-    ): LinkedHashSet<ClassItem> {
-        for (cls in throwsTypes()) {
-            if (predicate.test(cls) || cls.isTypeParameter) {
-                classes.add(cls)
+        throwableTypes: LinkedHashSet<ThrowableType>
+    ): LinkedHashSet<ThrowableType> {
+        for (throwableType in throwsTypes()) {
+            if (throwableType.isTypeParameter || predicate.test(throwableType.classItem)) {
+                throwableTypes.add(throwableType)
             } else {
                 // Excluded, but it may have super class throwables that are included; if so,
                 // include those.
-                cls.allSuperClasses()
+                throwableType.classItem
+                    .allSuperClasses()
                     .firstOrNull { superClass -> predicate.test(superClass) }
-                    ?.let { superClass -> classes.add(superClass) }
+                    ?.let { superClass -> throwableTypes.add(ThrowableType.ofClass(superClass)) }
             }
         }
-        return classes
+        return throwableTypes
     }
 
     /**

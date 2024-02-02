@@ -18,7 +18,6 @@ package com.android.tools.metalava.model.text
 
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.TypeParameterList
-import com.android.tools.metalava.model.TypeParameterListOwner
 
 internal class TextTypeParameterList(
     val codebase: TextCodebase,

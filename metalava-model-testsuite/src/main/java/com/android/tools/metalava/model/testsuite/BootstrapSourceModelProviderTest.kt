@@ -20,6 +20,7 @@ import com.android.tools.metalava.model.AnnotationRetention
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.DefaultAnnotationSingleAttributeValue
 import com.android.tools.metalava.model.PrimitiveTypeItem
+import com.android.tools.metalava.model.ThrowableType
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.testing.java
 import com.google.common.truth.Truth.assertThat
@@ -363,7 +364,6 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
             assertEquals(2, classItem.interfaceTypes().count())
 
             assertNotNull(superClassType)
-            assertEquals(true, superClassType is ClassTypeItem)
             assertEquals(null, superClassType.asClass())
         }
     }
@@ -641,17 +641,15 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
             val testClass = codebase.assertClass("test.pkg.Test")
             val testClass1 = codebase.assertClass("test.pkg.Test1")
             val testClass2 = codebase.assertClass("test.pkg.Test1.Test2")
-            val testClassType = testClass.toType()
-            val testClassType1 = testClass1.toType()
-            val testClassType2 = testClass2.toType()
+            val testClassType = testClass.type()
+            val testClassType1 = testClass1.type()
+            val testClassType2 = testClass2.type()
 
             assertThat(testClassType).isInstanceOf(ClassTypeItem::class.java)
-            testClassType as ClassTypeItem
             assertEquals("test.pkg.Test", testClassType.qualifiedName)
             assertEquals(0, testClassType.arguments.count())
 
             assertThat(testClassType1).isInstanceOf(ClassTypeItem::class.java)
-            testClassType1 as ClassTypeItem
             assertEquals("test.pkg.Test1", testClassType1.qualifiedName)
             assertEquals(1, testClassType1.arguments.count())
             val typeArgument1 = testClassType1.arguments.single()
@@ -667,7 +665,6 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
             assertEquals(null, testClassType1.outerClassType)
 
             assertThat(testClassType2).isInstanceOf(ClassTypeItem::class.java)
-            testClassType2 as ClassTypeItem
             assertEquals("test.pkg.Test1.Test2", testClassType2.qualifiedName)
             assertEquals(1, testClassType2.arguments.count())
             val typeArgument2 = testClassType2.arguments.single()
@@ -710,14 +707,14 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
             assertEquals(2, testClass.constructors().count())
             val constructorItem = testClass.constructors().first()
             assertEquals("Test", constructorItem.name())
-            assertEquals(testClass.toType(), constructorItem.returnType())
+            assertEquals(testClass.type(), constructorItem.returnType())
             assertEquals(false, testClass.hasImplicitDefaultConstructor())
 
             val testClass1 = codebase.assertClass("test.pkg.Test.Test1")
             val constructorItem1 = testClass1.constructors().single()
             assertEquals("Test1", constructorItem1.name())
             assertEquals("test.pkg.Test.Test1", constructorItem1.returnType().toString())
-            assertEquals(testClass1.toType(), constructorItem1.returnType())
+            assertEquals(testClass1.type(), constructorItem1.returnType())
             assertEquals(true, testClass1.hasImplicitDefaultConstructor())
         }
     }
@@ -761,19 +758,16 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
 
             assertEquals(
                 classParameterNames,
-                classTypeParameterList.typeParameters().map { it.simpleName() }
+                classTypeParameterList.typeParameters().map { it.name() }
             )
-            assertEquals(
-                emptyList(),
-                annoTypeParameterList.typeParameters().map { it.simpleName() }
-            )
+            assertEquals(emptyList(), annoTypeParameterList.typeParameters().map { it.name() })
             assertEquals(
                 method1ParameterNames,
-                method1TypeParameterList.typeParameters().map { it.simpleName() }
+                method1TypeParameterList.typeParameters().map { it.name() }
             )
             assertEquals(
                 method2TypeParameterNames,
-                method2TypeParameterList.typeParameters().map { it.simpleName() }
+                method2TypeParameterList.typeParameters().map { it.name() }
             )
 
             assertEquals(
@@ -816,7 +810,10 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
             val ioExceptionClass = codebase.assertClass("java.io.IOException")
             val methodItem = testClass.assertMethod("foo", "")
 
-            assertEquals(listOf(ioExceptionClass, testExceptionClass), methodItem.throwsTypes())
+            assertEquals(
+                listOf(ioExceptionClass, testExceptionClass).map(ThrowableType::ofClass),
+                methodItem.throwsTypes()
+            )
         }
     }
 
@@ -863,7 +860,7 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
 
             assertEquals("Test", ctorItem.name())
             assertEquals(classItem, ctorItem.containingClass())
-            assertEquals(classItem.toType(), ctorItem.returnType())
+            assertEquals(classItem.type(), ctorItem.returnType())
             assertEquals(
                 ctorItem.modifiers.getVisibilityLevel(),
                 classItem.modifiers.getVisibilityLevel()

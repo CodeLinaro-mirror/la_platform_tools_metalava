@@ -426,7 +426,7 @@ class CommonTypeParameterItemTest : BaseModelTest() {
             val typeVariable = method.returnType()
 
             assertThat(typeVariable).isInstanceOf(VariableTypeItem::class.java)
-            val toType = typeParameter.toType()
+            val toType = typeParameter.type()
             assertThat(toType).isEqualTo(typeVariable)
             assertThat(toType).isInstanceOf(VariableTypeItem::class.java)
         }

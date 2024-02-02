@@ -1188,7 +1188,7 @@ private constructor(
         // Maps each setter to a list of potential getters that would satisfy it.
         val expectedGetters = mutableListOf<Pair<Item, Set<String>>>()
         var builtType: TypeItem? = null
-        val clsType = cls.toType()
+        val clsType = cls.type()
 
         for (method in methods) {
             val name = method.name()
@@ -1705,12 +1705,20 @@ private constructor(
     }
 
     private fun checkExceptions(method: MethodItem, filterReference: Predicate<Item>) {
-        for (exception in method.filteredThrowsTypes(filterReference)) {
+        for (throwableType in method.filteredThrowsTypes(filterReference)) {
             if (method.isEnumSyntheticMethod()) continue
-            if (isUncheckedException(exception)) {
+            // Get the throwable class, which for a type parameter will be the lower bound. A
+            // method that throws a type parameter is treated as if it throws its lower bound, so
+            // it makes sense for this check to treat it as if it was replaced with its lower bound.
+            val throwableClass = throwableType.throwableClass ?: continue
+            if (isUncheckedException(throwableClass)) {
                 report(BANNED_THROW, method, "Methods must not throw unchecked exceptions")
+            } else if (throwableType.isTypeParameter) {
+                // Preserve legacy behavior where the following check did nothing for type
+                // parameters as a type parameters qualifiedName(), which is just its name without
+                // any package or containing class could never match a qualified exception name.
             } else {
-                when (val qualifiedName = exception.qualifiedName()) {
+                when (val qualifiedName = throwableClass.qualifiedName()) {
                     "java.lang.Exception",
                     "java.lang.Throwable",
                     "java.lang.Error" -> {

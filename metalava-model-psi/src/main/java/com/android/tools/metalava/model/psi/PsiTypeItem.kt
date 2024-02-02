@@ -360,7 +360,7 @@ internal class PsiVariableTypeItem(
         if (asClass == null) {
             asClass =
                 asTypeParameter.typeBounds().firstOrNull()?.asClass()
-                    ?: codebase.findClass(JAVA_LANG_OBJECT)
+                    ?: codebase.findOrCreateClass(JAVA_LANG_OBJECT)
         }
         return asClass
     }

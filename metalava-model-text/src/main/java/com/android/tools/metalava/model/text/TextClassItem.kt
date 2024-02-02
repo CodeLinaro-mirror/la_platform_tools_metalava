@@ -27,9 +27,7 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.TypeItem
-import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.TypeParameterList
-import com.android.tools.metalava.model.TypeParameterListOwner
 import java.util.function.Predicate
 
 internal open class TextClassItem(
@@ -70,7 +68,7 @@ internal open class TextClassItem(
         return qualifiedName.hashCode()
     }
 
-    override fun interfaceTypes(): List<TypeItem> = interfaceTypes
+    override fun interfaceTypes(): List<ClassTypeItem> = interfaceTypes
 
     override fun allInterfaces(): Sequence<ClassItem> {
         return sequenceOf(
@@ -128,53 +126,41 @@ internal open class TextClassItem(
         return containingClass as? TypeParameterListOwner
     }
 
-    override fun resolveParameter(variable: String): TypeParameterItem? {
-        if (hasTypeVariables()) {
-            for (t in typeParameterList().typeParameters()) {
-                if (t.simpleName() == variable) {
-                    return t
-                }
-            }
-        }
-
-        return null
-    }
-
     private var superClass: ClassItem? = null
-    private var superClassType: TypeItem? = null
+    private var superClassType: ClassTypeItem? = null
 
     override fun superClass(): ClassItem? = superClass
 
-    override fun superClassType(): TypeItem? = superClassType
+    override fun superClassType(): ClassTypeItem? = superClassType
 
-    internal fun setSuperClass(superClass: ClassItem?, superClassType: TypeItem?) {
+    internal fun setSuperClass(superClass: ClassItem?, superClassType: ClassTypeItem?) {
         this.superClass = superClass
         this.superClassType = superClassType
     }
 
-    override fun setInterfaceTypes(interfaceTypes: List<TypeItem>) {
+    override fun setInterfaceTypes(interfaceTypes: List<ClassTypeItem>) {
         this.interfaceTypes = interfaceTypes.toMutableList()
     }
 
-    private var typeInfo: TextTypeItem? = null
+    private var typeInfo: TextClassTypeItem? = null
 
-    override fun toType(): TextTypeItem {
+    override fun type(): TextClassTypeItem {
         if (typeInfo == null) {
-            val params = typeParameterList.typeParameters().map { it.toType() }
+            val params = typeParameterList.typeParameters().map { it.type() }
             // Create a [TextTypeItem] representing the type of this class.
             typeInfo =
                 TextClassTypeItem(
                     codebase,
                     qualifiedName,
                     params,
-                    containingClass()?.toType() as? ClassTypeItem,
+                    containingClass()?.type(),
                     codebase.emptyTypeModifiers,
                 )
         }
         return typeInfo!!
     }
 
-    private var interfaceTypes = mutableListOf<TypeItem>()
+    private var interfaceTypes = mutableListOf<ClassTypeItem>()
     private val constructors = mutableListOf<ConstructorItem>()
     private val methods = mutableListOf<MethodItem>()
     private val fields = mutableListOf<FieldItem>()
@@ -188,7 +174,7 @@ internal open class TextClassItem(
 
     override fun properties(): List<PropertyItem> = properties
 
-    fun addInterface(itf: TypeItem) {
+    fun addInterface(itf: ClassTypeItem) {
         interfaceTypes.add(itf)
     }
 

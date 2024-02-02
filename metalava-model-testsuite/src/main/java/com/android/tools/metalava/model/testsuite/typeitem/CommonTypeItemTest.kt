@@ -1046,8 +1046,7 @@ class CommonTypeItemTest : BaseModelTest() {
 
             val myListInterfaceType = myListInterfaces.single()
             assertThat(myListInterfaceType).isInstanceOf(ClassTypeItem::class.java)
-            assertThat((myListInterfaceType as ClassTypeItem).qualifiedName)
-                .isEqualTo("java.util.List")
+            assertThat(myListInterfaceType.qualifiedName).isEqualTo("java.util.List")
             assertThat(myListInterfaceType.arguments).hasSize(1)
 
             val eVar = myListInterfaceType.arguments.single()
@@ -1358,8 +1357,8 @@ class CommonTypeItemTest : BaseModelTest() {
             )
         ) {
             val fooClass = codebase.assertClass("test.pkg.Foo")
-            val t = fooClass.typeParameterList().typeParameters().single { it.simpleName() == "T" }
-            val x = fooClass.typeParameterList().typeParameters().single { it.simpleName() == "X" }
+            val t = fooClass.typeParameterList().typeParameters().single { it.name() == "T" }
+            val x = fooClass.typeParameterList().typeParameters().single { it.name() == "X" }
             val numberType = fooClass.assertField("numberType").type()
 
             val matchingBindings = mapOf(t to numberType)

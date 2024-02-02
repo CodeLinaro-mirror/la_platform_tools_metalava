@@ -689,9 +689,7 @@ open class PsiBasedCodebase(
     internal fun findOrCreateTypeParameter(
         psiTypeParameter: PsiTypeParameter
     ): PsiTypeParameterItem {
-        val parameterItem = PsiTypeParameterItem.create(this, psiTypeParameter)
-        parameterItem.containingPackage = emptyPackage
-        return parameterItem
+        return PsiTypeParameterItem.create(this, psiTypeParameter)
     }
 
     internal fun getClassType(cls: PsiClass): PsiClassType =
