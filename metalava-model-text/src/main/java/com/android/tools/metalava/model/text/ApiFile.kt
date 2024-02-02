@@ -22,6 +22,7 @@ import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassResolver
+import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.JAVA_LANG_ANNOTATION
 import com.android.tools.metalava.model.JAVA_LANG_DEPRECATED
@@ -51,9 +52,7 @@ import kotlin.text.Charsets.UTF_8
 @MetalavaApi
 class ApiFile
 private constructor(
-    /** Implements [ResolverContext] interface */
-    override val classResolver: ClassResolver?,
-    private val formatForLegacyFiles: FileFormat?
+    private val formatForLegacyFiles: FileFormat?,
 ) : ResolverContext {
 
     /**
@@ -72,14 +71,20 @@ private constructor(
 
     companion object {
         /**
-         * Same as [.parseApi]}, but take a single file for convenience.
+         * Same as `parseApi(List<File>, ...)`, but takes a single file for convenience.
          *
          * @param file input signature file
          */
         fun parseApi(
             file: File,
             annotationManager: AnnotationManager,
-        ) = parseApi(listOf(file), annotationManager)
+            description: String? = null,
+        ) =
+            parseApi(
+                files = listOf(file),
+                annotationManager = annotationManager,
+                description = description,
+            )
 
         /**
          * Read API signature files into a [TextCodebase].
@@ -93,19 +98,26 @@ private constructor(
         fun parseApi(
             files: List<File>,
             annotationManager: AnnotationManager = noOpAnnotationManager,
+            description: String? = null,
             classResolver: ClassResolver? = null,
             formatForLegacyFiles: FileFormat? = null,
-        ): TextCodebase {
+        ): Codebase {
             require(files.isNotEmpty()) { "files must not be empty" }
-            val api = TextCodebase(files[0], annotationManager)
-            val description = StringBuilder("Codebase loaded from ")
-            val parser = ApiFile(classResolver, formatForLegacyFiles)
+            val api =
+                TextCodebase(
+                    location = files[0],
+                    annotationManager = annotationManager,
+                    classResolver = classResolver,
+                )
+            val actualDescription =
+                description
+                    ?: buildString {
+                        append("Codebase loaded from ")
+                        files.joinTo(this)
+                    }
+            val parser = ApiFile(formatForLegacyFiles)
             var first = true
             for (file in files) {
-                if (!first) {
-                    description.append(", ")
-                }
-                description.append(file.path)
                 val apiText: String =
                     try {
                         file.readText(UTF_8)
@@ -119,7 +131,7 @@ private constructor(
                 parser.parseApiSingleFile(api, !first, file.path, apiText)
                 first = false
             }
-            api.description = description.toString()
+            api.description = actualDescription
             parser.postProcess(api)
             return api
         }
@@ -133,7 +145,7 @@ private constructor(
             filename: String,
             apiText: String,
             @Suppress("UNUSED_PARAMETER") kotlinStyleNulls: Boolean?,
-        ): TextCodebase {
+        ): Codebase {
             return parseApi(
                 filename,
                 apiText,
@@ -149,7 +161,7 @@ private constructor(
         @JvmStatic
         @MetalavaApi
         @Throws(ApiParseException::class)
-        fun parseApi(filename: String, inputStream: InputStream): TextCodebase {
+        fun parseApi(filename: String, inputStream: InputStream): Codebase {
             val apiText = inputStream.bufferedReader().readText()
             return parseApi(filename, apiText)
         }
@@ -160,10 +172,15 @@ private constructor(
             apiText: String,
             classResolver: ClassResolver? = null,
             formatForLegacyFiles: FileFormat? = null,
-        ): TextCodebase {
-            val api = TextCodebase(File(filename), noOpAnnotationManager)
+        ): Codebase {
+            val api =
+                TextCodebase(
+                    location = File(filename),
+                    annotationManager = noOpAnnotationManager,
+                    classResolver = classResolver,
+                )
             api.description = "Codebase loaded from $filename"
-            val parser = ApiFile(classResolver, formatForLegacyFiles)
+            val parser = ApiFile(formatForLegacyFiles)
             parser.parseApiSingleFile(api, false, filename, apiText)
             parser.postProcess(api)
             return api
@@ -285,10 +302,10 @@ private constructor(
     }
 
     /** Implements [ResolverContext] interface */
-    override fun namesOfInterfaces(cl: TextClassItem): List<String>? = mClassToInterface[cl]
+    override fun namesOfInterfaces(cl: ClassItem): List<String>? = mClassToInterface[cl]
 
     /** Implements [ResolverContext] interface */
-    override fun nameOfSuperClass(cl: TextClassItem): String? = mClassToSuper[cl]
+    override fun nameOfSuperClass(cl: ClassItem): String? = mClassToSuper[cl]
 
     private fun parseClass(
         api: TextCodebase,
@@ -1286,28 +1303,22 @@ private constructor(
  * This is provided by [ApiFile] which tracks the names of interfaces and super classes that each
  * class implements/extends respectively before they are resolved.
  */
-interface ResolverContext {
+internal interface ResolverContext {
     /**
      * Get the names of the interfaces implemented by the supplied class, returns null if there are
      * no interfaces.
      */
-    fun namesOfInterfaces(cl: TextClassItem): List<String>?
+    fun namesOfInterfaces(cl: ClassItem): List<String>?
 
     /**
      * Get the name of the super class extended by the supplied class, returns null if there is no
      * super class.
      */
-    fun nameOfSuperClass(cl: TextClassItem): String?
-
-    /**
-     * The optional [ClassResolver] that is used to resolve unknown classes within the
-     * [TextCodebase].
-     */
-    val classResolver: ClassResolver?
+    fun nameOfSuperClass(cl: ClassItem): String?
 }
 
 /** Resolves any references in the codebase, e.g. to superclasses, interfaces, etc. */
-class ReferenceResolver(
+internal class ReferenceResolver(
     private val context: ResolverContext,
     private val codebase: TextCodebase,
 ) {
@@ -1341,31 +1352,6 @@ class ReferenceResolver(
         resolveInnerClasses()
     }
 
-    /**
-     * Gets an existing, or creates a new [ClassItem].
-     *
-     * @param name the name of the class, may include generics.
-     * @param isInterface true if the class must be an interface, i.e. is referenced from an
-     *   `implements` list (or Kotlin equivalent).
-     * @param mustBeFromThisCodebase true if the class must be from the same codebase as this class
-     *   is currently resolving.
-     */
-    private fun getOrCreateClass(
-        name: String,
-        isInterface: Boolean = false,
-        mustBeFromThisCodebase: Boolean = false
-    ): ClassItem {
-        return if (mustBeFromThisCodebase) {
-            codebase.getOrCreateClass(name, isInterface = isInterface, classResolver = null)
-        } else {
-            codebase.getOrCreateClass(
-                name,
-                isInterface = isInterface,
-                classResolver = context.classResolver
-            )
-        }
-    }
-
     private fun resolveSuperclasses() {
         for (cl in classes) {
             // java.lang.Object has no superclass and neither do interfaces
@@ -1388,7 +1374,7 @@ class ReferenceResolver(
                     }
             }
 
-            val superclass = getOrCreateClass(scName)
+            val superclass = codebase.getOrCreateClass(scName)
             cl.setSuperClass(
                 superclass,
                 codebase.typeResolver.obtainTypeFromString(
@@ -1403,7 +1389,7 @@ class ReferenceResolver(
         for (cl in classes) {
             val interfaces = context.namesOfInterfaces(cl) ?: continue
             for (interfaceName in interfaces) {
-                getOrCreateClass(interfaceName, isInterface = true)
+                codebase.getOrCreateClass(interfaceName, isInterface = true)
                 cl.addInterface(
                     codebase.typeResolver.obtainTypeFromString(
                         interfaceName,
@@ -1435,7 +1421,7 @@ class ReferenceResolver(
                 if (exceptionClass == null) {
                     // Exception not provided by this codebase. Either try and retrieve it from a
                     // base codebase or create a stub.
-                    exceptionClass = getOrCreateClass(exception)
+                    exceptionClass = codebase.getOrCreateClass(exception)
 
                     // A class retrieved from another codebase is assumed to have been fully
                     // resolved by the codebase. However, a stub that has just been created will
@@ -1446,7 +1432,7 @@ class ReferenceResolver(
                         // An exception class needs to extend Throwable, unless it is Throwable in
                         // which case it does not need modifying.
                         if (exception != JAVA_LANG_THROWABLE) {
-                            val throwableClass = getOrCreateClass(JAVA_LANG_THROWABLE)
+                            val throwableClass = codebase.getOrCreateClass(JAVA_LANG_THROWABLE)
                             exceptionClass.setSuperClass(throwableClass, throwableClass.toType())
                         }
                     }
@@ -1476,7 +1462,7 @@ class ReferenceResolver(
                     // If the outer class doesn't exist in the text codebase, it should not be
                     // resolved through the classpath--if it did exist there, this inner class
                     // would be overridden by the version from the classpath.
-                    val outerClass = getOrCreateClass(outerClassName, mustBeFromThisCodebase = true)
+                    val outerClass = codebase.getOrCreateClass(outerClassName, innerClass = true)
                     cl.containingClass = outerClass
                     outerClass.addInnerClass(cl)
                 }

@@ -413,7 +413,7 @@ class TextTypeParserTest : Assertions {
         )
     }
 
-    private val typeParser = TextTypeParser(ApiFile.parseApi("test", ""))
+    private val typeParser = TextTypeParser(ApiFile.parseApi("test", "") as TextCodebase)
 
     private fun parseType(type: String) = typeParser.obtainTypeFromString(type)
 

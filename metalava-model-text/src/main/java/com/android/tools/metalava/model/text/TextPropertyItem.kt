@@ -21,7 +21,7 @@ import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.TypeItem
 
-class TextPropertyItem(
+internal class TextPropertyItem(
     codebase: TextCodebase,
     name: String,
     containingClass: TextClassItem,

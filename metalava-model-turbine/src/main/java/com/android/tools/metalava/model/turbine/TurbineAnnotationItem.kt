@@ -19,7 +19,7 @@ package com.android.tools.metalava.model.turbine
 import com.android.tools.metalava.model.AnnotationAttribute
 import com.android.tools.metalava.model.DefaultAnnotationItem
 
-class TurbineAnnotationItem
+internal class TurbineAnnotationItem
 constructor(
     override val codebase: TurbineBasedCodebase,
     originalName: String?,

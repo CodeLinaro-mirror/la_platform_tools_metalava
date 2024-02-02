@@ -23,7 +23,7 @@ import com.android.tools.metalava.model.TypeItem
 
 const val UNKNOWN_DEFAULT_VALUE = "__unknown_default_value__"
 
-class TextParameterItem(
+internal class TextParameterItem(
     codebase: TextCodebase,
     private var name: String,
     private var publicName: String?,

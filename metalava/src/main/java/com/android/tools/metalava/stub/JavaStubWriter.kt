@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.stub
 
-import com.android.tools.metalava.model.AnnotationTarget
 import com.android.tools.metalava.model.BaseItemVisitor
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ConstructorItem
@@ -32,20 +31,12 @@ import java.util.function.Predicate
 
 internal class JavaStubWriter(
     private val writer: PrintWriter,
+    private val modifierListWriter: ModifierListWriter,
     private val filterEmit: Predicate<Item>,
     private val filterReference: Predicate<Item>,
-    private val generateAnnotations: Boolean = false,
     private val preFiltered: Boolean = true,
-    private val annotationTarget: AnnotationTarget,
     private val config: StubWriterConfig,
 ) : BaseItemVisitor() {
-
-    private val modifierListWriter =
-        ModifierListWriter.forStubs(
-            writer = writer,
-            target = annotationTarget,
-            runtimeAnnotationsOnly = !generateAnnotations,
-        )
 
     override fun visitClass(cls: ClassItem) {
         if (cls.isTopLevelClass()) {
@@ -302,7 +293,7 @@ internal class JavaStubWriter(
         writer.println()
         appendDocumentation(method, writer, config)
 
-        val requiresBody = appendModifiers(method)
+        appendModifiers(method)
         generateTypeParameterList(typeList = method.typeParameterList(), addSpace = true)
 
         val returnType = method.returnType()
@@ -321,7 +312,7 @@ internal class JavaStubWriter(
             }
         }
 
-        if (requiresBody) {
+        if (ModifierListWriter.requiresMethodBodyInStubs(method)) {
             writer.print(" { ")
             writeThrowStub()
             writer.println(" }")

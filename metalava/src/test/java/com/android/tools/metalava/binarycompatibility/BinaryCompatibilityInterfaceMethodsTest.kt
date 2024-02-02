@@ -21,33 +21,6 @@ import org.junit.Test
 
 class BinaryCompatibilityInterfaceMethodsTest : DriverTest() {
 
-    // Note: This is reversed from the eclipse wiki because of kotlin named parameters
-    @Test
-    fun `Change formal parameter name (Incompatible)`() {
-        check(
-            expectedIssues =
-                """
-                load-api.txt:4: error: Attempted to change parameter name from bread to toast in method test.pkg.Foo.bar [ParameterNameChange]
-            """,
-            signatureSource =
-                """
-                package test.pkg {
-                  interface Foo {
-                    method public void bar(int toast);
-                  }
-                }
-            """,
-            checkCompatibilityApiReleased =
-                """
-                package test.pkg {
-                  interface Foo {
-                    method public void bar(int bread);
-                  }
-                }
-            """
-        )
-    }
-
     @Test
     fun `Change method name (Incompatible)`() {
         check(

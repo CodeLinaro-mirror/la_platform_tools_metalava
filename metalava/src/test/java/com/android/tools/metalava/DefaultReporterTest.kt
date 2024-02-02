@@ -144,7 +144,7 @@ class DefaultReporterTest : DriverTest() {
                     package test.pkg;
 
                     public class Foo {
-                        public void foo1(String a) {} 
+                        public void foo1(String a) {}
                     }
                 """
                     ),
@@ -184,11 +184,11 @@ class DefaultReporterTest : DriverTest() {
                     package test.pkg;
 
                     public class Foo {
-                        public void foo1(String a) {} 
-                        public void foo2(String a) {} 
-                        public void foo3(String a) {} 
-                        public void foo4(String a) {} 
-                        public void foo5(String a) {} 
+                        public void foo1(String a) {}
+                        public void foo2(String a) {}
+                        public void foo3(String a) {}
+                        public void foo4(String a) {}
+                        public void foo5(String a) {}
                     }
                 """
                     ),
@@ -230,12 +230,12 @@ class DefaultReporterTest : DriverTest() {
                     package test.pkg;
 
                     public class Foo {
-                        public void foo1(String a) {} 
-                        public void foo2(String a) {} 
-                        public void foo3(String a) {} 
-                        public void foo4(String a) {} 
-                        public void foo5(String a) {} 
-                        public void foo6(String a) {} 
+                        public void foo1(String a) {}
+                        public void foo2(String a) {}
+                        public void foo3(String a) {}
+                        public void foo4(String a) {}
+                        public void foo5(String a) {}
+                        public void foo6(String a) {}
                     }
                 """
                     ),

@@ -33,9 +33,10 @@ import java.util.HashMap
 // Copy of ApiInfo in doclava1 (converted to Kotlin + some cleanup to make it work with metalava's
 // data structures.
 // (Converted to Kotlin such that I can inherit behavior via interfaces, in particular Codebase.)
-class TextCodebase(
+internal class TextCodebase(
     location: File,
     annotationManager: AnnotationManager,
+    private val classResolver: ClassResolver?,
 ) : DefaultCodebase(location, "Codebase", true, annotationManager) {
     internal val mPackages = HashMap<String, TextPackageItem>(300)
     internal val mAllClasses = HashMap<String, TextClassItem>(30000)
@@ -77,24 +78,43 @@ class TextCodebase(
     }
 
     /**
+     * Gets an existing, or creates a new [ClassItem].
+     *
      * Tries to find [name] in [mAllClasses]. If not found, then if a [classResolver] is provided it
      * will invoke that and return the [ClassItem] it returns if any. Otherwise, it will create an
      * empty stub class (or interface, if [isInterface] is true).
      *
      * Initializes outer classes and packages for the created class as needed.
+     *
+     * @param name the name of the class, may include generics.
+     * @param isInterface true if the class must be an interface, i.e. is referenced from an
+     *   `implements` list (or Kotlin equivalent).
+     * @param innerClass if `true` then this is searching for an inner class of a class in this
+     *   codebase, in which case this must only search classes in this codebase, otherwise it can
+     *   search for external classes too.
      */
     fun getOrCreateClass(
         name: String,
         isInterface: Boolean = false,
-        classResolver: ClassResolver? = null,
+        innerClass: Boolean = false,
     ): ClassItem {
         val erased = TextTypeItem.eraseTypeArguments(name)
-        val cls = mAllClasses[erased] ?: externalClasses[erased]
-        if (cls != null) {
-            return cls
+
+        // Check this codebase first, if found then return it.
+        mAllClasses[erased]?.let { found ->
+            return found
         }
 
-        if (classResolver != null) {
+        // Only check for external classes if this is not searching for an inner class and there is
+        // a class resolver that will populate the external classes.
+        if (!innerClass && classResolver != null) {
+            // Check to see whether the class has already been retrieved from the resolver. If it
+            // has then return it.
+            externalClasses[erased]?.let { found ->
+                return found
+            }
+
+            // Else try and resolve the class.
             val classItem = classResolver.resolveClass(erased)
             if (classItem != null) {
                 // Save the class item, so it can be retrieved the next time this is loaded. This is
@@ -114,7 +134,7 @@ class TextCodebase(
             // themselves possibly stubs
             val outerName = erased.substring(0, erased.lastIndexOf('.'))
             // Pass classResolver = null, so it only looks in this codebase for the outer class.
-            val outerClass = getOrCreateClass(outerName, isInterface = false, classResolver = null)
+            val outerClass = getOrCreateClass(outerName, innerClass = true)
 
             // It makes no sense for a Foo to come from one codebase and Foo.Bar to come from
             // another.

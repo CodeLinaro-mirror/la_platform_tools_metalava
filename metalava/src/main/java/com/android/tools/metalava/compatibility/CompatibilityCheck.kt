@@ -1019,7 +1019,10 @@ class CompatibilityCheck(
                 }
             val newFullCodebase = MergedCodebase(listOfNotNull(newCodebase, baseApi))
 
-            CodebaseComparator().compare(checker, oldFullCodebase, newFullCodebase, filter)
+            CodebaseComparator(
+                    apiVisitorConfig = @Suppress("DEPRECATION") options.apiVisitorConfig,
+                )
+                .compare(checker, oldFullCodebase, newFullCodebase, filter)
 
             val message =
                 "Found compatibility problems checking " +

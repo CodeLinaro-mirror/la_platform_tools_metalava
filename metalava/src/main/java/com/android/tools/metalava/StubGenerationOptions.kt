@@ -43,7 +43,7 @@ class StubGenerationOptions :
                 help =
                     """
                         Base directory to output the generated stub source files for the API, if
-                        specified.  
+                        specified.
                     """
                         .trimIndent(),
             )

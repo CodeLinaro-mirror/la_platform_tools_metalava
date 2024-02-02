@@ -17,15 +17,16 @@
 package com.android.tools.metalava.model.turbine
 
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.TypeItem
 
-class TurbineFieldItem(
+internal class TurbineFieldItem(
     codebase: TurbineBasedCodebase,
     private val name: String,
-    private val containingClass: TurbineClassItem,
+    private val containingClass: ClassItem,
     private val type: TurbineTypeItem,
-    modifiers: TurbineModifierItem,
+    modifiers: DefaultModifierList,
     documentation: String,
 ) : TurbineItem(codebase, modifiers, documentation), FieldItem {
 
@@ -59,7 +60,32 @@ class TurbineFieldItem(
     override fun type(): TypeItem = type
 
     override fun duplicate(targetContainingClass: ClassItem): FieldItem {
-        TODO("b/295800205")
+        val duplicateField =
+            TurbineFieldItem(
+                codebase,
+                name,
+                targetContainingClass,
+                type.duplicate() as TurbineTypeItem,
+                modifiers.duplicate(),
+                documentation
+            )
+        duplicateField.initialValueWithRequiredConstant = initialValueWithRequiredConstant
+        duplicateField.initialValueWithoutRequiredConstant = initialValueWithoutRequiredConstant
+        duplicateField.modifiers.setOwner(duplicateField)
+        duplicateField.inheritedFrom = containingClass
+
+        // Preserve flags that may have been inherited (propagated) from surrounding packages
+        if (targetContainingClass.hidden) {
+            duplicateField.hidden = true
+        }
+        if (targetContainingClass.removed) {
+            duplicateField.removed = true
+        }
+        if (targetContainingClass.docOnly) {
+            duplicateField.docOnly = true
+        }
+
+        return duplicateField
     }
 
     override fun initialValue(requireConstant: Boolean): Any? {
