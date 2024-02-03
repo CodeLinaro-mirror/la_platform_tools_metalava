@@ -20,6 +20,7 @@ import com.android.tools.metalava.model.JAVA_LANG_THROWABLE
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.java
+import com.android.tools.metalava.testing.kotlin
 import kotlin.test.assertEquals
 import kotlin.test.assertNotEquals
 import kotlin.test.assertNull
@@ -30,6 +31,66 @@ import org.junit.runners.Parameterized
 /** Common tests for implementations of [MethodItem]. */
 @RunWith(Parameterized::class)
 class CommonMethodItemTest : BaseModelTest() {
+
+    @Test
+    fun `Test access type parameter of outer class`() {
+        runCodebaseTest(
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public class Outer<O> {
+                      }
+                      public class Outer.Middle {
+                      }
+                      public abstract class Outer.Middle.Inner {
+                        method public abstract O method();
+                      }
+                    }
+                """
+            ),
+            java(
+                """
+                    package test.pkg;
+
+                    public class Outer<O> {
+                        private Outer() {}
+
+                        public class Middle {
+                            private Middle() {}
+                            public class Inner {
+                                private Inner() {}
+                                public abstract O method();
+                            }
+                        }
+                    }
+                """
+            ),
+            kotlin(
+                """
+                    package test.pkg
+
+                    class Outer<O> private constructor() {
+                        inner class Middle private constructor() {
+                            abstract inner class Inner private constructor() {
+                                abstract fun method(): O
+                            }
+                        }
+                    }
+                """
+            ),
+        ) {
+            val oTypeParameter =
+                codebase.assertClass("test.pkg.Outer").typeParameterList().typeParameters().single()
+            val methodType =
+                codebase
+                    .assertClass("test.pkg.Outer.Middle.Inner")
+                    .assertMethod("method", "")
+                    .type()
+
+            methodType.assertReferencesTypeParameter(oTypeParameter)
+        }
+    }
 
     @Test
     fun `MethodItem type`() {

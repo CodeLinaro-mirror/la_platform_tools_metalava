@@ -1,12 +1,6 @@
 com.android.tools.metalava.model.testsuite.annotationitem.CommonAnnotationItemTest
   annotation with enum values[psi,java]
 
-com.android.tools.metalava.model.testsuite.codebase.ParameterizedFindClassTest
-  test findClass()[psi,java,java.lang.Object]
-  test findClass()[psi,java,java.lang.Throwable]
-  test findClass()[psi,kotlin,java.lang.Object]
-  test findClass()[psi,kotlin,java.lang.Throwable]
-
 com.android.tools.metalava.model.testsuite.typeitem.CommonTypeModifiersTest
   Test inner parameterized types with annotations[psi,java]
   Test nullability of outer classes[psi,java]

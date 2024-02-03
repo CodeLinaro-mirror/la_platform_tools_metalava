@@ -19,6 +19,7 @@ package com.android.tools.metalava.model.psi
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.AnnotationRetention
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.FieldItem
@@ -53,7 +54,7 @@ internal constructor(
     private val fullName: String,
     private val qualifiedName: String,
     private val hasImplicitDefaultConstructor: Boolean,
-    internal val classType: ClassType,
+    override val classKind: ClassKind,
     modifiers: PsiModifierItem,
     documentation: String,
     /** True if this class is from the class path (dependencies). Exposed in [isFromClassPath]. */
@@ -81,12 +82,6 @@ internal constructor(
     override fun qualifiedName(): String = qualifiedName
 
     override fun isDefined(): Boolean = codebase.unsupported()
-
-    override fun isInterface(): Boolean = classType == ClassType.INTERFACE
-
-    override fun isAnnotationType(): Boolean = classType == ClassType.ANNOTATION_TYPE
-
-    override fun isEnum(): Boolean = classType == ClassType.ENUM
 
     override fun psi() = psiClass
 
@@ -369,7 +364,7 @@ internal constructor(
             val fullName = computeFullClassName(psiClass)
             val qualifiedName = psiClass.qualifiedName ?: simpleName
             val hasImplicitDefaultConstructor = hasImplicitDefaultConstructor(psiClass)
-            val classType = ClassType.getClassType(psiClass)
+            val classKind = getClassKind(psiClass)
 
             val commentText = javadoc(psiClass)
             val modifiers = PsiModifierItem.create(codebase, psiClass, commentText)
@@ -381,7 +376,7 @@ internal constructor(
                     name = simpleName,
                     fullName = fullName,
                     qualifiedName = qualifiedName,
-                    classType = classType,
+                    classKind = classKind,
                     hasImplicitDefaultConstructor = hasImplicitDefaultConstructor,
                     documentation = commentText,
                     modifiers = modifiers,
@@ -399,7 +394,7 @@ internal constructor(
             val isKotlin = isKotlin(psiClass)
 
             if (
-                classType == ClassType.ANNOTATION_TYPE &&
+                classKind == ClassKind.ANNOTATION_TYPE &&
                     !hasExplicitRetention(modifiers, psiClass, isKotlin)
             ) {
                 // By policy, include explicit retention policy annotation if missing
@@ -452,7 +447,7 @@ internal constructor(
                     } else {
                         constructors.add(constructor)
                     }
-                } else if (classType == ClassType.ENUM && psiMethod is SyntheticElement) {
+                } else if (classKind == ClassKind.ENUM && psiMethod is SyntheticElement) {
                     // skip
                 } else {
                     val method = PsiMethodItem.create(codebase, item, psiMethod)
@@ -487,7 +482,7 @@ internal constructor(
                 psiFields.asSequence().mapTo(fields) { PsiFieldItem.create(codebase, item, it) }
             }
 
-            if (classType == ClassType.INTERFACE) {
+            if (classKind == ClassKind.INTERFACE) {
                 // All members are implicitly public, fields are implicitly static, non-static
                 // methods are abstract
                 // (except in Java 1.9, where they can be private
@@ -577,6 +572,17 @@ internal constructor(
                 }
 
             return item
+        }
+
+        internal fun getClassKind(psiClass: PsiClass): ClassKind {
+            return when {
+                psiClass.isAnnotationType -> ClassKind.ANNOTATION_TYPE
+                psiClass.isInterface -> ClassKind.INTERFACE
+                psiClass.isEnum -> ClassKind.ENUM
+                psiClass is PsiTypeParameter ->
+                    error("Must not call this with a PsiTypeParameter - $psiClass")
+                else -> ClassKind.CLASS
+            }
         }
 
         /**

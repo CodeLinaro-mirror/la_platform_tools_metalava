@@ -55,7 +55,7 @@ class TextCodebaseBuilder private constructor(private val codebase: TextCodebase
             // context to use so just use an empty context.
             val context =
                 object : ResolverContext {
-                    override fun superInterfaceTypeStrings(cl: ClassItem): List<String>? = null
+                    override fun superInterfaceTypeStrings(cl: ClassItem): Set<String>? = null
 
                     override fun superClassTypeString(cl: ClassItem): String? = null
                 }
@@ -116,23 +116,22 @@ class TextCodebaseBuilder private constructor(private val codebase: TextCodebase
     }
 
     private fun getOrAddClass(fullClass: ClassItem): TextClassItem {
-        val cls = codebase.findClass(fullClass.qualifiedName())
+        val cls = codebase.findClassInCodebase(fullClass.qualifiedName())
         if (cls != null) {
             return cls
         }
         val textClass = fullClass as TextClassItem
         val newClass =
             TextClassItem(
-                codebase,
-                SourcePositionInfo.UNKNOWN,
-                textClass.modifiers,
-                textClass.isInterface(),
-                textClass.isEnum(),
-                textClass.isAnnotationType(),
-                textClass.qualifiedName,
-                textClass.name,
-                textClass.annotations,
-                textClass.typeParameterList
+                codebase = codebase,
+                position = SourcePositionInfo.UNKNOWN,
+                modifiers = textClass.modifiers,
+                classKind = textClass.classKind,
+                qualifiedName = textClass.qualifiedName,
+                simpleName = textClass.simpleName,
+                fullName = textClass.fullName,
+                annotations = textClass.annotations,
+                typeParameterList = textClass.typeParameterList,
             )
         val pkg = getOrAddPackage(fullClass.containingPackage().qualifiedName())
         pkg.addClass(newClass)

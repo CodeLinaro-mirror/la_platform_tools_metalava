@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model
 
+import com.google.common.truth.Truth.assertThat
 import kotlin.test.assertIs
 import kotlin.test.assertNotNull
 
@@ -56,10 +57,27 @@ interface Assertions {
         return assertIs(methodItem)
     }
 
+    /** Get the property from the [ClassItem], failing if it does not exist. */
+    fun ClassItem.assertProperty(propertyName: String): PropertyItem {
+        val propertyItem = properties().firstOrNull { it.name() == propertyName }
+        assertNotNull(propertyItem, message = "Expected $propertyName to be defined")
+        return propertyItem
+    }
+
     /** Get the annotation from the [Item], failing if it does not exist. */
     fun Item.assertAnnotation(qualifiedName: String): AnnotationItem {
         val annoItem = modifiers.findAnnotation(qualifiedName)
         assertNotNull(annoItem, message = "Expected item to be annotated with ($qualifiedName)")
         return assertIs(annoItem)
+    }
+
+    /**
+     * Check to make sure that this [TypeItem] is actually a [VariableTypeItem] whose
+     * [VariableTypeItem.asTypeParameter] references the supplied [typeParameter].
+     */
+    fun TypeItem.assertReferencesTypeParameter(typeParameter: TypeParameterItem) {
+        assertThat(this).isInstanceOf(VariableTypeItem::class.java)
+        this as VariableTypeItem
+        assertThat(asTypeParameter).isEqualTo(typeParameter)
     }
 }

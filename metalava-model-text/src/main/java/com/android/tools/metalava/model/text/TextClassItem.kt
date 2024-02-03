@@ -18,6 +18,7 @@ package com.android.tools.metalava.model.text
 
 import com.android.tools.metalava.model.AnnotationRetention
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.DefaultModifierList
@@ -34,11 +35,10 @@ internal open class TextClassItem(
     override val codebase: TextCodebase,
     position: SourcePositionInfo = SourcePositionInfo.UNKNOWN,
     modifiers: DefaultModifierList,
-    private var isInterface: Boolean = false,
-    private var isEnum: Boolean = false,
-    internal var isAnnotation: Boolean = false,
+    override val classKind: ClassKind = ClassKind.CLASS,
     val qualifiedName: String = "",
-    var name: String = qualifiedName.substring(qualifiedName.lastIndexOf('.') + 1),
+    var simpleName: String = qualifiedName.substring(qualifiedName.lastIndexOf('.') + 1),
+    val fullName: String = simpleName,
     val annotations: List<String>? = null,
     val typeParameterList: TypeParameterList = TypeParameterList.NONE
 ) :
@@ -73,7 +73,7 @@ internal open class TextClassItem(
     override fun allInterfaces(): Sequence<ClassItem> {
         return sequenceOf(
                 // Add this if and only if it is an interface.
-                if (isInterface) sequenceOf(this) else emptySequence(),
+                if (classKind == ClassKind.INTERFACE) sequenceOf(this) else emptySequence(),
                 interfaceTypes.asSequence().map { it.asClass() }.filterNotNull(),
             )
             .flatten()
@@ -91,12 +91,6 @@ internal open class TextClassItem(
         return false
     }
 
-    override fun isInterface(): Boolean = isInterface
-
-    override fun isAnnotationType(): Boolean = isAnnotation
-
-    override fun isEnum(): Boolean = isEnum
-
     var containingClass: ClassItem? = null
 
     override fun containingClass(): ClassItem? = containingClass
@@ -105,14 +99,6 @@ internal open class TextClassItem(
 
     fun setContainingPackage(containingPackage: TextPackageItem) {
         this.containingPackage = containingPackage
-    }
-
-    fun setIsAnnotationType(isAnnotation: Boolean) {
-        this.isAnnotation = isAnnotation
-    }
-
-    fun setIsEnum(isEnum: Boolean) {
-        this.isEnum = isEnum
     }
 
     override fun containingPackage(): PackageItem =
@@ -226,9 +212,7 @@ internal open class TextClassItem(
         return retention!!
     }
 
-    private var fullName: String = name
-
-    override fun simpleName(): String = name.substring(name.lastIndexOf('.') + 1)
+    override fun simpleName(): String = simpleName
 
     override fun fullName(): String = fullName
 
@@ -255,9 +239,9 @@ internal open class TextClassItem(
             val cls =
                 TextClassItem(
                     codebase = codebase,
-                    name = fullName,
                     qualifiedName = qualifiedName,
-                    isInterface = isInterface,
+                    fullName = fullName,
+                    classKind = if (isInterface) ClassKind.INTERFACE else ClassKind.CLASS,
                     modifiers = DefaultModifierList(codebase, DefaultModifierList.PUBLIC),
                 )
             cls.emit = false // it's a stub

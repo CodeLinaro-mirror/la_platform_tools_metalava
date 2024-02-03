@@ -62,9 +62,10 @@ internal class TextCodebase(
         return mPackages.size
     }
 
-    override fun findClass(className: String): TextClassItem? {
-        return mAllClasses[className]
-    }
+    /** Find a class in this codebase, i.e. not classes loaded from the [classResolver]. */
+    fun findClassInCodebase(className: String) = mAllClasses[className]
+
+    override fun findClass(className: String) = mAllClasses[className] ?: externalClasses[className]
 
     override fun supportsDocumentation(): Boolean = false
 

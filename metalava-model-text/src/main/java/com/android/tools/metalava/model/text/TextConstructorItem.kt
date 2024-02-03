@@ -41,7 +41,7 @@ internal class TextConstructorItem(
             containingClass: TextClassItem,
             position: SourcePositionInfo,
         ): TextConstructorItem {
-            val name = containingClass.name
+            val name = containingClass.simpleName
             // The default constructor is package private because while in Java a class without
             // a constructor has a default public constructor in a signature file a class
             // without a constructor has no public constructors.

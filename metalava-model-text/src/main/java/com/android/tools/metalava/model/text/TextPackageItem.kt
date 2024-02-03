@@ -45,18 +45,6 @@ internal class TextPackageItem(
         classesNames.add(classFullName)
     }
 
-    internal fun pruneClassList() {
-        val iterator = classes.listIterator()
-        while (iterator.hasNext()) {
-            val cls = iterator.next()
-            if (cls.isInnerClass()) {
-                iterator.remove()
-            }
-        }
-    }
-
-    internal fun classList(): List<ClassItem> = classes
-
     override fun topLevelClasses(): Sequence<ClassItem> = classes.asSequence()
 
     override fun qualifiedName(): String = name

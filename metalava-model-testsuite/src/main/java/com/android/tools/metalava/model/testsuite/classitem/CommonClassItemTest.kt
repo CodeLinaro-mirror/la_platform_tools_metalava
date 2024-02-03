@@ -111,6 +111,188 @@ class CommonClassItemTest : BaseModelTest() {
     }
 
     @Test
+    fun `Test access type parameter of outer class in type parameters`() {
+        runCodebaseTest(
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public class Outer<O> {
+                      }
+                      public class Outer.Middle {
+                      }
+                      public class Outer.Middle.Inner<T extends O> {
+                      }
+                    }
+                """
+            ),
+            java(
+                """
+                    package test.pkg;
+
+                    public class Outer<O> {
+                        private Outer() {}
+                        public class Middle {
+                            private Middle() {}
+                            public class Inner<T extends O> {
+                                private Inner() {}
+                            }
+                        }
+                    }
+                """
+            ),
+            kotlin(
+                """
+                    package test.pkg
+
+                    class Outer<O> private constructor() {
+                        inner class Middle private constructor() {
+                            inner class Inner<T: O> private constructor()
+                        }
+                    }
+                """
+            ),
+        ) {
+            val oTypeParameter =
+                codebase.assertClass("test.pkg.Outer").typeParameterList().typeParameters().single()
+            val extendsType =
+                codebase
+                    .assertClass("test.pkg.Outer.Middle.Inner")
+                    .typeParameterList()
+                    .typeParameters()
+                    .first()
+                    .typeBounds()
+                    .first()
+
+            extendsType.assertReferencesTypeParameter(oTypeParameter)
+        }
+    }
+
+    @Test
+    fun `Test access type parameter of outer class in extends type`() {
+        runCodebaseTest(
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public class Outer<O> {
+                      }
+                      public class Outer.Middle {
+                      }
+                      public abstract class Outer.Middle.Inner extends test.pkg.Outer.GenericClass<O> {
+                      }
+                      public abstract static class Outer.GenericClass<T> {
+                        method public abstract T method();
+                      }
+                    }
+                """
+            ),
+            java(
+                """
+                    package test.pkg;
+
+                    public class Outer<O> {
+                        private Outer() {}
+                        public static abstract class GenericClass<T> {
+                            private GenericClass() {}
+                            public abstract T method();
+                        }
+                        public class Middle {
+                            private Middle() {}
+                            public abstract class Inner extends GenericClass<O> {
+                                private Inner() {}
+                            }
+                        }
+                    }
+                """
+            ),
+            kotlin(
+                """
+                    package test.pkg
+
+                    class Outer<O> private constructor() {
+                        abstract class GenericClass<T> private constructor() {
+                            abstract fun method(): T
+                        }
+                        inner class Middle private constructor() {
+                            abstract inner class Inner(o: O): GenericClass<O>()
+                        }
+                    }
+                """
+            ),
+        ) {
+            val oTypeParameter =
+                codebase.assertClass("test.pkg.Outer").typeParameterList().typeParameters().single()
+            val extendsType = codebase.assertClass("test.pkg.Outer.Middle.Inner").superClassType()!!
+            val typeArgument = extendsType.arguments.single()
+
+            typeArgument.assertReferencesTypeParameter(oTypeParameter)
+        }
+    }
+
+    @Test
+    fun `Test access type parameter of outer class in interface type`() {
+        runCodebaseTest(
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public class Outer<O> {
+                      }
+                      public class Outer.Middle {
+                      }
+                      public abstract class Outer.Middle.Inner implements test.pkg.Outer.GenericInterface<O> {
+                      }
+                      public interface Outer.GenericInterface<T> {
+                        method public abstract T method();
+                      }
+                    }
+                """
+            ),
+            java(
+                """
+                    package test.pkg;
+
+                    public class Outer<O> {
+                        private Outer() {}
+                        public interface GenericInterface<T> {
+                            T method();
+                        }
+                        public class Middle {
+                            private Middle() {}
+                            public abstract class Inner implements GenericInterface<O> {
+                                private Inner() {}
+                            }
+                        }
+                    }
+                """
+            ),
+            kotlin(
+                """
+                    package test.pkg
+
+                    class Outer<O> private constructor() {
+                        interface GenericInterface<T> {
+                            fun method(): T
+                        }
+                        inner class Middle private constructor() {
+                            abstract inner class Inner(o: O): GenericInterface<O>
+                        }
+                    }
+                """
+            ),
+        ) {
+            val oTypeParameter =
+                codebase.assertClass("test.pkg.Outer").typeParameterList().typeParameters().single()
+            val implementsType =
+                codebase.assertClass("test.pkg.Outer.Middle.Inner").interfaceTypes().single()
+            val typeArgument = implementsType.arguments.single()
+
+            typeArgument.assertReferencesTypeParameter(oTypeParameter)
+        }
+    }
+
+    @Test
     fun `Test interface no extends list`() {
         runCodebaseTest(
             signature(

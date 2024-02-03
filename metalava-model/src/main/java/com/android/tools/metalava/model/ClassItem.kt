@@ -182,17 +182,19 @@ interface ClassItem : Item {
         return fields().asSequence().plus(constructors().asSequence()).plus(methods().asSequence())
     }
 
+    val classKind: ClassKind
+
     /** Whether this class is an interface */
-    fun isInterface(): Boolean
+    fun isInterface() = classKind == ClassKind.INTERFACE
 
     /** Whether this class is an annotation type */
-    fun isAnnotationType(): Boolean
+    fun isAnnotationType() = classKind == ClassKind.ANNOTATION_TYPE
 
     /** Whether this class is an enum */
-    fun isEnum(): Boolean
+    fun isEnum() = classKind == ClassKind.ENUM
 
     /** Whether this class is a regular class (not an interface, not an enum, etc) */
-    fun isClass(): Boolean = !isInterface() && !isAnnotationType() && !isEnum()
+    fun isClass() = classKind == ClassKind.CLASS
 
     /** The containing class, for inner classes */
     @MetalavaApi override fun containingClass(): ClassItem?

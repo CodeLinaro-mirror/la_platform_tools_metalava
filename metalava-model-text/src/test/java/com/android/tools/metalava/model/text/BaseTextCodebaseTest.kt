@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2023 The Android Open Source Project
+ * Copyright (C) 2024 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,19 +14,15 @@
  * limitations under the License.
  */
 
-plugins {
-    `java-library`
-    `java-test-fixtures`
-    id("org.jetbrains.kotlin.jvm")
-    id("metalava-build-plugin")
-    id("maven-publish")
-}
+package com.android.tools.metalava.model.text
 
-dependencies {
-    testImplementation(libs.junit4)
-    testImplementation(libs.truth)
-    testImplementation(libs.kotlinTest)
+import com.android.tools.metalava.model.testsuite.BaseModelTest
+import com.android.tools.metalava.model.testsuite.InputFormat
+import com.android.tools.metalava.model.testsuite.TestParameters
 
-    testFixturesImplementation(libs.truth)
-    testFixturesImplementation(libs.kotlinTest)
-}
+/**
+ * Base class for text test classes that parse signature files to create a [TextCodebase] that can
+ * then be introspected.
+ */
+open class BaseTextCodebaseTest :
+    BaseModelTest(TestParameters(TextModelSuiteRunner(), InputFormat.SIGNATURE)) {}
