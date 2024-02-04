@@ -16,18 +16,48 @@
 
 package com.android.tools.metalava.model.text
 
+import com.android.tools.metalava.model.ClassTypeItem
+import com.android.tools.metalava.model.JAVA_LANG_ANNOTATION
 import com.android.tools.metalava.model.JAVA_LANG_OBJECT
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.TypeNullability
+import com.android.tools.metalava.model.TypeUse
 import java.util.HashMap
 
 /** Parses and caches types for a [codebase]. */
-internal class TextTypeParser(val codebase: TextCodebase, var kotlinStyleNulls: Boolean = false) {
-    private val typeCache = Cache<String, TextTypeItem>()
+internal class TextTypeParser(val codebase: TextCodebase, val kotlinStyleNulls: Boolean = false) {
+
+    /**
+     * The cache key, incorporates the [TypeUse] as well as the type string as the [TypeUse] can
+     * affect the created [TypeItem].
+     *
+     * e.g. [TypeUse.SUPER_TYPE] will cause the type to be treated as a super class and so always be
+     * [TypeNullability.NONNULL] even if [kotlinStyleNulls] is `false` which would normally cause it
+     * to be [TypeNullability.PLATFORM].
+     */
+    private data class Key(val typeUse: TypeUse, val type: String)
+
+    private val typeCache = Cache<Key, TextTypeItem>()
+
+    /** [TextTypeModifiers] that are empty but set [TextTypeModifiers.nullability] to null. */
+    private val nonNullTypeModifiers =
+        TextTypeModifiers.create(codebase, emptyList(), TypeNullability.NONNULL)
+
+    /** A [JAVA_LANG_ANNOTATION] suitable for use as a super type. */
+    val superAnnotationType
+        get() = createJavaLangSuperType(JAVA_LANG_ANNOTATION)
+
+    /**
+     * Create a [ClassTypeItem] for a standard java.lang class suitable for use by a super class or
+     * interface.
+     */
+    private fun createJavaLangSuperType(standardClassName: String): ClassTypeItem {
+        return getSuperType(standardClassName, TypeParameterScope.empty)
+    }
 
     /** Creates or retrieves from cache a [TextTypeItem] representing `java.lang.Object` */
     fun obtainObjectType(): TextTypeItem {
-        return typeCache.obtain(JAVA_LANG_OBJECT) {
+        return typeCache.obtain(Key(TypeUse.GENERAL, JAVA_LANG_OBJECT)) {
             TextClassTypeItem(
                 codebase,
                 JAVA_LANG_OBJECT,
@@ -39,6 +69,18 @@ internal class TextTypeParser(val codebase: TextCodebase, var kotlinStyleNulls: 
     }
 
     /**
+     * Creates or retrieves a previously cached [ClassTypeItem] that is suitable for use as a super
+     * type, e.g. in an `extends` or `implements` list.
+     */
+    fun getSuperType(
+        type: String,
+        typeParameterScope: TypeParameterScope,
+        annotations: List<String> = emptyList(),
+    ): ClassTypeItem =
+        obtainTypeFromString(type, typeParameterScope, annotations, TypeUse.SUPER_TYPE)
+            as ClassTypeItem
+
+    /**
      * Creates or retrieves from the cache a [TextTypeItem] representing [type], in the context of
      * the type parameters from [typeParameterScope], if applicable.
      *
@@ -48,13 +90,16 @@ internal class TextTypeParser(val codebase: TextCodebase, var kotlinStyleNulls: 
     fun obtainTypeFromString(
         type: String,
         typeParameterScope: TypeParameterScope,
-        annotations: List<String> = emptyList()
+        annotations: List<String> = emptyList(),
+        typeUse: TypeUse = TypeUse.GENERAL,
     ): TextTypeItem {
         // Only use the cache if there are no type parameters to prevent identically named type
         // variables from different contexts being parsed as the same type.
         // Also don't use the cache when there are type-use annotations not contained in the string.
         return if (typeParameterScope.isEmpty() && annotations.isEmpty()) {
-            typeCache.obtain(type) { parseType(it, typeParameterScope, annotations) }
+            typeCache.obtain(Key(typeUse, type)) {
+                parseType(it.type, typeParameterScope, annotations, it.typeUse)
+            }
         } else {
             parseType(type, typeParameterScope, annotations)
         }
@@ -64,7 +109,8 @@ internal class TextTypeParser(val codebase: TextCodebase, var kotlinStyleNulls: 
     private fun parseType(
         type: String,
         typeParameterScope: TypeParameterScope,
-        annotations: List<String> = emptyList()
+        annotations: List<String>,
+        typeUse: TypeUse = TypeUse.GENERAL,
     ): TextTypeItem {
         val (unannotated, annotationsFromString) = trimLeadingAnnotations(type)
         val allAnnotations = annotations + annotationsFromString
@@ -82,7 +128,7 @@ internal class TextTypeParser(val codebase: TextCodebase, var kotlinStyleNulls: 
             // Try parsing as an array.
             ?: asArray(trimmed, allAnnotations, nullability, typeParameterScope)
             // If it isn't anything else, parse the type as a class.
-            ?: asClass(trimmed, typeParameterScope, allAnnotations, nullability)
+            ?: asClass(trimmed, typeUse, typeParameterScope, allAnnotations, nullability)
     }
 
     /**
@@ -290,11 +336,12 @@ internal class TextTypeParser(val codebase: TextCodebase, var kotlinStyleNulls: 
      */
     private fun asClass(
         type: String,
+        typeUse: TypeUse,
         typeParameterScope: TypeParameterScope,
         annotations: List<String>,
         nullability: TypeNullability?
     ): TextClassTypeItem {
-        return createClassType(type, null, typeParameterScope, annotations, nullability)
+        return createClassType(type, typeUse, null, typeParameterScope, annotations, nullability)
     }
 
     /**
@@ -305,6 +352,7 @@ internal class TextTypeParser(val codebase: TextCodebase, var kotlinStyleNulls: 
      */
     private fun createClassType(
         type: String,
+        typeUse: TypeUse,
         outerClassType: TextClassTypeItem?,
         typeParameterScope: TypeParameterScope,
         annotations: List<String>,
@@ -331,7 +379,9 @@ internal class TextTypeParser(val codebase: TextCodebase, var kotlinStyleNulls: 
             if (remainder != null) {
                 modifiers(classAnnotations, TypeNullability.NONNULL)
             } else {
-                modifiers(classAnnotations + annotations, nullability)
+                val actualNullability =
+                    if (typeUse == TypeUse.SUPER_TYPE) TypeNullability.NONNULL else nullability
+                modifiers(classAnnotations + annotations, actualNullability)
             }
         val classType =
             TextClassTypeItem(codebase, qualifiedName, params, outerClassType, classModifiers)
@@ -345,6 +395,8 @@ internal class TextTypeParser(val codebase: TextCodebase, var kotlinStyleNulls: 
             // This is an inner class type, recur with the new outer class
             return createClassType(
                 remainder.substring(1),
+                // An inner class has the same type use as the outer class.
+                typeUse,
                 classType,
                 typeParameterScope,
                 annotations,

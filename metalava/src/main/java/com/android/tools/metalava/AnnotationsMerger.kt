@@ -62,6 +62,7 @@ import com.android.tools.metalava.model.psi.PsiAnnotationItem
 import com.android.tools.metalava.model.psi.extractRoots
 import com.android.tools.metalava.model.source.SourceCodebase
 import com.android.tools.metalava.model.source.SourceParser
+import com.android.tools.metalava.model.source.SourceSet
 import com.android.tools.metalava.model.text.ApiFile
 import com.android.tools.metalava.model.text.ApiParseException
 import com.android.tools.metalava.model.visitors.ApiVisitor
@@ -135,9 +136,9 @@ class AnnotationsMerger(
                 roots.addAll(options.sourcePath)
                 val javaStubsCodebase =
                     sourceParser.parseSources(
-                        javaStubFiles,
+                        SourceSet(javaStubFiles, roots),
+                        SourceSet.empty(),
                         "Codebase loaded from stubs",
-                        sourcePath = roots,
                         classPath = options.classpath
                     )
                 mergeJavaStubsCodebase(javaStubsCodebase)

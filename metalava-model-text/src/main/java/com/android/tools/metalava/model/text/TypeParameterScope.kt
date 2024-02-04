@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.text
 
+import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.TypeParameterItem
 
 /**
@@ -62,11 +63,11 @@ internal sealed class TypeParameterScope private constructor() {
          * Collect all the type parameters in scope for the given [owner] then wrap them in an
          * [TypeParameterScope].
          */
-        fun from(owner: TypeParameterListOwner?): TypeParameterScope {
+        fun from(owner: ClassItem?): TypeParameterScope {
             return if (owner == null) empty
             else {
                 // Construct a scope from the owner.
-                from(owner.typeParameterListOwnerParent())
+                from(owner.containingClass())
                     // Nest this inside it.
                     .nestedScope(owner.typeParameterList().typeParameters())
             }

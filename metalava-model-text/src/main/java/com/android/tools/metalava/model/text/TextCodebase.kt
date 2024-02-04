@@ -43,8 +43,6 @@ internal class TextCodebase(
 
     private val externalClasses = HashMap<String, ClassItem>()
 
-    internal val typeResolver = TextTypeParser(this)
-
     /**
      * A set of empty [TextTypeModifiers] owned by, and reused by items within, this [TextCodebase].
      */

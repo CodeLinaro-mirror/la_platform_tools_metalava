@@ -891,3 +891,14 @@ interface WildcardTypeItem : TypeItem {
         TODO("Not yet implemented")
     }
 }
+
+/** Different uses to which a [TypeItem] might be used that might affect its construction. */
+enum class TypeUse {
+    /** General type use; no special behavior. */
+    GENERAL,
+
+    /**
+     * Super type, e.g. in an `extends` or `implements` list; is always [TypeNullability.NONNULL].
+     */
+    SUPER_TYPE,
+}

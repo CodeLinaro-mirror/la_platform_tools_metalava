@@ -107,7 +107,7 @@ class ParameterizedFindClassTest : BaseModelTest() {
                     // Signature format: 2.0
                     package test.pkg {
                       public class Foo {
-                        method public Object foo() throws Throwable;
+                        method public Object foo(Throwable) throws Throwable;
                       }
                     }
                 """
@@ -117,7 +117,7 @@ class ParameterizedFindClassTest : BaseModelTest() {
                     package test.pkg;
                     public class Foo {
                         private Foo() {}
-                        public Object foo() throws Throwable {throw new Throwable();}
+                        public Object foo(Throwable t) throws Throwable {throw new Throwable();}
                     }
                 """
             ),
@@ -127,11 +127,21 @@ class ParameterizedFindClassTest : BaseModelTest() {
                     class Foo
                     private constructor() {
                         @Throws(Throwable::class)
-                        fun foo(): Any {throw Throwable()}
+                        fun foo(t: Throwable): Any {throw Throwable()}
                     }
                 """
             ),
         ) {
+            val fooMethod = codebase.assertClass("test.pkg.Foo").methods().single()
+
+            // Force loading of the Object classes by resolving the return type which is
+            // java.lang.Object.
+            fooMethod.returnType().asClass()
+
+            // Force loading of the Throwable classes by resolving the parameter's type which is
+            // java.lang.Object.
+            fooMethod.parameters().single().type().asClass()
+
             val className = params.className
             val foundClass = codebase.findClass(className)
             assertFound(className, params.expectedFound, foundClass)

@@ -35,10 +35,7 @@ internal open class TextMethodItem(
     private val returnType: TypeItem,
     private val parameters: List<TextParameterItem>,
     position: SourcePositionInfo
-) :
-    TextMemberItem(codebase, name, containingClass, position, modifiers = modifiers),
-    MethodItem,
-    TypeParameterListOwner {
+) : TextMemberItem(codebase, name, containingClass, position, modifiers = modifiers), MethodItem {
     init {
         @Suppress("LeakingThis") modifiers.setOwner(this)
         parameters.forEach { it.containingMethod = this }
@@ -111,10 +108,6 @@ internal open class TextMethodItem(
     }
 
     override fun typeParameterList(): TypeParameterList = typeParameterList
-
-    override fun typeParameterListOwnerParent(): TypeParameterListOwner? {
-        return containingClass() as TextClassItem?
-    }
 
     override fun duplicate(targetContainingClass: ClassItem): MethodItem {
         val typeVariableMap = targetContainingClass.mapTypeVariables(containingClass())

@@ -509,6 +509,8 @@ abstract class DriverTest : TemporaryFolderOwner {
         @Language("TEXT") apiLint: String? = null,
         /** The source files to pass to the analyzer */
         sourceFiles: Array<TestFile> = emptyArray(),
+        /** The common source files to pass to the analyzer */
+        commonSourceFiles: Array<TestFile> = emptyArray(),
         /** [ARG_REPEAT_ERRORS_MAX] */
         repeatErrorsMax: Int = 0
     ) {
@@ -552,7 +554,7 @@ abstract class DriverTest : TemporaryFolderOwner {
         // Unit test which checks that a signature file is as expected
         val androidJar = getAndroidJar()
 
-        val project = createProject(sourceFiles)
+        val project = createProject(sourceFiles + commonSourceFiles)
 
         val sourcePathDir = File(project, "src")
         if (!sourcePathDir.isDirectory) {
@@ -560,10 +562,23 @@ abstract class DriverTest : TemporaryFolderOwner {
         }
 
         var sourcePath = sourcePathDir.path
+        var commonSourcePath: String? = null
 
         // Make it easy to configure a source path with more than one source root: src and src2
         if (sourceFiles.any { it.targetPath.startsWith("src2") }) {
             sourcePath = sourcePath + File.pathSeparator + sourcePath + "2"
+        }
+
+        fun pathUnderProject(path: String): String = File(project, path).path
+
+        if (commonSourceFiles.isNotEmpty()) {
+            // Assume common/source are placed in different folders, e.g., commonMain, androidMain
+            sourcePath =
+                pathUnderProject(sourceFiles.first().targetPath.substringBefore("src") + "src")
+            commonSourcePath =
+                pathUnderProject(
+                    commonSourceFiles.first().targetPath.substringBefore("src") + "src"
+                )
         }
 
         val apiClassResolutionArgs =
@@ -597,9 +612,9 @@ abstract class DriverTest : TemporaryFolderOwner {
                 }
                 arrayOf(apiJar.path)
             } else {
-                sourceFiles
+                (sourceFiles + commonSourceFiles)
                     .asSequence()
-                    .map { File(project, it.targetPath).path }
+                    .map { pathUnderProject(it.targetPath) }
                     .toList()
                     .toTypedArray()
             }
@@ -1045,7 +1060,14 @@ abstract class DriverTest : TemporaryFolderOwner {
                 *errorMessageApiLintArgs,
                 *errorMessageCheckCompatibilityReleasedArgs,
                 *repeatErrorsMaxArgs,
-            )
+            ) +
+                buildList {
+                        if (commonSourcePath != null) {
+                            add(ARG_COMMON_SOURCE_PATH)
+                            add(commonSourcePath)
+                        }
+                    }
+                    .toTypedArray()
 
         val actualOutput =
             runDriver(
@@ -1306,6 +1328,7 @@ abstract class DriverTest : TemporaryFolderOwner {
         expectedFail: String? = null,
         @Language("TEXT") apiLint: String? = null,
         sourceFiles: Array<TestFile> = emptyArray(),
+        commonSourceFiles: Array<TestFile> = emptyArray(),
     ) {
         check(
             api = api,
@@ -1315,6 +1338,7 @@ abstract class DriverTest : TemporaryFolderOwner {
             expectedFail = expectedFail,
             apiLint = apiLint,
             sourceFiles = sourceFiles,
+            commonSourceFiles = commonSourceFiles,
         )
     }
 

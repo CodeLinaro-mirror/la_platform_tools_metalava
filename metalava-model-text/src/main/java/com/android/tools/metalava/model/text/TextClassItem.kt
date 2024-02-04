@@ -41,17 +41,7 @@ internal open class TextClassItem(
     val fullName: String = simpleName,
     val annotations: List<String>? = null,
     val typeParameterList: TypeParameterList = TypeParameterList.NONE
-) :
-    TextItem(codebase = codebase, position = position, modifiers = modifiers),
-    ClassItem,
-    TypeParameterListOwner {
-
-    init {
-        @Suppress("LeakingThis") modifiers.setOwner(this)
-        if (typeParameterList is TextTypeParameterList) {
-            @Suppress("LeakingThis") typeParameterList.setOwner(this)
-        }
-    }
+) : TextItem(codebase = codebase, position = position, modifiers = modifiers), ClassItem {
 
     override var artifact: String? = null
 
@@ -108,24 +98,18 @@ internal open class TextClassItem(
 
     override fun typeParameterList(): TypeParameterList = typeParameterList
 
-    override fun typeParameterListOwnerParent(): TypeParameterListOwner? {
-        return containingClass as? TypeParameterListOwner
-    }
-
-    private var superClass: ClassItem? = null
     private var superClassType: ClassTypeItem? = null
 
-    override fun superClass(): ClassItem? = superClass
+    override fun superClass(): ClassItem? = superClassType?.asClass()
 
     override fun superClassType(): ClassTypeItem? = superClassType
 
-    internal fun setSuperClass(superClass: ClassItem?, superClassType: ClassTypeItem?) {
-        this.superClass = superClass
+    internal fun setSuperClassType(superClassType: ClassTypeItem?) {
         this.superClassType = superClassType
     }
 
     override fun setInterfaceTypes(interfaceTypes: List<ClassTypeItem>) {
-        this.interfaceTypes = interfaceTypes.toMutableList()
+        this.interfaceTypes = interfaceTypes
     }
 
     private var typeInfo: TextClassTypeItem? = null
@@ -146,7 +130,7 @@ internal open class TextClassItem(
         return typeInfo!!
     }
 
-    private var interfaceTypes = mutableListOf<ClassTypeItem>()
+    private var interfaceTypes = emptyList<ClassTypeItem>()
     private val constructors = mutableListOf<ConstructorItem>()
     private val methods = mutableListOf<MethodItem>()
     private val fields = mutableListOf<FieldItem>()
@@ -159,10 +143,6 @@ internal open class TextClassItem(
     override fun fields(): List<FieldItem> = fields
 
     override fun properties(): List<PropertyItem> = properties
-
-    fun addInterface(itf: ClassTypeItem) {
-        interfaceTypes.add(itf)
-    }
 
     fun addConstructor(constructor: TextConstructorItem) {
         constructors += constructor

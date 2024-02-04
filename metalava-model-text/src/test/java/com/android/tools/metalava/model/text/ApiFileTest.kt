@@ -33,6 +33,44 @@ import org.junit.runners.Parameterized
 class ApiFileTest : BaseTextCodebaseTest() {
 
     @Test
+    fun `Test mixture of kotlinStyleNulls settings`() {
+        val exception =
+            assertThrows(ApiParseException::class.java) {
+                runCodebaseTest(
+                    inputSet(
+                        signature(
+                            "file1.txt",
+                            """
+                                // Signature format: 5.0
+                                // - kotlin-style-nulls=yes
+                                package test.pkg {
+                                    public class Foo {
+                                        method void foo(Object);
+                                    }
+                                }
+                            """
+                        ),
+                        signature(
+                            "file2.txt",
+                            """
+                                // Signature format: 5.0
+                                // - kotlin-style-nulls=no
+                                package test.pkg {
+                                    public class Bar {
+                                        method void bar(Object);
+                                    }
+                                }
+                            """
+                        )
+                    ),
+                ) {}
+            }
+
+        assertThat(exception.message)
+            .contains("Cannot mix signature files with different settings of kotlinStyleNulls")
+    }
+
+    @Test
     fun `Test parse from InputStream`() {
         val fileName = "test-api.txt"
         val codebase =
@@ -60,9 +98,15 @@ class ApiFileTest : BaseTextCodebaseTest() {
                 """
             ),
         ) {
-            val objectClass = codebase.assertClass("java.lang.Object")
             val throwable = codebase.assertClass("java.lang.Throwable")
-            assertSame(objectClass, throwable.superClass())
+
+            // Get the super class to force it to be loaded.
+            val throwableSuperClass = throwable.superClass()
+
+            // Now get the object class.
+            val objectClass = codebase.assertClass("java.lang.Object")
+
+            assertSame(objectClass, throwableSuperClass)
 
             // Make sure the stub Throwable is used in the throws types.
             val exception =
@@ -89,9 +133,15 @@ class ApiFileTest : BaseTextCodebaseTest() {
                 """
             ),
         ) {
-            val throwable = codebase.assertClass("java.lang.Throwable")
             val error = codebase.assertClass("java.lang.Error")
-            assertSame(throwable, error.superClass())
+
+            // Get the super class to force it to be loaded.
+            val errorSuperClass = error.superClassType()?.asClass()
+
+            // Now get the throwable class.
+            val throwable = codebase.assertClass("java.lang.Throwable")
+
+            assertSame(throwable, errorSuperClass)
 
             // Make sure the stub Throwable is used in the throws types.
             val exception =
@@ -436,6 +486,29 @@ class ApiFileTest : BaseTextCodebaseTest() {
                 """
             ),
         )
+    }
+
+    @Test
+    fun testTypeParameterNames() {
+        assertThat(ApiFile.extractTypeParameterBoundsStringList(null).toString()).isEqualTo("[]")
+        assertThat(ApiFile.extractTypeParameterBoundsStringList("").toString()).isEqualTo("[]")
+        assertThat(ApiFile.extractTypeParameterBoundsStringList("X").toString()).isEqualTo("[]")
+        assertThat(ApiFile.extractTypeParameterBoundsStringList("DEF extends T").toString())
+            .isEqualTo("[T]")
+        assertThat(
+                ApiFile.extractTypeParameterBoundsStringList(
+                        "T extends java.lang.Comparable<? super T>"
+                    )
+                    .toString()
+            )
+            .isEqualTo("[java.lang.Comparable<? super T>]")
+        assertThat(
+                ApiFile.extractTypeParameterBoundsStringList(
+                        "T extends java.util.List<Number> & java.util.RandomAccess"
+                    )
+                    .toString()
+            )
+            .isEqualTo("[java.util.List<Number>, java.util.RandomAccess]")
     }
 
     class TestClassItem private constructor(delegate: ClassItem) : ClassItem by delegate {

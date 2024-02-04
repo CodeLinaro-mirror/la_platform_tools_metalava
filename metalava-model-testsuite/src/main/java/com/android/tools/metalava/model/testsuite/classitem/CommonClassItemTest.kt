@@ -390,11 +390,15 @@ class CommonClassItemTest : BaseModelTest() {
                 """
             ),
         ) {
-            val objectClass = codebase.assertClass("java.lang.Object")
             val fooClass = codebase.assertClass("test.pkg.Foo")
 
-            assertSame(objectClass, fooClass.superClassType()?.asClass())
-            assertSame(objectClass, fooClass.superClass())
+            // Get the super class to force it to be loaded.
+            val fooSuperClass = fooClass.superClass()
+
+            // Now get the object class.
+            val objectClass = codebase.assertClass("java.lang.Object")
+
+            assertSame(objectClass, fooSuperClass)
 
             val interfaceList = fooClass.interfaceTypes().map { it.asClass() }
             assertEquals(emptyList(), interfaceList)
@@ -473,11 +477,15 @@ class CommonClassItemTest : BaseModelTest() {
             val interfaceA = codebase.assertClass("test.pkg.A")
             val interfaceB = codebase.assertClass("test.pkg.B")
             val interfaceC = codebase.assertClass("test.pkg.C")
-            val objectClass = codebase.assertClass("java.lang.Object")
             val fooClass = codebase.assertClass("test.pkg.Foo")
 
-            assertSame(objectClass, fooClass.superClassType()?.asClass())
-            assertSame(objectClass, fooClass.superClass())
+            // Get the super class to force it to be loaded.
+            val fooSuperClass = fooClass.superClass()
+
+            // Now get the object class.
+            val objectClass = codebase.assertClass("java.lang.Object")
+
+            assertSame(objectClass, fooSuperClass)
 
             val interfaceList = fooClass.interfaceTypes().map { it.asClass() }
             assertEquals(listOf(interfaceA, interfaceB, interfaceC), interfaceList)

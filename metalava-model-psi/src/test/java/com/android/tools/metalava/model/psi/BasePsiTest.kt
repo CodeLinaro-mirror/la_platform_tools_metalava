@@ -21,6 +21,7 @@ import com.android.tools.metalava.model.Assertions
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.noOpAnnotationManager
 import com.android.tools.metalava.model.source.EnvironmentManager
+import com.android.tools.metalava.model.source.SourceSet
 import com.android.tools.metalava.reporter.BasicReporter
 import com.android.tools.metalava.reporter.Reporter
 import com.android.tools.metalava.testing.TemporaryFolderOwner
@@ -52,6 +53,17 @@ open class BasePsiTest : TemporaryFolderOwner, Assertions {
     fun testCodebase(
         vararg sources: TestFile,
         classPath: List<File> = emptyList(),
+        isK2: Boolean = false,
+        action: (Codebase) -> Unit,
+    ) {
+        testCodebase(sources.toList(), emptyList(), classPath, isK2, action)
+    }
+
+    fun testCodebase(
+        sources: List<TestFile>,
+        commonSources: List<TestFile>,
+        classPath: List<File> = emptyList(),
+        isK2: Boolean = false,
         action: (Codebase) -> Unit,
     ) {
         projectDir = temporaryFolder.newFolder()
@@ -62,9 +74,11 @@ open class BasePsiTest : TemporaryFolderOwner, Assertions {
                 createTestCodebase(
                     environmentManager,
                     projectDir,
-                    sources.toList(),
+                    sources,
+                    commonSources,
                     classPath,
                     reporter,
+                    isK2,
                 )
             action(codebase)
         }
@@ -85,15 +99,26 @@ open class BasePsiTest : TemporaryFolderOwner, Assertions {
         environmentManager: EnvironmentManager,
         directory: File,
         sources: List<TestFile>,
+        commonSources: List<TestFile>,
         classPath: List<File>,
         reporter: Reporter,
+        isK2: Boolean = false,
     ): Codebase {
+        val (sourceDirectory, commonDirectory) =
+            if (commonSources.isEmpty()) {
+                directory to null
+            } else {
+                temporaryFolder.newFolder() to temporaryFolder.newFolder()
+            }
         return environmentManager
-            .createSourceParser(reporter, noOpAnnotationManager)
+            .createSourceParser(reporter, noOpAnnotationManager, useK2Uast = isK2)
             .parseSources(
-                sources = sources.map { it.createFile(directory) },
+                SourceSet(sources.map { it.createFile(directory) }, listOf(sourceDirectory)),
+                SourceSet(
+                    commonSources.map { it.createFile(commonDirectory) },
+                    listOfNotNull(commonDirectory)
+                ),
                 description = "Test Codebase",
-                sourcePath = listOf(directory),
                 classPath = classPath,
             )
     }

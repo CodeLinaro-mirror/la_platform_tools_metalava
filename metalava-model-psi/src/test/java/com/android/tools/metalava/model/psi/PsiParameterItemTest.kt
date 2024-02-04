@@ -39,12 +39,10 @@ class PsiParameterItemTest : BasePsiTest() {
         }
     }
 
-    @Test
-    fun `actuals get params from expects`() {
-        // todo(b/301598511): use different modules for actual and expect to with k2 uast
-        testCodebase(
+    private fun `actuals get params from expects`(isK2: Boolean) {
+        val commonSource =
             kotlin(
-                "src/commonMain/Expect.kt",
+                "commonMain/src/Expect.kt",
                 """
                     expect suspend fun String.testFun(param: String = "")
                     expect class Test(param: String = "") {
@@ -55,10 +53,14 @@ class PsiParameterItemTest : BasePsiTest() {
                         )
                     }
                 """
-            ),
-            kotlin(
-                "src/jvmMain/Actual.kt",
-                """
+            )
+        testCodebase(
+            commonSources = listOf(commonSource),
+            sources =
+                listOf(
+                    kotlin(
+                        "jvmMain/src/Actual.kt",
+                        """
                     actual suspend fun String.testFun(param: String) {}
                     actual class Test actual constructor(param: String) {
                         actual fun something(
@@ -68,7 +70,10 @@ class PsiParameterItemTest : BasePsiTest() {
                         ) {}
                     }
                 """
-            )
+                    ),
+                    commonSource,
+                ),
+            isK2 = isK2
         ) { codebase ->
             // Expect classes are ignored by UAST/Kotlin light classes, verify we test actuals
             val actualFile = codebase.assertClass("ActualKt").getSourceFile()
@@ -113,5 +118,15 @@ class PsiParameterItemTest : BasePsiTest() {
                 assertFalse(parameters[2].hasDefaultValue())
             }
         }
+    }
+
+    @Test
+    fun `actuals get params from expects -- K1`() {
+        `actuals get params from expects`(isK2 = false)
+    }
+
+    @Test
+    fun `actuals get params from expects -- K2`() {
+        `actuals get params from expects`(isK2 = true)
     }
 }

@@ -81,8 +81,14 @@ internal class TextClassTypeItem(
 ) : ClassTypeItem, TextTypeItem(codebase, modifiers) {
     override val className: String = ClassTypeItem.computeClassName(qualifiedName)
 
+    /** Cached result of calling [asClass]. */
+    private var cachedAsClass: ClassItem? = null
+
     override fun asClass(): ClassItem {
-        return codebase.getOrCreateClass(qualifiedName)
+        if (cachedAsClass == null) {
+            cachedAsClass = codebase.getOrCreateClass(qualifiedName)
+        }
+        return cachedAsClass!!
     }
 
     override fun duplicate(withNullability: TypeNullability): TextTypeItem {

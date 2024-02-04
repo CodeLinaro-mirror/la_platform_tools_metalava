@@ -28,6 +28,7 @@ import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PackageList
+import com.android.tools.metalava.model.TypeUse
 import com.android.tools.metalava.model.source.SourceCodebase
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
@@ -699,10 +700,22 @@ open class PsiBasedCodebase(
         getFactory().createDocCommentFromText(string, parent)
 
     /**
+     * Creates a [PsiClassTypeItem] that is suitable for use as a super type, e.g. in an `extends`
+     * or `implements` list.
+     */
+    internal fun getSuperType(psiType: PsiType): PsiClassTypeItem {
+        return getType(psiType, typeUse = TypeUse.SUPER_TYPE) as PsiClassTypeItem
+    }
+
+    /**
      * Returns a [PsiTypeItem] representing the [psiType]. The [context] is used to get nullability
      * information for Kotlin types.
      */
-    internal fun getType(psiType: PsiType, context: PsiElement? = null): PsiTypeItem {
+    internal fun getType(
+        psiType: PsiType,
+        context: PsiElement? = null,
+        typeUse: TypeUse = TypeUse.GENERAL
+    ): PsiTypeItem {
         val kotlinTypeInfo =
             if (context != null && isKotlin(context)) {
                 KotlinTypeInfo.fromContext(context)
@@ -715,7 +728,7 @@ open class PsiBasedCodebase(
         // for some type comparisons (and we sometimes end up with unexpected results,
         // e.g. where we fetch an "equals" type from the map but its representation
         // is slightly different than we intended
-        return PsiTypeItem.create(this, psiType, kotlinTypeInfo)
+        return PsiTypeItem.create(this, psiType, kotlinTypeInfo, typeUse)
     }
 
     internal fun getType(psiClass: PsiClass): PsiTypeItem {

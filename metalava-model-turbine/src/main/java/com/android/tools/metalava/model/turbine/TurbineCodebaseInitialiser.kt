@@ -779,7 +779,8 @@ internal open class TurbineCodebaseInitialiser(
                     methodItem
                 }
         // Ignore default enum methods
-        classItem.methods = methodItems.filter { !isDefaultEnumMethod(classItem, it) }
+        classItem.methods =
+            methodItems.filter { !isDefaultEnumMethod(classItem, it) }.toMutableList()
     }
 
     private fun createParameters(methodItem: TurbineMethodItem, parameters: List<ParamInfo>) {

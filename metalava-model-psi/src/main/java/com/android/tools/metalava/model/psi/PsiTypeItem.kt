@@ -28,6 +28,7 @@ import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeParameterItem
+import com.android.tools.metalava.model.TypeUse
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.WildcardTypeItem
 import com.intellij.psi.PsiArrayType
@@ -107,7 +108,8 @@ sealed class PsiTypeItem(val codebase: PsiBasedCodebase, val psiType: PsiType) :
         internal fun create(
             codebase: PsiBasedCodebase,
             psiType: PsiType,
-            kotlinType: KotlinTypeInfo?
+            kotlinType: KotlinTypeInfo?,
+            typeUse: TypeUse = TypeUse.GENERAL,
         ): PsiTypeItem {
             return when (psiType) {
                 is PsiPrimitiveType ->
@@ -134,6 +136,7 @@ sealed class PsiTypeItem(val codebase: PsiBasedCodebase, val psiType: PsiType) :
                             codebase = codebase,
                             psiType = psiType,
                             kotlinType = kotlinType,
+                            typeUse = typeUse,
                         )
                     }
                 }
@@ -265,6 +268,7 @@ internal class PsiClassTypeItem(
             codebase: PsiBasedCodebase,
             psiType: PsiClassType,
             kotlinType: KotlinTypeInfo?,
+            typeUse: TypeUse,
         ): PsiClassTypeItem {
             val qualifiedName = computeQualifiedName(psiType)
             return PsiClassTypeItem(
@@ -275,7 +279,7 @@ internal class PsiClassTypeItem(
                 outerClassType = computeOuterClass(psiType, codebase, kotlinType),
                 // This should be able to use `psiType.name`, but that sometimes returns null.
                 className = ClassTypeItem.computeClassName(qualifiedName),
-                modifiers = PsiTypeModifiers.create(codebase, psiType, kotlinType),
+                modifiers = PsiTypeModifiers.create(codebase, psiType, kotlinType, typeUse),
             )
         }
 
