@@ -25,9 +25,10 @@ import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.TypeParameterListOwner
+import com.android.tools.metalava.model.computeSuperMethods
 import java.util.function.Predicate
 
-open class TextMethodItem(
+internal open class TextMethodItem(
     codebase: TextCodebase,
     name: String,
     containingClass: ClassItem,
@@ -97,31 +98,7 @@ open class TextMethodItem(
     override fun returnType(): TypeItem = returnType
 
     override fun superMethods(): List<MethodItem> {
-        if (isConstructor()) {
-            return emptyList()
-        }
-
-        val list = mutableListOf<MethodItem>()
-
-        var curr = containingClass().superClass()
-        while (curr != null) {
-            val superMethod = curr.findMethod(this)
-            if (superMethod != null) {
-                list.add(superMethod)
-                break
-            }
-            curr = curr.superClass()
-        }
-
-        // Interfaces
-        for (itf in containingClass().allInterfaces()) {
-            val interfaceMethod = itf.findMethod(this)
-            if (interfaceMethod != null) {
-                list.add(interfaceMethod)
-            }
-        }
-
-        return list
+        return computeSuperMethods()
     }
 
     override fun findMainDocumentation(): String = documentation
@@ -206,10 +183,6 @@ open class TextMethodItem(
     fun addException(throwsType: String) {
         throwsTypes += throwsType
     }
-
-    private val varargs: Boolean = parameters.any { it.isVarArgs() }
-
-    fun isVarArg(): Boolean = varargs
 
     override fun isExtensionMethod(): Boolean = codebase.unsupported()
 

@@ -22,8 +22,7 @@ import com.android.tools.metalava.model.ModifierList
 import com.android.tools.metalava.model.MutableModifierList
 import com.google.turbine.model.TurbineFlag
 
-class TurbineModifierItem
-internal constructor(
+internal class TurbineModifierItem(
     codebase: Codebase,
     flags: Int = PACKAGE_PRIVATE,
     annotations: List<AnnotationItem>?

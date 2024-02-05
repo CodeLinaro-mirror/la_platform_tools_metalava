@@ -725,8 +725,6 @@ class AddAdditionalOverridesTest : DriverTest() {
                 ),
             format = FileFormat.V2,
             api =
-                // This is wrong. PublicClass2 should not define `bar()` as it inherits it from
-                // PublicClass1.
                 """
                     // Signature format: 2.0
                     package test.pkg {
@@ -736,7 +734,6 @@ class AddAdditionalOverridesTest : DriverTest() {
                       }
                       public class PublicClass2 extends test.pkg.PublicClass1 {
                         ctor public PublicClass2();
-                        method public void bar();
                       }
                     }
                 """,

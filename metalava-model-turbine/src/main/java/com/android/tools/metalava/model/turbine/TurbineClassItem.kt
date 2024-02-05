@@ -29,7 +29,7 @@ import com.android.tools.metalava.model.TypeParameterList
 import com.google.turbine.binder.sym.ClassSymbol
 import com.google.turbine.binder.sym.MethodSymbol
 
-open class TurbineClassItem(
+internal open class TurbineClassItem(
     codebase: TurbineBasedCodebase,
     private val name: String,
     private val fullName: String,
@@ -205,4 +205,30 @@ open class TurbineClassItem(
     }
 
     override fun getSourceFile(): SourceFile? = source
+
+    override fun inheritMethodFromNonApiAncestor(template: MethodItem): MethodItem {
+        val method = template as TurbineMethodItem
+        val replacementMap = mapTypeVariables(method.containingClass())
+        val retType = method.returnType().convertType(replacementMap)
+        val mods = method.modifiers.duplicate()
+        val params =
+            method.parameters().map { TurbineParameterItem.duplicate(codebase, it, replacementMap) }
+
+        val duplicateMethod =
+            TurbineMethodItem(
+                codebase,
+                method.getSymbol(),
+                this,
+                retType as TurbineTypeItem,
+                mods,
+                method.typeParameterList(),
+                method.documentation
+            )
+        mods.setOwner(duplicateMethod)
+        duplicateMethod.parameters = params
+        duplicateMethod.inheritedFrom = method.containingClass()
+        duplicateMethod.setThrowsTypes(method.throwsTypes())
+
+        return duplicateMethod
+    }
 }

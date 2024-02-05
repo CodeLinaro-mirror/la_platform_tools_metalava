@@ -31,7 +31,7 @@ import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.TypeParameterListOwner
 import java.util.function.Predicate
 
-open class TextClassItem(
+internal open class TextClassItem(
     override val codebase: TextCodebase,
     position: SourcePositionInfo = SourcePositionInfo.UNKNOWN,
     modifiers: DefaultModifierList,

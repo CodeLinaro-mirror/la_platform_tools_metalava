@@ -151,7 +151,13 @@ interface TypeItem {
 
     fun defaultValueString(): String = "null"
 
-    fun hasTypeArguments(): Boolean = toTypeString().contains("<")
+    /**
+     * Check to see whether this type has any type arguments.
+     *
+     * It only checks this [TypeItem], and does not recurse down into any others, so it will return
+     * `true` for say `List<T>`, but `false` for `List<T>[]` and `T`.
+     */
+    fun hasTypeArguments(): Boolean = false
 
     /** Creates an identical type, with a copy of this type's modifiers so they can be mutated. */
     fun duplicate(): TypeItem
@@ -748,6 +754,8 @@ interface ClassTypeItem : TypeItem {
     override fun accept(visitor: TypeVisitor) {
         visitor.visit(this)
     }
+
+    override fun hasTypeArguments() = parameters.isNotEmpty()
 
     override fun isString(): Boolean = qualifiedName == JAVA_LANG_STRING
 

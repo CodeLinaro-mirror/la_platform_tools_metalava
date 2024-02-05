@@ -20,7 +20,7 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.VisibilityLevel
 
-class TurbinePackageItem(
+internal class TurbinePackageItem(
     codebase: TurbineBasedCodebase,
     private val qualifiedName: String,
     modifiers: TurbineModifierItem,

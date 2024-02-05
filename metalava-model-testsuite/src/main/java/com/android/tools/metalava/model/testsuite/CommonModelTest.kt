@@ -65,7 +65,7 @@ class CommonModelTest : BaseModelTest() {
                     """
                         package test.pkg;
                         public class Foo {
-                            public void foo(int i) {}                        
+                            public void foo(int i) {}
                         }
                     """
                 ),
@@ -73,8 +73,8 @@ class CommonModelTest : BaseModelTest() {
                     """
                         package test.pkg;
                         public class Bar extends Foo {
-                            public void foo(int i) {}                        
-                            public int bar(String s) {return s.length();}                        
+                            public void foo(int i) {}
+                            public int bar(String s) {return s.length();}
                         }
                     """
                 ),

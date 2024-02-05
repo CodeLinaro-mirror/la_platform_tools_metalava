@@ -18,7 +18,7 @@ package com.android.tools.metalava.model.turbine
 
 import com.google.turbine.model.TurbineTyKind
 
-enum class TurbineClassType() {
+internal enum class TurbineClassType() {
     INTERFACE,
     ENUM,
     ANNOTATION,

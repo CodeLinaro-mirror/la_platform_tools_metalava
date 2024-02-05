@@ -10,27 +10,21 @@ com.android.tools.metalava.model.testsuite.annotationitem.CommonAnnotationItemTe
   annotation with negative values[turbine,java]
   annotation with type cast values[turbine,java]
 
-com.android.tools.metalava.model.testsuite.classitem.CommonClassItemTest
-  Test inheritMethodFromNonApiAncestor[turbine,java]
+com.android.tools.metalava.model.testsuite.codebase.ParameterizedFindClassTest
+  test findClass()[turbine,java,java.lang.Object]
+  test findClass()[turbine,java,java.lang.Throwable]
 
 com.android.tools.metalava.model.testsuite.fielditem.SourceFieldItemTest
   test default value of an enum constant field[turbine,java]
   test non final field with default value as constant expression[turbine,java]
 
-com.android.tools.metalava.model.testsuite.methoditem.CommonSuperMethodsTest
-  Test multiple super methods from parent and grand parent interfaces[turbine,java]
-  Test no super method from parent class as private[turbine,java]
-  Test no super method from parent class as static[turbine,java]
-  Test super method with generic array parameter from generic class[turbine,java]
-  Test super method with generic parameter from generic class[turbine,java]
+com.android.tools.metalava.model.testsuite.methoditem.CommonParameterItemTest
+  Test publicName reports correct name when called on binary class - Object#equals[turbine,java]
+  Test publicName reports correct name when called on binary class - ViewGroup#onLayout[turbine,java]
 
 com.android.tools.metalava.model.testsuite.packageitem.CommonPackageItemTest
   Test @hide in package html[turbine,java]
   Test nullability annotation in package info[turbine,java]
-
-com.android.tools.metalava.model.testsuite.typeitem.CommonInternalNameTest
-  test[turbine,java,pkg.UnknownClass.Inner]
-  test[turbine,java,pkg.UnknownClass]
 
 com.android.tools.metalava.model.testsuite.typeitem.CommonTypeItemTest
   Test inner types from classpath[turbine,java]

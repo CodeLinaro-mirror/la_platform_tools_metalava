@@ -355,8 +355,15 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
             ),
         ) {
             val classItem = codebase.assertClass("test.pkg.Test")
+            val superClassType = classItem.superClassType()
+
             assertEquals(null, classItem.superClass())
             assertEquals(1, classItem.allInterfaces().count())
+            assertEquals(2, classItem.interfaceTypes().count())
+
+            assertNotNull(superClassType)
+            assertEquals(true, superClassType is ClassTypeItem)
+            assertEquals(null, superClassType.asClass())
         }
     }
 

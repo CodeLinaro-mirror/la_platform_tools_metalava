@@ -305,16 +305,6 @@ internal constructor(
         this.fields = fields
     }
 
-    override fun mapTypeVariables(target: ClassItem): Map<TypeItem, TypeItem> {
-        // TODO(316922930): Temporarily return an empty map for Kotlin because the previous
-        // implementation didn't work for Kotlin source. AndroidX signature files need to be updated
-        return if (isKotlin()) {
-            emptyMap()
-        } else {
-            super.mapTypeVariables(target)
-        }
-    }
-
     override fun equals(other: Any?): Boolean {
         if (this === other) {
             return true
@@ -331,19 +321,7 @@ internal constructor(
         val method = template as PsiMethodItem
         val newMethod = PsiMethodItem.create(codebase, this, method)
 
-        if (template.throwsTypes().isEmpty()) {
-            newMethod.setThrowsTypes(emptyList())
-        } else {
-            val throwsTypes = mutableListOf<ClassItem>()
-            for (type in template.throwsTypes()) {
-                if (type.codebase === codebase) {
-                    throwsTypes.add(type)
-                } else {
-                    throwsTypes.add(codebase.findOrCreateClass(((type as PsiClassItem).psiClass)))
-                }
-            }
-            newMethod.setThrowsTypes(throwsTypes)
-        }
+        newMethod.setThrowsTypes(method.throwsTypes())
         newMethod.finishInitialization()
 
         // Remember which class this method was copied from.

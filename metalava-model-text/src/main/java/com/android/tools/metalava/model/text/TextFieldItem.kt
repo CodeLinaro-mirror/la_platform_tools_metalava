@@ -21,7 +21,7 @@ import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.TypeItem
 
-class TextFieldItem(
+internal class TextFieldItem(
     codebase: TextCodebase,
     name: String,
     containingClass: TextClassItem,

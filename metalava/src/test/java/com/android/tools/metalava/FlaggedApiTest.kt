@@ -283,7 +283,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                         Flagged.WITHOUT,
                         expectedApi =
                             """
-                                // Signature format: 2.0                        
+                                // Signature format: 2.0
                             """,
                     ),
                 ),

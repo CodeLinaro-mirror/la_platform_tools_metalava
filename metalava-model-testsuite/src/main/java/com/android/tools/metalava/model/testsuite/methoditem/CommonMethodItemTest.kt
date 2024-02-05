@@ -107,7 +107,7 @@ class CommonMethodItemTest : BaseModelTest() {
                 java(
                     """
                         package test.pkg;
-    
+
                         public class Base {
                             public Base() {}
                         }
@@ -116,7 +116,7 @@ class CommonMethodItemTest : BaseModelTest() {
                 java(
                     """
                         package test.pkg;
-    
+
                         public class Test extends Base {
                             public Test() {}
                         }
@@ -154,7 +154,7 @@ class CommonMethodItemTest : BaseModelTest() {
                 java(
                     """
                         package test.pkg;
-    
+
                         public class Base {
                             public Base() {}
                             public void foo() {}
@@ -164,7 +164,7 @@ class CommonMethodItemTest : BaseModelTest() {
                 java(
                     """
                         package test.pkg;
-    
+
                         public class Test extends Base {
                             public Test() {}
                             public void foo() {}

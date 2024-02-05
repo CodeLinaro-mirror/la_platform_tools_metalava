@@ -19,7 +19,7 @@ package com.android.tools.metalava.model.text
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.DefaultModifierList
 
-class TextConstructorItem(
+internal class TextConstructorItem(
     codebase: TextCodebase,
     name: String,
     containingClass: TextClassItem,

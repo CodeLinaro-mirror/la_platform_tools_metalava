@@ -201,7 +201,7 @@ class KotlinInteropChecksTest : DriverTest() {
                     interface Bar {
                         fun ok(int: Int = 0, int2: Int = 0) { }
                     }
-                    
+
                     class Foo {
                         fun ok1() { }
                         fun ok2(int: Int) { }

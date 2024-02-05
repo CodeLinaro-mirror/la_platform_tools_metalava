@@ -68,6 +68,7 @@ import com.google.turbine.type.Type
 import com.google.turbine.type.Type.ArrayTy
 import com.google.turbine.type.Type.ClassTy
 import com.google.turbine.type.Type.ClassTy.SimpleClassTy
+import com.google.turbine.type.Type.ErrorTy
 import com.google.turbine.type.Type.PrimTy
 import com.google.turbine.type.Type.TyKind
 import com.google.turbine.type.Type.TyVar
@@ -84,7 +85,7 @@ import kotlin.collections.ArrayDeque
  * This is used for populating all the classes,packages and other items from the data present in the
  * parsed Tree
  */
-open class TurbineCodebaseInitialiser(
+internal open class TurbineCodebaseInitialiser(
     val units: List<CompUnit>,
     val codebase: TurbineBasedCodebase,
     val classpath: List<File>,
@@ -308,8 +309,7 @@ open class TurbineCodebaseInitialiser(
                 cls.superclass()?.let { superClass -> findOrCreateClass(superClass) }
             val superClassType = cls.superClassType()
             val superClassTypeItem =
-                if (superClassType == null || superClassType.tyKind() == TyKind.ERROR_TY) null
-                else createType(superClassType, false)
+                if (superClassType == null) null else createType(superClassType, false)
             classItem.setSuperClass(superClassItem, superClassTypeItem)
         }
 
@@ -317,11 +317,7 @@ open class TurbineCodebaseInitialiser(
         classItem.directInterfaces = cls.interfaces().map { itf -> findOrCreateClass(itf) }
 
         // Set interface types
-        classItem.setInterfaceTypes(
-            cls.interfaceTypes()
-                .filter { it.tyKind() != TyKind.ERROR_TY }
-                .map { createType(it, false) }
-        )
+        classItem.setInterfaceTypes(cls.interfaceTypes().map { createType(it, false) })
 
         // Create fields
         createFields(classItem, cls.fields())
@@ -500,6 +496,17 @@ open class TurbineCodebaseInitialiser(
                     TurbineTypeModifiers(emptyList(), TypeNullability.NONNULL),
                     Primitive.VOID
                 )
+            TyKind.ERROR_TY -> {
+                // This is case of unresolved superclass or implemented interface
+                type as ErrorTy
+                TurbineClassTypeItem(
+                    codebase,
+                    TurbineTypeModifiers(emptyList(), TypeNullability.UNDEFINED),
+                    type.name(),
+                    emptyList(),
+                    null,
+                )
+            }
             else -> throw IllegalStateException("Invalid type in API surface: $kind")
         }
     }
