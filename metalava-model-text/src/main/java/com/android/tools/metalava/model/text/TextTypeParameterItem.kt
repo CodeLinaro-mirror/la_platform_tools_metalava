@@ -16,8 +16,8 @@
 
 package com.android.tools.metalava.model.text
 
+import com.android.tools.metalava.model.BoundsTypeItem
 import com.android.tools.metalava.model.DefaultModifierList
-import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterItem
 
 internal class TextTypeParameterItem(
@@ -32,7 +32,7 @@ internal class TextTypeParameterItem(
     ),
     TypeParameterItem {
 
-    lateinit var bounds: List<TypeItem>
+    lateinit var bounds: List<BoundsTypeItem>
 
     override fun name(): String {
         return name
@@ -59,7 +59,7 @@ internal class TextTypeParameterItem(
         )
     }
 
-    override fun typeBounds(): List<TypeItem> = bounds
+    override fun typeBounds(): List<BoundsTypeItem> = bounds
 
     override fun isReified(): Boolean = isReified
 

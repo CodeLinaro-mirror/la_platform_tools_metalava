@@ -17,7 +17,6 @@
 package com.android.tools.metalava.model.testsuite.typeitem
 
 import com.android.tools.metalava.model.ClassTypeItem
-import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
@@ -178,9 +177,7 @@ class CommonTypeParameterItemTest : BaseModelTest() {
                 .isEqualTo("test.pkg.Foo")
             assertThat(classTypeParamBound.arguments).hasSize(1)
             val classTypeParamBoundTypeArgument = classTypeParamBound.arguments.single()
-            assertThat(classTypeParamBoundTypeArgument).isInstanceOf(VariableTypeItem::class.java)
-            assertThat((classTypeParamBoundTypeArgument as VariableTypeItem).asTypeParameter)
-                .isEqualTo(classTypeParam)
+            classTypeParamBoundTypeArgument.assertReferencesTypeParameter(classTypeParam)
 
             val method = clazz.methods().single()
             val methodTypeParam = method.typeParameterList().typeParameters().single()
@@ -190,9 +187,7 @@ class CommonTypeParameterItemTest : BaseModelTest() {
                 .isEqualTo("test.pkg.Foo")
             assertThat(methodTypeParamBound.arguments).hasSize(1)
             val methodTypeParamBoundTypeArgument = methodTypeParamBound.arguments.single()
-            assertThat(methodTypeParamBoundTypeArgument).isInstanceOf(VariableTypeItem::class.java)
-            assertThat((methodTypeParamBoundTypeArgument as VariableTypeItem).asTypeParameter)
-                .isEqualTo(methodTypeParam)
+            methodTypeParamBoundTypeArgument.assertReferencesTypeParameter(methodTypeParam)
         }
     }
 
@@ -231,13 +226,11 @@ class CommonTypeParameterItemTest : BaseModelTest() {
 
             // A extends C
             val aBound = a.typeBounds().single()
-            assertThat(aBound).isInstanceOf(VariableTypeItem::class.java)
-            assertThat((aBound as VariableTypeItem).asTypeParameter).isEqualTo(c)
+            aBound.assertReferencesTypeParameter(c)
 
             // B extends A
             val bBound = b.typeBounds().single()
-            assertThat(bBound).isInstanceOf(VariableTypeItem::class.java)
-            assertThat((bBound as VariableTypeItem).asTypeParameter).isEqualTo(a)
+            bBound.assertReferencesTypeParameter(a)
 
             // C
             assertThat(c.typeBounds()).isEmpty()
@@ -283,9 +276,7 @@ class CommonTypeParameterItemTest : BaseModelTest() {
             val methodTypeParam = method.typeParameterList().typeParameters().single()
             assertThat(methodTypeParam.toSource()).isEqualTo("E extends T")
             val methodTypeParamBound = methodTypeParam.typeBounds().single()
-            assertThat(methodTypeParamBound).isInstanceOf(VariableTypeItem::class.java)
-            assertThat((methodTypeParamBound as VariableTypeItem).asTypeParameter)
-                .isEqualTo(clazzTypeParam)
+            methodTypeParamBound.assertReferencesTypeParameter(clazzTypeParam)
         }
     }
 
@@ -425,10 +416,8 @@ class CommonTypeParameterItemTest : BaseModelTest() {
             val typeParameter = method.typeParameterList().typeParameters().single()
             val typeVariable = method.returnType()
 
-            assertThat(typeVariable).isInstanceOf(VariableTypeItem::class.java)
-            val toType = typeParameter.type()
-            assertThat(toType).isEqualTo(typeVariable)
-            assertThat(toType).isInstanceOf(VariableTypeItem::class.java)
+            typeVariable.assertReferencesTypeParameter(typeParameter)
+            assertThat(typeParameter.type()).isEqualTo(typeVariable)
         }
     }
 

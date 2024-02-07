@@ -33,7 +33,7 @@ interface TypeParameterItem : Item {
     @MetalavaApi
     fun bounds(): List<ClassItem> = typeBounds().mapNotNull { it.asClass() }
 
-    fun typeBounds(): List<TypeItem>
+    fun typeBounds(): List<BoundsTypeItem>
 
     fun isReified(): Boolean
 

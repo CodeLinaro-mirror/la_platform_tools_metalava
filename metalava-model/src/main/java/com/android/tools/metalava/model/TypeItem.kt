@@ -668,6 +668,13 @@ abstract class DefaultTypeItem(private val codebase: Codebase) : TypeItem {
     }
 }
 
+/**
+ * The type of [TypeParameterItem]'s type bounds.
+ *
+ * See https://docs.oracle.com/javase/specs/jls/se8/html/jls-4.html#jls-TypeBound
+ */
+interface BoundsTypeItem : TypeItem
+
 /** Represents a primitive type, like int or boolean. */
 interface PrimitiveTypeItem : TypeItem {
     /** The kind of [Primitive] this type is. */
@@ -750,7 +757,7 @@ interface ArrayTypeItem : TypeItem {
 }
 
 /** Represents a class type. */
-interface ClassTypeItem : TypeItem {
+interface ClassTypeItem : TypeItem, BoundsTypeItem {
     /** The qualified name of this class, e.g. "java.lang.String". */
     val qualifiedName: String
 
@@ -823,7 +830,7 @@ interface ClassTypeItem : TypeItem {
 }
 
 /** Represents a type variable type. */
-interface VariableTypeItem : TypeItem {
+interface VariableTypeItem : TypeItem, BoundsTypeItem {
     /** The name of the type variable */
     val name: String
 

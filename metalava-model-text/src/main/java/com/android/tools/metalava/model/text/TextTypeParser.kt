@@ -22,7 +22,7 @@ import com.android.tools.metalava.model.JAVA_LANG_OBJECT
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeUse
-import java.util.HashMap
+import kotlin.collections.HashMap
 
 /** Parses and caches types for a [codebase]. */
 internal class TextTypeParser(val codebase: TextCodebase, val kotlinStyleNulls: Boolean = false) {
@@ -37,7 +37,14 @@ internal class TextTypeParser(val codebase: TextCodebase, val kotlinStyleNulls: 
      */
     private data class Key(val typeUse: TypeUse, val type: String)
 
-    private val typeCache = Cache<Key, TextTypeItem>()
+    /** The cache from [Key] to [TextTypeItem]. */
+    private val typeCache = HashMap<Key, TextTypeItem>()
+
+    internal var requests = 0
+    internal var cacheSkip = 0
+    internal var cacheHit = 0
+    internal val cacheSize
+        get() = typeCache.size
 
     /** [TextTypeModifiers] that are empty but set [TextTypeModifiers.nullability] to null. */
     private val nonNullTypeModifiers =
@@ -55,18 +62,9 @@ internal class TextTypeParser(val codebase: TextCodebase, val kotlinStyleNulls: 
         return getSuperType(standardClassName, TypeParameterScope.empty)
     }
 
-    /** Creates or retrieves from cache a [TextTypeItem] representing `java.lang.Object` */
-    fun obtainObjectType(): TextTypeItem {
-        return typeCache.obtain(Key(TypeUse.GENERAL, JAVA_LANG_OBJECT)) {
-            TextClassTypeItem(
-                codebase,
-                JAVA_LANG_OBJECT,
-                emptyList(),
-                null,
-                codebase.emptyTypeModifiers
-            )
-        }
-    }
+    /** A [TextTypeItem] representing `java.lang.Object`, suitable for general use. */
+    private val objectType
+        get() = cachedParseType(JAVA_LANG_OBJECT, TypeParameterScope.empty)
 
     /**
      * Creates or retrieves a previously cached [ClassTypeItem] that is suitable for use as a super
@@ -75,33 +73,51 @@ internal class TextTypeParser(val codebase: TextCodebase, val kotlinStyleNulls: 
     fun getSuperType(
         type: String,
         typeParameterScope: TypeParameterScope,
-        annotations: List<String> = emptyList(),
     ): ClassTypeItem =
-        obtainTypeFromString(type, typeParameterScope, annotations, TypeUse.SUPER_TYPE)
-            as ClassTypeItem
+        obtainTypeFromString(type, typeParameterScope, TypeUse.SUPER_TYPE) as ClassTypeItem
+
+    /**
+     * Creates or retrieves from the cache a [TextTypeItem] representing [type], in the context of
+     * the type parameters from [typeParameterScope], if applicable.
+     */
+    fun obtainTypeFromString(
+        type: String,
+        typeParameterScope: TypeParameterScope,
+        typeUse: TypeUse = TypeUse.GENERAL,
+    ): TextTypeItem = cachedParseType(type, typeParameterScope, emptyList(), typeUse)
 
     /**
      * Creates or retrieves from the cache a [TextTypeItem] representing [type], in the context of
      * the type parameters from [typeParameterScope], if applicable.
      *
-     * The [annotations] are optional leading type-use annotations that have already been removed
-     * from the type string.
+     * Used internally, as it has an extra [annotations] parameter that allows the annotations on
+     * array components to be correctly associated with the correct component. They are optional
+     * leading type-use annotations that have already been removed from the arrays type string.
      */
-    fun obtainTypeFromString(
+    private fun cachedParseType(
         type: String,
         typeParameterScope: TypeParameterScope,
         annotations: List<String> = emptyList(),
         typeUse: TypeUse = TypeUse.GENERAL,
     ): TextTypeItem {
+        requests++
         // Only use the cache if there are no type parameters to prevent identically named type
         // variables from different contexts being parsed as the same type.
         // Also don't use the cache when there are type-use annotations not contained in the string.
         return if (typeParameterScope.isEmpty() && annotations.isEmpty()) {
-            typeCache.obtain(Key(typeUse, type)) {
-                parseType(it.type, typeParameterScope, annotations, it.typeUse)
-            }
+            val key = Key(typeUse, type)
+
+            // Check it in the cache and if not found then create it and put it into the cache
+            typeCache[key]?.also { cacheHit++ }
+                ?: run {
+                    // Create it, cache it and return
+                    parseType(type, typeParameterScope, annotations, typeUse).also {
+                        typeCache[key] = it
+                    }
+                }
         } else {
-            parseType(type, typeParameterScope, annotations)
+            cacheSkip++
+            parseType(type, typeParameterScope, annotations, typeUse)
         }
     }
 
@@ -236,7 +252,7 @@ internal class TextTypeParser(val codebase: TextCodebase, val kotlinStyleNulls: 
         // the leading annotations already removed from the type string.
         componentString += componentNullability?.suffix.orEmpty()
         val deepComponentType =
-            obtainTypeFromString(componentString, typeParameterScope, componentAnnotations)
+            cachedParseType(componentString, typeParameterScope, componentAnnotations)
 
         // Join the annotations and nullability markers -- as described in the comment above, these
         // appear in the string in reverse order of each other. The modifiers list will be ordered
@@ -279,7 +295,7 @@ internal class TextTypeParser(val codebase: TextCodebase, val kotlinStyleNulls: 
         if (type == "?")
             return TextWildcardTypeItem(
                 codebase,
-                obtainObjectType(),
+                objectType,
                 null,
                 modifiers(annotations, TypeNullability.UNDEFINED)
             )
@@ -290,7 +306,7 @@ internal class TextTypeParser(val codebase: TextCodebase, val kotlinStyleNulls: 
             val extendsBound = bound.substring(8)
             TextWildcardTypeItem(
                 codebase,
-                obtainTypeFromString(extendsBound, typeParameterScope),
+                cachedParseType(extendsBound, typeParameterScope),
                 null,
                 modifiers(annotations, TypeNullability.UNDEFINED)
             )
@@ -299,8 +315,8 @@ internal class TextTypeParser(val codebase: TextCodebase, val kotlinStyleNulls: 
             TextWildcardTypeItem(
                 codebase,
                 // All wildcards have an implicit Object extends bound
-                obtainObjectType(),
-                obtainTypeFromString(superBound, typeParameterScope),
+                objectType,
+                cachedParseType(superBound, typeParameterScope),
                 modifiers(annotations, TypeNullability.UNDEFINED)
             )
         } else {
@@ -372,7 +388,7 @@ internal class TextTypeParser(val codebase: TextCodebase, val kotlinStyleNulls: 
             }
 
         val (paramStrings, remainder) = typeParameterStringsWithRemainder(afterName)
-        val params = paramStrings.map { obtainTypeFromString(it, typeParameterScope) }
+        val params = paramStrings.map { cachedParseType(it, typeParameterScope) }
         // If this is an outer class type (there's a remainder), call it non-null and don't apply
         // the leading annotations (they belong to the inner class type).
         val classModifiers =
@@ -412,20 +428,6 @@ internal class TextTypeParser(val codebase: TextCodebase, val kotlinStyleNulls: 
         nullability: TypeNullability?
     ): TextTypeModifiers {
         return TextTypeModifiers.create(codebase, annotations, nullability)
-    }
-
-    private class Cache<Key, Value> {
-        private val cache = HashMap<Key, Value>()
-
-        fun obtain(o: Key, make: (Key) -> Value): Value {
-            var r = cache[o]
-            if (r == null) {
-                r = make(o)
-                cache[o] = r
-            }
-            // r must be non-null: either it was cached or created with make
-            return r!!
-        }
     }
 
     companion object {

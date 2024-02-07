@@ -1127,9 +1127,8 @@ class CommonClassItemTest : BaseModelTest() {
             assertThat(outerType!!.qualifiedName).isEqualTo("test.pkg.Outer")
 
             val outerClassVariable = outerType.arguments.single()
-            assertThat(outerClassVariable).isInstanceOf(VariableTypeItem::class.java)
+            outerClassVariable.assertReferencesTypeParameter(outerClassParameter)
             assertThat((outerClassVariable as VariableTypeItem).name).isEqualTo("T")
-            assertThat(outerClassVariable.asTypeParameter).isEqualTo(outerClassParameter)
         }
     }
 

@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.psi
 
+import com.android.tools.metalava.model.BoundsTypeItem
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.VariableTypeItem
 import com.intellij.psi.PsiTypeParameter
@@ -46,13 +47,13 @@ internal class PsiTypeParameterItem(
 
     override fun psi() = psiClass
 
-    override fun typeBounds(): List<PsiTypeItem> = bounds
+    override fun typeBounds(): List<BoundsTypeItem> = bounds
 
     override fun isReified(): Boolean {
         return isReified(psiClass as? PsiTypeParameter)
     }
 
-    private lateinit var bounds: List<PsiTypeItem>
+    private lateinit var bounds: List<BoundsTypeItem>
 
     override fun finishInitialization() {
         super.finishInitialization()
@@ -62,7 +63,7 @@ internal class PsiTypeParameterItem(
             if (refs.isEmpty()) {
                 emptyList()
             } else {
-                refs.mapNotNull { codebase.getType(it) }
+                refs.mapNotNull { codebase.getType(it) as BoundsTypeItem }
             }
     }
 

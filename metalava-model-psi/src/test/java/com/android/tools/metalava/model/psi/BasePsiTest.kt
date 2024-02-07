@@ -113,13 +113,20 @@ open class BasePsiTest : TemporaryFolderOwner, Assertions {
         return environmentManager
             .createSourceParser(reporter, noOpAnnotationManager, useK2Uast = isK2)
             .parseSources(
-                SourceSet(sources.map { it.createFile(directory) }, listOf(sourceDirectory)),
-                SourceSet(
-                    commonSources.map { it.createFile(commonDirectory) },
-                    listOfNotNull(commonDirectory)
-                ),
+                createSourceSet(sources, sourceDirectory),
+                createSourceSet(commonSources, commonDirectory),
                 description = "Test Codebase",
                 classPath = classPath,
             )
+    }
+
+    protected fun createSourceSet(
+        sources: List<TestFile>,
+        sourceDirectory: File?,
+    ): SourceSet {
+        return SourceSet(
+            sources.map { it.createFile(sourceDirectory) },
+            listOfNotNull(sourceDirectory)
+        )
     }
 }
