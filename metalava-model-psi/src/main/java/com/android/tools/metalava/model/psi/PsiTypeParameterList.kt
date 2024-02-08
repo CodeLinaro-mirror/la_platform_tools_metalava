@@ -18,6 +18,8 @@ package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.model.DefaultTypeParameterList
 import com.android.tools.metalava.model.TypeParameterItem
+import com.android.tools.metalava.model.TypeParameterList
+import com.intellij.psi.PsiTypeParameterListOwner
 
 internal class PsiTypeParameterList(
     val codebase: PsiBasedCodebase,
@@ -31,5 +33,17 @@ internal class PsiTypeParameterList(
 
     override fun typeParameters(): List<TypeParameterItem> {
         return typeParameters
+    }
+
+    companion object {
+        fun create(codebase: PsiBasedCodebase, psiOwner: PsiTypeParameterListOwner) =
+            if (psiOwner.hasTypeParameters()) {
+                psiOwner.typeParameterList?.let { psiTypeParameterList ->
+                    PsiTypeParameterList(codebase, psiTypeParameterList)
+                }
+                    ?: TypeParameterList.NONE
+            } else {
+                TypeParameterList.NONE
+            }
     }
 }

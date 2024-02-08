@@ -181,16 +181,10 @@ internal constructor(
 
     override fun hasTypeVariables(): Boolean = psiClass.hasTypeParameters()
 
-    override fun typeParameterList(): TypeParameterList {
-        if (psiClass.hasTypeParameters()) {
-            return PsiTypeParameterList(
-                codebase,
-                psiClass.typeParameterList ?: return TypeParameterList.NONE
-            )
-        } else {
-            return TypeParameterList.NONE
-        }
-    }
+    private val typeParameterList: TypeParameterList by
+        lazy(LazyThreadSafetyMode.NONE) { PsiTypeParameterList.create(codebase, psiClass) }
+
+    override fun typeParameterList() = typeParameterList
 
     override fun getSourceFile(): SourceFile? {
         if (isInnerClass()) {

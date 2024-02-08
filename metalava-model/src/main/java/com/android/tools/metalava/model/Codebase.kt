@@ -44,6 +44,15 @@ interface Codebase {
     /** Returns a class identified by fully qualified name, if in the codebase */
     fun findClass(className: String): ClassItem?
 
+    /**
+     * Resolve a class identified by fully qualified name.
+     *
+     * This does everything it can to retrieve a suitable class, e.g. searching classpath (if
+     * available). That may include fabricating the [ClassItem] from nothing in the case of models
+     * that work with a partial set of classes (like text model).
+     */
+    fun resolveClass(className: String): ClassItem?
+
     /** Returns a package identified by fully qualified name, if in the codebase */
     fun findPackage(pkgName: String): PackageItem?
 

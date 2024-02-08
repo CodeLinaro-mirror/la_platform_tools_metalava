@@ -65,6 +65,8 @@ internal class TextCodebase(
 
     override fun findClass(className: String) = mAllClasses[className] ?: externalClasses[className]
 
+    override fun resolveClass(className: String) = getOrCreateClass(className)
+
     override fun supportsDocumentation(): Boolean = false
 
     fun addPackage(pInfo: TextPackageItem) {

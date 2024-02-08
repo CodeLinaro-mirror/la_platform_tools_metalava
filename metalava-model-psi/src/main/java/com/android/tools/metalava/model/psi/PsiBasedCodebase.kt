@@ -28,6 +28,7 @@ import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PackageList
+import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.TypeUse
 import com.android.tools.metalava.model.source.SourceCodebase
 import com.android.tools.metalava.reporter.Issues
@@ -612,12 +613,21 @@ open class PsiBasedCodebase(
         return classMap[className]
     }
 
+    override fun resolveClass(className: String): ClassItem? = findOrCreateClass(className)
+
     open fun findClass(psiClass: PsiClass): PsiClassItem? {
         val qualifiedName: String = psiClass.qualifiedName ?: psiClass.name!!
         return classMap[qualifiedName]
     }
 
     internal fun findOrCreateClass(qualifiedName: String): PsiClassItem? {
+        // Check to see if the class has already been seen and if so return it immediately.
+        findClass(qualifiedName)?.let {
+            return it
+        }
+
+        // The following cannot find a class whose name does not correspond to the file name, e.g.
+        // in Java a class that is a second top level class.
         val finder = JavaPsiFacade.getInstance(project)
         val psiClass =
             finder.findClass(qualifiedName, GlobalSearchScope.allScope(project)) ?: return null
@@ -680,17 +690,31 @@ open class PsiBasedCodebase(
     }
 
     /**
-     * Find or create a [PsiTypeParameterItem] representing [PsiTypeParameter].
+     * Find a [PsiTypeParameterItem] representing [PsiTypeParameter].
      *
-     * At the moment this always create a new instance to replicate legacy behavior but this will be
-     * fixed in future.
-     *
-     * TODO(b/321075216): Find and reuse existing instances.
+     * The corresponding [TypeParameterItem] must always exist, otherwise the source code has
+     * serious syntactic and/or semantic errors.
      */
-    internal fun findOrCreateTypeParameter(
-        psiTypeParameter: PsiTypeParameter
-    ): PsiTypeParameterItem {
-        return PsiTypeParameterItem.create(this, psiTypeParameter)
+    internal fun findTypeParameter(psiTypeParameter: PsiTypeParameter): TypeParameterItem {
+        // Find the [TypeParameterListOwner] of the type parameter by searching for the
+        // [MethodItem]/[ClassItem] corresponding to the underlying [PsiTypeParameter]'s owner.
+        val psiOwner = psiTypeParameter.owner
+        val typeParameterListOwner =
+            when (psiOwner) {
+                is PsiMethod -> findMethod(psiOwner)
+                is PsiClass -> findClass(psiOwner)
+                else -> null
+            }
+                ?: error("Could not find or recognize owner $psiOwner")
+
+        // Search through the owner's [TypeParameterList] to find the parameter with the matching
+        // name and return that.
+        val typeParameterList = typeParameterListOwner.typeParameterList()
+        val name = psiTypeParameter.name
+        return typeParameterList.typeParameters().firstOrNull { it.name() == name }
+            ?: error(
+                "Could not find type parameter $name in $typeParameterList of $typeParameterListOwner"
+            )
     }
 
     internal fun getClassType(cls: PsiClass): PsiClassType =

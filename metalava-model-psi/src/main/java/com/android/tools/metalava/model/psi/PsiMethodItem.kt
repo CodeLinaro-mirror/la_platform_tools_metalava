@@ -126,16 +126,10 @@ open class PsiMethodItem(
         return superMethods!!
     }
 
-    override fun typeParameterList(): TypeParameterList {
-        if (psiMethod.hasTypeParameters()) {
-            return PsiTypeParameterList(
-                codebase,
-                psiMethod.typeParameterList ?: return TypeParameterList.NONE
-            )
-        } else {
-            return TypeParameterList.NONE
-        }
-    }
+    private val typeParameterList: TypeParameterList by
+        lazy(LazyThreadSafetyMode.NONE) { PsiTypeParameterList.create(codebase, psiMethod) }
+
+    override fun typeParameterList() = typeParameterList
 
     //    private var throwsTypes: List<ClassItem>? = null
     private lateinit var throwsTypes: List<ThrowableType>
@@ -441,9 +435,7 @@ open class PsiMethodItem(
                 .map { throwsClass ->
                     // PsiTypeParameterItem have to be created separately to PsiClassItem.
                     if (throwsClass is PsiTypeParameter) {
-                        ThrowableType.ofTypeParameter(
-                            codebase.findOrCreateTypeParameter(throwsClass)
-                        )
+                        ThrowableType.ofTypeParameter(codebase.findTypeParameter(throwsClass))
                     } else {
                         ThrowableType.ofClass(codebase.findOrCreateClass(throwsClass))
                     }

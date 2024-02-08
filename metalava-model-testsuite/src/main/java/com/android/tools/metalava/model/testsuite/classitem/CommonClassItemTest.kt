@@ -1168,4 +1168,35 @@ class CommonClassItemTest : BaseModelTest() {
             assertThat(typeParameter).isNotInstanceOf(ClassItem::class.java)
         }
     }
+
+    @Test
+    fun `Check pathological type parameter conflicting with primitive type`() {
+        runCodebaseTest(
+            signature(
+                """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public abstract class Generic<int> {
+                        method public abstract int method();
+                      }
+                    }
+                """
+            ),
+            // Java does not support using a primitive type name as a type parameter name.
+            kotlin(
+                """
+                    package test.pkg
+                    abstract class Generic<Int> {
+                        abstract fun method(): Int
+                    }
+                """
+            )
+        ) {
+            val genericClass = codebase.assertClass("test.pkg.Generic")
+            val typeParameter = genericClass.typeParameterList().typeParameters().single()
+
+            val methodReturnType = genericClass.methods().single().returnType()
+            methodReturnType.assertReferencesTypeParameter(typeParameter)
+        }
+    }
 }

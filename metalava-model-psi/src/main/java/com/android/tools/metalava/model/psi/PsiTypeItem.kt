@@ -17,14 +17,14 @@
 package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.model.ArrayTypeItem
-import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.DefaultTypeItem
 import com.android.tools.metalava.model.Item
-import com.android.tools.metalava.model.JAVA_LANG_OBJECT
 import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
+import com.android.tools.metalava.model.ReferenceTypeItem
+import com.android.tools.metalava.model.TypeArgumentTypeItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeParameterItem
@@ -237,27 +237,26 @@ internal class PsiClassTypeItem(
     codebase: PsiBasedCodebase,
     psiType: PsiType,
     override val qualifiedName: String,
-    override val arguments: List<PsiTypeItem>,
+    override val arguments: List<TypeArgumentTypeItem>,
     override val outerClassType: PsiClassTypeItem?,
     override val className: String,
     override val modifiers: PsiTypeModifiers,
 ) : ClassTypeItem, PsiTypeItem(codebase, psiType) {
 
-    private var asClass: ClassItem? = null
+    private val asClassCache by
+        lazy(LazyThreadSafetyMode.NONE) { codebase.resolveClass(qualifiedName) }
 
-    override fun asClass(): ClassItem? {
-        if (asClass == null) {
-            asClass = codebase.findClass(psiType)
-        }
-        return asClass
-    }
+    override fun asClass() = asClassCache
 
-    override fun duplicate(outerClass: ClassTypeItem?, arguments: List<TypeItem>): ClassTypeItem =
+    override fun duplicate(
+        outerClass: ClassTypeItem?,
+        arguments: List<TypeArgumentTypeItem>
+    ): ClassTypeItem =
         PsiClassTypeItem(
             codebase = codebase,
             psiType = psiType,
             qualifiedName = qualifiedName,
-            arguments = arguments.map { it as PsiTypeItem },
+            arguments = arguments,
             outerClassType = outerClass as? PsiClassTypeItem,
             className = className,
             modifiers = modifiers.duplicate()
@@ -287,7 +286,7 @@ internal class PsiClassTypeItem(
             codebase: PsiBasedCodebase,
             psiType: PsiClassType,
             kotlinType: KotlinTypeInfo?
-        ): List<PsiTypeItem> {
+        ): List<TypeArgumentTypeItem> {
             val psiParameters =
                 psiType.parameters.toList().ifEmpty {
                     // Sometimes an immediate class type has no parameters even though the class
@@ -299,7 +298,7 @@ internal class PsiClassTypeItem(
                 }
 
             return psiParameters.mapIndexed { i, param ->
-                create(codebase, param, kotlinType?.forParameter(i))
+                create(codebase, param, kotlinType?.forParameter(i)) as TypeArgumentTypeItem
             }
         }
 
@@ -355,18 +354,7 @@ internal class PsiVariableTypeItem(
 ) : VariableTypeItem, PsiTypeItem(codebase, psiType) {
     override val asTypeParameter: TypeParameterItem by lazy {
         val cls = (psiType as PsiClassType).resolve() ?: error("Could not resolve $psiType")
-        codebase.findOrCreateTypeParameter(cls as PsiTypeParameter)
-    }
-
-    private var asClass: ClassItem? = null
-
-    override fun asClass(): ClassItem? {
-        if (asClass == null) {
-            asClass =
-                asTypeParameter.typeBounds().firstOrNull()?.asClass()
-                    ?: codebase.findOrCreateClass(JAVA_LANG_OBJECT)
-        }
-        return asClass
+        codebase.findTypeParameter(cls as PsiTypeParameter)
     }
 
     override fun duplicate(): PsiVariableTypeItem =
@@ -392,16 +380,19 @@ internal class PsiVariableTypeItem(
 internal class PsiWildcardTypeItem(
     codebase: PsiBasedCodebase,
     psiType: PsiType,
-    override val extendsBound: PsiTypeItem?,
-    override val superBound: PsiTypeItem?,
+    override val extendsBound: ReferenceTypeItem?,
+    override val superBound: ReferenceTypeItem?,
     override val modifiers: PsiTypeModifiers,
 ) : WildcardTypeItem, PsiTypeItem(codebase, psiType) {
-    override fun duplicate(extendsBound: TypeItem?, superBound: TypeItem?): WildcardTypeItem =
+    override fun duplicate(
+        extendsBound: ReferenceTypeItem?,
+        superBound: ReferenceTypeItem?
+    ): WildcardTypeItem =
         PsiWildcardTypeItem(
             codebase = codebase,
             psiType = psiType,
-            extendsBound = extendsBound as? PsiTypeItem,
-            superBound = superBound as? PsiTypeItem,
+            extendsBound = extendsBound,
+            superBound = superBound,
             modifiers = modifiers.duplicate()
         )
 
@@ -427,12 +418,12 @@ internal class PsiWildcardTypeItem(
             bound: PsiType,
             codebase: PsiBasedCodebase,
             kotlinType: KotlinTypeInfo?
-        ): PsiTypeItem? {
+        ): ReferenceTypeItem? {
             return if (bound == PsiTypes.nullType()) {
                 null
             } else {
                 // Use the same Kotlin type, because the wildcard isn't its own level in the KtType.
-                create(codebase, bound, kotlinType)
+                create(codebase, bound, kotlinType) as ReferenceTypeItem
             }
         }
     }
