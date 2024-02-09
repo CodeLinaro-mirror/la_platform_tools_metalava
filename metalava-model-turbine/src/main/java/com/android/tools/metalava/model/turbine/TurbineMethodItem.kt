@@ -29,15 +29,15 @@ open class TurbineMethodItem(
     private val containingClass: TurbineClassItem,
     protected var returnType: TurbineTypeItem,
     modifiers: TurbineModifierItem,
-    private val typeParameters: TypeParameterList
-) : TurbineItem(codebase, modifiers), MethodItem {
+    private val typeParameters: TypeParameterList,
+    documentation: String,
+) : TurbineItem(codebase, modifiers, documentation), MethodItem {
 
     private lateinit var superMethodList: List<MethodItem>
     internal lateinit var throwsClassNames: List<String>
     private lateinit var throwsTypes: List<ClassItem>
     internal lateinit var parameters: List<ParameterItem>
 
-    override var inheritedMethod: Boolean = false
     override var inheritedFrom: ClassItem? = null
 
     override fun name(): String = methodSymbol.name()

@@ -26,11 +26,20 @@ class TurbineFieldItem(
     private val containingClass: TurbineClassItem,
     private val type: TurbineTypeItem,
     modifiers: TurbineModifierItem,
-) : TurbineItem(codebase, modifiers), FieldItem {
+    documentation: String,
+) : TurbineItem(codebase, modifiers, documentation), FieldItem {
+
+    internal var initialValueWithRequiredConstant: Any? = null
+
+    internal var initialValueWithoutRequiredConstant: Any? = null
+
+    private val isEnumConstantField by lazy {
+        containingClass.isEnum() &&
+            (type is TurbineClassTypeItem) &&
+            type.asClass() == containingClass
+    }
 
     override var inheritedFrom: ClassItem? = null
-
-    override var inheritedField: Boolean = false
 
     override fun name(): String = name
 
@@ -53,9 +62,10 @@ class TurbineFieldItem(
         TODO("b/295800205")
     }
 
-    // TODO("b/295800205")
-    override fun initialValue(requireConstant: Boolean): Any? = null
+    override fun initialValue(requireConstant: Boolean): Any? {
+        return if (requireConstant) initialValueWithRequiredConstant
+        else initialValueWithoutRequiredConstant
+    }
 
-    // TODO("b/295800205")
-    override fun isEnumConstant(): Boolean = false
+    override fun isEnumConstant(): Boolean = isEnumConstantField
 }

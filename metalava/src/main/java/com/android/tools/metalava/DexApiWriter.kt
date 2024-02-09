@@ -46,7 +46,7 @@ class DexApiWriter(
     }
 
     override fun visitMethod(method: MethodItem) {
-        if (method.inheritedMethod) {
+        if (method.inheritedFromAncestor) {
             return
         }
 

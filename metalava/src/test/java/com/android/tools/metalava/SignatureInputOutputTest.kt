@@ -413,7 +413,7 @@ class SignatureInputOutputTest {
             """
                 package test.pkg {
                   public class Foo {
-                    method public foo(i: int, map: java.util.Map<java.lang.String, java.lang.Object>, arr: String[]): String;
+                    method public foo(i: int, map: java.util.Map<java.lang.String,java.lang.Object>, arr: String[]): String;
                   }
                 }
             """
@@ -456,7 +456,7 @@ class SignatureInputOutputTest {
             """
                 package test.pkg {
                   public class Foo {
-                    method public foo(_: int, _: java.util.Map<java.lang.String, java.lang.Object>, _: String[]): String;
+                    method public foo(_: int, _: java.util.Map<java.lang.String,java.lang.Object>, _: String[]): String;
                   }
                 }
             """
@@ -500,7 +500,7 @@ class SignatureInputOutputTest {
             """
                 package test.pkg {
                   public class MyTest {
-                    method public abstract getParameterAnnotations(): @C java.lang.annotation.Annotation? @A [] @B []!;
+                    method public abstract getParameterAnnotations(): java.lang.annotation.@C Annotation? @A [] @B []!;
                   }
                 }
             """

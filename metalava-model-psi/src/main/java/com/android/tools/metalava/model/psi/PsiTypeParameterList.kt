@@ -16,25 +16,17 @@
 
 package com.android.tools.metalava.model.psi
 
+import com.android.tools.metalava.model.DefaultTypeParameterList
 import com.android.tools.metalava.model.TypeParameterItem
-import com.android.tools.metalava.model.TypeParameterList
 
 internal class PsiTypeParameterList(
     val codebase: PsiBasedCodebase,
     private val psiTypeParameterList: com.intellij.psi.PsiTypeParameterList
-) : TypeParameterList {
+) : DefaultTypeParameterList() {
     private val typeParameters by lazy {
         psiTypeParameterList.typeParameters.map {
             PsiTypeParameterItem.create(codebase, it).apply { finishInitialization() }
         }
-    }
-
-    override fun toString(): String {
-        return PsiTypeItem.typeParameterList(psiTypeParameterList) ?: ""
-    }
-
-    override fun typeParameterNames(): List<String> {
-        return typeParameters.map { it.simpleName() }
     }
 
     override fun typeParameters(): List<TypeParameterItem> {

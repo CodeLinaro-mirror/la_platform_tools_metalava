@@ -161,7 +161,7 @@ class CommonTypeStringTest : BaseModelTest() {
 
     @Test
     fun `Type string`() {
-        runCodebaseTest(javaTestFiles(), signatureTestFile()) { codebase ->
+        runCodebaseTest(javaTestFiles(), signatureTestFile()) {
             val method = codebase.assertClass("test.pkg.Foo").methods().single()
             val param = method.parameters().single()
             val type = param.type()
@@ -170,7 +170,6 @@ class CommonTypeStringTest : BaseModelTest() {
                     annotations = parameters.typeStringConfiguration.annotations,
                     kotlinStyleNulls = parameters.typeStringConfiguration.kotlinStyleNulls,
                     filter = parameters.typeStringConfiguration.filter,
-                    context = param,
                     spaceBetweenParameters =
                         parameters.typeStringConfiguration.spaceBetweenParameters,
                 )
@@ -248,13 +247,14 @@ class CommonTypeStringTest : BaseModelTest() {
                 ) +
                 TypeStringParameters.forDefaultAndKotlinNulls(
                     name = "int varargs",
-                    sourceType = "int..."
+                    sourceType = "int...",
+                    expectedKotlinNullsTypeString = "int...!"
                 ) +
                 TypeStringParameters.forDefaultAndKotlinNulls(
                     name = "string varargs",
                     sourceType = "String...",
                     expectedDefaultTypeString = "java.lang.String...",
-                    expectedKotlinNullsTypeString = "java.lang.String!..."
+                    expectedKotlinNullsTypeString = "java.lang.String!...!"
                 ) +
                 TypeStringParameters.forDefaultAndKotlinNulls(
                     name = "string list",
@@ -264,7 +264,7 @@ class CommonTypeStringTest : BaseModelTest() {
                 TypeStringParameters.forDefaultAndKotlinNulls(
                     name = "extends string list",
                     sourceType = "java.util.List<? extends java.lang.String>",
-                    expectedKotlinNullsTypeString = "java.util.List<? extends java.lang.String>!"
+                    expectedKotlinNullsTypeString = "java.util.List<? extends java.lang.String!>!"
                 ) +
                 TypeStringParameters.forDefaultAndKotlinNulls(
                     name = "T",
@@ -413,7 +413,8 @@ class CommonTypeStringTest : BaseModelTest() {
                 ) +
                 TypeStringParameters.fromConfigurations(
                     name = "null annotated string varargs",
-                    sourceType = "@libcore.util.Nullable String @libcore.util.NonNull ...",
+                    sourceType =
+                        "java.lang.@libcore.util.Nullable String @libcore.util.NonNull ...",
                     configs =
                         listOf(
                             ConfigurationTestCase(
@@ -540,7 +541,7 @@ class CommonTypeStringTest : BaseModelTest() {
                     sourceType =
                         "java.util.Map<? extends java.lang.Number,? super java.lang.Number>",
                     expectedKotlinNullsTypeString =
-                        "java.util.Map<? extends java.lang.Number,? super java.lang.Number>!"
+                        "java.util.Map<? extends java.lang.Number!,? super java.lang.Number!>!"
                 ) +
                 TypeStringParameters.fromConfigurations(
                     name = "annotated integer list",

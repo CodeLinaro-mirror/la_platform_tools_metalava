@@ -62,6 +62,7 @@ import org.jetbrains.kotlin.asJava.classes.KtLightClassForFacade
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.uast.UClass
 import org.jetbrains.uast.UFile
+import org.jetbrains.uast.UMethod
 import org.jetbrains.uast.UastFacade
 import org.jetbrains.uast.kotlin.BaseKotlinUastResolveProviderService
 import org.jetbrains.uast.kotlin.isKotlin
@@ -776,6 +777,13 @@ open class PsiBasedCodebase(
         for (method in methods) {
             val psiMethod = (method as PsiMethodItem).psiMethod
             map[psiMethod] = method
+            if (psiMethod is UMethod) {
+                // Register LC method as a key too
+                // so that we can find the corresponding [MethodItem]
+                // Otherwise, we will end up creating a new [MethodItem]
+                // without source PSI, resulting in wrong modifier.
+                map[psiMethod.javaPsi] = method
+            }
         }
     }
 

@@ -546,7 +546,6 @@ interface ClassItem : Item {
                     if (!field.originallyHidden) {
                         val duplicated = field.duplicate(this)
                         if (predicate.test(duplicated)) {
-                            duplicated.inheritedField = true
                             fields.remove(duplicated)
                             fields.add(duplicated)
                         }
@@ -684,22 +683,88 @@ interface ClassItem : Item {
     var stubConstructor: ConstructorItem?
 
     /**
-     * Creates a map of type variables from this class to the given target class. If class A<X,Y>
-     * extends B<X,Y>, and B is declared as class B<M,N>, this returns the map {"X"->"M", "Y"->"N"}.
-     * There could be multiple intermediate classes between this class and the target class, and in
-     * some cases we could be substituting in a concrete class, e.g. class MyClass extends
-     * B<String,Number> would return the map {"java.lang.String"->"M", "java.lang.Number"->"N"}.
+     * Creates a map of type parameters of the target class to the type variables substituted for
+     * those parameters by this class.
      *
-     * If [reverse] is true, compute the reverse map: keys are the variables in the target and the
-     * values are the variables in the source.
+     * If this class is declared as `class A<X,Y> extends B<X,Y>`, and target class `B` is declared
+     * as `class B<M,N>`, this method returns the map `{M->X, N->Y}`.
+     *
+     * There could be multiple intermediate classes between this class and the target class, and in
+     * some cases we could be substituting in a concrete class, e.g. if this class is declared as
+     * `class MyClass extends Parent<String,Number>` and target class `Parent` is declared as `class
+     * Parent<M,N>` would return the map `{M->java.lang.String, N>java.lang.Number}`.
+     *
+     * The target class can be an interface. If the interface can be found through multiple paths in
+     * the class hierarchy, this method returns the mapping from the first path found in terms of
+     * declaration order. For instance, given declarations `class C<X, Y> implements I1<X>, I2<Y>`,
+     * `interface I1<T1> implements Root<T1>`, `interface I2<T2> implements Root<T2>`, and
+     * `interface Root<T>`, this method will return `{T->X}` as the mapping from `C` to `Root`, not
+     * `{T->Y}`.
      */
-    fun mapTypeVariables(target: ClassItem): Map<String, String> = codebase.unsupported()
+    fun mapTypeVariables(target: ClassItem): Map<TypeItem, TypeItem> {
+        // Gather the supertypes to check for [target]. It is only possible for [target] to be found
+        // in the class hierarchy through this class's interfaces if [target] is an interface.
+        val candidates =
+            if (target.isInterface()) {
+                interfaceTypes() + superClassType()
+            } else {
+                listOf(superClassType())
+            }
+
+        for (superClassType in candidates.filterNotNull()) {
+            superClassType as? ClassTypeItem ?: continue
+            // Convert the type to a class and then back to a type: this will produce a class type
+            // with the type parameters of the declared class, instead of the type variables used in
+            // this class declaration.
+            // E.g. for `class A<X,Y> extends B<X,Y>`, and `class B<M,N>`, the superClassType has
+            // parameters ["X", "Y"] and the declaredClassType has parameters ["M", 'N"].
+            val asClass = superClassType.asClass() ?: continue
+            val declaredClassType = asClass.toType() as? ClassTypeItem ?: continue
+
+            if (asClass.qualifiedName() == target.qualifiedName()) {
+                // The target has been found, return the map directly.
+                return mapTypeVariables(declaredClassType, superClassType)
+            } else {
+                // This superClassType isn't target, but maybe it has target as a superclass.
+                val nextLevelMap = asClass.mapTypeVariables(target)
+                if (nextLevelMap.isNotEmpty()) {
+                    val thisLevelMap = mapTypeVariables(declaredClassType, superClassType)
+                    // Link the two maps by removing intermediate type variables.
+                    return nextLevelMap.mapValues { (_, value) -> thisLevelMap[value] ?: value }
+                }
+            }
+        }
+        return emptyMap()
+    }
+
+    /** Creates a map between the parameters of [c1] and the parameters of [c2]. */
+    private fun mapTypeVariables(c1: ClassTypeItem, c2: ClassTypeItem): Map<TypeItem, TypeItem> {
+        // Don't include parameters of class types, for consistency with the old psi implementation.
+        // TODO (b/319300404): remove this section
+        val c2Params =
+            c2.parameters.map {
+                if (it is ClassTypeItem && it.parameters.isNotEmpty()) {
+                    it.duplicate(it.outerClassType, parameters = emptyList())
+                } else {
+                    it
+                }
+            }
+        return c1.parameters.zip(c2Params).toMap()
+    }
 
     /** Creates a constructor in this class */
     fun createDefaultConstructor(): ConstructorItem = codebase.unsupported()
 
-    /** Creates a method corresponding to the given method signature in this class */
-    fun createMethod(template: MethodItem): MethodItem = codebase.unsupported()
+    /**
+     * Creates a method corresponding to the given method signature in this class.
+     *
+     * This is used to inherit a [MethodItem] from a super class that will not be part of the API
+     * into a class that will be part of the API.
+     *
+     * The [MethodItem.inheritedFrom] property in the returned [MethodItem] is set to
+     * [MethodItem.containingClass] of the [template].
+     */
+    fun inheritMethodFromNonApiAncestor(template: MethodItem): MethodItem = codebase.unsupported()
 
     fun addMethod(method: MethodItem): Unit = codebase.unsupported()
 

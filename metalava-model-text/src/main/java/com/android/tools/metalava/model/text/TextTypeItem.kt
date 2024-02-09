@@ -20,66 +20,14 @@ import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.DefaultTypeItem
-import com.android.tools.metalava.model.Item
-import com.android.tools.metalava.model.JAVA_LANG_PREFIX
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.WildcardTypeItem
-import java.util.function.Predicate
 
-sealed class TextTypeItem(open val codebase: TextCodebase, open val type: String) :
-    DefaultTypeItem(codebase) {
-    override fun toTypeString(
-        annotations: Boolean,
-        kotlinStyleNulls: Boolean,
-        context: Item?,
-        filter: Predicate<Item>?,
-        spaceBetweenParameters: Boolean
-    ): String {
-        if (!kotlinStyleNulls) {
-            return super.toTypeString(
-                annotations,
-                kotlinStyleNulls,
-                context,
-                filter,
-                spaceBetweenParameters
-            )
-        }
-
-        val typeString = toTypeString(type, annotations)
-
-        if (
-            kotlinStyleNulls &&
-                this !is PrimitiveTypeItem &&
-                context != null &&
-                // Don't re-add a suffix if it is already present
-                !typeString.endsWith("!") &&
-                !typeString.endsWith("?")
-        ) {
-            var nullable: Boolean? = context.implicitNullness()
-
-            if (nullable == null) {
-                for (annotation in context.modifiers.annotations()) {
-                    if (annotation.isNullable()) {
-                        nullable = true
-                    } else if (annotation.isNonNull()) {
-                        nullable = false
-                    }
-                }
-            }
-            when (nullable) {
-                null -> return "$typeString!"
-                true -> return "$typeString?"
-                else -> {
-                    /* non-null: nothing to add */
-                }
-            }
-        }
-        return typeString
-    }
+sealed class TextTypeItem(open val codebase: TextCodebase) : DefaultTypeItem(codebase) {
 
     override fun asClass(): ClassItem? {
         if (this is PrimitiveTypeItem) {
@@ -98,52 +46,9 @@ sealed class TextTypeItem(open val codebase: TextCodebase, open val type: String
         return codebase.getOrCreateClass(cls)
     }
 
-    private fun qualifiedTypeName(): String = type
-
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-
-        return when (other) {
-            // Note: when we support type-use annotations, this is not safe: there could be a string
-            // literal inside which is significant
-            is TextTypeItem -> TypeItem.equalsWithoutSpace(toString(), other.toString())
-            is TypeItem -> {
-                val thisString = toTypeString()
-                val otherString = other.toTypeString()
-                if (TypeItem.equalsWithoutSpace(thisString, otherString)) {
-                    return true
-                }
-                if (
-                    thisString.startsWith(JAVA_LANG_PREFIX) &&
-                        thisString.endsWith(otherString) &&
-                        thisString.length == otherString.length + JAVA_LANG_PREFIX.length
-                ) {
-                    // When reading signature files, it's sometimes ambiguous whether a name
-                    // references a java.lang. implicit class or a type parameter.
-                    return true
-                }
-
-                return false
-            }
-            else -> false
-        }
-    }
-
-    override fun hashCode(): Int {
-        return qualifiedTypeName().hashCode()
-    }
-
-    override fun convertType(replacementMap: Map<String, String>?, owner: Item?): TypeItem {
-        return codebase.typeResolver.obtainTypeFromString(convertTypeString(replacementMap))
-    }
-
     internal abstract fun duplicate(withNullability: TypeNullability): TextTypeItem
 
     companion object {
-        fun toTypeString(
-            type: String,
-            annotations: Boolean,
-        ): String = if (annotations) type else eraseAnnotations(type)
 
         fun eraseTypeArguments(s: String): String {
             val index = s.indexOf('<')
@@ -169,180 +74,106 @@ sealed class TextTypeItem(open val codebase: TextCodebase, open val type: String
             }
             return s
         }
-
-        /**
-         * Given a type possibly using the Kotlin-style null syntax, strip out any Kotlin-style null
-         * syntax characters, e.g. "String?" -> "String", but make sure not to damage types like
-         * "Set<? extends Number>".
-         */
-        fun stripKotlinNullChars(s: String): String {
-            var found = false
-            var prev = ' '
-            for (c in s) {
-                if (c == '!' || c == '?' && (prev != '<' && prev != ',' && prev != ' ')) {
-                    found = true
-                    break
-                }
-                prev = c
-            }
-
-            if (!found) {
-                return s
-            }
-
-            val sb = StringBuilder(s.length)
-            for (c in s) {
-                if (c == '!' || c == '?' && (prev != '<' && prev != ',' && prev != ' ')) {
-                    // skip
-                } else {
-                    sb.append(c)
-                }
-                prev = c
-            }
-
-            return sb.toString()
-        }
-
-        private fun eraseAnnotations(type: String): String {
-            if (type.indexOf('@') == -1) {
-                // If using Kotlin-style null syntax, strip those markers as well
-                return stripKotlinNullChars(type)
-            }
-
-            // Assumption: top level annotations appear first
-            val length = type.length
-            var max = length
-
-            var s = type
-            while (true) {
-                val index = s.indexOf('@')
-                if (index == -1 || index >= max) {
-                    break
-                }
-
-                // Find end
-                val end = TextTypeParser.findAnnotationEnd(s, index + 1)
-                val oldLength = s.length
-                s = s.substring(0, index).trim() + s.substring(end).trim()
-                val newLength = s.length
-                val removed = oldLength - newLength
-                max -= removed
-            }
-
-            // Sometimes we have a second type after the max, such as
-            // @androidx.annotation.NonNull java.lang.reflect.@androidx.annotation.NonNull
-            // TypeVariable<...>
-            for (i in s.indices) {
-                val c = s[i]
-                if (Character.isJavaIdentifierPart(c) || c == '.') {
-                    continue
-                } else if (c == '@') {
-                    // Found embedded annotation within the type
-                    val end = TextTypeParser.findAnnotationEnd(s, i + 1)
-                    if (end == -1 || end == length) {
-                        break
-                    }
-
-                    s = s.substring(0, i).trim() + s.substring(end).trim()
-                    break
-                } else {
-                    break
-                }
-            }
-
-            return s
-        }
     }
 }
 
 /** A [PrimitiveTypeItem] parsed from a signature file. */
 internal class TextPrimitiveTypeItem(
     override val codebase: TextCodebase,
-    override val type: String,
     override val kind: PrimitiveTypeItem.Primitive,
     override val modifiers: TextTypeModifiers
-) : PrimitiveTypeItem, TextTypeItem(codebase, type) {
+) : PrimitiveTypeItem, TextTypeItem(codebase) {
     override fun duplicate(withNullability: TypeNullability): TextTypeItem {
-        return TextPrimitiveTypeItem(codebase, type, kind, modifiers.duplicate(withNullability))
+        return TextPrimitiveTypeItem(codebase, kind, modifiers.duplicate(withNullability))
     }
+
+    // Text types are immutable, so the modifiers don't actually need to be duplicated.
+    override fun duplicate(): TypeItem = this
 }
 
 /** An [ArrayTypeItem] parsed from a signature file. */
 internal class TextArrayTypeItem(
     override val codebase: TextCodebase,
-    override val type: String,
     override val componentType: TypeItem,
     override val isVarargs: Boolean,
     override val modifiers: TextTypeModifiers
-) : ArrayTypeItem, TextTypeItem(codebase, type) {
+) : ArrayTypeItem, TextTypeItem(codebase) {
     override fun duplicate(withNullability: TypeNullability): TextTypeItem {
         return TextArrayTypeItem(
             codebase,
-            type,
             componentType,
             isVarargs,
             modifiers.duplicate(withNullability)
         )
+    }
+
+    override fun duplicate(componentType: TypeItem): ArrayTypeItem {
+        return TextArrayTypeItem(codebase, componentType, isVarargs, modifiers)
     }
 }
 
 /** A [ClassTypeItem] parsed from a signature file. */
 internal class TextClassTypeItem(
     override val codebase: TextCodebase,
-    override val type: String,
     override val qualifiedName: String,
     override val parameters: List<TypeItem>,
     override val outerClassType: ClassTypeItem?,
     override val modifiers: TextTypeModifiers
-) : ClassTypeItem, TextTypeItem(codebase, type) {
+) : ClassTypeItem, TextTypeItem(codebase) {
     override val className: String = ClassTypeItem.computeClassName(qualifiedName)
 
     override fun duplicate(withNullability: TypeNullability): TextTypeItem {
         return TextClassTypeItem(
             codebase,
-            type,
             qualifiedName,
             parameters,
             outerClassType,
             modifiers.duplicate(withNullability)
         )
     }
+
+    override fun duplicate(outerClass: ClassTypeItem?, parameters: List<TypeItem>): ClassTypeItem {
+        return TextClassTypeItem(codebase, qualifiedName, parameters, outerClass, modifiers)
+    }
 }
 
 /** A [VariableTypeItem] parsed from a signature file. */
 internal class TextVariableTypeItem(
     override val codebase: TextCodebase,
-    override val type: String,
     override val name: String,
     override val asTypeParameter: TypeParameterItem,
     override val modifiers: TextTypeModifiers
-) : VariableTypeItem, TextTypeItem(codebase, type) {
+) : VariableTypeItem, TextTypeItem(codebase) {
     override fun duplicate(withNullability: TypeNullability): TextTypeItem {
         return TextVariableTypeItem(
             codebase,
-            type,
             name,
             asTypeParameter,
             modifiers.duplicate(withNullability)
         )
     }
+
+    // Text types are immutable, so the modifiers don't actually need to be duplicated.
+    override fun duplicate(): TypeItem = this
 }
 
 /** A [WildcardTypeItem] parsed from a signature file. */
 internal class TextWildcardTypeItem(
     override val codebase: TextCodebase,
-    override val type: String,
     override val extendsBound: TypeItem?,
     override val superBound: TypeItem?,
     override val modifiers: TextTypeModifiers
-) : WildcardTypeItem, TextTypeItem(codebase, type) {
+) : WildcardTypeItem, TextTypeItem(codebase) {
     override fun duplicate(withNullability: TypeNullability): TextTypeItem {
         return TextWildcardTypeItem(
             codebase,
-            type,
             extendsBound,
             superBound,
             modifiers.duplicate(withNullability)
         )
+    }
+
+    override fun duplicate(extendsBound: TypeItem?, superBound: TypeItem?): WildcardTypeItem {
+        return TextWildcardTypeItem(codebase, extendsBound, superBound, modifiers)
     }
 }

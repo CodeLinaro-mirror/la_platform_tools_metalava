@@ -53,6 +53,14 @@ interface MutableModifierList : ModifierList {
 
     fun setData(data: Boolean)
 
+    fun setSuspend(suspend: Boolean)
+
+    fun setCompanion(companion: Boolean)
+
+    fun setExpect(expect: Boolean)
+
+    fun setActual(actual: Boolean)
+
     fun addAnnotation(annotation: AnnotationItem)
 
     fun removeAnnotation(annotation: AnnotationItem)

@@ -19,6 +19,7 @@ package com.android.tools.metalava.model.testsuite.methoditem
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.java
 import kotlin.test.assertEquals
+import kotlin.test.assertNotEquals
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
@@ -54,7 +55,7 @@ class CommonMethodItemTest : BaseModelTest() {
                     }
                 """
             ),
-        ) { codebase ->
+        ) {
             val testClass = codebase.assertClass("test.pkg.Test")
 
             val actual = buildString {
@@ -122,7 +123,7 @@ class CommonMethodItemTest : BaseModelTest() {
                     """
                 ),
             ),
-        ) { codebase ->
+        ) {
             val testClass = codebase.assertClass("test.pkg.Test")
             val testConstructor = testClass.constructors().single()
             assertEquals(emptyList(), testConstructor.superMethods())
@@ -171,7 +172,7 @@ class CommonMethodItemTest : BaseModelTest() {
                     """
                 ),
             ),
-        ) { codebase ->
+        ) {
             val baseClass = codebase.assertClass("test.pkg.Base")
             val testClass = codebase.assertClass("test.pkg.Test")
 
@@ -179,6 +180,40 @@ class CommonMethodItemTest : BaseModelTest() {
             val testFoo = testClass.methods().single()
 
             assertEquals(listOf(baseFoo), testFoo.superMethods())
+        }
+    }
+
+    @Test
+    fun `Test equality of methods with type parameters`() {
+        runCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+                    public class Foo {
+                        public <T extends Number> void foo(T t) {}
+                        public <T extends String> void foo(T t) {}
+                    }
+                """
+            ),
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public class Foo {
+                        method public <T extends java.lang.Number> void foo(T);
+                        method public <T extends java.lang.String> void foo(T);
+                      }
+                    }
+                """
+            )
+        ) {
+            val methods = codebase.assertClass("test.pkg.Foo").methods()
+            assertEquals(methods.size, 2)
+
+            val numBounds = methods[0]
+            val strBounds = methods[1]
+            // These methods look the same besides their type parameter bounds
+            assertNotEquals(numBounds, strBounds)
         }
     }
 }

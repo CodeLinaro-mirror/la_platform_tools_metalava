@@ -622,4 +622,124 @@ class AddAdditionalOverridesTest : DriverTest() {
                 """,
         )
     }
+
+    @Test
+    fun `Do not elide method inherited from inaccessible class and default method from interface`() {
+        checkAddAdditionalOverrides(
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                        package test.pkg;
+
+                        public interface ParentInterface {
+                            default void bar() {}
+                        }
+                        """
+                    ),
+                    java(
+                        """
+                        package test.pkg;
+
+                        class InaccessibleClass implements ParentInterface {
+                            public void bar() {}
+                        }
+                        """
+                    ),
+                    java(
+                        """
+                        package test.pkg;
+
+                        public class ChildClass extends InaccessibleClass implements ParentInterface {
+                        }
+                        """
+                    ),
+                ),
+            apiOriginal =
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public class ChildClass implements test.pkg.ParentInterface {
+                        ctor public ChildClass();
+                      }
+                      public interface ParentInterface {
+                        method public default void bar();
+                      }
+                    }
+                """,
+            apiWithAdditionalOverrides =
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public class ChildClass implements test.pkg.ParentInterface {
+                        ctor public ChildClass();
+                        method public void bar();
+                      }
+                      public interface ParentInterface {
+                        method public default void bar();
+                      }
+                    }
+                """,
+        )
+    }
+
+    @Test
+    fun `Elide methods inherited from one inaccessible class if they override method inherited from another inaccessible class`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                        package test.pkg;
+
+                        class InaccessibleClass1 {
+                            public void bar() {}
+                        }
+                        """
+                    ),
+                    java(
+                        """
+                        package test.pkg;
+
+                        public class PublicClass1 extends InaccessibleClass1 {
+                        }
+                        """
+                    ),
+                    java(
+                        """
+                        package test.pkg;
+
+                        class InaccessibleClass2 extends PublicClass1 {
+                            public void bar() {}
+                        }
+                        """
+                    ),
+                    java(
+                        """
+                        package test.pkg;
+
+                        public class PublicClass2 extends InaccessibleClass2 {
+                        }
+                        """
+                    ),
+                ),
+            format = FileFormat.V2,
+            api =
+                // This is wrong. PublicClass2 should not define `bar()` as it inherits it from
+                // PublicClass1.
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public class PublicClass1 {
+                        ctor public PublicClass1();
+                        method public void bar();
+                      }
+                      public class PublicClass2 extends test.pkg.PublicClass1 {
+                        ctor public PublicClass2();
+                        method public void bar();
+                      }
+                    }
+                """,
+        )
+    }
 }

@@ -219,7 +219,7 @@ class CommonInternalNameTest : BaseModelTest() {
                 }
                 """
             ),
-        ) { codebase ->
+        ) {
             val methodItem = codebase.assertClass("test.pkg.Foo").methods().single()
             val typeItem = params.getTypeItem(methodItem)
             assertEquals(params.internalName, typeItem.internalName())

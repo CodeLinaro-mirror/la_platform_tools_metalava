@@ -82,6 +82,12 @@ class ApiPredicate(
     )
 
     override fun test(member: Item): Boolean {
+        // non-class, i.e., (literally) member declaration w/o emit flag, e.g., due to `expect`
+        // Some [ClassItem], e.g., JvmInline, java.lang.* classes, may not set the emit flag.
+        if (member !is ClassItem && !member.emit) {
+            return false
+        }
+
         // Type Parameter references (e.g. T) aren't actual types, skip all visibility checks
         if (member is ClassItem && member.isTypeParameter) {
             return true

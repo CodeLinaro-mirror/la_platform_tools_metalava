@@ -16,6 +16,8 @@
 
 package com.android.tools.metalava.model
 
+import com.android.tools.metalava.model.TypeItem.Companion.equals
+import java.util.Objects
 import java.util.function.Predicate
 
 /**
@@ -36,6 +38,24 @@ interface TypeItem {
     fun accept(visitor: TypeVisitor)
 
     /**
+     * Whether this type is equal to [other], not considering modifiers.
+     *
+     * This is implemented on each sub-interface of [TypeItem] instead of [equals] because
+     * interfaces are not allowed to implement [equals]. An [equals] implementation is provided by
+     * [DefaultTypeItem].
+     */
+    fun equalToType(other: TypeItem?): Boolean
+
+    /**
+     * Hashcode for the type.
+     *
+     * This is implemented on each sub-interface of [TypeItem] instead of [hashCode] because
+     * interfaces are not allowed to implement [hashCode]. A [hashCode] implementation is provided
+     * by [DefaultTypeItem].
+     */
+    fun hashCodeForType(): Int
+
+    /**
      * Generates a string for this type.
      *
      * @param annotations For a type like this: @Nullable java.util.List<@NonNull java.lang.String>,
@@ -50,7 +70,6 @@ interface TypeItem {
     fun toTypeString(
         annotations: Boolean = false,
         kotlinStyleNulls: Boolean = false,
-        context: Item? = null,
         filter: Predicate<Item>? = null,
         spaceBetweenParameters: Boolean = false
     ): String
@@ -92,8 +111,8 @@ interface TypeItem {
      * parsing, which may have slightly different formats, e.g. varargs ("...") versus arrays
      * ("[]"), java.lang. prefixes removed in wildcard signatures, etc.
      */
-    fun toCanonicalType(context: Item? = null): String {
-        var s = toTypeString(context = context)
+    fun toCanonicalType(): String {
+        var s = toTypeString()
         while (s.contains(JAVA_LANG_PREFIX)) {
             s = s.replace(JAVA_LANG_PREFIX, "")
         }
@@ -104,6 +123,17 @@ interface TypeItem {
         return s
     }
 
+    /**
+     * Makes substitutions to the type based on the [replacementMap]. For instance, if the
+     * [replacementMap] contains `{T -> String}`, calling this method on `T` would return `String`,
+     * and calling it on `List<T>` would return `List<String>` (in both cases the modifiers on the
+     * `String` will be independently mutable from the `String` in the [replacementMap]). Calling it
+     * on an unrelated type like `int` would return a duplicate of that type.
+     *
+     * This method is intended to be used in conjunction with [ClassItem.mapTypeVariables],
+     */
+    fun convertType(replacementMap: Map<TypeItem, TypeItem>): TypeItem
+
     fun convertType(from: ClassItem, to: ClassItem): TypeItem {
         val map = from.mapTypeVariables(to)
         if (map.isNotEmpty()) {
@@ -113,26 +143,18 @@ interface TypeItem {
         return this
     }
 
-    fun convertType(replacementMap: Map<String, String>?, owner: Item? = null): TypeItem
+    fun isJavaLangObject(): Boolean = false
 
-    fun convertTypeString(replacementMap: Map<String, String>?): String {
-        val typeString = toTypeString(annotations = true, kotlinStyleNulls = false)
-        return convertTypeString(typeString, replacementMap)
-    }
-
-    fun isJavaLangObject(): Boolean {
-        return toTypeString() == JAVA_LANG_OBJECT
-    }
-
-    fun isString(): Boolean {
-        return toTypeString() == JAVA_LANG_STRING
-    }
+    fun isString(): Boolean = false
 
     fun defaultValue(): Any? = null
 
     fun defaultValueString(): String = "null"
 
     fun hasTypeArguments(): Boolean = toTypeString().contains("<")
+
+    /** Creates an identical type, with a copy of this type's modifiers so they can be mutated. */
+    fun duplicate(): TypeItem
 
     companion object {
         /** Shortens types, if configured */
@@ -173,20 +195,6 @@ interface TypeItem {
             }
 
             return type
-        }
-
-        fun formatType(type: String?): String {
-            return if (type == null) {
-                ""
-            } else cleanupGenerics(type)
-        }
-
-        fun cleanupGenerics(signature: String): String {
-            // <T extends java.lang.Object> is the same as <T>
-            //  but NOT for <T extends Object & java.lang.Comparable> -- you can't
-            //  shorten this to <T & java.lang.Comparable
-            // return type.replace(" extends java.lang.Object", "")
-            return signature.replace(" extends java.lang.Object>", ">")
         }
 
         /**
@@ -234,34 +242,6 @@ interface TypeItem {
                 ClassItem.fullNameComparator.compare(cls1, cls2)
             } else {
                 type1.toTypeString().compareTo(type2.toTypeString())
-            }
-        }
-
-        fun convertTypeString(typeString: String, replacementMap: Map<String, String>?): String {
-            var string = typeString
-            if (replacementMap != null && replacementMap.isNotEmpty()) {
-                // This is a moved method (typically an implementation of an interface
-                // method provided in a hidden superclass), with generics signatures.
-                // We need to rewrite the generics variables in case they differ
-                // between the classes.
-                if (replacementMap.isNotEmpty()) {
-                    replacementMap.forEach { (from, to) ->
-                        // We can't just replace one string at a time:
-                        // what if I have a map of {"A"->"B", "B"->"C"} and I tried to convert
-                        // A,B,C?
-                        // If I do the replacements one letter at a time I end up with C,C,C; if I
-                        // do the substitutions
-                        // simultaneously I get B,C,C. Therefore, we insert "___" as a magical
-                        // prefix to prevent
-                        // scenarios like this, and then we'll drop them afterwards.
-                        string =
-                            string.replace(Regex(pattern = """\b$from\b"""), replacement = "___$to")
-                    }
-                }
-                string = string.replace("___", "")
-                return string
-            } else {
-                return string
             }
         }
 
@@ -352,47 +332,6 @@ interface TypeItem {
 
         /** Prefix of Kotlin JVM function types, used for lambdas. */
         private const val KOTLIN_FUNCTION_PREFIX = "kotlin.jvm.functions.Function"
-
-        /** Compares two strings, ignoring space diffs (spaces, not whitespace in general) */
-        fun equalsWithoutSpace(s1: String, s2: String): Boolean {
-            if (s1 == s2) {
-                return true
-            }
-            val sp1 = s1.indexOf(' ') // first space
-            val sp2 = s2.indexOf(' ')
-            if (sp1 == -1 && sp2 == -1) {
-                // no spaces in strings and aren't equal
-                return false
-            }
-
-            val l1 = s1.length
-            val l2 = s2.length
-            var i1 = 0
-            var i2 = 0
-
-            while (i1 < l1 && i2 < l2) {
-                var c1 = s1[i1++]
-                var c2 = s2[i2++]
-
-                while (c1 == ' ' && i1 < l1) {
-                    c1 = s1[i1++]
-                }
-                while (c2 == ' ' && i2 < l2) {
-                    c2 = s2[i2++]
-                }
-                if (c1 != c2) {
-                    return false
-                }
-            }
-            // Skip trailing spaces
-            while (i1 < l1 && s1[i1] == ' ') {
-                i1++
-            }
-            while (i2 < l2 && s2[i2] == ' ') {
-                i2++
-            }
-            return i1 == l1 && i2 == l2
-        }
     }
 }
 
@@ -406,7 +345,6 @@ abstract class DefaultTypeItem(private val codebase: Codebase) : TypeItem {
     override fun toTypeString(
         annotations: Boolean,
         kotlinStyleNulls: Boolean,
-        context: Item?,
         filter: Predicate<Item>?,
         spaceBetweenParameters: Boolean
     ): String {
@@ -447,6 +385,13 @@ abstract class DefaultTypeItem(private val codebase: Codebase) : TypeItem {
         return toSlashFormat(toErasedTypeString())
     }
 
+    override fun equals(other: Any?): Boolean {
+        if (other !is TypeItem) return false
+        return equalToType(other)
+    }
+
+    override fun hashCode(): Int = hashCodeForType()
+
     companion object {
         /**
          * Configuration options for how to represent a type as a string.
@@ -480,6 +425,7 @@ abstract class DefaultTypeItem(private val codebase: Codebase) : TypeItem {
                         appendAnnotations(type.modifiers, configuration)
                     }
                     append(type.kind.primitiveName)
+                    // Primitives must be non-null.
                 }
                 is ArrayTypeItem -> {
                     // The ordering of array annotations means this can't just use a recursive
@@ -492,18 +438,22 @@ abstract class DefaultTypeItem(private val codebase: Codebase) : TypeItem {
                             arrayModifiers.add(deepComponentType.modifiers)
                             deepComponentType = deepComponentType.componentType
                         }
+                        val suffixes = arrayModifiers.map { it.nullability().suffix }.reversed()
 
                         // Print the innermost component type.
                         appendTypeString(deepComponentType, configuration)
 
                         // Print modifiers from the outermost array type in, and the array suffixes.
-                        arrayModifiers.forEachIndexed { index, modifiers ->
+                        arrayModifiers.zip(suffixes).forEachIndexed { index, (modifiers, suffix) ->
                             appendAnnotations(modifiers, configuration, leadingSpace = true)
                             // Only the outermost array can be varargs.
                             if (index < arrayModifiers.size - 1 || !type.isVarargs) {
                                 append("[]")
                             } else {
                                 append("...")
+                            }
+                            if (configuration.kotlinStyleNulls) {
+                                append(suffix)
                             }
                         }
                     } else {
@@ -514,8 +464,10 @@ abstract class DefaultTypeItem(private val codebase: Codebase) : TypeItem {
                         } else {
                             append("[]")
                         }
+                        if (configuration.kotlinStyleNulls) {
+                            append(type.modifiers.nullability().suffix)
+                        }
                     }
-                    // TODO: kotlin nulls
                 }
                 is ClassTypeItem -> {
                     if (type.outerClassType != null) {
@@ -548,14 +500,18 @@ abstract class DefaultTypeItem(private val codebase: Codebase) : TypeItem {
                         }
                         append(">")
                     }
-                    // TODO: kotlin nulls
+                    if (configuration.kotlinStyleNulls) {
+                        append(type.modifiers.nullability().suffix)
+                    }
                 }
                 is VariableTypeItem -> {
                     if (configuration.annotations) {
                         appendAnnotations(type.modifiers, configuration)
                     }
                     append(type.name)
-                    // TODO: kotlin nulls
+                    if (configuration.kotlinStyleNulls) {
+                        append(type.modifiers.nullability().suffix)
+                    }
                 }
                 is WildcardTypeItem -> {
                     if (configuration.annotations) {
@@ -573,6 +529,8 @@ abstract class DefaultTypeItem(private val codebase: Codebase) : TypeItem {
                         append(" super ")
                         appendTypeString(it, configuration)
                     }
+                    // It doesn't make sense to have a nullness suffix on a wildcard, this should be
+                    // handled by the bound.
                 }
             }
         }
@@ -585,6 +543,11 @@ abstract class DefaultTypeItem(private val codebase: Codebase) : TypeItem {
         ) {
             val annotations =
                 modifiers.annotations().filter { annotation ->
+                    // If Kotlin-style nulls are printed, nullness annotations shouldn't be.
+                    if (configuration.kotlinStyleNulls && annotation.isNullnessAnnotation()) {
+                        return@filter false
+                    }
+
                     val filter = configuration.filter ?: return@filter true
                     val qualifiedName = annotation.qualifiedName ?: return@filter true
                     val annotationClass =
@@ -718,6 +681,16 @@ interface PrimitiveTypeItem : TypeItem {
     override fun accept(visitor: TypeVisitor) {
         visitor.visit(this)
     }
+
+    override fun convertType(replacementMap: Map<TypeItem, TypeItem>): TypeItem {
+        return (replacementMap[this] ?: this).duplicate()
+    }
+
+    override fun equalToType(other: TypeItem?): Boolean {
+        return (other as? PrimitiveTypeItem)?.kind == kind
+    }
+
+    override fun hashCodeForType(): Int = kind.hashCode()
 }
 
 /** Represents an array type, including vararg types. */
@@ -733,6 +706,26 @@ interface ArrayTypeItem : TypeItem {
     override fun accept(visitor: TypeVisitor) {
         visitor.visit(this)
     }
+
+    override fun duplicate(): ArrayTypeItem = duplicate(componentType.duplicate())
+
+    /**
+     * Duplicates this type (including duplicating the modifiers so they can be independently
+     * mutated), but substituting in the provided [componentType] in place of this type's component.
+     */
+    fun duplicate(componentType: TypeItem): ArrayTypeItem
+
+    override fun convertType(replacementMap: Map<TypeItem, TypeItem>): TypeItem {
+        return replacementMap[this]?.duplicate()
+            ?: duplicate(componentType.convertType(replacementMap))
+    }
+
+    override fun equalToType(other: TypeItem?): Boolean {
+        if (other !is ArrayTypeItem) return false
+        return isVarargs == other.isVarargs && componentType.equalToType(other.componentType)
+    }
+
+    override fun hashCodeForType(): Int = Objects.hash(isVarargs, componentType)
 }
 
 /** Represents a class type. */
@@ -755,6 +748,39 @@ interface ClassTypeItem : TypeItem {
     override fun accept(visitor: TypeVisitor) {
         visitor.visit(this)
     }
+
+    override fun isString(): Boolean = qualifiedName == JAVA_LANG_STRING
+
+    override fun isJavaLangObject(): Boolean = qualifiedName == JAVA_LANG_OBJECT
+
+    override fun duplicate(): ClassTypeItem =
+        duplicate(outerClassType?.duplicate(), parameters.map { it.duplicate() })
+
+    /**
+     * Duplicates this type (including duplicating the modifiers so they can be independently
+     * mutated), but substituting in the provided [outerClass] and [parameters] in place of this
+     * type's outer class and parameters.
+     */
+    fun duplicate(outerClass: ClassTypeItem?, parameters: List<TypeItem>): ClassTypeItem
+
+    override fun convertType(replacementMap: Map<TypeItem, TypeItem>): TypeItem {
+        return replacementMap[this]?.duplicate()
+            ?: duplicate(
+                outerClassType?.convertType(replacementMap) as? ClassTypeItem,
+                parameters.map { it.convertType(replacementMap) }
+            )
+    }
+
+    override fun equalToType(other: TypeItem?): Boolean {
+        if (other !is ClassTypeItem) return false
+        return qualifiedName == other.qualifiedName &&
+            parameters.size == other.parameters.size &&
+            parameters.zip(other.parameters).all { (p1, p2) -> p1.equalToType(p2) } &&
+            ((outerClassType == null && other.outerClassType == null) ||
+                outerClassType?.equalToType(other.outerClassType) == true)
+    }
+
+    override fun hashCodeForType(): Int = Objects.hash(qualifiedName, outerClassType, parameters)
 
     companion object {
         /** Computes the simple name of a class from a qualified class name. */
@@ -780,6 +806,16 @@ interface VariableTypeItem : TypeItem {
     override fun accept(visitor: TypeVisitor) {
         visitor.visit(this)
     }
+
+    override fun convertType(replacementMap: Map<TypeItem, TypeItem>): TypeItem {
+        return (replacementMap[this] ?: this).duplicate()
+    }
+
+    override fun equalToType(other: TypeItem?): Boolean {
+        return (other as? VariableTypeItem)?.name == name
+    }
+
+    override fun hashCodeForType(): Int = name.hashCode()
 }
 
 /**
@@ -796,4 +832,30 @@ interface WildcardTypeItem : TypeItem {
     override fun accept(visitor: TypeVisitor) {
         visitor.visit(this)
     }
+
+    override fun duplicate(): WildcardTypeItem =
+        duplicate(extendsBound?.duplicate(), superBound?.duplicate())
+
+    /**
+     * Duplicates this type (including duplicating the modifiers so they can be independently
+     * mutated), but substituting in the provided [extendsBound] and [superBound] in place of this
+     * type's bounds.
+     */
+    fun duplicate(extendsBound: TypeItem?, superBound: TypeItem?): WildcardTypeItem
+
+    override fun convertType(replacementMap: Map<TypeItem, TypeItem>): TypeItem {
+        return replacementMap[this]?.duplicate()
+            ?: duplicate(
+                extendsBound?.convertType(replacementMap),
+                superBound?.convertType(replacementMap)
+            )
+    }
+
+    override fun equalToType(other: TypeItem?): Boolean {
+        if (other !is WildcardTypeItem) return false
+        return extendsBound?.equalToType(other.extendsBound) != false &&
+            superBound?.equalToType(other.superBound) != false
+    }
+
+    override fun hashCodeForType(): Int = Objects.hash(extendsBound, superBound)
 }

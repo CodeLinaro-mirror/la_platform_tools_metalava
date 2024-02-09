@@ -3449,7 +3449,7 @@ class CompatibilityCheckTest : DriverTest() {
                 package android.content {
                   public class Context {
                     field public static final String BUGREPORT_SERVICE = "bugreport";
-                    method public File getPreloadsFileCache();
+                    method public java.io.File getPreloadsFileCache();
                   }
                 }
                 """,
@@ -3460,6 +3460,7 @@ class CompatibilityCheckTest : DriverTest() {
                     package android.content;
 
                     import android.annotation.SystemApi;
+                    import java.io.File;
 
                     public class Context {
                         public static final String BUGREPORT_SERVICE = "bugreport";
@@ -5125,6 +5126,91 @@ class CompatibilityCheckTest : DriverTest() {
                     """
                     )
                 ),
+        )
+    }
+
+    @Test
+    fun `Check compatibility against overridden method with type variable substitution`() {
+        check(
+            // The remove method isn't listed in this file, but it exists on Properties with return
+            // type `java.lang.Object`.
+            checkCompatibilityApiReleased =
+                """
+                    package test.pkg {
+                      public class Properties extends test.pkg.Hashtable<java.lang.Object,java.lang.Object> {
+                      }
+
+                      public class Hashtable<K, V> {
+                        method public V remove(Object);
+                      }
+                    }
+                """,
+            signatureSource =
+                """
+                    package test.pkg {
+                      public class Properties extends test.pkg.Hashtable<java.lang.Object,java.lang.Object> {
+                        method public Object remove(Object);
+                      }
+
+                      public class Hashtable<K, V> extends java.util.Dictionary<K,V> implements java.lang.Cloneable java.util.Map<K,V> java.io.Serializable {
+                        method public V remove(Object);
+                      }
+                    }
+                """,
+        )
+    }
+
+    @Test
+    fun `Test adding method with same name as method with type parameter`() {
+        check(
+            checkCompatibilityApiReleased =
+                """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public final class TestKt {
+                        method public static <T> T! foo(T! target);
+                      }
+                    }
+                """,
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                            package test.pkg
+                            fun <T> foo(target: T) = target
+                            fun foo(target: String) = target
+                        """
+                    )
+                ),
+        )
+    }
+
+    @Test
+    fun `Test that parent method with type parameter matches child override`() {
+        check(
+            checkCompatibilityApiReleased =
+                """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public final class Child extends test.pkg.Parent<java.lang.Integer> {
+                        method public void foo(Integer t);
+                      }
+                      public class Parent<T> {
+                        method public void foo(T! t);
+                      }
+                    }
+                """,
+            signatureSource =
+                """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public final class Child extends test.pkg.Parent<java.lang.Integer> {
+                      }
+                      public class Parent<T> {
+                        method public void foo(T! t);
+                      }
+                    }
+                """
         )
     }
 
