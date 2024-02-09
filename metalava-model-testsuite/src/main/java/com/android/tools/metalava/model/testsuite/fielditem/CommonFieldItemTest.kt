@@ -31,6 +31,50 @@ import org.junit.runners.Parameterized
 class CommonFieldItemTest : BaseModelTest() {
 
     @Test
+    fun `Test access type parameter of outer class`() {
+        runCodebaseTest(
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public class Outer<O> {
+                      }
+                      public class Outer.Middle {
+                      }
+                      public class Outer.Middle.Inner {
+                        field public O field;
+                      }
+                    }
+                """
+            ),
+            java(
+                """
+                    package test.pkg;
+
+                    public class Outer<O> {
+                        private Outer() {}
+
+                        public class Middle {
+                            private Middle() {}
+                            public class Inner {
+                                private Inner() {}
+                                public O field;
+                            }
+                        }
+                    }
+                """
+            ),
+        ) {
+            val oTypeParameter =
+                codebase.assertClass("test.pkg.Outer").typeParameterList().typeParameters().single()
+            val fieldType =
+                codebase.assertClass("test.pkg.Outer.Middle.Inner").assertField("field").type()
+
+            fieldType.assertReferencesTypeParameter(oTypeParameter)
+        }
+    }
+
+    @Test
     fun `Test handling of Float MIN_NORMAL`() {
         runCodebaseTest(
             signature(

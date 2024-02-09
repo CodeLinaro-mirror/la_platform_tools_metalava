@@ -40,7 +40,7 @@ class DexApiWriter(
     ) {
     override fun visitClass(cls: ClassItem) {
         if (filterEmit.test(cls)) {
-            writer.print(cls.toType().internalName())
+            writer.print(cls.type().internalName())
             writer.print("\n")
         }
     }
@@ -50,7 +50,7 @@ class DexApiWriter(
             return
         }
 
-        writer.print(method.containingClass().toType().internalName())
+        writer.print(method.containingClass().type().internalName())
         writer.print("->")
         writer.print(method.internalName())
         writer.print("(")
@@ -70,7 +70,7 @@ class DexApiWriter(
     override fun visitField(field: FieldItem) {
         val cls = field.containingClass()
 
-        writer.print(cls.toType().internalName())
+        writer.print(cls.type().internalName())
         writer.print("->")
         writer.print(field.name())
         writer.print(":")

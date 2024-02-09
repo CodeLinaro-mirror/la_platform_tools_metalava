@@ -21,6 +21,7 @@ import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.TypeParameterBindings
 import com.android.tools.metalava.model.findAnnotation
 import com.android.tools.metalava.model.hasAnnotation
 
@@ -66,9 +67,9 @@ internal class TurbineParameterItem(
         internal fun duplicate(
             codebase: TurbineBasedCodebase,
             parameter: ParameterItem,
-            replacementMap: Map<TypeItem, TypeItem>,
+            typeParameterBindings: TypeParameterBindings,
         ): TurbineParameterItem {
-            val type = parameter.type().convertType(replacementMap)
+            val type = parameter.type().convertType(typeParameterBindings)
             val mods = (parameter.modifiers as DefaultModifierList).duplicate()
             return TurbineParameterItem(
                 codebase,

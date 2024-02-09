@@ -18,28 +18,21 @@ package com.android.tools.metalava.model.text
 
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.TypeParameterList
-import com.android.tools.metalava.model.TypeParameterListOwner
 
 internal class TextTypeParameterList(
     val codebase: TextCodebase,
     private var owner: TypeParameterListOwner?,
-    private val typeListString: String
+    private val typeParameters: List<TextTypeParameterItem>,
 ) : TypeParameterList {
-    private var typeParameters: List<TextTypeParameterItem>? = null
-
-    override fun toString(): String = typeListString
+    override fun toString() = typeParameters.joinToString(prefix = "<", postfix = ">")
 
     override fun typeParameters(): List<TypeParameterItem> {
-        if (typeParameters == null) {
-            val strings = TextTypeParser.typeParameterStrings(typeListString)
-            typeParameters = strings.map { TextTypeParameterItem.create(codebase, owner, it) }
-        }
-        return typeParameters!!
+        return typeParameters
     }
 
     internal fun setOwner(newOwner: TypeParameterListOwner) {
         owner = newOwner
-        typeParameters?.forEach { it.setOwner(newOwner) }
+        typeParameters.forEach { it.setOwner(newOwner) }
     }
 
     companion object {
@@ -51,7 +44,10 @@ internal class TextTypeParameterList(
          * like "<A>" or "<A, B extends java.lang.String, C>".
          */
         fun create(codebase: TextCodebase, typeListString: String): TypeParameterList {
-            return TextTypeParameterList(codebase, owner = null, typeListString)
+            val strings = TextTypeParser.typeParameterStrings(typeListString)
+            val typeParameters = strings.map { TextTypeParameterItem.create(codebase, it) }
+
+            return TextTypeParameterList(codebase, owner = null, typeParameters)
         }
     }
 }

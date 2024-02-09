@@ -571,6 +571,49 @@ class CommonAnnotationItemTest : BaseModelTest() {
     }
 
     @Test
+    fun `annotation with constant literal values`() {
+        runCodebaseTest(
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      @test.pkg.Test.Anno(test.pkg.Test.FIELD)
+                      public class Test {
+                        ctor public Test();
+                        field public static final int FIELD = 5;
+                      }
+
+                      public @interface Test.Anno {
+                         method public Int value();
+                      }
+                    }
+                """
+            ),
+            java(
+                """
+                    package test.pkg;
+
+                    @Test.Anno(Test.FIELD)
+                    public class Test {
+                        public Test() {}
+
+                        public static final int FIELD = 5;
+
+                        public @interface Anno {
+                          int value();
+                        }
+                    }
+                """
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+            val anno = testClass.modifiers.annotations().single()
+
+            anno.assertAttributeValue("value", 5)
+        }
+    }
+
+    @Test
     fun `annotation toSource() with annotation values`() {
         runCodebaseTest(
             signature(
@@ -682,7 +725,7 @@ class CommonAnnotationItemTest : BaseModelTest() {
                     package test.pkg {
                       @test.pkg.Test.Anno(
                           charValue = 'a',
-                          charArrayValue = {'a', 'b'},
+                          charArrayValue = {'a', '\uFF00'},
                       )
                       public class Test {
                         ctor public Test();
@@ -701,7 +744,7 @@ class CommonAnnotationItemTest : BaseModelTest() {
 
                     @Test.Anno(
                       charValue = 'a',
-                      charArrayValue = {'a', 'b'}
+                      charArrayValue = {'a', '\uFF00'}
                     )
                     public class Test {
                         public Test() {}
@@ -717,7 +760,7 @@ class CommonAnnotationItemTest : BaseModelTest() {
             val testClass = codebase.assertClass("test.pkg.Test")
             val anno = testClass.modifiers.annotations().single()
 
-            val toSource = "@test.pkg.Test.Anno(charValue='a', charArrayValue={'a', 'b'})"
+            val toSource = "@test.pkg.Test.Anno(charValue='a', charArrayValue={'a', '\\uff00'})"
             assertEquals(toSource, anno.toSource())
         }
     }
@@ -1075,6 +1118,50 @@ class CommonAnnotationItemTest : BaseModelTest() {
     }
 
     @Test
+    fun `annotation toSource() with constant literal values`() {
+        runCodebaseTest(
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      @test.pkg.Test.Anno(test.pkg.Test.FIELD)
+                      public class Test {
+                        ctor public Test();
+                        field public static final int FIELD = 5;
+                      }
+
+                      public @interface Test.Anno {
+                         method public Int value();
+                      }
+                    }
+                """
+            ),
+            java(
+                """
+                    package test.pkg;
+
+                    @Test.Anno(Test.FIELD)
+                    public class Test {
+                        public Test() {}
+
+                        public static final int FIELD = 5;
+
+                        public @interface Anno {
+                          int value();
+                        }
+                    }
+                """
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+            val anno = testClass.modifiers.annotations().single()
+
+            val toSource = "@test.pkg.Test.Anno(test.pkg.Test.FIELD)"
+            assertEquals(toSource, anno.toSource())
+        }
+    }
+
+    @Test
     fun `annotation toSource() with compound expression values`() {
         runCodebaseTest(
             signature(
@@ -1122,19 +1209,29 @@ class CommonAnnotationItemTest : BaseModelTest() {
     }
 
     @Test
-    fun `annotation with negative values`() {
+    fun `annotation with negative number values`() {
         runCodebaseTest(
             signature(
                 """
                     // Signature format: 2.0
                     package test.pkg {
-                      @test.pkg.Test.Anno(-1)
+                      @test.pkg.Test.Anno(
+                          doubleValue = -1.5,
+                          floatValue = -0.5F,
+                          intValue = -1,
+                          longValue = -2,
+                          shortValue = -3,
+                      )
                       public class Test {
                         ctor public Test();
                       }
 
                       public @interface Test.Anno {
-                          method public int value();
+                          method public double doubleValue();
+                          method public float floatValue();
+                          method public int intValue();
+                          method public long longValue();
+                          method public short shortValue();
                       }
                     }
                 """
@@ -1143,12 +1240,22 @@ class CommonAnnotationItemTest : BaseModelTest() {
                 """
                     package test.pkg;
 
-                    @Test.Anno(-1)
+                    @Test.Anno(
+                      doubleValue = -1.5,
+                      floatValue = -0.5F,
+                      intValue = -1,
+                      longValue = -2L,
+                      shortValue = -3,
+                    )
                     public class Test {
                         public Test() {}
 
                         public @interface Anno {
-                          int value();
+                          double doubleValue();
+                          float floatValue();
+                          int intValue();
+                          long longValue();
+                          short shortValue();
                         }
                     }
                 """
@@ -1157,8 +1264,15 @@ class CommonAnnotationItemTest : BaseModelTest() {
             val testClass = codebase.assertClass("test.pkg.Test")
             val anno = testClass.modifiers.annotations().single()
 
-            anno.assertAttributeValue("value", -1)
-            assertEquals("@test.pkg.Test.Anno(0xffffffff)", anno.toSource())
+            anno.assertAttributeValue("doubleValue", -1.5)
+            anno.assertAttributeValue("floatValue", -0.5F)
+            anno.assertAttributeValue("intValue", -1)
+            anno.assertAttributeValue("longValue", -2L)
+            anno.assertAttributeValue("shortValue", -3.toShort())
+
+            val toSource =
+                "@test.pkg.Test.Anno(doubleValue=-1.5, floatValue=-0.5F, intValue=0xffffffff, longValue=-2L, shortValue=0xfffffffd)"
+            assertEquals(toSource, anno.toSource())
         }
     }
 

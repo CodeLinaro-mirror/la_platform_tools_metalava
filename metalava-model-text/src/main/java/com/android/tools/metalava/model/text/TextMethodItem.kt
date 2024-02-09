@@ -21,10 +21,9 @@ import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ParameterItem
+import com.android.tools.metalava.model.ThrowableType
 import com.android.tools.metalava.model.TypeItem
-import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.TypeParameterList
-import com.android.tools.metalava.model.TypeParameterListOwner
 import com.android.tools.metalava.model.computeSuperMethods
 import java.util.function.Predicate
 
@@ -117,16 +116,6 @@ internal open class TextMethodItem(
         return containingClass() as TextClassItem?
     }
 
-    override fun resolveParameter(variable: String): TypeParameterItem? {
-        for (t in typeParameterList.typeParameters()) {
-            if (t.simpleName() == variable) {
-                return t
-            }
-        }
-
-        return (containingClass() as TextClassItem).resolveParameter(variable)
-    }
-
     override fun duplicate(targetContainingClass: ClassItem): MethodItem {
         val typeVariableMap = targetContainingClass.mapTypeVariables(containingClass())
         val duplicated =
@@ -165,16 +154,16 @@ internal open class TextMethodItem(
         get() = isEnumSyntheticMethod()
 
     private val throwsTypes = mutableListOf<String>()
-    private var throwsClasses: List<ClassItem>? = null
+    private var throwsClasses: List<ThrowableType>? = null
 
     fun throwsTypeNames(): List<String> {
         return throwsTypes
     }
 
-    override fun throwsTypes(): List<ClassItem> =
+    override fun throwsTypes(): List<ThrowableType> =
         if (throwsClasses == null) emptyList() else throwsClasses!!
 
-    fun setThrowsList(throwsClasses: List<ClassItem>) {
+    fun setThrowsList(throwsClasses: List<ThrowableType>) {
         this.throwsClasses = throwsClasses
     }
 

@@ -17,8 +17,10 @@
 package com.android.tools.metalava.model.turbine
 
 import com.android.tools.metalava.model.ArrayTypeItem
+import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.DefaultTypeItem
+import com.android.tools.metalava.model.JAVA_LANG_OBJECT
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
 import com.android.tools.metalava.model.TypeItem
@@ -30,28 +32,14 @@ import com.google.turbine.binder.sym.TyVarSymbol
 internal sealed class TurbineTypeItem(
     val codebase: TurbineBasedCodebase,
     override val modifiers: TurbineTypeModifiers,
-) : DefaultTypeItem(codebase) {
-
-    override fun asClass(): TurbineClassItem? {
-        if (this is TurbineArrayTypeItem) {
-            return this.componentType.asClass()
-        }
-        if (this is TurbineClassTypeItem) {
-            return codebase.findOrCreateClass(this.qualifiedName)
-        }
-        if (this is TurbineVariableTypeItem) {
-            return codebase.findOrCreateClass(this.toErasedTypeString())
-        }
-        return null
-    }
-}
+) : DefaultTypeItem(codebase) {}
 
 internal class TurbinePrimitiveTypeItem(
     codebase: TurbineBasedCodebase,
     modifiers: TurbineTypeModifiers,
     override val kind: Primitive,
 ) : PrimitiveTypeItem, TurbineTypeItem(codebase, modifiers) {
-    override fun duplicate(): TypeItem =
+    override fun duplicate(): PrimitiveTypeItem =
         TurbinePrimitiveTypeItem(codebase, modifiers.duplicate(), kind)
 }
 
@@ -75,17 +63,21 @@ internal class TurbineClassTypeItem(
     codebase: TurbineBasedCodebase,
     modifiers: TurbineTypeModifiers,
     override val qualifiedName: String,
-    override val parameters: List<TurbineTypeItem>,
+    override val arguments: List<TurbineTypeItem>,
     override val outerClassType: TurbineClassTypeItem?,
 ) : ClassTypeItem, TurbineTypeItem(codebase, modifiers) {
     override val className: String = ClassTypeItem.computeClassName(qualifiedName)
 
-    override fun duplicate(outerClass: ClassTypeItem?, parameters: List<TypeItem>): ClassTypeItem {
+    override fun asClass(): TurbineClassItem? {
+        return codebase.findOrCreateClass(this.qualifiedName)
+    }
+
+    override fun duplicate(outerClass: ClassTypeItem?, arguments: List<TypeItem>): ClassTypeItem {
         return TurbineClassTypeItem(
             codebase,
             modifiers.duplicate(),
             qualifiedName,
-            parameters.map { it as TurbineTypeItem },
+            arguments.map { it as TurbineTypeItem },
             outerClass as? TurbineClassTypeItem
         )
     }
@@ -99,7 +91,12 @@ internal class TurbineVariableTypeItem(
     override val name: String = symbol.name()
     override val asTypeParameter: TypeParameterItem by lazy { codebase.findTypeParameter(symbol) }
 
-    override fun duplicate(): TypeItem =
+    override fun asClass(): ClassItem? {
+        return asTypeParameter.typeBounds().firstOrNull()?.asClass()
+            ?: codebase.findOrCreateClass(JAVA_LANG_OBJECT)
+    }
+
+    override fun duplicate(): VariableTypeItem =
         TurbineVariableTypeItem(codebase, modifiers.duplicate(), symbol)
 }
 

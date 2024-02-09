@@ -51,6 +51,7 @@ import com.intellij.psi.PsiMethod
 import com.intellij.psi.PsiPackage
 import com.intellij.psi.PsiSubstitutor
 import com.intellij.psi.PsiType
+import com.intellij.psi.PsiTypeParameter
 import com.intellij.psi.TypeAnnotationProvider
 import com.intellij.psi.javadoc.PsiDocComment
 import com.intellij.psi.search.GlobalSearchScope
@@ -564,15 +565,6 @@ open class PsiBasedCodebase(
             }
         }
 
-        if (classItem.classType == ClassType.TYPE_PARAMETER) {
-            // Don't put PsiTypeParameter classes into the registry; e.g. when we're visiting
-            //  java.util.stream.Stream<R>
-            // we come across "R" and would try to place it here.
-            classItem.containingPackage = emptyPackage
-            classItem.finishInitialization()
-            return classItem
-        }
-
         // TODO: Cache for adjacent files!
         val packageName = getPackageName(clz)
         registerPackageClass(packageName, classItem)
@@ -632,6 +624,12 @@ open class PsiBasedCodebase(
     }
 
     internal fun findOrCreateClass(psiClass: PsiClass): PsiClassItem {
+        if (psiClass is PsiTypeParameter) {
+            error(
+                "Must not be called with PsiTypeParameter; call findOrCreateTypeParameter(...) instead"
+            )
+        }
+
         val existing = findClass(psiClass)
         if (existing != null) {
             return existing
@@ -678,6 +676,20 @@ open class PsiBasedCodebase(
             }
         }
         return null
+    }
+
+    /**
+     * Find or create a [PsiTypeParameterItem] representing [PsiTypeParameter].
+     *
+     * At the moment this always create a new instance to replicate legacy behavior but this will be
+     * fixed in future.
+     *
+     * TODO(b/321075216): Find and reuse existing instances.
+     */
+    internal fun findOrCreateTypeParameter(
+        psiTypeParameter: PsiTypeParameter
+    ): PsiTypeParameterItem {
+        return PsiTypeParameterItem.create(this, psiTypeParameter)
     }
 
     internal fun getClassType(cls: PsiClass): PsiClassType =

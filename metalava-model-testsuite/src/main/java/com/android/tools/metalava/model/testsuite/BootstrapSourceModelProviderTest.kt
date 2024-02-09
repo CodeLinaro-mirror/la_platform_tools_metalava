@@ -18,7 +18,9 @@ package com.android.tools.metalava.model.testsuite
 
 import com.android.tools.metalava.model.AnnotationRetention
 import com.android.tools.metalava.model.ClassTypeItem
+import com.android.tools.metalava.model.DefaultAnnotationSingleAttributeValue
 import com.android.tools.metalava.model.PrimitiveTypeItem
+import com.android.tools.metalava.model.ThrowableType
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.testing.java
 import com.google.common.truth.Truth.assertThat
@@ -362,7 +364,6 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
             assertEquals(2, classItem.interfaceTypes().count())
 
             assertNotNull(superClassType)
-            assertEquals(true, superClassType is ClassTypeItem)
             assertEquals(null, superClassType.asClass())
         }
     }
@@ -439,6 +440,8 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
             val custAnno1Attr3 = customAnno1.findAttribute("cls")
             val annoClassItem1 = codebase.assertClass("test.anno.FieldInfo")
             val retAnno = annoClassItem1.assertAnnotation("java.lang.annotation.Retention")
+            val tarAnno = annoClassItem1.assertAnnotation("java.lang.annotation.Target")
+            val tarAnnoAtrr1 = tarAnno.findAttribute("value")
 
             val customAnno2 = fieldItem.assertAnnotation("anno.FieldValue")
             val annoClassItem2 = codebase.assertClass("anno.FieldValue")
@@ -448,6 +451,7 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
 
             assertEquals(true, nullAnno.isNullable())
 
+            assertEquals(3, customAnno1.attributes.count())
             assertEquals(false, customAnno1.isRetention())
             assertNotNull(custAnno1Attr1)
             assertNotNull(custAnno1Attr2)
@@ -466,6 +470,18 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
             assertEquals(annoClassItem2, customAnno2.resolve())
             assertNotNull(custAnno2Attr1)
             assertEquals(12, custAnno2Attr1.value.value())
+
+            assertEquals("@test.Nullable", nullAnno.toSource())
+
+            assertEquals(
+                "@java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME)",
+                retAnno.toSource()
+            )
+            assertEquals(
+                "@java.lang.annotation.Target(java.lang.annotation.ElementType.FIELD)",
+                tarAnno.toSource()
+            )
+            assertEquals(true, tarAnnoAtrr1!!.value is DefaultAnnotationSingleAttributeValue)
         }
     }
 
@@ -625,46 +641,43 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
             val testClass = codebase.assertClass("test.pkg.Test")
             val testClass1 = codebase.assertClass("test.pkg.Test1")
             val testClass2 = codebase.assertClass("test.pkg.Test1.Test2")
-            val testClassType = testClass.toType()
-            val testClassType1 = testClass1.toType()
-            val testClassType2 = testClass2.toType()
+            val testClassType = testClass.type()
+            val testClassType1 = testClass1.type()
+            val testClassType2 = testClass2.type()
 
             assertThat(testClassType).isInstanceOf(ClassTypeItem::class.java)
-            testClassType as ClassTypeItem
             assertEquals("test.pkg.Test", testClassType.qualifiedName)
-            assertEquals(0, testClassType.parameters.count())
+            assertEquals(0, testClassType.arguments.count())
 
             assertThat(testClassType1).isInstanceOf(ClassTypeItem::class.java)
-            testClassType1 as ClassTypeItem
             assertEquals("test.pkg.Test1", testClassType1.qualifiedName)
-            assertEquals(1, testClassType1.parameters.count())
-            val paramItem1 = testClassType1.parameters.single()
-            assertThat(paramItem1).isInstanceOf(VariableTypeItem::class.java)
-            paramItem1 as VariableTypeItem
-            assertEquals("S", paramItem1.toString())
+            assertEquals(1, testClassType1.arguments.count())
+            val typeArgument1 = testClassType1.arguments.single()
+            assertThat(typeArgument1).isInstanceOf(VariableTypeItem::class.java)
+            typeArgument1 as VariableTypeItem
+            assertEquals("S", typeArgument1.toString())
             assertEquals(
                 testClass1.typeParameterList().typeParameters().single(),
-                paramItem1.asTypeParameter
+                typeArgument1.asTypeParameter
             )
-            assertEquals(0, paramItem1.asTypeParameter.typeBounds().count())
+            assertEquals(0, typeArgument1.asTypeParameter.typeBounds().count())
             assertEquals("test.pkg.Test1<S>", testClassType1.toString())
             assertEquals(null, testClassType1.outerClassType)
 
             assertThat(testClassType2).isInstanceOf(ClassTypeItem::class.java)
-            testClassType2 as ClassTypeItem
             assertEquals("test.pkg.Test1.Test2", testClassType2.qualifiedName)
-            assertEquals(1, testClassType2.parameters.count())
-            val paramItem2 = testClassType2.parameters.single()
-            assertThat(paramItem2).isInstanceOf(VariableTypeItem::class.java)
-            paramItem2 as VariableTypeItem
-            assertEquals("T", paramItem2.toString())
+            assertEquals(1, testClassType2.arguments.count())
+            val typeArgument2 = testClassType2.arguments.single()
+            assertThat(typeArgument2).isInstanceOf(VariableTypeItem::class.java)
+            typeArgument2 as VariableTypeItem
+            assertEquals("T", typeArgument2.toString())
             assertEquals(
                 testClass2.typeParameterList().typeParameters().single(),
-                paramItem2.asTypeParameter
+                typeArgument2.asTypeParameter
             )
             assertEquals(
                 "test.pkg.Test",
-                paramItem2.asTypeParameter.typeBounds().single().toString()
+                typeArgument2.asTypeParameter.typeBounds().single().toString()
             )
             assertEquals("test.pkg.Test1<S>.Test2<T>", testClassType2.toString())
             assertEquals(testClassType1, testClassType2.outerClassType)
@@ -694,14 +707,14 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
             assertEquals(2, testClass.constructors().count())
             val constructorItem = testClass.constructors().first()
             assertEquals("Test", constructorItem.name())
-            assertEquals(testClass.toType(), constructorItem.returnType())
+            assertEquals(testClass.type(), constructorItem.returnType())
             assertEquals(false, testClass.hasImplicitDefaultConstructor())
 
             val testClass1 = codebase.assertClass("test.pkg.Test.Test1")
             val constructorItem1 = testClass1.constructors().single()
             assertEquals("Test1", constructorItem1.name())
             assertEquals("test.pkg.Test.Test1", constructorItem1.returnType().toString())
-            assertEquals(testClass1.toType(), constructorItem1.returnType())
+            assertEquals(testClass1.type(), constructorItem1.returnType())
             assertEquals(true, testClass1.hasImplicitDefaultConstructor())
         }
     }
@@ -745,19 +758,16 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
 
             assertEquals(
                 classParameterNames,
-                classTypeParameterList.typeParameters().map { it.simpleName() }
+                classTypeParameterList.typeParameters().map { it.name() }
             )
-            assertEquals(
-                emptyList(),
-                annoTypeParameterList.typeParameters().map { it.simpleName() }
-            )
+            assertEquals(emptyList(), annoTypeParameterList.typeParameters().map { it.name() })
             assertEquals(
                 method1ParameterNames,
-                method1TypeParameterList.typeParameters().map { it.simpleName() }
+                method1TypeParameterList.typeParameters().map { it.name() }
             )
             assertEquals(
                 method2TypeParameterNames,
-                method2TypeParameterList.typeParameters().map { it.simpleName() }
+                method2TypeParameterList.typeParameters().map { it.name() }
             )
 
             assertEquals(
@@ -800,7 +810,10 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
             val ioExceptionClass = codebase.assertClass("java.io.IOException")
             val methodItem = testClass.assertMethod("foo", "")
 
-            assertEquals(listOf(ioExceptionClass, testExceptionClass), methodItem.throwsTypes())
+            assertEquals(
+                listOf(ioExceptionClass, testExceptionClass).map(ThrowableType::ofClass),
+                methodItem.throwsTypes()
+            )
         }
     }
 
@@ -847,7 +860,7 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
 
             assertEquals("Test", ctorItem.name())
             assertEquals(classItem, ctorItem.containingClass())
-            assertEquals(classItem.toType(), ctorItem.returnType())
+            assertEquals(classItem.type(), ctorItem.returnType())
             assertEquals(
                 ctorItem.modifiers.getVisibilityLevel(),
                 classItem.modifiers.getVisibilityLevel()
@@ -865,18 +878,19 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
                     package test.pkg;
 
                     import java.lang.annotation.ElementType;
+                    import java.lang.annotation.Target;
 
                     public class Test {
                         public void foo(@ParameterName("TestParam") @DefaultValue(5) int parameter) {
                         }
                     }
 
-                    @Target(value={ElementType.PARAMETER})
+                    @Target(ElementType.PARAMETER)
                     @interface DefaultValue {
                         int value();
                     }
 
-                    @Target(value={ElementType.PARAMETER})
+                    @Target(ElementType.PARAMETER)
                     @interface ParameterName {
                         String value();
                     }

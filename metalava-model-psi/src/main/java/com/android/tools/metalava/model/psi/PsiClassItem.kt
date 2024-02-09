@@ -19,13 +19,14 @@ package com.android.tools.metalava.model.psi
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.AnnotationRetention
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.ClassKind
+import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.SourceFile
-import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.hasAnnotation
@@ -53,7 +54,7 @@ internal constructor(
     private val fullName: String,
     private val qualifiedName: String,
     private val hasImplicitDefaultConstructor: Boolean,
-    internal val classType: ClassType,
+    override val classKind: ClassKind,
     modifiers: PsiModifierItem,
     documentation: String,
     /** True if this class is from the class path (dependencies). Exposed in [isFromClassPath]. */
@@ -82,12 +83,6 @@ internal constructor(
 
     override fun isDefined(): Boolean = codebase.unsupported()
 
-    override fun isInterface(): Boolean = classType == ClassType.INTERFACE
-
-    override fun isAnnotationType(): Boolean = classType == ClassType.ANNOTATION_TYPE
-
-    override fun isEnum(): Boolean = classType == ClassType.ENUM
-
     override fun psi() = psiClass
 
     override fun isFromClassPath(): Boolean = fromClassPath
@@ -95,11 +90,11 @@ internal constructor(
     override fun hasImplicitDefaultConstructor(): Boolean = hasImplicitDefaultConstructor
 
     private var superClass: ClassItem? = null
-    private var superClassType: TypeItem? = null
+    private var superClassType: ClassTypeItem? = null
 
     override fun superClass(): ClassItem? = superClass
 
-    override fun superClassType(): TypeItem? = superClassType
+    override fun superClassType(): ClassTypeItem? = superClassType
 
     override var stubConstructor: ConstructorItem? = null
     override var artifact: String? = null
@@ -110,13 +105,9 @@ internal constructor(
 
     override var hasPrivateConstructor: Boolean = false
 
-    override fun interfaceTypes(): List<TypeItem> = interfaceTypes
+    override fun interfaceTypes(): List<ClassTypeItem> = interfaceTypes
 
-    override fun setInterfaceTypes(interfaceTypes: List<TypeItem>) {
-        @Suppress("UNCHECKED_CAST") setInterfaces(interfaceTypes as List<PsiTypeItem>)
-    }
-
-    private fun setInterfaces(interfaceTypes: List<PsiTypeItem>) {
+    override fun setInterfaceTypes(interfaceTypes: List<ClassTypeItem>) {
         this.interfaceTypes = interfaceTypes
     }
 
@@ -159,7 +150,7 @@ internal constructor(
     }
 
     private lateinit var innerClasses: List<PsiClassItem>
-    private lateinit var interfaceTypes: List<TypeItem>
+    private lateinit var interfaceTypes: List<ClassTypeItem>
     private lateinit var constructors: List<PsiConstructorItem>
     private lateinit var methods: List<PsiMethodItem>
     private lateinit var properties: List<PsiPropertyItem>
@@ -185,9 +176,8 @@ internal constructor(
     final override var primaryConstructor: PsiConstructorItem? = null
         private set
 
-    override fun toType(): TypeItem {
-        return codebase.getType(codebase.getClassType(psiClass))
-    }
+    override fun type(): ClassTypeItem =
+        codebase.getType(codebase.getClassType(psiClass)) as ClassTypeItem
 
     override fun hasTypeVariables(): Boolean = psiClass.hasTypeParameters()
 
@@ -201,9 +191,6 @@ internal constructor(
             return TypeParameterList.NONE
         }
     }
-
-    override val isTypeParameter: Boolean
-        get() = psiClass is PsiTypeParameter
 
     override fun getSourceFile(): SourceFile? {
         if (isInnerClass()) {
@@ -273,15 +260,15 @@ internal constructor(
                 val type = codebase.getType(it)
                 // ensure that we initialize classes eagerly too, so that they're registered etc
                 type.asClass()
-                type
+                type as ClassTypeItem
             }
-        setInterfaces(interfaceTypes)
+        setInterfaceTypes(interfaceTypes)
 
         if (!isInterface) {
             // Set the super class type for classes
             val superClassPsiType = psiClass.superClassType as? PsiType
             superClassPsiType?.let { superType ->
-                this.superClassType = codebase.getType(superType)
+                this.superClassType = codebase.getType(superType) as ClassTypeItem
                 this.superClass = this.superClassType?.asClass()
             }
         }
@@ -289,20 +276,6 @@ internal constructor(
         for (inner in innerClasses) {
             inner.initializeSuperClasses()
         }
-    }
-
-    internal fun initialize(
-        innerClasses: List<PsiClassItem>,
-        interfaceTypes: List<TypeItem>,
-        constructors: List<PsiConstructorItem>,
-        methods: List<PsiMethodItem>,
-        fields: List<FieldItem>
-    ) {
-        this.innerClasses = innerClasses
-        this.interfaceTypes = interfaceTypes
-        this.constructors = constructors
-        this.methods = methods
-        this.fields = fields
     }
 
     override fun equals(other: Any?): Boolean {
@@ -383,13 +356,15 @@ internal constructor(
             fromClassPath: Boolean
         ): PsiClassItem {
             if (psiClass is PsiTypeParameter) {
-                return PsiTypeParameterItem.create(codebase, psiClass)
+                error(
+                    "Must not be called with PsiTypeParameter; use PsiTypeParameterItem.create(...) instead"
+                )
             }
             val simpleName = psiClass.name!!
             val fullName = computeFullClassName(psiClass)
             val qualifiedName = psiClass.qualifiedName ?: simpleName
             val hasImplicitDefaultConstructor = hasImplicitDefaultConstructor(psiClass)
-            val classType = ClassType.getClassType(psiClass)
+            val classKind = getClassKind(psiClass)
 
             val commentText = javadoc(psiClass)
             val modifiers = PsiModifierItem.create(codebase, psiClass, commentText)
@@ -401,7 +376,7 @@ internal constructor(
                     name = simpleName,
                     fullName = fullName,
                     qualifiedName = qualifiedName,
-                    classType = classType,
+                    classKind = classKind,
                     hasImplicitDefaultConstructor = hasImplicitDefaultConstructor,
                     documentation = commentText,
                     modifiers = modifiers,
@@ -419,7 +394,7 @@ internal constructor(
             val isKotlin = isKotlin(psiClass)
 
             if (
-                classType == ClassType.ANNOTATION_TYPE &&
+                classKind == ClassKind.ANNOTATION_TYPE &&
                     !hasExplicitRetention(modifiers, psiClass, isKotlin)
             ) {
                 // By policy, include explicit retention policy annotation if missing
@@ -472,7 +447,7 @@ internal constructor(
                     } else {
                         constructors.add(constructor)
                     }
-                } else if (classType == ClassType.ENUM && psiMethod is SyntheticElement) {
+                } else if (classKind == ClassKind.ENUM && psiMethod is SyntheticElement) {
                     // skip
                 } else {
                     val method = PsiMethodItem.create(codebase, item, psiMethod)
@@ -507,7 +482,7 @@ internal constructor(
                 psiFields.asSequence().mapTo(fields) { PsiFieldItem.create(codebase, item, it) }
             }
 
-            if (classType == ClassType.INTERFACE) {
+            if (classKind == ClassKind.INTERFACE) {
                 // All members are implicitly public, fields are implicitly static, non-static
                 // methods are abstract
                 // (except in Java 1.9, where they can be private
@@ -597,6 +572,17 @@ internal constructor(
                 }
 
             return item
+        }
+
+        internal fun getClassKind(psiClass: PsiClass): ClassKind {
+            return when {
+                psiClass.isAnnotationType -> ClassKind.ANNOTATION_TYPE
+                psiClass.isInterface -> ClassKind.INTERFACE
+                psiClass.isEnum -> ClassKind.ENUM
+                psiClass is PsiTypeParameter ->
+                    error("Must not call this with a PsiTypeParameter - $psiClass")
+                else -> ClassKind.CLASS
+            }
         }
 
         /**

@@ -16,12 +16,14 @@
 
 package com.android.tools.metalava.model.turbine
 
+import com.android.tools.metalava.model.ANNOTATION_ATTR_VALUE
 import com.android.tools.metalava.model.AnnotationAttribute
 import com.android.tools.metalava.model.AnnotationAttributeValue
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.BaseItemVisitor
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.DefaultAnnotationArrayAttributeValue
 import com.android.tools.metalava.model.DefaultAnnotationAttribute
@@ -38,6 +40,7 @@ import com.google.turbine.binder.Binder
 import com.google.turbine.binder.Binder.BindingResult
 import com.google.turbine.binder.ClassPathBinder
 import com.google.turbine.binder.Processing.ProcessorInfo
+import com.google.turbine.binder.bound.EnumConstantValue
 import com.google.turbine.binder.bound.SourceTypeBoundClass
 import com.google.turbine.binder.bound.TurbineClassValue
 import com.google.turbine.binder.bound.TypeBoundClass
@@ -58,7 +61,10 @@ import com.google.turbine.model.Const.Kind
 import com.google.turbine.model.Const.Value
 import com.google.turbine.model.TurbineConstantTypeKind as PrimKind
 import com.google.turbine.model.TurbineFlag
+import com.google.turbine.model.TurbineTyKind
 import com.google.turbine.tree.Tree
+import com.google.turbine.tree.Tree.ArrayInit
+import com.google.turbine.tree.Tree.Assign
 import com.google.turbine.tree.Tree.CompUnit
 import com.google.turbine.tree.Tree.Expression
 import com.google.turbine.tree.Tree.Ident
@@ -295,7 +301,7 @@ internal open class TurbineCodebaseInitialiser(
                 qualifiedName,
                 sym,
                 modifierItem,
-                TurbineClassType.getClassType(cls.kind()),
+                getClassKind(cls.kind()),
                 typeParameters,
                 getCommentedDoc(documentation),
                 sourceFile,
@@ -309,7 +315,8 @@ internal open class TurbineCodebaseInitialiser(
                 cls.superclass()?.let { superClass -> findOrCreateClass(superClass) }
             val superClassType = cls.superClassType()
             val superClassTypeItem =
-                if (superClassType == null) null else createType(superClassType, false)
+                if (superClassType == null) null
+                else createType(superClassType, false) as ClassTypeItem
             classItem.setSuperClass(superClassItem, superClassTypeItem)
         }
 
@@ -317,7 +324,9 @@ internal open class TurbineCodebaseInitialiser(
         classItem.directInterfaces = cls.interfaces().map { itf -> findOrCreateClass(itf) }
 
         // Set interface types
-        classItem.setInterfaceTypes(cls.interfaceTypes().map { createType(it, false) })
+        classItem.setInterfaceTypes(
+            cls.interfaceTypes().map { createType(it, false) as ClassTypeItem }
+        )
 
         // Create fields
         createFields(classItem, cls.fields())
@@ -346,17 +355,26 @@ internal open class TurbineCodebaseInitialiser(
             classItem.emit = false
         }
 
+        // Create InnerClasses.
+        val children = cls.children()
+        createInnerClasses(classItem, children.values.asList())
+
         // Set the throwslist for methods
         classItem.methods.forEach { it.setThrowsTypes() }
 
         // Set the throwslist for constructors
         classItem.constructors.forEach { it.setThrowsTypes() }
 
-        // Create InnerClasses.
-        val children = cls.children()
-        createInnerClasses(classItem, children.values.asList())
-
         return classItem
+    }
+
+    fun getClassKind(type: TurbineTyKind): ClassKind {
+        return when (type) {
+            TurbineTyKind.INTERFACE -> ClassKind.INTERFACE
+            TurbineTyKind.ENUM -> ClassKind.ENUM
+            TurbineTyKind.ANNOTATION -> ClassKind.ANNOTATION_TYPE
+            else -> ClassKind.CLASS
+        }
     }
 
     /** Creates a list of AnnotationItems from given list of Turbine Annotations */
@@ -365,7 +383,7 @@ internal open class TurbineCodebaseInitialiser(
     }
 
     private fun createAnnotation(annotation: AnnoInfo): TurbineAnnotationItem? {
-        val annoAttrs = getAnnotationAttributes(annotation.values())
+        val annoAttrs = getAnnotationAttributes(annotation.values(), annotation.tree()?.args())
 
         val nameList = annotation.tree()?.let { tree -> tree.name().map { it.value() } }
         val simpleName = nameList?.let { it -> it.joinToString(separator = ".") }
@@ -378,24 +396,119 @@ internal open class TurbineCodebaseInitialiser(
 
     /** Creates a list of AnnotationAttribute from the map of name-value attribute pairs */
     private fun getAnnotationAttributes(
-        attrs: ImmutableMap<String, Const>
+        attrs: ImmutableMap<String, Const>,
+        exprs: ImmutableList<Expression>?
     ): List<AnnotationAttribute> {
         val attributes = mutableListOf<AnnotationAttribute>()
-        for ((name, value) in attrs) {
-            attributes.add(DefaultAnnotationAttribute(name, createAttrValue(value)))
+        if (exprs != null) {
+            for (exp in exprs) {
+                when (exp.kind()) {
+                    Tree.Kind.ASSIGN -> {
+                        exp as Assign
+                        val name = exp.name().value()
+                        val assignExp = exp.expr()
+                        attributes.add(
+                            DefaultAnnotationAttribute(
+                                name,
+                                createAttrValue(attrs[name]!!, assignExp)
+                            )
+                        )
+                    }
+                    else -> {
+                        val name = ANNOTATION_ATTR_VALUE
+                        attributes.add(
+                            DefaultAnnotationAttribute(name, createAttrValue(attrs[name]!!, exp))
+                        )
+                    }
+                }
+            }
+        } else {
+            for ((name, value) in attrs) {
+                attributes.add(DefaultAnnotationAttribute(name, createAttrValue(value, null)))
+            }
         }
         return attributes
     }
 
-    private fun createAttrValue(const: Const): AnnotationAttributeValue {
+    private fun createAttrValue(const: Const, expr: Expression?): AnnotationAttributeValue {
         if (const.kind() == Kind.ARRAY) {
-            val arrayVal = const as ArrayInitValue
+            const as ArrayInitValue
+            if (const.elements().count() == 1 && expr != null && !(expr is ArrayInit)) {
+                // This is case where defined type is array type but provided attribute value is
+                // single non-array element
+                // For e.g. @Anno(5) where Anno is @interfacce Anno {int [] value()}
+                val constLiteral = const.elements().single()
+                return DefaultAnnotationSingleAttributeValue(
+                    { getSource(constLiteral, expr) },
+                    { getValue(constLiteral) }
+                )
+            }
             return DefaultAnnotationArrayAttributeValue(
-                { arrayVal.toString() },
-                { arrayVal.elements().map { createAttrValue(it) } }
+                { getSource(const, expr) },
+                { const.elements().map { createAttrValue(it, null) } }
             )
         }
-        return DefaultAnnotationSingleAttributeValue({ const.toString() }, { getValue(const) })
+        return DefaultAnnotationSingleAttributeValue(
+            { getSource(const, expr) },
+            { getValue(const) }
+        )
+    }
+
+    private fun getSource(const: Const, expr: Expression?): String {
+        return when (const.kind()) {
+            Kind.PRIMITIVE -> {
+                when ((const as Value).constantTypeKind()) {
+                    PrimKind.INT -> {
+                        val value = (const as Const.IntValue).value()
+                        if (value < 0 || (expr != null && expr.kind() == Tree.Kind.TYPE_CAST))
+                            "0x" + value.toUInt().toString(16) // Hex Value
+                        else value.toString()
+                    }
+                    PrimKind.SHORT -> {
+                        val value = (const as Const.ShortValue).value()
+                        if (value < 0) "0x" + value.toUInt().toString(16) else value.toString()
+                    }
+                    PrimKind.FLOAT -> {
+                        val value = (const as Const.FloatValue).value()
+                        when {
+                            value == Float.POSITIVE_INFINITY -> "java.lang.Float.POSITIVE_INFINITY"
+                            value == Float.NEGATIVE_INFINITY -> "java.lang.Float.NEGATIVE_INFINITY"
+                            value < 0 -> value.toString() + "F" // Handling negative values
+                            else -> value.toString() + "f" // Handling positive values
+                        }
+                    }
+                    PrimKind.DOUBLE -> {
+                        val value = (const as Const.DoubleValue).value()
+                        when {
+                            value == Double.POSITIVE_INFINITY ->
+                                "java.lang.Double.POSITIVE_INFINITY"
+                            value == Double.NEGATIVE_INFINITY ->
+                                "java.lang.Double.NEGATIVE_INFINITY"
+                            else -> const.toString()
+                        }
+                    }
+                    PrimKind.BYTE -> const.getValue().toString()
+                    else -> const.toString()
+                }
+            }
+            Kind.ARRAY -> {
+                const as ArrayInitValue
+                val pairs =
+                    if (expr != null) const.elements().zip((expr as ArrayInit).exprs())
+                    else const.elements().map { Pair(it, null) }
+                buildString {
+                        append("{")
+                        pairs.joinTo(this, ", ") { getSource(it.first, it.second) }
+                        append("}")
+                    }
+                    .toString()
+            }
+            Kind.ENUM_CONSTANT -> getValue(const).toString()
+            Kind.CLASS_LITERAL -> {
+                if (expr != null) expr.toString() else getValue(const).toString()
+            }
+            else -> const.toString()
+        }
     }
 
     private fun getValue(const: Const): Any? {
@@ -409,7 +522,15 @@ internal open class TurbineCodebaseInitialiser(
                 val value = const as TurbineClassValue
                 return value.type().toString()
             }
-            else -> return const.toString()
+            Kind.ENUM_CONSTANT -> {
+                val value = const as EnumConstantValue
+                val temp =
+                    getQualifiedName(value.sym().owner().binaryName()) + "." + value.toString()
+                return temp
+            }
+            else -> {
+                return const.toString()
+            }
         }
     }
 
@@ -731,7 +852,7 @@ internal open class TurbineCodebaseInitialiser(
     private fun fixCtorReturnType(classItem: TurbineClassItem) {
         val result =
             classItem.constructors.map {
-                it.setReturnType(classItem.toType())
+                it.setReturnType(classItem.type())
                 it
             }
         classItem.constructors = result

@@ -66,11 +66,11 @@ class PsiMethodItemTest : BasePsiTest() {
             """
             )
         testCodebase(codebase) { c ->
-            val ctorItem = c.assertClass("Foo").findMethod("Foo", "")
-            val ctorReturnType = ctorItem!!.returnType()
+            val ctorItem = c.assertClass("Foo").assertMethod("Foo", "")
+            val ctorReturnType = ctorItem.returnType()
 
-            val methodItem = c.assertClass("Foo").findMethod("bar", "")
-            val methodReturnType = methodItem!!.returnType()
+            val methodItem = c.assertClass("Foo").assertMethod("bar", "")
+            val methodReturnType = methodItem.returnType()
 
             assertNotNull(ctorReturnType)
             assertEquals(

@@ -16,12 +16,12 @@
 
 package com.android.tools.metalava.apilevels
 
+import com.android.tools.metalava.model.Assertions
 import com.android.tools.metalava.model.text.ApiFile
 import kotlin.test.assertEquals
-import kotlin.test.assertNotNull
 import org.junit.Test
 
-class InternalDescTest {
+class InternalDescTest : Assertions {
 
     @Test
     fun `MethodItem internalDesc (psi)`() {
@@ -37,8 +37,7 @@ class InternalDescTest {
                 }
              """
         ApiFile.parseApi("test", signature.trimIndent()).let {
-            val testClass = it.findClass("test.pkg.Test")
-            assertNotNull(testClass)
+            val testClass = it.assertClass("test.pkg.Test")
             val actual = buildString {
                 testClass.methods().forEach {
                     append(it.name()).append(it.internalDesc()).append("\n")

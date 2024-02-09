@@ -20,6 +20,7 @@ import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.TypeParameterBindings
 
 const val UNKNOWN_DEFAULT_VALUE = "__unknown_default_value__"
 
@@ -76,7 +77,7 @@ internal class TextParameterItem(
 
     override fun toString(): String = "parameter ${name()}"
 
-    internal fun duplicate(typeVariableMap: Map<TypeItem, TypeItem>): TextParameterItem {
+    internal fun duplicate(typeVariableMap: TypeParameterBindings): TextParameterItem {
         return TextParameterItem(
             codebase,
             name,

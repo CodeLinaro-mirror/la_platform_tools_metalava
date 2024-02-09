@@ -46,7 +46,7 @@ open class BaseTypeVisitor : TypeVisitor {
         visitClassType(classType)
 
         classType.outerClassType?.accept(this)
-        classType.parameters.forEach { it.accept(this) }
+        classType.arguments.forEach { it.accept(this) }
     }
 
     override fun visit(variableType: VariableTypeItem) {
