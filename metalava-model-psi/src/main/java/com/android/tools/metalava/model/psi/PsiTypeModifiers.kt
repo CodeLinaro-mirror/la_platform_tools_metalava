@@ -42,7 +42,7 @@ import org.jetbrains.uast.getContainingUMethod
 
 /** Modifiers for a [PsiTypeItem]. */
 internal class PsiTypeModifiers(
-    private val annotations: MutableList<PsiAnnotationItem>,
+    private val annotations: MutableList<AnnotationItem>,
     private var nullability: TypeNullability
 ) : TypeModifiers {
     override fun annotations(): List<AnnotationItem> = annotations
@@ -61,7 +61,7 @@ internal class PsiTypeModifiers(
         nullability = newNullability
     }
 
-    fun duplicate() = PsiTypeModifiers(annotations.toMutableList(), nullability)
+    override fun duplicate() = PsiTypeModifiers(annotations.toMutableList(), nullability)
 
     companion object {
         /** Creates modifiers in the given [codebase] based on the annotations of the [type]. */
@@ -90,8 +90,15 @@ internal class PsiTypeModifiers(
     }
 }
 
-/** A wrapper for a [KtType] and the [KtAnalysisSession] needed to analyze it. */
-internal data class KotlinTypeInfo(val analysisSession: KtAnalysisSession?, val ktType: KtType?) {
+/**
+ * A wrapper for a [KtType] and the [KtAnalysisSession] needed to analyze it and the [PsiElement]
+ * that is the use site.
+ */
+internal data class KotlinTypeInfo(
+    val analysisSession: KtAnalysisSession?,
+    val ktType: KtType?,
+    val context: PsiElement,
+) {
     /**
      * Finds the nullability of the [ktType]. If there is no [analysisSession] or [ktType], defaults
      * to [TypeNullability.NONNULL] since the type is from Kotlin source.
@@ -121,7 +128,8 @@ internal data class KotlinTypeInfo(val analysisSession: KtAnalysisSession?, val 
     fun forArrayComponentType(): KotlinTypeInfo {
         return KotlinTypeInfo(
             analysisSession,
-            analysisSession?.run { ktType?.getArrayElementType() }
+            analysisSession?.run { ktType?.getArrayElementType() },
+            context,
         )
     }
 
@@ -152,7 +160,8 @@ internal data class KotlinTypeInfo(val analysisSession: KtAnalysisSession?, val 
                     }
                 }
                     ?: (ktType as? KtNonErrorClassType)?.ownTypeArguments?.getOrNull(index)?.type
-            }
+            },
+            context,
         )
     }
 
@@ -172,7 +181,8 @@ internal data class KotlinTypeInfo(val analysisSession: KtAnalysisSession?, val 
                             ?.forEach { argument(it) }
                     }
                 }
-            }
+            },
+            context,
         )
     }
 
@@ -184,19 +194,21 @@ internal data class KotlinTypeInfo(val analysisSession: KtAnalysisSession?, val 
         fun fromContext(context: PsiElement): KotlinTypeInfo {
             return when (val sourcePsi = (context as? UElement)?.sourcePsi) {
                 is KtCallableDeclaration -> {
-                    analyze(sourcePsi) { KotlinTypeInfo(this, sourcePsi.getReturnKtType()) }
+                    analyze(sourcePsi) {
+                        KotlinTypeInfo(this, sourcePsi.getReturnKtType(), sourcePsi)
+                    }
                 }
                 is KtTypeReference ->
-                    analyze(sourcePsi) { KotlinTypeInfo(this, sourcePsi.getKtType()) }
+                    analyze(sourcePsi) { KotlinTypeInfo(this, sourcePsi.getKtType(), sourcePsi) }
                 is KtPropertyAccessor ->
-                    analyze(sourcePsi) { KotlinTypeInfo(this, sourcePsi.getKtType()) }
+                    analyze(sourcePsi) { KotlinTypeInfo(this, sourcePsi.getKtType(), sourcePsi) }
                 else -> {
                     // Check if this is the parameter of a synthetic setter
                     val containingMethod = (context as? UParameter)?.getContainingUMethod()
                     return if (containingMethod?.sourcePsi is KtProperty) {
                         fromContext(containingMethod)
                     } else {
-                        KotlinTypeInfo(null, null)
+                        KotlinTypeInfo(null, null, context)
                     }
                 }
             }

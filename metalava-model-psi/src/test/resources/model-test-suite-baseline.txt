@@ -1,3 +1,6 @@
+com.android.tools.metalava.model.testsuite.BootstrapSourceModelProviderTest
+  210 Test Method exception list[psi,java]
+
 com.android.tools.metalava.model.testsuite.annotationitem.CommonAnnotationItemTest
   annotation with enum values[psi,java]
 

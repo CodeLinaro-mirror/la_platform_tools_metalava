@@ -23,7 +23,7 @@ package com.android.tools.metalava.model
  * This is currently an alias for [ClassItem] but it will eventually be migrated to a completely
  * separate type.
  */
-interface ThrowableType {
+sealed interface ThrowableType {
     /** True if [classItem] is a [TypeParameterItem]. */
     val isTypeParameter: Boolean
 
@@ -138,6 +138,49 @@ interface ThrowableType {
         override fun toString() = typeParameterItem.toString()
     }
 
+    /** A wrapper of [ClassTypeItem] that implements [ThrowableType]. */
+    private class ThrowableClassTypeItem(val classTypeItem: ClassTypeItem) : ThrowableType {
+
+        private val fullName = bestGuessAtFullName(classTypeItem.qualifiedName)
+
+        /* This is never a type parameter. */
+        override val isTypeParameter
+            get() = false
+
+        override val classItem: ClassItem
+            get() = classTypeItem.asClass() ?: error("Cannot resolve $this to a class")
+
+        override val typeParameterItem: TypeParameterItem
+            get() = error("Cannot access `typeParameterItem` on $this")
+
+        /** The [classItem] is a subclass of [java.lang.Throwable] */
+        override val throwableClass: ClassItem
+            get() = classItem
+
+        override fun description() = qualifiedName()
+
+        override fun fullName() = fullName
+
+        override fun qualifiedName() = classTypeItem.qualifiedName
+
+        override fun equals(other: Any?): Boolean {
+            if (this === other) return true
+            if (javaClass != other?.javaClass) return false
+
+            other as ThrowableClassTypeItem
+
+            if (classTypeItem != other.classTypeItem) return false
+
+            return true
+        }
+
+        override fun hashCode(): Int {
+            return classTypeItem.hashCode()
+        }
+
+        override fun toString() = classTypeItem.toString()
+    }
+
     companion object {
         /** Get a [ThrowableType] wrapper around [ClassItem] */
         fun ofClass(classItem: ClassItem): ThrowableType =
@@ -147,6 +190,13 @@ interface ThrowableType {
         /** Get a [ThrowableType] wrapper around [TypeParameterItem] */
         fun ofTypeParameter(classItem: TypeParameterItem): ThrowableType =
             ThrowableTypeParameterItem(classItem)
+
+        /** Get a [ThrowableType] wrapper around an [ExceptionTypeItem] */
+        fun ofExceptionType(exceptionType: ExceptionTypeItem): ThrowableType =
+            when (exceptionType) {
+                is ClassTypeItem -> ThrowableClassTypeItem(exceptionType)
+                is VariableTypeItem -> ThrowableTypeParameterItem(exceptionType.asTypeParameter)
+            }
 
         /** A partial ordering over [ThrowableType] comparing [ThrowableType.fullName]. */
         val fullNameComparator: Comparator<ThrowableType> = Comparator.comparing { it.fullName() }

@@ -21,7 +21,7 @@ import com.android.tools.metalava.model.TypeParameterList
 
 internal class TextTypeParameterList(
     val codebase: TextCodebase,
-    private val typeParameters: List<TextTypeParameterItem>,
+    private val typeParameters: List<TypeParameterItem>,
 ) : TypeParameterList {
     override fun toString() = typeParameters.joinToString(prefix = "<", postfix = ">")
 
@@ -33,7 +33,7 @@ internal class TextTypeParameterList(
         /** Creates a [TextTypeParameterList]. */
         fun create(
             codebase: TextCodebase,
-            typeParameters: List<TextTypeParameterItem>,
+            typeParameters: List<TypeParameterItem>,
         ): TypeParameterList {
             return TextTypeParameterList(codebase, typeParameters)
         }

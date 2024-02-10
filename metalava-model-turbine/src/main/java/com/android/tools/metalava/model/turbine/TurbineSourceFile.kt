@@ -18,13 +18,20 @@ package com.android.tools.metalava.model.turbine
 
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.SourceFile
+import com.google.turbine.tree.Tree.ImportDecl
 
 internal class TurbineSourceFile(
     val codebase: TurbineBasedCodebase,
     val source: String,
+    val imports: List<ImportDecl>,
 ) : SourceFile {
 
     override fun getHeaderComments(): String? = codebase.getHeaderComments(source)
 
     override fun classes(): Sequence<ClassItem> = TODO("b/295800205")
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        return other is TurbineSourceFile && source == other.source
+    }
 }

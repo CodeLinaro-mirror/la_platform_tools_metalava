@@ -55,6 +55,7 @@ internal constructor(
     private val qualifiedName: String,
     private val hasImplicitDefaultConstructor: Boolean,
     override val classKind: ClassKind,
+    private val typeParameterList: TypeParameterList,
     modifiers: PsiModifierItem,
     documentation: String,
     /** True if this class is from the class path (dependencies). Exposed in [isFromClassPath]. */
@@ -180,9 +181,6 @@ internal constructor(
         codebase.getType(codebase.getClassType(psiClass)) as ClassTypeItem
 
     override fun hasTypeVariables(): Boolean = psiClass.hasTypeParameters()
-
-    private val typeParameterList: TypeParameterList by
-        lazy(LazyThreadSafetyMode.NONE) { PsiTypeParameterList.create(codebase, psiClass) }
 
     override fun typeParameterList() = typeParameterList
 
@@ -363,6 +361,10 @@ internal constructor(
             val commentText = javadoc(psiClass)
             val modifiers = PsiModifierItem.create(codebase, psiClass, commentText)
 
+            // Create the TypeParameterList for this before wrapping any of the other types used by
+            // it as they may reference a type parameter in the list.
+            val typeParameterList = PsiTypeParameterList.create(codebase, psiClass)
+
             val item =
                 PsiClassItem(
                     codebase = codebase,
@@ -371,6 +373,7 @@ internal constructor(
                     fullName = fullName,
                     qualifiedName = qualifiedName,
                     classKind = classKind,
+                    typeParameterList = typeParameterList,
                     hasImplicitDefaultConstructor = hasImplicitDefaultConstructor,
                     documentation = commentText,
                     modifiers = modifiers,

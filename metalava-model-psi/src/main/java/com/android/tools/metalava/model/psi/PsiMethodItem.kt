@@ -52,7 +52,8 @@ open class PsiMethodItem(
     modifiers: PsiModifierItem,
     documentation: String,
     private val returnType: PsiTypeItem,
-    private val parameters: List<PsiParameterItem>
+    private val parameters: List<PsiParameterItem>,
+    private val typeParameterList: TypeParameterList,
 ) :
     PsiMemberItem(
         codebase = codebase,
@@ -125,9 +126,6 @@ open class PsiMethodItem(
 
         return superMethods!!
     }
-
-    private val typeParameterList: TypeParameterList by
-        lazy(LazyThreadSafetyMode.NONE) { PsiTypeParameterList.create(codebase, psiMethod) }
 
     override fun typeParameterList() = typeParameterList
 
@@ -321,6 +319,9 @@ open class PsiMethodItem(
                 }
             val commentText = javadoc(psiMethod)
             val modifiers = modifiers(codebase, psiMethod, commentText)
+            // Create the TypeParameterList for this before wrapping any of the other types used by
+            // it as they may reference a type parameter in the list.
+            val typeParameterList = PsiTypeParameterList.create(codebase, psiMethod)
             val parameters = parameterList(codebase, psiMethod)
             val psiReturnType = psiMethod.returnType
             val returnType = codebase.getType(psiReturnType!!, psiMethod)
@@ -333,7 +334,8 @@ open class PsiMethodItem(
                     documentation = commentText,
                     modifiers = modifiers,
                     returnType = returnType,
-                    parameters = parameters
+                    parameters = parameters,
+                    typeParameterList = typeParameterList,
                 )
             method.modifiers.setOwner(method)
             if (modifiers.isFinal() && containingClass.modifiers.isFinal()) {
@@ -396,7 +398,11 @@ open class PsiMethodItem(
                             codebase,
                             original.parameters(),
                             typeParameterBindings
-                        )
+                        ),
+                    // This is probably incorrect as the type parameter bindings probably need
+                    // applying here but this is the same behavior as before.
+                    // TODO: Investigate whether the above comment is correct and fix if necessary.
+                    typeParameterList = original.typeParameterList,
                 )
             method.modifiers.setOwner(method)
 

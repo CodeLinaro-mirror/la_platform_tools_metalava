@@ -52,7 +52,6 @@ internal class TextTypeParameterItem(
 
     override fun type(): TextVariableTypeItem {
         return TextVariableTypeItem(
-            codebase,
             name,
             this,
             TextTypeModifiers.create(codebase, emptyList(), null)

@@ -23,27 +23,24 @@ import com.intellij.psi.PsiTypeParameterListOwner
 
 internal class PsiTypeParameterList(
     val codebase: PsiBasedCodebase,
-    private val psiTypeParameterList: com.intellij.psi.PsiTypeParameterList
+    private val typeParameters: List<TypeParameterItem>,
 ) : DefaultTypeParameterList() {
-    private val typeParameters by lazy {
-        psiTypeParameterList.typeParameters.map {
-            PsiTypeParameterItem.create(codebase, it).apply { finishInitialization() }
-        }
-    }
 
-    override fun typeParameters(): List<TypeParameterItem> {
-        return typeParameters
-    }
+    override fun typeParameters() = typeParameters
 
     companion object {
-        fun create(codebase: PsiBasedCodebase, psiOwner: PsiTypeParameterListOwner) =
-            if (psiOwner.hasTypeParameters()) {
-                psiOwner.typeParameterList?.let { psiTypeParameterList ->
-                    PsiTypeParameterList(codebase, psiTypeParameterList)
+        fun create(
+            codebase: PsiBasedCodebase,
+            psiOwner: PsiTypeParameterListOwner
+        ): TypeParameterList {
+            val psiTypeParameterList = psiOwner.typeParameterList ?: return TypeParameterList.NONE
+
+            val typeParameters =
+                psiTypeParameterList.typeParameters.map {
+                    PsiTypeParameterItem.create(codebase, it).apply { finishInitialization() }
                 }
-                    ?: TypeParameterList.NONE
-            } else {
-                TypeParameterList.NONE
-            }
+
+            return PsiTypeParameterList(codebase, typeParameters)
+        }
     }
 }

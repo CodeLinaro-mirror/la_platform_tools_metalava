@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2023 The Android Open Source Project
+ * Copyright (C) 2024 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,27 +14,17 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava.model.turbine
+package com.android.tools.metalava.model.type
 
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.TypeModifiers
 import com.android.tools.metalava.model.TypeNullability
 
-/** Modifiers for a [TurbineTypeItem]. */
-internal class TurbineTypeModifiers(
-    initialAnnotations: List<AnnotationItem>,
-    knownNullability: TypeNullability? = null
+/** Modifiers for a [TypeItem]. */
+class DefaultTypeModifiers(
+    private val annotations: MutableList<AnnotationItem>,
+    private var nullability: TypeNullability,
 ) : TypeModifiers {
-    private val annotations = initialAnnotations.toMutableList()
-
-    // Use the defined nullability, or find if there is a nullness annotation on the
-    // type, defaulting to platform nullness if not.
-    private var nullability =
-        knownNullability
-            ?: annotations
-                .firstOrNull { it.isNullnessAnnotation() }
-                ?.let { TypeNullability.ofAnnotation(it) }
-                ?: TypeNullability.PLATFORM
 
     override fun annotations(): List<AnnotationItem> = annotations
 
@@ -54,5 +44,22 @@ internal class TurbineTypeModifiers(
         nullability = newNullability
     }
 
-    internal fun duplicate() = TurbineTypeModifiers(annotations.toMutableList())
+    override fun duplicate() = DefaultTypeModifiers(annotations.toMutableList(), nullability)
+
+    companion object {
+        fun create(
+            annotations: List<AnnotationItem>,
+            knownNullability: TypeNullability? = null,
+        ): TypeModifiers {
+            // Use the known nullability, or find if there is a nullness annotation on the type,
+            // defaulting to platform nullness if not.
+            val nullability =
+                knownNullability
+                    ?: annotations
+                        .firstOrNull { it.isNullnessAnnotation() }
+                        ?.let { TypeNullability.ofAnnotation(it) }
+                        ?: TypeNullability.PLATFORM
+            return DefaultTypeModifiers(annotations.toMutableList(), nullability)
+        }
+    }
 }

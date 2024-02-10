@@ -18,54 +18,47 @@ package com.android.tools.metalava.model.turbine
 
 import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.ClassTypeItem
+import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.DefaultTypeItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
 import com.android.tools.metalava.model.ReferenceTypeItem
 import com.android.tools.metalava.model.TypeArgumentTypeItem
 import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.TypeModifiers
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.WildcardTypeItem
-import com.google.turbine.binder.sym.TyVarSymbol
 
 internal sealed class TurbineTypeItem(
-    val codebase: TurbineBasedCodebase,
-    override val modifiers: TurbineTypeModifiers,
-) : DefaultTypeItem(codebase) {}
+    override val modifiers: TypeModifiers,
+) : DefaultTypeItem()
 
 internal class TurbinePrimitiveTypeItem(
-    codebase: TurbineBasedCodebase,
-    modifiers: TurbineTypeModifiers,
+    modifiers: TypeModifiers,
     override val kind: Primitive,
-) : PrimitiveTypeItem, TurbineTypeItem(codebase, modifiers) {
+) : PrimitiveTypeItem, TurbineTypeItem(modifiers) {
     override fun duplicate(): PrimitiveTypeItem =
-        TurbinePrimitiveTypeItem(codebase, modifiers.duplicate(), kind)
+        TurbinePrimitiveTypeItem(modifiers.duplicate(), kind)
 }
 
 internal class TurbineArrayTypeItem(
-    codebase: TurbineBasedCodebase,
-    modifiers: TurbineTypeModifiers,
-    override val componentType: TurbineTypeItem,
+    modifiers: TypeModifiers,
+    override val componentType: TypeItem,
     override val isVarargs: Boolean,
-) : ArrayTypeItem, TurbineTypeItem(codebase, modifiers) {
+) : ArrayTypeItem, TurbineTypeItem(modifiers) {
     override fun duplicate(componentType: TypeItem): ArrayTypeItem {
-        return TurbineArrayTypeItem(
-            codebase,
-            modifiers.duplicate(),
-            componentType as TurbineTypeItem,
-            isVarargs
-        )
+        return TurbineArrayTypeItem(modifiers.duplicate(), componentType, isVarargs)
     }
 }
 
 internal class TurbineClassTypeItem(
-    codebase: TurbineBasedCodebase,
-    modifiers: TurbineTypeModifiers,
+    private val codebase: Codebase,
+    modifiers: TypeModifiers,
     override val qualifiedName: String,
     override val arguments: List<TypeArgumentTypeItem>,
     override val outerClassType: TurbineClassTypeItem?,
-) : ClassTypeItem, TurbineTypeItem(codebase, modifiers) {
+) : ClassTypeItem, TurbineTypeItem(modifiers) {
     override val className: String = ClassTypeItem.computeClassName(qualifiedName)
 
     private val asClassCache by
@@ -88,29 +81,25 @@ internal class TurbineClassTypeItem(
 }
 
 internal class TurbineVariableTypeItem(
-    codebase: TurbineBasedCodebase,
-    modifiers: TurbineTypeModifiers,
-    private val symbol: TyVarSymbol
-) : VariableTypeItem, TurbineTypeItem(codebase, modifiers) {
-    override val name: String = symbol.name()
-    override val asTypeParameter: TypeParameterItem by lazy { codebase.findTypeParameter(symbol) }
+    modifiers: TypeModifiers,
+    override val asTypeParameter: TypeParameterItem,
+) : VariableTypeItem, TurbineTypeItem(modifiers) {
+    override val name: String = asTypeParameter.name()
 
     override fun duplicate(): VariableTypeItem =
-        TurbineVariableTypeItem(codebase, modifiers.duplicate(), symbol)
+        TurbineVariableTypeItem(modifiers.duplicate(), asTypeParameter)
 }
 
 internal class TurbineWildcardTypeItem(
-    codebase: TurbineBasedCodebase,
-    modifiers: TurbineTypeModifiers,
+    modifiers: TypeModifiers,
     override val extendsBound: ReferenceTypeItem?,
     override val superBound: ReferenceTypeItem?,
-) : WildcardTypeItem, TurbineTypeItem(codebase, modifiers) {
+) : WildcardTypeItem, TurbineTypeItem(modifiers) {
     override fun duplicate(
         extendsBound: ReferenceTypeItem?,
         superBound: ReferenceTypeItem?
     ): TurbineWildcardTypeItem {
         return TurbineWildcardTypeItem(
-            codebase,
             modifiers.duplicate(),
             extendsBound,
             superBound,
