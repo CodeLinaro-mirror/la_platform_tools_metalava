@@ -222,7 +222,7 @@ class ApiFromTextTest : DriverTest() {
                 package test.pkg {
                   public class MyTest {
                     method public static int codePointAt(char[], int);
-                    method @NonNull public <K,V> java.util.Set<java.util.Map.Entry<K,V>> entrySet();
+                    method @NonNull public <K, V> java.util.Set<java.util.Map.Entry<K,V>> entrySet();
                     method @NonNull public java.lang.annotation.Annotation[] getAnnotations();
                     method @NonNull public abstract java.lang.annotation.Annotation[][] getParameterAnnotations();
                     method @NonNull public String[] split(@NonNull String, int);

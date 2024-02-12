@@ -51,23 +51,26 @@ class ParameterizedFindClassTest : BaseModelTest() {
                     className = "test.pkg.Bar",
                     expectedFound = false,
                 ),
-                // The following classes are implicitly used, directly, or indirectly so they are
-                // tested to check that the implicit use does not accidentally include them when
-                // they should not.
+                // The following classes will be explicitly loaded. Although these are used
+                // implicitly the behavior differs between models so is hard to test. By specifying
+                // them explicitly it makes the tests more consistent.
+                TestParams(
+                    className = "java.lang.Object",
+                    expectedFound = true,
+                ),
+                TestParams(
+                    className = "java.lang.Throwable",
+                    expectedFound = true,
+                ),
+                // The following classes are implicitly used, directly, or indirectly and are tested
+                // to check that the implicit use does not accidentally include them when they
+                // should not.
                 TestParams(
                     className = "java.lang.annotation.Annotation",
                     expectedFound = false,
                 ),
                 TestParams(
                     className = "java.lang.Enum",
-                    expectedFound = false,
-                ),
-                TestParams(
-                    className = "java.lang.Object",
-                    expectedFound = false,
-                ),
-                TestParams(
-                    className = "java.lang.Throwable",
                     expectedFound = false,
                 ),
                 TestParams(
@@ -104,6 +107,7 @@ class ParameterizedFindClassTest : BaseModelTest() {
                     // Signature format: 2.0
                     package test.pkg {
                       public class Foo {
+                        method public Object foo() throws Throwable;
                       }
                     }
                 """
@@ -113,6 +117,7 @@ class ParameterizedFindClassTest : BaseModelTest() {
                     package test.pkg;
                     public class Foo {
                         private Foo() {}
+                        public Object foo() throws Throwable {throw new Throwable();}
                     }
                 """
             ),
@@ -121,6 +126,8 @@ class ParameterizedFindClassTest : BaseModelTest() {
                     package test.pkg
                     class Foo
                     private constructor() {
+                        @Throws(Throwable::class)
+                        fun foo(): Any {throw Throwable()}
                     }
                 """
             ),

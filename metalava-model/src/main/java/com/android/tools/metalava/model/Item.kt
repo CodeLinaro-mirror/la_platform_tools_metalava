@@ -259,9 +259,15 @@ interface Item {
     fun containingClass(): ClassItem?
 
     /**
-     * Returns the associated type if any. For example, for a field, property or parameter, this is
-     * the type of the variable; for a method, it's the return type. For packages, classes and
-     * files, it's null.
+     * Returns the associated type, if any.
+     *
+     * i.e.
+     * * For a field, property or parameter, this is the type of the variable.
+     * * For a method, it's the return type.
+     * * For classes it's the declared class type, i.e. a class type using the type parameter types
+     *   as the type arguments.
+     * * For type parameters it's a [VariableTypeItem] reference the type parameter.
+     * * For packages and files, it's null.
      */
     fun type(): TypeItem?
 

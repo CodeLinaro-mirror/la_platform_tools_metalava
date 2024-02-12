@@ -156,18 +156,19 @@ class SdkFileWriter(val codebase: Codebase, private val outputDir: File) {
         // are enclosed by a layout class (and not one that has been declared as a widget)
         var i = 0
         while (i < layoutParams.size) {
-            var clazz: ClassItem? = layoutParams[i]
-            val containingClass = clazz?.containingClass()
-            var remove = containingClass == null || layouts.indexOf(containingClass) == -1
-            // Also ensure that super classes of the layout params are in android.widget or
-            // android.view.
-            while (!remove && clazz != null) {
-                clazz = clazz.superClass() ?: break
-                if (clazz == topLayoutParams) {
-                    break
-                }
-                remove = !isIncludedPackage(clazz)
-            }
+            val clazz = layoutParams[i]
+            val containingClass = clazz.containingClass()
+            val remove =
+                containingClass == null ||
+                    layouts.indexOf(containingClass) == -1 ||
+                    // Also ensure that super classes of the layout params are in android.widget or
+                    // android.view.
+                    clazz
+                        .allSuperClasses()
+                        // Search up to but not including topLayoutParams
+                        .takeWhile { clazz != topLayoutParams }
+                        // Find any class that is not in the widget or view packages.
+                        .any { !isIncludedPackage(clazz) }
             if (remove) {
                 layoutParams.removeAt(i)
             } else {
@@ -266,10 +267,8 @@ class SdkFileWriter(val codebase: Codebase, private val outputDir: File) {
     @Throws(IOException::class)
     private fun writeClass(writer: BufferedWriter, clazz: ClassItem, prefix: Char) {
         writer.append(prefix).append(clazz.qualifiedName())
-        var superClass: ClassItem? = clazz.superClass()
-        while (superClass != null) {
+        for (superClass in clazz.allSuperClasses()) {
             writer.append(' ').append(superClass.qualifiedName())
-            superClass = superClass.superClass()
         }
         writer.append('\n')
     }

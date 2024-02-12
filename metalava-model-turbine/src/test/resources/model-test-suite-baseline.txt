@@ -1,22 +1,14 @@
 com.android.tools.metalava.model.testsuite.annotationitem.CommonAnnotationItemTest
-  annotation array values with single element[turbine,java]
-  annotation toSource() for array values with single element[turbine,java]
-  annotation toSource() with class values[turbine,java]
   annotation toSource() with compound expression values[turbine,java]
-  annotation toSource() with enum values[turbine,java]
-  annotation toSource() with number values[turbine,java]
-  annotation with enum values[turbine,java]
-  annotation with infinity values[turbine,java]
-  annotation with negative values[turbine,java]
-  annotation with type cast values[turbine,java]
-
-com.android.tools.metalava.model.testsuite.codebase.ParameterizedFindClassTest
-  test findClass()[turbine,java,java.lang.Object]
-  test findClass()[turbine,java,java.lang.Throwable]
+  annotation toSource() with constant literal values[turbine,java]
 
 com.android.tools.metalava.model.testsuite.fielditem.SourceFieldItemTest
   test default value of an enum constant field[turbine,java]
   test non final field with default value as constant expression[turbine,java]
+
+com.android.tools.metalava.model.testsuite.methoditem.CommonMethodItemTest
+  Test throws method type parameter does not extend Throwable[turbine,java]
+  Test throws method type parameter extends Throwable[turbine,java]
 
 com.android.tools.metalava.model.testsuite.methoditem.CommonParameterItemTest
   Test publicName reports correct name when called on binary class - Object#equals[turbine,java]

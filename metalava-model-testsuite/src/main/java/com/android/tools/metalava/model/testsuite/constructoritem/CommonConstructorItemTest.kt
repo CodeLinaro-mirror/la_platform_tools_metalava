@@ -14,19 +14,19 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava.model.testsuite.propertyitem
+package com.android.tools.metalava.model.testsuite.constructoritem
 
-import com.android.tools.metalava.model.PropertyItem
+import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.testsuite.BaseModelTest
+import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
-import org.junit.Assert.assertEquals
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 
-/** Common tests for implementations of [PropertyItem]. */
+/** Common tests for implementations of [MethodItem]. */
 @RunWith(Parameterized::class)
-class CommonPropertyItemTest : BaseModelTest() {
+class CommonConstructorItemTest : BaseModelTest() {
 
     @Test
     fun `Test access type parameter of outer class`() {
@@ -40,8 +40,24 @@ class CommonPropertyItemTest : BaseModelTest() {
                       public class Outer.Middle {
                       }
                       public abstract class Outer.Middle.Inner {
-                        property public abstract O property;
+                        ctor public Inner(O);
                       }
+                    }
+                """
+            ),
+            java(
+                """
+                    package test.pkg;
+
+                    public class Outer<O> {
+                        private Outer() {}
+
+                        public class Middle {
+                            private Middle() {}
+                            public class Inner {
+                                public Inner(O o) {}
+                            }
+                        }
                     }
                 """
             ),
@@ -51,8 +67,7 @@ class CommonPropertyItemTest : BaseModelTest() {
 
                     class Outer<O> private constructor() {
                         inner class Middle private constructor() {
-                            abstract inner class Inner private constructor() {
-                                abstract val property: O
+                            abstract inner class Inner(o: O) {
                             }
                         }
                     }
@@ -61,42 +76,16 @@ class CommonPropertyItemTest : BaseModelTest() {
         ) {
             val oTypeParameter =
                 codebase.assertClass("test.pkg.Outer").typeParameterList().typeParameters().single()
-            val propertyType =
+            val constructorType =
                 codebase
                     .assertClass("test.pkg.Outer.Middle.Inner")
-                    .assertProperty("property")
+                    .constructors()
+                    .first()
+                    .parameters()
+                    .last()
                     .type()
 
-            propertyType.assertReferencesTypeParameter(oTypeParameter)
-        }
-    }
-
-    @Test
-    fun `Test deprecated getter and setter by annotation`() {
-        runCodebaseTest(
-            kotlin(
-                """
-                    package test.pkg
-
-                    class Bar {
-                        private var fooImpl: String = ""
-                        @Deprecated("blah")
-                        var foo: String
-                            get() = fooImpl
-                            @Deprecated("blah")
-                            set(value) {fooImpl = value}
-                    }
-                """
-            ),
-        ) {
-            val barClass = codebase.assertClass("test.pkg.Bar")
-            val property = barClass.properties().single()
-            val methods = barClass.methods()
-            val getter = methods.single { it.name() == "getFoo" }
-            val setter = methods.single { it.name() == "setFoo" }
-            assertEquals("property originallyDeprecated", true, property.originallyDeprecated)
-            assertEquals("getter originallyDeprecated", true, getter.originallyDeprecated)
-            assertEquals("setter originallyDeprecated", true, setter.originallyDeprecated)
+            constructorType.assertReferencesTypeParameter(oTypeParameter)
         }
     }
 }

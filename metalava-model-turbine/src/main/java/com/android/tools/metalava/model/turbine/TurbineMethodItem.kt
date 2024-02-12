@@ -20,6 +20,7 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ParameterItem
+import com.android.tools.metalava.model.ThrowableType
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.computeSuperMethods
@@ -37,7 +38,7 @@ internal open class TurbineMethodItem(
 
     private lateinit var superMethodList: List<MethodItem>
     internal lateinit var throwsClassNames: List<String>
-    private lateinit var throwsTypes: List<ClassItem>
+    private lateinit var throwsTypes: List<ThrowableType>
     internal lateinit var parameters: List<ParameterItem>
 
     override var inheritedFrom: ClassItem? = null
@@ -48,7 +49,7 @@ internal open class TurbineMethodItem(
 
     override fun returnType(): TypeItem = returnType
 
-    override fun throwsTypes(): List<ClassItem> = throwsTypes
+    override fun throwsTypes(): List<ThrowableType> = throwsTypes
 
     override fun isExtensionMethod(): Boolean {
         TODO("b/295800205")
@@ -137,11 +138,12 @@ internal open class TurbineMethodItem(
     override fun typeParameterList(): TypeParameterList = typeParameters
 
     internal fun setThrowsTypes() {
-        val result = throwsClassNames.map { codebase.findOrCreateClass(it)!! }
-        throwsTypes = result.sortedWith(ClassItem.fullNameComparator)
+        val result =
+            throwsClassNames.map { ThrowableType.ofClass(codebase.findOrCreateClass(it)!!) }
+        throwsTypes = result.sortedWith(ThrowableType.fullNameComparator)
     }
 
-    internal fun setThrowsTypes(throwsList: List<ClassItem>) {
+    internal fun setThrowsTypes(throwsList: List<ThrowableType>) {
         throwsTypes = throwsList
     }
 

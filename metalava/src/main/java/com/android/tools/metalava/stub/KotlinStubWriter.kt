@@ -21,6 +21,7 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ModifierListWriter
+import com.android.tools.metalava.model.ThrowableType
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.psi.PsiClassItem
@@ -226,7 +227,9 @@ internal class KotlinStubWriter(
             }
         if (throws.any()) {
             writer.print("@Throws(")
-            throws.asSequence().sortedWith(ClassItem.fullNameComparator).forEachIndexed { i, type ->
+            throws.asSequence().sortedWith(ThrowableType.fullNameComparator).forEachIndexed {
+                i,
+                type ->
                 if (i > 0) {
                     writer.print(",")
                 }

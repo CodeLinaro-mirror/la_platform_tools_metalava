@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2023 The Android Open Source Project
+ * Copyright (C) 2024 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,25 +14,23 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava.model.turbine
+package com.android.tools.metalava.model
 
-import com.google.turbine.model.TurbineTyKind
-
-internal enum class TurbineClassType() {
+/**
+ * The kind of class.
+ *
+ * Corresponds to similarly named values in [javax.lang.model.element.ElementKind].
+ */
+enum class ClassKind {
+    /** An interface. */
     INTERFACE,
-    ENUM,
-    ANNOTATION,
-    TYPE_PARAMETER,
-    CLASS;
 
-    companion object {
-        fun getClassType(type: TurbineTyKind): TurbineClassType {
-            return when (type) {
-                TurbineTyKind.INTERFACE -> INTERFACE
-                TurbineTyKind.ENUM -> ENUM
-                TurbineTyKind.ANNOTATION -> ANNOTATION
-                else -> CLASS
-            }
-        }
-    }
+    /** An enum class. */
+    ENUM,
+
+    /** An annotation class. */
+    ANNOTATION_TYPE,
+
+    /** A normal class. */
+    CLASS
 }
