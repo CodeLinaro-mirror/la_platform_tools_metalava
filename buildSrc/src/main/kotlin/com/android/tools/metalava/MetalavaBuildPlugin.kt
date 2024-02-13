@@ -80,7 +80,8 @@ class MetalavaBuildPlugin : Plugin<Project> {
     fun configureLint(project: Project) {
         project.apply(mapOf("plugin" to "com.android.lint"))
         project.extensions.getByType<Lint>().apply {
-            fatal.add("UastImplementation")
+            fatal.add("UastImplementation") // go/hide-uast-impl
+            fatal.add("KotlincFE10") // b/239982263
             disable.add("UseTomlInstead") // not useful for this project
             disable.add("GradleDependency") // not useful for this project
             abortOnError = true

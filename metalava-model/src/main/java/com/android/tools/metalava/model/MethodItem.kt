@@ -19,7 +19,7 @@ package com.android.tools.metalava.model
 import java.util.function.Predicate
 
 @MetalavaApi
-interface MethodItem : MemberItem {
+interface MethodItem : MemberItem, TypeParameterListOwner {
     /**
      * The property this method is an accessor for; inverse of [PropertyItem.getter] and
      * [PropertyItem.setter]
@@ -57,12 +57,6 @@ interface MethodItem : MemberItem {
             superMethods.firstOrNull()
         }
     }
-
-    /**
-     * Any type parameters for the class, if any, as a source string (with fully qualified class
-     * names)
-     */
-    @MetalavaApi fun typeParameterList(): TypeParameterList
 
     /** Types of exceptions that this method can throw */
     fun throwsTypes(): List<ThrowableType>

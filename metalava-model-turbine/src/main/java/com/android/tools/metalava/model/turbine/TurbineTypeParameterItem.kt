@@ -16,7 +16,7 @@
 
 package com.android.tools.metalava.model.turbine
 
-import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.BoundsTypeItem
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.VariableTypeItem
 import com.google.turbine.binder.sym.TyVarSymbol
@@ -26,7 +26,7 @@ internal class TurbineTypeParameterItem(
     modifiers: TurbineModifierItem,
     internal val symbol: TyVarSymbol,
     private val name: String = symbol.name(),
-    private val bounds: List<TypeItem>,
+    private val bounds: List<BoundsTypeItem>,
 ) :
     TurbineItem(
         codebase,
@@ -40,7 +40,7 @@ internal class TurbineTypeParameterItem(
     // Java does not supports reified generics
     override fun isReified(): Boolean = false
 
-    override fun typeBounds(): List<TypeItem> = bounds
+    override fun typeBounds(): List<BoundsTypeItem> = bounds
 
     override fun type(): VariableTypeItem {
         return TurbineVariableTypeItem(codebase, TurbineTypeModifiers(emptyList()), symbol)

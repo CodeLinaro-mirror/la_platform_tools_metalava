@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2024 The Android Open Source Project
+ * Copyright (C) 2018 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,13 +14,12 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava.model.text
+package com.android.tools.metalava.model
 
-import com.android.tools.metalava.model.TypeParameterList
-
-internal interface TypeParameterListOwner {
-    fun typeParameterList(): TypeParameterList
-
-    /** Parent type parameter list owner */
-    fun typeParameterListOwnerParent(): TypeParameterListOwner?
+/** Interface common to all [Item]s that can have type parameters. */
+sealed interface TypeParameterListOwner {
+    /**
+     * Any type parameters for the [Item], if there are no parameters then [TypeParameterList.NONE].
+     */
+    @MetalavaApi fun typeParameterList(): TypeParameterList
 }

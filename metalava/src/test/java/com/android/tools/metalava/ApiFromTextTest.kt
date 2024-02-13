@@ -308,7 +308,7 @@ class ApiFromTextTest : DriverTest() {
         val source =
             """
             package a.b.c {
-              public interface MyStream<T, S extends a.b.c.MyStream<T, S>> {
+              public interface MyStream<T, S extends a.b.c.MyStream<T,S>> {
               }
             }
             package test.pkg {
@@ -335,7 +335,7 @@ class ApiFromTextTest : DriverTest() {
               public final class Test<T> {
                 ctor public Test();
                 method public abstract <T extends java.util.Collection<java.lang.String>> T addAllTo(T);
-                method public static <T & java.lang.Comparable<? super T>> T max(java.util.Collection<? extends T>);
+                method public static <T extends java.lang.Object & java.lang.Comparable<? super T>> T max(java.util.Collection<? extends T>);
                 method public <X extends java.lang.Throwable> T orElseThrow(java.util.function.Supplier<? extends X>) throws java.lang.Throwable;
                 field public static java.util.List<java.lang.String> LIST;
               }

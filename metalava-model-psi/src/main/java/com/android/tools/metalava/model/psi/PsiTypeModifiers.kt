@@ -19,6 +19,7 @@ package com.android.tools.metalava.model.psi
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.TypeModifiers
 import com.android.tools.metalava.model.TypeNullability
+import com.android.tools.metalava.model.TypeUse
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiPrimitiveType
 import com.intellij.psi.PsiType
@@ -67,15 +68,17 @@ internal class PsiTypeModifiers(
         fun create(
             codebase: PsiBasedCodebase,
             type: PsiType,
-            kotlinType: KotlinTypeInfo?
+            kotlinType: KotlinTypeInfo?,
+            typeUse: TypeUse = TypeUse.GENERAL,
         ): PsiTypeModifiers {
             val annotations = type.annotations.map { PsiAnnotationItem.create(codebase, it) }
             // Some types have defined nullness, and kotlin types have nullness information.
             // Otherwise, look at the annotations and default to platform nullness.
             val nullability =
-                when (type) {
-                    is PsiPrimitiveType -> TypeNullability.NONNULL
-                    is PsiWildcardType -> TypeNullability.UNDEFINED
+                when {
+                    typeUse == TypeUse.SUPER_TYPE || type is PsiPrimitiveType ->
+                        TypeNullability.NONNULL
+                    type is PsiWildcardType -> TypeNullability.UNDEFINED
                     else -> kotlinType?.nullability()
                             ?: annotations
                                 .firstOrNull { it.isNullnessAnnotation() }

@@ -653,14 +653,10 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
             assertEquals("test.pkg.Test1", testClassType1.qualifiedName)
             assertEquals(1, testClassType1.arguments.count())
             val typeArgument1 = testClassType1.arguments.single()
-            assertThat(typeArgument1).isInstanceOf(VariableTypeItem::class.java)
-            typeArgument1 as VariableTypeItem
-            assertEquals("S", typeArgument1.toString())
-            assertEquals(
-                testClass1.typeParameterList().typeParameters().single(),
-                typeArgument1.asTypeParameter
-            )
-            assertEquals(0, typeArgument1.asTypeParameter.typeBounds().count())
+            val typeParameter1 = testClass1.typeParameterList().typeParameters().single()
+            typeArgument1.assertReferencesTypeParameter(typeParameter1)
+            assertEquals("S", (typeArgument1 as VariableTypeItem).toString())
+            assertEquals(0, typeParameter1.typeBounds().count())
             assertEquals("test.pkg.Test1<S>", testClassType1.toString())
             assertEquals(null, testClassType1.outerClassType)
 
@@ -668,17 +664,10 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
             assertEquals("test.pkg.Test1.Test2", testClassType2.qualifiedName)
             assertEquals(1, testClassType2.arguments.count())
             val typeArgument2 = testClassType2.arguments.single()
-            assertThat(typeArgument2).isInstanceOf(VariableTypeItem::class.java)
-            typeArgument2 as VariableTypeItem
-            assertEquals("T", typeArgument2.toString())
-            assertEquals(
-                testClass2.typeParameterList().typeParameters().single(),
-                typeArgument2.asTypeParameter
-            )
-            assertEquals(
-                "test.pkg.Test",
-                typeArgument2.asTypeParameter.typeBounds().single().toString()
-            )
+            val typeParameter2 = testClass2.typeParameterList().typeParameters().single()
+            typeArgument2.assertReferencesTypeParameter(typeParameter2)
+            assertEquals("T", (typeArgument2 as VariableTypeItem).toString())
+            assertEquals("test.pkg.Test", typeParameter2.typeBounds().single().toString())
             assertEquals("test.pkg.Test1<S>.Test2<T>", testClassType2.toString())
             assertEquals(testClassType1, testClassType2.outerClassType)
         }

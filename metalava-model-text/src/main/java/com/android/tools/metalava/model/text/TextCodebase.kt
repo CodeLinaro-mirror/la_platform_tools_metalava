@@ -43,8 +43,6 @@ internal class TextCodebase(
 
     private val externalClasses = HashMap<String, ClassItem>()
 
-    internal val typeResolver = TextTypeParser(this)
-
     /**
      * A set of empty [TextTypeModifiers] owned by, and reused by items within, this [TextCodebase].
      */
@@ -66,6 +64,8 @@ internal class TextCodebase(
     fun findClassInCodebase(className: String) = mAllClasses[className]
 
     override fun findClass(className: String) = mAllClasses[className] ?: externalClasses[className]
+
+    override fun resolveClass(className: String) = getOrCreateClass(className)
 
     override fun supportsDocumentation(): Boolean = false
 

@@ -39,7 +39,6 @@ class CommonParameterizedTypeItemTest : BaseModelTest() {
         val kotlinTypeParameter: String? = null,
         val kotlinType: String,
         val expectedAsClassName: String?,
-        val expectedHasTypeArguments: Boolean,
     ) {
         fun javaParameter(): String = "$javaType p"
 
@@ -61,26 +60,22 @@ class CommonParameterizedTypeItemTest : BaseModelTest() {
                     javaType = "int",
                     kotlinType = "Int",
                     expectedAsClassName = null,
-                    expectedHasTypeArguments = false,
                 ),
                 TestParams(
                     javaType = "int[]",
                     kotlinType = "IntArray",
                     expectedAsClassName = null,
-                    expectedHasTypeArguments = false,
                 ),
                 TestParams(
                     javaType = "Comparable<String>",
                     kotlinType = "Comparable<String>",
                     expectedAsClassName = "java.lang.Comparable",
-                    expectedHasTypeArguments = true,
                 ),
                 TestParams(
                     javaType = "String[]...",
                     kotlinModifiers = "vararg",
                     kotlinType = "Array<String>",
                     expectedAsClassName = "java.lang.String",
-                    expectedHasTypeArguments = false,
                 ),
                 TestParams(
                     javaTypeParameter = "<T extends Comparable<T>>",
@@ -88,7 +83,6 @@ class CommonParameterizedTypeItemTest : BaseModelTest() {
                     kotlinTypeParameter = "<T: Comparable<T>>",
                     kotlinType = "java.util.Map.Entry<String, T>",
                     expectedAsClassName = "java.util.Map.Entry",
-                    expectedHasTypeArguments = true,
                 ),
                 TestParams(
                     javaTypeParameter = "<T>",
@@ -96,7 +90,6 @@ class CommonParameterizedTypeItemTest : BaseModelTest() {
                     kotlinTypeParameter = "<T>",
                     kotlinType = "T",
                     expectedAsClassName = "java.lang.Object",
-                    expectedHasTypeArguments = false,
                 ),
                 TestParams(
                     name = "T extends Comparable",
@@ -105,7 +98,6 @@ class CommonParameterizedTypeItemTest : BaseModelTest() {
                     kotlinTypeParameter = "<T: Comparable<T>>",
                     kotlinType = "T",
                     expectedAsClassName = "java.lang.Comparable",
-                    expectedHasTypeArguments = false,
                 ),
                 TestParams(
                     javaTypeParameter = "<T extends Comparable<T>>",
@@ -113,13 +105,11 @@ class CommonParameterizedTypeItemTest : BaseModelTest() {
                     kotlinTypeParameter = "<T: Comparable<T>>",
                     kotlinType = "Array<T>",
                     expectedAsClassName = "java.lang.Comparable",
-                    expectedHasTypeArguments = false,
                 ),
                 TestParams(
                     javaType = "Comparable<Integer>[]",
                     kotlinType = "Array<Comparable<Int>>",
                     expectedAsClassName = "java.lang.Comparable",
-                    expectedHasTypeArguments = false,
                 ),
             )
 
@@ -179,13 +169,6 @@ class CommonParameterizedTypeItemTest : BaseModelTest() {
     fun `Test asClass`() {
         runTypeItemTest {
             assertEquals(params.expectedAsClassName, typeItem.asClass()?.qualifiedName())
-        }
-    }
-
-    @Test
-    fun `Test hasTypeArguments`() {
-        runTypeItemTest {
-            assertEquals(params.expectedHasTypeArguments, typeItem.hasTypeArguments())
         }
     }
 }

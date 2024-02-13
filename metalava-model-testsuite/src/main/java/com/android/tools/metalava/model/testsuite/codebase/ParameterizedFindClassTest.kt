@@ -22,6 +22,7 @@ import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
+import kotlin.test.assertSame
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
@@ -34,6 +35,12 @@ class ParameterizedFindClassTest : BaseModelTest() {
     data class TestParams(
         val className: String,
         val expectedFound: Boolean,
+        /**
+         * This is only tested when `true` as even though the class might be unknown some models
+         * that work with partial information, e.g. text, will fabricate an instance just in case it
+         * was real.
+         */
+        val expectedResolved: Boolean = expectedFound,
     ) {
         override fun toString(): String {
             return className
@@ -48,8 +55,14 @@ class ParameterizedFindClassTest : BaseModelTest() {
                     expectedFound = true,
                 ),
                 TestParams(
-                    className = "test.pkg.Bar",
+                    className = "test.pkg.Unknown",
                     expectedFound = false,
+                ),
+                TestParams(
+                    // Test to make sure that a class whose name does not match the file name will
+                    // be found.
+                    className = "test.pkg.SecondInFile",
+                    expectedFound = true,
                 ),
                 // The following classes will be explicitly loaded. Although these are used
                 // implicitly the behavior differs between models so is hard to test. By specifying
@@ -64,23 +77,27 @@ class ParameterizedFindClassTest : BaseModelTest() {
                 ),
                 // The following classes are implicitly used, directly, or indirectly and are tested
                 // to check that the implicit use does not accidentally include them when they
-                // should not.
+                // should not. However, they should all be resolvable.
                 TestParams(
                     className = "java.lang.annotation.Annotation",
                     expectedFound = false,
+                    expectedResolved = true,
                 ),
                 TestParams(
                     className = "java.lang.Enum",
                     expectedFound = false,
+                    expectedResolved = true,
                 ),
                 TestParams(
                     className = "java.lang.Comparable",
                     expectedFound = false,
+                    expectedResolved = true,
                 ),
                 // The following should not be used implicitly by anything.
                 TestParams(
                     className = "java.io.File",
                     expectedFound = false,
+                    expectedResolved = true,
                 ),
             )
 
@@ -107,7 +124,9 @@ class ParameterizedFindClassTest : BaseModelTest() {
                     // Signature format: 2.0
                     package test.pkg {
                       public class Foo {
-                        method public Object foo() throws Throwable;
+                        method public Object foo(Throwable) throws Throwable;
+                      }
+                      public class SecondInFile {
                       }
                     }
                 """
@@ -117,7 +136,9 @@ class ParameterizedFindClassTest : BaseModelTest() {
                     package test.pkg;
                     public class Foo {
                         private Foo() {}
-                        public Object foo() throws Throwable {throw new Throwable();}
+                        public Object foo(Throwable t) throws Throwable {throw new Throwable();}
+                    }
+                    public class SecondInFile {
                     }
                 """
             ),
@@ -127,14 +148,51 @@ class ParameterizedFindClassTest : BaseModelTest() {
                     class Foo
                     private constructor() {
                         @Throws(Throwable::class)
-                        fun foo(): Any {throw Throwable()}
+                        fun foo(t: Throwable): Any {throw Throwable()}
+                    }
+                    class SecondInFile {
                     }
                 """
             ),
         ) {
+            val fooMethod = codebase.assertClass("test.pkg.Foo").methods().single()
+
+            // Force loading of the Object classes by resolving the return type which is
+            // java.lang.Object.
+            fooMethod.returnType().asClass()
+
+            // Force loading of the Throwable classes by resolving the parameter's type which is
+            // java.lang.Object.
+            fooMethod.parameters().single().type().asClass()
+
             val className = params.className
             val foundClass = codebase.findClass(className)
             assertFound(className, params.expectedFound, foundClass)
+
+            val resolvedClass = codebase.resolveClass(className)
+            if (foundClass == null) {
+                // If the class was not found then resolving might have found it.
+                if (params.expectedResolved) {
+                    assertNotNull(resolvedClass, message = "expected to resolve $className")
+                }
+
+                // If the class was resolved then it must now be found.
+                if (resolvedClass != null) {
+                    val foundClassAfterResolving = codebase.findClass(className)
+                    assertSame(
+                        resolvedClass,
+                        foundClassAfterResolving,
+                        message = "could not find $className even though it was previously resolved"
+                    )
+                }
+            } else {
+                // If the class was found then it must be resolved to the same class.
+                assertSame(
+                    foundClass,
+                    resolvedClass,
+                    message = "could not resolve $className even though it was previously found"
+                )
+            }
         }
     }
 }

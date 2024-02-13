@@ -33,7 +33,15 @@ interface TypeParameterItem : Item {
     @MetalavaApi
     fun bounds(): List<ClassItem> = typeBounds().mapNotNull { it.asClass() }
 
-    fun typeBounds(): List<TypeItem>
+    fun typeBounds(): List<BoundsTypeItem>
+
+    /**
+     * Get the erased type of this, i.e. the type that would be used at runtime to represent
+     * something of this type. That is either the first bound (the super class) or
+     * `java.lang.Object` if there are no bounds.
+     */
+    fun asErasedType(): BoundsTypeItem? =
+        typeBounds().firstOrNull() ?: codebase.resolveClass(JAVA_LANG_OBJECT)?.type()
 
     fun isReified(): Boolean
 

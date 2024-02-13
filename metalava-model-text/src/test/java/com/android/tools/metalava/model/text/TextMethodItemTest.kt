@@ -24,7 +24,7 @@ class TextMethodItemTest : BaseTextCodebaseTest() {
 
     @Test
     fun `text method item return type is non-null`() {
-        runCodebaseTest(
+        runSignatureTest(
             signature(
                 """
                     // Signature format: 2.0

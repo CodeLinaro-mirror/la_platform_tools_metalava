@@ -70,6 +70,8 @@ internal open class TurbineBasedCodebase(
         return classMap[className]
     }
 
+    override fun resolveClass(className: String) = findOrCreateClass(className)
+
     fun findOrCreateClass(className: String): TurbineClassItem? {
         return initializer.findOrCreateClass(className)
     }

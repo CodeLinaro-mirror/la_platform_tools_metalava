@@ -390,11 +390,15 @@ class CommonClassItemTest : BaseModelTest() {
                 """
             ),
         ) {
-            val objectClass = codebase.assertClass("java.lang.Object")
             val fooClass = codebase.assertClass("test.pkg.Foo")
 
-            assertSame(objectClass, fooClass.superClassType()?.asClass())
-            assertSame(objectClass, fooClass.superClass())
+            // Get the super class to force it to be loaded.
+            val fooSuperClass = fooClass.superClass()
+
+            // Now get the object class.
+            val objectClass = codebase.assertClass("java.lang.Object")
+
+            assertSame(objectClass, fooSuperClass)
 
             val interfaceList = fooClass.interfaceTypes().map { it.asClass() }
             assertEquals(emptyList(), interfaceList)
@@ -473,11 +477,15 @@ class CommonClassItemTest : BaseModelTest() {
             val interfaceA = codebase.assertClass("test.pkg.A")
             val interfaceB = codebase.assertClass("test.pkg.B")
             val interfaceC = codebase.assertClass("test.pkg.C")
-            val objectClass = codebase.assertClass("java.lang.Object")
             val fooClass = codebase.assertClass("test.pkg.Foo")
 
-            assertSame(objectClass, fooClass.superClassType()?.asClass())
-            assertSame(objectClass, fooClass.superClass())
+            // Get the super class to force it to be loaded.
+            val fooSuperClass = fooClass.superClass()
+
+            // Now get the object class.
+            val objectClass = codebase.assertClass("java.lang.Object")
+
+            assertSame(objectClass, fooSuperClass)
 
             val interfaceList = fooClass.interfaceTypes().map { it.asClass() }
             assertEquals(listOf(interfaceA, interfaceB, interfaceC), interfaceList)
@@ -1119,9 +1127,8 @@ class CommonClassItemTest : BaseModelTest() {
             assertThat(outerType!!.qualifiedName).isEqualTo("test.pkg.Outer")
 
             val outerClassVariable = outerType.arguments.single()
-            assertThat(outerClassVariable).isInstanceOf(VariableTypeItem::class.java)
+            outerClassVariable.assertReferencesTypeParameter(outerClassParameter)
             assertThat((outerClassVariable as VariableTypeItem).name).isEqualTo("T")
-            assertThat(outerClassVariable.asTypeParameter).isEqualTo(outerClassParameter)
         }
     }
 
@@ -1159,6 +1166,37 @@ class CommonClassItemTest : BaseModelTest() {
 
             assertThat(typeParameter).isInstanceOf(TypeParameterItem::class.java)
             assertThat(typeParameter).isNotInstanceOf(ClassItem::class.java)
+        }
+    }
+
+    @Test
+    fun `Check pathological type parameter conflicting with primitive type`() {
+        runCodebaseTest(
+            signature(
+                """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public abstract class Generic<int> {
+                        method public abstract int method();
+                      }
+                    }
+                """
+            ),
+            // Java does not support using a primitive type name as a type parameter name.
+            kotlin(
+                """
+                    package test.pkg
+                    abstract class Generic<Int> {
+                        abstract fun method(): Int
+                    }
+                """
+            )
+        ) {
+            val genericClass = codebase.assertClass("test.pkg.Generic")
+            val typeParameter = genericClass.typeParameterList().typeParameters().single()
+
+            val methodReturnType = genericClass.methods().single().returnType()
+            methodReturnType.assertReferencesTypeParameter(typeParameter)
         }
     }
 }
