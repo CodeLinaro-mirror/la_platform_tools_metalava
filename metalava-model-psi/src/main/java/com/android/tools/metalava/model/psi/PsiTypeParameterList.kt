@@ -37,7 +37,7 @@ internal class PsiTypeParameterList(
 
             val typeParameters =
                 psiTypeParameterList.typeParameters.map {
-                    PsiTypeParameterItem.create(codebase, it).apply { finishInitialization() }
+                    PsiTypeParameterItem.create(codebase, it)
                 }
 
             return PsiTypeParameterList(codebase, typeParameters)

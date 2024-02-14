@@ -209,7 +209,7 @@ class CommonParameterItemTest : BaseModelTest() {
         ) {
             val parameterItem =
                 codebase
-                    .assertClass("java.lang.Object")
+                    .assertResolvedClass("java.lang.Object")
                     .assertMethod("equals", "java.lang.Object")
                     .parameters()
                     .single()
@@ -237,7 +237,7 @@ class CommonParameterItemTest : BaseModelTest() {
         ) {
             val parameterItems =
                 codebase
-                    .assertClass("android.view.ViewGroup")
+                    .assertResolvedClass("android.view.ViewGroup")
                     .assertMethod("onLayout", "boolean, int, int, int, int")
                     .parameters()
             // For some reason ViewGroup.onLayout(boolean, int, int, int, int) does not provide the

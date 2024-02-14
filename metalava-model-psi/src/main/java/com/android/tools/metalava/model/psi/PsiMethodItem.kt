@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ThrowableType
 import com.android.tools.metalava.model.TypeItem
@@ -24,7 +25,6 @@ import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.computeSuperMethods
 import com.intellij.psi.PsiAnnotationMethod
 import com.intellij.psi.PsiMethod
-import com.intellij.psi.PsiTypeParameter
 import org.jetbrains.kotlin.name.JvmStandardClassIds
 import org.jetbrains.kotlin.psi.KtFunction
 import org.jetbrains.kotlin.psi.KtNamedFunction
@@ -54,6 +54,7 @@ open class PsiMethodItem(
     private val returnType: PsiTypeItem,
     private val parameters: List<PsiParameterItem>,
     private val typeParameterList: TypeParameterList,
+    private val throwsTypes: List<ThrowableType>
 ) :
     PsiMemberItem(
         codebase = codebase,
@@ -129,14 +130,7 @@ open class PsiMethodItem(
 
     override fun typeParameterList() = typeParameterList
 
-    //    private var throwsTypes: List<ClassItem>? = null
-    private lateinit var throwsTypes: List<ThrowableType>
-
-    internal fun setThrowsTypes(throwsTypes: List<ThrowableType>) {
-        this.throwsTypes = throwsTypes
-    }
-
-    override fun throwsTypes(): List<ThrowableType> = throwsTypes
+    override fun throwsTypes() = throwsTypes
 
     override fun isExtensionMethod(): Boolean {
         if (isKotlin()) {
@@ -247,7 +241,6 @@ open class PsiMethodItem(
         if (targetContainingClass.deprecated) {
             duplicated.deprecated = true
         }
-        duplicated.throwsTypes = throwsTypes
         return duplicated
     }
 
@@ -275,7 +268,6 @@ open class PsiMethodItem(
     override fun finishInitialization() {
         super.finishInitialization()
 
-        throwsTypes = throwsTypes(codebase, psiMethod)
         returnType.finishInitialization(this)
         parameters.forEach { it.finishInitialization() }
     }
@@ -336,6 +328,7 @@ open class PsiMethodItem(
                     returnType = returnType,
                     parameters = parameters,
                     typeParameterList = typeParameterList,
+                    throwsTypes = throwsTypes(codebase, psiMethod),
                 )
             method.modifiers.setOwner(method)
             if (modifiers.isFinal() && containingClass.modifiers.isFinal()) {
@@ -403,6 +396,7 @@ open class PsiMethodItem(
                     // applying here but this is the same behavior as before.
                     // TODO: Investigate whether the above comment is correct and fix if necessary.
                     typeParameterList = original.typeParameterList,
+                    throwsTypes = original.throwsTypes,
                 )
             method.modifiers.setOwner(method)
 
@@ -424,7 +418,7 @@ open class PsiMethodItem(
             }
         }
 
-        private fun throwsTypes(
+        internal fun throwsTypes(
             codebase: PsiBasedCodebase,
             psiMethod: PsiMethod
         ): List<ThrowableType> {
@@ -434,17 +428,9 @@ open class PsiMethodItem(
             }
 
             return throwsClassTypes
-                // Resolve the type to a PsiClass, may return null.
-                .mapNotNull { psiType -> psiType.resolve() }
-                // Find or create a PsiClassItem or PsiTypeParameterItem for the underlying
-                // PsiClass.
-                .map { throwsClass ->
-                    // PsiTypeParameterItem have to be created separately to PsiClassItem.
-                    if (throwsClass is PsiTypeParameter) {
-                        ThrowableType.ofTypeParameter(codebase.findTypeParameter(throwsClass))
-                    } else {
-                        ThrowableType.ofClass(codebase.findOrCreateClass(throwsClass))
-                    }
+                // Convert the PsiType to an ExceptionTypeItem and wrap it in a ThrowableType.
+                .map { psiType ->
+                    ThrowableType.ofExceptionType(codebase.getType(psiType) as ExceptionTypeItem)
                 }
                 // We're sorting the names here even though outputs typically do their own sorting,
                 // since for example the MethodItem.sameSignature check wants to do an

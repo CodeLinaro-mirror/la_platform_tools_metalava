@@ -31,7 +31,7 @@ sealed interface ThrowableType {
      * The underlying [ClassItem], if available; must only be called if [isTypeParameter] is
      * `false`.
      */
-    val classItem: ClassItem
+    val classItem: ClassItem?
 
     /**
      * The underlying [TypeParameterItem], if available; must only be called if [isTypeParameter] is
@@ -138,47 +138,73 @@ sealed interface ThrowableType {
         override fun toString() = typeParameterItem.toString()
     }
 
-    /** A wrapper of [ClassTypeItem] that implements [ThrowableType]. */
-    private class ThrowableClassTypeItem(val classTypeItem: ClassTypeItem) : ThrowableType {
+    /** A wrapper of [ExceptionTypeItem] that implements [ThrowableType]. */
+    private class ThrowableExceptionTypeItem(val exceptionTypeItem: ExceptionTypeItem) :
+        ThrowableType {
 
-        private val fullName = bestGuessAtFullName(classTypeItem.qualifiedName)
+        private val fullName =
+            when (exceptionTypeItem) {
+                is ClassTypeItem -> bestGuessAtFullName(exceptionTypeItem.qualifiedName)
+                is VariableTypeItem -> exceptionTypeItem.name
+            }
 
-        /* This is never a type parameter. */
         override val isTypeParameter
-            get() = false
+            get() = exceptionTypeItem is VariableTypeItem
 
-        override val classItem: ClassItem
-            get() = classTypeItem.asClass() ?: error("Cannot resolve $this to a class")
+        override val classItem: ClassItem?
+            get() =
+                when (exceptionTypeItem) {
+                    is ClassTypeItem -> exceptionTypeItem.asClass()
+                    is VariableTypeItem -> error("Cannot access classItem of $this")
+                }
 
         override val typeParameterItem: TypeParameterItem
-            get() = error("Cannot access `typeParameterItem` on $this")
+            get() =
+                (exceptionTypeItem as? VariableTypeItem)?.asTypeParameter
+                    ?: error("Cannot access `typeParameterItem` on $this")
 
         /** The [classItem] is a subclass of [java.lang.Throwable] */
-        override val throwableClass: ClassItem
-            get() = classItem
+        override val throwableClass: ClassItem?
+            get() =
+                when (exceptionTypeItem) {
+                    is ClassTypeItem -> exceptionTypeItem.asClass()
+                    is VariableTypeItem ->
+                        exceptionTypeItem.asTypeParameter.typeBounds().firstNotNullOfOrNull {
+                            it.asClass()
+                        }
+                }
 
-        override fun description() = qualifiedName()
+        override fun description() =
+            when (exceptionTypeItem) {
+                is ClassTypeItem -> qualifiedName()
+                is VariableTypeItem ->
+                    "${typeParameterItem.name()} (extends ${throwableClass?.qualifiedName() ?: "unknown throwable"})}"
+            }
 
         override fun fullName() = fullName
 
-        override fun qualifiedName() = classTypeItem.qualifiedName
+        override fun qualifiedName() =
+            when (exceptionTypeItem) {
+                is ClassTypeItem -> exceptionTypeItem.qualifiedName
+                is VariableTypeItem -> exceptionTypeItem.name
+            }
 
         override fun equals(other: Any?): Boolean {
             if (this === other) return true
             if (javaClass != other?.javaClass) return false
 
-            other as ThrowableClassTypeItem
+            other as ThrowableExceptionTypeItem
 
-            if (classTypeItem != other.classTypeItem) return false
+            if (exceptionTypeItem != other.exceptionTypeItem) return false
 
             return true
         }
 
         override fun hashCode(): Int {
-            return classTypeItem.hashCode()
+            return exceptionTypeItem.hashCode()
         }
 
-        override fun toString() = classTypeItem.toString()
+        override fun toString() = exceptionTypeItem.toString()
     }
 
     companion object {
@@ -193,10 +219,7 @@ sealed interface ThrowableType {
 
         /** Get a [ThrowableType] wrapper around an [ExceptionTypeItem] */
         fun ofExceptionType(exceptionType: ExceptionTypeItem): ThrowableType =
-            when (exceptionType) {
-                is ClassTypeItem -> ThrowableClassTypeItem(exceptionType)
-                is VariableTypeItem -> ThrowableTypeParameterItem(exceptionType.asTypeParameter)
-            }
+            ThrowableExceptionTypeItem(exceptionType)
 
         /** A partial ordering over [ThrowableType] comparing [ThrowableType.fullName]. */
         val fullNameComparator: Comparator<ThrowableType> = Comparator.comparing { it.fullName() }

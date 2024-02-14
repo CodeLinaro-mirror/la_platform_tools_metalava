@@ -85,15 +85,22 @@ interface MethodItem : MemberItem, TypeParameterListOwner {
         throwableTypes: LinkedHashSet<ThrowableType>
     ): LinkedHashSet<ThrowableType> {
         for (throwableType in throwsTypes()) {
-            if (throwableType.isTypeParameter || predicate.test(throwableType.classItem)) {
+            if (throwableType.isTypeParameter) {
                 throwableTypes.add(throwableType)
             } else {
-                // Excluded, but it may have super class throwables that are included; if so,
-                // include those.
-                throwableType.classItem
-                    .allSuperClasses()
-                    .firstOrNull { superClass -> predicate.test(superClass) }
-                    ?.let { superClass -> throwableTypes.add(ThrowableType.ofClass(superClass)) }
+                val classItem = throwableType.classItem ?: continue
+                if (predicate.test(classItem)) {
+                    throwableTypes.add(throwableType)
+                } else {
+                    // Excluded, but it may have super class throwables that are included; if so,
+                    // include those.
+                    classItem
+                        .allSuperClasses()
+                        .firstOrNull { superClass -> predicate.test(superClass) }
+                        ?.let { superClass ->
+                            throwableTypes.add(ThrowableType.ofClass(superClass))
+                        }
+                }
             }
         }
         return throwableTypes

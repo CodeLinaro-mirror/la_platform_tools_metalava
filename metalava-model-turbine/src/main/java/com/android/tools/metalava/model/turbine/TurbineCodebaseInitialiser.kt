@@ -193,20 +193,13 @@ internal open class TurbineCodebaseInitialiser(
         findOrCreatePackage("", "")
 
         for (unit in units) {
-            val optPkg = unit.pkg()
-            val pkg = if (optPkg.isPresent()) optPkg.get() else null
-            var pkgName = ""
-            if (pkg != null) {
-                val pkgNameList = pkg.name().map { it.value() }
-                pkgName = pkgNameList.joinToString(separator = ".")
-            }
             var doc = ""
             // No class declarations. Will be a case of package-info file
             if (unit.decls().isEmpty()) {
                 val source = unit.source().source()
-                doc = codebase.getHeaderComments(source)
+                doc = getHeaderComments(source)
             }
-            findOrCreatePackage(pkgName, doc)
+            findOrCreatePackage(getPackageName(unit), doc)
             unit.decls().forEach { decl -> classSourceMap.put(decl, unit) }
         }
     }
@@ -318,7 +311,7 @@ internal open class TurbineCodebaseInitialiser(
         val sourceFile =
             if (isTopClass && !isFromClassPath) {
                 classSourceMap[(cls as SourceTypeBoundClass).decl()]?.let {
-                    TurbineSourceFile(codebase, it.source().source(), it.imports())
+                    TurbineSourceFile(codebase, it)
                 }
             } else null
         val classItem =
@@ -402,8 +395,7 @@ internal open class TurbineCodebaseInitialiser(
     private fun createAnnotation(annotation: AnnoInfo): TurbineAnnotationItem? {
         val annoAttrs = getAnnotationAttributes(annotation.values(), annotation.tree()?.args())
 
-        val nameList = annotation.tree()?.let { tree -> tree.name().map { it.value() } }
-        val simpleName = nameList?.let { it -> it.joinToString(separator = ".") }
+        val simpleName = annotation.tree()?.let { extractNameFromIdent(it.name()) }
         val clsSym = annotation.sym()
         val qualifiedName =
             if (clsSym == null) simpleName!! else getQualifiedName(clsSym.binaryName())

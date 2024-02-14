@@ -20,6 +20,7 @@ import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.DefaultModifierList.Companion.PACKAGE_PRIVATE
 import com.android.tools.metalava.model.Location
 import com.android.tools.metalava.model.MethodItem
+import com.android.tools.metalava.model.ThrowableType
 import com.android.tools.metalava.model.TypeParameterList
 import com.intellij.psi.JavaPsiFacade
 import com.intellij.psi.PsiClass
@@ -39,6 +40,7 @@ private constructor(
     parameters: List<PsiParameterItem>,
     returnType: PsiTypeItem,
     typeParameterList: TypeParameterList,
+    throwsTypes: List<ThrowableType>,
     val implicitConstructor: Boolean = false,
     override val isPrimary: Boolean = false
 ) :
@@ -52,14 +54,9 @@ private constructor(
         returnType = returnType,
         parameters = parameters,
         typeParameterList = typeParameterList,
+        throwsTypes = throwsTypes,
     ),
     ConstructorItem {
-
-    init {
-        if (implicitConstructor) {
-            setThrowsTypes(emptyList())
-        }
-    }
 
     override fun isImplicitConstructor(): Boolean = implicitConstructor
 
@@ -113,6 +110,7 @@ private constructor(
                     implicitConstructor = false,
                     isPrimary = (psiMethod as? UMethod)?.isPrimaryConstructor ?: false,
                     typeParameterList = typeParameterList,
+                    throwsTypes = throwsTypes(codebase, psiMethod),
                 )
             constructor.modifiers.setOwner(constructor)
             return constructor
@@ -142,6 +140,7 @@ private constructor(
                     returnType = codebase.getType(psiClass),
                     implicitConstructor = true,
                     typeParameterList = TypeParameterList.NONE,
+                    throwsTypes = emptyList(),
                 )
             modifiers.setOwner(item)
             return item

@@ -115,10 +115,4 @@ internal open class TurbineBasedCodebase(
         initializer = TurbineCodebaseInitialiser(units, this, classpath)
         initializer.initialize()
     }
-
-    internal fun getHeaderComments(source: String): String {
-        val packageIndex = source.indexOf("package")
-        // Return everything before "package" keyword
-        return if (packageIndex == -1) "" else source.substring(0, packageIndex)
-    }
 }

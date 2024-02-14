@@ -126,4 +126,27 @@ class CommonSourceFileTest : BaseModelTest() {
             )
         }
     }
+
+    @Test
+    fun `test sourcefile classes`() {
+        runSourceCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+
+                    public class Test {}
+
+                    class Outer {
+                        class Inner {}
+                    }
+                """
+            ),
+        ) {
+            val classItem = codebase.assertClass("test.pkg.Test")
+            val outerClassItem = codebase.assertClass("test.pkg.Outer")
+            val sourceFile = classItem.sourceFile()!!
+
+            assertEquals(listOf(classItem, outerClassItem), sourceFile.classes().toList())
+        }
+    }
 }
