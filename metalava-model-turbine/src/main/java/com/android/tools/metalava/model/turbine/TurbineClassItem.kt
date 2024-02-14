@@ -63,7 +63,7 @@ internal open class TurbineClassItem(
 
     internal lateinit var fields: List<TurbineFieldItem>
 
-    internal lateinit var methods: List<TurbineMethodItem>
+    internal lateinit var methods: MutableList<TurbineMethodItem>
 
     internal lateinit var constructors: List<TurbineConstructorItem>
 
@@ -223,5 +223,9 @@ internal open class TurbineClassItem(
         duplicateMethod.setThrowsTypes(method.throwsTypes())
 
         return duplicateMethod
+    }
+
+    override fun addMethod(method: MethodItem) {
+        methods.add(method as TurbineMethodItem)
     }
 }

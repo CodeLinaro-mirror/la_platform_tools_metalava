@@ -217,4 +217,19 @@ class UastTestK1 : UastTestBase() {
             """
         )
     }
+
+    @Test
+    fun `actual typealias -- without value class -- K1`() {
+        `actual typealias -- without value class`(isK2 = false)
+    }
+
+    @Test
+    fun `actual typealias -- without common split -- K1`() {
+        `actual typealias -- without common split`(isK2 = false)
+    }
+
+    @Test
+    fun `actual typealias -- K1`() {
+        `actual typealias`(isK2 = false)
+    }
 }

@@ -309,9 +309,12 @@ private class BaselineTestRule(private val runner: ModelSuiteRunner) : TestRule 
                 } catch (e: Throwable) {
                     if (expectedFailure) {
                         // If this was expected to fail then throw an AssumptionViolatedException
-                        // so it is not treated as either a pass or fail.
+                        // that way it is not treated as either a pass or fail. Indent the exception
+                        // output and include it in the message instead of chaining the exception as
+                        // that reads better than the default formatting of chained exceptions.
+                        val actualErrorStackTrace = e.stackTraceToString().prependIndent("    ")
                         throw AssumptionViolatedException(
-                            "Test skipped since it is listed in the baseline file for $runner"
+                            "Test skipped since it is listed in the baseline file for $runner.\n$actualErrorStackTrace"
                         )
                     } else {
                         // Inform the developer on how to ignore this failing test.

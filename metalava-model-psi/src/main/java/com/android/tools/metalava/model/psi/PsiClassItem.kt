@@ -152,7 +152,7 @@ internal constructor(
     private lateinit var innerClasses: List<PsiClassItem>
     private lateinit var interfaceTypes: List<ClassTypeItem>
     private lateinit var constructors: List<PsiConstructorItem>
-    private lateinit var methods: List<PsiMethodItem>
+    private lateinit var methods: MutableList<PsiMethodItem>
     private lateinit var properties: List<PsiPropertyItem>
     private lateinit var fields: List<FieldItem>
 
@@ -181,16 +181,10 @@ internal constructor(
 
     override fun hasTypeVariables(): Boolean = psiClass.hasTypeParameters()
 
-    override fun typeParameterList(): TypeParameterList {
-        if (psiClass.hasTypeParameters()) {
-            return PsiTypeParameterList(
-                codebase,
-                psiClass.typeParameterList ?: return TypeParameterList.NONE
-            )
-        } else {
-            return TypeParameterList.NONE
-        }
-    }
+    private val typeParameterList: TypeParameterList by
+        lazy(LazyThreadSafetyMode.NONE) { PsiTypeParameterList.create(codebase, psiClass) }
+
+    override fun typeParameterList() = typeParameterList
 
     override fun getSourceFile(): SourceFile? {
         if (isInnerClass()) {
@@ -257,10 +251,10 @@ internal constructor(
         // Map them to PsiTypeItems.
         val interfaceTypes =
             interfaces.map {
-                val type = codebase.getType(it)
-                // ensure that we initialize classes eagerly too, so that they're registered etc
-                type.asClass()
-                type as ClassTypeItem
+                codebase.getSuperType(it).also { type ->
+                    // ensure that we initialize classes eagerly too, so that they're registered etc
+                    type.asClass()
+                }
             }
         setInterfaceTypes(interfaceTypes)
 
@@ -268,7 +262,7 @@ internal constructor(
             // Set the super class type for classes
             val superClassPsiType = psiClass.superClassType as? PsiType
             superClassPsiType?.let { superType ->
-                this.superClassType = codebase.getType(superType) as ClassTypeItem
+                this.superClassType = codebase.getSuperType(superType)
                 this.superClass = this.superClassType?.asClass()
             }
         }
@@ -304,7 +298,7 @@ internal constructor(
     }
 
     override fun addMethod(method: MethodItem) {
-        (methods as MutableList<PsiMethodItem>).add(method as PsiMethodItem)
+        methods.add(method as PsiMethodItem)
     }
 
     private var retention: AnnotationRetention? = null

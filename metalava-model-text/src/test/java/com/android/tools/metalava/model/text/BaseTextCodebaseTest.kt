@@ -16,6 +16,8 @@
 
 package com.android.tools.metalava.model.text
 
+import com.android.tools.lint.checks.infrastructure.TestFile
+import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.model.testsuite.InputFormat
 import com.android.tools.metalava.model.testsuite.TestParameters
@@ -25,4 +27,10 @@ import com.android.tools.metalava.model.testsuite.TestParameters
  * then be introspected.
  */
 open class BaseTextCodebaseTest :
-    BaseModelTest(TestParameters(TextModelSuiteRunner(), InputFormat.SIGNATURE)) {}
+    BaseModelTest(TestParameters(TextModelSuiteRunner(), InputFormat.SIGNATURE)) {
+
+    /** Run a single signature test with a set of signature files. */
+    fun runSignatureTest(vararg sources: TestFile, test: CodebaseContext<Codebase>.() -> Unit) {
+        runCodebaseTest(inputSet(*sources), test = test)
+    }
+}

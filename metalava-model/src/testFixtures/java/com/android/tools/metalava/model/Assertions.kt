@@ -78,6 +78,6 @@ interface Assertions {
     fun TypeItem.assertReferencesTypeParameter(typeParameter: TypeParameterItem) {
         assertThat(this).isInstanceOf(VariableTypeItem::class.java)
         this as VariableTypeItem
-        assertThat(asTypeParameter).isEqualTo(typeParameter)
+        assertThat(asTypeParameter).isSameInstanceAs(typeParameter)
     }
 }

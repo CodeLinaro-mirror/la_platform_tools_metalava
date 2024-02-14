@@ -16,8 +16,8 @@
 
 package com.android.tools.lint.checks.infrastructure
 
-import com.android.SdkConstants.DOT_JAVA
-import com.android.SdkConstants.DOT_KT
+import com.android.tools.metalava.model.source.utils.DOT_JAVA
+import com.android.tools.metalava.model.source.utils.DOT_KT
 import java.util.regex.Pattern
 
 // Copy in metalava from lint to avoid compilation dependency directly on lint-tests

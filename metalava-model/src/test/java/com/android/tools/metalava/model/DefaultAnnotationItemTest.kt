@@ -26,17 +26,19 @@ class DefaultAnnotationItemTest {
     // Placeholder for use in test where we don't need codebase functionality
     private val placeholderCodebase =
         object : DefaultCodebase(File("").canonicalFile, "", false, noOpAnnotationManager) {
-            override fun supportsDocumentation(): Boolean = false
+            override fun supportsDocumentation() = false
 
-            override fun getPackages(): PackageList = unsupported()
+            override fun getPackages() = unsupported()
 
-            override fun size(): Int = unsupported()
+            override fun size() = unsupported()
 
-            override fun findClass(className: String): ClassItem? = unsupported()
+            override fun findClass(className: String) = unsupported()
 
-            override fun findPackage(pkgName: String): PackageItem? = unsupported()
+            override fun resolveClass(className: String) = unsupported()
 
-            override fun trustedApi(): Boolean = false
+            override fun findPackage(pkgName: String) = unsupported()
+
+            override fun trustedApi() = false
 
             override fun createAnnotation(
                 source: String,

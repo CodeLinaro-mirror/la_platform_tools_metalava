@@ -51,9 +51,7 @@ internal open class TurbineMethodItem(
 
     override fun throwsTypes(): List<ThrowableType> = throwsTypes
 
-    override fun isExtensionMethod(): Boolean {
-        TODO("b/295800205")
-    }
+    override fun isExtensionMethod(): Boolean = false // java does not support extension methods
 
     override fun isConstructor(): Boolean = false
 
