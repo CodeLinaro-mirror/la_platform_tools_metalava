@@ -28,8 +28,7 @@ import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PackageList
-import com.android.tools.metalava.model.TypeParameterItem
-import com.android.tools.metalava.model.TypeUse
+import com.android.tools.metalava.model.TypeParameterScope
 import com.android.tools.metalava.model.source.SourceCodebase
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
@@ -68,7 +67,6 @@ import org.jetbrains.uast.UFile
 import org.jetbrains.uast.UMethod
 import org.jetbrains.uast.UastFacade
 import org.jetbrains.uast.kotlin.BaseKotlinUastResolveProviderService
-import org.jetbrains.uast.kotlin.isKotlin
 
 const val PACKAGE_ESTIMATE = 500
 const val CLASS_ESTIMATE = 15000
@@ -166,6 +164,9 @@ open class PsiBasedCodebase(
     private var initializing = false
 
     private var hideClassesFromJars = true
+
+    /** [PsiTypeItemFactory] used to create [PsiTypeItem]s. */
+    internal val globalTypeItemFactory = PsiTypeItemFactory(this, TypeParameterScope.empty)
 
     private lateinit var emptyPackage: PsiPackageItem
 
@@ -575,12 +576,13 @@ open class PsiBasedCodebase(
      */
     private fun createTopLevelClassAndContents(psiClass: PsiClass): PsiClassItem {
         if (psiClass.containingClass != null) error("$psiClass is not a top level class")
-        return createClass(psiClass, null)
+        return createClass(psiClass, null, globalTypeItemFactory)
     }
 
     internal fun createClass(
         psiClass: PsiClass,
         containingClassItem: PsiClassItem?,
+        enclosingClassTypeItemFactory: PsiTypeItemFactory,
     ): PsiClassItem {
         // If initializing is true, this class is from source
         val classItem =
@@ -588,6 +590,7 @@ open class PsiBasedCodebase(
                 this,
                 psiClass,
                 containingClassItem,
+                enclosingClassTypeItemFactory,
                 fromClassPath = fromClasspath || !initializing,
             )
         // Set emit to true for source classes but false for classpath classes
@@ -728,7 +731,11 @@ open class PsiBasedCodebase(
             if (containingClassItem == null) {
                 createTopLevelClassAndContents(missingPsiClass)
             } else {
-                createClass(missingPsiClass, containingClassItem)
+                createClass(
+                    missingPsiClass,
+                    containingClassItem,
+                    globalTypeItemFactory.from(containingClassItem)
+                )
             }
 
         // Make sure that the created class has been properly initialized.
@@ -763,78 +770,11 @@ open class PsiBasedCodebase(
         return null
     }
 
-    /**
-     * Find a [PsiTypeParameterItem] representing [PsiTypeParameter].
-     *
-     * The corresponding [TypeParameterItem] must always exist, otherwise the source code has
-     * serious syntactic and/or semantic errors.
-     */
-    internal fun findTypeParameter(psiTypeParameter: PsiTypeParameter): TypeParameterItem {
-        // Find the [TypeParameterListOwner] of the type parameter by searching for the
-        // [MethodItem]/[ClassItem] corresponding to the underlying [PsiTypeParameter]'s owner.
-        val psiOwner = psiTypeParameter.owner
-        val typeParameterListOwner =
-            when (psiOwner) {
-                is PsiMethod -> findMethod(psiOwner)
-                is PsiClass -> findClass(psiOwner)
-                else -> null
-            }
-                ?: error("Could not find or recognize owner $psiOwner")
-
-        // Search through the owner's [TypeParameterList] to find the parameter with the matching
-        // name and return that.
-        val typeParameterList = typeParameterListOwner.typeParameterList()
-        val name = psiTypeParameter.name
-        return typeParameterList.typeParameters().firstOrNull { it.name() == name }
-            ?: error(
-                "Could not find type parameter $name in $typeParameterList of $typeParameterListOwner"
-            )
-    }
-
     internal fun getClassType(cls: PsiClass): PsiClassType =
         getFactory().createType(cls, PsiSubstitutor.EMPTY)
 
     internal fun getComment(string: String, parent: PsiElement? = null): PsiDocComment =
         getFactory().createDocCommentFromText(string, parent)
-
-    /**
-     * Creates a [PsiClassTypeItem] that is suitable for use as a super type, e.g. in an `extends`
-     * or `implements` list.
-     */
-    internal fun getSuperType(psiType: PsiType): PsiClassTypeItem {
-        return getType(psiType, typeUse = TypeUse.SUPER_TYPE) as PsiClassTypeItem
-    }
-
-    /**
-     * Returns a [PsiTypeItem] representing the [psiType]. The [context] is used to get nullability
-     * information for Kotlin types.
-     */
-    internal fun getType(
-        psiType: PsiType,
-        context: PsiElement? = null,
-        typeUse: TypeUse = TypeUse.GENERAL
-    ): PsiTypeItem {
-        val kotlinTypeInfo =
-            if (context != null && isKotlin(context)) {
-                KotlinTypeInfo.fromContext(context)
-            } else {
-                null
-            }
-
-        // Note: We do *not* cache these; it turns out that storing PsiType instances
-        // in a map is bad for performance; it has a very expensive equals operation
-        // for some type comparisons (and we sometimes end up with unexpected results,
-        // e.g. where we fetch an "equals" type from the map but its representation
-        // is slightly different than we intended
-        return PsiTypeItem.create(this, psiType, kotlinTypeInfo, typeUse)
-    }
-
-    internal fun getType(psiClass: PsiClass): PsiTypeItem {
-        // Create a PsiType for the class. Specifies `PsiSubstitutor.EMPTY` so that if the class has
-        // any type parameters then the PsiType will include references to those parameters.
-        val psiTypeWithTypeParametersIfAny = getFactory().createType(psiClass, PsiSubstitutor.EMPTY)
-        return PsiTypeItem.create(this, psiTypeWithTypeParametersIfAny, null)
-    }
 
     private fun getPackageName(clz: PsiClass): String {
         var top: PsiClass? = clz
@@ -875,7 +815,8 @@ open class PsiBasedCodebase(
             val updatedMethod = psiClass.findMethodBySignature(method, true)
             val result = methods[updatedMethod!!]
             if (result == null) {
-                val extra = PsiMethodItem.create(this, cls, updatedMethod)
+                val extra =
+                    PsiMethodItem.create(this, cls, updatedMethod, globalTypeItemFactory.from(cls))
                 methods[method] = extra
                 methods[updatedMethod] = extra
                 if (!initializing) {

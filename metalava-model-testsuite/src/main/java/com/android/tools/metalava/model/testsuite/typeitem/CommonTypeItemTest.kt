@@ -1148,20 +1148,6 @@ class CommonTypeItemTest : BaseModelTest() {
                 }
             }
 
-            /**
-             * Make sure that the [ClassItem] has a method whose single parameter is of the type
-             * `java.lang.Collection<Z>`.
-             */
-            fun ClassItem.assertMethodTakesCollectionZ(name: String) {
-                assertMethodTakesCollection(name) {
-                    // Check that the string representation is correct for now.
-                    // TODO: Check that this is a VariableTypeItem that references [typeParam].
-                    assertWildcardItem {
-                        assertThat(extendsBound!!.toString()).isEqualTo(typeParam.name())
-                    }
-                }
-            }
-
             // Defined in `java.util.Collection` as `addAll(Collection<? extends E> c)`. The type of
             // the `addAll` method in `Foo` should be `addAll(Collection<? extends Z>)`.Where `Z`
             // references the type parameter in `Foo<Z>`.
@@ -1171,13 +1157,9 @@ class CommonTypeItemTest : BaseModelTest() {
             // `...(Collection<? extends Z>)`.Where `Z` references the type parameter in
             // `Foo<Z>`.
             //
-            // However, this does not work, yet, as the `PsiType` for `Z` does not resolve to a
-            // `PsiTypeParameter`, it resolves to `null` and so ends up being a `ClassTypeItem`
-            // instead of `VariableTypeItem`.
-            //
-            fooClass.assertMethodTakesCollectionZ("containsAll")
-            fooClass.assertMethodTakesCollectionZ("removeAll")
-            fooClass.assertMethodTakesCollectionZ("retainAll")
+            fooClass.assertMethodTakesCollectionWildcardExtendsZ("containsAll")
+            fooClass.assertMethodTakesCollectionWildcardExtendsZ("removeAll")
+            fooClass.assertMethodTakesCollectionWildcardExtendsZ("retainAll")
         }
     }
 

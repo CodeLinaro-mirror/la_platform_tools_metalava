@@ -819,7 +819,7 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
             assertNull(codebase.findClass("java.io.IOException"))
 
             // Resolve the types to classes.
-            val throwableClasses = methodItem.throwsTypes().map { it.classItem }
+            val throwableClasses = methodItem.throwsTypes().map { it.erasedClass }
 
             // This must be available after resolving throwable types.
             val ioExceptionClass = codebase.assertClass("java.io.IOException")

@@ -313,10 +313,11 @@ internal constructor(
     }
 
     companion object {
-        fun create(
+        internal fun create(
             codebase: PsiBasedCodebase,
             psiParameter: PsiParameter,
-            parameterIndex: Int
+            parameterIndex: Int,
+            enclosingMethodTypeItemFactory: PsiTypeItemFactory,
         ): PsiParameterItem {
             val name = psiParameter.name
             val commentText = "" // no javadocs on individual parameters
@@ -348,7 +349,7 @@ internal constructor(
                 } else {
                     psiType
                 }
-            val type = codebase.getType(workaroundPsiType, psiParameter)
+            val type = enclosingMethodTypeItemFactory.getType(workaroundPsiType, psiParameter)
             val parameter =
                 PsiParameterItem(
                     codebase = codebase,

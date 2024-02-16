@@ -88,7 +88,13 @@ class PsiFieldItem(
     override fun psi(): PsiField = psiField
 
     override fun duplicate(targetContainingClass: ClassItem): PsiFieldItem {
-        val duplicated = create(codebase, targetContainingClass as PsiClassItem, psiField)
+        val duplicated =
+            create(
+                codebase,
+                targetContainingClass as PsiClassItem,
+                psiField,
+                codebase.globalTypeItemFactory.from(targetContainingClass),
+            )
         duplicated.inheritedFrom = containingClass
         duplicated.finishInitialization()
 
@@ -124,16 +130,17 @@ class PsiFieldItem(
     override fun toString(): String = "field ${containingClass.fullName()}.${name()}"
 
     companion object {
-        fun create(
+        internal fun create(
             codebase: PsiBasedCodebase,
             containingClass: PsiClassItem,
-            psiField: PsiField
+            psiField: PsiField,
+            enclosingClassTypeItemFactory: PsiTypeItemFactory
         ): PsiFieldItem {
             val name = psiField.name
             val commentText = javadoc(psiField)
             val modifiers = modifiers(codebase, psiField, commentText)
 
-            val fieldType = codebase.getType(psiField.type, psiField)
+            val fieldType = enclosingClassTypeItemFactory.getType(psiField.type, psiField)
             val isEnumConstant = psiField is PsiEnumConstant
             val initialValue = null // compute lazily
 

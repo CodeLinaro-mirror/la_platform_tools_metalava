@@ -212,7 +212,8 @@ internal open class TurbineClassItem(
                 retType,
                 mods,
                 method.typeParameterList(),
-                method.documentation
+                method.documentation,
+                method.defaultValue(),
             )
         mods.setOwner(duplicateMethod)
         duplicateMethod.parameters = params

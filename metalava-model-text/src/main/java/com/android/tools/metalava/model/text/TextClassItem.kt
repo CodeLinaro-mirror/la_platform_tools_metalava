@@ -29,7 +29,6 @@ import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
-import com.android.tools.metalava.model.bestGuessAtFullName
 import java.util.function.Predicate
 
 internal open class TextClassItem(
@@ -208,26 +207,5 @@ internal open class TextClassItem(
 
     override fun createDefaultConstructor(): ConstructorItem {
         return TextConstructorItem.createDefaultConstructor(codebase, this, position)
-    }
-
-    companion object {
-        internal fun createStubClass(
-            codebase: TextCodebase,
-            qualifiedName: String,
-            isInterface: Boolean
-        ): TextClassItem {
-            val fullName = bestGuessAtFullName(qualifiedName)
-            val cls =
-                TextClassItem(
-                    codebase = codebase,
-                    qualifiedName = qualifiedName,
-                    fullName = fullName,
-                    classKind = if (isInterface) ClassKind.INTERFACE else ClassKind.CLASS,
-                    modifiers = DefaultModifierList(codebase, DefaultModifierList.PUBLIC),
-                )
-            cls.emit = false // it's a stub
-
-            return cls
-        }
     }
 }

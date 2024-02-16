@@ -59,12 +59,12 @@ interface MethodItem : MemberItem, TypeParameterListOwner {
     }
 
     /** Types of exceptions that this method can throw */
-    fun throwsTypes(): List<ThrowableType>
+    fun throwsTypes(): List<ExceptionTypeItem>
 
     /** Returns true if this method throws the given exception */
     fun throws(qualifiedName: String): Boolean {
         for (type in throwsTypes()) {
-            val throwableClass = type.throwableClass ?: continue
+            val throwableClass = type.erasedClass ?: continue
             if (throwableClass.extends(qualifiedName)) {
                 return true
             }
@@ -73,7 +73,7 @@ interface MethodItem : MemberItem, TypeParameterListOwner {
         return false
     }
 
-    fun filteredThrowsTypes(predicate: Predicate<Item>): Collection<ThrowableType> {
+    fun filteredThrowsTypes(predicate: Predicate<Item>): Collection<ExceptionTypeItem> {
         if (throwsTypes().isEmpty()) {
             return emptyList()
         }
@@ -82,28 +82,26 @@ interface MethodItem : MemberItem, TypeParameterListOwner {
 
     private fun filteredThrowsTypes(
         predicate: Predicate<Item>,
-        throwableTypes: LinkedHashSet<ThrowableType>
-    ): LinkedHashSet<ThrowableType> {
-        for (throwableType in throwsTypes()) {
-            if (throwableType.isTypeParameter) {
-                throwableTypes.add(throwableType)
+        throwsTypes: LinkedHashSet<ExceptionTypeItem>
+    ): LinkedHashSet<ExceptionTypeItem> {
+        for (exceptionType in throwsTypes()) {
+            if (exceptionType is VariableTypeItem) {
+                throwsTypes.add(exceptionType)
             } else {
-                val classItem = throwableType.classItem ?: continue
+                val classItem = exceptionType.erasedClass ?: continue
                 if (predicate.test(classItem)) {
-                    throwableTypes.add(throwableType)
+                    throwsTypes.add(exceptionType)
                 } else {
                     // Excluded, but it may have super class throwables that are included; if so,
                     // include those.
                     classItem
                         .allSuperClasses()
                         .firstOrNull { superClass -> predicate.test(superClass) }
-                        ?.let { superClass ->
-                            throwableTypes.add(ThrowableType.ofClass(superClass))
-                        }
+                        ?.let { superClass -> throwsTypes.add(superClass.type()) }
                 }
             }
         }
-        return throwableTypes
+        return throwsTypes
     }
 
     /**
@@ -291,8 +289,8 @@ interface MethodItem : MemberItem, TypeParameterListOwner {
             for (i in throwsList12.indices) {
                 val p1 = throwsList12[i]
                 val p2 = throwsList2[i]
-                val pt1 = p1.qualifiedName()
-                val pt2 = p2.qualifiedName()
+                val pt1 = p1.toTypeString()
+                val pt2 = p2.toTypeString()
                 if (pt1 != pt2) { // assumes throws lists are sorted!
                     return false
                 }

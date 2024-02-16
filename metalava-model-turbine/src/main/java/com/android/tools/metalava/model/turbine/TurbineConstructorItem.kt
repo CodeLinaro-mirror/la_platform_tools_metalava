@@ -31,6 +31,7 @@ internal class TurbineConstructorItem(
     modifiers: TurbineModifierItem,
     typeParameters: TypeParameterList,
     documentation: String,
+    private val defaultValue: String,
 ) :
     TurbineMethodItem(
         codebase,
@@ -39,7 +40,8 @@ internal class TurbineConstructorItem(
         returnType,
         modifiers,
         typeParameters,
-        documentation
+        documentation,
+        defaultValue,
     ),
     ConstructorItem {
 
@@ -74,6 +76,7 @@ internal class TurbineConstructorItem(
                     containingClass.type(),
                     modifiers,
                     parameters,
+                    "",
                     "",
                 )
             modifiers.setOwner(ctorItem)

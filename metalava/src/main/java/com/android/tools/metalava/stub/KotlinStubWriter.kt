@@ -18,10 +18,10 @@ package com.android.tools.metalava.stub
 
 import com.android.tools.metalava.model.BaseItemVisitor
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ModifierListWriter
-import com.android.tools.metalava.model.ThrowableType
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.psi.PsiClassItem
@@ -227,13 +227,13 @@ internal class KotlinStubWriter(
             }
         if (throws.any()) {
             writer.print("@Throws(")
-            throws.asSequence().sortedWith(ThrowableType.fullNameComparator).forEachIndexed {
+            throws.asSequence().sortedWith(ExceptionTypeItem.fullNameComparator).forEachIndexed {
                 i,
                 type ->
                 if (i > 0) {
                     writer.print(",")
                 }
-                writer.print(type.qualifiedName())
+                writer.print(type.toTypeString())
                 writer.print("::class")
             }
             writer.print(")")

@@ -175,8 +175,15 @@ internal constructor(
     final override var primaryConstructor: PsiConstructorItem? = null
         private set
 
-    override fun type(): ClassTypeItem =
-        codebase.getType(codebase.getClassType(psiClass)) as ClassTypeItem
+    /** Must only be used by [type] to cache its result. */
+    private lateinit var classTypeItem: PsiClassTypeItem
+
+    override fun type(): ClassTypeItem {
+        if (!::classTypeItem.isInitialized) {
+            classTypeItem = codebase.globalTypeItemFactory.getClassTypeForClass(this)
+        }
+        return classTypeItem
+    }
 
     override fun hasTypeVariables(): Boolean = psiClass.hasTypeParameters()
 
@@ -300,11 +307,12 @@ internal constructor(
             return false
         }
 
-        fun create(
+        internal fun create(
             codebase: PsiBasedCodebase,
             psiClass: PsiClass,
             containingClassItem: PsiClassItem?,
-            fromClassPath: Boolean
+            enclosingClassTypeItemFactory: PsiTypeItemFactory,
+            fromClassPath: Boolean,
         ): PsiClassItem {
             if (psiClass is PsiTypeParameter) {
                 error(
@@ -322,13 +330,21 @@ internal constructor(
 
             // Create the TypeParameterList for this before wrapping any of the other types used by
             // it as they may reference a type parameter in the list.
-            val typeParameterList = PsiTypeParameterList.create(codebase, psiClass)
+            val (typeParameterList, classTypeItemFactory) =
+                PsiTypeParameterList.create(
+                    codebase,
+                    enclosingClassTypeItemFactory,
+                    "class $qualifiedName",
+                    psiClass
+                )
 
             // Construct the super class type if needed and available.
             val superClassType =
                 if (classKind != ClassKind.INTERFACE) {
                     val superClassPsiType = psiClass.superClassType as? PsiType
-                    superClassPsiType?.let { superType -> codebase.getSuperType(superType) }
+                    superClassPsiType?.let { superType ->
+                        classTypeItemFactory.getSuperClassType(PsiTypeInfo(superType))
+                    }
                 } else null
 
             // Get the interfaces from the appropriate list.
@@ -343,7 +359,8 @@ internal constructor(
                 }
 
             // Map them to PsiTypeItems.
-            val interfaceTypes = interfaces.map { codebase.getSuperType(it) }
+            val interfaceTypes =
+                interfaces.map { classTypeItemFactory.getInterfaceType(PsiTypeInfo(it)) }
 
             val item =
                 PsiClassItem(
@@ -400,7 +417,13 @@ internal constructor(
             var noArgConstructor: PsiConstructorItem? = null
             for (psiMethod in psiMethods) {
                 if (psiMethod.isConstructor) {
-                    val constructor = PsiConstructorItem.create(codebase, item, psiMethod)
+                    val constructor =
+                        PsiConstructorItem.create(
+                            codebase,
+                            item,
+                            psiMethod,
+                            classTypeItemFactory,
+                        )
                     // After KT-13495, "all constructors of `sealed` classes now have `protected`
                     // visibility by default," and (S|U)LC follows that (hence the same in UAST).
                     // However, that change was made to allow more flexible class hierarchy and
@@ -429,7 +452,8 @@ internal constructor(
                 } else if (classKind == ClassKind.ENUM && psiMethod is SyntheticElement) {
                     // skip
                 } else {
-                    val method = PsiMethodItem.create(codebase, item, psiMethod)
+                    val method =
+                        PsiMethodItem.create(codebase, item, psiMethod, classTypeItemFactory)
                     methods.add(method)
                 }
             }
@@ -458,7 +482,9 @@ internal constructor(
             val fields: MutableList<PsiFieldItem> = mutableListOf()
             val psiFields = psiClass.fields
             if (psiFields.isNotEmpty()) {
-                psiFields.asSequence().mapTo(fields) { PsiFieldItem.create(codebase, item, it) }
+                psiFields.asSequence().mapTo(fields) {
+                    PsiFieldItem.create(codebase, item, it, classTypeItemFactory)
+                }
             }
 
             if (classKind == ClassKind.INTERFACE) {
@@ -545,6 +571,7 @@ internal constructor(
                                 codebase.createClass(
                                     psiClass = it,
                                     containingClassItem = item,
+                                    enclosingClassTypeItemFactory = classTypeItemFactory
                                 )
                             }
                             .toMutableList()
