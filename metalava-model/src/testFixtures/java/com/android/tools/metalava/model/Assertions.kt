@@ -29,6 +29,13 @@ interface Assertions {
         return classItem
     }
 
+    /** Resolve the class from the [Codebase], failing if it does not exist. */
+    fun Codebase.assertResolvedClass(qualifiedName: String): ClassItem {
+        val classItem = resolveClass(qualifiedName)
+        assertNotNull(classItem, message = "Expected $qualifiedName to be defined")
+        return classItem
+    }
+
     /** Get the package from the [Codebase], failing if it does not exist. */
     fun Codebase.assertPackage(pkgName: String): PackageItem {
         val packageItem = findPackage(pkgName)
@@ -76,8 +83,35 @@ interface Assertions {
      * [VariableTypeItem.asTypeParameter] references the supplied [typeParameter].
      */
     fun TypeItem.assertReferencesTypeParameter(typeParameter: TypeParameterItem) {
-        assertThat(this).isInstanceOf(VariableTypeItem::class.java)
-        this as VariableTypeItem
-        assertThat(asTypeParameter).isSameInstanceAs(typeParameter)
+        assertVariableTypeItem { assertThat(asTypeParameter).isSameInstanceAs(typeParameter) }
     }
+
+    /**
+     * Check to make sure that this [TypeItem] is actually a [ClassTypeItem] and then run the
+     * optional lambda on the [ClassTypeItem].
+     */
+    fun TypeItem.assertClassTypeItem(body: (ClassTypeItem.() -> Unit)?) {
+        assertIsInstanceOf(body ?: {})
+    }
+
+    /**
+     * Check to make sure that this [TypeItem] is actually a [VariableTypeItem] and then run the
+     * optional lambda on the [VariableTypeItem].
+     */
+    fun TypeItem.assertVariableTypeItem(body: (VariableTypeItem.() -> Unit)?) {
+        assertIsInstanceOf(body ?: {})
+    }
+
+    /**
+     * Check to make sure that this [TypeItem] is actually a [WildcardTypeItem] and then run the
+     * optional lambda on the [WildcardTypeItem].
+     */
+    fun TypeItem.assertWildcardItem(body: (WildcardTypeItem.() -> Unit)?) {
+        assertIsInstanceOf(body ?: {})
+    }
+}
+
+private inline fun <reified T> Any.assertIsInstanceOf(body: (T).() -> Unit) {
+    assertThat(this).isInstanceOf(T::class.java)
+    (this as T).body()
 }

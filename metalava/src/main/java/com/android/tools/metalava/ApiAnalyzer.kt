@@ -1379,8 +1379,9 @@ class ApiAnalyzer(
             }
             for (thrown in method.throwsTypes()) {
                 if (thrown.isTypeParameter) continue
+                val classItem = thrown.classItem ?: continue
                 cantStripThis(
-                    thrown.classItem,
+                    classItem,
                     filter,
                     notStrippable,
                     stubImportPackages,

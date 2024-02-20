@@ -25,7 +25,7 @@ internal class TurbineFieldItem(
     codebase: TurbineBasedCodebase,
     private val name: String,
     private val containingClass: ClassItem,
-    private val type: TurbineTypeItem,
+    private val type: TypeItem,
     modifiers: DefaultModifierList,
     documentation: String,
 ) : TurbineItem(codebase, modifiers, documentation), FieldItem {
@@ -65,7 +65,7 @@ internal class TurbineFieldItem(
                 codebase,
                 name,
                 targetContainingClass,
-                type.duplicate() as TurbineTypeItem,
+                type.duplicate(),
                 modifiers.duplicate(),
                 documentation
             )

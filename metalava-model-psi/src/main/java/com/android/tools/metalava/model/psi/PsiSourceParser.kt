@@ -137,7 +137,7 @@ internal class PsiSourceParser(
         val packageDocs = gatherPackageJavadoc(sourceSet)
 
         val codebase = PsiBasedCodebase(rootDir, description, annotationManager, reporter)
-        codebase.initialize(environment, units, packageDocs)
+        codebase.initializeFromSources(environment, units, packageDocs)
         return codebase
     }
 
@@ -149,7 +149,7 @@ internal class PsiSourceParser(
         val environment = loadUastFromJars(listOf(apiJar))
         val codebase =
             PsiBasedCodebase(apiJar, "Codebase loaded from $apiJar", annotationManager, reporter)
-        codebase.initialize(environment, apiJar, preFiltered)
+        codebase.initializeFromJar(environment, apiJar, preFiltered)
         return codebase
     }
 

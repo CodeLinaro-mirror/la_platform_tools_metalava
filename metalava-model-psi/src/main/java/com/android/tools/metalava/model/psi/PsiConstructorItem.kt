@@ -20,6 +20,8 @@ import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.DefaultModifierList.Companion.PACKAGE_PRIVATE
 import com.android.tools.metalava.model.Location
 import com.android.tools.metalava.model.MethodItem
+import com.android.tools.metalava.model.ThrowableType
+import com.android.tools.metalava.model.TypeParameterList
 import com.intellij.psi.JavaPsiFacade
 import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiMethod
@@ -37,6 +39,8 @@ private constructor(
     documentation: String,
     parameters: List<PsiParameterItem>,
     returnType: PsiTypeItem,
+    typeParameterList: TypeParameterList,
+    throwsTypes: List<ThrowableType>,
     val implicitConstructor: Boolean = false,
     override val isPrimary: Boolean = false
 ) :
@@ -48,15 +52,11 @@ private constructor(
         containingClass = containingClass,
         name = name,
         returnType = returnType,
-        parameters = parameters
+        parameters = parameters,
+        typeParameterList = typeParameterList,
+        throwsTypes = throwsTypes,
     ),
     ConstructorItem {
-
-    init {
-        if (implicitConstructor) {
-            setThrowsTypes(emptyList())
-        }
-    }
 
     override fun isImplicitConstructor(): Boolean = implicitConstructor
 
@@ -93,6 +93,9 @@ private constructor(
             val name = psiMethod.name
             val commentText = javadoc(psiMethod)
             val modifiers = modifiers(codebase, psiMethod, commentText)
+            // Create the TypeParameterList for this before wrapping any of the other types used by
+            // it as they may reference a type parameter in the list.
+            val typeParameterList = PsiTypeParameterList.create(codebase, psiMethod)
             val parameters = parameterList(codebase, psiMethod)
             val constructor =
                 PsiConstructorItem(
@@ -105,7 +108,9 @@ private constructor(
                     parameters = parameters,
                     returnType = codebase.getType(containingClass.psiClass),
                     implicitConstructor = false,
-                    isPrimary = (psiMethod as? UMethod)?.isPrimaryConstructor ?: false
+                    isPrimary = (psiMethod as? UMethod)?.isPrimaryConstructor ?: false,
+                    typeParameterList = typeParameterList,
+                    throwsTypes = throwsTypes(codebase, psiMethod),
                 )
             constructor.modifiers.setOwner(constructor)
             return constructor
@@ -133,7 +138,9 @@ private constructor(
                     modifiers = modifiers,
                     parameters = emptyList(),
                     returnType = codebase.getType(psiClass),
-                    implicitConstructor = true
+                    implicitConstructor = true,
+                    typeParameterList = TypeParameterList.NONE,
+                    throwsTypes = emptyList(),
                 )
             modifiers.setOwner(item)
             return item

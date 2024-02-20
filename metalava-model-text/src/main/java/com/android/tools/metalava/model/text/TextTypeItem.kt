@@ -18,6 +18,7 @@ package com.android.tools.metalava.model.text
 
 import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.ClassTypeItem
+import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.DefaultTypeItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.ReferenceTypeItem
@@ -29,21 +30,19 @@ import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.WildcardTypeItem
 
 internal sealed class TextTypeItem(
-    val codebase: TextCodebase,
     override val modifiers: TextTypeModifiers,
-) : DefaultTypeItem(codebase) {
+) : DefaultTypeItem() {
 
     internal abstract fun duplicate(withNullability: TypeNullability): TextTypeItem
 }
 
 /** A [PrimitiveTypeItem] parsed from a signature file. */
 internal class TextPrimitiveTypeItem(
-    codebase: TextCodebase,
     override val kind: PrimitiveTypeItem.Primitive,
     modifiers: TextTypeModifiers
-) : PrimitiveTypeItem, TextTypeItem(codebase, modifiers) {
+) : PrimitiveTypeItem, TextTypeItem(modifiers) {
     override fun duplicate(withNullability: TypeNullability): TextTypeItem {
-        return TextPrimitiveTypeItem(codebase, kind, modifiers.duplicate(withNullability))
+        return TextPrimitiveTypeItem(kind, modifiers.duplicate(withNullability))
     }
 
     // Text types are immutable, so the modifiers don't actually need to be duplicated.
@@ -52,33 +51,27 @@ internal class TextPrimitiveTypeItem(
 
 /** An [ArrayTypeItem] parsed from a signature file. */
 internal class TextArrayTypeItem(
-    codebase: TextCodebase,
     override val componentType: TypeItem,
     override val isVarargs: Boolean,
     modifiers: TextTypeModifiers
-) : ArrayTypeItem, TextTypeItem(codebase, modifiers) {
+) : ArrayTypeItem, TextTypeItem(modifiers) {
     override fun duplicate(withNullability: TypeNullability): TextTypeItem {
-        return TextArrayTypeItem(
-            codebase,
-            componentType,
-            isVarargs,
-            modifiers.duplicate(withNullability)
-        )
+        return TextArrayTypeItem(componentType, isVarargs, modifiers.duplicate(withNullability))
     }
 
     override fun duplicate(componentType: TypeItem): ArrayTypeItem {
-        return TextArrayTypeItem(codebase, componentType, isVarargs, modifiers)
+        return TextArrayTypeItem(componentType, isVarargs, modifiers)
     }
 }
 
 /** A [ClassTypeItem] parsed from a signature file. */
 internal class TextClassTypeItem(
-    codebase: TextCodebase,
+    private val codebase: Codebase,
     override val qualifiedName: String,
     override val arguments: List<TypeArgumentTypeItem>,
     override val outerClassType: ClassTypeItem?,
     modifiers: TextTypeModifiers
-) : ClassTypeItem, TextTypeItem(codebase, modifiers) {
+) : ClassTypeItem, TextTypeItem(modifiers) {
     override val className: String = ClassTypeItem.computeClassName(qualifiedName)
 
     private val asClassCache by
@@ -106,19 +99,13 @@ internal class TextClassTypeItem(
 
 /** A [VariableTypeItem] parsed from a signature file. */
 internal class TextVariableTypeItem(
-    codebase: TextCodebase,
     override val name: String,
     override val asTypeParameter: TypeParameterItem,
     modifiers: TextTypeModifiers
-) : VariableTypeItem, TextTypeItem(codebase, modifiers) {
+) : VariableTypeItem, TextTypeItem(modifiers) {
 
     override fun duplicate(withNullability: TypeNullability): TextTypeItem {
-        return TextVariableTypeItem(
-            codebase,
-            name,
-            asTypeParameter,
-            modifiers.duplicate(withNullability)
-        )
+        return TextVariableTypeItem(name, asTypeParameter, modifiers.duplicate(withNullability))
     }
 
     // Text types are immutable, so the modifiers don't actually need to be duplicated.
@@ -127,24 +114,18 @@ internal class TextVariableTypeItem(
 
 /** A [WildcardTypeItem] parsed from a signature file. */
 internal class TextWildcardTypeItem(
-    codebase: TextCodebase,
     override val extendsBound: ReferenceTypeItem?,
     override val superBound: ReferenceTypeItem?,
     modifiers: TextTypeModifiers
-) : WildcardTypeItem, TextTypeItem(codebase, modifiers) {
+) : WildcardTypeItem, TextTypeItem(modifiers) {
     override fun duplicate(withNullability: TypeNullability): TextTypeItem {
-        return TextWildcardTypeItem(
-            codebase,
-            extendsBound,
-            superBound,
-            modifiers.duplicate(withNullability)
-        )
+        return TextWildcardTypeItem(extendsBound, superBound, modifiers.duplicate(withNullability))
     }
 
     override fun duplicate(
         extendsBound: ReferenceTypeItem?,
         superBound: ReferenceTypeItem?
     ): WildcardTypeItem {
-        return TextWildcardTypeItem(codebase, extendsBound, superBound, modifiers)
+        return TextWildcardTypeItem(extendsBound, superBound, modifiers)
     }
 }

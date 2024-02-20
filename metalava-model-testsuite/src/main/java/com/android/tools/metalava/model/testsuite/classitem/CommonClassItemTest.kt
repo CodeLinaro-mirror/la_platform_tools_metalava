@@ -545,6 +545,34 @@ class CommonClassItemTest : BaseModelTest() {
     }
 
     @Test
+    fun `Test class Object has no super class type`() {
+        runCodebaseTest(
+            signature(
+                """
+                    // Signature format: 2.0
+                    package java.lang {
+                      public class Object {
+                      }
+                    }
+                """
+            ),
+            java(
+                """
+                    package java.lang;
+
+                    public class Object {}
+                """
+            ),
+        ) {
+            val objectClass = codebase.assertClass("java.lang.Object")
+
+            // Must have no super class type, otherwise it could lead to stack overflows when
+            // recursing up the hierarchy.
+            assertNull(objectClass.superClassType())
+        }
+    }
+
+    @Test
     fun `Test deprecated class by javadoc tag`() {
         runCodebaseTest(
             java(

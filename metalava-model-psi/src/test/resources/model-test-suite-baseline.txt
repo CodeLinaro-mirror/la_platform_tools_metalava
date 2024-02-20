@@ -1,8 +1,8 @@
+com.android.tools.metalava.model.testsuite.BootstrapSourceModelProviderTest
+  210 Test Method exception list[psi,java]
+
 com.android.tools.metalava.model.testsuite.annotationitem.CommonAnnotationItemTest
   annotation with enum values[psi,java]
-
-com.android.tools.metalava.model.testsuite.typeitem.CommonTypeItemTest
-  Test Kotlin collection removeAll parameter type[psi,kotlin]
 
 com.android.tools.metalava.model.testsuite.typeitem.CommonTypeModifiersTest
   Test inner parameterized types with annotations[psi,java]

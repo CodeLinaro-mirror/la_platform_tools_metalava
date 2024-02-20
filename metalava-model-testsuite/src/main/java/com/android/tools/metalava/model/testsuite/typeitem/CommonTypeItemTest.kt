@@ -17,9 +17,11 @@
 package com.android.tools.metalava.model.testsuite.typeitem
 
 import com.android.tools.metalava.model.ArrayTypeItem
+import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.ReferenceTypeItem
+import com.android.tools.metalava.model.TypeArgumentTypeItem
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.WildcardTypeItem
 import com.android.tools.metalava.model.testsuite.BaseModelTest
@@ -1108,7 +1110,9 @@ class CommonTypeItemTest : BaseModelTest() {
                     package test.pkg
                     abstract class Foo<Z> : MutableCollection<Z> {
                         override fun addAll(elements: Collection<Z>): Boolean = true
+                        override fun containsAll(elements: Collection<Z>): Boolean = true
                         override fun removeAll(elements: Collection<Z>): Boolean = true
+                        override fun retainAll(elements: Collection<Z>): Boolean = true
                     }
                 """
             )
@@ -1116,28 +1120,64 @@ class CommonTypeItemTest : BaseModelTest() {
             val fooClass = codebase.assertClass("test.pkg.Foo")
             val typeParam = fooClass.typeParameterList().typeParameters().single()
 
-            // Defined in `java.util.Collection` as `addAll(Collection<? extends E> c)`
-            val addAllMethod = fooClass.methods().single { it.name() == "addAll" }
-            val addAllParam = addAllMethod.parameters().single().type()
-            assertThat(addAllParam).isInstanceOf(ClassTypeItem::class.java)
-            assertThat((addAllParam as ClassTypeItem).qualifiedName)
-                .isEqualTo("java.util.Collection")
-            assertThat(addAllParam.arguments).hasSize(1)
-            val addAllWildcard = addAllParam.arguments.single()
-            assertThat(addAllWildcard).isInstanceOf(WildcardTypeItem::class.java)
-            val allAllZ = (addAllWildcard as WildcardTypeItem).extendsBound
-            allAllZ!!.assertReferencesTypeParameter(typeParam)
+            /**
+             * Make sure that the [ClassItem] has a method whose single parameter is of the type
+             * `java.lang.Collection` and then run [body] on that type.
+             */
+            fun ClassItem.assertMethodTakesCollection(
+                name: String,
+                body: TypeArgumentTypeItem.() -> Unit
+            ) {
+                val method = methods().single { it.name() == name }
+                val paramType = method.parameters().single().type()
+                paramType.assertClassTypeItem {
+                    assertThat(qualifiedName).isEqualTo("java.util.Collection")
+                    assertThat(arguments).hasSize(1)
+                    val argument = arguments.single()
+                    argument.body()
+                }
+            }
 
-            // Defined in `java.util.Collection` as `removeAll(Collection<?> c)`
-            // Appears in psi as a `PsiImmediateClassType` with no parameters
-            val removeAllMethod = fooClass.methods().single { it.name() == "removeAll" }
-            val removeAllParam = removeAllMethod.parameters().single().type()
-            assertThat(removeAllParam).isInstanceOf(ClassTypeItem::class.java)
-            assertThat((removeAllParam as ClassTypeItem).qualifiedName)
-                .isEqualTo("java.util.Collection")
-            assertThat(removeAllParam.arguments).hasSize(1)
-            val removeAllZ = removeAllParam.arguments.single()
-            removeAllZ.assertReferencesTypeParameter(typeParam)
+            /**
+             * Make sure that the [ClassItem] has a method whose single parameter is of the type
+             * `java.lang.Collection<? extends Z>`.
+             */
+            fun ClassItem.assertMethodTakesCollectionWildcardExtendsZ(name: String) {
+                assertMethodTakesCollection(name) {
+                    assertWildcardItem { extendsBound!!.assertReferencesTypeParameter(typeParam) }
+                }
+            }
+
+            /**
+             * Make sure that the [ClassItem] has a method whose single parameter is of the type
+             * `java.lang.Collection<Z>`.
+             */
+            fun ClassItem.assertMethodTakesCollectionZ(name: String) {
+                assertMethodTakesCollection(name) {
+                    // Check that the string representation is correct for now.
+                    // TODO: Check that this is a VariableTypeItem that references [typeParam].
+                    assertWildcardItem {
+                        assertThat(extendsBound!!.toString()).isEqualTo(typeParam.name())
+                    }
+                }
+            }
+
+            // Defined in `java.util.Collection` as `addAll(Collection<? extends E> c)`. The type of
+            // the `addAll` method in `Foo` should be `addAll(Collection<? extends Z>)`.Where `Z`
+            // references the type parameter in `Foo<Z>`.
+            fooClass.assertMethodTakesCollectionWildcardExtendsZ("addAll")
+
+            // Defined in `java.util.Collection` as `...(Collection<?> c)` these methods should be
+            // `...(Collection<? extends Z>)`.Where `Z` references the type parameter in
+            // `Foo<Z>`.
+            //
+            // However, this does not work, yet, as the `PsiType` for `Z` does not resolve to a
+            // `PsiTypeParameter`, it resolves to `null` and so ends up being a `ClassTypeItem`
+            // instead of `VariableTypeItem`.
+            //
+            fooClass.assertMethodTakesCollectionZ("containsAll")
+            fooClass.assertMethodTakesCollectionZ("removeAll")
+            fooClass.assertMethodTakesCollectionZ("retainAll")
         }
     }
 

@@ -27,6 +27,7 @@ object Issues {
     private val nameToIssue: MutableMap<String, Issue> = HashMap(300)
 
     val PARSE_ERROR = Issue(Severity.ERROR)
+    val DUPLICATE_SOURCE_CLASS = Issue(Severity.WARNING)
     // Compatibility issues
     val ADDED_PACKAGE = Issue(Severity.HIDDEN, Category.COMPATIBILITY)
     val ADDED_CLASS = Issue(Severity.HIDDEN, Category.COMPATIBILITY)

@@ -29,6 +29,7 @@ import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
+import com.android.tools.metalava.model.bestGuessAtFullName
 import java.util.function.Predicate
 
 internal open class TextClassItem(
@@ -215,7 +216,7 @@ internal open class TextClassItem(
             qualifiedName: String,
             isInterface: Boolean
         ): TextClassItem {
-            val fullName = getFullName(qualifiedName)
+            val fullName = bestGuessAtFullName(qualifiedName)
             val cls =
                 TextClassItem(
                     codebase = codebase,
@@ -227,24 +228,6 @@ internal open class TextClassItem(
             cls.emit = false // it's a stub
 
             return cls
-        }
-
-        private fun getFullName(qualifiedName: String): String {
-            var end = -1
-            val length = qualifiedName.length
-            var prev = qualifiedName[length - 1]
-            for (i in length - 2 downTo 0) {
-                val c = qualifiedName[i]
-                if (c == '.' && prev.isUpperCase()) {
-                    end = i + 1
-                }
-                prev = c
-            }
-            if (end != -1) {
-                return qualifiedName.substring(end)
-            }
-
-            return qualifiedName.substring(qualifiedName.lastIndexOf('.') + 1)
         }
     }
 }

@@ -564,7 +564,7 @@ $signatureToJdiffHelp
             api =
                 """
                     package test.pkg {
-                      public class Test {
+                      public class Test extends Number {
                         ctor public Test();
                       }
                     }
@@ -584,7 +584,7 @@ $signatureToJdiffHelp
                     <package name="test.pkg"
                     >
                     <class name="Test"
-                     extends="java.lang.Object"
+                     extends="java.lang.Number"
                      abstract="false"
                      static="false"
                      final="false"

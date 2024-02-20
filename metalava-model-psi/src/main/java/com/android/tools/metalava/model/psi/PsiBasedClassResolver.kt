@@ -49,7 +49,7 @@ internal class PsiBasedClassResolver(
                 fromClasspath = true
             )
         val emptyPackageDocs = PackageDocs(mutableMapOf(), mutableMapOf(), mutableSetOf())
-        classpathCodebase.initialize(uastEnvironment, emptyList(), emptyPackageDocs)
+        classpathCodebase.initializeFromSources(uastEnvironment, emptyList(), emptyPackageDocs)
     }
 
     override fun resolveClass(erasedName: String): ClassItem? {

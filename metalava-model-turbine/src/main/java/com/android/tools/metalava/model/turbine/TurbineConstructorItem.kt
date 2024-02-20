@@ -18,6 +18,7 @@ package com.android.tools.metalava.model.turbine
 
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.DefaultModifierList
+import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.google.turbine.binder.sym.MethodSymbol
 
@@ -26,7 +27,7 @@ internal class TurbineConstructorItem(
     private val name: String,
     methodSymbol: MethodSymbol,
     containingClass: TurbineClassItem,
-    returnType: TurbineTypeItem,
+    returnType: TypeItem,
     modifiers: TurbineModifierItem,
     typeParameters: TypeParameterList,
     documentation: String,
@@ -48,7 +49,7 @@ internal class TurbineConstructorItem(
 
     override fun isConstructor(): Boolean = true
 
-    internal fun setReturnType(type: TurbineTypeItem) {
+    internal fun setReturnType(type: TypeItem) {
         returnType = type
     }
 
@@ -77,8 +78,7 @@ internal class TurbineConstructorItem(
                 )
             modifiers.setOwner(ctorItem)
             ctorItem.parameters = emptyList()
-            ctorItem.throwsClassNames = emptyList()
-            ctorItem.setThrowsTypes()
+            ctorItem.throwableTypes = emptyList()
             return ctorItem
         }
     }

@@ -19,12 +19,14 @@ package com.android.tools.metalava.model.text
 import com.android.tools.metalava.model.BaseTypeVisitor
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.JAVA_LANG_ANNOTATION
+import com.android.tools.metalava.model.JAVA_LANG_ENUM
 import com.android.tools.metalava.model.JAVA_LANG_OBJECT
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.ReferenceTypeItem
 import com.android.tools.metalava.model.TypeArgumentTypeItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeNullability
+import com.android.tools.metalava.model.TypeParameterScope
 import com.android.tools.metalava.model.TypeUse
 import com.android.tools.metalava.model.TypeVisitor
 import com.android.tools.metalava.model.VariableTypeItem
@@ -55,13 +57,17 @@ internal class TextTypeParser(val codebase: TextCodebase, val kotlinStyleNulls: 
     internal var cacheHit = 0
     internal var cacheSize = 0
 
-    /** [TextTypeModifiers] that are empty but set [TextTypeModifiers.nullability] to null. */
-    private val nonNullTypeModifiers =
-        TextTypeModifiers.create(codebase, emptyList(), TypeNullability.NONNULL)
-
     /** A [JAVA_LANG_ANNOTATION] suitable for use as a super type. */
     val superAnnotationType
         get() = createJavaLangSuperType(JAVA_LANG_ANNOTATION)
+
+    /** A [JAVA_LANG_ENUM] suitable for use as a super type. */
+    val superEnumType
+        get() = createJavaLangSuperType(JAVA_LANG_ENUM)
+
+    /** A [JAVA_LANG_OBJECT] suitable for use as a super type. */
+    val superObjectType
+        get() = createJavaLangSuperType(JAVA_LANG_OBJECT)
 
     /**
      * Create a [ClassTypeItem] for a standard java.lang class suitable for use by a super class or
@@ -203,11 +209,7 @@ internal class TextTypeParser(val codebase: TextCodebase, val kotlinStyleNulls: 
         if (nullability != null && nullability != TypeNullability.NONNULL) {
             throw ApiParseException("Invalid nullability suffix on primitive: $original")
         }
-        return TextPrimitiveTypeItem(
-            codebase,
-            kind,
-            modifiers(annotations, TypeNullability.NONNULL)
-        )
+        return TextPrimitiveTypeItem(kind, modifiers(annotations, TypeNullability.NONNULL))
     }
 
     /**
@@ -293,11 +295,11 @@ internal class TextTypeParser(val codebase: TextCodebase, val kotlinStyleNulls: 
         // Create the component type of the outermost array by building up the inner component type.
         val componentType =
             componentModifiers.fold(deepComponentType) { component, modifiers ->
-                TextArrayTypeItem(codebase, component, false, modifiers)
+                TextArrayTypeItem(component, false, modifiers)
             }
 
         // Create the outer array.
-        return TextArrayTypeItem(codebase, componentType, varargs, arrayModifiers)
+        return TextArrayTypeItem(componentType, varargs, arrayModifiers)
     }
 
     /**
@@ -320,7 +322,6 @@ internal class TextTypeParser(val codebase: TextCodebase, val kotlinStyleNulls: 
         // Unbounded wildcard type: there is an implicit Object extends bound
         if (type == "?")
             return TextWildcardTypeItem(
-                codebase,
                 objectType,
                 null,
                 modifiers(annotations, TypeNullability.UNDEFINED)
@@ -331,7 +332,6 @@ internal class TextTypeParser(val codebase: TextCodebase, val kotlinStyleNulls: 
         return if (bound.startsWith("extends")) {
             val extendsBound = bound.substring(8)
             TextWildcardTypeItem(
-                codebase,
                 getWildcardBound(extendsBound, typeParameterScope),
                 null,
                 modifiers(annotations, TypeNullability.UNDEFINED)
@@ -339,7 +339,6 @@ internal class TextTypeParser(val codebase: TextCodebase, val kotlinStyleNulls: 
         } else if (bound.startsWith("super")) {
             val superBound = bound.substring(6)
             TextWildcardTypeItem(
-                codebase,
                 // All wildcards have an implicit Object extends bound
                 objectType,
                 getWildcardBound(superBound, typeParameterScope),
@@ -368,7 +367,7 @@ internal class TextTypeParser(val codebase: TextCodebase, val kotlinStyleNulls: 
         nullability: TypeNullability?
     ): TextVariableTypeItem? {
         val param = typeParameterScope.findTypeParameter(type) ?: return null
-        return TextVariableTypeItem(codebase, type, param, modifiers(annotations, nullability))
+        return TextVariableTypeItem(type, param, modifiers(annotations, nullability))
     }
 
     /**
