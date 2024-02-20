@@ -20,12 +20,12 @@ import com.android.tools.metalava.model.AnnotationRetention
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.DefaultAnnotationSingleAttributeValue
 import com.android.tools.metalava.model.PrimitiveTypeItem
-import com.android.tools.metalava.model.ThrowableType
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.testing.java
 import com.google.common.truth.Truth.assertThat
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
@@ -326,21 +326,38 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
                 """
             ),
         ) {
+            // Make sure that classes (and containing package) from the source have been loaded into
+            // the codebase and will be emitted.
             val pkgItem = codebase.assertPackage("test.pkg")
-            val classItem = codebase.assertClass("test.pkg.Test")
-            val utilPkgItem = codebase.assertPackage("java.util")
-            val utilClassItem = codebase.assertClass("java.util.Date")
-            val langPkgItem = codebase.assertPackage("java.lang")
-            val objectClassItem = codebase.assertClass("java.lang.Object")
-            assertEquals(utilClassItem, classItem.superClass())
-            assertEquals(objectClassItem, utilClassItem.superClass())
-            assertEquals(3, utilClassItem.allInterfaces().count())
-            assertEquals(false, utilPkgItem.emit)
-            assertEquals(false, utilClassItem.emit)
-            assertEquals(false, langPkgItem.emit)
-            assertEquals(false, objectClassItem.emit)
             assertEquals(true, pkgItem.emit)
+            val classItem = codebase.assertClass("test.pkg.Test")
             assertEquals(true, classItem.emit)
+
+            // Force the Test super class (java.util.Date) to be resolved.
+            val classItemSuperClass = classItem.superClass()
+
+            // Check that the class and package have been loaded but will not be emitted.
+            val utilPkgItem = codebase.assertPackage("java.util")
+            assertEquals(false, utilPkgItem.emit)
+            val utilClassItem = codebase.assertClass("java.util.Date")
+            assertEquals(false, utilClassItem.emit)
+
+            // Check that the Test super class is expected.
+            assertEquals(utilClassItem, classItemSuperClass)
+
+            // Force the Date super class (java.lang.Object) to be resolved.
+            val utilClassSuperClass = utilClassItem.superClass()
+
+            // Check that the class and package have been loaded but will not be emitted.
+            val langPkgItem = codebase.assertPackage("java.lang")
+            assertEquals(false, langPkgItem.emit)
+            val objectClassItem = codebase.assertClass("java.lang.Object")
+            assertEquals(false, objectClassItem.emit)
+
+            // Check that the Date super class is expected.
+            assertEquals(objectClassItem, utilClassSuperClass)
+
+            assertEquals(3, utilClassItem.allInterfaces().count())
         }
     }
 
@@ -795,14 +812,19 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
             ),
         ) {
             val testClass = codebase.assertClass("test.pkg.Test")
-            val testExceptionClass = codebase.assertClass("test.pkg.TestException")
-            val ioExceptionClass = codebase.assertClass("java.io.IOException")
             val methodItem = testClass.assertMethod("foo", "")
+            val testExceptionClass = codebase.assertClass("test.pkg.TestException")
 
-            assertEquals(
-                listOf(ioExceptionClass, testExceptionClass).map(ThrowableType::ofClass),
-                methodItem.throwsTypes()
-            )
+            // This must only be available after resolving throwable types.
+            assertNull(codebase.findClass("java.io.IOException"))
+
+            // Resolve the types to classes.
+            val throwableClasses = methodItem.throwsTypes().map { it.classItem }
+
+            // This must be available after resolving throwable types.
+            val ioExceptionClass = codebase.assertClass("java.io.IOException")
+
+            assertEquals(listOf(testExceptionClass, ioExceptionClass), throwableClasses)
         }
     }
 
@@ -926,11 +948,13 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
 
                          class Inner {}
                     }
+                    class Test1 {}
                 """
             ),
         ) {
             val pkgItem = codebase.assertPackage("test.pkg")
             val classItem = codebase.assertClass("test.pkg.Test")
+            val classItem1 = codebase.assertClass("test.pkg.Test1")
             val innerClassItem = codebase.assertClass("test.pkg.Test.Inner")
             val methodItem = classItem.methods().single()
             val fieldItem = classItem.assertField("field")
@@ -963,6 +987,7 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
             assertEquals("/** Field Doc */", fieldItem.documentation)
             assertEquals("", fieldItem1.documentation)
             assertEquals("", pkgItem.documentation)
+            assertEquals(classItem.sourceFile(), classItem1.sourceFile())
         }
     }
 

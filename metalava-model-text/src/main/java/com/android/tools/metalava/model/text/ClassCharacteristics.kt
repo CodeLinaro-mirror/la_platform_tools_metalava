@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model.text
 
 import com.android.tools.metalava.model.ClassKind
+import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.ModifierList
 
 /**
@@ -46,8 +47,8 @@ internal data class ClassCharacteristics(
     /** The modifiers. */
     val modifiers: ModifierList,
 
-    /** The super class type string. */
-    val superClassTypeString: String?,
+    /** The super class type . */
+    val superClassType: ClassTypeItem?,
 // TODO(b/323168612): Add interface type strings.
 ) {
     /**
@@ -75,7 +76,7 @@ internal data class ClassCharacteristics(
                 fullName = classItem.fullName(),
                 classKind = classItem.classKind,
                 modifiers = classItem.modifiers,
-                superClassTypeString = classItem.superClassType()?.toTypeString(),
+                superClassType = classItem.superClassType(),
             )
     }
 }

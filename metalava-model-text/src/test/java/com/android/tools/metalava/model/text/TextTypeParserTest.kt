@@ -20,6 +20,7 @@ import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeNullability
+import com.android.tools.metalava.model.TypeParameterScope
 import com.google.common.truth.Truth.assertThat
 import org.junit.Assert
 import org.junit.Test

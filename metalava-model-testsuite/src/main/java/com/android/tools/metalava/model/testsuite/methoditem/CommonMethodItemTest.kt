@@ -352,4 +352,31 @@ class CommonMethodItemTest : BaseModelTest() {
             assertNull(throwsType.throwableClass)
         }
     }
+
+    @Test
+    fun `Test throws method class does not exist`() {
+        // This is an error but Metalava should try not to fail on an error.
+        runCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+
+                    @SuppressWarnings("ALL")
+                    public final class Test {
+                        private Test() {}
+                        public void throwsUnknownException() throws UnknownException {
+                            return null;
+                        }
+                    }
+                """
+            ),
+            // No signature test as that will just fabricate an UnknownException.
+        ) {
+            val methodItem = codebase.assertClass("test.pkg.Test").methods().single()
+            val throwsType = methodItem.throwsTypes().single()
+            // Neither the class nor throwable class is available.
+            assertNull(throwsType.classItem)
+            assertNull(throwsType.throwableClass)
+        }
+    }
 }

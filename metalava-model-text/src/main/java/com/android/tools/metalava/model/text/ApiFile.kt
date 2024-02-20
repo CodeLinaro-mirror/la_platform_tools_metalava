@@ -27,9 +27,8 @@ import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.DefaultModifierList
+import com.android.tools.metalava.model.DefaultTypeParameterList
 import com.android.tools.metalava.model.JAVA_LANG_DEPRECATED
-import com.android.tools.metalava.model.JAVA_LANG_ENUM
-import com.android.tools.metalava.model.JAVA_LANG_OBJECT
 import com.android.tools.metalava.model.JAVA_LANG_THROWABLE
 import com.android.tools.metalava.model.MetalavaApi
 import com.android.tools.metalava.model.MethodItem
@@ -38,6 +37,7 @@ import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
 import com.android.tools.metalava.model.ThrowableType
 import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeParameterList
+import com.android.tools.metalava.model.TypeParameterScope
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.isNullableAnnotation
 import com.android.tools.metalava.model.isNullnessAnnotation
@@ -55,7 +55,7 @@ class ApiFile
 private constructor(
     private val codebase: TextCodebase,
     private val formatForLegacyFiles: FileFormat?,
-) : ResolverContext {
+) {
 
     /**
      * Provides support for parsing and caching `TypeItem` instances.
@@ -81,13 +81,18 @@ private constructor(
     private val classToTypeParameterScope = IdentityHashMap<ClassItem, TypeParameterScope>()
 
     /**
+     * The set of super class types needed for later resolution.
+     *
+     * TODO(b/323516595): Find a better way.
+     */
+    private val superClassTypesForResolution = mutableSetOf<ClassTypeItem>()
+
+    /**
      * The set of interface types needed for later resolution.
      *
      * TODO(b/323516595): Find a better way.
      */
     private val interfaceTypesForResolution = mutableSetOf<ClassTypeItem>()
-
-    private val mClassToSuper = HashMap<TextClassItem, String>(30000)
 
     companion object {
         /**
@@ -264,8 +269,12 @@ private constructor(
      */
     private fun postProcess() {
         // Use this as the context for resolving references.
-        ReferenceResolver.resolveReferences(this, codebase, typeParser) {
-            typeParameterScopeForClass(it)
+        ReferenceResolver.resolveReferences(codebase, typeParser) { typeParameterScopeForClass(it) }
+
+        // Resolve all super class types that were found in the signature file.
+        // TODO(b/323516595): Find a better way.
+        for (superClassType in superClassTypesForResolution) {
+            superClassType.asClass()
         }
 
         // Resolve all interface types that were found in the signature file.
@@ -364,17 +373,10 @@ private constructor(
         }
     }
 
-    private fun mapClassToSuper(classInfo: TextClassItem, superclass: String?) {
-        superclass?.let { mClassToSuper.put(classInfo, superclass) }
-    }
-
-    /** Implements [ResolverContext] interface */
-    override fun superClassTypeString(cl: ClassItem): String? = mClassToSuper[cl]
-
     private fun parseClass(pkg: TextPackageItem, tokenizer: Tokenizer, startingToken: String) {
         var token = startingToken
         var classKind = ClassKind.CLASS
-        var superClassTypeString: String? = null
+        var superClassType: ClassTypeItem? = null
 
         // Metalava: including annotations in file now
         val annotations: List<String> = getAnnotations(tokenizer, token)
@@ -404,7 +406,7 @@ private constructor(
                 classKind = ClassKind.ENUM
                 modifiers.setFinal(true)
                 modifiers.setStatic(true)
-                superClassTypeString = JAVA_LANG_ENUM
+                superClassType = typeParser.superEnumType
                 token = tokenizer.requireToken()
             }
             else -> {
@@ -430,7 +432,8 @@ private constructor(
         token = tokenizer.requireToken()
 
         if ("extends" == token && classKind != ClassKind.INTERFACE) {
-            superClassTypeString = parseSuperTypeString(tokenizer, tokenizer.requireToken())
+            val superClassTypeString = parseSuperTypeString(tokenizer, tokenizer.requireToken())
+            superClassType = typeParser.getSuperType(superClassTypeString, typeParameterScope)
             token = tokenizer.current
         }
 
@@ -451,7 +454,7 @@ private constructor(
                 }
             }
         }
-        if (JAVA_LANG_ENUM == superClassTypeString) {
+        if (superClassType == typeParser.superEnumType) {
             // This can be taken either for an enum class, or a normal class that extends
             // java.lang.Enum (which was the old way of representing an enum in the API signature
             // files.
@@ -485,7 +488,7 @@ private constructor(
                 fullName = fullName,
                 classKind = classKind,
                 modifiers = modifiers,
-                superClassTypeString = superClassTypeString,
+                superClassType = superClassType,
             )
 
         // Check to see if there is an existing class, if so merge this class definition into that
@@ -509,11 +512,20 @@ private constructor(
                 typeParameterList = typeParameterList,
             )
 
+        // Default the superClassType() to java.lang.Object for any class that is not an interface,
+        // annotation, or enum and which is not itself java.lang.Object.
+        if (classKind == ClassKind.CLASS && superClassType == null && !cl.isJavaLangObject()) {
+            superClassType = typeParser.superObjectType
+        }
+        cl.setSuperClassType(superClassType)
+
         cl.setInterfaceTypes(interfaceTypes.toList())
 
-        // Save the interface types to later when they will be resolved. That is needed to avoid
-        // later changes to the model which would/could cause concurrent modification issues.
+        // Save the super class and interface types to later when they will be resolved. That is
+        // needed to avoid later changes to the model which would/could cause concurrent
+        // modification issues.
         // TODO(b/323516595): Find a better way.
+        superClassType?.let { superClassTypesForResolution.add(it) }
         interfaceTypesForResolution.addAll(interfaceTypes)
 
         // Store the [TypeParameterScope] for this [ClassItem] so it can be retrieved later in
@@ -533,9 +545,6 @@ private constructor(
             outerClass.addInnerClass(cl)
         }
         codebase.registerClass(cl)
-
-        // Record the super class type string as needing to be resolved for this class.
-        mapClassToSuper(cl, superClassTypeString)
 
         // Parse the class body adding each member created to the class item being populated.
         parseClassBody(tokenizer, cl, typeParameterScope)
@@ -570,11 +579,13 @@ private constructor(
         }
 
         // Use the latest super class.
-        val newSuperClassTypeString = newClassCharacteristics.superClassTypeString
-        if (mClassToSuper[existingClass] != newSuperClassTypeString) {
+        val newSuperClassType = newClassCharacteristics.superClassType
+        if (
+            newSuperClassType != null && existingCharacteristics.superClassType != newSuperClassType
+        ) {
             // Duplicate class with conflicting superclass names are found. Since the class
-            // definition found later should be prioritized, overwrite the superclass name.
-            mapClassToSuper(existingClass, newSuperClassTypeString)
+            // definition found later should be prioritized, overwrite the superclass type.
+            existingClass.setSuperClassType(newSuperClassType)
         }
 
         // Parse the class body adding each member created to the existing class.
@@ -719,7 +730,12 @@ private constructor(
         val (typeParameterList, typeParameterScope) =
             if (typeParameterListString == "")
                 Pair(TypeParameterList.NONE, outerClassTypeParameterScope)
-            else createTypeParameterList(outerClassTypeParameterScope, typeParameterListString)
+            else
+                createTypeParameterList(
+                    outerClassTypeParameterScope,
+                    "class $qualifiedName",
+                    typeParameterListString,
+                )
 
         // Decide which type parameter list and scope to actually use.
         //
@@ -1268,7 +1284,14 @@ private constructor(
         return if (typeParameterListString.isEmpty()) {
             Pair(TypeParameterList.NONE, enclosingTypeParameterScope)
         } else {
-            createTypeParameterList(enclosingTypeParameterScope, typeParameterListString)
+            // Use the line number as a part of the description of the scope as at this point there
+            // is no other information available.
+            val scopeDescription = "line ${tokenizer.line}"
+            createTypeParameterList(
+                enclosingTypeParameterScope,
+                scopeDescription,
+                typeParameterListString
+            )
         }
     }
 
@@ -1283,41 +1306,31 @@ private constructor(
      */
     private fun createTypeParameterList(
         enclosingTypeParameterScope: TypeParameterScope,
+        scopeDescription: String,
         typeParameterListString: String
     ): Pair<TypeParameterList, TypeParameterScope> {
-        // A type parameter list can contain cycles between its type parameters, e.g.
-        //     class Node<L extends Node<L, R>, R extends Node<L, R>>
-        // Parsing that requires a multi-stage approach.
-        // 1. Separate the list into a mapping from `TextTypeParameterItem` that have not yet
-        //    had their `bounds` property initialized to the bounds string list.
-        // 2. Create a nested scope of the enclosing scope which includes the type parameters.
-        //    That will allow references between them to be resolved.
-        // 3. Completing the initialization by converting each bounds string into a TypeItem.
-
         // Split the type parameter list string into a list of strings, one for each type
         // parameter.
         val typeParameterStrings = TextTypeParser.typeParameterStrings(typeParameterListString)
 
-        // Creating a mapping from a `TextTypeParameterItem` to the bounds string list.
-        val itemToBoundsList =
-            typeParameterStrings.associateBy({ TextTypeParameterItem.create(codebase, it) }) {
-                extractTypeParameterBoundsStringList(it)
-            }
-
-        // Extract the `TextTypeParameterItem`s into a list and then use that to construct a
-        // scope that can be used to resolve the type parameters, including self references
-        // between the ones in this list.
-        val typeParameters = itemToBoundsList.keys.toList()
-        val scope = enclosingTypeParameterScope.nestedScope(typeParameters)
-
-        // Complete the initialization of the `TextTypeParameterItem`s by converting each bounds
-        // string into a `TypeItem`.
-        for ((typeParameterItem, boundsStringList) in itemToBoundsList) {
-            typeParameterItem.bounds =
-                boundsStringList.map {
-                    typeParser.obtainTypeFromString(it, scope) as BoundsTypeItem
-                }
-        }
+        // Create the List<TypeParameterItem>s and the corresponding TypeParameterScope that can be
+        // used to resolve TypeParameterItems from the scope. This performs the construction in two
+        // stages to handle cycles between the parameters.
+        val (typeParameters, scope) =
+            DefaultTypeParameterList.createTypeParameterItemsAndScope(
+                enclosingTypeParameterScope,
+                scopeDescription,
+                typeParameterStrings,
+                // Create a `TextTypeParameterItem` from the type parameter string.
+                { TextTypeParameterItem.create(codebase, it) },
+                // Create, set and return the [BoundsTypeItem] list.
+                { scope, item, typeParameterString ->
+                    val boundsStringList = extractTypeParameterBoundsStringList(typeParameterString)
+                    boundsStringList
+                        .map { typeParser.obtainTypeFromString(it, scope) as BoundsTypeItem }
+                        .also { item.bounds = it }
+                },
+            )
 
         return Pair(TextTypeParameterList.create(codebase, typeParameters), scope)
     }
@@ -1633,23 +1646,8 @@ private constructor(
     )
 }
 
-/**
- * Provides access to information that is needed by the [ReferenceResolver].
- *
- * This is provided by [ApiFile] which tracks the names of interfaces and super classes that each
- * class implements/extends respectively before they are resolved.
- */
-internal interface ResolverContext {
-    /**
-     * Get the string representation of the super class type extended by the supplied class, returns
-     * null if there was no specified super class type.
-     */
-    fun superClassTypeString(cl: ClassItem): String?
-}
-
 /** Resolves any references in the codebase, e.g. to superclasses, interfaces, etc. */
 internal class ReferenceResolver(
-    private val context: ResolverContext,
     private val codebase: TextCodebase,
     private val typeParser: TextTypeParser,
     private val classScopeProvider: (ClassItem) -> TypeParameterScope,
@@ -1664,48 +1662,17 @@ internal class ReferenceResolver(
 
     companion object {
         fun resolveReferences(
-            context: ResolverContext,
             codebase: TextCodebase,
             typeParser: TextTypeParser,
             classScopeProvider: (ClassItem) -> TypeParameterScope = { TypeParameterScope.empty },
         ) {
-            val resolver = ReferenceResolver(context, codebase, typeParser, classScopeProvider)
+            val resolver = ReferenceResolver(codebase, typeParser, classScopeProvider)
             resolver.resolveReferences()
         }
     }
 
     fun resolveReferences() {
-        resolveSuperclasses()
         resolveThrowsClasses()
-    }
-
-    private fun resolveSuperclasses() {
-        for (cl in classes) {
-            // java.lang.Object has no superclass and neither do interfaces
-            if (cl.isJavaLangObject() || cl.isInterface()) {
-                continue
-            }
-            val superClassTypeString: String =
-                context.superClassTypeString(cl)
-                    ?: when (cl.classKind) {
-                        ClassKind.ENUM -> JAVA_LANG_ENUM
-                        // Interfaces and annotations do not have super classes so drop out before
-                        // the else clause.
-                        ClassKind.ANNOTATION_TYPE,
-                        ClassKind.INTERFACE -> continue
-                        else -> JAVA_LANG_OBJECT
-                    }
-
-            val superClassType =
-                typeParser.getSuperType(superClassTypeString, classScopeProvider(cl))
-            cl.setSuperClassType(superClassType)
-
-            // Resolve super class types. This is needed because otherwise code that manipulates
-            // the codebase while visiting the codebase can cause concurrent modification
-            // exceptions.
-            // TODO(b/323516595): Find a better way.
-            cl.superClass()
-        }
     }
 
     private fun resolveThrowsClasses() {
@@ -1728,7 +1695,10 @@ internal class ReferenceResolver(
         val names = methodInfo.throwsTypeNames()
         if (names.isNotEmpty()) {
             val typeParameterScope =
-                classTypeParameterScope.nestedScope(methodItem.typeParameterList().typeParameters())
+                classTypeParameterScope.nestedScope(
+                    methodItem.name(),
+                    methodItem.typeParameterList().typeParameters()
+                )
             val throwsList =
                 names.map { exception ->
                     // Search in this codebase, then possibly check for a type parameter, if not

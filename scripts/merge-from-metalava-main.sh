@@ -61,7 +61,7 @@ else
 fi
 
 echo -n "Extracting bugs from merged in changes"
-BUGS=$(git log ${MERGE_BASE}..${SOURCE_BRANCH} | (grep -E "^ *Bug: *[0-9]+" || true) | sed "s/Bug://" | sort -u -n)
+BUGS=$(git log ${MERGE_BASE}..${SOURCE_BRANCH} --no-merges | (grep -E "^ *Bug: *[0-9]+" || true) | sed "s/Bug://" | sort -u -n)
 echo " - DONE"
 
 echo -n "Extracting change list from merged in changes"

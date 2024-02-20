@@ -6,10 +6,6 @@ com.android.tools.metalava.model.testsuite.fielditem.SourceFieldItemTest
   test default value of an enum constant field[turbine,java]
   test non final field with default value as constant expression[turbine,java]
 
-com.android.tools.metalava.model.testsuite.methoditem.CommonMethodItemTest
-  Test throws method type parameter does not extend Throwable[turbine,java]
-  Test throws method type parameter extends Throwable[turbine,java]
-
 com.android.tools.metalava.model.testsuite.methoditem.CommonParameterItemTest
   Test publicName reports correct name when called on binary class - Object#equals[turbine,java]
   Test publicName reports correct name when called on binary class - ViewGroup#onLayout[turbine,java]

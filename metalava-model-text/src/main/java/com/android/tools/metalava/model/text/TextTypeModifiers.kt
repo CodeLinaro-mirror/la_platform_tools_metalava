@@ -42,9 +42,10 @@ internal class TextTypeModifiers(
     override fun setNullability(newNullability: TypeNullability) =
         codebase.unsupported("TextTypeModifiers are immutable because TextTypes are cached")
 
-    fun duplicate(withNullability: TypeNullability): TextTypeModifiers {
-        return TextTypeModifiers(codebase, annotations, withNullability)
-    }
+    override fun duplicate() = TextTypeModifiers(codebase, annotations, nullability)
+
+    fun duplicate(withNullability: TypeNullability) =
+        TextTypeModifiers(codebase, annotations, withNullability)
 
     companion object {
         /** Creates modifiers in the given [codebase] based on the text of the [annotations]. */

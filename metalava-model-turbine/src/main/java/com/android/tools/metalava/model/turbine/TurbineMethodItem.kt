@@ -30,15 +30,14 @@ internal open class TurbineMethodItem(
     codebase: TurbineBasedCodebase,
     private val methodSymbol: MethodSymbol,
     private val containingClass: ClassItem,
-    protected var returnType: TurbineTypeItem,
+    protected var returnType: TypeItem,
     modifiers: DefaultModifierList,
     private val typeParameters: TypeParameterList,
     documentation: String,
 ) : TurbineItem(codebase, modifiers, documentation), MethodItem {
 
     private lateinit var superMethodList: List<MethodItem>
-    internal lateinit var throwsClassNames: List<String>
-    private lateinit var throwsTypes: List<ThrowableType>
+    internal lateinit var throwableTypes: List<ThrowableType>
     internal lateinit var parameters: List<ParameterItem>
 
     override var inheritedFrom: ClassItem? = null
@@ -49,7 +48,7 @@ internal open class TurbineMethodItem(
 
     override fun returnType(): TypeItem = returnType
 
-    override fun throwsTypes(): List<ThrowableType> = throwsTypes
+    override fun throwsTypes(): List<ThrowableType> = throwableTypes
 
     override fun isExtensionMethod(): Boolean = false // java does not support extension methods
 
@@ -104,7 +103,7 @@ internal open class TurbineMethodItem(
                 codebase,
                 methodSymbol,
                 targetContainingClass,
-                retType as TurbineTypeItem,
+                retType,
                 mods,
                 typeParameters,
                 documentation
@@ -112,7 +111,7 @@ internal open class TurbineMethodItem(
         mods.setOwner(duplicateMethod)
         duplicateMethod.parameters = params
         duplicateMethod.inheritedFrom = containingClass
-        duplicateMethod.throwsTypes = throwsTypes
+        duplicateMethod.throwableTypes = throwableTypes
 
         // Preserve flags that may have been inherited (propagated) from surrounding packages
         if (targetContainingClass.hidden) {
@@ -135,14 +134,8 @@ internal open class TurbineMethodItem(
 
     override fun typeParameterList(): TypeParameterList = typeParameters
 
-    internal fun setThrowsTypes() {
-        val result =
-            throwsClassNames.map { ThrowableType.ofClass(codebase.findOrCreateClass(it)!!) }
-        throwsTypes = result.sortedWith(ThrowableType.fullNameComparator)
-    }
-
     internal fun setThrowsTypes(throwsList: List<ThrowableType>) {
-        throwsTypes = throwsList
+        throwableTypes = throwsList
     }
 
     internal fun getSymbol(): MethodSymbol = methodSymbol
