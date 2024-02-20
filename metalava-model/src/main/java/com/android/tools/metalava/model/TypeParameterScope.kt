@@ -103,7 +103,7 @@ sealed class TypeParameterScope private constructor() {
                     // Nest this inside it.
                     .nestedScope(
                         description = "class ${classItem.qualifiedName()}",
-                        classItem.typeParameterList().typeParameters(),
+                        classItem.typeParameterList,
                     )
             }
         }
@@ -118,7 +118,7 @@ sealed class TypeParameterScope private constructor() {
                 // Nest this inside it.
                 .nestedScope(
                     description = "method ${methodItem.name()}",
-                    methodItem.typeParameterList().typeParameters(),
+                    methodItem.typeParameterList,
                 )
         }
     }

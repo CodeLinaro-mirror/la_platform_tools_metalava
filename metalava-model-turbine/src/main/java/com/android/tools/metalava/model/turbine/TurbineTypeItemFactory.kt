@@ -28,12 +28,17 @@ import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.TypeParameterScope
 import com.android.tools.metalava.model.TypeUse
+import com.android.tools.metalava.model.type.DefaultArrayTypeItem
+import com.android.tools.metalava.model.type.DefaultClassTypeItem
+import com.android.tools.metalava.model.type.DefaultPrimitiveTypeItem
 import com.android.tools.metalava.model.type.DefaultTypeModifiers
+import com.android.tools.metalava.model.type.DefaultVariableTypeItem
+import com.android.tools.metalava.model.type.DefaultWildcardTypeItem
 import com.android.tools.metalava.model.type.TypeItemFactory
 import com.google.turbine.model.TurbineConstantTypeKind
 import com.google.turbine.type.Type
 
-/** Creates [TurbineTypeItem]s from [Type]s. */
+/** Creates [TypeItem]s from [Type]s. */
 internal class TurbineTypeItemFactory(
     private val codebase: TurbineBasedCodebase,
     private val initializer: TurbineCodebaseInitialiser,
@@ -82,21 +87,21 @@ internal class TurbineTypeItemFactory(
                 val modifiers = DefaultTypeModifiers.create(annotations, TypeNullability.NONNULL)
                 when (type.primkind()) {
                     TurbineConstantTypeKind.BOOLEAN ->
-                        TurbinePrimitiveTypeItem(modifiers, PrimitiveTypeItem.Primitive.BOOLEAN)
+                        DefaultPrimitiveTypeItem(modifiers, PrimitiveTypeItem.Primitive.BOOLEAN)
                     TurbineConstantTypeKind.BYTE ->
-                        TurbinePrimitiveTypeItem(modifiers, PrimitiveTypeItem.Primitive.BYTE)
+                        DefaultPrimitiveTypeItem(modifiers, PrimitiveTypeItem.Primitive.BYTE)
                     TurbineConstantTypeKind.CHAR ->
-                        TurbinePrimitiveTypeItem(modifiers, PrimitiveTypeItem.Primitive.CHAR)
+                        DefaultPrimitiveTypeItem(modifiers, PrimitiveTypeItem.Primitive.CHAR)
                     TurbineConstantTypeKind.DOUBLE ->
-                        TurbinePrimitiveTypeItem(modifiers, PrimitiveTypeItem.Primitive.DOUBLE)
+                        DefaultPrimitiveTypeItem(modifiers, PrimitiveTypeItem.Primitive.DOUBLE)
                     TurbineConstantTypeKind.FLOAT ->
-                        TurbinePrimitiveTypeItem(modifiers, PrimitiveTypeItem.Primitive.FLOAT)
+                        DefaultPrimitiveTypeItem(modifiers, PrimitiveTypeItem.Primitive.FLOAT)
                     TurbineConstantTypeKind.INT ->
-                        TurbinePrimitiveTypeItem(modifiers, PrimitiveTypeItem.Primitive.INT)
+                        DefaultPrimitiveTypeItem(modifiers, PrimitiveTypeItem.Primitive.INT)
                     TurbineConstantTypeKind.LONG ->
-                        TurbinePrimitiveTypeItem(modifiers, PrimitiveTypeItem.Primitive.LONG)
+                        DefaultPrimitiveTypeItem(modifiers, PrimitiveTypeItem.Primitive.LONG)
                     TurbineConstantTypeKind.SHORT ->
-                        TurbinePrimitiveTypeItem(modifiers, PrimitiveTypeItem.Primitive.SHORT)
+                        DefaultPrimitiveTypeItem(modifiers, PrimitiveTypeItem.Primitive.SHORT)
                     else ->
                         throw IllegalStateException("Invalid primitive type in API surface: $type")
                 }
@@ -106,7 +111,7 @@ internal class TurbineTypeItemFactory(
             }
             Type.TyKind.CLASS_TY -> {
                 type as Type.ClassTy
-                var outerClass: TurbineClassTypeItem? = null
+                var outerClass: ClassTypeItem? = null
                 // A ClassTy is represented by list of SimpleClassTY each representing an inner
                 // class. e.g. , Outer.Inner.Inner1 will be represented by three simple classes
                 // Outer, Outer.Inner and Outer.Inner.Inner1
@@ -122,7 +127,7 @@ internal class TurbineTypeItemFactory(
                 val annotations = initializer.createAnnotations(type.annos())
                 val modifiers = DefaultTypeModifiers.create(annotations)
                 val typeParameter = typeParameterScope.getTypeParameter(type.sym().name())
-                TurbineVariableTypeItem(modifiers, typeParameter)
+                DefaultVariableTypeItem(modifiers, typeParameter)
             }
             Type.TyKind.WILD_TY -> {
                 type as Type.WildTy
@@ -132,31 +137,31 @@ internal class TurbineTypeItemFactory(
                 when (type.boundKind()) {
                     Type.WildTy.BoundKind.UPPER -> {
                         val upperBound = createWildcardBound(type.bound())
-                        TurbineWildcardTypeItem(modifiers, upperBound, null)
+                        DefaultWildcardTypeItem(modifiers, upperBound, null)
                     }
                     Type.WildTy.BoundKind.LOWER -> {
                         // LowerBounded types have java.lang.Object as upper bound
                         val upperBound = createWildcardBound(Type.ClassTy.OBJECT)
                         val lowerBound = createWildcardBound(type.bound())
-                        TurbineWildcardTypeItem(modifiers, upperBound, lowerBound)
+                        DefaultWildcardTypeItem(modifiers, upperBound, lowerBound)
                     }
                     Type.WildTy.BoundKind.NONE -> {
                         // Unbounded types have java.lang.Object as upper bound
                         val upperBound = createWildcardBound(Type.ClassTy.OBJECT)
-                        TurbineWildcardTypeItem(modifiers, upperBound, null)
+                        DefaultWildcardTypeItem(modifiers, upperBound, null)
                     }
                     else ->
                         throw IllegalStateException("Invalid wildcard type in API surface: $type")
                 }
             }
             Type.TyKind.VOID_TY ->
-                TurbinePrimitiveTypeItem(
+                DefaultPrimitiveTypeItem(
                     // Primitives are always non-null.
                     DefaultTypeModifiers.create(emptyList(), TypeNullability.NONNULL),
                     PrimitiveTypeItem.Primitive.VOID
                 )
             Type.TyKind.NONE_TY ->
-                TurbinePrimitiveTypeItem(
+                DefaultPrimitiveTypeItem(
                     // Primitives are always non-null.
                     DefaultTypeModifiers.create(emptyList(), TypeNullability.NONNULL),
                     PrimitiveTypeItem.Primitive.VOID
@@ -164,7 +169,7 @@ internal class TurbineTypeItemFactory(
             Type.TyKind.ERROR_TY -> {
                 // This is case of unresolved superclass or implemented interface
                 type as Type.ErrorTy
-                TurbineClassTypeItem(
+                DefaultClassTypeItem(
                     codebase,
                     DefaultTypeModifiers.create(emptyList(), TypeNullability.UNDEFINED),
                     type.name(),
@@ -207,20 +212,20 @@ internal class TurbineTypeItemFactory(
         componentType: TypeItem,
         isVarArg: Boolean
     ): TypeItem {
-        return TurbineArrayTypeItem(modifiers, componentType, isVarArg)
+        return DefaultArrayTypeItem(modifiers, componentType, isVarArg)
     }
 
     private fun createSimpleClassType(
         type: Type.ClassTy.SimpleClassTy,
-        outerClass: TurbineClassTypeItem?,
+        outerClass: ClassTypeItem?,
         typeUse: TypeUse = TypeUse.GENERAL,
-    ): TurbineClassTypeItem {
+    ): ClassTypeItem {
         // Super types are always NONNULL.
         val nullability = if (typeUse == TypeUse.SUPER_TYPE) TypeNullability.NONNULL else null
         val annotations = initializer.createAnnotations(type.annos())
         val modifiers = DefaultTypeModifiers.create(annotations, nullability)
         val qualifiedName = initializer.getQualifiedName(type.sym().binaryName())
         val parameters = type.targs().map { getGeneralType(it) as TypeArgumentTypeItem }
-        return TurbineClassTypeItem(codebase, modifiers, qualifiedName, parameters, outerClass)
+        return DefaultClassTypeItem(codebase, modifiers, qualifiedName, parameters, outerClass)
     }
 }

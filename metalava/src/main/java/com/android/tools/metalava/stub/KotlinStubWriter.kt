@@ -66,7 +66,7 @@ internal class KotlinStubWriter(
         writer.print(" ")
         writer.print(cls.simpleName())
 
-        generateTypeParameterList(typeList = cls.typeParameterList(), addSpace = false)
+        generateTypeParameterList(typeList = cls.typeParameterList, addSpace = false)
         val printedSuperClass = generateSuperClassDeclaration(cls)
         generateInterfaceList(cls, printedSuperClass)
         writer.print(" {\n")
@@ -169,7 +169,7 @@ internal class KotlinStubWriter(
         generateThrowsList(method)
 
         appendModifiers(method)
-        generateTypeParameterList(typeList = method.typeParameterList(), addSpace = true)
+        generateTypeParameterList(typeList = method.typeParameterList, addSpace = true)
 
         writer.print("fun ")
         writer.print(method.name())

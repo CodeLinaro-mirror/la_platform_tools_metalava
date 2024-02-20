@@ -153,13 +153,11 @@ class CommonClassItemTest : BaseModelTest() {
                 """
             ),
         ) {
-            val oTypeParameter =
-                codebase.assertClass("test.pkg.Outer").typeParameterList().typeParameters().single()
+            val oTypeParameter = codebase.assertClass("test.pkg.Outer").typeParameterList.single()
             val extendsType =
                 codebase
                     .assertClass("test.pkg.Outer.Middle.Inner")
-                    .typeParameterList()
-                    .typeParameters()
+                    .typeParameterList
                     .first()
                     .typeBounds()
                     .first()
@@ -221,8 +219,7 @@ class CommonClassItemTest : BaseModelTest() {
                 """
             ),
         ) {
-            val oTypeParameter =
-                codebase.assertClass("test.pkg.Outer").typeParameterList().typeParameters().single()
+            val oTypeParameter = codebase.assertClass("test.pkg.Outer").typeParameterList.single()
             val extendsType = codebase.assertClass("test.pkg.Outer.Middle.Inner").superClassType()!!
             val typeArgument = extendsType.arguments.single()
 
@@ -282,8 +279,7 @@ class CommonClassItemTest : BaseModelTest() {
                 """
             ),
         ) {
-            val oTypeParameter =
-                codebase.assertClass("test.pkg.Outer").typeParameterList().typeParameters().single()
+            val oTypeParameter = codebase.assertClass("test.pkg.Outer").typeParameterList.single()
             val implementsType =
                 codebase.assertClass("test.pkg.Outer.Middle.Inner").interfaceTypes().single()
             val typeArgument = implementsType.arguments.single()
@@ -705,12 +701,12 @@ class CommonClassItemTest : BaseModelTest() {
             )
         ) {
             val parent = codebase.assertClass("test.pkg.Parent")
-            val parentTypeParams = parent.typeParameterList().typeParameters()
+            val parentTypeParams = parent.typeParameterList
             val m = parentTypeParams[0]
             val n = parentTypeParams[1]
 
             val child = codebase.assertClass("test.pkg.Child")
-            val childTypeParams = child.typeParameterList().typeParameters()
+            val childTypeParams = child.typeParameterList
             val x = childTypeParams[0].type()
             val y = childTypeParams[1].type()
 
@@ -787,16 +783,16 @@ class CommonClassItemTest : BaseModelTest() {
             )
         ) {
             val c4 = codebase.assertClass("test.pkg.Class4")
-            val i = c4.typeParameterList().typeParameters()[0]
+            val i = c4.typeParameterList[0]
 
             val c3 = codebase.assertClass("test.pkg.Class3")
-            val c3TypeParams = c3.typeParameterList().typeParameters()
+            val c3TypeParams = c3.typeParameterList
             val g = c3TypeParams[0]
             val gType = g.type()
             val h = c3TypeParams[1]
 
             val c2 = codebase.assertClass("test.pkg.Class2")
-            val c2TypeParams = c2.typeParameterList().typeParameters()
+            val c2TypeParams = c2.typeParameterList
             val d = c2TypeParams[0]
             val dType = d.type()
             val e = c2TypeParams[1]
@@ -804,7 +800,7 @@ class CommonClassItemTest : BaseModelTest() {
             val fType = f.type()
 
             val c1 = codebase.assertClass("test.pkg.Class1")
-            val c1TypeParams = c1.typeParameterList().typeParameters()
+            val c1TypeParams = c1.typeParameterList
             val aType = c1TypeParams[0].type()
             val bType = c1TypeParams[1].type()
             val cType = c1TypeParams[2].type()
@@ -875,12 +871,12 @@ class CommonClassItemTest : BaseModelTest() {
             )
         ) {
             val grandparent = codebase.assertClass("test.pkg.Grandparent")
-            val grandparentTypeParams = grandparent.typeParameterList().typeParameters()
+            val grandparentTypeParams = grandparent.typeParameterList
             val a = grandparentTypeParams[0]
             val b = grandparentTypeParams[1]
 
             val parent = codebase.assertClass("test.pkg.Parent")
-            val t = parent.typeParameterList().typeParameters()[0]
+            val t = parent.typeParameterList[0]
             val tType = t.type()
 
             val child = codebase.assertClass("test.pkg.Child")
@@ -963,24 +959,24 @@ class CommonClassItemTest : BaseModelTest() {
             )
         ) {
             val i3 = codebase.assertClass("test.pkg.Interface3")
-            val i3TypeParams = i3.typeParameterList().typeParameters()
+            val i3TypeParams = i3.typeParameterList
             val g = i3TypeParams[0]
             val h = i3TypeParams[1]
 
             val i2 = codebase.assertClass("test.pkg.Interface2")
-            val i2TypeParams = i2.typeParameterList().typeParameters()
+            val i2TypeParams = i2.typeParameterList
             val e = i2TypeParams[0]
             val eType = e.type()
             val f = i2TypeParams[1]
             val fType = f.type()
 
             val i1 = codebase.assertClass("test.pkg.Interface1")
-            val i1TypeParams = i1.typeParameterList().typeParameters()
+            val i1TypeParams = i1.typeParameterList
             val c = i1TypeParams[0]
             val d = i1TypeParams[1]
 
             val cls = codebase.assertClass("test.pkg.Class")
-            val clsTypeParams = cls.typeParameterList().typeParameters()
+            val clsTypeParams = cls.typeParameterList
             val aType = clsTypeParams[0].type()
             val bType = clsTypeParams[1].type()
 
@@ -1057,18 +1053,18 @@ class CommonClassItemTest : BaseModelTest() {
             )
         ) {
             val root = codebase.assertClass("test.pkg.Root")
-            val t = root.typeParameterList().typeParameters()[0]
+            val t = root.typeParameterList[0]
 
             val i1 = codebase.assertClass("test.pkg.Interface1")
-            val t1 = i1.typeParameterList().typeParameters()[0]
+            val t1 = i1.typeParameterList[0]
             val t1Type = t1.type()
 
             val i2 = codebase.assertClass("test.pkg.Interface2")
-            val t2 = i2.typeParameterList().typeParameters()[0]
+            val t2 = i2.typeParameterList[0]
             val t2Type = t2.type()
 
             val child = codebase.assertClass("test.pkg.Child")
-            val childParameterList = child.typeParameterList().typeParameters()
+            val childParameterList = child.typeParameterList
             val xType = childParameterList[0].type()
             val yType = childParameterList[1].type()
 
@@ -1144,7 +1140,7 @@ class CommonClassItemTest : BaseModelTest() {
         ) {
             val innerClass = codebase.assertClass("test.pkg.Outer.Inner")
             val outerClass = codebase.assertClass("test.pkg.Outer")
-            val outerClassParameter = outerClass.typeParameterList().typeParameters().single()
+            val outerClassParameter = outerClass.typeParameterList.single()
 
             val innerType = innerClass.type()
             assertThat(innerType).isInstanceOf(ClassTypeItem::class.java)
@@ -1187,7 +1183,7 @@ class CommonClassItemTest : BaseModelTest() {
             )
         ) {
             val genericClass = codebase.assertClass("test.pkg.Generic")
-            val typeParameter = genericClass.typeParameterList().typeParameters().single()
+            val typeParameter = genericClass.typeParameterList.single()
 
             assertThat(genericClass).isInstanceOf(ClassItem::class.java)
             assertThat(genericClass).isNotInstanceOf(TypeParameterItem::class.java)
@@ -1221,7 +1217,7 @@ class CommonClassItemTest : BaseModelTest() {
             )
         ) {
             val genericClass = codebase.assertClass("test.pkg.Generic")
-            val typeParameter = genericClass.typeParameterList().typeParameters().single()
+            val typeParameter = genericClass.typeParameterList.single()
 
             val methodReturnType = genericClass.methods().single().returnType()
             methodReturnType.assertReferencesTypeParameter(typeParameter)

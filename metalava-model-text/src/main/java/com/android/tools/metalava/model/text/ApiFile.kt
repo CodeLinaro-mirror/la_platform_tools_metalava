@@ -901,7 +901,7 @@ private constructor(
                 parameters,
                 tokenizer.pos()
             )
-        method.setTypeParameterList(typeParameterList)
+        method.typeParameterList = typeParameterList
         token = tokenizer.requireToken()
         if ("throws" == token) {
             token = parseThrows(tokenizer, method, typeItemFactory)
@@ -977,7 +977,7 @@ private constructor(
         }
         method =
             TextMethodItem(codebase, name, cl, modifiers, returnType, parameters, tokenizer.pos())
-        method.setTypeParameterList(typeParameterList)
+        method.typeParameterList = typeParameterList
         when (token) {
             "throws" -> {
                 token = parseThrows(tokenizer, method, typeItemFactory)
@@ -1305,7 +1305,7 @@ private constructor(
     }
 
     /**
-     * Creates a [TextTypeParameterList].
+     * Creates a [TypeParameterList] and accompanying [TypeParameterScope].
      *
      * The [typeParameterListString] should be the string representation of a list of type
      * parameters, like "<A>" or "<A, B extends java.lang.String, C>".
@@ -1341,7 +1341,7 @@ private constructor(
                 },
             )
 
-        return Pair(TextTypeParameterList.create(codebase, typeParameters), typeItemFactory)
+        return Pair(DefaultTypeParameterList(typeParameters), typeItemFactory)
     }
 
     /**
@@ -1543,9 +1543,9 @@ private constructor(
     }
 
     /**
-     * Parses a [TextTypeItem] from the [tokenizer], starting with the [startingToken] and ensuring
-     * that the full type string is gathered, even when there are type-use annotations. Once the
-     * full type string is found, this parses the type in the context of the [typeItemFactory].
+     * Parses a [TypeItem] from the [tokenizer], starting with the [startingToken] and ensuring that
+     * the full type string is gathered, even when there are type-use annotations. Once the full
+     * type string is found, this parses the type in the context of the [typeItemFactory].
      *
      * If the type string uses a Kotlin nullabililty suffix, this adds an annotation representing
      * that nullability to [annotations].
@@ -1564,7 +1564,7 @@ private constructor(
         startingToken: String,
         typeItemFactory: TextTypeItemFactory,
         annotations: MutableList<String>
-    ): TextTypeItem {
+    ): TypeItem {
         var prev = getAnnotationCompleteToken(tokenizer, startingToken)
         var type = prev
         var token = tokenizer.current

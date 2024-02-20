@@ -181,7 +181,7 @@ fun addApisFromCodebase(
                         internalDesc(voidConstructorTypes = true)
                 } else {
                     val paramString = parameters().joinToString(",") { it.type().toTypeString() }
-                    name() + typeParameterList() + "(" + paramString + ")"
+                    name() + typeParameterList + "(" + paramString + ")"
                 }
             }
 

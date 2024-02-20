@@ -60,8 +60,7 @@ class CommonPropertyItemTest : BaseModelTest() {
                 """
             ),
         ) {
-            val oTypeParameter =
-                codebase.assertClass("test.pkg.Outer").typeParameterList().typeParameters().single()
+            val oTypeParameter = codebase.assertClass("test.pkg.Outer").typeParameterList.single()
             val propertyType =
                 codebase
                     .assertClass("test.pkg.Outer.Middle.Inner")

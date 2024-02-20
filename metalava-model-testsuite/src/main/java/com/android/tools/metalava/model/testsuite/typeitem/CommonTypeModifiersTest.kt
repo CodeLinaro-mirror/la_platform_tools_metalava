@@ -173,7 +173,7 @@ class CommonTypeModifiersTest : BaseModelTest() {
             // @test.pkg.A T
             val variableMethod = methods[2]
             val variable = variableMethod.returnType()
-            val typeParameter = variableMethod.typeParameterList().typeParameters().single()
+            val typeParameter = variableMethod.typeParameterList.single()
             variable.assertReferencesTypeParameter(typeParameter)
             assertThat(variable.annotationNames()).containsExactly("test.pkg.A")
             assertThat(variableMethod.annotationNames()).isEmpty()
@@ -244,7 +244,7 @@ class CommonTypeModifiersTest : BaseModelTest() {
             // @test.pkg.A T
             val variableMethod = methods[2]
             val variable = variableMethod.returnType()
-            val typeParameter = variableMethod.typeParameterList().typeParameters().single()
+            val typeParameter = variableMethod.typeParameterList.single()
             variable.assertReferencesTypeParameter(typeParameter)
             assertThat(variable.annotationNames()).containsExactly("test.pkg.A")
             assertThat(variableMethod.annotationNames()).containsExactly("test.pkg.A")
@@ -287,7 +287,7 @@ class CommonTypeModifiersTest : BaseModelTest() {
 
             val variableMethod = methods[2]
             val variable = variableMethod.returnType()
-            val typeParameter = variableMethod.typeParameterList().typeParameters().single()
+            val typeParameter = variableMethod.typeParameterList.single()
             variable.assertReferencesTypeParameter(typeParameter)
             assertThat(variable.annotationNames()).isEmpty()
             assertThat(variableMethod.annotationNames()).containsExactly("test.pkg.A")
@@ -473,7 +473,7 @@ class CommonTypeModifiersTest : BaseModelTest() {
             )
         ) {
             val method = codebase.assertClass("test.pkg.Foo").methods().single()
-            val methodTypeParam = method.typeParameterList().typeParameters().single()
+            val methodTypeParam = method.typeParameterList.single()
             val arrayType = method.returnType()
             assertThat(arrayType).isInstanceOf(ArrayTypeItem::class.java)
             val componentType = (arrayType as ArrayTypeItem).componentType
@@ -606,7 +606,7 @@ class CommonTypeModifiersTest : BaseModelTest() {
             )
         ) {
             val method = codebase.assertClass("test.pkg.Outer").methods().single()
-            val methodTypeParameters = method.typeParameterList().typeParameters()
+            val methodTypeParameters = method.typeParameterList
             assertThat(methodTypeParameters).hasSize(2)
             val p1 = methodTypeParameters[0]
             val p2 = methodTypeParameters[1]
@@ -847,7 +847,7 @@ class CommonTypeModifiersTest : BaseModelTest() {
             testModifiers(bizInterface.modifiers)
 
             val fooMethod = fooClass.methods().single()
-            val typeParam = fooMethod.typeParameterList().typeParameters().single()
+            val typeParam = fooMethod.typeParameterList.single()
 
             val typeVarArray = fooMethod.parameters().single().type()
             testModifiers(typeVarArray.modifiers)

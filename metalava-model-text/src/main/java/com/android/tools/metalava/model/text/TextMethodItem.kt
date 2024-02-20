@@ -68,8 +68,8 @@ internal open class TextMethodItem(
             }
         }
 
-        val typeParameters1 = typeParameterList().typeParameters()
-        val typeParameters2 = other.typeParameterList().typeParameters()
+        val typeParameters1 = typeParameterList
+        val typeParameters2 = other.typeParameterList
 
         if (typeParameters1.size != typeParameters2.size) {
             return false
@@ -101,13 +101,8 @@ internal open class TextMethodItem(
 
     override fun findPredicateSuperMethod(predicate: Predicate<Item>): MethodItem? = null
 
-    private var typeParameterList: TypeParameterList = TypeParameterList.NONE
-
-    fun setTypeParameterList(typeParameterList: TypeParameterList) {
-        this.typeParameterList = typeParameterList
-    }
-
-    override fun typeParameterList(): TypeParameterList = typeParameterList
+    override var typeParameterList: TypeParameterList = TypeParameterList.NONE
+        internal set
 
     override fun duplicate(targetContainingClass: ClassItem): MethodItem {
         val typeVariableMap = targetContainingClass.mapTypeVariables(containingClass())

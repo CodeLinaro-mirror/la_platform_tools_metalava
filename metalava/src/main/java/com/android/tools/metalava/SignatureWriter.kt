@@ -91,7 +91,7 @@ class SignatureWriter(
         fun writeConstructor(skipMask: BitSet? = null) {
             write("    ctor ")
             writeModifiers(constructor)
-            writeTypeParameterList(constructor.typeParameterList(), addSpace = true)
+            writeTypeParameterList(constructor.typeParameterList, addSpace = true)
             write(constructor.containingClass().fullName())
             writeParameterList(constructor, skipMask)
             writeThrowsList(constructor)
@@ -164,7 +164,7 @@ class SignatureWriter(
     override fun visitMethod(method: MethodItem) {
         write("    method ")
         writeModifiers(method)
-        writeTypeParameterList(method.typeParameterList(), addSpace = true)
+        writeTypeParameterList(method.typeParameterList, addSpace = true)
 
         if (fileFormat.kotlinNameTypeOrder) {
             // Kotlin style: write the name of the method and the parameters, then the type.
@@ -209,7 +209,7 @@ class SignatureWriter(
         }
         write(" ")
         write(cls.fullName())
-        writeTypeParameterList(cls.typeParameterList(), addSpace = false)
+        writeTypeParameterList(cls.typeParameterList, addSpace = false)
         writeSuperClassStatement(cls)
         writeInterfaceList(cls)
 

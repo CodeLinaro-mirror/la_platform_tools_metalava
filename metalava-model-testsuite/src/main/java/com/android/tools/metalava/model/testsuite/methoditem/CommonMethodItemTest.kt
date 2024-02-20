@@ -81,8 +81,7 @@ class CommonMethodItemTest : BaseModelTest() {
                 """
             ),
         ) {
-            val oTypeParameter =
-                codebase.assertClass("test.pkg.Outer").typeParameterList().typeParameters().single()
+            val oTypeParameter = codebase.assertClass("test.pkg.Outer").typeParameterList.single()
             val methodType =
                 codebase
                     .assertClass("test.pkg.Outer.Middle.Inner")
@@ -310,7 +309,7 @@ class CommonMethodItemTest : BaseModelTest() {
             ),
         ) {
             val methodItem = codebase.assertClass("test.pkg.Test").methods().single()
-            val typeParameterItem = methodItem.typeParameterList().typeParameters().single()
+            val typeParameterItem = methodItem.typeParameterList.single()
             val throwsType = methodItem.throwsTypes().single()
             throwsType.assertReferencesTypeParameter(typeParameterItem)
             assertEquals(throwsType.erasedClass!!.qualifiedName(), JAVA_LANG_THROWABLE)
@@ -346,7 +345,7 @@ class CommonMethodItemTest : BaseModelTest() {
             ),
         ) {
             val methodItem = codebase.assertClass("test.pkg.Test").methods().single()
-            val typeParameterItem = methodItem.typeParameterList().typeParameters().single()
+            val typeParameterItem = methodItem.typeParameterList.single()
             val throwsType = methodItem.throwsTypes().single()
             throwsType.assertReferencesTypeParameter(typeParameterItem)
             // The type parameter does not extend a throwable type.

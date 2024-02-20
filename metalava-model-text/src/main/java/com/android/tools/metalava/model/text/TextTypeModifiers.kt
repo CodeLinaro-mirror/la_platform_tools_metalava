@@ -16,56 +16,25 @@
 
 package com.android.tools.metalava.model.text
 
-import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.DefaultAnnotationItem
+import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeModifiers
 import com.android.tools.metalava.model.TypeNullability
-import com.android.tools.metalava.model.isNullnessAnnotation
+import com.android.tools.metalava.model.type.DefaultTypeModifiers
 
-/** Modifiers for a [TextTypeItem]. */
-internal class TextTypeModifiers(
-    private val codebase: TextCodebase,
-    private val annotations: List<AnnotationItem>,
-    private val nullability: TypeNullability
-) : TypeModifiers {
-
-    override fun annotations(): List<AnnotationItem> = annotations
-
-    override fun addAnnotation(annotation: AnnotationItem) =
-        codebase.unsupported("TextTypeModifiers are immutable because TextTypes are cached")
-
-    override fun removeAnnotation(annotation: AnnotationItem) =
-        codebase.unsupported("TextTypeModifiers are immutable because TextTypes are cached")
-
-    override fun nullability(): TypeNullability = nullability
-
-    override fun setNullability(newNullability: TypeNullability) =
-        codebase.unsupported("TextTypeModifiers are immutable because TextTypes are cached")
-
-    override fun duplicate() = TextTypeModifiers(codebase, annotations, nullability)
-
-    fun duplicate(withNullability: TypeNullability) =
-        TextTypeModifiers(codebase, annotations, withNullability)
-
-    companion object {
-        /** Creates modifiers in the given [codebase] based on the text of the [annotations]. */
-        fun create(
-            codebase: TextCodebase,
-            annotations: List<String>,
-            nullabilityFromSuffix: TypeNullability?
-        ): TextTypeModifiers {
-            val parsedAnnotations = annotations.map { DefaultAnnotationItem.create(codebase, it) }
-            // Determine the nullability of the type, based on the suffix if present.
-            val nullability =
-                nullabilityFromSuffix
-                // There was no suffix, look for a nullness annotation.
-                ?: parsedAnnotations
-                        .firstOrNull { it.isNullnessAnnotation() }
-                        ?.let { TypeNullability.ofAnnotation(it) }
-                    // No suffix and no annotation -- go with the default.
-                    ?: TypeNullability.PLATFORM
-
-            return TextTypeModifiers(codebase, parsedAnnotations, nullability)
-        }
+/** Create modifiers for a [TypeItem]. */
+internal object TextTypeModifiers {
+    /** Creates modifiers in the given [codebase] based on the text of the [annotations]. */
+    fun create(
+        codebase: TextCodebase,
+        annotations: List<String>,
+        knownNullability: TypeNullability?
+    ): TypeModifiers {
+        val parsedAnnotations = annotations.map { DefaultAnnotationItem.create(codebase, it) }
+        return DefaultTypeModifiers.create(
+            parsedAnnotations,
+            knownNullability,
+            "Type modifiers created by the text model are immutable because they are cached",
+        )
     }
 }

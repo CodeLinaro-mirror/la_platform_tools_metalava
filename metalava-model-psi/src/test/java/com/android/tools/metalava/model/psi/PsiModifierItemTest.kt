@@ -114,7 +114,7 @@ class PsiModifierItemTest : BasePsiTest() {
             // @test.pkg.A T
             val variableMethod = methods[2]
             val variable = variableMethod.returnType()
-            val typeParameter = variableMethod.typeParameterList().typeParameters().single()
+            val typeParameter = variableMethod.typeParameterList.single()
             variable.assertReferencesTypeParameter(typeParameter)
             assertThat(variable.annotationNames()).containsExactly("test.pkg.A")
             assertThat(variableMethod.annotationNames()).isEmpty()

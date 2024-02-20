@@ -65,8 +65,7 @@ class CommonFieldItemTest : BaseModelTest() {
                 """
             ),
         ) {
-            val oTypeParameter =
-                codebase.assertClass("test.pkg.Outer").typeParameterList().typeParameters().single()
+            val oTypeParameter = codebase.assertClass("test.pkg.Outer").typeParameterList.single()
             val fieldType =
                 codebase.assertClass("test.pkg.Outer.Middle.Inner").assertField("field").type()
 

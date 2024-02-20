@@ -74,8 +74,7 @@ class CommonConstructorItemTest : BaseModelTest() {
                 """
             ),
         ) {
-            val oTypeParameter =
-                codebase.assertClass("test.pkg.Outer").typeParameterList().typeParameters().single()
+            val oTypeParameter = codebase.assertClass("test.pkg.Outer").typeParameterList.single()
             val constructorType =
                 codebase
                     .assertClass("test.pkg.Outer.Middle.Inner")

@@ -52,7 +52,7 @@ open class PsiMethodItem(
     documentation: String,
     private val returnType: PsiTypeItem,
     private val parameters: List<PsiParameterItem>,
-    private val typeParameterList: TypeParameterList,
+    override val typeParameterList: TypeParameterList,
     private val throwsTypes: List<ExceptionTypeItem>
 ) :
     PsiMemberItem(
@@ -126,8 +126,6 @@ open class PsiMethodItem(
 
         return superMethods!!
     }
-
-    override fun typeParameterList() = typeParameterList
 
     override fun throwsTypes() = throwsTypes
 

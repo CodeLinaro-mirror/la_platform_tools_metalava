@@ -440,7 +440,7 @@ interface MethodItem : MemberItem, TypeParameterListOwner {
 
         if (returnType().hasHiddenType(filterReference)) return true
 
-        for (typeParameter in typeParameterList().typeParameters()) {
+        for (typeParameter in typeParameterList) {
             if (typeParameter.typeBounds().any { it.hasHiddenType(filterReference) }) return true
         }
 

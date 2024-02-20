@@ -149,8 +149,15 @@ interface TypeItem {
 
     fun defaultValueString(): String = "null"
 
-    /** Creates an identical type, with a copy of this type's modifiers so they can be mutated. */
+    /** Creates an identical type, with a copy of this type's modifiers, so they can be mutated. */
     fun duplicate(): TypeItem
+
+    /**
+     * Creates an identical type, with a copy of this type's modifiers with the specified
+     * [withNullability] that can be modified further if needed.
+     */
+    fun duplicate(withNullability: TypeNullability) =
+        duplicate().apply { modifiers.setNullability(withNullability) }
 
     companion object {
         /** Shortens types, if configured */
@@ -345,7 +352,9 @@ interface TypeItem {
  */
 typealias TypeParameterBindings = Map<TypeParameterItem, ReferenceTypeItem>
 
-abstract class DefaultTypeItem() : TypeItem {
+abstract class DefaultTypeItem(
+    final override val modifiers: TypeModifiers,
+) : TypeItem {
 
     private lateinit var cachedDefaultType: String
     private lateinit var cachedErasedType: String

@@ -23,39 +23,43 @@ import com.android.tools.metalava.model.type.TypeItemFactory
  * parameter list is <S, T extends List<String>> and has type parameters named S and T, and type
  * parameter T has bounds List<String>.
  */
-interface TypeParameterList {
+interface TypeParameterList : List<TypeParameterItem> {
     /**
      * Returns source representation of this type parameter, using fully qualified names (possibly
      * with java.lang. removed if requested via options)
      */
     override fun toString(): String
 
-    /** Returns the type parameters, if any */
-    fun typeParameters(): List<TypeParameterItem>
+    /** Implemented according to the general [java.util.List.equals] contract. */
+    override fun equals(other: Any?): Boolean
 
-    /** Returns the number of type parameters */
-    fun typeParameterCount() = typeParameters().size
+    /** Implemented according to the general [java.util.List.hashCode] contract. */
+    override fun hashCode(): Int
 
     companion object {
+        private val emptyListDelegate = emptyList<TypeParameterItem>()
+
         /** Type parameter list when there are no type parameters */
-        val NONE =
-            object : TypeParameterList {
+        val NONE: TypeParameterList =
+            object : TypeParameterList, List<TypeParameterItem> by emptyListDelegate {
                 override fun toString(): String = ""
 
-                override fun typeParameters(): List<TypeParameterItem> = emptyList()
+                override fun equals(other: Any?) = emptyListDelegate == other
 
-                override fun typeParameterCount(): Int = 0
+                override fun hashCode() = emptyListDelegate.hashCode()
             }
     }
 }
 
-abstract class DefaultTypeParameterList : TypeParameterList {
+class DefaultTypeParameterList(private val typeParameters: List<TypeParameterItem>) :
+    TypeParameterList, List<TypeParameterItem> by typeParameters {
+
     private val toString by lazy {
         buildString {
-            if (typeParameters().isNotEmpty()) {
+            if (this@DefaultTypeParameterList.isNotEmpty()) {
                 append("<")
                 var first = true
-                for (param in typeParameters()) {
+                for (param in this@DefaultTypeParameterList) {
                     if (!first) {
                         append(", ")
                     }
@@ -70,6 +74,10 @@ abstract class DefaultTypeParameterList : TypeParameterList {
     override fun toString(): String {
         return toString
     }
+
+    override fun equals(other: Any?) = typeParameters == other
+
+    override fun hashCode() = typeParameters.hashCode()
 
     companion object {
         /**

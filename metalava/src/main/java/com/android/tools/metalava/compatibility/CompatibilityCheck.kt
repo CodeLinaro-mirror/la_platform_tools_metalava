@@ -361,16 +361,18 @@ class CompatibilityCheck(
         }
 
         if (old.hasTypeVariables() || new.hasTypeVariables()) {
-            val oldTypeParamsCount = old.typeParameterList().typeParameterCount()
-            val newTypeParamsCount = new.typeParameterList().typeParameterCount()
+            val oldTypeParamsCount = old.typeParameterList.size
+            val newTypeParamsCount = new.typeParameterList.size
             if (oldTypeParamsCount > 0 && oldTypeParamsCount != newTypeParamsCount) {
                 report(
                     Issues.CHANGED_TYPE,
                     new,
-                    "${describe(
-                        old,
-                        capitalize = true
-                    )} changed number of type parameters from $oldTypeParamsCount to $newTypeParamsCount"
+                    "${
+                        describe(
+                            old,
+                            capitalize = true
+                        )
+                    } changed number of type parameters from $oldTypeParamsCount to $newTypeParamsCount"
                 )
             }
         }
@@ -647,18 +649,20 @@ class CompatibilityCheck(
         }
 
         if (new.modifiers.isInline()) {
-            val oldTypes = old.typeParameterList().typeParameters()
-            val newTypes = new.typeParameterList().typeParameters()
+            val oldTypes = old.typeParameterList
+            val newTypes = new.typeParameterList
             for (i in oldTypes.indices) {
                 if (i == newTypes.size) {
                     break
                 }
                 if (newTypes[i].isReified() && !oldTypes[i].isReified()) {
                     val message =
-                        "${describe(
-                        new,
-                        capitalize = true
-                    )} made type variable ${newTypes[i].name()} reified: incompatible change"
+                        "${
+                            describe(
+                                new,
+                                capitalize = true
+                            )
+                        } made type variable ${newTypes[i].name()} reified: incompatible change"
                     report(Issues.ADDED_REIFIED, new, message)
                 }
             }

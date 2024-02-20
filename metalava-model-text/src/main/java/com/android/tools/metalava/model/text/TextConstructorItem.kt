@@ -18,13 +18,14 @@ package com.android.tools.metalava.model.text
 
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.DefaultModifierList
+import com.android.tools.metalava.model.TypeItem
 
 internal class TextConstructorItem(
     codebase: TextCodebase,
     name: String,
     containingClass: TextClassItem,
     modifiers: DefaultModifierList,
-    returnType: TextTypeItem,
+    returnType: TypeItem,
     parameters: List<TextParameterItem>,
     position: SourcePositionInfo
 ) :

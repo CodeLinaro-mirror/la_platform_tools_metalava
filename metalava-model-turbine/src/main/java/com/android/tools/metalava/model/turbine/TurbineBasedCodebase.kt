@@ -99,7 +99,9 @@ internal open class TurbineBasedCodebase(
         val qualifiedName = classItem.qualifiedName()
         val existing = classMap.put(qualifiedName, classItem)
         if (existing != null) {
-            error("Attempted to register $qualifiedName twice, $classItem and $existing")
+            error(
+                "Attempted to register $qualifiedName twice; once from ${existing.location().path} and this one from ${classItem.location().path}"
+            )
         }
 
         if (isTopClass) {

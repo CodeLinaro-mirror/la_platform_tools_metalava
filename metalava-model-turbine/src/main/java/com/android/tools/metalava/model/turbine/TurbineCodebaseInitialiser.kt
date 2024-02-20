@@ -255,12 +255,24 @@ internal open class TurbineCodebaseInitialiser(
             // class.
             val topClassSym = getClassSymbol(name)
 
-            // Create the top level class, along with any inner classes and register them all by
-            // name.
-            topClassSym?.let { createTopLevelClassAndContents(topClassSym) }
+            // Create the top level class, if needed, along with any inner classes and register them
+            // all by name.
+            topClassSym?.let {
+                // It is possible that the top level class has already been created but just did not
+                // contain the requested inner class so check to make sure it exists before creating
+                // it.
+                val topClassName = getQualifiedName(topClassSym.binaryName())
+                codebase.findClass(topClassName)
+                    ?: let {
+                        // Create tand register he top level class and its inner classes.
+                        createTopLevelClassAndContents(topClassSym)
 
-            // Now try and find the actual class by name.
-            classItem = codebase.findClass(name)
+                        // Now try and find the actual class that was requested by name. If it
+                        // exists it
+                        // should have been created in the previous call.
+                        classItem = codebase.findClass(name)
+                    }
+            }
         }
 
         return classItem
@@ -557,9 +569,7 @@ internal open class TurbineCodebaseInitialiser(
                 },
             )
 
-        val tyParamList = TurbineTypeParameterList(codebase)
-        tyParamList.typeParameters = typeParameters
-        return Pair(tyParamList, typeItemFactory)
+        return Pair(DefaultTypeParameterList(typeParameters), typeItemFactory)
     }
 
     /**

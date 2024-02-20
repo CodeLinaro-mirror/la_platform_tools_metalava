@@ -55,7 +55,7 @@ internal constructor(
     private val qualifiedName: String,
     private val hasImplicitDefaultConstructor: Boolean,
     override val classKind: ClassKind,
-    private val typeParameterList: TypeParameterList,
+    override val typeParameterList: TypeParameterList,
     private val superClassType: ClassTypeItem?,
     private var interfaceTypes: List<ClassTypeItem>,
     modifiers: PsiModifierItem,
@@ -186,8 +186,6 @@ internal constructor(
     }
 
     override fun hasTypeVariables(): Boolean = psiClass.hasTypeParameters()
-
-    override fun typeParameterList() = typeParameterList
 
     override fun getSourceFile(): SourceFile? {
         if (isInnerClass()) {
