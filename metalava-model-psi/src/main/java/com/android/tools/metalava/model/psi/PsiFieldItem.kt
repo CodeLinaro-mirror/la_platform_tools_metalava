@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.isNonNullAnnotation
@@ -35,7 +36,7 @@ class PsiFieldItem(
     private val psiField: PsiField,
     containingClass: PsiClassItem,
     name: String,
-    modifiers: PsiModifierItem,
+    modifiers: DefaultModifierList,
     documentation: String,
     private val fieldType: PsiTypeItem,
     private val isEnumConstant: Boolean,

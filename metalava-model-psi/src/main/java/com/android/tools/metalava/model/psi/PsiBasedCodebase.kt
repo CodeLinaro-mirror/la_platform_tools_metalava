@@ -20,6 +20,7 @@ import com.android.SdkConstants
 import com.android.tools.lint.UastEnvironment
 import com.android.tools.metalava.model.ANDROIDX_NONNULL
 import com.android.tools.metalava.model.ANDROIDX_NULLABLE
+import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.DefaultCodebase
@@ -901,7 +902,7 @@ open class PsiBasedCodebase(
     override fun createAnnotation(
         source: String,
         context: Item?,
-    ): PsiAnnotationItem {
+    ): AnnotationItem {
         val psiAnnotation = createPsiAnnotation(source, (context as? PsiItem)?.psi())
         return PsiAnnotationItem.create(this, psiAnnotation)
     }

@@ -80,17 +80,49 @@ interface Assertions {
 
     /**
      * Check to make sure that this [TypeItem] is actually a [VariableTypeItem] whose
-     * [VariableTypeItem.asTypeParameter] references the supplied [typeParameter].
+     * [VariableTypeItem.asTypeParameter] references the supplied [typeParameter] and then run the
+     * optional lambda on the [VariableTypeItem].
      */
-    fun TypeItem.assertReferencesTypeParameter(typeParameter: TypeParameterItem) {
-        assertVariableTypeItem { assertThat(asTypeParameter).isSameInstanceAs(typeParameter) }
+    fun TypeItem.assertReferencesTypeParameter(
+        typeParameter: TypeParameterItem,
+        body: (VariableTypeItem.() -> Unit)? = null
+    ) {
+        assertVariableTypeItem {
+            assertThat(asTypeParameter).isSameInstanceAs(typeParameter)
+            if (body != null) this.body()
+        }
+    }
+
+    /**
+     * Check to make sure that this nullable [TypeItem] is actually a [TypeItem] and then run the
+     * optional lambda on the [TypeItem].
+     */
+    fun <T : TypeItem> T?.assertNotNullTypeItem(body: (T.() -> Unit)? = null) {
+        assertThat(this).isNotNull()
+        if (body != null) this?.body()
+    }
+
+    /**
+     * Check to make sure that this [TypeItem] is actually a [ArrayTypeItem] and then run the
+     * optional lambda on the [ArrayTypeItem].
+     */
+    fun TypeItem?.assertArrayTypeItem(body: (ArrayTypeItem.() -> Unit)? = null) {
+        assertIsInstanceOf(body ?: {})
     }
 
     /**
      * Check to make sure that this [TypeItem] is actually a [ClassTypeItem] and then run the
      * optional lambda on the [ClassTypeItem].
      */
-    fun TypeItem.assertClassTypeItem(body: (ClassTypeItem.() -> Unit)?) {
+    fun TypeItem?.assertClassTypeItem(body: (ClassTypeItem.() -> Unit)? = null) {
+        assertIsInstanceOf(body ?: {})
+    }
+
+    /**
+     * Check to make sure that this [TypeItem] is actually a [PrimitiveTypeItem] and then run the
+     * optional lambda on the [PrimitiveTypeItem].
+     */
+    fun TypeItem?.assertPrimitiveTypeItem(body: (PrimitiveTypeItem.() -> Unit)? = null) {
         assertIsInstanceOf(body ?: {})
     }
 
@@ -98,7 +130,7 @@ interface Assertions {
      * Check to make sure that this [TypeItem] is actually a [VariableTypeItem] and then run the
      * optional lambda on the [VariableTypeItem].
      */
-    fun TypeItem.assertVariableTypeItem(body: (VariableTypeItem.() -> Unit)?) {
+    fun TypeItem?.assertVariableTypeItem(body: (VariableTypeItem.() -> Unit)? = null) {
         assertIsInstanceOf(body ?: {})
     }
 
@@ -106,12 +138,12 @@ interface Assertions {
      * Check to make sure that this [TypeItem] is actually a [WildcardTypeItem] and then run the
      * optional lambda on the [WildcardTypeItem].
      */
-    fun TypeItem.assertWildcardItem(body: (WildcardTypeItem.() -> Unit)?) {
+    fun TypeItem?.assertWildcardItem(body: (WildcardTypeItem.() -> Unit)? = null) {
         assertIsInstanceOf(body ?: {})
     }
 }
 
-private inline fun <reified T> Any.assertIsInstanceOf(body: (T).() -> Unit) {
+private inline fun <reified T> Any?.assertIsInstanceOf(body: (T).() -> Unit) {
     assertThat(this).isInstanceOf(T::class.java)
     (this as T).body()
 }

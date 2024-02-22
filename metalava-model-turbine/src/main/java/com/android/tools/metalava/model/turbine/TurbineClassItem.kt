@@ -21,6 +21,7 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.ConstructorItem
+import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
@@ -28,7 +29,7 @@ import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.SourceFile
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VariableTypeItem
-import com.android.tools.metalava.model.type.DefaultClassTypeItem
+import com.android.tools.metalava.model.type.DefaultResolvedClassTypeItem
 import com.android.tools.metalava.model.type.DefaultTypeModifiers
 import com.android.tools.metalava.model.type.DefaultVariableTypeItem
 import com.google.turbine.binder.sym.ClassSymbol
@@ -40,7 +41,7 @@ internal open class TurbineClassItem(
     private val fullName: String,
     private val qualifiedName: String,
     private val classSymbol: ClassSymbol,
-    modifiers: TurbineModifierItem,
+    modifiers: DefaultModifierList,
     override val classKind: ClassKind,
     override val typeParameterList: TypeParameterList,
     documentation: String,
@@ -70,8 +71,6 @@ internal open class TurbineClassItem(
     internal var containingClass: TurbineClassItem? = null
 
     private lateinit var interfaceTypesList: List<ClassTypeItem>
-
-    private var asType: ClassTypeItem? = null
 
     internal var hasImplicitDefaultConstructor = false
 
@@ -168,15 +167,14 @@ internal open class TurbineClassItem(
 
     override fun superClassType(): ClassTypeItem? = superClassType
 
+    /** Must only be used by [type] to cache its result. */
+    private lateinit var cachedType: ClassTypeItem
+
     override fun type(): ClassTypeItem {
-        if (asType == null) {
-            val parameters =
-                typeParameterList.map { createVariableType(it as TurbineTypeParameterItem) }
-            val mods = DefaultTypeModifiers.create(modifiers.annotations())
-            val outerClassType = containingClass?.type()
-            asType = DefaultClassTypeItem(codebase, mods, qualifiedName, parameters, outerClassType)
+        if (!::cachedType.isInitialized) {
+            cachedType = DefaultResolvedClassTypeItem.createForClass(this)
         }
-        return asType!!
+        return cachedType
     }
 
     private fun createVariableType(typeParam: TurbineTypeParameterItem): VariableTypeItem {

@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.model.BoundsTypeItem
+import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.VariableTypeItem
 import com.intellij.psi.PsiTypeParameter
@@ -29,7 +30,7 @@ internal class PsiTypeParameterItem(
     codebase: PsiBasedCodebase,
     private val psiClass: PsiTypeParameter,
     private val name: String,
-    modifiers: PsiModifierItem
+    modifiers: DefaultModifierList
 ) :
     PsiItem(
         codebase = codebase,

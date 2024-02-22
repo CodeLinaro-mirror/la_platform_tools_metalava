@@ -123,7 +123,7 @@ internal class PsiTypeItemFactory(
         return PsiTypeItem.create(
             codebase,
             psiTypeWithTypeParametersIfAny,
-            null,
+            KotlinTypeInfo.fromContext(psiClassItem.psiClass),
             classTypeItemFactory
         ) as PsiClassTypeItem
     }

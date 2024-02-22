@@ -20,6 +20,7 @@ import com.android.tools.lint.detector.api.ConstantEvaluator
 import com.android.tools.metalava.model.ANNOTATION_ATTR_VALUE
 import com.android.tools.metalava.model.AnnotationAttribute
 import com.android.tools.metalava.model.AnnotationAttributeValue
+import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.AnnotationTarget
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.DefaultAnnotationArrayAttributeValue
@@ -98,12 +99,8 @@ private constructor(
             codebase: PsiBasedCodebase,
             uAnnotation: UAnnotation,
             qualifiedName: String? = uAnnotation.qualifiedName
-        ): UAnnotationItem {
+        ): AnnotationItem {
             return UAnnotationItem(codebase, uAnnotation, qualifiedName)
-        }
-
-        fun create(codebase: PsiBasedCodebase, original: UAnnotationItem): UAnnotationItem {
-            return UAnnotationItem(codebase, original.uAnnotation, original.originalName)
         }
 
         private fun getAttributes(

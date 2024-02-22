@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.turbine
 
+import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.DefaultTypeParameterList
@@ -28,8 +29,8 @@ internal class TurbineConstructorItem(
     private val name: String,
     methodSymbol: MethodSymbol,
     containingClass: TurbineClassItem,
-    returnType: TypeItem,
-    modifiers: TurbineModifierItem,
+    returnType: ClassTypeItem,
+    modifiers: DefaultModifierList,
     typeParameters: TypeParameterList,
     documentation: String,
     private val defaultValue: String,
@@ -63,7 +64,7 @@ internal class TurbineConstructorItem(
             symbol: MethodSymbol
         ): TurbineConstructorItem {
             val name = containingClass.simpleName()
-            val modifiers = TurbineModifierItem(codebase, DefaultModifierList.PACKAGE_PRIVATE, null)
+            val modifiers = DefaultModifierList(codebase, DefaultModifierList.PACKAGE_PRIVATE, null)
             modifiers.setVisibilityLevel(containingClass.modifiers.getVisibilityLevel())
             val typeParameterList = DefaultTypeParameterList(emptyList())
 

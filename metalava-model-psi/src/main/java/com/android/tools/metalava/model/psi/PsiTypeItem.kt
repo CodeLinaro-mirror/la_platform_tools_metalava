@@ -62,53 +62,7 @@ sealed class PsiTypeItem(
         return TypeConversionUtil.isAssignable(psiType, other.psiType)
     }
 
-    /**
-     * Finishes initialization of a type by correcting its nullability based on the owning item,
-     * which was not constructed yet when the type was created.
-     */
-    internal fun finishInitialization(owner: PsiItem) {
-        val implicitNullness = owner.implicitNullness()
-        // Kotlin varargs can't be null, but the annotation for the component type ends up on the
-        // context item, so avoid setting Kotlin varargs to nullable.
-        if (
-            (implicitNullness == true || owner.modifiers.isNullable()) &&
-                !(owner.isKotlin() && this is ArrayTypeItem && isVarargs)
-        ) {
-            modifiers.setNullability(TypeNullability.NULLABLE)
-        } else if (implicitNullness == false || owner.modifiers.isNonNull()) {
-            modifiers.setNullability(TypeNullability.NONNULL)
-        }
-
-        // Also set component array types that should be non-null.
-        if (this is PsiArrayTypeItem && owner.impliesNonNullArrayComponents()) {
-            componentType.modifiers.setNullability(TypeNullability.NONNULL)
-        }
-    }
-
     companion object {
-        /**
-         * Determine if this item implies that its associated type is a non-null array with non-null
-         * components. This is true for the synthetic `Enum.values()` method and any annotation
-         * properties or accessors.
-         */
-        private fun Item.impliesNonNullArrayComponents(): Boolean {
-            fun MemberItem.isAnnotationPropertiesOrAccessors(): Boolean =
-                containingClass().isAnnotationType() && !modifiers.isStatic()
-
-            // TODO: K2 UAST regression, KTIJ-24754
-            fun MethodItem.isEnumValues(): Boolean =
-                containingClass().isEnum() &&
-                    modifiers.isStatic() &&
-                    name() == "values" &&
-                    parameters().isEmpty()
-
-            return when (this) {
-                is MemberItem -> {
-                    isAnnotationPropertiesOrAccessors() || (this is MethodItem && isEnumValues())
-                }
-                else -> false
-            }
-        }
 
         internal fun create(
             codebase: PsiBasedCodebase,
@@ -590,5 +544,52 @@ internal class PsiWildcardTypeItem(
                 create(codebase, bound, kotlinType, typeItemFactory) as ReferenceTypeItem
             }
         }
+    }
+}
+
+/**
+ * Determine if this item implies that its associated type is a non-null array with non-null
+ * components. This is true for the synthetic `Enum.values()` method and any annotation properties
+ * or accessors.
+ */
+private fun Item.impliesNonNullArrayComponents(): Boolean {
+    fun MemberItem.isAnnotationPropertiesOrAccessors(): Boolean =
+        containingClass().isAnnotationType() && !modifiers.isStatic()
+
+    // TODO: K2 UAST regression, KTIJ-24754
+    fun MethodItem.isEnumValues(): Boolean =
+        containingClass().isEnum() &&
+            modifiers.isStatic() &&
+            name() == "values" &&
+            parameters().isEmpty()
+
+    return when (this) {
+        is MemberItem -> {
+            isAnnotationPropertiesOrAccessors() || (this is MethodItem && isEnumValues())
+        }
+        else -> false
+    }
+}
+
+/**
+ * Finishes initialization of a type by correcting its nullability based on the owning item, which
+ * was not constructed yet when the type was created.
+ */
+internal fun TypeItem.finishInitialization(owner: PsiItem) {
+    val implicitNullness = owner.implicitNullness()
+    // Kotlin varargs can't be null, but the annotation for the component type ends up on the
+    // context item, so avoid setting Kotlin varargs to nullable.
+    if (
+        (implicitNullness == true || owner.modifiers.isNullable()) &&
+            !(owner.isKotlin() && this is ArrayTypeItem && isVarargs)
+    ) {
+        modifiers.setNullability(TypeNullability.NULLABLE)
+    } else if (implicitNullness == false || owner.modifiers.isNonNull()) {
+        modifiers.setNullability(TypeNullability.NONNULL)
+    }
+
+    // Also set component array types that should be non-null.
+    if (this is PsiArrayTypeItem && owner.impliesNonNullArrayComponents()) {
+        componentType.modifiers.setNullability(TypeNullability.NONNULL)
     }
 }

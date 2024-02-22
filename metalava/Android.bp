@@ -31,7 +31,6 @@ java_binary_host {
     static_libs: [
         "jsr305",
         "jsr330",
-        "kotlin-reflect",
         "metalava-model",
         "metalava-model-psi",
         "metalava-model-source",

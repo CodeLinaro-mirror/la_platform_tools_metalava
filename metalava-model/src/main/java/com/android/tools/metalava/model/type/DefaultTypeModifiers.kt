@@ -53,6 +53,7 @@ class DefaultTypeModifiers(
     }
 
     override fun setNullability(newNullability: TypeNullability) {
+        if (newNullability == nullability) return
         ensureMutable()
         nullability = newNullability
     }
@@ -61,6 +62,10 @@ class DefaultTypeModifiers(
         DefaultTypeModifiers(annotations.toMutableList(), withNullability ?: nullability)
 
     companion object {
+        /** A set of empty, non-null [TypeModifiers] for sharing. */
+        val emptyNonNullModifiers =
+            create(emptyList(), TypeNullability.NONNULL, "emptyNonNullModifiers is shared")
+
         /**
          * Create a [DefaultTypeModifiers].
          *

@@ -2,6 +2,10 @@ com.android.tools.metalava.model.testsuite.annotationitem.CommonAnnotationItemTe
   annotation toSource() with compound expression values[turbine,java]
   annotation toSource() with constant literal values[turbine,java]
 
+com.android.tools.metalava.model.testsuite.fielditem.CommonFieldItemTest
+  Test implicit nullability of constant field initialized from @NonNull method[turbine,java]
+  Test nullability of non-null field annotated with @Nullable or kotlin equivalent[turbine,java]
+
 com.android.tools.metalava.model.testsuite.fielditem.SourceFieldItemTest
   test default value of an enum constant field[turbine,java]
   test non final field with default value as constant expression[turbine,java]

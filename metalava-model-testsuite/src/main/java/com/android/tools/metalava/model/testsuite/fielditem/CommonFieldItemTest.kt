@@ -18,7 +18,12 @@ package com.android.tools.metalava.model.testsuite.fielditem
 
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.testsuite.BaseModelTest
+import com.android.tools.metalava.model.testsuite.assertHasNonNullNullability
+import com.android.tools.metalava.model.testsuite.assertHasNullableNullability
+import com.android.tools.metalava.model.testsuite.runNullabilityTest
+import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
+import com.android.tools.metalava.testing.kotlin
 import java.io.PrintWriter
 import java.io.StringWriter
 import kotlin.test.assertEquals
@@ -70,6 +75,349 @@ class CommonFieldItemTest : BaseModelTest() {
                 codebase.assertClass("test.pkg.Outer.Middle.Inner").assertField("field").type()
 
             fieldType.assertReferencesTypeParameter(oTypeParameter)
+        }
+    }
+
+    @Test
+    fun `Test implicit nullability of enum constant`() {
+        runNullabilityTest(
+            java(
+                """
+                    package test.pkg;
+
+                    public enum Foo {
+                        ENUM1
+                    }
+                """
+            ),
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public enum Foo {
+                        enum_constant public test.pkg.Foo ENUM1;
+                      }
+                    }
+                """
+            ),
+            kotlin(
+                """
+                    package test.pkg
+
+                    enum class Foo {
+                        ENUM1
+                    }
+                """
+            ),
+            signature(
+                """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public enum Foo {
+                        enum_constant public test.pkg.Foo ENUM1;
+                      }
+                    }
+                """
+            ),
+        ) {
+            val enumConstant = codebase.assertClass("test.pkg.Foo").fields().single()
+
+            // Annotations should not be added as it is implicitly non-null.
+            enumConstant.type().assertHasNonNullNullability(false)
+        }
+    }
+
+    @Test
+    fun `Test implicit nullability of static final String`() {
+        runNullabilityTest(
+            java(
+                """
+                    package test.pkg;
+
+                    public class Foo {
+                        public static final String CONST = "CONST";
+                    }
+                """
+            ),
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public class Foo {
+                        field public static final String CONST = "CONST";
+                      }
+                    }
+                """
+            ),
+            kotlin(
+                """
+                    package test.pkg
+
+                    class Foo {
+                        companion object {
+                            const val CONST = "CONST"
+                        }
+                    }
+                """
+            ),
+            signature(
+                """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public class Foo {
+                        field public static final String CONST = "CONST";
+                      }
+                    }
+                """
+            ),
+        ) {
+            val stringConstant = codebase.assertClass("test.pkg.Foo").assertField("CONST")
+
+            stringConstant.type().assertHasNonNullNullability(false)
+        }
+    }
+
+    @Test
+    fun `Test implicit nullability of companion object`() {
+        runCodebaseTest(
+            // Only Kotlin has companion objects.
+            kotlin(
+                """
+                    package test.pkg
+
+                    class Foo {
+                        companion object {
+                        }
+                    }
+                """
+            ),
+        ) {
+            val companionObject = codebase.assertClass("test.pkg.Foo").fields().single()
+
+            companionObject.type().assertHasNonNullNullability(false)
+        }
+    }
+
+    @Test
+    fun `Test nullability of field annotated with @NonNull or kotlin equivalent`() {
+        runNullabilityTest(
+            java(
+                """
+                    package test.pkg;
+                    import libcore.util.NonNull;
+
+                    public class Foo {
+                        @NonNull
+                        public String field;
+                    }
+                """
+            ),
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public class Foo {
+                        field @NonNull public String field;
+                      }
+                    }
+                """
+            ),
+            kotlin(
+                """
+                    package test.pkg
+
+                    class Foo {
+                        var field: String = ""
+                    }
+                """
+            ),
+            signature(
+                """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public class Foo {
+                        field public String field;
+                      }
+                    }
+                """
+            ),
+        ) {
+            val field = codebase.assertClass("test.pkg.Foo").assertField("field")
+
+            // Do not check the annotation as type use annotations are ambiguous in signature files
+            // that do not specify `kotlin-name-type-order=yes`
+            field.type().assertHasNonNullNullability()
+        }
+    }
+
+    @Test
+    fun `Test nullability of field annotated with @not-type-use-NonNull`() {
+        runCodebaseTest(
+            inputSet(
+                KnownSourceFiles.notTypeUseNonNullSource,
+                java(
+                    """
+                        package test.pkg;
+                        import not.type.use.NonNull;
+
+                        public class Foo {
+                            @NonNull
+                            public String field;
+                        }
+                    """
+                ),
+            ),
+            inputSet(
+                signature(
+                    """
+                        // Signature format: 2.0
+                        package test.pkg {
+                          public class Foo {
+                            field @NonNull public String field;
+                          }
+                        }
+                    """
+                ),
+            ),
+            // Kotlin does not care about different nullability annotations.
+        ) {
+            val field = codebase.assertClass("test.pkg.Foo").assertField("field")
+
+            // Do not check the annotation as type use annotations are ambiguous in signature files
+            // that do not specify `kotlin-name-type-order=yes`
+            field.type().assertHasNonNullNullability()
+        }
+    }
+
+    @Test
+    fun `Test nullability of field annotated with @not-type-use-Nullable`() {
+        runCodebaseTest(
+            inputSet(
+                KnownSourceFiles.notTypeUseNonNullSource,
+                java(
+                    """
+                        package test.pkg;
+                        import not.type.use.Nullable;
+
+                        public class Foo {
+                            @Nullable
+                            public String field;
+                        }
+                    """
+                ),
+            ),
+            inputSet(
+                signature(
+                    """
+                        // Signature format: 2.0
+                        package test.pkg {
+                          public class Foo {
+                            field @Nullable public String field;
+                          }
+                        }
+                    """
+                ),
+            ),
+            // Kotlin does not care about different nullability annotations.
+        ) {
+            val field = codebase.assertClass("test.pkg.Foo").assertField("field")
+
+            // Do not check the annotation as type use annotations are ambiguous in signature files
+            // that do not specify `kotlin-name-type-order=yes`
+            field.type().assertHasNullableNullability()
+        }
+    }
+
+    @Test
+    fun `Test nullability of non-null field annotated with @Nullable or kotlin equivalent`() {
+        runNullabilityTest(
+            java(
+                """
+                    package test.pkg;
+                    import libcore.util.Nullable;
+
+                    public class Foo {
+                        @Nullable
+                        public static final String CONST = "CONST";
+                    }
+                """
+            ),
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public class Foo {
+                        field @Nullable public static final String CONST = "CONST";
+                      }
+                    }
+                """
+            ),
+            kotlin(
+                """
+                    package test.pkg
+
+                    class Foo {
+                        companion object {
+                            const val CONST: String? = "CONST"
+                        }
+                    }
+                """
+            ),
+            signature(
+                """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public class Foo {
+                        field public static final String? CONST = "CONST";
+                      }
+                    }
+                """
+            ),
+        ) {
+            val stringConstant = codebase.assertClass("test.pkg.Foo").assertField("CONST")
+
+            // Do not check the annotation as type use annotations are ambiguous in signature files
+            // that do not specify `kotlin-name-type-order=yes`
+            stringConstant.type().assertHasNullableNullability()
+        }
+    }
+
+    @Test
+    fun `Test implicit nullability of constant field initialized from @NonNull method`() {
+        runCodebaseTest(
+            inputSet(
+                KnownSourceFiles.nonNullSource,
+                java(
+                    """
+                        package test.pkg;
+                        import android.annotation.NonNull;
+
+                        public class Foo {
+                            public static final String CONST = method();
+                            @NonNull
+                            private static String method() {return "CONST";}
+                        }
+                    """
+                ),
+            ),
+            inputSet(
+                kotlin(
+                    """
+                        package test.pkg
+
+                        class Foo {
+                            companion object {
+                                const val CONST = method()
+                                private fun method() = "CONST"
+                            }
+                        }
+                    """
+                ),
+            ),
+        ) {
+            val stringConstant = codebase.assertClass("test.pkg.Foo").assertField("CONST")
+
+            stringConstant.type().assertHasNonNullNullability(false)
         }
     }
 

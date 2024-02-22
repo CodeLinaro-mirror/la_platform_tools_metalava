@@ -22,6 +22,7 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.ConstructorItem
+import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
@@ -58,7 +59,7 @@ internal constructor(
     override val typeParameterList: TypeParameterList,
     private val superClassType: ClassTypeItem?,
     private var interfaceTypes: List<ClassTypeItem>,
-    modifiers: PsiModifierItem,
+    modifiers: DefaultModifierList,
     documentation: String,
     /** True if this class is from the class path (dependencies). Exposed in [isFromClassPath]. */
     private val fromClassPath: Boolean
@@ -248,7 +249,10 @@ internal constructor(
 
     override fun inheritMethodFromNonApiAncestor(template: MethodItem): MethodItem {
         val method = template as PsiMethodItem
-        val newMethod = PsiMethodItem.create(codebase, this, method)
+        require(method.codebase == codebase) {
+            "Unexpected attempt to copy $method from one codebase (${method.codebase.location}) to another (${codebase.location})"
+        }
+        val newMethod = PsiMethodItem.create(this, method)
 
         newMethod.finishInitialization()
 
@@ -283,7 +287,7 @@ internal constructor(
 
     companion object {
         private fun hasExplicitRetention(
-            modifiers: PsiModifierItem,
+            modifiers: DefaultModifierList,
             psiClass: PsiClass,
             isKotlin: Boolean
         ): Boolean {

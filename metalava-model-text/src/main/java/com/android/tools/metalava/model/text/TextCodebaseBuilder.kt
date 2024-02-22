@@ -117,7 +117,6 @@ class TextCodebaseBuilder private constructor(private val codebase: TextCodebase
                 qualifiedName = textClass.qualifiedName,
                 simpleName = textClass.simpleName,
                 fullName = textClass.fullName,
-                annotations = textClass.annotations,
                 typeParameterList = textClass.typeParameterList,
             )
 
