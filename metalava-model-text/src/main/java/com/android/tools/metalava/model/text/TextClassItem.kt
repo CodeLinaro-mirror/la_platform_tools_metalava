@@ -29,7 +29,7 @@ import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
-import com.android.tools.metalava.model.bestGuessAtFullName
+import com.android.tools.metalava.model.type.DefaultResolvedClassTypeItem
 import java.util.function.Predicate
 
 internal open class TextClassItem(
@@ -40,8 +40,7 @@ internal open class TextClassItem(
     val qualifiedName: String = "",
     var simpleName: String = qualifiedName.substring(qualifiedName.lastIndexOf('.') + 1),
     val fullName: String = simpleName,
-    val annotations: List<String>? = null,
-    val typeParameterList: TypeParameterList = TypeParameterList.NONE
+    override val typeParameterList: TypeParameterList = TypeParameterList.NONE
 ) : TextItem(codebase = codebase, position = position, modifiers = modifiers), ClassItem {
 
     override var artifact: String? = null
@@ -95,9 +94,7 @@ internal open class TextClassItem(
     override fun containingPackage(): PackageItem =
         containingClass?.containingPackage() ?: containingPackage ?: error(this)
 
-    override fun hasTypeVariables(): Boolean = typeParameterList.typeParameterCount() > 0
-
-    override fun typeParameterList(): TypeParameterList = typeParameterList
+    override fun hasTypeVariables(): Boolean = typeParameterList.isNotEmpty()
 
     private var superClassType: ClassTypeItem? = null
 
@@ -113,22 +110,14 @@ internal open class TextClassItem(
         this.interfaceTypes = interfaceTypes
     }
 
-    private var typeInfo: TextClassTypeItem? = null
+    /** Must only be used by [type] to cache its result. */
+    private lateinit var cachedType: ClassTypeItem
 
-    override fun type(): TextClassTypeItem {
-        if (typeInfo == null) {
-            val params = typeParameterList.typeParameters().map { it.type() }
-            // Create a [TextTypeItem] representing the type of this class.
-            typeInfo =
-                TextClassTypeItem(
-                    codebase,
-                    qualifiedName,
-                    params,
-                    containingClass()?.type(),
-                    codebase.emptyTypeModifiers,
-                )
+    override fun type(): ClassTypeItem {
+        if (!::cachedType.isInitialized) {
+            cachedType = DefaultResolvedClassTypeItem.createForClass(this)
         }
-        return typeInfo!!
+        return cachedType
     }
 
     private var interfaceTypes = emptyList<ClassTypeItem>()
@@ -208,26 +197,5 @@ internal open class TextClassItem(
 
     override fun createDefaultConstructor(): ConstructorItem {
         return TextConstructorItem.createDefaultConstructor(codebase, this, position)
-    }
-
-    companion object {
-        internal fun createStubClass(
-            codebase: TextCodebase,
-            qualifiedName: String,
-            isInterface: Boolean
-        ): TextClassItem {
-            val fullName = bestGuessAtFullName(qualifiedName)
-            val cls =
-                TextClassItem(
-                    codebase = codebase,
-                    qualifiedName = qualifiedName,
-                    fullName = fullName,
-                    classKind = if (isInterface) ClassKind.INTERFACE else ClassKind.CLASS,
-                    modifiers = DefaultModifierList(codebase, DefaultModifierList.PUBLIC),
-                )
-            cls.emit = false // it's a stub
-
-            return cls
-        }
     }
 }

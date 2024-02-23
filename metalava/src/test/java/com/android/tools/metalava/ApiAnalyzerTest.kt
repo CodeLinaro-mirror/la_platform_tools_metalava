@@ -502,4 +502,40 @@ class ApiAnalyzerTest : DriverTest() {
                 """,
         )
     }
+
+    @Test
+    fun `Test warnings for usage of hidden interface type`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                            package test.pkg
+                            /** @suppress */
+                            interface HiddenInterface
+                            class PublicClass {
+                                fun returnsHiddenInterface(): HiddenInterface = TODO()
+                            }
+                        """
+                    )
+                ),
+            api =
+                """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public final class PublicClass {
+                        ctor public PublicClass();
+                        method public test.pkg.HiddenInterface returnsHiddenInterface();
+                      }
+                    }
+                """,
+            expectedFail = DefaultLintErrorMessage,
+            expectedIssues =
+                """
+                    src/test/pkg/HiddenInterface.kt:5: error: Class test.pkg.HiddenInterface is hidden but was referenced (in return type) from public method test.pkg.PublicClass.returnsHiddenInterface() [ReferencesHidden]
+                    src/test/pkg/HiddenInterface.kt:5: warning: Method test.pkg.PublicClass.returnsHiddenInterface returns unavailable type HiddenInterface [UnavailableSymbol]
+                    src/test/pkg/HiddenInterface.kt:5: warning: Method test.pkg.PublicClass.returnsHiddenInterface() references hidden type test.pkg.HiddenInterface. [HiddenTypeParameter]
+                """
+        )
+    }
 }

@@ -18,95 +18,97 @@ package com.android.tools.metalava.model.turbine
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.DefaultModifierList
-import com.android.tools.metalava.model.ModifierList
-import com.android.tools.metalava.model.MutableModifierList
+import com.android.tools.metalava.model.DefaultModifierList.Companion.ABSTRACT
+import com.android.tools.metalava.model.DefaultModifierList.Companion.DEFAULT
+import com.android.tools.metalava.model.DefaultModifierList.Companion.FINAL
+import com.android.tools.metalava.model.DefaultModifierList.Companion.NATIVE
+import com.android.tools.metalava.model.DefaultModifierList.Companion.PRIVATE
+import com.android.tools.metalava.model.DefaultModifierList.Companion.PROTECTED
+import com.android.tools.metalava.model.DefaultModifierList.Companion.PUBLIC
+import com.android.tools.metalava.model.DefaultModifierList.Companion.SEALED
+import com.android.tools.metalava.model.DefaultModifierList.Companion.STATIC
+import com.android.tools.metalava.model.DefaultModifierList.Companion.STRICT_FP
+import com.android.tools.metalava.model.DefaultModifierList.Companion.SYNCHRONIZED
+import com.android.tools.metalava.model.DefaultModifierList.Companion.TRANSIENT
+import com.android.tools.metalava.model.DefaultModifierList.Companion.VARARG
+import com.android.tools.metalava.model.DefaultModifierList.Companion.VOLATILE
 import com.google.turbine.model.TurbineFlag
 
-internal class TurbineModifierItem(
-    codebase: Codebase,
-    flags: Int = PACKAGE_PRIVATE,
-    annotations: List<AnnotationItem>?
-) :
-    DefaultModifierList(codebase, flags, annotations?.toMutableList()),
-    ModifierList,
-    MutableModifierList {
-    companion object {
-        fun create(
-            codebase: Codebase,
-            flag: Int,
-            annotations: List<AnnotationItem>?,
-            isDeprecatedViaDoc: Boolean,
-        ): TurbineModifierItem {
-            var modifierItem =
-                when (flag) {
-                    0 -> { // No Modifier. Default modifier is PACKAGE_PRIVATE in such case
-                        TurbineModifierItem(codebase, annotations = annotations)
-                    }
-                    else -> {
-                        TurbineModifierItem(codebase, computeFlag(flag), annotations)
-                    }
+internal object TurbineModifierItem {
+    fun create(
+        codebase: Codebase,
+        flag: Int,
+        annotations: List<AnnotationItem>?,
+        isDeprecatedViaDoc: Boolean,
+    ): DefaultModifierList {
+        val modifierItem =
+            when (flag) {
+                0 -> { // No Modifier. Default modifier is PACKAGE_PRIVATE in such case
+                    DefaultModifierList(codebase, annotations = annotations?.toMutableList())
                 }
-            modifierItem.setDeprecated(isDeprecated(annotations) || isDeprecatedViaDoc)
-            return modifierItem
+                else -> {
+                    DefaultModifierList(codebase, computeFlag(flag), annotations?.toMutableList())
+                }
+            }
+        modifierItem.setDeprecated(isDeprecated(annotations) || isDeprecatedViaDoc)
+        return modifierItem
+    }
+
+    /**
+     * Given flag value corresponding to Turbine modifiers compute the equivalent flag in Metalava.
+     */
+    private fun computeFlag(flag: Int): Int {
+        var result = 0
+
+        if (flag and TurbineFlag.ACC_STATIC != 0) {
+            result = result or STATIC
+        }
+        if (flag and TurbineFlag.ACC_ABSTRACT != 0) {
+            result = result or ABSTRACT
+        }
+        if (flag and TurbineFlag.ACC_FINAL != 0) {
+            result = result or FINAL
+        }
+        if (flag and TurbineFlag.ACC_NATIVE != 0) {
+            result = result or NATIVE
+        }
+        if (flag and TurbineFlag.ACC_SYNCHRONIZED != 0) {
+            result = result or SYNCHRONIZED
+        }
+        if (flag and TurbineFlag.ACC_STRICT != 0) {
+            result = result or STRICT_FP
+        }
+        if (flag and TurbineFlag.ACC_TRANSIENT != 0) {
+            result = result or TRANSIENT
+        }
+        if (flag and TurbineFlag.ACC_VOLATILE != 0) {
+            result = result or VOLATILE
+        }
+        if (flag and TurbineFlag.ACC_DEFAULT != 0) {
+            result = result or DEFAULT
+        }
+        if (flag and TurbineFlag.ACC_SEALED != 0) {
+            result = result or SEALED
+        }
+        if (flag and TurbineFlag.ACC_VARARGS != 0) {
+            result = result or VARARG
         }
 
-        /**
-         * Given flag value corresponding to Turbine modifiers compute the equivalent flag in
-         * Metalava.
-         */
-        private fun computeFlag(flag: Int): Int {
-            var result = 0
-
-            if (flag and TurbineFlag.ACC_STATIC != 0) {
-                result = result or STATIC
-            }
-            if (flag and TurbineFlag.ACC_ABSTRACT != 0) {
-                result = result or ABSTRACT
-            }
-            if (flag and TurbineFlag.ACC_FINAL != 0) {
-                result = result or FINAL
-            }
-            if (flag and TurbineFlag.ACC_NATIVE != 0) {
-                result = result or NATIVE
-            }
-            if (flag and TurbineFlag.ACC_SYNCHRONIZED != 0) {
-                result = result or SYNCHRONIZED
-            }
-            if (flag and TurbineFlag.ACC_STRICT != 0) {
-                result = result or STRICT_FP
-            }
-            if (flag and TurbineFlag.ACC_TRANSIENT != 0) {
-                result = result or TRANSIENT
-            }
-            if (flag and TurbineFlag.ACC_VOLATILE != 0) {
-                result = result or VOLATILE
-            }
-            if (flag and TurbineFlag.ACC_DEFAULT != 0) {
-                result = result or DEFAULT
-            }
-            if (flag and TurbineFlag.ACC_SEALED != 0) {
-                result = result or SEALED
-            }
-            if (flag and TurbineFlag.ACC_VARARGS != 0) {
-                result = result or VARARG
-            }
-
-            // Visibility Modifiers
-            if (flag and TurbineFlag.ACC_PUBLIC != 0) {
-                result = result or PUBLIC
-            }
-            if (flag and TurbineFlag.ACC_PRIVATE != 0) {
-                result = result or PRIVATE
-            }
-            if (flag and TurbineFlag.ACC_PROTECTED != 0) {
-                result = result or PROTECTED
-            }
-
-            return result
+        // Visibility Modifiers
+        if (flag and TurbineFlag.ACC_PUBLIC != 0) {
+            result = result or PUBLIC
+        }
+        if (flag and TurbineFlag.ACC_PRIVATE != 0) {
+            result = result or PRIVATE
+        }
+        if (flag and TurbineFlag.ACC_PROTECTED != 0) {
+            result = result or PROTECTED
         }
 
-        private fun isDeprecated(annotations: List<AnnotationItem>?): Boolean {
-            return annotations?.any { it.qualifiedName == "java.lang.Deprecated" } ?: false
-        }
+        return result
+    }
+
+    private fun isDeprecated(annotations: List<AnnotationItem>?): Boolean {
+        return annotations?.any { it.qualifiedName == "java.lang.Deprecated" } ?: false
     }
 }

@@ -208,7 +208,7 @@ class SignatureInputOutputTest : Assertions {
             assertThat(method.parameters()).isEmpty()
 
             assertThat(method.throwsTypes()).hasSize(1)
-            assertThat(method.throwsTypes().single().qualifiedName())
+            assertThat(method.throwsTypes().single().toTypeString())
                 .isEqualTo("java.lang.IllegalStateException")
         }
     }

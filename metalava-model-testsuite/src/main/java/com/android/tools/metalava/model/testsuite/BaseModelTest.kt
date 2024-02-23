@@ -175,10 +175,13 @@ abstract class BaseModelTest(fixedParameters: TestParameters? = null) : Assertio
     /**
      * Context within which the main body of tests that check the state of the [Codebase] will run.
      */
-    class CodebaseContext<C : Codebase>(
+    interface CodebaseContext<C : Codebase> {
         /** The newly created [Codebase]. */
-        val codebase: C,
-    )
+        val codebase: C
+    }
+
+    private class DefaultCodebaseContext<C : Codebase>(override val codebase: C) :
+        CodebaseContext<C>
 
     /**
      * Create a [Codebase] from one of the supplied [inputSets] and then run a test on that
@@ -234,7 +237,7 @@ abstract class BaseModelTest(fixedParameters: TestParameters? = null) : Assertio
         createCodebaseFromInputSetAndRun(
             *sources,
         ) { codebase ->
-            val context = CodebaseContext(codebase)
+            val context = DefaultCodebaseContext(codebase)
             context.test()
         }
     }
@@ -270,7 +273,7 @@ abstract class BaseModelTest(fixedParameters: TestParameters? = null) : Assertio
             *sources,
         ) { codebase ->
             codebase as SourceCodebase
-            val context = CodebaseContext(codebase)
+            val context = DefaultCodebaseContext(codebase)
             context.test()
         }
     }

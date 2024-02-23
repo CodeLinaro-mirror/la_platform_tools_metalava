@@ -18,10 +18,10 @@ package com.android.tools.metalava.model.text
 
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.DefaultModifierList
+import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ParameterItem
-import com.android.tools.metalava.model.ThrowableType
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.computeSuperMethods
@@ -68,8 +68,8 @@ internal open class TextMethodItem(
             }
         }
 
-        val typeParameters1 = typeParameterList().typeParameters()
-        val typeParameters2 = other.typeParameterList().typeParameters()
+        val typeParameters1 = typeParameterList
+        val typeParameters2 = other.typeParameterList
 
         if (typeParameters1.size != typeParameters2.size) {
             return false
@@ -101,13 +101,8 @@ internal open class TextMethodItem(
 
     override fun findPredicateSuperMethod(predicate: Predicate<Item>): MethodItem? = null
 
-    private var typeParameterList: TypeParameterList = TypeParameterList.NONE
-
-    fun setTypeParameterList(typeParameterList: TypeParameterList) {
-        this.typeParameterList = typeParameterList
-    }
-
-    override fun typeParameterList(): TypeParameterList = typeParameterList
+    override var typeParameterList: TypeParameterList = TypeParameterList.NONE
+        internal set
 
     override fun duplicate(targetContainingClass: ClassItem): MethodItem {
         val typeVariableMap = targetContainingClass.mapTypeVariables(containingClass())
@@ -136,8 +131,7 @@ internal open class TextMethodItem(
 
         duplicated.deprecated = deprecated
         duplicated.annotationDefault = annotationDefault
-        duplicated.throwsTypes.addAll(throwsTypes)
-        duplicated.throwsClasses = throwsClasses
+        duplicated.throwsTypes = this.throwsTypes
         duplicated.typeParameterList = typeParameterList
 
         return duplicated
@@ -146,25 +140,15 @@ internal open class TextMethodItem(
     override val synthetic: Boolean
         get() = isEnumSyntheticMethod()
 
-    private val throwsTypes = mutableListOf<String>()
-    private var throwsClasses: List<ThrowableType>? = null
+    private var throwsTypes: List<ExceptionTypeItem> = emptyList()
 
-    fun throwsTypeNames(): List<String> {
-        return throwsTypes
-    }
+    override fun throwsTypes(): List<ExceptionTypeItem> = this.throwsTypes
 
-    override fun throwsTypes(): List<ThrowableType> =
-        if (throwsClasses == null) emptyList() else throwsClasses!!
-
-    fun setThrowsList(throwsClasses: List<ThrowableType>) {
-        this.throwsClasses = throwsClasses
+    fun setThrowsTypes(throwsClasses: List<ExceptionTypeItem>) {
+        this.throwsTypes = throwsClasses
     }
 
     override fun parameters(): List<ParameterItem> = parameters
-
-    fun addException(throwsType: String) {
-        throwsTypes += throwsType
-    }
 
     override fun isExtensionMethod(): Boolean = codebase.unsupported()
 

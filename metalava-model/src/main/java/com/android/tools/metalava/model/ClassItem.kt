@@ -750,7 +750,7 @@ interface ClassItem : Item, TypeParameterListOwner {
                 // https://docs.oracle.com/javase/specs/jls/se8/html/jls-8.html#jls-Superclass
                 as ReferenceTypeItem
             }
-        return declaringClass.typeParameterList().typeParameters().zip(classTypeArguments).toMap()
+        return declaringClass.typeParameterList.zip(classTypeArguments).toMap()
     }
 
     /** Creates a constructor in this class */

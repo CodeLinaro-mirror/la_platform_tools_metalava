@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.psi
 
+import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.TypeItem
@@ -31,7 +32,7 @@ private constructor(
     private val psiMethod: PsiMethod,
     containingClass: PsiClassItem,
     name: String,
-    modifiers: PsiModifierItem,
+    modifiers: DefaultModifierList,
     documentation: String,
     private val fieldType: PsiTypeItem,
     override val getter: PsiMethodItem,

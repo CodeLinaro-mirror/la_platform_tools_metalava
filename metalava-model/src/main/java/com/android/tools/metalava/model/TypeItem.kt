@@ -56,6 +56,14 @@ interface TypeItem {
     fun hashCodeForType(): Int
 
     /**
+     * Provide a helpful description of the type, for use in error messages.
+     *
+     * This is not suitable for use in signature or stubs as while it defaults to [toTypeString] for
+     * most types it is overridden by others to provide additional information.
+     */
+    fun description(): String = toTypeString()
+
+    /**
      * Generates a string for this type.
      *
      * @param annotations For a type like this: @Nullable java.util.List<@NonNull java.lang.String>,
@@ -74,14 +82,6 @@ interface TypeItem {
         spaceBetweenParameters: Boolean = false
     ): String
 
-    /** Legacy alias for [toErasedTypeString]`()`. */
-    @Deprecated(
-        "the context item is no longer used",
-        replaceWith = ReplaceWith("toErasedTypeString()")
-    )
-    @MetalavaApi
-    fun toErasedTypeString(context: Item?): String = toErasedTypeString()
-
     /**
      * Get a string representation of the erased type.
      *
@@ -93,9 +93,6 @@ interface TypeItem {
      * mainly used at runtime which treats a vararg parameter as a standard array type.
      */
     @MetalavaApi fun toErasedTypeString(): String
-
-    /** Array dimensions of this type; for example, for String it's 0 and for String[][] it's 2. */
-    @MetalavaApi fun arrayDimensions(): Int = 0
 
     /** Returns the internal name of the type, as seen in bytecode. */
     fun internalName(): String
@@ -152,8 +149,15 @@ interface TypeItem {
 
     fun defaultValueString(): String = "null"
 
-    /** Creates an identical type, with a copy of this type's modifiers so they can be mutated. */
+    /** Creates an identical type, with a copy of this type's modifiers, so they can be mutated. */
     fun duplicate(): TypeItem
+
+    /**
+     * Creates an identical type, with a copy of this type's modifiers with the specified
+     * [withNullability] that can be modified further if needed.
+     */
+    fun duplicate(withNullability: TypeNullability) =
+        duplicate().apply { modifiers.setNullability(withNullability) }
 
     companion object {
         /** Shortens types, if configured */
@@ -348,7 +352,9 @@ interface TypeItem {
  */
 typealias TypeParameterBindings = Map<TypeParameterItem, ReferenceTypeItem>
 
-abstract class DefaultTypeItem() : TypeItem {
+abstract class DefaultTypeItem(
+    final override val modifiers: TypeModifiers,
+) : TypeItem {
 
     private lateinit var cachedDefaultType: String
     private lateinit var cachedErasedType: String
@@ -693,7 +699,48 @@ interface BoundsTypeItem : TypeItem, ReferenceTypeItem
  *
  * See https://docs.oracle.com/javase/specs/jls/se8/html/jls-8.html#jls-ExceptionType.
  */
-sealed interface ExceptionTypeItem : TypeItem, ReferenceTypeItem
+sealed interface ExceptionTypeItem : TypeItem, ReferenceTypeItem {
+    /**
+     * Get the erased [ClassItem], if any.
+     *
+     * The erased [ClassItem] is the one which would be used by Java at runtime after the generic
+     * types have been erased. This will cause an error if it is called on a [VariableTypeItem]
+     * whose [TypeParameterItem]'s upper bound is not a [ExceptionTypeItem]. However, that should
+     * never happen as it would be a compile time error.
+     */
+    val erasedClass: ClassItem?
+
+    /**
+     * The best guess of the full name, i.e. the qualified class name without the package but
+     * including the outer class names.
+     *
+     * This is not something that can be accurately determined solely by examining the reference or
+     * even the import as there is no distinction made between a package name and a class name. Java
+     * naming conventions do say that package names should start with a lower case letter and class
+     * names should start with an upper case letter, but they are not enforced so cannot be fully
+     * relied upon.
+     *
+     * It is possible that in some contexts a model could provide a better full name than guessing
+     * from the fully qualified name, e.g. a reference within the same package, however that is not
+     * something that will be supported by all models and so attempting to use that could lead to
+     * subtle model differences that could break users of the models.
+     *
+     * The only way to fully determine the full name is to resolve the class and extract it from
+     * there but this avoids resolving a class as it can be expensive. Instead, this just makes the
+     * best guess assuming normal Java conventions.
+     */
+    @Deprecated(
+        "Do not use as full name is only ever a best guess based on naming conventions; use the full type string instead",
+        ReplaceWith("toTypeString()")
+    )
+    fun fullName(): String = bestGuessAtFullName(toTypeString())
+
+    companion object {
+        /** A partial ordering over [ExceptionTypeItem] comparing [ExceptionTypeItem] full names. */
+        val fullNameComparator: Comparator<ExceptionTypeItem> =
+            Comparator.comparing { @Suppress("DEPRECATION") it.fullName() }
+    }
+}
 
 /** Represents a primitive type, like int or boolean. */
 interface PrimitiveTypeItem : TypeItem {
@@ -748,8 +795,6 @@ interface ArrayTypeItem : TypeItem, ReferenceTypeItem {
     /** Whether this array type represents a varargs parameter. */
     val isVarargs: Boolean
 
-    override fun arrayDimensions(): Int = 1 + componentType.arrayDimensions()
-
     override fun accept(visitor: TypeVisitor) {
         visitor.visit(this)
     }
@@ -797,6 +842,9 @@ interface ClassTypeItem : TypeItem, BoundsTypeItem, ReferenceTypeItem, Exception
      * "test.pkg.Outer.Inner".
      */
     val className: String
+
+    override val erasedClass: ClassItem?
+        get() = asClass()
 
     override fun accept(visitor: TypeVisitor) {
         visitor.visit(this)
@@ -861,6 +909,12 @@ interface VariableTypeItem : TypeItem, BoundsTypeItem, ReferenceTypeItem, Except
 
     /** The corresponding type parameter for this type variable. */
     val asTypeParameter: TypeParameterItem
+
+    override val erasedClass: ClassItem?
+        get() = (asTypeParameter.asErasedType() as ClassTypeItem).erasedClass
+
+    override fun description() =
+        "$name (extends ${this.asTypeParameter.asErasedType()?.description() ?: "unknown type"})}"
 
     override fun accept(visitor: TypeVisitor) {
         visitor.visit(this)

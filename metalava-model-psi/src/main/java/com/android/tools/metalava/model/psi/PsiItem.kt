@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.model.DefaultItem
+import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.Location
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.MutableModifierList
@@ -42,7 +43,7 @@ abstract class PsiItem
 internal constructor(
     override val codebase: PsiBasedCodebase,
     element: PsiElement,
-    override val modifiers: PsiModifierItem,
+    override val modifiers: DefaultModifierList,
     override var documentation: String
 ) : DefaultItem(modifiers) {
 
@@ -318,7 +319,7 @@ internal constructor(
             codebase: PsiBasedCodebase,
             element: PsiModifierListOwner,
             documentation: String
-        ): PsiModifierItem {
+        ): DefaultModifierList {
             return PsiModifierItem.create(codebase, element, documentation)
         }
 

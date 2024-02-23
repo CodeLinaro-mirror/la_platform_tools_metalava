@@ -18,10 +18,12 @@ package com.android.tools.metalava.model.text
 
 import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.Codebase
 import com.google.common.truth.Truth.assertThat
 import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertSame
 import org.junit.Assert.assertThrows
@@ -109,7 +111,7 @@ class ApiFileTest : BaseTextCodebaseTest() {
             // Make sure the stub Throwable is used in the throws types.
             val exception =
                 codebase.assertClass("test.pkg.Foo").assertMethod("foo", "").throwsTypes().first()
-            assertSame(throwable, exception.classItem)
+            assertSame(throwable, exception.erasedClass)
         }
     }
 
@@ -144,7 +146,7 @@ class ApiFileTest : BaseTextCodebaseTest() {
             // Make sure the stub Throwable is used in the throws types.
             val exception =
                 codebase.assertClass("test.pkg.Foo").assertMethod("foo", "").throwsTypes().first()
-            assertSame(error, exception.classItem)
+            assertSame(error, exception.erasedClass)
         }
     }
 
@@ -162,14 +164,14 @@ class ApiFileTest : BaseTextCodebaseTest() {
                 """
             ),
         ) {
-            val throwable = codebase.assertClass("java.lang.Throwable")
+            val throwable = codebase.assertResolvedClass("java.lang.Throwable")
             // This should probably be Object.
             assertNull(throwable.superClass())
 
             // Make sure the stub Throwable is used in the throws types.
             val exception =
                 codebase.assertClass("test.pkg.Foo").assertMethod("foo", "").throwsTypes().first()
-            assertSame(throwable, exception.classItem)
+            assertSame(throwable, exception.erasedClass)
         }
     }
 
@@ -187,7 +189,15 @@ class ApiFileTest : BaseTextCodebaseTest() {
                 """
             ),
         ) {
-            val throwable = codebase.assertClass("java.lang.Throwable")
+            val throwable = codebase.assertResolvedClass("java.lang.Throwable")
+
+            val exceptionType =
+                codebase.assertClass("test.pkg.Foo").methods().single().throwsTypes().single()
+
+            // Force the unknown exception class to be resolved, creating a stub in the process. It
+            // is checked below.
+            exceptionType.erasedClass
+
             val unknownExceptionClass = codebase.assertClass("other.UnknownException")
             // Make sure the stub UnknownException is initialized correctly.
             assertSame(throwable, unknownExceptionClass.superClass())
@@ -195,7 +205,7 @@ class ApiFileTest : BaseTextCodebaseTest() {
             // Make sure the stub UnknownException is used in the throws types.
             val exception =
                 codebase.assertClass("test.pkg.Foo").assertMethod("foo", "").throwsTypes().first()
-            assertSame(unknownExceptionClass, exception.classItem)
+            assertSame(unknownExceptionClass, exception.erasedClass)
         }
     }
 
@@ -227,7 +237,7 @@ class ApiFileTest : BaseTextCodebaseTest() {
         // types.
         val exception =
             codebase.assertClass("test.pkg.Foo").assertMethod("foo", "").throwsTypes().first()
-        assertSame(unknownExceptionClass, exception.classItem)
+        assertSame(unknownExceptionClass, exception.erasedClass)
     }
 
     @Test
@@ -418,6 +428,30 @@ class ApiFileTest : BaseTextCodebaseTest() {
                 """
             ),
         )
+    }
+
+    @Test
+    fun `Test unknown interface should still be marked as such`() {
+        runSignatureTest(
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                        public class Foo implements test.unknown.Interface {
+                        }
+                    }
+                """
+            ),
+        ) {
+            // Resolve the class. Even though it does not exist, the text model will fabricate an
+            // instance.
+            val unknownInterfaceClass =
+                codebase.assertResolvedClass("test.pkg.Foo").interfaceTypes().single().asClass()
+            assertNotNull(unknownInterfaceClass)
+
+            // Make sure that the fabricated instance is of the correct structure.
+            assertThat(unknownInterfaceClass.classKind).isEqualTo(ClassKind.INTERFACE)
+        }
     }
 
     @Test

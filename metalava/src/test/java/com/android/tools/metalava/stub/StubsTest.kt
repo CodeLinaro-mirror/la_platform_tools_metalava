@@ -1203,7 +1203,7 @@ class StubsTest : AbstractStubsTest() {
                         package test.pkg
                         @file:Suppress("ALL")
                         open class ExtendableClass<T> {
-                        open fun ExtendableClass(): test.pkg.ExtendableClass<T!> = error("Stub!")
+                        open fun ExtendableClass(): test.pkg.ExtendableClass<T> = error("Stub!")
                         }
                     """
                     )

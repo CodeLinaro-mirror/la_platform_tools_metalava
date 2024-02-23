@@ -465,9 +465,9 @@ class CommonTypeItemTest : BaseModelTest() {
             )
         ) {
             val clz = codebase.assertClass("test.pkg.Foo")
-            val classTypeParam = clz.typeParameterList().typeParameters().single()
+            val classTypeParam = clz.typeParameterList.single()
             val method = clz.methods().single()
-            val methodTypeParam = method.typeParameterList().typeParameters().single()
+            val methodTypeParam = method.typeParameterList.single()
             val paramTypes = method.parameters().map { it.type() }
             assertThat(paramTypes).hasSize(2)
 
@@ -522,14 +522,14 @@ class CommonTypeItemTest : BaseModelTest() {
             )
         ) {
             val foo = codebase.assertClass("test.pkg.Foo")
-            val fooTypeParam = foo.typeParameterList().typeParameters().single()
+            val fooTypeParam = foo.typeParameterList.single()
 
             val bar1 = foo.methods().single { it.name() == "bar1" }
             val bar1Return = bar1.returnType()
             bar1Return.assertReferencesTypeParameter(fooTypeParam)
 
             val bar2 = foo.methods().single { it.name() == "bar2" }
-            val bar2TypeParam = bar2.typeParameterList().typeParameters().single()
+            val bar2TypeParam = bar2.typeParameterList.single()
             val bar2Return = bar2.returnType()
             bar2Return.assertReferencesTypeParameter(bar2TypeParam)
 
@@ -538,7 +538,7 @@ class CommonTypeItemTest : BaseModelTest() {
             bar3Return.assertReferencesTypeParameter(fooTypeParam)
 
             val bar4 = foo.methods().single { it.name() == "bar4" }
-            val bar4TypeParam = bar4.typeParameterList().typeParameters().single()
+            val bar4TypeParam = bar4.typeParameterList.single()
             val bar4Return = bar4.returnType()
             bar4Return.assertReferencesTypeParameter(bar4TypeParam)
         }
@@ -585,14 +585,14 @@ class CommonTypeItemTest : BaseModelTest() {
             )
         ) {
             val foo = codebase.assertClass("test.pkg.Foo")
-            val fooParam = foo.typeParameterList().typeParameters().single()
+            val fooParam = foo.typeParameterList.single()
 
             val bar1 = foo.methods().single { it.name() == "bar1" }
             val bar1Param = bar1.parameters().single().type()
             bar1Param.assertReferencesTypeParameter(fooParam)
 
             val bar2 = foo.methods().single { it.name() == "bar2" }
-            val bar2TypeParam = bar2.typeParameterList().typeParameters().single()
+            val bar2TypeParam = bar2.typeParameterList.single()
             val bar2Param = bar2.parameters().single().type()
             bar2Param.assertReferencesTypeParameter(bar2TypeParam)
 
@@ -601,7 +601,7 @@ class CommonTypeItemTest : BaseModelTest() {
             bar3Param.assertReferencesTypeParameter(fooParam)
 
             val bar4 = foo.methods().single { it.name() == "bar4" }
-            val bar4TypeParam = bar4.typeParameterList().typeParameters().single()
+            val bar4TypeParam = bar4.typeParameterList.single()
             val bar4Param = bar4.parameters().single().type()
             bar4Param.assertReferencesTypeParameter(bar4TypeParam)
         }
@@ -640,7 +640,7 @@ class CommonTypeItemTest : BaseModelTest() {
             )
         ) {
             val foo = codebase.assertClass("test.pkg.Foo")
-            val fooParam = foo.typeParameterList().typeParameters().single()
+            val fooParam = foo.typeParameterList.single()
 
             val fieldType = foo.fields().single { it.name() == "foo" }.type()
             fieldType.assertReferencesTypeParameter(fooParam)
@@ -673,7 +673,7 @@ class CommonTypeItemTest : BaseModelTest() {
             )
         ) {
             val foo = codebase.assertClass("test.pkg.Foo")
-            val fooParam = foo.typeParameterList().typeParameters().single()
+            val fooParam = foo.typeParameterList.single()
 
             val propertyType = foo.properties().single { it.name() == "foo" }.type()
             propertyType.assertReferencesTypeParameter(fooParam)
@@ -940,7 +940,7 @@ class CommonTypeItemTest : BaseModelTest() {
             )
         ) {
             val method = codebase.assertClass("test.pkg.Outer").methods().single()
-            val methodTypeParameters = method.typeParameterList().typeParameters()
+            val methodTypeParameters = method.typeParameterList
             assertThat(methodTypeParameters).hasSize(2)
             val p1 = methodTypeParameters[0]
             val p2 = methodTypeParameters[1]
@@ -1005,7 +1005,7 @@ class CommonTypeItemTest : BaseModelTest() {
         ) {
             // Verify that the Cache superclass type uses the Cache type variables
             val cache = codebase.assertClass("test.pkg.Cache")
-            val cacheTypeParams = cache.typeParameterList().typeParameters()
+            val cacheTypeParams = cache.typeParameterList
             assertThat(cacheTypeParams).hasSize(2)
             val queryParam = cacheTypeParams[0]
             val resultParam = cacheTypeParams[1]
@@ -1024,7 +1024,7 @@ class CommonTypeItemTest : BaseModelTest() {
 
             // Verify that the MyList interface type uses the MyList type variable
             val myList = codebase.assertClass("test.pkg.MyList")
-            val myListTypeParams = myList.typeParameterList().typeParameters()
+            val myListTypeParams = myList.typeParameterList
             assertThat(myListTypeParams).hasSize(1)
             val eParam = myListTypeParams.single()
 
@@ -1118,7 +1118,7 @@ class CommonTypeItemTest : BaseModelTest() {
             )
         ) {
             val fooClass = codebase.assertClass("test.pkg.Foo")
-            val typeParam = fooClass.typeParameterList().typeParameters().single()
+            val typeParam = fooClass.typeParameterList.single()
 
             /**
              * Make sure that the [ClassItem] has a method whose single parameter is of the type
@@ -1148,20 +1148,6 @@ class CommonTypeItemTest : BaseModelTest() {
                 }
             }
 
-            /**
-             * Make sure that the [ClassItem] has a method whose single parameter is of the type
-             * `java.lang.Collection<Z>`.
-             */
-            fun ClassItem.assertMethodTakesCollectionZ(name: String) {
-                assertMethodTakesCollection(name) {
-                    // Check that the string representation is correct for now.
-                    // TODO: Check that this is a VariableTypeItem that references [typeParam].
-                    assertWildcardItem {
-                        assertThat(extendsBound!!.toString()).isEqualTo(typeParam.name())
-                    }
-                }
-            }
-
             // Defined in `java.util.Collection` as `addAll(Collection<? extends E> c)`. The type of
             // the `addAll` method in `Foo` should be `addAll(Collection<? extends Z>)`.Where `Z`
             // references the type parameter in `Foo<Z>`.
@@ -1171,13 +1157,9 @@ class CommonTypeItemTest : BaseModelTest() {
             // `...(Collection<? extends Z>)`.Where `Z` references the type parameter in
             // `Foo<Z>`.
             //
-            // However, this does not work, yet, as the `PsiType` for `Z` does not resolve to a
-            // `PsiTypeParameter`, it resolves to `null` and so ends up being a `ClassTypeItem`
-            // instead of `VariableTypeItem`.
-            //
-            fooClass.assertMethodTakesCollectionZ("containsAll")
-            fooClass.assertMethodTakesCollectionZ("removeAll")
-            fooClass.assertMethodTakesCollectionZ("retainAll")
+            fooClass.assertMethodTakesCollectionWildcardExtendsZ("containsAll")
+            fooClass.assertMethodTakesCollectionWildcardExtendsZ("removeAll")
+            fooClass.assertMethodTakesCollectionWildcardExtendsZ("retainAll")
         }
     }
 
@@ -1246,7 +1228,7 @@ class CommonTypeItemTest : BaseModelTest() {
         ) {
             val parent = codebase.assertClass("test.pkg.Parent")
             val child = codebase.assertClass("test.pkg.Child")
-            val childTypeParams = child.typeParameterList().typeParameters()
+            val childTypeParams = child.typeParameterList
             val x = childTypeParams[0]
             val y = childTypeParams[1]
 
@@ -1378,8 +1360,8 @@ class CommonTypeItemTest : BaseModelTest() {
             )
         ) {
             val fooClass = codebase.assertClass("test.pkg.Foo")
-            val t = fooClass.typeParameterList().typeParameters().single { it.name() == "T" }
-            val x = fooClass.typeParameterList().typeParameters().single { it.name() == "X" }
+            val t = fooClass.typeParameterList.single { it.name() == "T" }
+            val x = fooClass.typeParameterList.single { it.name() == "X" }
             val numberType = fooClass.assertField("numberType").type() as ReferenceTypeItem
 
             val matchingBindings = mapOf(t to numberType)

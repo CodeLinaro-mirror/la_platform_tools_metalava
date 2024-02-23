@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.model.BoundsTypeItem
+import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.VariableTypeItem
 import com.intellij.psi.PsiTypeParameter
@@ -29,7 +30,7 @@ internal class PsiTypeParameterItem(
     codebase: PsiBasedCodebase,
     private val psiClass: PsiTypeParameter,
     private val name: String,
-    modifiers: PsiModifierItem
+    modifiers: DefaultModifierList
 ) :
     PsiItem(
         codebase = codebase,
@@ -42,7 +43,9 @@ internal class PsiTypeParameterItem(
     override fun name() = name
 
     override fun type(): VariableTypeItem {
-        return codebase.getType(codebase.getClassType(psiClass)) as VariableTypeItem
+        val psiType = codebase.getClassType(psiClass)
+        val typeModifiers = PsiTypeModifiers.create(codebase, psiType, null)
+        return PsiVariableTypeItem(psiType, typeModifiers, this)
     }
 
     override fun psi() = psiClass
@@ -53,19 +56,7 @@ internal class PsiTypeParameterItem(
         return isReified(psiClass as? PsiTypeParameter)
     }
 
-    private lateinit var bounds: List<BoundsTypeItem>
-
-    override fun finishInitialization() {
-        super.finishInitialization()
-
-        val refs = psiClass.extendsList.referencedTypes
-        bounds =
-            if (refs.isEmpty()) {
-                emptyList()
-            } else {
-                refs.mapNotNull { codebase.getType(it) as BoundsTypeItem }
-            }
-    }
+    internal lateinit var bounds: List<BoundsTypeItem>
 
     override fun toString(): String {
         return String.format("%s [0x%x]", name, System.identityHashCode(this))

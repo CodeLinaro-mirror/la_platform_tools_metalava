@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.text
 
+import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.DefaultModifierList
 
@@ -24,7 +25,7 @@ internal class TextConstructorItem(
     name: String,
     containingClass: TextClassItem,
     modifiers: DefaultModifierList,
-    returnType: TextTypeItem,
+    returnType: ClassTypeItem,
     parameters: List<TextParameterItem>,
     position: SourcePositionInfo
 ) :

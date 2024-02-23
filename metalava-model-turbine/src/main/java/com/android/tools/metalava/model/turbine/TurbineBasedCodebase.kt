@@ -43,6 +43,9 @@ internal open class TurbineBasedCodebase(
      */
     private lateinit var classMap: MutableMap<String, TurbineClassItem>
 
+    /** A list of all the classes. Primarily used by [iterateAllClasses]. */
+    private lateinit var allClasses: MutableList<TurbineClassItem>
+
     /** Map from package name to the corresponding package item */
     private lateinit var packageMap: MutableMap<String, PackageItem>
 
@@ -96,12 +99,16 @@ internal open class TurbineBasedCodebase(
         val qualifiedName = classItem.qualifiedName()
         val existing = classMap.put(qualifiedName, classItem)
         if (existing != null) {
-            error("Attempted to register $qualifiedName twice, $classItem and $existing")
+            error(
+                "Attempted to register $qualifiedName twice; once from ${existing.location().path} and this one from ${classItem.location().path}"
+            )
         }
 
         if (isTopClass) {
             topLevelClassesFromSource.add(classItem)
         }
+
+        allClasses.add(classItem)
     }
 
     fun addPackage(packageItem: TurbinePackageItem) {
@@ -111,8 +118,36 @@ internal open class TurbineBasedCodebase(
     fun initialize(units: List<CompUnit>, classpath: List<File>) {
         topLevelClassesFromSource = ArrayList(CLASS_ESTIMATE)
         classMap = HashMap(CLASS_ESTIMATE)
+        allClasses = ArrayList(CLASS_ESTIMATE)
         packageMap = HashMap(PACKAGE_ESTIMATE)
         initializer = TurbineCodebaseInitialiser(units, this, classpath)
         initializer.initialize()
+    }
+
+    /**
+     * Iterate over all the [TurbineClassItem]s in the [TurbineBasedCodebase].
+     *
+     * If additional classes are added to the [TurbineBasedCodebase] by [body], e.g. by resolving a
+     * `ClassTypeItem` to a class on the classpath that was not previously loaded, then they will be
+     * included in the iteration.
+     */
+    fun iterateAllClasses(body: (TurbineClassItem) -> Unit) {
+        // Iterate by index not using aan iterator to avoid `ConcurrentModificationException`s.
+        // Limit the first round of iteration to just the classes that were present at the start.
+        var start = 0
+        var end = allClasses.size
+        do {
+            // Iterate over the classes in the selected range, invoking [body] pn each.
+            for (i in start until end) {
+                val classItem = allClasses[i]
+                body(classItem)
+            }
+
+            // Move the range to include all the classes, if any, added during the previous round.
+            start = end
+            end = allClasses.size
+
+            // Repeat until no new classes were added.
+        } while (start < end)
     }
 }
