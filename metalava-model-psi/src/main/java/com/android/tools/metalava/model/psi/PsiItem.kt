@@ -19,23 +19,15 @@ package com.android.tools.metalava.model.psi
 import com.android.tools.metalava.model.DefaultItem
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.Location
-import com.android.tools.metalava.model.MethodItem
-import com.android.tools.metalava.model.MutableModifierList
 import com.android.tools.metalava.model.ParameterItem
-import com.android.tools.metalava.model.psi.KotlinTypeInfo.Companion.isInheritedGenericType
 import com.android.tools.metalava.model.source.utils.LazyDelegate
 import com.intellij.psi.PsiCompiledElement
 import com.intellij.psi.PsiDocCommentOwner
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiModifierListOwner
-import org.jetbrains.kotlin.analysis.api.analyze
-import org.jetbrains.kotlin.analysis.api.symbols.KtCallableSymbol
 import org.jetbrains.kotlin.idea.KotlinLanguage
 import org.jetbrains.kotlin.kdoc.psi.api.KDoc
-import org.jetbrains.kotlin.psi.KtCallableDeclaration
 import org.jetbrains.kotlin.psi.KtDeclaration
-import org.jetbrains.kotlin.psi.KtPropertyAccessor
-import org.jetbrains.kotlin.psi.KtTypeReference
 import org.jetbrains.uast.UElement
 import org.jetbrains.uast.sourcePsiElement
 
@@ -43,8 +35,8 @@ abstract class PsiItem
 internal constructor(
     override val codebase: PsiBasedCodebase,
     element: PsiElement,
-    override val modifiers: DefaultModifierList,
-    override var documentation: String
+    modifiers: DefaultModifierList,
+    override var documentation: String,
 ) : DefaultItem(modifiers) {
 
     @Suppress(
@@ -78,41 +70,6 @@ internal constructor(
     override fun isFromClassPath(): Boolean {
         return codebase.fromClasspath || containingClass()?.isFromClassPath() ?: false
     }
-
-    override fun hasInheritedGenericType(): Boolean = _hasInheritedGenericType
-
-    private val _hasInheritedGenericType by lazy {
-        // suspend function's return type is always Any?, i.e., nullable.
-        // That is, we should keep the nullable annotation for that return type.
-        if (this is MethodItem && modifiers.isSuspend()) return@lazy false
-
-        when (sourcePsi) {
-            is KtCallableDeclaration -> {
-                analyze(sourcePsi) {
-                    // NB: We should not use [KtDeclaration.getReturnKtType]; see its comment:
-                    // IMPORTANT: For `vararg foo: T` parameter returns full `Array<out T>` type
-                    // (unlike [KtValueParameterSymbol.returnType] which returns `T`).
-                    val ktType =
-                        (sourcePsi.getSymbol() as? KtCallableSymbol)?.returnType
-                            ?: return@lazy false
-                    isInheritedGenericType(ktType)
-                }
-            }
-            is KtPropertyAccessor -> {
-                // Not necessary to use the containing property
-                // getter: its return type should be the same as property
-                // setter: it's always `void`, and its (implicit) setter parameter is callable.
-                analyze(sourcePsi) { isInheritedGenericType(sourcePsi.getReturnKtType()) }
-            }
-            is KtTypeReference -> {
-                analyze(sourcePsi) { isInheritedGenericType(sourcePsi.getKtType()) }
-            }
-            else -> false
-        }
-    }
-
-    /** Get a mutable version of modifiers for this item */
-    override fun mutableModifiers(): MutableModifierList = modifiers
 
     override fun findTagDocumentation(tag: String, value: String?): String? {
         if (psi() is PsiCompiledElement) {
@@ -270,16 +227,14 @@ internal constructor(
     }
 
     /** Finish initialization of the item */
-    open fun finishInitialization() {
-        modifiers.setOwner(this)
-    }
+    open fun finishInitialization() {}
 
     override fun isJava(): Boolean {
         return !isKotlin()
     }
 
     override fun isKotlin(): Boolean {
-        return isKotlin(psi())
+        return psi().isKotlin()
     }
 
     companion object {
@@ -318,13 +273,14 @@ internal constructor(
         internal fun modifiers(
             codebase: PsiBasedCodebase,
             element: PsiModifierListOwner,
-            documentation: String
+            documentation: String? = null,
         ): DefaultModifierList {
             return PsiModifierItem.create(codebase, element, documentation)
         }
-
-        fun isKotlin(element: PsiElement): Boolean {
-            return element.language === KotlinLanguage.INSTANCE
-        }
     }
+}
+
+/** Check whether a [PsiElement] is Kotlin or not. */
+fun PsiElement.isKotlin(): Boolean {
+    return language === KotlinLanguage.INSTANCE
 }

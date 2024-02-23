@@ -503,7 +503,7 @@ abstract class UastTestBase : DriverTest() {
                 package test.pkg {
                   public enum Event {
                     method public static kotlin.enums.EnumEntries<$e> getEntries();
-                    method public static final test.pkg.Event? upTo(test.pkg.State state);
+                    method public static test.pkg.Event? upTo(test.pkg.State state);
                     method public static test.pkg.Event valueOf(String value) throws java.lang.IllegalArgumentException, java.lang.NullPointerException;
                     method public static test.pkg.Event[] values();
                     enum_constant public static final test.pkg.Event ON_CREATE;
@@ -517,8 +517,8 @@ abstract class UastTestBase : DriverTest() {
                   }
                   public enum State {
                     method public static kotlin.enums.EnumEntries<$s> getEntries();
-                    method public final boolean isAtLeast(test.pkg.State state);
-                    method public final boolean isFinished();
+                    method public boolean isAtLeast(test.pkg.State state);
+                    method public boolean isFinished();
                     method public static test.pkg.State valueOf(String value) throws java.lang.IllegalArgumentException, java.lang.NullPointerException;
                     method public static test.pkg.State[] values();
                     property public final boolean isFinished;

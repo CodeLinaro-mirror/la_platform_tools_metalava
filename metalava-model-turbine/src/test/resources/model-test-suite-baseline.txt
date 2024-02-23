@@ -4,7 +4,6 @@ com.android.tools.metalava.model.testsuite.annotationitem.CommonAnnotationItemTe
 
 com.android.tools.metalava.model.testsuite.fielditem.CommonFieldItemTest
   Test implicit nullability of constant field initialized from @NonNull method[turbine,java]
-  Test nullability of non-null field annotated with @Nullable or kotlin equivalent[turbine,java]
 
 com.android.tools.metalava.model.testsuite.fielditem.SourceFieldItemTest
   test default value of an enum constant field[turbine,java]
@@ -17,6 +16,12 @@ com.android.tools.metalava.model.testsuite.methoditem.CommonParameterItemTest
 com.android.tools.metalava.model.testsuite.packageitem.CommonPackageItemTest
   Test @hide in package html[turbine,java]
   Test nullability annotation in package info[turbine,java]
+
+com.android.tools.metalava.model.testsuite.typeitem.CommonIsAssignableFromTest
+  Test assignability without unboxing[turbine,java,boxedInt to primitiveInt]
+  Test assignability without unboxing[turbine,java,number to boxedInt]
+  Test assignability without unboxing[turbine,java,number to primitiveInt]
+  Test assignability without unboxing[turbine,java,obj to string]
 
 com.android.tools.metalava.model.testsuite.typeitem.CommonTypeItemTest
   Test inner types from classpath[turbine,java]

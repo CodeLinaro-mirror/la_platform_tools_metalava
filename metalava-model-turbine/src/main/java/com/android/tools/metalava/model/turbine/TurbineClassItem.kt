@@ -212,7 +212,6 @@ internal open class TurbineClassItem(
                 method.documentation,
                 method.defaultValue(),
             )
-        mods.setOwner(duplicateMethod)
         duplicateMethod.parameters = params
         duplicateMethod.inheritedFrom = method.containingClass()
         duplicateMethod.throwableTypes = method.throwableTypes

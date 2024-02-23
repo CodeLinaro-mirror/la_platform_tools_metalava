@@ -78,8 +78,13 @@ internal fun BaseModelTest.runNullabilityTest(
  * @param expectAnnotation `true` if an appropriate annotation is expected, `false` if it is not,
  *   `null` disables the annotation check.
  */
-internal fun TypeItem.assertHasNonNullNullability(expectAnnotation: Boolean? = null) {
-    assertThat(modifiers.nullability()).isEqualTo(TypeNullability.NONNULL)
+internal fun TypeItem.assertHasNonNullNullability(
+    expectAnnotation: Boolean? = null,
+    message: String? = null,
+) {
+    assertWithMessage(message ?: "")
+        .that(modifiers.nullability())
+        .isEqualTo(TypeNullability.NONNULL)
     when (expectAnnotation) {
         true -> assertThat(modifiers.annotations().single().isNonNull()).isTrue()
         false -> assertThat(modifiers.annotations().isEmpty())

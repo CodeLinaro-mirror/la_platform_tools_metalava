@@ -206,7 +206,6 @@ internal open class TurbineCodebaseInitialiser(
         } else {
             val modifiers = TurbineModifierItem.create(codebase, 0, null, false)
             val turbinePkgItem = TurbinePackageItem.create(codebase, name, modifiers, document)
-            modifiers.setOwner(turbinePkgItem)
             codebase.addPackage(turbinePkgItem)
             return turbinePkgItem
         }
@@ -339,7 +338,6 @@ internal open class TurbineCodebaseInitialiser(
                 getCommentedDoc(documentation),
                 sourceFile,
             )
-        modifierItem.setOwner(classItem)
         classItem.containingClass = containingClassItem
         modifierItem.setSynchronized(false) // A class can not be synchronized in java
 
@@ -585,7 +583,6 @@ internal open class TurbineCodebaseInitialiser(
         val modifiers =
             TurbineModifierItem.create(codebase, 0, createAnnotations(param.annotations()), false)
         val typeParamItem = TurbineTypeParameterItem(codebase, modifiers, name = sym.name())
-        modifiers.setOwner(typeParamItem)
         return typeParamItem
     }
 
@@ -622,14 +619,29 @@ internal open class TurbineCodebaseInitialiser(
         classItem.fields =
             fields.map { field ->
                 val annotations = createAnnotations(field.annotations())
+                val flags = field.access()
                 val fieldModifierItem =
                     TurbineModifierItem.create(
                         codebase,
-                        field.access(),
+                        flags,
                         annotations,
                         isDeprecated(field.decl()?.javadoc())
                     )
-                val type = typeItemFactory.getGeneralType(field.type())
+                val isEnumConstant = (flags and TurbineFlag.ACC_ENUM) != 0
+                val fieldValue = createInitialValue(field)
+                val type =
+                    typeItemFactory.getFieldType(
+                        underlyingType = field.type(),
+                        itemAnnotations = annotations,
+                        isEnumConstant = isEnumConstant,
+                        isFinal = fieldModifierItem.isFinal(),
+                        isInitialValueNonNull = {
+                            // The initial value is non-null if the value is a literal which is not
+                            // null.
+                            fieldValue.initialValue(false) != null
+                        }
+                    )
+
                 val documentation = field.decl()?.javadoc() ?: ""
                 val fieldItem =
                     TurbineFieldItem(
@@ -639,11 +651,9 @@ internal open class TurbineCodebaseInitialiser(
                         type,
                         fieldModifierItem,
                         getCommentedDoc(documentation),
+                        isEnumConstant,
+                        fieldValue,
                     )
-                fieldModifierItem.setOwner(fieldItem)
-                val optExpr = field.decl()?.init()
-                val expr = if (optExpr != null && optExpr.isPresent()) optExpr.get() else null
-                setInitialValue(fieldItem, field.value()?.getValue(), expr)
                 fieldItem
             }
     }
@@ -690,7 +700,6 @@ internal open class TurbineCodebaseInitialiser(
                             getCommentedDoc(documentation),
                             defaultValue,
                         )
-                    methodModifierItem.setOwner(methodItem)
                     createParameters(methodItem, method.parameters(), methodTypeItemFactory)
                     methodItem.throwableTypes =
                         getThrowsList(method.exceptions(), methodTypeItemFactory)
@@ -725,7 +734,6 @@ internal open class TurbineCodebaseInitialiser(
                         type,
                         parameterModifierItem,
                     )
-                parameterModifierItem.setOwner(parameterItem)
                 parameterItem
             }
     }
@@ -773,7 +781,6 @@ internal open class TurbineCodebaseInitialiser(
                             getCommentedDoc(documentation),
                             "",
                         )
-                    constructorModifierItem.setOwner(constructorItem)
                     createParameters(
                         constructorItem,
                         constructor.parameters(),
@@ -828,30 +835,31 @@ internal open class TurbineCodebaseInitialiser(
             .toString()
     }
 
-    private fun setInitialValue(fieldItem: TurbineFieldItem, value: Any?, expr: Expression?) {
-        if (value != null) {
-            fieldItem.initialValueWithRequiredConstant = value
-            fieldItem.initialValueWithoutRequiredConstant = value
-            return
-        }
-        if (expr != null) {
-            return when (expr.kind()) {
-                Tree.Kind.LITERAL -> {
-                    fieldItem.initialValueWithRequiredConstant = null
-                    fieldItem.initialValueWithoutRequiredConstant =
-                        getValue((expr as Literal).value())
-                }
-                // Class Type
-                Tree.Kind.CLASS_LITERAL -> {
-                    fieldItem.initialValueWithRequiredConstant = null
-                    fieldItem.initialValueWithoutRequiredConstant = expr
-                }
-                else -> {
-                    fieldItem.initialValueWithRequiredConstant = null
-                    fieldItem.initialValueWithoutRequiredConstant = null
-                }
+    private fun createInitialValue(field: FieldInfo): TurbineFieldValue {
+        val optExpr = field.decl()?.init()
+        val expr = if (optExpr != null && optExpr.isPresent()) optExpr.get() else null
+        val constantValue = field.value()?.getValue()
+
+        val initialValueWithoutRequiredConstant =
+            when {
+                constantValue != null -> constantValue
+                expr == null -> null
+                else ->
+                    when (expr.kind()) {
+                        Tree.Kind.LITERAL -> {
+                            getValue((expr as Literal).value())
+                        }
+                        // Class Type
+                        Tree.Kind.CLASS_LITERAL -> {
+                            expr
+                        }
+                        else -> {
+                            null
+                        }
+                    }
             }
-        }
+
+        return TurbineFieldValue(constantValue, initialValueWithoutRequiredConstant)
     }
 
     /** Determines whether the given method is a default enum method ("values" or "valueOf"). */

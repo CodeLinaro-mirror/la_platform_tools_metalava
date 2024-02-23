@@ -44,7 +44,7 @@ import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.findAnnotation
 import com.android.tools.metalava.model.psi.PsiClassItem
-import com.android.tools.metalava.model.psi.PsiItem.Companion.isKotlin
+import com.android.tools.metalava.model.psi.isKotlin
 import com.android.tools.metalava.model.source.SourceParser
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.reporter.Issues
@@ -561,7 +561,7 @@ class ApiAnalyzer(
             val psi = (cls as? PsiClassItem)?.psi()
             if (
                 psi != null &&
-                    isKotlin(psi) &&
+                    psi.isKotlin() &&
                     psi is UClass &&
                     psi.javaPsi is KtLightClassForFacade &&
                     // a facade class needs to be emitted if it has any top-level fun/prop to emit

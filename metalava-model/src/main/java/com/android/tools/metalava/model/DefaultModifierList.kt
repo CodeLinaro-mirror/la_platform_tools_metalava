@@ -21,7 +21,8 @@ class DefaultModifierList(
     private var flags: Int = PACKAGE_PRIVATE,
     private var annotations: MutableList<AnnotationItem>? = null
 ) : MutableModifierList {
-    private lateinit var owner: Item
+    /** Set in [DefaultItem] initialization. */
+    internal lateinit var owner: Item
 
     private operator fun set(mask: Int, set: Boolean) {
         flags =
@@ -42,17 +43,6 @@ class DefaultModifierList(
 
     override fun owner(): Item {
         return owner
-    }
-
-    fun setOwner(owner: Item) {
-        this.owner = owner
-
-        if (owner.hasInheritedGenericType()) {
-            // https://youtrack.jetbrains.com/issue/KTIJ-19087
-            // Incorrect nullness annotation was added to generic parameter
-            // whose nullability is determined at subclass declaration site.
-            annotations?.removeIf { it.isNullnessAnnotation() }
-        }
     }
 
     override fun getVisibilityLevel(): VisibilityLevel {
