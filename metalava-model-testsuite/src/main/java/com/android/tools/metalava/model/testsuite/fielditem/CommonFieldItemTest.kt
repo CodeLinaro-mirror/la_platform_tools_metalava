@@ -314,7 +314,7 @@ class CommonFieldItemTest : BaseModelTest() {
     fun `Test nullability of field annotated with @not-type-use-Nullable`() {
         runCodebaseTest(
             inputSet(
-                KnownSourceFiles.notTypeUseNonNullSource,
+                KnownSourceFiles.notTypeUseNullableSource,
                 java(
                     """
                         package test.pkg;

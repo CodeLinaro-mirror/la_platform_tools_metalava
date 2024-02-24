@@ -45,9 +45,6 @@ internal class TextParameterItem(
         return modifiers.isVarArg()
     }
 
-    override val synthetic: Boolean
-        get() = containingMethod.isEnumSyntheticMethod()
-
     override fun type(): TypeItem = type
 
     override fun name(): String = name

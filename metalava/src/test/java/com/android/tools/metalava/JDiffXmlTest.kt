@@ -171,8 +171,6 @@ class JDiffXmlTest : DriverTest() {
               public final class Foo extends java.lang.Enum {
                 ctor public Foo(int);
                 ctor public Foo(int, int);
-                method public static test.pkg.Foo valueOf(java.lang.String);
-                method public static final test.pkg.Foo[] values();
               }
               public abstract interface MyBaseInterface {
               }
@@ -239,30 +237,6 @@ class JDiffXmlTest : DriverTest() {
             <parameter name="null" type="int">
             </parameter>
             </constructor>
-            <method name="valueOf"
-             return="test.pkg.Foo"
-             abstract="false"
-             native="false"
-             synchronized="false"
-             static="true"
-             final="false"
-             deprecated="not deprecated"
-             visibility="public"
-            >
-            <parameter name="null" type="java.lang.String">
-            </parameter>
-            </method>
-            <method name="values"
-             return="test.pkg.Foo[]"
-             abstract="false"
-             native="false"
-             synchronized="false"
-             static="true"
-             final="true"
-             deprecated="not deprecated"
-             visibility="public"
-            >
-            </method>
             </class>
             <interface name="MyBaseInterface"
              abstract="true"
@@ -357,8 +331,6 @@ class JDiffXmlTest : DriverTest() {
               public final class Foo extends java.lang.Enum {
                 ctor public Foo(int);
                 ctor public Foo(int, int);
-                method public static test.pkg.Foo valueOf(java.lang.String);
-                method public static final test.pkg.Foo[] values();
                 enum_constant public static final test.pkg.Foo A;
                 enum_constant public static final test.pkg.Foo B;
               }
@@ -401,30 +373,6 @@ class JDiffXmlTest : DriverTest() {
             <parameter name="null" type="int">
             </parameter>
             </constructor>
-            <method name="valueOf"
-             return="test.pkg.Foo"
-             abstract="false"
-             native="false"
-             synchronized="false"
-             static="true"
-             final="false"
-             deprecated="not deprecated"
-             visibility="public"
-            >
-            <parameter name="null" type="java.lang.String">
-            </parameter>
-            </method>
-            <method name="values"
-             return="test.pkg.Foo[]"
-             abstract="false"
-             native="false"
-             synchronized="false"
-             static="true"
-             final="true"
-             deprecated="not deprecated"
-             visibility="public"
-            >
-            </method>
             <field name="A"
              type="test.pkg.Foo"
              transient="false"

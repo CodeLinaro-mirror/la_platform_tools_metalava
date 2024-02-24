@@ -356,12 +356,6 @@ interface MethodItem : MemberItem, TypeParameterListOwner {
             return nullable
         }
 
-        if (synthetic && isEnumSyntheticMethod()) {
-            // Workaround the fact that the Kotlin synthetic enum methods
-            // do not have nullness information
-            return false
-        }
-
         // toString has known nullness
         if (name() == "toString" && parameters().isEmpty()) {
             return false
@@ -466,18 +460,6 @@ interface MethodItem : MemberItem, TypeParameterListOwner {
 
     /** Whether this method is a getter/setter for an underlying Kotlin property (val/var) */
     fun isKotlinProperty(): Boolean = false
-
-    /** Returns true if this is a synthetic enum method */
-    fun isEnumSyntheticMethod(): Boolean = isEnumSyntheticValues() || isEnumSyntheticValueOf()
-
-    fun isEnumSyntheticValues(): Boolean =
-        containingClass().isEnum() && name() == JAVA_ENUM_VALUES && parameters().isEmpty()
-
-    fun isEnumSyntheticValueOf(): Boolean =
-        containingClass().isEnum() &&
-            name() == JAVA_ENUM_VALUE_OF &&
-            parameters().size == 1 &&
-            parameters()[0].type().isString()
 
     /**
      * Determines if the method is a method that needs to be overridden in any child classes that

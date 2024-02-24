@@ -34,7 +34,7 @@ internal open class TextMethodItem(
     modifiers: DefaultModifierList,
     private val returnType: TypeItem,
     private val parameters: List<TextParameterItem>,
-    position: SourcePositionInfo
+    position: SourcePositionInfo,
 ) : TextMemberItem(codebase, name, containingClass, position, modifiers = modifiers), MethodItem {
     init {
         parameters.forEach { it.containingMethod = this }
@@ -135,9 +135,6 @@ internal open class TextMethodItem(
 
         return duplicated
     }
-
-    override val synthetic: Boolean
-        get() = isEnumSyntheticMethod()
 
     private var throwsTypes: List<ExceptionTypeItem> = emptyList()
 

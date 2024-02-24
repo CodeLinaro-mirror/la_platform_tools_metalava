@@ -1193,8 +1193,6 @@ class ApiFileTest : DriverTest() {
                     method public test.pkg.Issue create(String id, String briefDescription, String explanation);
                   }
                   public enum Language {
-                    method public static test.pkg.Language valueOf(String value) throws java.lang.IllegalArgumentException, java.lang.NullPointerException;
-                    method public static test.pkg.Language[] values();
                     enum_constant public static final test.pkg.Language JAVA;
                     enum_constant public static final test.pkg.Language KOTLIN;
                   }
@@ -1680,8 +1678,6 @@ class ApiFileTest : DriverTest() {
                 """
                 package test.pkg {
                   public enum Foo {
-                    method public static test.pkg.Foo valueOf(String value) throws java.lang.IllegalArgumentException, java.lang.NullPointerException;
-                    method public static test.pkg.Foo[] values();
                     enum_constant public static final test.pkg.Foo A;
                     enum_constant public static final test.pkg.Foo B;
                   }
@@ -2426,8 +2422,6 @@ class ApiFileTest : DriverTest() {
             """
             package java.nio.file.attribute {
               public enum AclEntryPermission {
-                method public static java.nio.file.attribute.AclEntryPermission valueOf(String);
-                method public static final java.nio.file.attribute.AclEntryPermission[] values();
                 enum_constant public static final java.nio.file.attribute.AclEntryPermission APPEND_DATA;
                 enum_constant public static final java.nio.file.attribute.AclEntryPermission DELETE;
                 enum_constant public static final java.nio.file.attribute.AclEntryPermission DELETE_CHILD;

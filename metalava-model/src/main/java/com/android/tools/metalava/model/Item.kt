@@ -97,12 +97,6 @@ interface Item {
     /** True if this element is only intended for documentation */
     var docOnly: Boolean
 
-    /**
-     * True if this is a synthetic element, such as the generated "value" and "valueOf" methods in
-     * enums
-     */
-    val synthetic: Boolean
-
     /** True if this item is either hidden or removed */
     fun isHiddenOrRemoved(): Boolean = hidden || removed
 

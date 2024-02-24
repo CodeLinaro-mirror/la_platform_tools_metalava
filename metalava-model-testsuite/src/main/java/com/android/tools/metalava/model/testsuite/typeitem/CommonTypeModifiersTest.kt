@@ -1891,19 +1891,6 @@ class CommonTypeModifiersTest : BaseModelTest() {
             val enumConstant = fooEnum.fields().single()
             assertThat(enumConstant.isEnumConstant()).isTrue()
             enumConstant.type().assertHasNonNullNullability(expectAnnotation = false)
-
-            // method public static values(): test.pkg.Foo[];
-            val values = fooEnum.assertMethod("values", "").returnType()
-            values.assertHasNonNullNullability(expectAnnotation = false)
-            values.assertArrayTypeItem { componentType.assertHasNonNullNullability(false) }
-
-            // method public static getEntries(): kotlin.enums.EnumEntries<test.pkg.Foo>;
-            val enumEntries = fooEnum.assertMethod("getEntries", "").returnType()
-            enumEntries.assertClassTypeItem {
-                assertHasNonNullNullability(expectAnnotation = false)
-                val enumEntry = arguments.single()
-                enumEntry.assertHasNonNullNullability(expectAnnotation = false)
-            }
         }
     }
 

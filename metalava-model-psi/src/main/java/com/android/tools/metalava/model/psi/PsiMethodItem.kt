@@ -114,9 +114,6 @@ open class PsiMethodItem(
 
     override fun parameters(): List<PsiParameterItem> = parameters
 
-    override val synthetic: Boolean
-        get() = isEnumSyntheticMethod()
-
     override fun psi() = psiMethod
 
     private var superMethods: List<MethodItem>? = null
@@ -352,11 +349,7 @@ open class PsiMethodItem(
                 // No need to apply 'final' to each method. (We do it here rather than just in the
                 // signature emit code since we want to make sure that the signature comparison
                 // methods with super methods also consider this method non-final.)
-                if (!method.isEnumSyntheticMethod()) {
-                    // Unless this is a non-synthetic enum member
-                    // See: https://youtrack.jetbrains.com/issue/KT-57567
-                    modifiers.setFinal(false)
-                }
+                modifiers.setFinal(false)
             }
 
             return method

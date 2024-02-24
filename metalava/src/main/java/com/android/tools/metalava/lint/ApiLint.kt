@@ -1695,7 +1695,6 @@ private constructor(
 
     private fun checkExceptions(method: MethodItem, filterReference: Predicate<Item>) {
         for (throwableType in method.filteredThrowsTypes(filterReference)) {
-            if (method.isEnumSyntheticMethod()) continue
             // Get the throwable class, which for a type parameter will be the lower bound. A
             // method that throws a type parameter is treated as if it throws its lower bound, so
             // it makes sense for this check to treat it as if it was replaced with its lower bound.

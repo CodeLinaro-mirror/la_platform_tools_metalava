@@ -32,6 +32,7 @@ import com.android.tools.metalava.model.DefaultAnnotationItem
 import com.android.tools.metalava.model.DefaultAnnotationSingleAttributeValue
 import com.android.tools.metalava.model.DefaultTypeParameterList
 import com.android.tools.metalava.model.ExceptionTypeItem
+import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.TypeItem
@@ -160,6 +161,8 @@ internal open class TurbineCodebaseInitialiser(
                     // The ClassItem.type() is never nullable even if the class has an @Nullable
                     // annotation.
                     if (item is ClassItem) return
+                    // Fields are handle by [TurbineTypeItemFactory.getFieldType].
+                    if (item is FieldItem) return
 
                     val type = item.type() ?: return
                     val implicitNullness = item.implicitNullness()

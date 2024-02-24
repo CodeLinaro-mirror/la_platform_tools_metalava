@@ -173,9 +173,6 @@ internal constructor(
         return null
     }
 
-    override val synthetic: Boolean
-        get() = containingMethod.isEnumSyntheticMethod()
-
     private var defaultValue: String? = null
 
     override fun defaultValue(): String? {

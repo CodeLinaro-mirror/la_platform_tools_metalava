@@ -107,14 +107,8 @@ interface ParameterItem : Item {
             return nullable
         }
 
-        val method = containingMethod()
-        if (synthetic && method.isEnumSyntheticMethod()) {
-            // Workaround the fact that the Kotlin synthetic enum methods
-            // do not have nullness information
-            return false
-        }
-
         // Equals has known nullness
+        val method = containingMethod()
         if (method.name() == "equals" && method.parameters().size == 1) {
             return true
         }

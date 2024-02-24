@@ -34,8 +34,6 @@ internal abstract class TurbineItem(
         documentation.contains("@hide") || documentation.contains("@pending") || hasHideAnnotation()
     }
 
-    override var synthetic: Boolean = false
-
     override var removed: Boolean = false
 
     override fun appendDocumentation(comment: String, tagSection: String?, append: Boolean) {
