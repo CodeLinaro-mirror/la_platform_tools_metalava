@@ -24,6 +24,7 @@ import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterBindings
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.findAnnotation
+import com.android.tools.metalava.model.fixUpTypeNullability
 import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.model.psi.CodePrinter.Companion.constantToSource
 import com.intellij.psi.LambdaUtil
@@ -248,8 +249,6 @@ internal constructor(
         return parameterIndex
     }
 
-    override fun toString(): String = "parameter ${name()}"
-
     override fun isVarArgs(): Boolean {
         return psiParameter.isVarArgs || modifiers.isVarArg()
     }
@@ -306,7 +305,7 @@ internal constructor(
 
     override fun finishInitialization() {
         super.finishInitialization()
-        type.finishInitialization(this)
+        type.fixUpTypeNullability(this)
     }
 
     companion object {

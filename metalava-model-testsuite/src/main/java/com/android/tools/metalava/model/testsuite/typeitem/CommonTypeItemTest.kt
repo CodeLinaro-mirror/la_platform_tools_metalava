@@ -891,6 +891,7 @@ class CommonTypeItemTest : BaseModelTest() {
             assertThat(outerType).isNotNull()
             assertThat(outerType!!.qualifiedName).isEqualTo("java.util.Map")
             assertThat(outerType.className).isEqualTo("Map")
+            assertThat(outerType.arguments).hasSize(0)
             assertThat(outerType.outerClassType).isNull()
         }
     }
@@ -964,6 +965,89 @@ class CommonTypeItemTest : BaseModelTest() {
             val outerClassTypeArgument = outerType.arguments.single()
             outerClassTypeArgument.assertReferencesTypeParameter(p1)
             assertThat((outerClassTypeArgument as VariableTypeItem).name).isEqualTo("P1")
+        }
+    }
+
+    @Test
+    fun `Test inner parameterized types without explicit outer type`() {
+        runCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+
+                        import test.pkg1.Outer.Middle.Inner;
+
+                        public class Test {
+                            public Inner<String> foo() {
+                                return new Inner<String>();
+                            }
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg1;
+
+                        public class Outer<O> {
+                            public class Middle {
+                                public class Inner<I> {}
+                            }
+                        }
+                    """
+                ),
+            ),
+            inputSet(
+                signature(
+                    """
+                        // Signature format: 3.0
+                        package test.pkg1 {
+                          public class Outer<O> {
+                            ctor public Outer();
+                          }
+                          public class Outer.Middle {
+                            ctor public Outer.Middle();
+                          }
+                          public class Outer.Middle.Inner<I> {
+                            ctor public Outer.Middle.Inner();
+                          }
+                        }
+                    """
+                ),
+                signature(
+                    """
+                        // Signature format: 3.0
+                        package test.pkg {
+                          public class Test {
+                            ctor public Test();
+                            method public test.pkg1.Outer.Middle.Inner<String> foo();
+                          }
+                        }
+                    """
+                )
+            )
+        ) {
+            val method = codebase.assertClass("test.pkg.Test").methods().single()
+
+            val innerType = method.returnType()
+            assertThat(innerType).isInstanceOf(ClassTypeItem::class.java)
+            assertThat((innerType as ClassTypeItem).qualifiedName)
+                .isEqualTo("test.pkg1.Outer.Middle.Inner")
+            assertThat(innerType.className).isEqualTo("Inner")
+            assertThat(innerType.arguments).hasSize(1)
+
+            val middleType = innerType.outerClassType
+            assertThat(middleType).isNotNull()
+            assertThat(middleType!!.qualifiedName).isEqualTo("test.pkg1.Outer.Middle")
+            assertThat(middleType.className).isEqualTo("Middle")
+            assertThat(middleType.arguments).hasSize(0)
+
+            val outerType = middleType.outerClassType
+            assertThat(outerType).isNotNull()
+            assertThat(outerType!!.qualifiedName).isEqualTo("test.pkg1.Outer")
+            assertThat(outerType.className).isEqualTo("Outer")
+            assertThat(outerType.outerClassType).isNull()
+            assertThat(outerType.arguments).hasSize(0)
         }
     }
 

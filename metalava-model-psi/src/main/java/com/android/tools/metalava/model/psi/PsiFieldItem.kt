@@ -106,8 +106,6 @@ class PsiFieldItem(
         return name.hashCode()
     }
 
-    override fun toString(): String = "field ${containingClass.fullName()}.${name()}"
-
     companion object {
         internal fun create(
             codebase: PsiBasedCodebase,

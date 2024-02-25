@@ -153,12 +153,6 @@ internal open class TextMethodItem(
     @Deprecated("This property should not be accessed directly.")
     override var _requiresOverride: Boolean? = null
 
-    override fun toString(): String =
-        "${if (isConstructor()) "constructor" else "method"} ${containingClass().qualifiedName()}.${toSignatureString()}"
-
-    fun toSignatureString(): String =
-        "${name()}(${parameters().joinToString { it.type().toSimpleType() }})"
-
     private var annotationDefault = ""
 
     fun setAnnotationDefault(default: String) {

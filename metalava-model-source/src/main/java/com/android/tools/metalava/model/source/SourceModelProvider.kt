@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.source
 
+import com.android.tools.metalava.model.ModelOptions
 import java.util.ServiceLoader
 
 /** Service provider interface for a model implementation that consumes source code. */
@@ -40,6 +41,14 @@ interface SourceModelProvider {
         disableStderrDumping: Boolean = false,
         forTesting: Boolean = false,
     ): EnvironmentManager
+
+    /**
+     * A list of sets of [ModelOptions] that must be tested.
+     *
+     * Default to a list of [ModelOptions.empty].
+     */
+    val modelOptionsList: List<ModelOptions>
+        get() = listOf(ModelOptions.empty)
 
     companion object {
         /**

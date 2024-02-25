@@ -36,9 +36,9 @@ import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.TypeItem
-import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.TypeParameterScope
+import com.android.tools.metalava.model.fixUpTypeNullability
 import com.google.common.collect.ImmutableList
 import com.google.common.collect.ImmutableMap
 import com.google.turbine.binder.Binder
@@ -55,6 +55,7 @@ import com.google.turbine.binder.bound.TypeBoundClass.ParamInfo
 import com.google.turbine.binder.bound.TypeBoundClass.TyVarInfo
 import com.google.turbine.binder.bytecode.BytecodeBoundClass
 import com.google.turbine.binder.env.CompoundEnv
+import com.google.turbine.binder.env.SimpleEnv
 import com.google.turbine.binder.lookup.LookupKey
 import com.google.turbine.binder.lookup.TopLevelIndex
 import com.google.turbine.binder.sym.ClassSymbol
@@ -67,6 +68,9 @@ import com.google.turbine.model.Const.Value
 import com.google.turbine.model.TurbineConstantTypeKind as PrimKind
 import com.google.turbine.model.TurbineFlag
 import com.google.turbine.model.TurbineTyKind
+import com.google.turbine.processing.ModelFactory
+import com.google.turbine.processing.TurbineElements
+import com.google.turbine.processing.TurbineTypes
 import com.google.turbine.tree.Tree
 import com.google.turbine.tree.Tree.ArrayInit
 import com.google.turbine.tree.Tree.Assign
@@ -80,6 +84,7 @@ import com.google.turbine.type.Type
 import java.io.File
 import java.util.Optional
 import javax.lang.model.SourceVersion
+import javax.lang.model.element.TypeElement
 
 /**
  * This initializer acts as an adapter between codebase and the output from Turbine parser.
@@ -108,6 +113,13 @@ internal open class TurbineCodebaseInitialiser(
 
     private val globalTypeItemFactory =
         TurbineTypeItemFactory(codebase, this, TypeParameterScope.empty)
+
+    /**
+     * Data Type: TurbineElements (An implementation of javax.lang.model.util.Elements)
+     *
+     * Usage: Enables lookup of TypeElement objects by name.
+     */
+    private lateinit var turbineElements: TurbineElements
 
     /**
      * Binds the units with the help of Turbine's binder.
@@ -145,6 +157,20 @@ internal open class TurbineCodebaseInitialiser(
         } catch (e: Throwable) {
             throw e
         }
+        // maps class symbols to their source-based definitions
+        val sourceEnv = SimpleEnv<ClassSymbol, SourceTypeBoundClass>(sourceClassMap)
+        // maps class symbols to their classpath-based definitions
+        val classpathEnv: CompoundEnv<ClassSymbol, TypeBoundClass> = CompoundEnv.of(envClassMap)
+        // provides a unified view of both source and classpath classes
+        val combinedEnv = classpathEnv.append(sourceEnv)
+
+        // used to create language model elements for code analysis
+        val factory = ModelFactory(combinedEnv, ClassLoader.getSystemClassLoader(), index)
+        // provides type-related operations within the Turbine compiler context
+        val turbineTypes = TurbineTypes(factory)
+        // provides access to code elements (packages, types, members) for analysis.
+        turbineElements = TurbineElements(factory, turbineTypes)
+
         createAllPackages()
         createAllClasses()
         correctNullability()
@@ -163,20 +189,10 @@ internal open class TurbineCodebaseInitialiser(
                     if (item is ClassItem) return
                     // Fields are handle by [TurbineTypeItemFactory.getFieldType].
                     if (item is FieldItem) return
-
+                    // Ignore any items that do not have types.
                     val type = item.type() ?: return
-                    val implicitNullness = item.implicitNullness()
-                    if (implicitNullness == true || item.modifiers.isNullable()) {
-                        type.modifiers.setNullability(TypeNullability.NULLABLE)
-                    } else if (implicitNullness == false || item.modifiers.isNonNull()) {
-                        type.modifiers.setNullability(TypeNullability.NONNULL)
-                    }
-                    // Also make array components for annotation types non-null
-                    if (
-                        type is ArrayTypeItem && item.containingClass()?.isAnnotationType() == true
-                    ) {
-                        type.componentType.modifiers.setNullability(TypeNullability.NONNULL)
-                    }
+
+                    type.fixUpTypeNullability(item)
                 }
             }
         )
@@ -607,7 +623,7 @@ internal open class TurbineCodebaseInitialiser(
     private fun createInnerClasses(
         classItem: TurbineClassItem,
         innerClasses: ImmutableList<ClassSymbol>,
-        enclosingClassTypeItemFactory: TurbineTypeItemFactory
+        enclosingClassTypeItemFactory: TurbineTypeItemFactory,
     ) {
         classItem.innerClasses =
             innerClasses.map { cls -> createClass(cls, classItem, enclosingClassTypeItemFactory) }
@@ -716,7 +732,7 @@ internal open class TurbineCodebaseInitialiser(
     private fun createParameters(
         methodItem: TurbineMethodItem,
         parameters: List<ParamInfo>,
-        typeItemFactory: TurbineTypeItemFactory
+        typeItemFactory: TurbineTypeItemFactory,
     ) {
         methodItem.parameters =
             parameters.mapIndexed { idx, parameter ->
@@ -946,4 +962,6 @@ internal open class TurbineCodebaseInitialiser(
             else -> getValue(const).toString()
         }
     }
+
+    internal fun getTypeElement(name: String): TypeElement? = turbineElements.getTypeElement(name)
 }

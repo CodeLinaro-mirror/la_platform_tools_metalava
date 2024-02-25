@@ -68,8 +68,6 @@ internal class TextParameterItem(
 
     override fun hashCode(): Int = parameterIndex
 
-    override fun toString(): String = "parameter ${name()}"
-
     internal fun duplicate(typeVariableMap: TypeParameterBindings): TextParameterItem {
         return TextParameterItem(
             codebase,

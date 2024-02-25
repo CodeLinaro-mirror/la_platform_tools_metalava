@@ -138,7 +138,7 @@ open class PsiBasedCodebase(
     /**
      * Map from package name to list of classes in that package. Initialized in [initializeFromJar]
      * and [initializeFromSources], updated by [registerPackageClass], and used and cleared in
-     * [finishInitialization].
+     * [fixUpTypeNullability].
      */
     private var packageClasses: MutableMap<String, MutableList<PsiClassItem>>? = null
 

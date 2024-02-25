@@ -104,9 +104,13 @@ abstract class BaseModelTest(fixedParameters: TestParameters? = null) : Assertio
             }
             val list =
                 runners.flatMap { runner ->
-                    runner.supportedInputFormats
-                        .map { inputFormat -> TestParameters(runner, inputFormat) }
-                        .toList()
+                    runner.testConfigurations.map {
+                        TestParameters(
+                            runner,
+                            it.inputFormat,
+                            it.modelOptions,
+                        )
+                    }
                 }
             return list
         }
@@ -197,9 +201,16 @@ abstract class BaseModelTest(fixedParameters: TestParameters? = null) : Assertio
         // Run the input set that matches the current inputFormat, if there is one.
         inputSets
             .singleOrNull { it.inputFormat == inputFormat }
-            ?.let {
+            ?.let { inputSet ->
                 val tempDir = temporaryFolder.newFolder()
-                runner.createCodebaseAndRun(tempDir, it.testFiles) { codebase -> test(codebase) }
+                val mainSourceDir =
+                    ModelSuiteRunner.SourceDir(dir = tempDir, contents = inputSet.testFiles)
+                val inputs =
+                    ModelSuiteRunner.TestInputs(
+                        modelOptions = baseParameters.modelOptions,
+                        mainSourceDir = mainSourceDir,
+                    )
+                runner.createCodebaseAndRun(inputs) { codebase -> test(codebase) }
             }
     }
 

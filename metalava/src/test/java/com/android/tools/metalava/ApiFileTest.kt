@@ -3849,7 +3849,6 @@ class ApiFileTest : DriverTest() {
                 """
             src/test/pkg/MyClass.java:3: error: Parameter of deprecated type test.pkg.DeprecatedClass in test.pkg.MyClass.method1(): this method should also be deprecated [ReferencesDeprecated]
             src/test/pkg/MyClass.java:4: error: Return type of deprecated type test.pkg.DeprecatedInterface in test.pkg.MyClass.method2(): this method should also be deprecated [ReferencesDeprecated]
-            src/test/pkg/MyClass.java:4: error: Returning deprecated type test.pkg.DeprecatedInterface from test.pkg.MyClass.method2(): this method should also be deprecated [ReferencesDeprecated]
             src/test/pkg/MyClass.java:2: error: Extending deprecated super class class test.pkg.DeprecatedClass from test.pkg.MyClass: this class should also be deprecated [ExtendsDeprecated]
             src/test/pkg/MyClass.java:2: error: Implementing interface of deprecated type test.pkg.DeprecatedInterface in test.pkg.MyClass: this class should also be deprecated [ExtendsDeprecated]
             """,

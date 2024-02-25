@@ -43,6 +43,8 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.MergedCodebase
+import com.android.tools.metalava.model.ModelOptions
+import com.android.tools.metalava.model.psi.PsiModelOptions
 import com.android.tools.metalava.model.source.EnvironmentManager
 import com.android.tools.metalava.model.source.SourceParser
 import com.android.tools.metalava.model.source.SourceSet
@@ -125,13 +127,17 @@ internal fun processFlags(
     val reporter = options.reporter
     val reporterApiLint = options.reporterApiLint
     val annotationManager = options.annotationManager
+    val modelOptions =
+        ModelOptions.build("from command line") {
+            this[PsiModelOptions.useK2Uast] = options.useK2Uast
+        }
     val sourceParser =
         environmentManager.createSourceParser(
             reporter = reporter,
             annotationManager = annotationManager,
             javaLanguageLevel = options.javaLanguageLevelAsString,
             kotlinLanguageLevel = options.kotlinLanguageLevelAsString,
-            useK2Uast = options.useK2Uast,
+            modelOptions = modelOptions,
             jdkHome = options.jdkHome,
         )
 

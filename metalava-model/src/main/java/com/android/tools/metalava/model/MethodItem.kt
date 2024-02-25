@@ -142,6 +142,11 @@ interface MethodItem : MemberItem, TypeParameterListOwner {
         visitor.visit(this)
     }
 
+    override fun toStringForItem(): String {
+        return "${if (isConstructor()) "constructor" else "method"} ${
+            containingClass().qualifiedName()}.${name()}(${parameters().joinToString { it.type().toSimpleType() }})"
+    }
+
     companion object {
         private fun compareMethods(
             o1: MethodItem,
@@ -349,7 +354,7 @@ interface MethodItem : MemberItem, TypeParameterListOwner {
         return true
     }
 
-    override fun implicitNullness(): Boolean? {
+    override fun implicitNullness(): TypeNullability? {
         // Delegate to the super class, only dropping through if it did not determine an implicit
         // nullness.
         super.implicitNullness()?.let { nullable ->
@@ -358,7 +363,7 @@ interface MethodItem : MemberItem, TypeParameterListOwner {
 
         // toString has known nullness
         if (name() == "toString" && parameters().isEmpty()) {
-            return false
+            return TypeNullability.NONNULL
         }
 
         return null

@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model.turbine
 
 import com.android.tools.metalava.model.AnnotationManager
+import com.android.tools.metalava.model.ModelOptions
 import com.android.tools.metalava.model.source.EnvironmentManager
 import com.android.tools.metalava.model.source.SourceParser
 import com.android.tools.metalava.reporter.Reporter
@@ -30,7 +31,7 @@ internal class TurbineEnvironmentManager() : EnvironmentManager {
         annotationManager: AnnotationManager,
         javaLanguageLevel: String,
         kotlinLanguageLevel: String,
-        useK2Uast: Boolean,
+        modelOptions: ModelOptions,
         jdkHome: File?,
     ): SourceParser {
         return TurbineSourceParser(annotationManager)

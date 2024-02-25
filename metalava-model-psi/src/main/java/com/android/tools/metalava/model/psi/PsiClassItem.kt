@@ -284,8 +284,6 @@ internal constructor(
 
     override fun hashCode(): Int = qualifiedName.hashCode()
 
-    override fun toString(): String = "class ${qualifiedName()}"
-
     companion object {
         private fun hasExplicitRetention(
             modifiers: DefaultModifierList,

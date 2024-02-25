@@ -58,6 +58,4 @@ internal class TextPackageItem(
     override fun hashCode(): Int {
         return name.hashCode()
     }
-
-    override fun toString(): String = "package $name"
 }

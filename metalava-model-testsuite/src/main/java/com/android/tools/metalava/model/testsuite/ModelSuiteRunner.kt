@@ -18,6 +18,7 @@ package com.android.tools.metalava.model.testsuite
 
 import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.ModelOptions
 import java.io.File
 
 /**
@@ -30,14 +31,48 @@ interface ModelSuiteRunner {
     /** The set of supported [InputFormat]s that this runner can handle. */
     val supportedInputFormats: Set<InputFormat>
 
+    /** Defines a specific test configuration for which the model tests should be run. */
+    data class TestConfiguration(
+        val inputFormat: InputFormat,
+        val modelOptions: ModelOptions = ModelOptions.empty,
+    )
+
     /**
-     * Create a [Codebase] from the supplied [input] files and then run a test on that [Codebase].
+     * The [TestConfiguration]s of this [ModelSuiteRunner] for which the model suite tests must be
+     * run.
      *
-     * Implementations of this consume [input] to create a [Codebase] on which the test is run.
+     * Defaults to just one per [supportedInputFormats].
+     */
+    val testConfigurations
+        get() = supportedInputFormats.map { TestConfiguration(it) }.toList()
+
+    /** A source directory and its contents. */
+    data class SourceDir(
+        /** The directory in which [contents] will be created. */
+        val dir: File,
+
+        /** The contents of [dir]. */
+        val contents: List<TestFile>,
+    ) {
+        fun createFiles() = contents.map { it.createFile(dir) }
+    }
+
+    /** Inputs for the test. */
+    data class TestInputs(
+        /** Model options to pass down to the model runner. */
+        val modelOptions: ModelOptions,
+
+        /** The main sources that will be loaded into the [Codebase] to be tested. */
+        val mainSourceDir: SourceDir,
+    )
+
+    /**
+     * Create a [Codebase] from the supplied [inputs] and then run a test on that [Codebase].
+     *
+     * Implementations of this consume [inputs] to create a [Codebase] on which the test is run.
      */
     fun createCodebaseAndRun(
-        tempDir: File,
-        input: List<TestFile>,
+        inputs: TestInputs,
         test: (Codebase) -> Unit,
     )
 

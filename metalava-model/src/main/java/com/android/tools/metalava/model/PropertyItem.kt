@@ -60,6 +60,8 @@ interface PropertyItem : MemberItem {
         visitor.visit(this)
     }
 
+    override fun toStringForItem(): String = "property ${containingClass().fullName()}.${name()}"
+
     override fun hasNullnessInfo(): Boolean {
         if (!requiresNullnessInfo()) {
             return true

@@ -19,6 +19,7 @@ package com.android.tools.metalava.model.psi
 import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.metalava.model.Assertions
 import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.ModelOptions
 import com.android.tools.metalava.model.noOpAnnotationManager
 import com.android.tools.metalava.model.source.EnvironmentManager
 import com.android.tools.metalava.model.source.SourceSet
@@ -111,7 +112,12 @@ open class BasePsiTest : TemporaryFolderOwner, Assertions {
                 temporaryFolder.newFolder() to temporaryFolder.newFolder()
             }
         return environmentManager
-            .createSourceParser(reporter, noOpAnnotationManager, useK2Uast = isK2)
+            .createSourceParser(
+                reporter,
+                noOpAnnotationManager,
+                modelOptions =
+                    ModelOptions.build("test") { this[PsiModelOptions.useK2Uast] = isK2 },
+            )
             .parseSources(
                 createSourceSet(sources, sourceDirectory),
                 createSourceSet(commonSources, commonDirectory),

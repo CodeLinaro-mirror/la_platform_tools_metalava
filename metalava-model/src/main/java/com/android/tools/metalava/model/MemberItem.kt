@@ -43,7 +43,7 @@ interface MemberItem : Item {
             containingClass().modifiers.isSealed()
     }
 
-    override fun implicitNullness(): Boolean? {
+    override fun implicitNullness(): TypeNullability? {
         // Delegate to the super class, only dropping through if it did not determine an implicit
         // nullness.
         super.implicitNullness()?.let { nullable ->
@@ -52,7 +52,7 @@ interface MemberItem : Item {
 
         // Annotation type members cannot be null
         if (containingClass().isAnnotationType()) {
-            return false
+            return TypeNullability.NONNULL
         }
 
         return null

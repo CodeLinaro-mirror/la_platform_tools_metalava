@@ -334,7 +334,7 @@ class StubsClassTest : AbstractStubsTest() {
                 """
                 src/test/pkg/PublicApi.java:4: error: Class test.pkg.HiddenType is not public but was referenced (in return type) from public method test.pkg.PublicApi.getHiddenType() [ReferencesHidden]
                 src/test/pkg/PublicApi.java:5: error: Class test.pkg.HiddenType4 is hidden but was referenced (in return type) from public method test.pkg.PublicApi.getHiddenType4() [ReferencesHidden]
-                src/test/pkg/PublicApi.java:5: warning: Method test.pkg.PublicApi.getHiddenType4 returns unavailable type HiddenType4 [UnavailableSymbol]
+                src/test/pkg/PublicApi.java:5: warning: Return type of unavailable type test.pkg.HiddenType4 in test.pkg.PublicApi.getHiddenType4() [UnavailableSymbol]
                 src/test/pkg/PublicApi.java:4: warning: Method test.pkg.PublicApi.getHiddenType() references hidden type test.pkg.HiddenType. [HiddenTypeParameter]
                 src/test/pkg/PublicApi.java:5: warning: Method test.pkg.PublicApi.getHiddenType4() references hidden type test.pkg.HiddenType4. [HiddenTypeParameter]
                 """,
