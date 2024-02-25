@@ -26,7 +26,7 @@ internal class TextFieldItem(
     name: String,
     containingClass: TextClassItem,
     modifiers: DefaultModifierList,
-    private val type: TextTypeItem,
+    private val type: TypeItem,
     private val constantValue: Any?,
     position: SourcePositionInfo
 ) : TextMemberItem(codebase, name, containingClass, position, modifiers), FieldItem {

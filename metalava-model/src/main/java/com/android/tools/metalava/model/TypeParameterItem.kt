@@ -25,14 +25,6 @@ interface TypeParameterItem : Item {
     /** The [VariableTypeItem] representing the type of this type parameter. */
     override fun type(): VariableTypeItem
 
-    @Deprecated(
-        message = "Please use typeBounds() instead.",
-        level = DeprecationLevel.ERROR,
-        replaceWith = ReplaceWith("typeBounds().mapNotNull { it.asClass() }")
-    )
-    @MetalavaApi
-    fun bounds(): List<ClassItem> = typeBounds().mapNotNull { it.asClass() }
-
     fun typeBounds(): List<BoundsTypeItem>
 
     /**

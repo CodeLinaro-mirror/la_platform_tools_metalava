@@ -37,7 +37,7 @@ val libraryToRunAgainst: Configuration by configurations.creating {
 
 dependencies {
     libraryToRunAgainst("androidx.compose.foundation:foundation:1.4.3")
-    runner(project(":"))
+    runner(project(":metalava"))
 }
 
 android { // minimal set up to make com.android.library plugin work
@@ -175,4 +175,5 @@ tasks.register<MetalavaRunner>("run") {
     metalavaClasspath.from(runner)
     signatureFile.set(layout.buildDirectory.file("current.txt"))
     apiLintBaseline.set(layout.projectDirectory.file("api_lint.ignore"))
+    outputs.upToDateWhen { false }
 }

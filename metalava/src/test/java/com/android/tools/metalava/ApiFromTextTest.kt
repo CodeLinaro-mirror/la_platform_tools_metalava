@@ -308,7 +308,7 @@ class ApiFromTextTest : DriverTest() {
         val source =
             """
             package a.b.c {
-              public interface MyStream<T, S extends a.b.c.MyStream<T,S>> {
+              public interface MyStream<T, S extends a.b.c.MyStream<T, S>> {
               }
             }
             package test.pkg {

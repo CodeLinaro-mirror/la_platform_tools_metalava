@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2023 The Android Open Source Project
+ * Copyright (C) 2024 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,17 +14,20 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava.model.turbine
+package com.android.tools.metalava.model.type
 
-import com.android.tools.metalava.model.Codebase
-import com.android.tools.metalava.model.DefaultTypeParameterList
+import com.android.tools.metalava.model.DefaultTypeItem
+import com.android.tools.metalava.model.TypeModifiers
 import com.android.tools.metalava.model.TypeParameterItem
+import com.android.tools.metalava.model.VariableTypeItem
 
-internal class TurbineTypeParameterList(
-    val codebase: Codebase,
-) : DefaultTypeParameterList() {
+class DefaultVariableTypeItem(
+    modifiers: TypeModifiers,
+    override val asTypeParameter: TypeParameterItem,
+) : VariableTypeItem, DefaultTypeItem(modifiers) {
 
-    internal lateinit var typeParameters: List<TypeParameterItem>
+    override val name: String = asTypeParameter.name()
 
-    override fun typeParameters(): List<TypeParameterItem> = typeParameters
+    override fun duplicate(): VariableTypeItem =
+        DefaultVariableTypeItem(modifiers.duplicate(), asTypeParameter)
 }

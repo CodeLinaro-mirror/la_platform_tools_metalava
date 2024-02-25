@@ -19,6 +19,8 @@ package com.android.tools.metalava.model.text
 import com.android.tools.metalava.model.BoundsTypeItem
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.TypeParameterItem
+import com.android.tools.metalava.model.VariableTypeItem
+import com.android.tools.metalava.model.type.DefaultVariableTypeItem
 
 internal class TextTypeParameterItem(
     codebase: TextCodebase,
@@ -50,11 +52,10 @@ internal class TextTypeParameterItem(
                 }
             }
 
-    override fun type(): TextVariableTypeItem {
-        return TextVariableTypeItem(
-            name,
+    override fun type(): VariableTypeItem {
+        return DefaultVariableTypeItem(
+            TextTypeModifiers.create(codebase, emptyList(), null),
             this,
-            TextTypeModifiers.create(codebase, emptyList(), null)
         )
     }
 
@@ -81,7 +82,7 @@ internal class TextTypeParameterItem(
          * This extracts the [isReified] and [name] from the [typeParameterString] and creates a
          * [TextTypeParameterItem] with those properties initialized but the [bounds] is not.
          *
-         * This must ONLY be used by [TextTypeParameterList.create] as that will complete the
+         * This must ONLY be used by [ApiFile.createTypeParameterList] as that will complete the
          * initialization of the [bounds] property.
          */
         fun create(

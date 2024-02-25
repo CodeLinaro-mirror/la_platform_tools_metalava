@@ -390,13 +390,13 @@ class TextTypeParserTest : BaseTextCodebaseTest() {
      */
     private fun testArrayType(
         inputType: String,
-        expectedInnerType: TextTypeItem,
+        expectedInnerType: TypeItem,
         expectedVarargs: Boolean
     ) {
         val type = parseType(inputType)
         assertThat(type).isInstanceOf(ArrayTypeItem::class.java)
         assertThat((type as ArrayTypeItem).componentType).isEqualTo(expectedInnerType)
-        assertThat((type as ArrayTypeItem).isVarargs).isEqualTo(expectedVarargs)
+        assertThat(type.isVarargs).isEqualTo(expectedVarargs)
     }
 
     @Test
@@ -430,7 +430,7 @@ class TextTypeParserTest : BaseTextCodebaseTest() {
         val type = parseType(inputType)
         assertThat(type).isInstanceOf(ClassTypeItem::class.java)
         assertThat((type as ClassTypeItem).qualifiedName).isEqualTo(expectedQualifiedName)
-        assertThat((type as ClassTypeItem).arguments).isEqualTo(expectedTypeArguments)
+        assertThat(type.arguments).isEqualTo(expectedTypeArguments)
     }
 
     @Test

@@ -670,7 +670,7 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
             assertEquals("test.pkg.Test1", testClassType1.qualifiedName)
             assertEquals(1, testClassType1.arguments.count())
             val typeArgument1 = testClassType1.arguments.single()
-            val typeParameter1 = testClass1.typeParameterList().typeParameters().single()
+            val typeParameter1 = testClass1.typeParameterList.single()
             typeArgument1.assertReferencesTypeParameter(typeParameter1)
             assertEquals("S", (typeArgument1 as VariableTypeItem).toString())
             assertEquals(0, typeParameter1.typeBounds().count())
@@ -681,7 +681,7 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
             assertEquals("test.pkg.Test1.Test2", testClassType2.qualifiedName)
             assertEquals(1, testClassType2.arguments.count())
             val typeArgument2 = testClassType2.arguments.single()
-            val typeParameter2 = testClass2.typeParameterList().typeParameters().single()
+            val typeParameter2 = testClass2.typeParameterList.single()
             typeArgument2.assertReferencesTypeParameter(typeParameter2)
             assertEquals("T", (typeArgument2 as VariableTypeItem).toString())
             assertEquals("test.pkg.Test", typeParameter2.typeBounds().single().toString())
@@ -751,10 +751,10 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
             val annoItem = codebase.assertClass("test.pkg.Nullable")
             val method1Item = classItem.methods()[0]
             val method2Item = classItem.methods()[1]
-            val classTypeParameterList = classItem.typeParameterList()
-            val method1TypeParameterList = method1Item.typeParameterList()
-            val method2TypeParameterList = method2Item.typeParameterList()
-            val annoTypeParameterList = annoItem.typeParameterList()
+            val classTypeParameterList = classItem.typeParameterList
+            val method1TypeParameterList = method1Item.typeParameterList
+            val method2TypeParameterList = method2Item.typeParameterList
+            val annoTypeParameterList = annoItem.typeParameterList
 
             val classParameterNames = listOf("T", "U", "V")
             val method1ParameterNames = listOf("Q", "R", "S")
@@ -762,19 +762,10 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
 
             assertEquals(true, classItem.hasTypeVariables())
 
-            assertEquals(
-                classParameterNames,
-                classTypeParameterList.typeParameters().map { it.name() }
-            )
-            assertEquals(emptyList(), annoTypeParameterList.typeParameters().map { it.name() })
-            assertEquals(
-                method1ParameterNames,
-                method1TypeParameterList.typeParameters().map { it.name() }
-            )
-            assertEquals(
-                method2TypeParameterNames,
-                method2TypeParameterList.typeParameters().map { it.name() }
-            )
+            assertEquals(classParameterNames, classTypeParameterList.map { it.name() })
+            assertEquals(emptyList(), annoTypeParameterList.map { it.name() })
+            assertEquals(method1ParameterNames, method1TypeParameterList.map { it.name() })
+            assertEquals(method2TypeParameterNames, method2TypeParameterList.map { it.name() })
 
             assertEquals(
                 "<T, U extends java.util.Map<? super U, java.lang.String>, V extends java.lang.Comparable & java.io.Serializable>",
@@ -819,7 +810,7 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
             assertNull(codebase.findClass("java.io.IOException"))
 
             // Resolve the types to classes.
-            val throwableClasses = methodItem.throwsTypes().map { it.classItem }
+            val throwableClasses = methodItem.throwsTypes().map { it.erasedClass }
 
             // This must be available after resolving throwable types.
             val ioExceptionClass = codebase.assertClass("java.io.IOException")

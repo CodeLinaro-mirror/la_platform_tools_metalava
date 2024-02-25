@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.model.AnnotationItem
+import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.TypeItem
@@ -51,7 +52,7 @@ internal constructor(
     private val psiParameter: PsiParameter,
     private val name: String,
     override val parameterIndex: Int,
-    modifiers: PsiModifierItem,
+    modifiers: DefaultModifierList,
     documentation: String,
     private val type: PsiTypeItem
 ) :
@@ -313,10 +314,11 @@ internal constructor(
     }
 
     companion object {
-        fun create(
+        internal fun create(
             codebase: PsiBasedCodebase,
             psiParameter: PsiParameter,
-            parameterIndex: Int
+            parameterIndex: Int,
+            enclosingMethodTypeItemFactory: PsiTypeItemFactory,
         ): PsiParameterItem {
             val name = psiParameter.name
             val commentText = "" // no javadocs on individual parameters
@@ -348,7 +350,7 @@ internal constructor(
                 } else {
                     psiType
                 }
-            val type = codebase.getType(workaroundPsiType, psiParameter)
+            val type = enclosingMethodTypeItemFactory.getType(workaroundPsiType, psiParameter)
             val parameter =
                 PsiParameterItem(
                     codebase = codebase,
@@ -364,19 +366,18 @@ internal constructor(
         }
 
         fun create(
-            codebase: PsiBasedCodebase,
             original: PsiParameterItem,
             typeParameterBindings: TypeParameterBindings
         ): PsiParameterItem {
             val type = original.type.convertType(typeParameterBindings) as PsiTypeItem
             val parameter =
                 PsiParameterItem(
-                    codebase = codebase,
+                    codebase = original.codebase,
                     psiParameter = original.psiParameter,
                     name = original.name,
                     parameterIndex = original.parameterIndex,
                     documentation = original.documentation,
-                    modifiers = PsiModifierItem.create(codebase, original.modifiers),
+                    modifiers = original.modifiers.duplicate(),
                     type = type
                 )
             parameter.modifiers.setOwner(parameter)
@@ -384,18 +385,17 @@ internal constructor(
         }
 
         fun create(
-            codebase: PsiBasedCodebase,
             original: List<ParameterItem>,
             typeParameterBindings: TypeParameterBindings
         ): List<PsiParameterItem> {
-            return original.map { create(codebase, it as PsiParameterItem, typeParameterBindings) }
+            return original.map { create(it as PsiParameterItem, typeParameterBindings) }
         }
 
         private fun createParameterModifiers(
             codebase: PsiBasedCodebase,
             psiParameter: PsiParameter,
             commentText: String
-        ): PsiModifierItem {
+        ): DefaultModifierList {
             val modifiers = PsiModifierItem.create(codebase, psiParameter, commentText)
             // Method parameters don't have a visibility level; they are visible to anyone that can
             // call their method. However, Kotlin constructors sometimes appear to specify the

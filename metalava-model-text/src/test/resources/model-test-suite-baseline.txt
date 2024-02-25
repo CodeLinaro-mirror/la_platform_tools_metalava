@@ -11,6 +11,10 @@ com.android.tools.metalava.model.testsuite.annotationitem.CommonAnnotationItemTe
   annotation with negative number values[text,signature]
   annotation with type cast values[text,signature]
 
+com.android.tools.metalava.model.testsuite.fielditem.CommonFieldItemTest
+  Test implicit nullability of enum constant[text,signature]
+  Test nullability of non-null field annotated with @Nullable or kotlin equivalent[text,signature]
+
 com.android.tools.metalava.model.testsuite.typeitem.CommonTypeModifiersTest
   Test implicit nullability of annotation members[text,signature]
   Test implicit nullability of equals parameter[text,signature]

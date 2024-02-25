@@ -76,7 +76,7 @@ interface ParameterItem : Item {
     fun defaultValue(): String?
 
     /** Whether this is a varargs parameter */
-    @MetalavaApi fun isVarArgs(): Boolean
+    fun isVarArgs(): Boolean
 
     /** The property declared by this parameter; inverse of [PropertyItem.constructorParameter] */
     val property: PropertyItem?

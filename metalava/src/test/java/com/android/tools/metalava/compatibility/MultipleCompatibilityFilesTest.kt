@@ -28,7 +28,7 @@ class MultipleCompatibilityFilesTest : DriverTest() {
               public class Bar extends IllegalStateException {
               }
               public class Foo {
-                method public void foo() throws Bar;
+                method public void foo() throws test.pkg.Bar;
               }
             }
         """
@@ -40,7 +40,7 @@ class MultipleCompatibilityFilesTest : DriverTest() {
               public class Baz extends test.pkg.Bar {
               }
               public class Foo {
-                method public void foo() throws Baz;
+                method public void foo() throws test.pkg.Baz;
               }
             }
         """
@@ -57,7 +57,7 @@ class MultipleCompatibilityFilesTest : DriverTest() {
               public class Baz extends test.pkg.Bar {
               }
               public class Foo {
-                method public void foo() throws Baz;
+                method public void foo() throws test.pkg.Baz;
               }
             }
         """
@@ -70,8 +70,7 @@ class MultipleCompatibilityFilesTest : DriverTest() {
             // This fails because the previous system API is not provided.
             expectedIssues =
                 """
-                    load-api.txt:8: error: Method test.pkg.Foo.foo no longer throws exception Bar [ChangedThrows]
-                    load-api.txt:8: error: Method test.pkg.Foo.foo added thrown exception Baz [ChangedThrows]
+                    load-api.txt:8: error: Method test.pkg.Foo.foo added thrown exception test.pkg.Baz [ChangedThrows]
                 """,
         )
     }
@@ -105,8 +104,7 @@ class MultipleCompatibilityFilesTest : DriverTest() {
             // is why it is getting the same errors as when public only is provided.
             expectedIssues =
                 """
-                    load-api.txt:8: error: Method test.pkg.Foo.foo no longer throws exception Bar [ChangedThrows]
-                    load-api.txt:8: error: Method test.pkg.Foo.foo added thrown exception Baz [ChangedThrows]
+                    load-api.txt:8: error: Method test.pkg.Foo.foo added thrown exception test.pkg.Baz [ChangedThrows]
                 """,
         )
     }

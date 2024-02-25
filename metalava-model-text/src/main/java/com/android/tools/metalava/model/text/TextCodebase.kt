@@ -20,6 +20,7 @@ import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassResolver
+import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.DefaultAnnotationItem
 import com.android.tools.metalava.model.DefaultCodebase
 import com.android.tools.metalava.model.DefaultModifierList
@@ -42,11 +43,6 @@ internal class TextCodebase(
     internal val mAllClasses = HashMap<String, TextClassItem>(30000)
 
     private val externalClasses = HashMap<String, ClassItem>()
-
-    /**
-     * A set of empty [TextTypeModifiers] owned by, and reused by items within, this [TextCodebase].
-     */
-    internal val emptyTypeModifiers = TextTypeModifiers.create(this, emptyList(), null)
 
     override fun trustedApi(): Boolean = true
 
@@ -80,7 +76,49 @@ internal class TextCodebase(
     }
 
     fun registerClass(cls: TextClassItem) {
-        mAllClasses[cls.qualifiedName] = cls
+        val qualifiedName = cls.qualifiedName
+        mAllClasses[qualifiedName] = cls
+
+        // A real class exists so a stub will not be created.
+        requiredStubKindForClass.remove(qualifiedName)
+    }
+
+    /**
+     * The [StubKind] required for each class which could not be found, defaults to [StubKind.CLASS]
+     * if not specified.
+     *
+     * Specific types, require a specific type of class, e.g. a type used in an `extends` clause of
+     * a concrete class requires a concrete class, whereas a type used in an `implements` clause of
+     * a concrete class, or an `extends` list of an interface requires an interface.
+     *
+     * Similarly, an annotation must be an annotation type and extends
+     * `java.lang.annotation.Annotation` and a `throws` type that is not a type parameter must be a
+     * concrete class that extends `java.lang.Throwable.`
+     *
+     * This contains information about the type use so that if a stub class is needed a class of the
+     * appropriate structure can be fabricated to avoid spurious issues being reported.
+     */
+    private val requiredStubKindForClass = mutableMapOf<String, StubKind>()
+
+    /**
+     * Register that the class type requires a specific stub kind.
+     *
+     * If a concrete class already exists then this does nothing. Otherwise, this registers the
+     * [StubKind] for the [ClassTypeItem.qualifiedName], making sure that it does not conflict with
+     * any previous requirements.
+     */
+    fun requireStubKindFor(classTypeItem: ClassTypeItem, stubKind: StubKind) {
+        val qualifiedName = classTypeItem.qualifiedName
+
+        // If a real class already exists then a stub will not need to be created.
+        if (mAllClasses[qualifiedName] != null) return
+
+        val existing = requiredStubKindForClass.put(qualifiedName, stubKind)
+        if (existing != null && existing != stubKind) {
+            error(
+                "Mismatching required stub kinds for $qualifiedName, found $existing and $stubKind"
+            )
+        }
     }
 
     /**
@@ -88,20 +126,18 @@ internal class TextCodebase(
      *
      * Tries to find [name] in [mAllClasses]. If not found, then if a [classResolver] is provided it
      * will invoke that and return the [ClassItem] it returns if any. Otherwise, it will create an
-     * empty stub class (or interface, if [isInterface] is true).
+     * empty stub class of the [StubKind] specified in [requiredStubKindForClass] or
+     * [StubKind.CLASS] if no specific [StubKind] was required.
      *
      * Initializes outer classes and packages for the created class as needed.
      *
      * @param name the name of the class.
-     * @param isInterface true if the class must be an interface, i.e. is referenced from an
-     *   `implements` list (or Kotlin equivalent).
      * @param isOuterClass if `true` then this is searching for an outer class of a class in this
      *   codebase, in which case this must only search classes in this codebase, otherwise it can
      *   search for external classes too.
      */
     fun getOrCreateClass(
         name: String,
-        isInterface: Boolean = false,
         isOuterClass: Boolean = false,
     ): ClassItem {
         // Check this codebase first, if found then return it.
@@ -128,8 +164,15 @@ internal class TextCodebase(
             }
         }
 
-        val stubClass = TextClassItem.createStubClass(this, name, isInterface)
-        mAllClasses[name] = stubClass
+        // Build a stub class of the required kind.
+        val requiredStubKind = requiredStubKindForClass.remove(name) ?: StubKind.CLASS
+        val stubClass =
+            StubClassBuilder.build(this, name) {
+                // Apply stub kind specific mutations to the stub class being built.
+                requiredStubKind.mutator(this)
+            }
+
+        registerClass(stubClass)
         stubClass.emit = false
 
         val fullName = stubClass.fullName()

@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.isNonNullAnnotation
@@ -35,7 +36,7 @@ class PsiFieldItem(
     private val psiField: PsiField,
     containingClass: PsiClassItem,
     name: String,
-    modifiers: PsiModifierItem,
+    modifiers: DefaultModifierList,
     documentation: String,
     private val fieldType: PsiTypeItem,
     private val isEnumConstant: Boolean,
@@ -88,7 +89,13 @@ class PsiFieldItem(
     override fun psi(): PsiField = psiField
 
     override fun duplicate(targetContainingClass: ClassItem): PsiFieldItem {
-        val duplicated = create(codebase, targetContainingClass as PsiClassItem, psiField)
+        val duplicated =
+            create(
+                codebase,
+                targetContainingClass as PsiClassItem,
+                psiField,
+                codebase.globalTypeItemFactory.from(targetContainingClass),
+            )
         duplicated.inheritedFrom = containingClass
         duplicated.finishInitialization()
 
@@ -124,16 +131,17 @@ class PsiFieldItem(
     override fun toString(): String = "field ${containingClass.fullName()}.${name()}"
 
     companion object {
-        fun create(
+        internal fun create(
             codebase: PsiBasedCodebase,
             containingClass: PsiClassItem,
-            psiField: PsiField
+            psiField: PsiField,
+            enclosingClassTypeItemFactory: PsiTypeItemFactory
         ): PsiFieldItem {
             val name = psiField.name
             val commentText = javadoc(psiField)
             val modifiers = modifiers(codebase, psiField, commentText)
 
-            val fieldType = codebase.getType(psiField.type, psiField)
+            val fieldType = enclosingClassTypeItemFactory.getType(psiField.type, psiField)
             val isEnumConstant = psiField is PsiEnumConstant
             val initialValue = null // compute lazily
 

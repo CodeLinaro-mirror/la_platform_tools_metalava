@@ -22,6 +22,7 @@ import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNotEquals
 import kotlin.test.assertNull
 import org.junit.Test
@@ -80,8 +81,7 @@ class CommonMethodItemTest : BaseModelTest() {
                 """
             ),
         ) {
-            val oTypeParameter =
-                codebase.assertClass("test.pkg.Outer").typeParameterList().typeParameters().single()
+            val oTypeParameter = codebase.assertClass("test.pkg.Outer").typeParameterList.single()
             val methodType =
                 codebase
                     .assertClass("test.pkg.Outer.Middle.Inner")
@@ -309,10 +309,10 @@ class CommonMethodItemTest : BaseModelTest() {
             ),
         ) {
             val methodItem = codebase.assertClass("test.pkg.Test").methods().single()
-            val typeParameterItem = methodItem.typeParameterList().typeParameters().single()
+            val typeParameterItem = methodItem.typeParameterList.single()
             val throwsType = methodItem.throwsTypes().single()
-            assertEquals(typeParameterItem, throwsType.typeParameterItem)
-            assertEquals(throwsType.throwableClass?.qualifiedName(), JAVA_LANG_THROWABLE)
+            throwsType.assertReferencesTypeParameter(typeParameterItem)
+            assertEquals(throwsType.erasedClass!!.qualifiedName(), JAVA_LANG_THROWABLE)
         }
     }
 
@@ -345,11 +345,11 @@ class CommonMethodItemTest : BaseModelTest() {
             ),
         ) {
             val methodItem = codebase.assertClass("test.pkg.Test").methods().single()
-            val typeParameterItem = methodItem.typeParameterList().typeParameters().single()
+            val typeParameterItem = methodItem.typeParameterList.single()
             val throwsType = methodItem.throwsTypes().single()
-            assertEquals(typeParameterItem, throwsType.typeParameterItem)
+            throwsType.assertReferencesTypeParameter(typeParameterItem)
             // The type parameter does not extend a throwable type.
-            assertNull(throwsType.throwableClass)
+            assertFalse(throwsType.erasedClass!!.extends(JAVA_LANG_THROWABLE))
         }
     }
 
@@ -375,8 +375,71 @@ class CommonMethodItemTest : BaseModelTest() {
             val methodItem = codebase.assertClass("test.pkg.Test").methods().single()
             val throwsType = methodItem.throwsTypes().single()
             // Neither the class nor throwable class is available.
-            assertNull(throwsType.classItem)
-            assertNull(throwsType.throwableClass)
+            assertNull(throwsType.erasedClass)
+        }
+    }
+
+    @Test
+    fun `Test method default values`() {
+        runSourceCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+
+                    public @interface TestAnnotation {
+                        int id() default 7;
+                        int id1() default -7;
+                        byte bt() default 1;
+                        float floating() default 1.0f;
+                        float floating1() default -1.0f;
+                        long longValue() default 1L;
+                        long longValue1() default -1L;
+                        boolean isResolved() default false;
+                        String prefix() default "pref";
+                        char[] letters() default {'a', 'b', 'c'};
+                        char[] letter() default 'a';
+                        double negInf() default Double.NEGATIVE_INFINITY;
+                        int expr() default 1+2*3;
+                        int compExpr() default FIELD1+FIELD2;
+                        InnerAnnotation value() default @InnerAnnotation;
+                        Class<? extends Number> Cls() default Integer.class;
+                        InnerEnum testEnum() default InnerEnum.ENUM1;
+
+                        int FIELD1 = 5;
+                        int FIELD2 = 7;
+
+                        @interface InnerAnnotation {}
+                        enum InnerEnum {
+                          ENUM1,
+                          ENUM2,
+                        }
+                    }
+                """
+            ),
+        ) {
+            val classItem = codebase.assertClass("test.pkg.TestAnnotation")
+
+            val values =
+                listOf<String>(
+                    "7",
+                    "-7",
+                    "1",
+                    "1.0f",
+                    "-1.0f",
+                    "1L",
+                    "-1L",
+                    "false",
+                    "\"pref\"",
+                    "{'a', 'b', 'c'}",
+                    "\'a\'",
+                    "java.lang.Double.NEGATIVE_INFINITY",
+                    "7",
+                    "12",
+                    "@test.pkg.TestAnnotation.InnerAnnotation",
+                    "java.lang.Integer.class",
+                    "test.pkg.TestAnnotation.InnerEnum.ENUM1"
+                )
+            assertEquals(values, classItem.methods().map { it.defaultValue() })
         }
     }
 }

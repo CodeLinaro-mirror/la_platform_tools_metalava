@@ -19,6 +19,8 @@ package com.android.tools.metalava.model.testsuite
 import com.android.tools.metalava.model.BaseItemVisitor
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.testing.java
+import com.android.tools.metalava.testing.kotlin
+import kotlin.test.assertNull
 import kotlin.test.assertSame
 import org.junit.Assert.assertNotNull
 import org.junit.Test
@@ -180,6 +182,31 @@ class CommonModelTest : BaseModelTest() {
                     interfaceType.asClass()
                 }
             }
+        }
+    }
+
+    @Test
+    fun `Test unknown inner class`() {
+        runCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+                    public class Foo {
+                        private Foo() {}
+                    }
+                """
+            ),
+            kotlin(
+                """
+                    package test.pkg
+                    class Foo private constructor() {
+                    }
+                """
+            ),
+            // No signature test as it will just fabricate an inner class on demand.
+        ) {
+            val unknownInner = codebase.resolveClass("test.pkg.Foo.UnknownInner")
+            assertNull(unknownInner)
         }
     }
 }

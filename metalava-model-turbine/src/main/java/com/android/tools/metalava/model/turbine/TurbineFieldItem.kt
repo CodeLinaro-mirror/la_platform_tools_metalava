@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model.turbine
 
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.TypeItem
@@ -35,9 +36,7 @@ internal class TurbineFieldItem(
     internal var initialValueWithoutRequiredConstant: Any? = null
 
     private val isEnumConstantField by lazy {
-        containingClass.isEnum() &&
-            (type is TurbineClassTypeItem) &&
-            type.asClass() == containingClass
+        containingClass.isEnum() && (type is ClassTypeItem) && type.asClass() == containingClass
     }
 
     override var inheritedFrom: ClassItem? = null

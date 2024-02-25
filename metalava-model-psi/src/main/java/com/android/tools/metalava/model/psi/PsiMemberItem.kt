@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.MemberItem
 import com.intellij.psi.PsiJvmMember
 
@@ -24,7 +25,7 @@ abstract class PsiMemberItem
 internal constructor(
     codebase: PsiBasedCodebase,
     element: PsiJvmMember,
-    modifiers: PsiModifierItem,
+    modifiers: DefaultModifierList,
     documentation: String,
     internal val containingClass: ClassItem,
     internal val name: String,
