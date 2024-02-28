@@ -1128,7 +1128,7 @@ class ApiAnalyzer(
 
                 if (!cl.effectivelyDeprecated) {
                     val s = cl.superClass()
-                    if (s?.deprecated == true) {
+                    if (s?.effectivelyDeprecated == true) {
                         reporter.report(
                             Issues.EXTENDS_DEPRECATED,
                             cl,
@@ -1137,7 +1137,7 @@ class ApiAnalyzer(
                     }
 
                     for (t in cl.interfaceTypes()) {
-                        if (t.asClass()?.deprecated == true) {
+                        if (t.asClass()?.effectivelyDeprecated == true) {
                             reporter.report(
                                 Issues.EXTENDS_DEPRECATED,
                                 cl,
@@ -1204,6 +1204,10 @@ class ApiAnalyzer(
         if (containingClass != null) {
             cantStripThis(containingClass, filter, notStrippable, cl, "as containing class")
         }
+        // all visible inner classes will be included in stubs
+        cl.innerClasses()
+            .filter { it.isApiCandidate() }
+            .forEach { cantStripThis(it, filter, notStrippable, cl, "as inner class") }
         // blow open super class and interfaces
         // TODO: Consider using val superClass = cl.filteredSuperclass(filter)
         val superItems = cl.allInterfaces().toMutableSet()
@@ -1316,11 +1320,19 @@ class ApiAnalyzer(
         containingClass: ClassItem,
         usage: String
     ) {
-        if (!containingMethod.effectivelyDeprecated && type.asClass()?.deprecated == true) {
-            reporter.report(
-                Issues.REFERENCES_DEPRECATED,
-                containingMethod,
-                "$usage of deprecated type $type in ${containingClass.qualifiedName()}.${containingMethod.name()}(): this method should also be deprecated"
+        if (!containingMethod.effectivelyDeprecated) {
+            type.accept(
+                object : BaseTypeVisitor() {
+                    override fun visitClassType(classType: ClassTypeItem) {
+                        if (classType.asClass()?.effectivelyDeprecated == true) {
+                            reporter.report(
+                                Issues.REFERENCES_DEPRECATED,
+                                containingMethod,
+                                "$usage references deprecated type $classType in ${containingClass.qualifiedName()}.${containingMethod.name()}(): this method should also be deprecated"
+                            )
+                        }
+                    }
+                }
             )
         }
 
