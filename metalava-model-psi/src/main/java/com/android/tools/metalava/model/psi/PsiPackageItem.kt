@@ -159,7 +159,6 @@ internal constructor(
                     modifiers = modifiers,
                     fromClassPath = fromClassPath
                 )
-            pkg.modifiers.setOwner(pkg)
             return pkg
         }
     }

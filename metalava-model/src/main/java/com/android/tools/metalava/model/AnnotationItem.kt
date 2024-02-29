@@ -59,6 +59,11 @@ interface AnnotationItem {
     /** Attributes of the annotation; may be empty. */
     val attributes: List<AnnotationAttribute>
 
+    /**
+     * The [TypeNullability] associated with this or `null` if this is not a nullability annotation.
+     */
+    val typeNullability: TypeNullability?
+
     /** True if this annotation represents @Nullable or @NonNull (or some synonymous annotation) */
     fun isNullnessAnnotation(): Boolean
 
@@ -235,6 +240,10 @@ interface AnnotationItem {
     }
 }
 
+/** Get the [TypeNullability] from a list of [AnnotationItem]s. */
+val List<AnnotationItem>.typeNullability
+    get() = mapNotNull { it.typeNullability }.singleOrNull()
+
 /**
  * Get the value of the named attribute as an object of the specified type or null if the attribute
  * could not be found.
@@ -392,16 +401,19 @@ private constructor(
     /** Information that metalava has gathered about this annotation item. */
     val info: AnnotationInfo by lazy { codebase.annotationManager.getAnnotationInfo(this) }
 
+    override val typeNullability: TypeNullability?
+        get() = info.typeNullability
+
     override fun isNullnessAnnotation(): Boolean {
-        return info.nullability != null
+        return info.typeNullability != null
     }
 
     override fun isNullable(): Boolean {
-        return info.nullability == Nullability.NULLABLE
+        return info.typeNullability == TypeNullability.NULLABLE
     }
 
     override fun isNonNull(): Boolean {
-        return info.nullability == Nullability.NON_NULL
+        return info.typeNullability == TypeNullability.NONNULL
     }
 
     override val showability: Showability

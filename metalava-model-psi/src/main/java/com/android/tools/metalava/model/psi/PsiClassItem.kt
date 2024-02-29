@@ -380,7 +380,6 @@ internal constructor(
                     modifiers = modifiers,
                     fromClassPath = fromClassPath,
                 )
-            item.modifiers.setOwner(item)
             item.containingClass = containingClassItem
 
             // Register this class now.
@@ -389,7 +388,7 @@ internal constructor(
             // Construct the children
             val psiMethods = psiClass.methods
             val methods: MutableList<PsiMethodItem> = ArrayList(psiMethods.size)
-            val isKotlin = isKotlin(psiClass)
+            val isKotlin = psiClass.isKotlin()
 
             if (
                 classKind == ClassKind.ANNOTATION_TYPE &&

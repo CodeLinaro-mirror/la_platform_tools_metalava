@@ -80,7 +80,6 @@ internal class TurbineConstructorItem(
                     "",
                     "",
                 )
-            modifiers.setOwner(ctorItem)
             ctorItem.parameters = emptyList()
             ctorItem.throwableTypes = emptyList()
             return ctorItem

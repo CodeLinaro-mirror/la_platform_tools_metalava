@@ -24,6 +24,7 @@ import com.android.tools.metalava.model.testsuite.runNullabilityTest
 import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
+import com.google.common.truth.Truth.assertWithMessage
 import java.io.PrintWriter
 import java.io.StringWriter
 import kotlin.test.assertEquals
@@ -258,11 +259,15 @@ class CommonFieldItemTest : BaseModelTest() {
                 java(
                     """
                         package test.pkg;
+                        import java.util.Map;
                         import not.type.use.NonNull;
 
-                        public class Foo {
-                            @NonNull
-                            public String field;
+                        public class Foo<T> {
+                            @NonNull public String field1;
+                            @NonNull public String[] field2;
+                            @NonNull public String[][] field3;
+                            @NonNull public T field4;
+                            @NonNull public Map.Entry<T, String> field5;
                         }
                     """
                 ),
@@ -272,8 +277,12 @@ class CommonFieldItemTest : BaseModelTest() {
                     """
                         // Signature format: 2.0
                         package test.pkg {
-                          public class Foo {
-                            field @NonNull public String field;
+                          public class Foo<T> {
+                            field @NonNull public String field1;
+                            field @NonNull public String[] field2;
+                            field @NonNull public String[][] field3;
+                            field @NonNull public T field4;
+                            field @NonNull public java.util.Map.Entry<T, String> field5;
                           }
                         }
                     """
@@ -281,11 +290,23 @@ class CommonFieldItemTest : BaseModelTest() {
             ),
             // Kotlin does not care about different nullability annotations.
         ) {
-            val field = codebase.assertClass("test.pkg.Foo").assertField("field")
-
-            // Do not check the annotation as type use annotations are ambiguous in signature files
-            // that do not specify `kotlin-name-type-order=yes`
-            field.type().assertHasNonNullNullability()
+            val expectedTypes =
+                mapOf(
+                    "field1" to "java.lang.String",
+                    "field2" to "java.lang.String![]",
+                    "field3" to "java.lang.String![]![]",
+                    "field4" to "T",
+                    "field5" to "java.util.Map.Entry<T!,java.lang.String!>",
+                )
+            for (field in codebase.assertClass("test.pkg.Foo").fields()) {
+                val name = field.name()
+                val expectedType = expectedTypes[name]!!
+                // Compare the kotlin style format of the field to ensure that only the outermost
+                // type is affected by the not-type-use nullability annotation.
+                assertWithMessage(name)
+                    .that(field.type().toTypeString(kotlinStyleNulls = true))
+                    .isEqualTo(expectedType)
+            }
         }
     }
 
@@ -297,11 +318,15 @@ class CommonFieldItemTest : BaseModelTest() {
                 java(
                     """
                         package test.pkg;
+                        import java.util.Map;
                         import not.type.use.Nullable;
 
-                        public class Foo {
-                            @Nullable
-                            public String field;
+                        public class Foo<T> {
+                            @Nullable public String field1;
+                            @Nullable public String[] field2;
+                            @Nullable public String[][] field3;
+                            @Nullable public T field4;
+                            @Nullable public Map.Entry<T, String> field5;
                         }
                     """
                 ),
@@ -311,8 +336,12 @@ class CommonFieldItemTest : BaseModelTest() {
                     """
                         // Signature format: 2.0
                         package test.pkg {
-                          public class Foo {
-                            field @Nullable public String field;
+                          public class Foo<T> {
+                            field @Nullable public String field1;
+                            field @Nullable public String[] field2;
+                            field @Nullable public String[][] field3;
+                            field @Nullable public T field4;
+                            field @Nullable public java.util.Map.Entry<T, String> field5;
                           }
                         }
                     """
@@ -320,11 +349,23 @@ class CommonFieldItemTest : BaseModelTest() {
             ),
             // Kotlin does not care about different nullability annotations.
         ) {
-            val field = codebase.assertClass("test.pkg.Foo").assertField("field")
-
-            // Do not check the annotation as type use annotations are ambiguous in signature files
-            // that do not specify `kotlin-name-type-order=yes`
-            field.type().assertHasNullableNullability()
+            val expectedTypes =
+                mapOf(
+                    "field1" to "java.lang.String?",
+                    "field2" to "java.lang.String![]?",
+                    "field3" to "java.lang.String![]![]?",
+                    "field4" to "T?",
+                    "field5" to "java.util.Map.Entry<T!,java.lang.String!>?",
+                )
+            for (field in codebase.assertClass("test.pkg.Foo").fields()) {
+                val name = field.name()
+                val expectedType = expectedTypes[name]!!
+                // Compare the kotlin style format of the field to ensure that only the outermost
+                // type is affected by the not-type-use nullability annotation.
+                assertWithMessage(name)
+                    .that(field.type().toTypeString(kotlinStyleNulls = true))
+                    .isEqualTo(expectedType)
+            }
         }
     }
 

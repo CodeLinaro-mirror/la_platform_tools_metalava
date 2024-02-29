@@ -15,6 +15,12 @@ com.android.tools.metalava.model.testsuite.fielditem.CommonFieldItemTest
   Test implicit nullability of enum constant[text,signature]
   Test nullability of non-null field annotated with @Nullable or kotlin equivalent[text,signature]
 
+com.android.tools.metalava.model.testsuite.typeitem.CommonIsAssignableFromTest
+  Test assignability without unboxing[text,signature,boxedInt to primitiveInt]
+  Test assignability without unboxing[text,signature,number to boxedInt]
+  Test assignability without unboxing[text,signature,number to primitiveInt]
+  Test assignability without unboxing[text,signature,obj to string]
+
 com.android.tools.metalava.model.testsuite.typeitem.CommonTypeModifiersTest
   Test implicit nullability of annotation members[text,signature]
   Test implicit nullability of equals parameter[text,signature]

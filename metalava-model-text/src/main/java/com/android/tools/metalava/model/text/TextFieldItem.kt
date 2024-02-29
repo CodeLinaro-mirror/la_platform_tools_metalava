@@ -31,10 +31,6 @@ internal class TextFieldItem(
     position: SourcePositionInfo
 ) : TextMemberItem(codebase, name, containingClass, position, modifiers), FieldItem {
 
-    init {
-        modifiers.setOwner(this)
-    }
-
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (other !is FieldItem) return false

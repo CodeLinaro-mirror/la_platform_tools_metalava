@@ -38,10 +38,10 @@ open class AnnotationInfo(
      * If this is null then the annotation is not a nullability annotation, otherwise this
      * determines whether it is nullable or non-null.
      */
-    internal val nullability: Nullability? =
+    internal val typeNullability: TypeNullability? =
         when {
-            isNullableAnnotation(qualifiedName) -> Nullability.NULLABLE
-            isNonNullAnnotation(qualifiedName) -> Nullability.NON_NULL
+            isNullableAnnotation(qualifiedName) -> TypeNullability.NULLABLE
+            isNonNullAnnotation(qualifiedName) -> TypeNullability.NONNULL
             else -> null
         }
 
@@ -54,11 +54,6 @@ open class AnnotationInfo(
 
     open val suppressCompatibility: Boolean
         get() = false
-}
-
-internal enum class Nullability {
-    NULLABLE,
-    NON_NULL,
 }
 
 /**

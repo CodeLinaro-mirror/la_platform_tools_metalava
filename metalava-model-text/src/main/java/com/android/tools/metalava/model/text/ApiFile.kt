@@ -39,6 +39,7 @@ import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.javaUnescapeString
 import com.android.tools.metalava.model.noOpAnnotationManager
+import com.android.tools.metalava.model.typeNullability
 import java.io.File
 import java.io.IOException
 import java.io.InputStream
@@ -1597,16 +1598,7 @@ private constructor(
             }
         } else if (parsedType.modifiers.nullability() == TypeNullability.PLATFORM) {
             // See if the type has nullability from the context item annotations.
-            val nullabilityFromContext =
-                annotations
-                    .singleOrNull { it.isNullnessAnnotation() }
-                    ?.let {
-                        if (it.isNullable()) {
-                            TypeNullability.NULLABLE
-                        } else {
-                            TypeNullability.NONNULL
-                        }
-                    }
+            val nullabilityFromContext = annotations.typeNullability
             if (nullabilityFromContext != null) {
                 return parsedType.duplicate(nullabilityFromContext)
             }

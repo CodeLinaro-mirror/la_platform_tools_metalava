@@ -42,10 +42,14 @@ internal class PsiTypeParameterItem(
 
     override fun name() = name
 
+    /** Must only be used by [type] to cache its result. */
+    private lateinit var variableTypeItem: VariableTypeItem
+
     override fun type(): VariableTypeItem {
-        val psiType = codebase.getClassType(psiClass)
-        val typeModifiers = PsiTypeModifiers.create(codebase, psiType, null)
-        return PsiVariableTypeItem(psiType, typeModifiers, this)
+        if (!::variableTypeItem.isInitialized) {
+            variableTypeItem = codebase.globalTypeItemFactory.getVariableTypeForTypeParameter(this)
+        }
+        return variableTypeItem
     }
 
     override fun psi() = psiClass
@@ -76,7 +80,7 @@ internal class PsiTypeParameterItem(
     companion object {
         fun create(codebase: PsiBasedCodebase, psiClass: PsiTypeParameter): PsiTypeParameterItem {
             val simpleName = psiClass.name!!
-            val modifiers = modifiers(codebase, psiClass, "")
+            val modifiers = modifiers(codebase, psiClass)
 
             val item =
                 PsiTypeParameterItem(
@@ -85,7 +89,6 @@ internal class PsiTypeParameterItem(
                     name = simpleName,
                     modifiers = modifiers
                 )
-            item.modifiers.setOwner(item)
             item.finishInitialization()
             return item
         }
