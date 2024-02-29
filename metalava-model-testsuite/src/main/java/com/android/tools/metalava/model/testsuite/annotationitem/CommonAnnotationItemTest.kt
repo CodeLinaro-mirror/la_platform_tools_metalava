@@ -24,11 +24,8 @@ import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.java
 import kotlin.test.assertEquals
 import org.junit.Test
-import org.junit.runner.RunWith
-import org.junit.runners.Parameterized
 
 /** Common tests for implementations of [ClassItem]. */
-@RunWith(Parameterized::class)
 class CommonAnnotationItemTest : BaseModelTest() {
 
     @Test

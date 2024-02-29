@@ -258,8 +258,6 @@ class Options(
     private val mutableMergeInclusionAnnotations: MutableList<File> = mutableListOf()
     /** Internal list backing [hidePackages] */
     private val mutableHidePackages: MutableList<String> = mutableListOf()
-    /** Internal list backing [skipEmitPackages] */
-    private val mutableSkipEmitPackages: MutableList<String> = mutableListOf()
     /** Internal list backing [passThroughAnnotations] */
     private val mutablePassThroughAnnotations: MutableSet<String> = mutableSetOf()
     /** Internal list backing [excludeAnnotations] */
@@ -410,7 +408,8 @@ class Options(
     var hidePackages: List<String> = mutableHidePackages
 
     /** Packages that we should skip generating even if not hidden; typically only used by tests */
-    var skipEmitPackages: List<String> = mutableSkipEmitPackages
+    val skipEmitPackages
+        get() = executionEnvironment.testEnvironment?.skipEmitPackages ?: emptyList()
 
     /** Annotations to hide */
     val hideAnnotations by lazy(hideAnnotationsBuilder::build)
@@ -764,7 +763,7 @@ class Options(
     /** Temporary folder to use instead of the JDK default, if any */
     private var tempFolder: File? = null
 
-    var useK2Uast = false
+    var useK2Uast: Boolean? = null
 
     val sourceModelProvider by
         option(
@@ -938,10 +937,6 @@ class Options(
                         mutableStubImportPackages.add(pkg)
                         mutableHidePackages.add(pkg)
                     }
-                }
-                "--skip-emit-packages" -> {
-                    val packages = getValue(args, ++index)
-                    mutableSkipEmitPackages += packages.split(File.pathSeparatorChar)
                 }
                 ARG_IGNORE_CLASSES_ON_CLASSPATH -> {
                     allowClassesFromClasspath = false

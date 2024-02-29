@@ -78,6 +78,16 @@ interface Assertions {
         return assertIs(annoItem)
     }
 
+    /** Get the list of fully qualified annotation names associated with the [TypeItem]. */
+    fun TypeItem.annotationNames(): List<String?> {
+        return modifiers.annotations().map { it.qualifiedName }
+    }
+
+    /** Get the list of fully qualified annotation names associated with the [Item]. */
+    fun Item.annotationNames(): List<String?> {
+        return modifiers.annotations().map { it.qualifiedName }
+    }
+
     /**
      * Check to make sure that this [TypeItem] is actually a [VariableTypeItem] whose
      * [VariableTypeItem.asTypeParameter] references the supplied [typeParameter] and then run the

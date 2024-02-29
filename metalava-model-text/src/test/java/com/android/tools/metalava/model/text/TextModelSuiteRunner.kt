@@ -21,7 +21,7 @@ import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.noOpAnnotationManager
-import com.android.tools.metalava.model.testsuite.InputFormat
+import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.testsuite.ModelSuiteRunner
 import com.android.tools.metalava.testing.getAndroidJar
 import java.io.File
@@ -36,6 +36,10 @@ class TextModelSuiteRunner : ModelSuiteRunner {
         inputs: ModelSuiteRunner.TestInputs,
         test: (Codebase) -> Unit
     ) {
+        if (inputs.commonSourceDir != null) {
+            error("text model does not support common sources")
+        }
+
         val signatureFiles = inputs.mainSourceDir.createFiles()
         val resolver = ClassLoaderBasedClassResolver(getAndroidJar())
         val codebase = ApiFile.parseApi(signatureFiles, classResolver = resolver)

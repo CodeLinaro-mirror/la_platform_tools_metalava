@@ -29,11 +29,8 @@ import java.io.PrintWriter
 import java.io.StringWriter
 import kotlin.test.assertEquals
 import org.junit.Test
-import org.junit.runner.RunWith
-import org.junit.runners.Parameterized
 
 /** Common tests for implementations of [FieldItem]. */
-@RunWith(Parameterized::class)
 class CommonFieldItemTest : BaseModelTest() {
 
     @Test

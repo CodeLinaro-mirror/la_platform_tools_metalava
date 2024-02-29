@@ -18,8 +18,8 @@
 
 package com.android.tools.metalava.model.testsuite.cli
 
-import com.android.tools.metalava.model.testsuite.ModelTestSuiteBaseline
-import com.android.tools.metalava.model.testsuite.MutableModelTestSuiteBaseline
+import com.android.tools.metalava.testing.BaselineFile
+import com.android.tools.metalava.testing.MutableBaselineFile
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.parameters.arguments.argument
 import com.github.ajalt.clikt.parameters.arguments.multiple
@@ -60,22 +60,21 @@ class UpdateBaselineCommand :
             .file(mustExist = true, canBeFile = true, mustBeReadable = true)
             .multiple(required = true)
 
-    private val projectDir by
+    private val baselineFile by
         option(
-                metavar = "<dir>",
+                metavar = "<file>",
                 help =
                     """
-                        Project directory for the project of the metalava-model provider that is
-                        running the `metalava-model-test-suite`.
+                        Baseline file that is to be updated.
                     """
                         .trimIndent(),
             )
-            .file(canBeFile = false)
+            .file(canBeFile = true, canBeDir = false)
             .required()
 
     override fun run() {
         // Read the existing expected failures from the baseline file.
-        val baseline = ModelTestSuiteBaseline.forProject(projectDir)
+        val baseline = BaselineFile.forFile(baselineFile)
 
         // Using the existing expected failures in the baseline as a start point process the
         // test reports to see if there are any other failing tests and if so then add them to
@@ -95,8 +94,7 @@ class UpdateBaselineCommand :
         baseline.write()
     }
 
-    private class FailureCollector(private val baseline: MutableModelTestSuiteBaseline) :
-        DefaultHandler() {
+    private class FailureCollector(private val baseline: MutableBaselineFile) : DefaultHandler() {
 
         private lateinit var locator: Locator
 

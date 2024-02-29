@@ -864,7 +864,9 @@ fun ApiLookup.getMethodVersion(method: MethodItem): Int {
     val containingClass = method.containingClass()
     val owner = containingClass.qualifiedName()
     val desc = method.getApiLookupMethodDescription()
-    return getMethodVersions(owner, method.name(), desc).minApiLevel()
+    // Metalava uses the class name as the name of the constructor but the ApiLookup uses <init>.
+    val name = if (method.isConstructor()) "<init>" else method.name()
+    return getMethodVersions(owner, name, desc).minApiLevel()
 }
 
 fun ApiLookup.getFieldVersion(field: FieldItem): Int {

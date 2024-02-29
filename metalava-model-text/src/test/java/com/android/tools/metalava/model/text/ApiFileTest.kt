@@ -28,10 +28,7 @@ import kotlin.test.assertNull
 import kotlin.test.assertSame
 import org.junit.Assert.assertThrows
 import org.junit.Test
-import org.junit.runner.RunWith
-import org.junit.runners.Parameterized
 
-@RunWith(Parameterized::class)
 class ApiFileTest : BaseTextCodebaseTest() {
 
     @Test

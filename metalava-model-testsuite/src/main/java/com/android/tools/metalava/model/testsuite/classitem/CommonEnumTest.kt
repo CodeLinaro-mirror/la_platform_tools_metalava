@@ -24,11 +24,8 @@ import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import com.google.common.truth.Truth.assertThat
 import org.junit.Test
-import org.junit.runner.RunWith
-import org.junit.runners.Parameterized
 
 /** Common tests for implementations of [ClassItem] that are `enum` classes. */
-@RunWith(Parameterized::class)
 class CommonEnumTest : BaseModelTest() {
     @Test
     fun `Test enum synthetic methods are not included in the enum class`() {

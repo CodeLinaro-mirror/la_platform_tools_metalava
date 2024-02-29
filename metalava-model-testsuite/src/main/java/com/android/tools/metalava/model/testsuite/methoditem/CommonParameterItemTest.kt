@@ -16,7 +16,7 @@
 
 package com.android.tools.metalava.model.testsuite.methoditem
 
-import com.android.tools.metalava.model.source.SourceLanguage
+import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
@@ -25,11 +25,8 @@ import com.google.common.truth.Truth.assertWithMessage
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
-import org.junit.runner.RunWith
-import org.junit.runners.Parameterized
 
 /** Common tests for implementations of [ParameterItem]. */
-@RunWith(Parameterized::class)
 class CommonParameterItemTest : BaseModelTest() {
 
     @Test
@@ -67,7 +64,7 @@ class CommonParameterItemTest : BaseModelTest() {
             val parameterItem =
                 codebase.assertClass("test.pkg.Bar").methods().single().parameters().single()
             val annotation = parameterItem.modifiers.annotations().single()
-            if (inputFormat.sourceLanguage == SourceLanguage.KOTLIN) {
+            if (inputFormat == InputFormat.KOTLIN) {
                 assertEquals("kotlin.Deprecated", annotation.qualifiedName)
             } else {
                 assertEquals("java.lang.Deprecated", annotation.qualifiedName)

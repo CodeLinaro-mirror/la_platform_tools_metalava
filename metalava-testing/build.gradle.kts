@@ -23,4 +23,6 @@ plugins {
 dependencies {
     implementation(libs.androidLintTests)
     implementation(libs.junit4)
+
+    testImplementation(libs.kotlinTest)
 }

@@ -22,10 +22,7 @@ import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import com.google.common.truth.Truth.assertThat
 import org.junit.Test
-import org.junit.runner.RunWith
-import org.junit.runners.Parameterized
 
-@RunWith(Parameterized::class)
 class CommonTypeParameterItemTest : BaseModelTest() {
     @Test
     fun `Test typeBounds no extends`() {

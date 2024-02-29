@@ -105,7 +105,11 @@ class MetalavaBuildPlugin : Plugin<Project> {
 
         testTask.configure { task ->
             task as Test
-            task.jvmArgs = listOf("--add-opens=java.base/java.lang=ALL-UNNAMED")
+            task.jvmArgs = listOf(
+                "--add-opens=java.base/java.lang=ALL-UNNAMED",
+                // Needed for CustomizableParameterizedRunner
+                "--add-opens=java.base/java.lang.reflect=ALL-UNNAMED",
+            )
             task.maxParallelForks =
                 (Runtime.getRuntime().availableProcessors() / 2).takeIf { it > 0 } ?: 1
             task.testLogging.events =

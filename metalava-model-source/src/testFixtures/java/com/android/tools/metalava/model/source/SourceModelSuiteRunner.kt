@@ -18,7 +18,6 @@ package com.android.tools.metalava.model.source
 
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.noOpAnnotationManager
-import com.android.tools.metalava.model.testsuite.InputFormat
 import com.android.tools.metalava.model.testsuite.ModelSuiteRunner
 import com.android.tools.metalava.model.testsuite.ModelSuiteRunner.TestConfiguration
 import com.android.tools.metalava.reporter.BasicReporter
@@ -38,10 +37,7 @@ class SourceModelSuiteRunner : ModelSuiteRunner {
     /** Get the [SourceModelProvider] implementation that is available. */
     private val sourceModelProvider = SourceModelProvider.getImplementation({ true }, "of any type")
 
-    override val supportedInputFormats =
-        InputFormat.values()
-            .filter { it.sourceLanguage in sourceModelProvider.supportedLanguages }
-            .toSet()
+    override val supportedInputFormats = sourceModelProvider.supportedInputFormats
 
     override val testConfigurations: List<TestConfiguration> =
         supportedInputFormats.flatMap { inputFormat ->
@@ -78,12 +74,16 @@ class SourceModelSuiteRunner : ModelSuiteRunner {
                 modelOptions = inputs.modelOptions,
             )
         return sourceParser.parseSources(
-            SourceSet(inputs.mainSourceDir.createFiles(), listOf(inputs.mainSourceDir.dir)),
-            SourceSet.empty(),
+            sourceSet(inputs.mainSourceDir),
+            sourceSet(inputs.commonSourceDir),
             description = "Test Codebase",
             classPath = classPath,
         )
     }
+
+    private fun sourceSet(sourceDir: ModelSuiteRunner.SourceDir?) =
+        if (sourceDir == null) SourceSet.empty()
+        else SourceSet(sourceDir.createFiles(), listOf(sourceDir.dir))
 
     override fun toString(): String = sourceModelProvider.providerName
 }

@@ -17,35 +17,38 @@
 package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.model.TypeNullability
+import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import kotlin.test.assertEquals
 import org.junit.Test
 
-class PsiTypeItemTest : BasePsiTest() {
+class PsiTypeItemTest : BaseModelTest() {
     @Test
     fun `Test platform nullability from Kotlin`() {
-        testCodebase(
-            java(
-                """
-                    package test.pkg;
-                    public class Bar {
-                        public static String platformString = "hi";
-                    }
-                """
-                    .trimIndent()
+        runCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+                        public class Bar {
+                            public static String platformString = "hi";
+                        }
+                    """
+                        .trimIndent()
+                ),
+                kotlin(
+                    """
+                        package test.pkg
+                        class Foo {
+                            // Propagate platform nullness from the Java source
+                            fun foo() = Bar.platformString
+                        }
+                    """
+                        .trimIndent()
+                ),
             ),
-            kotlin(
-                """
-                    package test.pkg
-                    class Foo {
-                        // Propagate platform nullness from the Java source
-                        fun foo() = Bar.platformString
-                    }
-                """
-                    .trimIndent()
-            )
-        ) { codebase ->
+        ) {
             val platformFromKotlin =
                 codebase.assertClass("test.pkg.Foo").methods().single().returnType()
             assertEquals(platformFromKotlin.modifiers.nullability(), TypeNullability.PLATFORM)

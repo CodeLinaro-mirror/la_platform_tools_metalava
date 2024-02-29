@@ -20,35 +20,30 @@ import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.lint.checks.infrastructure.TestFiles
 import com.android.tools.metalava.model.Assertions
 import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.source.SourceCodebase
-import java.util.ServiceLoader
-import kotlin.test.fail
-import org.junit.AssumptionViolatedException
+import com.android.tools.metalava.model.testsuite.ModelProviderAwareTest.ModelProviderTestInfo
+import com.android.tools.metalava.testing.TemporaryFolderOwner
 import org.junit.Rule
 import org.junit.rules.TemporaryFolder
-import org.junit.rules.TestRule
-import org.junit.runner.Description
+import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 import org.junit.runners.Parameterized.Parameter
-import org.junit.runners.model.Statement
 
 /**
  * Base class for tests that verify the behavior of model implementations.
  *
- * This is parameterized by [TestParameters] as even though the tests are run in different projects
- * the test results are collated and reported together. Having the parameters in the test name makes
- * it easier to differentiate them.
+ * This is parameterized by [ModelProviderTestInfo] as even though the tests are run in different
+ * projects the test results are collated and reported together. Having the parameters in the test
+ * name makes it easier to differentiate them.
  *
  * Note: In the top-level test report produced by Gradle it appears to just display whichever test
  * ran last. However, the test reports in the model implementation projects do list each run
  * separately. If this is an issue then the [ModelSuiteRunner] implementations could all be moved
  * into the same project and run tests against them all at the same time.
- *
- * @param fixedParameters A set of fixed [TestParameters], used for creating tests that run for a
- *   fixed set of [ModelSuiteRunner] and [InputFormat]. This is useful when writing model specific
- *   tests that want to take advantage of the infrastructure for running suite tests.
  */
-abstract class BaseModelTest(fixedParameters: TestParameters? = null) : Assertions {
+@RunWith(ModelTestSuiteRunner::class)
+abstract class BaseModelTest() : ModelProviderAwareTest, TemporaryFolderOwner, Assertions {
 
     /**
      * Set by injection by [Parameterized] after class initializers are called.
@@ -71,66 +66,9 @@ abstract class BaseModelTest(fixedParameters: TestParameters? = null) : Assertio
      * 2. The parameters are injected into the [Parameter] annotated fields.
      * 3. Follows the normal test class life-cycle.
      */
-    @Parameter(0) lateinit var baseParameters: TestParameters
+    final override lateinit var modelProviderTestInfo: ModelProviderTestInfo
 
-    init {
-        if (fixedParameters != null) {
-            this.baseParameters = fixedParameters
-        }
-    }
-
-    /** The [ModelSuiteRunner] that this test must use. */
-    private val runner by lazy { baseParameters.runner }
-
-    /**
-     * The [InputFormat] of the test files that should be processed by this test. It must ignore all
-     * other [InputFormat]s.
-     */
-    protected val inputFormat by lazy { baseParameters.inputFormat }
-
-    @get:Rule val temporaryFolder = TemporaryFolder()
-
-    @get:Rule val baselineTestRule: TestRule by lazy { BaselineTestRule(runner) }
-
-    companion object {
-        /** Compute the list of [TestParameters] based on the available runners. */
-        @JvmStatic
-        @Parameterized.Parameters(name = "{0}")
-        fun testParameters(): Iterable<TestParameters> {
-            val loader = ServiceLoader.load(ModelSuiteRunner::class.java)
-            val runners = loader.toList()
-            if (runners.isEmpty()) {
-                fail("No runners found")
-            }
-            val list =
-                runners.flatMap { runner ->
-                    runner.testConfigurations.map {
-                        TestParameters(
-                            runner,
-                            it.inputFormat,
-                            it.modelOptions,
-                        )
-                    }
-                }
-            return list
-        }
-
-        /**
-         * Compute the cross product of the supplied [data] and the [testParameters].
-         *
-         * This must be called from the parameters method of a parameterized test class that is
-         * parameterized in two dimensions, i.e. the available runners as returned by
-         * [testParameters] and its own custom dimension.
-         *
-         *         @JvmStatic
-         *         @Parameterized.Parameters(name = "{0},{1}")
-         *         fun combinedTestParameters(): Iterable<Array<Any>> {
-         *             return crossProduct(myData)
-         *         }
-         */
-        fun crossProduct(data: Iterable<Any>): List<Array<Any>> =
-            testParameters().flatMap { baseParameters -> data.map { arrayOf(baseParameters, it) } }
-    }
+    @get:Rule override val temporaryFolder = TemporaryFolder()
 
     /**
      * Set of inputs for a test.
@@ -195,23 +133,35 @@ abstract class BaseModelTest(fixedParameters: TestParameters? = null) : Assertio
      * current [inputFormat]. There can be at most one of those.
      */
     private fun createCodebaseFromInputSetAndRun(
-        vararg inputSets: InputSet,
+        inputSets: Array<out InputSet>,
+        commonSourcesByInputFormat: Map<InputFormat, InputSet> = emptyMap(),
         test: (Codebase) -> Unit,
     ) {
         // Run the input set that matches the current inputFormat, if there is one.
         inputSets
             .singleOrNull { it.inputFormat == inputFormat }
             ?.let { inputSet ->
-                val tempDir = temporaryFolder.newFolder()
-                val mainSourceDir =
-                    ModelSuiteRunner.SourceDir(dir = tempDir, contents = inputSet.testFiles)
+                val mainSourceDir = sourceDir(inputSet)
+
+                val commonSourceDir =
+                    commonSourcesByInputFormat[inputFormat]?.let { commonInputSet ->
+                        sourceDir(commonInputSet)
+                    }
+
                 val inputs =
                     ModelSuiteRunner.TestInputs(
-                        modelOptions = baseParameters.modelOptions,
+                        modelOptions = modelProviderTestInfo.modelOptions,
                         mainSourceDir = mainSourceDir,
+                        commonSourceDir = commonSourceDir,
                     )
                 runner.createCodebaseAndRun(inputs) { codebase -> test(codebase) }
             }
+    }
+
+    private fun sourceDir(inputSet: InputSet): ModelSuiteRunner.SourceDir {
+        val tempDir = temporaryFolder.newFolder()
+        val mainSourceDir = ModelSuiteRunner.SourceDir(dir = tempDir, contents = inputSet.testFiles)
+        return mainSourceDir
     }
 
     private fun testFilesToInputSets(testFiles: Array<out TestFile>): Array<InputSet> {
@@ -227,10 +177,12 @@ abstract class BaseModelTest(fixedParameters: TestParameters? = null) : Assertio
      */
     fun runCodebaseTest(
         vararg sources: TestFile,
+        commonSources: Array<TestFile> = emptyArray(),
         test: CodebaseContext<Codebase>.() -> Unit,
     ) {
         runCodebaseTest(
             sources = testFilesToInputSets(sources),
+            commonSources = testFilesToInputSets(commonSources),
             test = test,
         )
     }
@@ -243,10 +195,30 @@ abstract class BaseModelTest(fixedParameters: TestParameters? = null) : Assertio
      */
     fun runCodebaseTest(
         vararg sources: InputSet,
+        commonSources: Array<InputSet> = emptyArray(),
+        test: CodebaseContext<Codebase>.() -> Unit,
+    ) {
+        runCodebaseTest(
+            sources = sources,
+            commonSourcesByInputFormat = commonSources.associateBy { it.inputFormat },
+            test = test,
+        )
+    }
+
+    /**
+     * Create a [Codebase] from one of the supplied [sources] [InputSet] and then run the [test] on
+     * that [Codebase].
+     *
+     * The [sources] array should have at most one [InputSet] of each [InputFormat].
+     */
+    private fun runCodebaseTest(
+        vararg sources: InputSet,
+        commonSourcesByInputFormat: Map<InputFormat, InputSet> = emptyMap(),
         test: CodebaseContext<Codebase>.() -> Unit,
     ) {
         createCodebaseFromInputSetAndRun(
-            *sources,
+            sources,
+            commonSourcesByInputFormat = commonSourcesByInputFormat,
         ) { codebase ->
             val context = DefaultCodebaseContext(codebase)
             context.test()
@@ -262,10 +234,13 @@ abstract class BaseModelTest(fixedParameters: TestParameters? = null) : Assertio
      */
     fun runSourceCodebaseTest(
         vararg sources: TestFile,
+        commonSources: Array<TestFile> = emptyArray(),
         test: CodebaseContext<SourceCodebase>.() -> Unit,
     ) {
         runSourceCodebaseTest(
             sources = testFilesToInputSets(sources),
+            commonSourcesByInputFormat =
+                testFilesToInputSets(commonSources).associateBy { it.inputFormat },
             test = test,
         )
     }
@@ -278,10 +253,30 @@ abstract class BaseModelTest(fixedParameters: TestParameters? = null) : Assertio
      */
     fun runSourceCodebaseTest(
         vararg sources: InputSet,
+        commonSources: Array<InputSet> = emptyArray(),
+        test: CodebaseContext<SourceCodebase>.() -> Unit,
+    ) {
+        runSourceCodebaseTest(
+            sources = sources,
+            commonSourcesByInputFormat = commonSources.associateBy { it.inputFormat },
+            test = test,
+        )
+    }
+
+    /**
+     * Create a [SourceCodebase] from one of the supplied [sources] [InputSet]s and then run the
+     * [test] on that [SourceCodebase].
+     *
+     * The [sources] array should have at most one [InputSet] of each [InputFormat].
+     */
+    private fun runSourceCodebaseTest(
+        vararg sources: InputSet,
+        commonSourcesByInputFormat: Map<InputFormat, InputSet>,
         test: CodebaseContext<SourceCodebase>.() -> Unit,
     ) {
         createCodebaseFromInputSetAndRun(
-            *sources,
+            inputSets = sources,
+            commonSourcesByInputFormat = commonSourcesByInputFormat,
         ) { codebase ->
             codebase as SourceCodebase
             val context = DefaultCodebaseContext(codebase)
@@ -298,67 +293,4 @@ abstract class BaseModelTest(fixedParameters: TestParameters? = null) : Assertio
     /** Create a signature [TestFile] with the supplied [contents] in a file with a path of [to]. */
     fun signature(to: String, contents: String): TestFile =
         TestFiles.source(to, contents.trimIndent())
-}
-
-private const val GRADLEW_UPDATE_MODEL_TEST_SUITE_BASELINE =
-    "`scripts/refresh-testsuite-baselines.sh` to update the baseline"
-
-/** A JUnit [TestRule] that uses information from the [ModelTestSuiteBaseline] to ignore tests. */
-private class BaselineTestRule(private val runner: ModelSuiteRunner) : TestRule {
-
-    /**
-     * The [ModelTestSuiteBaseline] that indicates whether the tests are expected to fail or not.
-     */
-    private val baseline = ModelTestSuiteBaseline.fromResource
-
-    override fun apply(base: Statement, description: Description): Statement {
-        return object : Statement() {
-            override fun evaluate() {
-                val expectedFailure =
-                    baseline.isExpectedFailure(description.className, description.methodName)
-                try {
-                    // Run the test even if it is expected to fail as a change that fixes one test
-                    // may fix more. Instead, this will just discard any failure.
-                    base.evaluate()
-                } catch (e: Throwable) {
-                    if (expectedFailure) {
-                        // If this was expected to fail then throw an AssumptionViolatedException
-                        // that way it is not treated as either a pass or fail. Indent the exception
-                        // output and include it in the message instead of chaining the exception as
-                        // that reads better than the default formatting of chained exceptions.
-                        val actualErrorStackTrace = e.stackTraceToString().prependIndent("    ")
-                        throw AssumptionViolatedException(
-                            "Test skipped since it is listed in the baseline file for $runner.\n$actualErrorStackTrace"
-                        )
-                    } else {
-                        // Inform the developer on how to ignore this failing test.
-                        System.err.println(
-                            "Failing tests can be ignored by running $GRADLEW_UPDATE_MODEL_TEST_SUITE_BASELINE"
-                        )
-
-                        // Rethrow the error
-                        throw e
-                    }
-                }
-
-                // Perform this check outside the try...catch block otherwise the exception gets
-                // caught, making it look like an actual failing test.
-                if (expectedFailure) {
-                    // If a test that was expected to fail passes then updating the baseline
-                    // will remove that test from the expected test failures. Fail the test so
-                    // that the developer will be forced to clean it up.
-                    throw IllegalStateException(
-                        """
-                            **************************************************************************************************
-                                Test was listed in the baseline file as it was expected to fail but it passed, please run:
-                                    $GRADLEW_UPDATE_MODEL_TEST_SUITE_BASELINE
-                            **************************************************************************************************
-
-                        """
-                            .trimIndent()
-                    )
-                }
-            }
-        }
-    }
 }

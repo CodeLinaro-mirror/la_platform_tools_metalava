@@ -24,5 +24,5 @@ import com.android.tools.metalava.model.ModelOptions
  * Accessible outside this model to allow callers to specify it.
  */
 object PsiModelOptions {
-    val useK2Uast = ModelOptions.Key.of("psi.useK2Uast", true)
+    val useK2Uast = ModelOptions.Key.of("psi.useK2Uast", false)
 }
