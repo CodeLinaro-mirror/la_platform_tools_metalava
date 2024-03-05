@@ -21,7 +21,6 @@ import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.testing.java
 import java.util.Locale
 import org.junit.Test
-import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 
 private val annotationsList = listOf(systemApiSource, flaggedApiSource, nonNullSource)
@@ -33,7 +32,6 @@ private const val FULLY_QUALIFIED_MODULE_LIB_API_SURFACE_ANNOTATION =
     "android.annotation.SystemApi(client=android.annotation.SystemApi.Client.MODULE_LIBRARIES)"
 
 @Suppress("JavadocDeclaration")
-@RunWith(Parameterized::class)
 class FlaggedApiTest(private val config: Configuration) : DriverTest() {
 
     /** The configuration of the test. */

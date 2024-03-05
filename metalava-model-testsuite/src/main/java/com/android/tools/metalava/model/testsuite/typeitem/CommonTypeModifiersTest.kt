@@ -1594,9 +1594,8 @@ class CommonTypeModifiersTest : BaseModelTest() {
 
             // Set to non-null
             stringType.modifiers.setNullability(NONNULL)
-            // A non-null annotation wasn't added
-            stringType.assertHasNonNullNullability(expectAnnotation = false)
-            // The nullable annotation was not removed
+            assertThat(stringType.modifiers.nullability()).isEqualTo(NONNULL)
+            // The nullable annotation was not removed, a nonnull annotation was not added
             if (annotations) {
                 assertThat(stringType.annotationNames().single()).endsWith("Nullable")
             }

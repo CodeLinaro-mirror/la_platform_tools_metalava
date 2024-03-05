@@ -372,7 +372,7 @@ class CommonFieldItemTest : BaseModelTest() {
             java(
                 """
                     package test.pkg;
-                    import libcore.util.Nullable;
+                    import not.type.use.Nullable;
 
                     public class Foo {
                         @Nullable

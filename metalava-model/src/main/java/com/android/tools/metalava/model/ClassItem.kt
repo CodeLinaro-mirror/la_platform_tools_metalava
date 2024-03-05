@@ -231,6 +231,8 @@ interface ClassItem : Item, TypeParameterListOwner {
      */
     var artifact: String?
 
+    override fun baselineElementId() = qualifiedName()
+
     override fun accept(visitor: ItemVisitor) {
         visitor.visit(this)
     }

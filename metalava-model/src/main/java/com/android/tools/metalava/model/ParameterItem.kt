@@ -84,6 +84,9 @@ interface ParameterItem : Item {
 
     override fun parent(): MethodItem? = containingMethod()
 
+    override fun baselineElementId() =
+        containingMethod().baselineElementId() + " parameter #" + parameterIndex
+
     override fun accept(visitor: ItemVisitor) {
         visitor.visit(this)
     }

@@ -39,6 +39,7 @@ import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.TypeParameterScope
 import com.android.tools.metalava.model.fixUpTypeNullability
+import com.android.tools.metalava.reporter.FileLocation
 import com.google.common.collect.ImmutableList
 import com.google.common.collect.ImmutableMap
 import com.google.turbine.binder.Binder
@@ -78,6 +79,7 @@ import com.google.turbine.tree.Tree.CompUnit
 import com.google.turbine.tree.Tree.Expression
 import com.google.turbine.tree.Tree.Ident
 import com.google.turbine.tree.Tree.Literal
+import com.google.turbine.tree.Tree.MethDecl
 import com.google.turbine.tree.Tree.TyDecl
 import com.google.turbine.type.AnnoInfo
 import com.google.turbine.type.Type
@@ -200,16 +202,18 @@ internal open class TurbineCodebaseInitialiser(
 
     private fun createAllPackages() {
         // Root package
-        findOrCreatePackage("", "")
+        findOrCreatePackage("", null, "")
 
         for (unit in units) {
             var doc = ""
+            var sourceFile: TurbineSourceFile? = null
             // No class declarations. Will be a case of package-info file
             if (unit.decls().isEmpty()) {
                 val source = unit.source().source()
+                sourceFile = TurbineSourceFile(codebase, unit)
                 doc = getHeaderComments(source)
             }
-            findOrCreatePackage(getPackageName(unit), doc)
+            findOrCreatePackage(getPackageName(unit), sourceFile, doc)
             unit.decls().forEach { decl -> classSourceMap.put(decl, unit) }
         }
     }
@@ -218,13 +222,19 @@ internal open class TurbineCodebaseInitialiser(
      * Searches for the package with supplied name in the codebase's package map and if not found
      * creates the corresponding TurbinePackageItem and adds it to the package map.
      */
-    private fun findOrCreatePackage(name: String, document: String): TurbinePackageItem {
+    private fun findOrCreatePackage(
+        name: String,
+        sourceFile: TurbineSourceFile?,
+        document: String
+    ): TurbinePackageItem {
         val pkgItem = codebase.findPackage(name)
         if (pkgItem != null) {
             return pkgItem as TurbinePackageItem
         } else {
             val modifiers = TurbineModifierItem.create(codebase, 0, null, false)
-            val turbinePkgItem = TurbinePackageItem.create(codebase, name, modifiers, document)
+            val fileLocation = TurbineFileLocation.forTree(sourceFile)
+            val turbinePkgItem =
+                TurbinePackageItem.create(codebase, fileLocation, name, modifiers, document)
             codebase.addPackage(turbinePkgItem)
             return turbinePkgItem
         }
@@ -316,7 +326,7 @@ internal open class TurbineCodebaseInitialiser(
 
         // Get the package item
         val pkgName = sym.packageName().replace('/', '.')
-        val pkgItem = findOrCreatePackage(pkgName, "")
+        val pkgItem = findOrCreatePackage(pkgName, null, "")
 
         // Create class
         val qualifiedName = getQualifiedName(sym.binaryName())
@@ -344,9 +354,17 @@ internal open class TurbineCodebaseInitialiser(
                     TurbineSourceFile(codebase, it)
                 }
             } else null
+        val fileLocation =
+            when {
+                sourceFile != null -> TurbineFileLocation.forTree(sourceFile, decl)
+                containingClassItem != null ->
+                    TurbineFileLocation.forTree(containingClassItem, decl)
+                else -> FileLocation.UNKNOWN
+            }
         val classItem =
             TurbineClassItem(
                 codebase,
+                fileLocation,
                 simpleName,
                 fullName,
                 qualifiedName,
@@ -639,12 +657,13 @@ internal open class TurbineCodebaseInitialiser(
             fields.map { field ->
                 val annotations = createAnnotations(field.annotations())
                 val flags = field.access()
+                val decl = field.decl()
                 val fieldModifierItem =
                     TurbineModifierItem.create(
                         codebase,
                         flags,
                         annotations,
-                        isDeprecated(field.decl()?.javadoc())
+                        isDeprecated(decl?.javadoc())
                     )
                 val isEnumConstant = (flags and TurbineFlag.ACC_ENUM) != 0
                 val fieldValue = createInitialValue(field)
@@ -661,10 +680,11 @@ internal open class TurbineCodebaseInitialiser(
                         }
                     )
 
-                val documentation = field.decl()?.javadoc() ?: ""
+                val documentation = decl?.javadoc() ?: ""
                 val fieldItem =
                     TurbineFieldItem(
                         codebase,
+                        TurbineFileLocation.forTree(classItem, decl),
                         field.name(),
                         classItem,
                         type,
@@ -687,12 +707,13 @@ internal open class TurbineCodebaseInitialiser(
                 .filter { it.sym().name() != "<init>" }
                 .map { method ->
                     val annotations = createAnnotations(method.annotations())
+                    val decl: MethDecl? = method.decl()
                     val methodModifierItem =
                         TurbineModifierItem.create(
                             codebase,
                             method.access(),
                             annotations,
-                            isDeprecated(method.decl()?.javadoc())
+                            isDeprecated(decl?.javadoc())
                         )
                     val (typeParams, methodTypeItemFactory) =
                         createTypeParameters(
@@ -700,7 +721,7 @@ internal open class TurbineCodebaseInitialiser(
                             enclosingClassTypeItemFactory,
                             method.name(),
                         )
-                    val documentation = method.decl()?.javadoc() ?: ""
+                    val documentation = decl?.javadoc() ?: ""
                     val defaultValueExpr = getAnnotationDefaultExpression(method)
                     val defaultValue =
                         if (method.defaultValue() != null)
@@ -709,6 +730,7 @@ internal open class TurbineCodebaseInitialiser(
                     val methodItem =
                         TurbineMethodItem(
                             codebase,
+                            TurbineFileLocation.forTree(classItem, decl),
                             method.sym(),
                             classItem,
                             methodTypeItemFactory.getGeneralType(
@@ -719,7 +741,12 @@ internal open class TurbineCodebaseInitialiser(
                             getCommentedDoc(documentation),
                             defaultValue,
                         )
-                    createParameters(methodItem, method.parameters(), methodTypeItemFactory)
+                    createParameters(
+                        methodItem,
+                        decl?.params(),
+                        method.parameters(),
+                        methodTypeItemFactory
+                    )
                     methodItem.throwableTypes =
                         getThrowsList(method.exceptions(), methodTypeItemFactory)
                     methodItem
@@ -731,9 +758,17 @@ internal open class TurbineCodebaseInitialiser(
 
     private fun createParameters(
         methodItem: TurbineMethodItem,
+        parameterDecls: List<Tree.VarDecl>?,
         parameters: List<ParamInfo>,
         typeItemFactory: TurbineTypeItemFactory,
     ) {
+        // Some parameters in [parameters] are implicit parameters that do not have a corresponding
+        // entry in the [parameterDecls] list. The number of implicit parameters is the total
+        // number of [parameters] minus the number of declared parameters [parameterDecls]. The
+        // implicit parameters are always at the beginning so the offset from the declared parameter
+        // in [parameterDecls] to the corresponding parameter in [parameters] is simply the number
+        // of the implicit parameters.
+        val declaredParameterOffset = parameters.size - (parameterDecls?.size ?: 0)
         methodItem.parameters =
             parameters.mapIndexed { idx, parameter ->
                 val annotations = createAnnotations(parameter.annotations())
@@ -744,9 +779,16 @@ internal open class TurbineCodebaseInitialiser(
                         parameter.type(),
                         parameterModifierItem.isVarArg(),
                     )
+                // Get the [Tree.VarDecl] corresponding to the [ParamInfo], if available.
+                val decl =
+                    if (parameterDecls != null && idx >= declaredParameterOffset)
+                        parameterDecls.get(idx - declaredParameterOffset)
+                    else null
+
                 val parameterItem =
                     TurbineParameterItem(
                         codebase,
+                        TurbineFileLocation.forTree(methodItem.containingClass(), decl),
                         parameter.name(),
                         methodItem,
                         idx,
@@ -768,12 +810,13 @@ internal open class TurbineCodebaseInitialiser(
                 .filter { it.sym().name() == "<init>" }
                 .map { constructor ->
                     val annotations = createAnnotations(constructor.annotations())
+                    val decl: MethDecl? = constructor.decl()
                     val constructorModifierItem =
                         TurbineModifierItem.create(
                             codebase,
                             constructor.access(),
                             annotations,
-                            isDeprecated(constructor.decl()?.javadoc())
+                            isDeprecated(decl?.javadoc())
                         )
                     val (typeParams, constructorTypeItemFactory) =
                         createTypeParameters(
@@ -784,10 +827,11 @@ internal open class TurbineCodebaseInitialiser(
                     hasImplicitDefaultConstructor =
                         (constructor.access() and TurbineFlag.ACC_SYNTH_CTOR) != 0
                     val name = classItem.simpleName()
-                    val documentation = constructor.decl()?.javadoc() ?: ""
+                    val documentation = decl?.javadoc() ?: ""
                     val constructorItem =
                         TurbineConstructorItem(
                             codebase,
+                            TurbineFileLocation.forTree(classItem, decl),
                             name,
                             constructor.sym(),
                             classItem,
@@ -802,6 +846,7 @@ internal open class TurbineCodebaseInitialiser(
                         )
                     createParameters(
                         constructorItem,
+                        decl?.params(),
                         constructor.parameters(),
                         constructorTypeItemFactory
                     )

@@ -49,6 +49,8 @@ interface FieldItem : MemberItem {
      */
     override fun duplicate(targetContainingClass: ClassItem): FieldItem
 
+    override fun baselineElementId() = containingClass().qualifiedName() + "#" + name()
+
     override fun accept(visitor: ItemVisitor) {
         visitor.visit(this)
     }

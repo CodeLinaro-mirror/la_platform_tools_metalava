@@ -18,9 +18,9 @@ package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.model.DefaultItem
 import com.android.tools.metalava.model.DefaultModifierList
-import com.android.tools.metalava.model.Location
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.source.utils.LazyDelegate
+import com.android.tools.metalava.reporter.FileLocation
 import com.intellij.psi.PsiCompiledElement
 import com.intellij.psi.PsiDocCommentOwner
 import com.intellij.psi.PsiElement
@@ -61,9 +61,8 @@ internal constructor(
     /** Returns the PSI element for this item */
     abstract fun psi(): PsiElement
 
-    override fun location(): Location {
-        return PsiLocationProvider.elementToLocation(psi(), Location.getBaselineKeyForItem(this))
-    }
+    override val fileLocation: FileLocation
+        get() = PsiLocationProvider.elementToFileLocation(psi())
 
     override fun isFromClassPath(): Boolean {
         return codebase.fromClasspath || containingClass()?.isFromClassPath() ?: false

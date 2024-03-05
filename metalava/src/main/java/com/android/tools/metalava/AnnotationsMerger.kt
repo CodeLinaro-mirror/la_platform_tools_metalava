@@ -232,10 +232,10 @@ class AnnotationsMerger(
             if (e is SAXParseException) {
                 message = "Line ${e.lineNumber}:${e.columnNumber}: $message"
             }
-            error(message)
             if (e !is IOException) {
-                e.printStackTrace()
+                message += "\n" + e.stackTraceToString().prependIndent("  ")
             }
+            error(message)
         }
     }
 
@@ -394,8 +394,7 @@ class AnnotationsMerger(
     }
 
     internal fun error(message: String) {
-        // TODO: Integrate with metalava error facility
-        options.stderr.println("Error: $message")
+        reporter.report(Issues.INTERNAL_ERROR, reportable = null, message)
     }
 
     internal fun warning(message: String) {

@@ -19,6 +19,7 @@ package com.android.tools.metalava.model.testsuite
 import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ModelOptions
+import com.android.tools.metalava.model.provider.FilterableCodebaseCreator
 import com.android.tools.metalava.model.provider.InputFormat
 import java.io.File
 
@@ -27,10 +28,7 @@ import java.io.File
  *
  * An instance of this will be retrieved using the [ServiceLoader] mechanism.
  */
-interface ModelSuiteRunner {
-
-    /** The set of supported [InputFormat]s that this runner can handle. */
-    val supportedInputFormats: Set<InputFormat>
+interface ModelSuiteRunner : FilterableCodebaseCreator {
 
     /** Defines a specific test configuration for which the model tests should be run. */
     data class TestConfiguration(

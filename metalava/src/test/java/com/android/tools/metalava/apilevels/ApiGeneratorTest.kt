@@ -48,6 +48,34 @@ import org.junit.BeforeClass
 import org.junit.Test
 
 class ApiGeneratorTest : DriverTest() {
+
+    private val oldSdkJars by
+        lazy(LazyThreadSafetyMode.NONE) {
+            File("../../../prebuilts/tools/common/api-versions").apply {
+                if (!isDirectory) {
+                    fail("prebuilts for old sdk jars not found: $this")
+                }
+            }
+        }
+
+    private val platformJars by
+        lazy(LazyThreadSafetyMode.NONE) {
+            File("../../../prebuilts/sdk").apply {
+                if (!isDirectory) {
+                    fail("prebuilts for platform jars not found: $this")
+                }
+            }
+        }
+
+    private val extensionSdkJars by
+        lazy(LazyThreadSafetyMode.NONE) {
+            platformJars.resolve("extensions").apply {
+                if (!isDirectory) {
+                    fail("prebuilts for extension jars not found: $this")
+                }
+            }
+        }
+
     companion object {
         // As per ApiConstraint that uses a bit vector, API has to be between 1..61.
         private const val MAGIC_VERSION_INT = 57 // [SdkVersionInfo.MAX_LEVEL] - 4
@@ -66,27 +94,6 @@ class ApiGeneratorTest : DriverTest() {
 
     @Test
     fun `Extract API levels`() {
-        var oldSdkJars = File("prebuilts/tools/common/api-versions")
-        if (!oldSdkJars.isDirectory) {
-            oldSdkJars = File("../../prebuilts/tools/common/api-versions")
-            if (!oldSdkJars.isDirectory) {
-                println(
-                    "Ignoring ${ApiGeneratorTest::class.java}: prebuilts not found - is \$PWD set to an Android source tree?"
-                )
-                return
-            }
-        }
-
-        var platformJars = File("prebuilts/sdk")
-        if (!platformJars.isDirectory) {
-            platformJars = File("../../prebuilts/sdk")
-            if (!platformJars.isDirectory) {
-                println(
-                    "Ignoring ${ApiGeneratorTest::class.java}: prebuilts not found: $platformJars"
-                )
-                return
-            }
-        }
         val output = File.createTempFile("api-info", "xml")
         output.deleteOnExit()
         val outputPath = output.path
@@ -160,27 +167,7 @@ class ApiGeneratorTest : DriverTest() {
         // These are the wrong jar paths but this test doesn't actually care what the
         // content of the jar files, just checking the logic of starting the database
         // at some higher number than 1
-        var platformJars = File("prebuilts/sdk")
-        if (!platformJars.isDirectory) {
-            platformJars = File("../../prebuilts/sdk")
-            if (!platformJars.isDirectory) {
-                println(
-                    "Ignoring ${ApiGeneratorTest::class.java}: prebuilts not found: $platformJars"
-                )
-                return
-            }
-        }
-
-        var extensionSdkJars = File("prebuilts/sdk/extensions")
-        if (!extensionSdkJars.isDirectory) {
-            extensionSdkJars = File("../../prebuilts/sdk/extensions")
-            if (!extensionSdkJars.isDirectory) {
-                println(
-                    "Ignoring ${ApiGeneratorTest::class.java}: prebuilts not found: $extensionSdkJars"
-                )
-                return
-            }
-        }
+        val androidJarPattern = "${platformJars.path}/%/public/android.jar"
 
         val filter = File.createTempFile("filter", "txt")
         filter.deleteOnExit()
@@ -233,7 +220,7 @@ class ApiGeneratorTest : DriverTest() {
                     ARG_GENERATE_API_LEVELS,
                     outputPath,
                     ARG_ANDROID_JAR_PATTERN,
-                    "${platformJars.path}/%/public/android.jar",
+                    androidJarPattern,
                     ARG_SDK_JAR_ROOT,
                     "$extensionSdkJars",
                     ARG_SDK_INFO_FILE,
@@ -365,27 +352,6 @@ class ApiGeneratorTest : DriverTest() {
 
     @Test
     fun `Correct API Level for release`() {
-        var oldSdkJars = File("prebuilts/tools/common/api-versions")
-        if (!oldSdkJars.isDirectory) {
-            oldSdkJars = File("../../prebuilts/tools/common/api-versions")
-            if (!oldSdkJars.isDirectory) {
-                println(
-                    "Ignoring ${ApiGeneratorTest::class.java}: prebuilts not found - is \$PWD set to an Android source tree?"
-                )
-                return
-            }
-        }
-
-        var platformJars = File("prebuilts/sdk")
-        if (!platformJars.isDirectory) {
-            platformJars = File("../../prebuilts/sdk")
-            if (!platformJars.isDirectory) {
-                println(
-                    "Ignoring ${ApiGeneratorTest::class.java}: prebuilts not found: $platformJars"
-                )
-                return
-            }
-        }
         val output = File.createTempFile("api-info", "xml")
         output.deleteOnExit()
         val outputPath = output.path
@@ -427,27 +393,6 @@ class ApiGeneratorTest : DriverTest() {
 
     @Test
     fun `Correct API Level for non-release`() {
-        var oldSdkJars = File("prebuilts/tools/common/api-versions")
-        if (!oldSdkJars.isDirectory) {
-            oldSdkJars = File("../../prebuilts/tools/common/api-versions")
-            if (!oldSdkJars.isDirectory) {
-                println(
-                    "Ignoring ${ApiGeneratorTest::class.java}: prebuilts not found - is \$PWD set to an Android source tree?"
-                )
-                return
-            }
-        }
-
-        var platformJars = File("prebuilts/sdk")
-        if (!platformJars.isDirectory) {
-            platformJars = File("../../prebuilts/sdk")
-            if (!platformJars.isDirectory) {
-                println(
-                    "Ignoring ${ApiGeneratorTest::class.java}: prebuilts not found: $platformJars"
-                )
-                return
-            }
-        }
         val output = File.createTempFile("api-info", "xml")
         output.deleteOnExit()
         val outputPath = output.path
