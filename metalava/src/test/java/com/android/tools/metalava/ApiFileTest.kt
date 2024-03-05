@@ -443,16 +443,19 @@ class ApiFileTest : DriverTest() {
                 arrayOf(
                     kotlin(
                         """
-                    @file:Suppress("NOTHING_TO_INLINE", "RedundantVisibilityModifier", "unused")
+                    @file:Suppress("All", "RedundantVisibilityModifier")
 
                     package test.pkg
+                    import kotlin.collections.List
 
-                    inline fun <T> a(t: T) { }
-                    inline fun <reified T> b(t: T) { }
-                    private inline fun <reified T> c(t: T) { } // hide
-                    internal inline fun <reified T> d(t: T) { } // hide
-                    public inline fun <reified T> e(t: T) { }
-                    inline fun <reified T> T.f(t: T) { }
+                    inline fun <T> inlineNoReified(t: T): T { return t }
+                    inline fun <reified T> inlineReified(t: T) { }
+                    private inline fun <reified T> privateInlineReified(t: T) { } // hide
+                    internal inline fun <reified T> internalInlineReified(t: T) { } // hide
+                    public inline fun <reified T> publicInlineReified(t: T): T { return t }
+                    inline fun <reified T> T.inlineReifiedExtension(t: T) { this }
+                    public inline fun <reified T> inlineReifiedTakesAndReturnsArray(t: Array<T>): Array<T> { return t }
+                    public inline fun <reified T> inlineReifiedTakesAndReturnsList(t: List<T>): List<T> { return t }
                     """
                     )
                 ),
@@ -460,10 +463,12 @@ class ApiFileTest : DriverTest() {
                 """
                 package test.pkg {
                   public final class TestKt {
-                    method public static inline <T> void a(T t);
-                    method public static inline <reified T> void b(T t);
-                    method public static inline <reified T> void e(T t);
-                    method public static inline <reified T> void f(T, T t);
+                    method public static inline <T> T inlineNoReified(T t);
+                    method public static inline <reified T> void inlineReified(T t);
+                    method public static inline <reified T> void inlineReifiedExtension(T, T t);
+                    method @NonNull public static inline <reified T> T[] inlineReifiedTakesAndReturnsArray(@NonNull T[] t);
+                    method @NonNull public static inline <reified T> java.util.List<T> inlineReifiedTakesAndReturnsList(@NonNull java.util.List<? extends T> t);
+                    method public static inline <reified T> T publicInlineReified(T t);
                   }
                 }
                 """

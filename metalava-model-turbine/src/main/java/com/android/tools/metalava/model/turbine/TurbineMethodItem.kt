@@ -110,7 +110,6 @@ internal open class TurbineMethodItem(
                 documentation,
                 defaultValue,
             )
-        mods.setOwner(duplicateMethod)
         duplicateMethod.parameters = params
         duplicateMethod.inheritedFrom = containingClass
         duplicateMethod.throwableTypes = throwableTypes

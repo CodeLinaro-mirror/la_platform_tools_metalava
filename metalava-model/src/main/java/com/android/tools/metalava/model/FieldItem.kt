@@ -107,22 +107,6 @@ interface FieldItem : MemberItem {
         return true
     }
 
-    override fun implicitNullness(): Boolean? {
-        // Delegate to the super class, only dropping through if it did not determine an implicit
-        // nullness.
-        super.implicitNullness()?.let { nullable ->
-            return nullable
-        }
-
-        // Constant field not initialized to null?
-        if (isEnumConstant() || modifiers.isFinal() && initialValue(false) != null) {
-            // Assigned to constant: not nullable
-            return false
-        }
-
-        return null
-    }
-
     companion object {
         val comparator: java.util.Comparator<FieldItem> = Comparator { a, b ->
             a.name().compareTo(b.name())

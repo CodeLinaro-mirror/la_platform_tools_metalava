@@ -26,9 +26,6 @@ internal class TextPackageItem(
     modifiers: DefaultModifierList,
     position: SourcePositionInfo
 ) : TextItem(codebase, position, modifiers = modifiers), PackageItem {
-    init {
-        modifiers.setOwner(this)
-    }
 
     private val classes = ArrayList<ClassItem>(100)
 

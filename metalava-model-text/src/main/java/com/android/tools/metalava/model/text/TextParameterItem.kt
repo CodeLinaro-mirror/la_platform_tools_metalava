@@ -39,10 +39,6 @@ internal class TextParameterItem(
     TextItem(codebase, position, modifiers = modifiers),
     ParameterItem {
 
-    init {
-        modifiers.setOwner(this)
-    }
-
     internal lateinit var containingMethod: TextMethodItem
 
     override fun isVarArgs(): Boolean {

@@ -179,12 +179,6 @@ interface Item {
     fun implicitNullness(): Boolean? = null
 
     /**
-     * Returns true if this item has generic type whose nullability is determined at subclass
-     * declaration site.
-     */
-    fun hasInheritedGenericType(): Boolean = false
-
-    /**
      * Whether this item was loaded from the classpath (e.g. jar dependencies) rather than be
      * declared as source
      */
@@ -394,7 +388,12 @@ interface Item {
     }
 }
 
-abstract class DefaultItem(modifiers: DefaultModifierList) : Item {
+abstract class DefaultItem(final override val modifiers: DefaultModifierList) : Item {
+
+    init {
+        @Suppress("LeakingThis")
+        modifiers.owner = this
+    }
 
     final override val sortingRank: Int = nextRank.getAndIncrement()
 
@@ -403,6 +402,8 @@ abstract class DefaultItem(modifiers: DefaultModifierList) : Item {
     final override var effectivelyDeprecated = originallyDeprecated
 
     final override var deprecated = originallyDeprecated
+
+    final override fun mutableModifiers(): MutableModifierList = modifiers
 
     override val isPublic: Boolean
         get() = modifiers.isPublic()

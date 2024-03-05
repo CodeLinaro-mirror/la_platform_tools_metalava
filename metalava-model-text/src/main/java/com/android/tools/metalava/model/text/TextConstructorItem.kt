@@ -58,7 +58,6 @@ internal class TextConstructorItem(
                     parameters = emptyList(),
                     position = position,
                 )
-            modifiers.setOwner(item)
             return item
         }
     }

@@ -16,14 +16,8 @@
 
 package com.android.tools.metalava.model.psi
 
-import com.android.tools.metalava.model.TypeModifiers
 import com.android.tools.metalava.model.TypeNullability
-import com.android.tools.metalava.model.TypeUse
-import com.android.tools.metalava.model.type.DefaultTypeModifiers
 import com.intellij.psi.PsiElement
-import com.intellij.psi.PsiPrimitiveType
-import com.intellij.psi.PsiType
-import com.intellij.psi.PsiWildcardType
 import org.jetbrains.kotlin.analysis.api.KtAnalysisSession
 import org.jetbrains.kotlin.analysis.api.analyze
 import org.jetbrains.kotlin.analysis.api.components.buildClassType
@@ -39,27 +33,6 @@ import org.jetbrains.kotlin.psi.KtTypeReference
 import org.jetbrains.uast.UElement
 import org.jetbrains.uast.UParameter
 import org.jetbrains.uast.getContainingUMethod
-
-/** Modifiers for a [PsiTypeItem]. */
-internal object PsiTypeModifiers {
-    /** Creates modifiers in the given [codebase] based on the annotations of the [type]. */
-    fun create(
-        codebase: PsiBasedCodebase,
-        type: PsiType,
-        kotlinType: KotlinTypeInfo?,
-        typeUse: TypeUse = TypeUse.GENERAL,
-    ): TypeModifiers {
-        val annotations = type.annotations.map { PsiAnnotationItem.create(codebase, it) }
-        // Some types have defined nullness, and kotlin types have nullness information.
-        val nullability =
-            when {
-                typeUse == TypeUse.SUPER_TYPE || type is PsiPrimitiveType -> TypeNullability.NONNULL
-                type is PsiWildcardType -> TypeNullability.UNDEFINED
-                else -> kotlinType?.nullability()
-            }
-        return DefaultTypeModifiers.create(annotations.toMutableList(), nullability)
-    }
-}
 
 /**
  * A wrapper for a [KtType] and the [KtAnalysisSession] needed to analyze it and the [PsiElement]

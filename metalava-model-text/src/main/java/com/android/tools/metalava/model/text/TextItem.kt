@@ -19,7 +19,6 @@ package com.android.tools.metalava.model.text
 import com.android.tools.metalava.model.DefaultItem
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.Location
-import com.android.tools.metalava.model.MutableModifierList
 import java.nio.file.Path
 
 internal abstract class TextItem(
@@ -27,7 +26,7 @@ internal abstract class TextItem(
     internal val position: SourcePositionInfo,
     override var docOnly: Boolean = false,
     override var documentation: String = "",
-    override var modifiers: DefaultModifierList
+    modifiers: DefaultModifierList,
 ) : DefaultItem(modifiers) {
 
     override val synthetic = false
@@ -39,8 +38,6 @@ internal abstract class TextItem(
 
     override fun appendDocumentation(comment: String, tagSection: String?, append: Boolean) =
         codebase.unsupported()
-
-    override fun mutableModifiers(): MutableModifierList = modifiers
 
     override fun isJava(): Boolean =
         codebase.unsupported() // source language not recorded in signature files

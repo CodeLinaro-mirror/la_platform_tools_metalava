@@ -127,6 +127,14 @@ interface Assertions {
     }
 
     /**
+     * Check to make sure that this [TypeItem] is actually a [LambdaTypeItem] and then run the
+     * optional lambda on the [LambdaTypeItem].
+     */
+    fun TypeItem?.assertLambdaTypeItem(body: (LambdaTypeItem.() -> Unit)? = null) {
+        assertIsInstanceOf(body ?: {})
+    }
+
+    /**
      * Check to make sure that this [TypeItem] is actually a [VariableTypeItem] and then run the
      * optional lambda on the [VariableTypeItem].
      */

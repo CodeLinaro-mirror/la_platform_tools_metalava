@@ -37,7 +37,6 @@ internal open class TextMethodItem(
     position: SourcePositionInfo
 ) : TextMemberItem(codebase, name, containingClass, position, modifiers = modifiers), MethodItem {
     init {
-        @Suppress("LeakingThis") modifiers.setOwner(this)
         parameters.forEach { it.containingMethod = this }
     }
 

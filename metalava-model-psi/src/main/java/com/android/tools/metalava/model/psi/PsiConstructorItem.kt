@@ -121,7 +121,6 @@ private constructor(
                     typeParameterList = typeParameterList,
                     throwsTypes = throwsTypes(psiMethod, constructorTypeItemFactory),
                 )
-            constructor.modifiers.setOwner(constructor)
             return constructor
         }
 
@@ -151,7 +150,6 @@ private constructor(
                     typeParameterList = TypeParameterList.NONE,
                     throwsTypes = emptyList(),
                 )
-            modifiers.setOwner(item)
             return item
         }
 

@@ -16,8 +16,10 @@
 
 package com.android.tools.metalava.model.text
 
+import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.ClassTypeItem
+import com.android.tools.metalava.model.DefaultAnnotationItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeParameterScope
@@ -26,6 +28,11 @@ import org.junit.Assert
 import org.junit.Test
 
 class TextTypeParserTest : BaseTextCodebaseTest() {
+    private val typeParser = TextTypeParser(ApiFile.parseApi("test", ""))
+
+    private fun parseType(type: String) =
+        typeParser.obtainTypeFromString(type, TypeParameterScope.empty)
+
     @Test
     fun `Test type parameter strings`() {
         assertThat(TextTypeParser.typeParameterStrings(null).toString()).isEqualTo("[]")
@@ -123,11 +130,13 @@ class TextTypeParserTest : BaseTextCodebaseTest() {
         original: String,
         expectedType: String,
         expectedAnnotations: List<String>,
-        annotationFunction: (String) -> Pair<String, List<String>>
+        annotationFunction: (String) -> Pair<String, List<AnnotationItem>>
     ) {
         val (type, annotations) = annotationFunction(original)
         assertThat(type).isEqualTo(expectedType)
-        assertThat(annotations).isEqualTo(expectedAnnotations)
+        val expectedAnnotationItems =
+            expectedAnnotations.map { DefaultAnnotationItem.create(typeParser.codebase, it) }
+        assertThat(annotations).isEqualTo(expectedAnnotationItems)
     }
 
     @Test
@@ -137,7 +146,7 @@ class TextTypeParserTest : BaseTextCodebaseTest() {
             original = "java.util.List",
             expectedType = "java.util.List",
             expectedAnnotations = emptyList(),
-            TextTypeParser::trimLeadingAnnotations
+            typeParser::trimLeadingAnnotations
         )
 
         // Annotations not at the start of the type aren't trimmed
@@ -145,13 +154,13 @@ class TextTypeParserTest : BaseTextCodebaseTest() {
             original = "java.util.@libcore.util.Nullable List",
             expectedType = "java.util.@libcore.util.Nullable List",
             expectedAnnotations = emptyList(),
-            TextTypeParser::trimLeadingAnnotations
+            typeParser::trimLeadingAnnotations
         )
         testAnnotations(
             original = "java.util.List @libcore.util.Nullable",
             expectedType = "java.util.List @libcore.util.Nullable",
             expectedAnnotations = emptyList(),
-            TextTypeParser::trimLeadingAnnotations
+            typeParser::trimLeadingAnnotations
         )
 
         // Trimming annotations from the start
@@ -159,38 +168,38 @@ class TextTypeParserTest : BaseTextCodebaseTest() {
             original = "@libcore.util.Nullable java.util.List",
             expectedType = "java.util.List",
             expectedAnnotations = listOf("@libcore.util.Nullable"),
-            TextTypeParser::trimLeadingAnnotations
+            typeParser::trimLeadingAnnotations
         )
         testAnnotations(
             original = " @libcore.util.Nullable java.util.List ",
             expectedType = "java.util.List",
             expectedAnnotations = listOf("@libcore.util.Nullable"),
-            TextTypeParser::trimLeadingAnnotations
+            typeParser::trimLeadingAnnotations
         )
         testAnnotations(
             original = "@test.pkg.A @test.pkg.B java.util.List",
             expectedType = "java.util.List",
             expectedAnnotations = listOf("@test.pkg.A", "@test.pkg.B"),
-            TextTypeParser::trimLeadingAnnotations
+            typeParser::trimLeadingAnnotations
         )
         testAnnotations(
             original = "@test.pkg.A(a = \"hi@\", b = 0) java.util.List",
             expectedType = "java.util.List",
             expectedAnnotations = listOf("@test.pkg.A(a = \"hi@\", b = 0)"),
-            TextTypeParser::trimLeadingAnnotations
+            typeParser::trimLeadingAnnotations
         )
         testAnnotations(
             original = "@test.pkg.A(a = \"hi@\", b = 0) @test.pkg.B(v = \"\") java.util.List",
             expectedType = "java.util.List",
             expectedAnnotations =
                 listOf("@test.pkg.A(a = \"hi@\", b = 0)", "@test.pkg.B(v = \"\")"),
-            TextTypeParser::trimLeadingAnnotations
+            typeParser::trimLeadingAnnotations
         )
         testAnnotations(
             original = "@test.pkg.A @test.pkg.B java.util.List<java.lang.@test.pkg.C String>",
             expectedType = "java.util.List<java.lang.@test.pkg.C String>",
             expectedAnnotations = listOf("@test.pkg.A", "@test.pkg.B"),
-            TextTypeParser::trimLeadingAnnotations
+            typeParser::trimLeadingAnnotations
         )
     }
 
@@ -201,7 +210,7 @@ class TextTypeParserTest : BaseTextCodebaseTest() {
             original = "java.util.List",
             expectedType = "java.util.List",
             expectedAnnotations = emptyList(),
-            TextTypeParser::trimTrailingAnnotations
+            typeParser::trimTrailingAnnotations
         )
 
         // Annotations that aren't at the end aren't trimmed
@@ -209,13 +218,13 @@ class TextTypeParserTest : BaseTextCodebaseTest() {
             original = "java.util.@libcore.util.Nullable List",
             expectedType = "java.util.@libcore.util.Nullable List",
             expectedAnnotations = emptyList(),
-            TextTypeParser::trimTrailingAnnotations
+            typeParser::trimTrailingAnnotations
         )
         testAnnotations(
             original = "@libcore.util.Nullable java.util.List",
             expectedType = "@libcore.util.Nullable java.util.List",
             expectedAnnotations = emptyList(),
-            TextTypeParser::trimTrailingAnnotations
+            typeParser::trimTrailingAnnotations
         )
 
         // Trimming annotations from the end
@@ -223,19 +232,19 @@ class TextTypeParserTest : BaseTextCodebaseTest() {
             original = "java.util.List @libcore.util.Nullable",
             expectedType = "java.util.List",
             expectedAnnotations = listOf("@libcore.util.Nullable"),
-            TextTypeParser::trimTrailingAnnotations
+            typeParser::trimTrailingAnnotations
         )
         testAnnotations(
             original = " java.util.List @libcore.util.Nullable ",
             expectedType = "java.util.List",
             expectedAnnotations = listOf("@libcore.util.Nullable"),
-            TextTypeParser::trimTrailingAnnotations
+            typeParser::trimTrailingAnnotations
         )
         testAnnotations(
             original = "java.util.List @test.pkg.A @test.pkg.B",
             expectedType = "java.util.List",
             expectedAnnotations = listOf("@test.pkg.A", "@test.pkg.B"),
-            TextTypeParser::trimTrailingAnnotations
+            typeParser::trimTrailingAnnotations
         )
 
         // Verify that annotations at the end with `@`s in them work correctly.
@@ -243,20 +252,20 @@ class TextTypeParserTest : BaseTextCodebaseTest() {
             original = "java.util.List @test.pkg.A(a = \"hi@\", b = 0)",
             expectedType = "java.util.List",
             expectedAnnotations = listOf("@test.pkg.A(a = \"hi@\", b = 0)"),
-            TextTypeParser::trimTrailingAnnotations
+            typeParser::trimTrailingAnnotations
         )
         testAnnotations(
             original = "java.util.List @test.pkg.A(a = \"hi@\", b = 0) @test.pkg.B(v = \"\")",
             expectedType = "java.util.List",
             expectedAnnotations =
                 listOf("@test.pkg.A(a = \"hi@\", b = 0)", "@test.pkg.B(v = \"\")"),
-            TextTypeParser::trimTrailingAnnotations
+            typeParser::trimTrailingAnnotations
         )
         testAnnotations(
             original = "java.util.@test.pkg.A List<java.lang.@text.pkg.B String> @test.pkg.C",
             expectedType = "java.util.@test.pkg.A List<java.lang.@text.pkg.B String>",
             expectedAnnotations = listOf("@test.pkg.C"),
-            TextTypeParser::trimTrailingAnnotations
+            typeParser::trimTrailingAnnotations
         )
     }
 
@@ -270,10 +279,12 @@ class TextTypeParserTest : BaseTextCodebaseTest() {
         expectedParams: String?,
         expectedAnnotations: List<String>
     ) {
-        val (className, params, annotations) = TextTypeParser.splitClassType(original)
+        val (className, params, annotations) = typeParser.splitClassType(original)
         assertThat(className).isEqualTo(expectedClassName)
         assertThat(params).isEqualTo(expectedParams)
-        assertThat(annotations).isEqualTo(expectedAnnotations)
+        val expectedAnnotationItems =
+            expectedAnnotations.map { DefaultAnnotationItem.create(typeParser.codebase, it) }
+        assertThat(annotations).isEqualTo(expectedAnnotationItems)
     }
 
     @Test
@@ -378,11 +389,6 @@ class TextTypeParserTest : BaseTextCodebaseTest() {
             expectedAnnotations = emptyList()
         )
     }
-
-    private val typeParser = TextTypeParser(ApiFile.parseApi("test", "") as TextCodebase)
-
-    private fun parseType(type: String) =
-        typeParser.obtainTypeFromString(type, TypeParameterScope.empty)
 
     /**
      * Tests that [inputType] is parsed as an [ArrayTypeItem] with component type equal to
