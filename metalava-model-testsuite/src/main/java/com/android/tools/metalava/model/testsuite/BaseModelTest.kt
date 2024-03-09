@@ -163,6 +163,7 @@ abstract class BaseModelTest() :
 
                 val inputs =
                     ModelSuiteRunner.TestInputs(
+                        inputFormat = inputSet.inputFormat,
                         modelOptions = codebaseCreatorConfig.modelOptions,
                         mainSourceDir = mainSourceDir,
                         commonSourceDir = commonSourceDir,

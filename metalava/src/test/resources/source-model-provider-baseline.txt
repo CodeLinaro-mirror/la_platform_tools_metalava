@@ -9,12 +9,8 @@ com.android.tools.metalava.AnnotationsMergerTest
   Merge @FlaggedApi inclusion annotations from Java stub files[turbine]
   Merge Contract and Language annotations from XML files[turbine]
   Merge Contract and Language annotations from signature files[turbine]
-  Merge nullability into child[turbine]
   Merge qualifier annotations from Java stub files making sure they apply to public members of hidden superclasses[turbine]
-  Merge qualifier annotations from Java stub files onto stubs that are not in the API signature file[turbine]
-  Merge qualifier annotations from Java stub files[turbine]
   Merge type use qualifier annotations from Java stub files[turbine]
-  Merged class and method annotations with no arguments[turbine]
   Signature files contain annotations[turbine]
 
 com.android.tools.metalava.ApiAnalyzerTest
@@ -121,18 +117,10 @@ com.android.tools.metalava.NormalizeOutputAnnotationTest
   Normalize nested permission annotations (java)[turbine]
 
 com.android.tools.metalava.NullabilityAnnotationsValidatorTest
-  Empty report when all expected annotations present[turbine]
-  Error from NullFromTypeParam not on type param[turbine]
-  Error from annotation on primitive[turbine]
-  Missing parameter annotation[turbine]
-  Missing return type annotations[turbine]
   Using class list[turbine]
 
 com.android.tools.metalava.NullnessMigrationTest
   Convert libcore nullness annotations to support[turbine]
-  Do not migrate type-use annotations when not changed[turbine]
-  Migrate nullness for type-use annotations[turbine]
-  Test inherited methods[turbine]
 
 com.android.tools.metalava.PolymorphicMethodsTest
   Test MethodHandle[turbine]
@@ -203,13 +191,8 @@ com.android.tools.metalava.compatibility.CompatibilityCheckTest
   Implementing undefined interface[turbine]
   Implicit modifiers from inherited super classes[turbine]
   Incompatible method change -- final[turbine]
-  Inherited systemApi method in an inner class[turbine]
   No issues using the same classpath class twice[turbine]
-  Partial text file which references inner classes not listed elsewhere[turbine]
   Removed method from classpath[turbine]
-  Test inherited methods[turbine]
-  Wildcard comparisons[turbine]
-  unchanged self-referencing type parameter is compatible[turbine]
 
 com.android.tools.metalava.compatibility.FastPathTest
   Check fast path not taken for removed[turbine]
@@ -219,7 +202,6 @@ com.android.tools.metalava.compatibility.FastPathTest
 
 com.android.tools.metalava.compatibility.ParameterNameChangeTest
   Flag renaming a parameter from the classpath[turbine]
-  Java Parameter Name Change[turbine]
 
 com.android.tools.metalava.doc.DocAnalyzerRangeTest
   Add new parameter when doc exists but no param doc[turbine]

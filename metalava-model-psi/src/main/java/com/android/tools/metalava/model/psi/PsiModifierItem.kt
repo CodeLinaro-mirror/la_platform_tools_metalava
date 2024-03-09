@@ -131,8 +131,9 @@ internal object PsiModifierItem {
         modifiers: DefaultModifierList,
     ): Boolean {
         // Kotlin varargs are not nullable but can sometimes and up with an @Nullable annotation
-        // added to the [PsiParameter] so remove it from the modifiers.
-        if (element is PsiParameter && element.isVarArgs && element.isKotlin()) {
+        // added to the [PsiParameter] so remove it from the modifiers. Only Kotlin varargs have a
+        // `vararg` modifier.
+        if (modifiers.isVarArg()) {
             return true
         }
 

@@ -6309,4 +6309,41 @@ class ApiFileTest : DriverTest() {
                 """
         )
     }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Usage of NullableType annotation`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            import java.util.List;
+                            public class Foo {
+                                public List<@NullableType String> foo(@NullableType Number nullableNumber, Number otherNumber) { return null; }
+                            }
+                        """
+                    ),
+                    kotlin(
+                        """
+                            package test.pkg
+                            @Target(AnnotationTarget.TYPE)
+                            annotation class NullableType
+                        """
+                    )
+                ),
+            api =
+                """
+                    package test.pkg {
+                      public class Foo {
+                        ctor public Foo();
+                        method public java.util.List<java.lang.String?>! foo(Number?, Number!);
+                      }
+                      @kotlin.annotation.Target(allowedTargets=kotlin.annotation.AnnotationTarget.TYPE) public @interface NullableType {
+                      }
+                    }
+                """
+        )
+    }
 }

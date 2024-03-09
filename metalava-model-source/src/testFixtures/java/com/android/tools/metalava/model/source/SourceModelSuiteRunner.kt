@@ -19,10 +19,12 @@ package com.android.tools.metalava.model.source
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.noOpAnnotationManager
 import com.android.tools.metalava.model.provider.Capability
+import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.testsuite.ModelSuiteRunner
 import com.android.tools.metalava.model.testsuite.ModelSuiteRunner.TestConfiguration
 import com.android.tools.metalava.reporter.BasicReporter
 import com.android.tools.metalava.testing.getAndroidJar
+import com.android.tools.metalava.testing.getKotlinStdlibPaths
 import java.io.File
 import java.io.PrintWriter
 
@@ -56,11 +58,17 @@ class SourceModelSuiteRunner : ModelSuiteRunner {
         test: (Codebase) -> Unit
     ) {
         sourceModelProvider.createEnvironmentManager(forTesting = true).use { environmentManager ->
+            val classPath = buildList {
+                add(getAndroidJar())
+                if (inputs.inputFormat == InputFormat.KOTLIN) {
+                    addAll(getKotlinStdlibPaths())
+                }
+            }
             val codebase =
                 createTestCodebase(
                     environmentManager,
                     inputs,
-                    listOf(getAndroidJar()),
+                    classPath,
                 )
             test(codebase)
         }

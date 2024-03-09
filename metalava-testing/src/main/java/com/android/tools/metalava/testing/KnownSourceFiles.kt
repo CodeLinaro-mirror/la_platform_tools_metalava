@@ -39,6 +39,30 @@ object KnownSourceFiles {
             """
         )
 
+    val typeUseOnlyNonNullSource: TestFile =
+        TestFiles.java(
+            """
+                package type.use.only;
+                import java.lang.annotation.*;
+                import static java.lang.annotation.ElementType.*;
+                @Target(TYPE_USE)
+                public @interface NonNull {
+                }
+            """
+        )
+
+    val typeUseOnlyNullableSource: TestFile =
+        TestFiles.java(
+            """
+                package type.use.only;
+                import java.lang.annotation.*;
+                import static java.lang.annotation.ElementType.*;
+                @Target(TYPE_USE)
+                public @interface Nullable {
+                }
+            """
+        )
+
     val nonNullSource: TestFile =
         TestFiles.java(
             """

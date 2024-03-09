@@ -119,9 +119,8 @@ class CommonPropertyItemTest : BaseModelTest() {
             val fieldType = fooClass.fields().single().type()
             fieldType.assertClassTypeItem {
                 // The type of the field is NOT `String` (that is the type of the property). The
-                // type of the field is the property delegate which in this case is an anonymous
-                // object.
-                Truth.assertThat(qualifiedName).isEqualTo("java.lang.Object")
+                // type of the field is the property delegate.
+                Truth.assertThat(qualifiedName).isEqualTo("kotlin.properties.ReadOnlyProperty")
             }
 
             val propertyType = fooClass.properties().single().type()

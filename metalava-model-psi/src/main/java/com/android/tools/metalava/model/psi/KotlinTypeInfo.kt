@@ -18,6 +18,7 @@ package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.model.TypeNullability
 import com.intellij.psi.PsiElement
+import com.intellij.psi.PsiParameter
 import org.jetbrains.kotlin.analysis.api.KtAnalysisSession
 import org.jetbrains.kotlin.analysis.api.analyze
 import org.jetbrains.kotlin.analysis.api.components.buildClassType
@@ -27,10 +28,15 @@ import org.jetbrains.kotlin.analysis.api.types.KtType
 import org.jetbrains.kotlin.analysis.api.types.KtTypeNullability
 import org.jetbrains.kotlin.analysis.api.types.KtTypeParameterType
 import org.jetbrains.kotlin.psi.KtCallableDeclaration
+import org.jetbrains.kotlin.psi.KtClass
+import org.jetbrains.kotlin.psi.KtElement
+import org.jetbrains.kotlin.psi.KtParameter
 import org.jetbrains.kotlin.psi.KtProperty
 import org.jetbrains.kotlin.psi.KtPropertyAccessor
 import org.jetbrains.kotlin.psi.KtTypeReference
+import org.jetbrains.kotlin.psi.psiUtil.parameterIndex
 import org.jetbrains.uast.UElement
+import org.jetbrains.uast.UMethod
 import org.jetbrains.uast.UParameter
 import org.jetbrains.uast.getContainingUMethod
 
@@ -136,27 +142,92 @@ internal data class KotlinTypeInfo(
          * [KtType] for the [context] can't be resolved.
          */
         fun fromContext(context: PsiElement): KotlinTypeInfo {
-            return when (val sourcePsi = (context as? UElement)?.sourcePsi) {
-                is KtCallableDeclaration -> {
-                    analyze(sourcePsi) {
-                        KotlinTypeInfo(this, sourcePsi.getReturnKtType(), sourcePsi)
-                    }
-                }
-                is KtTypeReference ->
-                    analyze(sourcePsi) { KotlinTypeInfo(this, sourcePsi.getKtType(), sourcePsi) }
-                is KtPropertyAccessor ->
-                    analyze(sourcePsi) { KotlinTypeInfo(this, sourcePsi.getKtType(), sourcePsi) }
-                else -> {
-                    // Check if this is the parameter of a synthetic setter
-                    val containingMethod = (context as? UParameter)?.getContainingUMethod()
-                    return if (containingMethod?.sourcePsi is KtProperty) {
-                        fromContext(containingMethod)
-                    } else {
-                        KotlinTypeInfo(null, null, context)
+            return if (context is KtElement) {
+                fromKtElement(context)
+            } else {
+                when (val sourcePsi = (context as? UElement)?.sourcePsi) {
+                    is KtElement -> fromKtElement(sourcePsi)
+                    else -> {
+                        typeFromSyntheticElement(context)
                     }
                 }
             }
+                ?: KotlinTypeInfo(null, null, context)
         }
+
+        /** Try and compute [KotlinTypeInfo] from a [KtElement]. */
+        private fun fromKtElement(context: KtElement): KotlinTypeInfo? =
+            when (context) {
+                is KtCallableDeclaration -> {
+                    analyze(context) { KotlinTypeInfo(this, context.getReturnKtType(), context) }
+                }
+                is KtTypeReference ->
+                    analyze(context) { KotlinTypeInfo(this, context.getKtType(), context) }
+                is KtPropertyAccessor ->
+                    analyze(context) { KotlinTypeInfo(this, context.getKtType(), context) }
+                else -> null
+            }
+
+        /**
+         * Try and compute the type from a synthetic elements, e.g. a property setter.
+         *
+         * In order to get this far the [context] is either not a [UElement], or it has a null
+         * [UElement.sourcePsi]. That means it is most likely a parameter in a synthetic method
+         * created for use by code that operates on a "Psi" view of the source, i.e. java code. This
+         * method will attempt to reverse engineer the "Kt" -> "Psi" mapping to find the real Kotlin
+         * types.
+         */
+        private fun typeFromSyntheticElement(context: PsiElement): KotlinTypeInfo? {
+            // If this is not a UParameter in a UMethod then it is an unknown synthetic element so
+            // just return.
+            val containingMethod = (context as? UParameter)?.getContainingUMethod() ?: return null
+            return when (val sourcePsi = containingMethod.sourcePsi) {
+                is KtProperty -> {
+                    // This is the parameter of a synthetic setter, so get its type from the
+                    // containing method.
+                    fromContext(containingMethod)
+                }
+                is KtParameter -> {
+                    // The underlying source representation of the synthetic method is a parameter,
+                    // most likely a parameter of the primary constructor. In which case the
+                    // synthetic method is most like a property setter. Whatever it may be, use the
+                    // type of the parameter as it is most likely to be the correct type.
+                    fromKtElement(sourcePsi)
+                }
+                is KtClass -> {
+                    // The underlying source representation of the synthetic method is a whole
+                    // class.
+                    typeFromKtClass(context, containingMethod, sourcePsi)
+                }
+                else -> null
+            }
+        }
+
+        /** Try and get the type for [parameter] in [containingMethod] from the [ktClass]. */
+        private fun typeFromKtClass(
+            parameter: UParameter,
+            containingMethod: UMethod,
+            ktClass: KtClass
+        ) =
+            when {
+                ktClass.isData() && containingMethod.name == "copy" -> {
+                    // The parameters in the copy constructor correspond to the parameters in the
+                    // primary constructor so find the corresponding parameter in the primary
+                    // constructor and use its type.
+                    ktClass.primaryConstructor?.let { primaryConstructor ->
+                        val index = (parameter.javaPsi as PsiParameter).parameterIndex()
+                        val ktParameter = primaryConstructor.valueParameters[index]
+                        analyze(ktParameter) {
+                            KotlinTypeInfo(
+                                this,
+                                ktParameter.getReturnKtType(),
+                                ktParameter,
+                            )
+                        }
+                    }
+                }
+                else -> null
+            }
 
         // Mimic `hasInheritedGenericType` in `...uast.kotlin.FirKotlinUastResolveProviderService`
         fun KtAnalysisSession.isInheritedGenericType(ktType: KtType): Boolean {

@@ -58,6 +58,13 @@ interface ModelSuiteRunner : FilterableCodebaseCreator {
 
     /** Inputs for the test. */
     data class TestInputs(
+        /**
+         * The [InputFormat] of the files in [mainSourceDir] and [commonSourceDir]. If they contain
+         * at least one Kotlin files then this will be [InputFormat.KOTLIN], otherwise it will be
+         * [InputFormat.JAVA].
+         */
+        val inputFormat: InputFormat,
+
         /** Model options to pass down to the model runner. */
         val modelOptions: ModelOptions,
 

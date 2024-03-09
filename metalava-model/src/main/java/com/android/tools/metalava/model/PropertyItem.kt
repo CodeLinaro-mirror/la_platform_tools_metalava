@@ -56,9 +56,7 @@ interface PropertyItem : MemberItem {
     override fun duplicate(targetContainingClass: ClassItem): PropertyItem =
         codebase.unsupported("Not needed yet")
 
-    override fun baselineElementId() =
-        // TODO: Be consistent with other items.
-        describe(false)
+    override fun baselineElementId() = containingClass().qualifiedName() + "#" + name()
 
     override fun accept(visitor: ItemVisitor) {
         visitor.visit(this)

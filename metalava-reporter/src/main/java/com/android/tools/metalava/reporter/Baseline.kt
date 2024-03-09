@@ -98,18 +98,6 @@ private constructor(
             return it
         }
 
-        // Previously, text properties used "Field" as their prefix not "property", and psi
-        // properties used "field" as their prefix, so try with those.
-        if (elementId.startsWith("property ")) {
-            val withoutPrefix = elementId.removePrefix("property ")
-            get("field $withoutPrefix")?.let {
-                return it
-            }
-            get("Field $withoutPrefix")?.let {
-                return it
-            }
-        }
-
         return null
     }
 

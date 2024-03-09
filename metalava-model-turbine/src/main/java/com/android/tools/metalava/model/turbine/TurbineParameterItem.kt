@@ -57,9 +57,16 @@ internal class TurbineParameterItem(
         return annotation?.attributes?.firstOrNull()?.value?.value()?.toString()
     }
 
-    override fun equals(other: Any?): Boolean = TODO("b/295800205")
+    override fun equals(other: Any?): Boolean {
+        if (this === other) {
+            return true
+        }
+        return other is ParameterItem &&
+            parameterIndex == other.parameterIndex &&
+            containingMethod == other.containingMethod()
+    }
 
-    override fun hashCode(): Int = TODO("b/295800205")
+    override fun hashCode(): Int = parameterIndex
 
     override fun type(): TypeItem = type
 

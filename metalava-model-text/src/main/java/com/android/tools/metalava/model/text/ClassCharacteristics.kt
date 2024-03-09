@@ -66,7 +66,7 @@ internal data class ClassCharacteristics(
         // TextClassItem
         return fullName == other.fullName &&
             classKind == other.classKind &&
-            modifiers == other.modifiers
+            modifiers.equivalentTo(other.modifiers)
     }
 
     companion object {

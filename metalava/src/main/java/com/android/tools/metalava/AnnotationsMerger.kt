@@ -52,13 +52,13 @@ import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.DefaultAnnotationAttribute
+import com.android.tools.metalava.model.DefaultAnnotationItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ModifierList
 import com.android.tools.metalava.model.TraversingVisitor
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeNullability
-import com.android.tools.metalava.model.psi.PsiAnnotationItem
 import com.android.tools.metalava.model.source.SourceCodebase
 import com.android.tools.metalava.model.source.SourceParser
 import com.android.tools.metalava.model.source.SourceSet
@@ -629,7 +629,7 @@ class AnnotationsMerger(
                 val value1 = valueElement1.getAttribute(ATTR_VAL)
                 val valName2 = valueElement2.getAttribute(ATTR_NAME)
                 val value2 = valueElement2.getAttribute(ATTR_VAL)
-                return PsiAnnotationItem.create(
+                return DefaultAnnotationItem.create(
                     codebase,
                     "androidx.annotation.IntRange",
                     listOf(
@@ -721,7 +721,7 @@ class AnnotationsMerger(
                         )
                     )
                 }
-                return PsiAnnotationItem.create(
+                return DefaultAnnotationItem.create(
                     codebase,
                     if (valName == "stringValues") ANDROIDX_STRING_DEF else ANDROIDX_INT_DEF,
                     attributes,
@@ -762,7 +762,7 @@ class AnnotationsMerger(
                     parseChild(children[1])
                 }
                 val intDef = ANDROIDX_INT_DEF == name || ANDROID_INT_DEF == name
-                return PsiAnnotationItem.create(
+                return DefaultAnnotationItem.create(
                     codebase,
                     if (intDef) ANDROIDX_INT_DEF else ANDROIDX_STRING_DEF,
                     attributes,
@@ -774,7 +774,7 @@ class AnnotationsMerger(
                 val value = valueElement.getAttribute(ATTR_VAL)
                 val pure = valueElement.getAttribute(ATTR_PURE)
                 return if (pure != null && pure.isNotEmpty()) {
-                    PsiAnnotationItem.create(
+                    DefaultAnnotationItem.create(
                         codebase,
                         name,
                         listOf(
@@ -783,7 +783,7 @@ class AnnotationsMerger(
                         ),
                     )
                 } else {
-                    PsiAnnotationItem.create(
+                    DefaultAnnotationItem.create(
                         codebase,
                         name,
                         listOf(DefaultAnnotationAttribute.create(TYPE_DEF_VALUE_ATTRIBUTE, value)),
@@ -806,7 +806,7 @@ class AnnotationsMerger(
                         )
                     )
                 }
-                return PsiAnnotationItem.create(codebase, name, attributes)
+                return DefaultAnnotationItem.create(codebase, name, attributes)
             }
         }
     }
