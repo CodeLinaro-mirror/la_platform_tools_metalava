@@ -920,6 +920,9 @@ interface ClassTypeItem : TypeItem, BoundsTypeItem, ReferenceTypeItem, Exception
  * has been updated to handle lambdas specifically it will need to remain a [ClassTypeItem].
  */
 interface LambdaTypeItem : ClassTypeItem {
+    /** True if the lambda is a suspend function, false otherwise. */
+    val isSuspend: Boolean
+
     /** The type of the optional receiver. */
     val receiverType: TypeItem?
 

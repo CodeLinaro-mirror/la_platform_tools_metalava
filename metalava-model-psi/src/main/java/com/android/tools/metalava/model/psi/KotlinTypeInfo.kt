@@ -18,24 +18,25 @@ package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.model.TypeNullability
 import com.intellij.psi.PsiElement
-import com.intellij.psi.PsiParameter
 import org.jetbrains.kotlin.analysis.api.KtAnalysisSession
 import org.jetbrains.kotlin.analysis.api.analyze
 import org.jetbrains.kotlin.analysis.api.components.buildClassType
-import org.jetbrains.kotlin.analysis.api.types.KtFunctionalType
+import org.jetbrains.kotlin.analysis.api.symbols.KtNamedClassOrObjectSymbol
 import org.jetbrains.kotlin.analysis.api.types.KtNonErrorClassType
 import org.jetbrains.kotlin.analysis.api.types.KtType
 import org.jetbrains.kotlin.analysis.api.types.KtTypeNullability
 import org.jetbrains.kotlin.analysis.api.types.KtTypeParameterType
+import org.jetbrains.kotlin.lexer.KtTokens
 import org.jetbrains.kotlin.psi.KtCallableDeclaration
 import org.jetbrains.kotlin.psi.KtClass
 import org.jetbrains.kotlin.psi.KtElement
+import org.jetbrains.kotlin.psi.KtFunction
 import org.jetbrains.kotlin.psi.KtParameter
 import org.jetbrains.kotlin.psi.KtProperty
 import org.jetbrains.kotlin.psi.KtPropertyAccessor
 import org.jetbrains.kotlin.psi.KtTypeReference
-import org.jetbrains.kotlin.psi.psiUtil.parameterIndex
 import org.jetbrains.uast.UElement
+import org.jetbrains.uast.UField
 import org.jetbrains.uast.UMethod
 import org.jetbrains.uast.UParameter
 import org.jetbrains.uast.getContainingUMethod
@@ -44,11 +45,35 @@ import org.jetbrains.uast.getContainingUMethod
  * A wrapper for a [KtType] and the [KtAnalysisSession] needed to analyze it and the [PsiElement]
  * that is the use site.
  */
-internal data class KotlinTypeInfo(
+internal class KotlinTypeInfo
+private constructor(
     val analysisSession: KtAnalysisSession?,
-    val ktType: KtType?,
+    ktType: KtType?,
     val context: PsiElement,
+    /**
+     * Override list of type arguments that should have been, but for some reason could not be,
+     * encapsulated within [ktType].
+     */
+    val overrideTypeArguments: List<KotlinTypeInfo>? = null,
 ) {
+    constructor(context: PsiElement) : this(null, null, context)
+
+    /** Make sure that any typealiases are fully expanded. */
+    val ktType =
+        analysisSession?.run { ktType?.fullyExpandedType }
+            ?: ktType?.let {
+                error("cannot have non-null ktType ($ktType) with a null analysisSession")
+            }
+
+    override fun toString(): String {
+        return "KotlinTypeInfo($ktType for $context)"
+    }
+
+    fun copy(
+        ktType: KtType? = this.ktType,
+        overrideTypeArguments: List<KotlinTypeInfo>? = this.overrideTypeArguments,
+    ) = KotlinTypeInfo(analysisSession, ktType, context, overrideTypeArguments)
+
     /**
      * Finds the nullability of the [ktType]. If there is no [analysisSession] or [ktType], defaults
      * to [TypeNullability.NONNULL] since the type is from Kotlin source.
@@ -84,32 +109,20 @@ internal data class KotlinTypeInfo(
     }
 
     /**
-     * Creates [KotlinTypeInfo] for the parameter number [index] of this [ktType], assuming it is a
-     * class type.
+     * Creates [KotlinTypeInfo] for the type argument at [index] of this [KotlinTypeInfo], assuming
+     * it is a class type.
      */
-    fun forParameter(index: Int): KotlinTypeInfo {
+    fun forTypeArgument(index: Int): KotlinTypeInfo {
+        overrideTypeArguments?.getOrNull(index)?.let {
+            return it
+        }
         return KotlinTypeInfo(
             analysisSession,
             analysisSession?.run {
-                (ktType as? KtFunctionalType)?.let {
-                    if (it.hasReceiver && index == 0) {
-                        it.receiverType
-                    } else {
-                        // If there's a receiver, the index into the parameter list is one less.
-                        val effectiveIndex =
-                            if (it.hasReceiver) {
-                                index - 1
-                            } else {
-                                index
-                            }
-                        if (effectiveIndex >= it.parameterTypes.size) {
-                            it.returnType
-                        } else {
-                            it.parameterTypes[effectiveIndex]
-                        }
-                    }
+                when (ktType) {
+                    is KtNonErrorClassType -> ktType.ownTypeArguments.getOrNull(index)?.type
+                    else -> null
                 }
-                    ?: (ktType as? KtNonErrorClassType)?.ownTypeArguments?.getOrNull(index)?.type
             },
             context,
         )
@@ -136,6 +149,22 @@ internal data class KotlinTypeInfo(
         )
     }
 
+    /** Get a [KotlinTypeInfo] that represents a suspend function's `Continuation` parameter. */
+    fun forSyntheticContinuationParameter(returnType: KtType): KotlinTypeInfo {
+        // This cast is safe as this will only be called for a lambda function whose context will
+        // be [KtFunction].
+        val ktElement = context as KtElement
+        return analyze(ktElement) { syntheticContinuationParameter(context, returnType) }
+    }
+
+    /** Get a [KotlinTypeInfo] that represents `Any?`. */
+    fun nullableAny(): KotlinTypeInfo {
+        // This cast is safe as this will only be called for a lambda function whose context will
+        // be [KtFunction].
+        val ktElement = context as KtElement
+        return analyze(ktElement) { KotlinTypeInfo(this, builtinTypes.NULLABLE_ANY, context) }
+    }
+
     companion object {
         /**
          * Creates a [KotlinTypeInfo] instance from the given [context], with null values if the
@@ -143,28 +172,61 @@ internal data class KotlinTypeInfo(
          */
         fun fromContext(context: PsiElement): KotlinTypeInfo {
             return if (context is KtElement) {
-                fromKtElement(context)
+                fromKtElement(context, context)
             } else {
                 when (val sourcePsi = (context as? UElement)?.sourcePsi) {
-                    is KtElement -> fromKtElement(sourcePsi)
+                    is KtElement -> fromKtElement(sourcePsi, context)
                     else -> {
                         typeFromSyntheticElement(context)
                     }
                 }
             }
-                ?: KotlinTypeInfo(null, null, context)
+                ?: KotlinTypeInfo(context)
         }
 
-        /** Try and compute [KotlinTypeInfo] from a [KtElement]. */
-        private fun fromKtElement(context: KtElement): KotlinTypeInfo? =
-            when (context) {
+        /**
+         * Try and compute [KotlinTypeInfo] from a [KtElement].
+         *
+         * Multiple different [PsiElement] subclasses can be generated from the same [KtElement] and
+         * require different views of its types. The [context] is provided to differentiate between
+         * them.
+         */
+        private fun fromKtElement(ktElement: KtElement, context: PsiElement): KotlinTypeInfo? =
+            when (ktElement) {
+                is KtProperty -> {
+                    analyze(ktElement) {
+                        val ktType =
+                            when {
+                                // If the context is the backing field then use the type of the
+                                // delegate, if any.
+                                context is UField -> ktElement.delegateExpression?.getKtType()
+                                else -> null
+                            }
+                                ?: ktElement.getReturnKtType()
+                        KotlinTypeInfo(this, ktType, ktElement)
+                    }
+                }
                 is KtCallableDeclaration -> {
-                    analyze(context) { KotlinTypeInfo(this, context.getReturnKtType(), context) }
+                    analyze(ktElement) {
+                        KotlinTypeInfo(this, ktElement.getReturnKtType(), ktElement)
+                    }
                 }
                 is KtTypeReference ->
-                    analyze(context) { KotlinTypeInfo(this, context.getKtType(), context) }
+                    analyze(ktElement) { KotlinTypeInfo(this, ktElement.getKtType(), ktElement) }
                 is KtPropertyAccessor ->
-                    analyze(context) { KotlinTypeInfo(this, context.getKtType(), context) }
+                    analyze(ktElement) {
+                        KotlinTypeInfo(this, ktElement.getReturnKtType(), ktElement)
+                    }
+                is KtClass -> {
+                    analyze(ktElement) {
+                        // If this is a named class or object then return a KotlinTypeInfo for the
+                        // class. If it is generic then the type parameters will be used as the
+                        // type arguments.
+                        (ktElement.getSymbol() as? KtNamedClassOrObjectSymbol)?.let { symbol ->
+                            KotlinTypeInfo(this, symbol.buildSelfClassType(), ktElement)
+                        }
+                    }
+                }
                 else -> null
             }
 
@@ -181,6 +243,11 @@ internal data class KotlinTypeInfo(
             // If this is not a UParameter in a UMethod then it is an unknown synthetic element so
             // just return.
             val containingMethod = (context as? UParameter)?.getContainingUMethod() ?: return null
+
+            // Get the parameter index from the containing methods `uastParameters` as the parameter
+            // is a `UParameter`.
+            val parameterIndex = containingMethod.uastParameters.indexOf(context)
+
             return when (val sourcePsi = containingMethod.sourcePsi) {
                 is KtProperty -> {
                     // This is the parameter of a synthetic setter, so get its type from the
@@ -192,20 +259,61 @@ internal data class KotlinTypeInfo(
                     // most likely a parameter of the primary constructor. In which case the
                     // synthetic method is most like a property setter. Whatever it may be, use the
                     // type of the parameter as it is most likely to be the correct type.
-                    fromKtElement(sourcePsi)
+                    fromKtElement(sourcePsi, context)
                 }
                 is KtClass -> {
                     // The underlying source representation of the synthetic method is a whole
                     // class.
-                    typeFromKtClass(context, containingMethod, sourcePsi)
+                    typeFromKtClass(parameterIndex, containingMethod, sourcePsi)
                 }
+                is KtFunction -> {
+                    if (
+                        sourcePsi.modifierList?.hasModifier(KtTokens.SUSPEND_KEYWORD) == true &&
+                            parameterIndex == containingMethod.parameters.size - 1
+                    ) {
+                        // Compute the [KotlinTypeInfo] for the suspend function's synthetic
+                        // [kotlin.coroutines.Continuation] parameter.
+                        analyze(sourcePsi) {
+                            val returnKtType = sourcePsi.getReturnKtType()
+                            syntheticContinuationParameter(sourcePsi, returnKtType)
+                        }
+                    } else null
+                }
+                is KtPropertyAccessor ->
+                    analyze(sourcePsi) {
+                        KotlinTypeInfo(this, sourcePsi.getReturnKtType(), context)
+                    }
                 else -> null
             }
         }
 
-        /** Try and get the type for [parameter] in [containingMethod] from the [ktClass]. */
+        /**
+         * Create a [KotlinTypeInfo] that represents the continuation parameter of a `suspend`
+         * function with [returnKtType].
+         *
+         * Ideally, this would create a [KtNonErrorClassType] for `Continuation<$returnType$>`,
+         * where `$returnType$` is the return type of the Kotlin suspend function but while that
+         * works in K2 it fails in K1 as it cannot resolve the `Continuation` type even though it is
+         * in the Kotlin stdlib which will be on the classpath.
+         *
+         * Fortunately, doing that is not strictly necessary as the [KtType] is only used to
+         * retrieve nullability for the `Continuation` type and its type argument. So, this uses
+         * non-nullable [Any] as the fake type for `Continuation` (as that is always non-nullable)
+         * and stores the suspend function's return type in [KotlinTypeInfo.overrideTypeArguments]
+         * from where it will be retrieved.
+         */
+        internal fun KtAnalysisSession.syntheticContinuationParameter(
+            context: PsiElement,
+            returnKtType: KtType
+        ): KotlinTypeInfo {
+            val returnTypeInfo = KotlinTypeInfo(this, returnKtType, context)
+            val fakeContinuationKtType = builtinTypes.ANY
+            return KotlinTypeInfo(this, fakeContinuationKtType, context, listOf(returnTypeInfo))
+        }
+
+        /** Try and get the type for [parameterIndex] in [containingMethod] from the [ktClass]. */
         private fun typeFromKtClass(
-            parameter: UParameter,
+            parameterIndex: Int,
             containingMethod: UMethod,
             ktClass: KtClass
         ) =
@@ -215,8 +323,7 @@ internal data class KotlinTypeInfo(
                     // primary constructor so find the corresponding parameter in the primary
                     // constructor and use its type.
                     ktClass.primaryConstructor?.let { primaryConstructor ->
-                        val index = (parameter.javaPsi as PsiParameter).parameterIndex()
-                        val ktParameter = primaryConstructor.valueParameters[index]
+                        val ktParameter = primaryConstructor.valueParameters[parameterIndex]
                         analyze(ktParameter) {
                             KotlinTypeInfo(
                                 this,

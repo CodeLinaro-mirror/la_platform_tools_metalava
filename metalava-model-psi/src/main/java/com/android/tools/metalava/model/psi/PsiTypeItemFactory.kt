@@ -317,7 +317,8 @@ internal class PsiTypeItemFactory(
             }
 
         return psiParameters.mapIndexed { i, param ->
-            createTypeItem(param, kotlinType?.forParameter(i)) as TypeArgumentTypeItem
+            val forTypeArgument = kotlinType?.forTypeArgument(i)
+            createTypeItem(param, forTypeArgument) as TypeArgumentTypeItem
         }
     }
 
@@ -515,8 +516,37 @@ internal class PsiTypeItemFactory(
 
         val ktType = kotlinType.ktType as KtFunctionalType
 
+        val isSuspend = ktType.isSuspend
+
+        val actualKotlinType =
+            kotlinType.copy(
+                overrideTypeArguments =
+                    // Compute a set of [KtType]s corresponding to the type arguments in the
+                    // underlying `kotlin.jvm.functions.Function*`.
+                    buildList {
+                        // The optional lambda receiver is the first type argument.
+                        ktType.receiverType?.let { add(kotlinType.copy(ktType = it)) }
+                        // The lambda's explicit parameters appear next.
+                        ktType.parameterTypes.mapTo(this) { kotlinType.copy(ktType = it) }
+                        // A `suspend` lambda is transformed by Kotlin in the same way that a
+                        // `suspend` function is, i.e. an additional continuation parameter is added
+                        // at the end of the explicit parameters that encapsulates the return type
+                        // and the return type is changed to `Any?`.
+                        if (isSuspend) {
+                            // Create a KotlinTypeInfo for the continuation parameter that
+                            // encapsulates the actual return type.
+                            add(kotlinType.forSyntheticContinuationParameter(ktType.returnType))
+                            // Add the `Any?` for the return type.
+                            add(kotlinType.nullableAny())
+                        } else {
+                            // As it is not a `suspend` lambda add the return type last.
+                            add(kotlinType.copy(ktType = ktType.returnType))
+                        }
+                    }
+            )
+
         // Get the type arguments for the kotlin.jvm.functions.Function<X> class.
-        val typeArguments = computeTypeArguments(psiType, kotlinType)
+        val typeArguments = computeTypeArguments(psiType, actualKotlinType)
 
         // If the function has a receiver then it is the first type argument.
         var firstParameterTypeIndex = 0
@@ -545,10 +575,11 @@ internal class PsiTypeItemFactory(
             psiType = psiType,
             qualifiedName = qualifiedName,
             arguments = typeArguments,
-            outerClassType = computeOuterClass(psiType, kotlinType),
+            outerClassType = computeOuterClass(psiType, actualKotlinType),
             // This should be able to use `psiType.name`, but that sometimes returns null.
             className = ClassTypeItem.computeClassName(qualifiedName),
-            modifiers = createTypeModifiers(psiType, kotlinType, contextNullability),
+            modifiers = createTypeModifiers(psiType, actualKotlinType, contextNullability),
+            isSuspend = isSuspend,
             receiverType = receiverType,
             parameterTypes = parameterTypes,
             returnType = returnType,

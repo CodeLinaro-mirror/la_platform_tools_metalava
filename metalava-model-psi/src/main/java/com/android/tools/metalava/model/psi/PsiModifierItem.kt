@@ -231,7 +231,7 @@ internal object PsiModifierItem {
                 ktModifierList = modifierList.kotlinOrigin as? KtModifierList
             }
             is LightModifierList -> {
-                if (element is UMethod && sourcePsi is KtModifierListOwner) {
+                if (sourcePsi is KtModifierListOwner) {
                     ktModifierList = sourcePsi.modifierList
                 }
             }

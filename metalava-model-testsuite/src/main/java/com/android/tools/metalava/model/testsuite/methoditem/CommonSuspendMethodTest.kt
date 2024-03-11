@@ -39,8 +39,7 @@ class CommonSuspendMethodTest : BaseModelTest() {
             val method = codebase.assertClass("test.pkg.TestKt").methods().single()
             assertThat(method.kotlinLikeDescription())
                 .isEqualTo(
-                    // TODO: Fix, java.lang.String should be nullable.
-                    "fun foo(\$completion: kotlin.coroutines.Continuation<? super java.lang.String>): java.lang.Object?"
+                    "fun foo(\$completion: kotlin.coroutines.Continuation<? super java.lang.String?>): java.lang.Object?"
                 )
         }
     }
@@ -80,8 +79,7 @@ class CommonSuspendMethodTest : BaseModelTest() {
             val method = codebase.assertClass("test.pkg.Foo").methods().single()
             assertThat(method.kotlinLikeDescription())
                 .isEqualTo(
-                    // TODO: Fix, java.lang.String should be nullable.
-                    "fun foo(\$completion: kotlin.coroutines.Continuation<? super java.lang.String>): java.lang.Object?"
+                    "fun foo(\$completion: kotlin.coroutines.Continuation<? super java.lang.String?>): java.lang.Object?"
                 )
         }
     }
@@ -123,8 +121,7 @@ class CommonSuspendMethodTest : BaseModelTest() {
             val method = codebase.assertClass("test.pkg.Foo").methods().single()
             assertThat(method.kotlinLikeDescription())
                 .isEqualTo(
-                    // TODO: Fix, java.lang.Integer should be nullable.
-                    "fun foo(\$completion: kotlin.coroutines.Continuation<? super java.lang.Integer>): java.lang.Object?"
+                    "fun foo(\$completion: kotlin.coroutines.Continuation<? super java.lang.Integer?>): java.lang.Object?"
                 )
         }
     }

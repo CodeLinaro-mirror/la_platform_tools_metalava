@@ -155,4 +155,41 @@ class CommonDataClassTest : BaseModelTest() {
                 .isEqualTo("fun setOpt(<set-?>: java.lang.String?): void")
         }
     }
+
+    @Test
+    fun `Test generic data class all members`() {
+        runCodebaseTest(
+            kotlin(
+                """
+                    package test.pkg
+                    data class Foo<T>(val t: T?)
+                """
+            ),
+        ) {
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+
+            val allMembers =
+                (fooClass.fields().asSequence().map {
+                        "${it.name()}: ${it.type().toTypeString(kotlinStyleNulls = true)}"
+                    } +
+                        (fooClass.constructors().asSequence() + fooClass.methods().asSequence())
+                            .map { it.kotlinLikeDescription() })
+                    .sorted()
+                    .joinToString("\n")
+            assertEquals(
+                """
+                    constructor Foo(t: T?): test.pkg.Foo<T>
+                    fun component1(): T?
+                    fun copy(t: T?): test.pkg.Foo<T>
+                    fun equals(other: java.lang.Object?): boolean
+                    fun getT(): T?
+                    fun hashCode(): int
+                    fun toString(): java.lang.String
+                    t: T?
+                """
+                    .trimIndent(),
+                allMembers
+            )
+        }
+    }
 }

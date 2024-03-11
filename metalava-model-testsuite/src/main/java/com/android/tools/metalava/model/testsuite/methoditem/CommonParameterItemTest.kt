@@ -523,10 +523,9 @@ class CommonParameterItemTest : BaseModelTest() {
             ),
         ) {
             val expectedTypes =
-                // These are broken, Kotlin varargs are non-null.
                 mapOf(
-                    "nullable" to "T?...?",
-                    "nonNull" to "T...?",
+                    "nullable" to "T?...",
+                    "nonNull" to "T...",
                 )
             for (method in codebase.assertClass("test.pkg.TestKt").methods()) {
                 val name = method.name()
