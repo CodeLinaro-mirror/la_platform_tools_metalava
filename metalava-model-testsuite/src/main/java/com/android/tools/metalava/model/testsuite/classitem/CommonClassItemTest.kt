@@ -27,6 +27,7 @@ import com.android.tools.metalava.testing.KnownSourceFiles.typeUseOnlyNullableSo
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import com.google.common.truth.Truth.assertThat
+import com.google.common.truth.Truth.assertWithMessage
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 import kotlin.test.assertSame
@@ -1322,9 +1323,18 @@ class CommonClassItemTest : BaseModelTest() {
                 java(
                     """
                         package test.pkg;
+                        import java.util.List;
                         import type.use.only.*;
                         class HiddenClass<@Nullable T, @Nullable S> {
-                            public void foo(T t, @Nullable S s) {}
+                            public void t(T t) {}
+                            public void optionalT(@Nullable T optionalT) {}
+                            public void listOfT(@NonNull List<? extends T> listOfT) {}
+                            public void listOfOptionalT(@NonNull List<? extends @Nullable T>listOfOptionalT) {}
+
+                            public void s(S s) {}
+                            public void optionalS(@Nullable S optionalS) {}
+                            public void listOfS(@NonNull List<? extends S> listOfS) {}
+                            public void listOfOptionalS(@NonNull List<? extends @Nullable S> listOfOptionalS) {}
                         }
                     """
                 ),
@@ -1341,30 +1351,52 @@ class CommonClassItemTest : BaseModelTest() {
                     """
                         package test.pkg
                         internal class HiddenClass<T, S> {
-                            fun foo(t: T, s: S?) {}
+                            fun t(t: T) {}
+                            fun optionalT(optionalT: T?) {}
+                            fun listOfT(listOfT: List<T>) {}
+                            fun listOfOptionalT(listOfOptionalT: List<T?>) {}
+
+                            fun s(s: S) {}
+                            fun optionalS(optionalS: S?) {}
+                            fun listOfS(listOfS: List<S>) {}
+                            fun listOfOptionalS(listOfOptionalS: List<S?>) {}
                         }
                     """
                 ),
                 kotlin(
                     """
                         package test.pkg
-                        class PublicClass: HiddenClass<String, Integer>()
+                        class PublicClass: HiddenClass<String, Integer?>()
                     """
                 ),
             ),
         ) {
             val hiddenClass = codebase.assertClass("test.pkg.HiddenClass")
-            val hiddenClassMethod = hiddenClass.methods().single()
             val publicClass = codebase.assertClass("test.pkg.PublicClass")
 
-            val inheritedMethod = publicClass.inheritMethodFromNonApiAncestor(hiddenClassMethod)
-            assertSame(hiddenClass, inheritedMethod.inheritedFrom)
-            assertTrue(inheritedMethod.inheritedFromAncestor)
+            val expectedTypes =
+                mapOf(
+                    "t" to "java.lang.String",
+                    "optionalT" to "java.lang.String?",
+                    "listOfT" to "java.util.List<? extends java.lang.String>",
+                    "listOfOptionalT" to "java.util.List<? extends java.lang.String?>",
+                    "s" to "java.lang.Integer?",
+                    "optionalS" to "java.lang.Integer?",
+                    "listOfS" to "java.util.List<? extends java.lang.Integer?>",
+                    "listOfOptionalS" to "java.util.List<? extends java.lang.Integer?>",
+                )
 
-            assertEquals(
-                "fun foo(t: java.lang.String, s: java.lang.Integer?): void",
-                inheritedMethod.kotlinLikeDescription()
-            )
+            for (method in hiddenClass.methods().sortedBy { it.name() }) {
+                val name = method.name()
+                val inheritedMethod = publicClass.inheritMethodFromNonApiAncestor(method)
+                assertSame(hiddenClass, inheritedMethod.inheritedFrom)
+                assertTrue(inheritedMethod.inheritedFromAncestor)
+
+                val parameterType = inheritedMethod.parameters().single().type()
+                assertWithMessage("testing type of $name")
+                    .that(parameterType.toTypeString(kotlinStyleNulls = true))
+                    .isEqualTo(expectedTypes[name])
+            }
         }
     }
 

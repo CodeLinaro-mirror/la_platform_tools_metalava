@@ -960,7 +960,14 @@ interface VariableTypeItem : TypeItem, BoundsTypeItem, ReferenceTypeItem, Except
     }
 
     override fun convertType(typeParameterBindings: TypeParameterBindings): ReferenceTypeItem {
-        return (typeParameterBindings[asTypeParameter] ?: this).duplicate()
+        val nullability = modifiers.nullability()
+        return (typeParameterBindings[asTypeParameter] ?: this).duplicate().apply {
+            // If this use of the type parameter is marked as nullable, then it overrides the
+            // nullability of the substituted type.
+            if (nullability == TypeNullability.NULLABLE) {
+                modifiers.setNullability(nullability)
+            }
+        }
     }
 
     override fun asClass() = asTypeParameter.asErasedType()?.asClass()

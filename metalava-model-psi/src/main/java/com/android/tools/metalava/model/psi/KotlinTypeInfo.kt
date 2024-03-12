@@ -26,7 +26,6 @@ import org.jetbrains.kotlin.analysis.api.types.KtNonErrorClassType
 import org.jetbrains.kotlin.analysis.api.types.KtType
 import org.jetbrains.kotlin.analysis.api.types.KtTypeNullability
 import org.jetbrains.kotlin.analysis.api.types.KtTypeParameterType
-import org.jetbrains.kotlin.lexer.KtTokens
 import org.jetbrains.kotlin.psi.KtCallableDeclaration
 import org.jetbrains.kotlin.psi.KtClass
 import org.jetbrains.kotlin.psi.KtElement
@@ -35,6 +34,7 @@ import org.jetbrains.kotlin.psi.KtParameter
 import org.jetbrains.kotlin.psi.KtProperty
 import org.jetbrains.kotlin.psi.KtPropertyAccessor
 import org.jetbrains.kotlin.psi.KtTypeReference
+import org.jetbrains.kotlin.psi.psiUtil.hasSuspendModifier
 import org.jetbrains.uast.UElement
 import org.jetbrains.uast.UField
 import org.jetbrains.uast.UMethod
@@ -76,7 +76,8 @@ private constructor(
 
     /**
      * Finds the nullability of the [ktType]. If there is no [analysisSession] or [ktType], defaults
-     * to [TypeNullability.NONNULL] since the type is from Kotlin source.
+     * to `null` to allow for other sources, like annotations and inferred nullability to take
+     * effect.
      */
     fun nullability(): TypeNullability? {
         return if (analysisSession != null && ktType != null) {
@@ -93,7 +94,7 @@ private constructor(
                 }
             }
         } else {
-            TypeNullability.NONNULL
+            null
         }
     }
 
@@ -208,7 +209,15 @@ private constructor(
                 }
                 is KtCallableDeclaration -> {
                     analyze(ktElement) {
-                        KotlinTypeInfo(this, ktElement.getReturnKtType(), ktElement)
+                        val ktType =
+                            if (ktElement is KtFunction && ktElement.isSuspend()) {
+                                // A suspend function is transformed by Kotlin to return Any?
+                                // instead of its actual return type.
+                                builtinTypes.NULLABLE_ANY
+                            } else {
+                                ktElement.getReturnKtType()
+                            }
+                        KotlinTypeInfo(this, ktType, ktElement)
                     }
                 }
                 is KtTypeReference ->
@@ -268,7 +277,7 @@ private constructor(
                 }
                 is KtFunction -> {
                     if (
-                        sourcePsi.modifierList?.hasModifier(KtTokens.SUSPEND_KEYWORD) == true &&
+                        sourcePsi.isSuspend() &&
                             parameterIndex == containingMethod.parameters.size - 1
                     ) {
                         // Compute the [KotlinTypeInfo] for the suspend function's synthetic
@@ -281,11 +290,16 @@ private constructor(
                 }
                 is KtPropertyAccessor ->
                     analyze(sourcePsi) {
-                        KotlinTypeInfo(this, sourcePsi.getReturnKtType(), context)
+                        // Getters and setters are always the same type as the property so use its
+                        // type.
+                        fromKtElement(sourcePsi.property, context)
                     }
                 else -> null
             }
         }
+
+        /** Check if this is a `suspend` function. */
+        private fun KtFunction.isSuspend() = modifierList?.hasSuspendModifier() == true
 
         /**
          * Create a [KotlinTypeInfo] that represents the continuation parameter of a `suspend`

@@ -242,7 +242,7 @@ interface AnnotationItem {
 
 /** Get the [TypeNullability] from a list of [AnnotationItem]s. */
 val List<AnnotationItem>.typeNullability
-    get() = mapNotNull { it.typeNullability }.singleOrNull()
+    get() = mapNotNull { it.typeNullability }.firstOrNull()
 
 /**
  * Get the value of the named attribute as an object of the specified type or null if the attribute

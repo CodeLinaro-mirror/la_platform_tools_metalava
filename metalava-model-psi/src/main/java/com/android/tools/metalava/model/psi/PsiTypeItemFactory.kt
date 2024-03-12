@@ -121,6 +121,7 @@ internal class PsiTypeItemFactory(
         return classTypeItemFactory.createTypeItem(
             psiTypeWithTypeParametersIfAny,
             KotlinTypeInfo.fromContext(psiClassItem.psiClass),
+            contextNullability = ContextNullability.forceNonNull,
         ) as PsiClassTypeItem
     }
 

@@ -146,4 +146,23 @@ class CommonSuspendMethodTest : BaseModelTest() {
                 )
         }
     }
+
+    @Test
+    fun `Test suspend inline fun with reified type`() {
+        runCodebaseTest(
+            kotlin(
+                """
+                    package test.pkg
+
+                    suspend inline fun <reified T> foo(): T
+                """
+            ),
+        ) {
+            val method = codebase.assertClass("test.pkg.TestKt").methods().single()
+            assertThat(method.kotlinLikeDescription())
+                .isEqualTo(
+                    "fun foo(\$completion: kotlin.coroutines.Continuation<? super T>): java.lang.Object?"
+                )
+        }
+    }
 }

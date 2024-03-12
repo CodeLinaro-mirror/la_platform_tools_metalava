@@ -503,4 +503,38 @@ class CommonPropertyItemTest : BaseModelTest() {
                 )
         }
     }
+
+    @Test
+    fun `Test mutable list of nullable property overriding property exposing public setter`() {
+        runCodebaseTest(
+            kotlin(
+                """
+                    package test.pkg
+
+                    abstract class Baz {
+                        abstract var property: List<String?>
+                            internal set
+                    }
+
+                    class Foo : Baz<T> {
+                        override var property: List<String?> = emptyList()
+                            public set
+                    }
+                """
+            ),
+        ) {
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+
+            val methods =
+                fooClass.methods().map { it.kotlinLikeDescription() }.sorted().joinToString("\n")
+            assertThat(methods)
+                .isEqualTo(
+                    """
+                        fun getProperty(): java.util.List<java.lang.String?>
+                        fun setProperty(<set-?>: java.util.List<java.lang.String?>): void
+                    """
+                        .trimIndent()
+                )
+        }
+    }
 }
