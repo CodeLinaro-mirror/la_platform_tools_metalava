@@ -235,7 +235,13 @@ internal constructor(
     }
 
     companion object {
-        internal fun javadoc(element: PsiElement): String {
+
+        // Gets the javadoc of the current element, unless reading comments is
+        // disabled via allowReadingComments
+        internal fun javadoc(element: PsiElement, allowReadingComments: Boolean): String {
+            if (!allowReadingComments) {
+                return ""
+            }
             if (element is PsiCompiledElement) {
                 return ""
             }

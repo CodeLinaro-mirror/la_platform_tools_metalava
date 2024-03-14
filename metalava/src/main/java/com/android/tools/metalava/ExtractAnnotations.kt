@@ -137,19 +137,20 @@ class ExtractAnnotations(
                         writer.println("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<root>")
 
                         var open = false
-                        var prev: Item? = null
+                        var previousSignature: String? = null
                         for ((item, annotation) in pairs) {
-                            if (item != prev) {
+                            val signature = item.getExternalAnnotationSignature()
+                            if (signature != previousSignature) {
                                 if (open) {
                                     writer.print("  </item>")
                                     writer.println()
                                 }
                                 writer.print("  <item name=\"")
-                                writer.print(item.getExternalAnnotationSignature())
+                                writer.print(signature)
                                 writer.println("\">")
                                 open = true
                             }
-                            prev = item
+                            previousSignature = signature
 
                             writeAnnotation(writer, item, annotation)
                         }

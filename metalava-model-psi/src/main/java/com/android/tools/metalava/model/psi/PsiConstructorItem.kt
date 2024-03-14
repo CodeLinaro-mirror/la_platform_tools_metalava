@@ -86,7 +86,7 @@ private constructor(
         ): PsiConstructorItem {
             assert(psiMethod.isConstructor)
             val name = psiMethod.name
-            val commentText = javadoc(psiMethod)
+            val commentText = javadoc(psiMethod, codebase.allowReadingComments)
             val modifiers = modifiers(codebase, psiMethod, commentText)
             // Create the TypeParameterList for this before wrapping any of the other types used by
             // it as they may reference a type parameter in the list.

@@ -327,7 +327,7 @@ internal constructor(
             val hasImplicitDefaultConstructor = hasImplicitDefaultConstructor(psiClass)
             val classKind = getClassKind(psiClass)
 
-            val commentText = javadoc(psiClass)
+            val commentText = javadoc(psiClass, codebase.allowReadingComments)
             val modifiers = PsiModifierItem.create(codebase, psiClass, commentText)
 
             // Create the TypeParameterList for this before wrapping any of the other types used by

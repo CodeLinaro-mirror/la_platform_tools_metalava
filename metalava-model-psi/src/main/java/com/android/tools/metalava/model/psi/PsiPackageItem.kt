@@ -137,9 +137,11 @@ internal constructor(
             psiPackage: PsiPackage,
             extraDocs: String?,
             overviewHtml: String?,
-            fromClassPath: Boolean
+            fromClassPath: Boolean,
         ): PsiPackageItem {
-            val commentText = javadoc(psiPackage) + if (extraDocs != null) "\n$extraDocs" else ""
+            val commentText =
+                javadoc(psiPackage, codebase.allowReadingComments) +
+                    if (extraDocs != null) "\n$extraDocs" else ""
             val modifiers = modifiers(codebase, psiPackage, commentText)
             if (modifiers.isPackagePrivate()) {
                 // packages are always public (if not hidden explicitly with private)

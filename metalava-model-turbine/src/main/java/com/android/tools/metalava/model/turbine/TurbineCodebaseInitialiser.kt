@@ -333,7 +333,7 @@ internal open class TurbineCodebaseInitialiser(
         val simpleName = qualifiedName.substring(qualifiedName.lastIndexOf('.') + 1)
         val fullName = sym.simpleName().replace('$', '.')
         val annotations = createAnnotations(cls.annotations())
-        val documentation = decl?.javadoc() ?: ""
+        val documentation = javadoc(decl)
         val modifierItem =
             TurbineModifierItem.create(
                 codebase,
@@ -663,7 +663,7 @@ internal open class TurbineCodebaseInitialiser(
                         codebase,
                         flags,
                         annotations,
-                        isDeprecated(decl?.javadoc())
+                        isDeprecated(javadoc(decl))
                     )
                 val isEnumConstant = (flags and TurbineFlag.ACC_ENUM) != 0
                 val fieldValue = createInitialValue(field)
@@ -680,7 +680,7 @@ internal open class TurbineCodebaseInitialiser(
                         }
                     )
 
-                val documentation = decl?.javadoc() ?: ""
+                val documentation = javadoc(decl)
                 val fieldItem =
                     TurbineFieldItem(
                         codebase,
@@ -713,7 +713,7 @@ internal open class TurbineCodebaseInitialiser(
                             codebase,
                             method.access(),
                             annotations,
-                            isDeprecated(decl?.javadoc())
+                            isDeprecated(javadoc(decl))
                         )
                     val (typeParams, methodTypeItemFactory) =
                         createTypeParameters(
@@ -721,7 +721,7 @@ internal open class TurbineCodebaseInitialiser(
                             enclosingClassTypeItemFactory,
                             method.name(),
                         )
-                    val documentation = decl?.javadoc() ?: ""
+                    val documentation = javadoc(decl)
                     val defaultValueExpr = getAnnotationDefaultExpression(method)
                     val defaultValue =
                         if (method.defaultValue() != null)
@@ -816,7 +816,7 @@ internal open class TurbineCodebaseInitialiser(
                             codebase,
                             constructor.access(),
                             annotations,
-                            isDeprecated(decl?.javadoc())
+                            isDeprecated(javadoc(decl))
                         )
                     val (typeParams, constructorTypeItemFactory) =
                         createTypeParameters(
@@ -827,7 +827,7 @@ internal open class TurbineCodebaseInitialiser(
                     hasImplicitDefaultConstructor =
                         (constructor.access() and TurbineFlag.ACC_SYNTH_CTOR) != 0
                     val name = classItem.simpleName()
-                    val documentation = decl?.javadoc() ?: ""
+                    val documentation = javadoc(decl)
                     val constructorItem =
                         TurbineConstructorItem(
                             codebase,
@@ -875,6 +875,21 @@ internal open class TurbineCodebaseInitialiser(
     private fun createLookupKey(name: String): LookupKey {
         val idents = name.split(".").mapIndexed { idx, it -> Ident(idx, it) }
         return LookupKey(ImmutableList.copyOf(idents))
+    }
+
+    private fun javadoc(item: Tree.TyDecl?): String {
+        if (!codebase.allowReadingComments) return ""
+        return item?.javadoc() ?: ""
+    }
+
+    private fun javadoc(item: Tree.VarDecl?): String {
+        if (!codebase.allowReadingComments) return ""
+        return item?.javadoc() ?: ""
+    }
+
+    private fun javadoc(item: Tree.MethDecl?): String {
+        if (!codebase.allowReadingComments) return ""
+        return item?.javadoc() ?: ""
     }
 
     private fun isDeprecated(javadoc: String?): Boolean {

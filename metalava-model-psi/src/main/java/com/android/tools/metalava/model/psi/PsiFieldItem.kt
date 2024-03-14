@@ -111,10 +111,10 @@ class PsiFieldItem(
             codebase: PsiBasedCodebase,
             containingClass: PsiClassItem,
             psiField: PsiField,
-            enclosingClassTypeItemFactory: PsiTypeItemFactory
+            enclosingClassTypeItemFactory: PsiTypeItemFactory,
         ): PsiFieldItem {
             val name = psiField.name
-            val commentText = javadoc(psiField)
+            val commentText = javadoc(psiField, codebase.allowReadingComments)
             val modifiers = modifiers(codebase, psiField, commentText)
 
             val isEnumConstant = psiField is PsiEnumConstant

@@ -35,6 +35,7 @@ internal open class TurbineBasedCodebase(
     location: File,
     description: String = "Unknown",
     annotationManager: AnnotationManager,
+    val allowReadingComments: Boolean
 ) : DefaultCodebase(location, description, false, annotationManager), SourceCodebase {
 
     /**

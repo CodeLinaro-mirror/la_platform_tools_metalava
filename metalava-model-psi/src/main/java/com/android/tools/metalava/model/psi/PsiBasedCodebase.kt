@@ -102,7 +102,8 @@ open class PsiBasedCodebase(
     description: String = "Unknown",
     annotationManager: AnnotationManager,
     private val reporter: Reporter,
-    val fromClasspath: Boolean = false
+    val allowReadingComments: Boolean,
+    val fromClasspath: Boolean = false,
 ) : DefaultCodebase(location, description, false, annotationManager), SourceCodebase {
     private lateinit var uastEnvironment: UastEnvironment
     internal val project: Project
