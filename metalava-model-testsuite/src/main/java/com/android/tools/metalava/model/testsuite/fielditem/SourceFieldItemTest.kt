@@ -21,11 +21,8 @@ import com.android.tools.metalava.testing.java
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import org.junit.Test
-import org.junit.runner.RunWith
-import org.junit.runners.Parameterized
 
 /** Common tests for [FieldItem.InitialValue]. */
-@RunWith(Parameterized::class)
 class SourceFieldItemTest : BaseModelTest() {
 
     @Test

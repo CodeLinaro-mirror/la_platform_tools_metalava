@@ -24,11 +24,8 @@ import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.java
 import kotlin.test.assertEquals
 import org.junit.Test
-import org.junit.runner.RunWith
-import org.junit.runners.Parameterized
 
 /** Common tests for implementations of [ClassItem]. */
-@RunWith(Parameterized::class)
 class CommonAnnotationItemTest : BaseModelTest() {
 
     @Test
@@ -1168,7 +1165,7 @@ class CommonAnnotationItemTest : BaseModelTest() {
                 """
                     // Signature format: 2.0
                     package test.pkg {
-                      @test.pkg.Test.Anno(test.pkg.Test.FIELD1+test.pkg.Test.FIELD2)
+                      @test.pkg.Test.Anno(value=test.pkg.Test.FIELD1+test.pkg.Test.FIELD2, name="FirstName"+"LastName", id=1+test.pkg.FIELD1)
                       public class Test {
                         ctor public Test();
                         field public static final int FIELD1 = 5;
@@ -1177,6 +1174,8 @@ class CommonAnnotationItemTest : BaseModelTest() {
 
                       public @interface Test.Anno {
                           method public int value();
+                          method public String name();
+                          method public int id();
                       }
                     }
                 """
@@ -1185,7 +1184,7 @@ class CommonAnnotationItemTest : BaseModelTest() {
                 """
                     package test.pkg;
 
-                    @Test.Anno(Test.FIELD1+Test.FIELD2)
+                    @Test.Anno(value = Test.FIELD1+Test.FIELD2, name = "FirstName"+"LastName", id = 1+Test.FIELD1)
                     public class Test {
                         public Test() {}
 
@@ -1193,7 +1192,9 @@ class CommonAnnotationItemTest : BaseModelTest() {
                         public static final int FIELD2 = 7;
 
                         public @interface Anno {
-                          int value();
+                            int value();
+                            String name();
+                            int id();
                         }
                     }
                 """
@@ -1203,7 +1204,10 @@ class CommonAnnotationItemTest : BaseModelTest() {
             val anno = testClass.modifiers.annotations().single()
 
             anno.assertAttributeValue("value", 12)
-            val toSource = "@test.pkg.Test.Anno(test.pkg.Test.FIELD1 + test.pkg.Test.FIELD2)"
+            anno.assertAttributeValue("name", "FirstNameLastName")
+            anno.assertAttributeValue("id", 6)
+            val toSource =
+                "@test.pkg.Test.Anno(value=test.pkg.Test.FIELD1 + test.pkg.Test.FIELD2, name=\"FirstName\" + \"LastName\", id=1 + test.pkg.Test.FIELD1)"
             assertEquals(toSource, anno.toSource())
         }
     }

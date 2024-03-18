@@ -22,11 +22,8 @@ import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import kotlin.test.assertEquals
 import org.junit.Test
-import org.junit.runner.RunWith
-import org.junit.runners.Parameterized
 
 /** Common tests for the [MethodItem.superMethods] method. */
-@RunWith(Parameterized::class)
 class CommonSuperMethodsTest : BaseModelTest() {
 
     @Test

@@ -27,8 +27,6 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import org.junit.Test
-import org.junit.runner.RunWith
-import org.junit.runners.Parameterized
 
 /**
  * Provides a set of tests that are geared towards helping to bootstrap a new model.
@@ -37,7 +35,6 @@ import org.junit.runners.Parameterized
  * previous test so that a developer would start by running the first test, making it pass,
  * submitting the changes and then moving on to the next test.
  */
-@RunWith(Parameterized::class)
 class BootstrapSourceModelProviderTest : BaseModelTest() {
 
     @Test

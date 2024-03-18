@@ -26,11 +26,8 @@ import kotlin.test.assertFalse
 import kotlin.test.assertNotEquals
 import kotlin.test.assertNull
 import org.junit.Test
-import org.junit.runner.RunWith
-import org.junit.runners.Parameterized
 
 /** Common tests for implementations of [MethodItem]. */
-@RunWith(Parameterized::class)
 class CommonMethodItemTest : BaseModelTest() {
 
     @Test

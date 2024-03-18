@@ -44,6 +44,4 @@ internal class TextPropertyItem(
     override fun hashCode(): Int = name().hashCode()
 
     override fun type(): TypeItem = type
-
-    override fun toString(): String = "Field ${containingClass().fullName()}.${name()}"
 }

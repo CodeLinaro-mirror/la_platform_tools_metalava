@@ -41,18 +41,6 @@ internal class TextTypeParameterItem(
         return name
     }
 
-    override fun toString() =
-        if (bounds.isEmpty() && !isReified) name
-        else
-            buildString {
-                if (isReified) append("reified ")
-                append(name)
-                if (bounds.isNotEmpty()) {
-                    append(" extends ")
-                    bounds.joinTo(this, " & ")
-                }
-            }
-
     override fun type(): VariableTypeItem {
         return DefaultVariableTypeItem(DefaultTypeModifiers.create(emptyList()), this)
     }

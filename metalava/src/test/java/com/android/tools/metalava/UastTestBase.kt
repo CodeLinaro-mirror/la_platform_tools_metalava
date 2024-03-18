@@ -464,8 +464,6 @@ abstract class UastTestBase : DriverTest() {
 
     protected fun `final modifier in enum members`(isK2: Boolean) {
         // https://youtrack.jetbrains.com/issue/KT-57567
-        val e = "test.pkg.Event"
-        val s = "test.pkg.State"
         uastCheck(
             isK2,
             sourceFiles =
@@ -502,10 +500,7 @@ abstract class UastTestBase : DriverTest() {
                 """
                 package test.pkg {
                   public enum Event {
-                    method public static kotlin.enums.EnumEntries<$e> getEntries();
                     method public static test.pkg.Event? upTo(test.pkg.State state);
-                    method public static test.pkg.Event valueOf(String value) throws java.lang.IllegalArgumentException, java.lang.NullPointerException;
-                    method public static test.pkg.Event[] values();
                     enum_constant public static final test.pkg.Event ON_CREATE;
                     enum_constant public static final test.pkg.Event ON_DESTROY;
                     enum_constant public static final test.pkg.Event ON_START;
@@ -516,11 +511,8 @@ abstract class UastTestBase : DriverTest() {
                     method public test.pkg.Event? upTo(test.pkg.State state);
                   }
                   public enum State {
-                    method public static kotlin.enums.EnumEntries<$s> getEntries();
                     method public boolean isAtLeast(test.pkg.State state);
                     method public boolean isFinished();
-                    method public static test.pkg.State valueOf(String value) throws java.lang.IllegalArgumentException, java.lang.NullPointerException;
-                    method public static test.pkg.State[] values();
                     property public final boolean isFinished;
                     enum_constant public static final test.pkg.State BLOCKED;
                     enum_constant public static final test.pkg.State CANCELLED;
@@ -570,8 +562,6 @@ abstract class UastTestBase : DriverTest() {
     protected fun `Upper bound wildcards -- enum members`(isK2: Boolean) {
         // https://youtrack.jetbrains.com/issue/KT-57578
         val upperBound = "? extends "
-        val c = "test.pkg.PowerCategory"
-        val d = "test.pkg.PowerCategoryDisplayLevel"
         uastCheck(
             isK2,
             sourceFiles =
@@ -627,16 +617,10 @@ abstract class UastTestBase : DriverTest() {
                 """
                 package test.pkg {
                   public enum PowerCategory {
-                    method public static kotlin.enums.EnumEntries<$c> getEntries();
-                    method public static test.pkg.PowerCategory valueOf(String value) throws java.lang.IllegalArgumentException, java.lang.NullPointerException;
-                    method public static test.pkg.PowerCategory[] values();
                     enum_constant public static final test.pkg.PowerCategory CPU;
                     enum_constant public static final test.pkg.PowerCategory MEMORY;
                   }
                   public enum PowerCategoryDisplayLevel {
-                    method public static kotlin.enums.EnumEntries<$d> getEntries();
-                    method public static test.pkg.PowerCategoryDisplayLevel valueOf(String value) throws java.lang.IllegalArgumentException, java.lang.NullPointerException;
-                    method public static test.pkg.PowerCategoryDisplayLevel[] values();
                     enum_constant public static final test.pkg.PowerCategoryDisplayLevel BREAKDOWN;
                     enum_constant public static final test.pkg.PowerCategoryDisplayLevel TOTAL;
                   }

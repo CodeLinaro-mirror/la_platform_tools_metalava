@@ -31,6 +31,7 @@ data class ExecutionEnvironment(
     val stdout: PrintWriter = PrintWriter(OutputStreamWriter(System.out)),
     val stderr: PrintWriter = PrintWriter(OutputStreamWriter(System.err)),
     val reporterEnvironment: ReporterEnvironment = DefaultReporterEnvironment(),
+    val testEnvironment: TestEnvironment? = null,
 ) {
 
     companion object {

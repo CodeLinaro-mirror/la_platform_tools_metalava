@@ -22,11 +22,8 @@ import com.android.tools.metalava.testing.kotlin
 import com.google.common.truth.Truth
 import org.junit.Assert.assertEquals
 import org.junit.Test
-import org.junit.runner.RunWith
-import org.junit.runners.Parameterized
 
 /** Common tests for implementations of [PropertyItem]. */
-@RunWith(Parameterized::class)
 class CommonPropertyItemTest : BaseModelTest() {
 
     @Test

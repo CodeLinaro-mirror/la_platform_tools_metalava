@@ -45,9 +45,6 @@ internal class TextParameterItem(
         return modifiers.isVarArg()
     }
 
-    override val synthetic: Boolean
-        get() = containingMethod.isEnumSyntheticMethod()
-
     override fun type(): TypeItem = type
 
     override fun name(): String = name
@@ -70,8 +67,6 @@ internal class TextParameterItem(
     }
 
     override fun hashCode(): Int = parameterIndex
-
-    override fun toString(): String = "parameter ${name()}"
 
     internal fun duplicate(typeVariableMap: TypeParameterBindings): TextParameterItem {
         return TextParameterItem(

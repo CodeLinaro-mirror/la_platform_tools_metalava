@@ -42,6 +42,7 @@ import com.android.tools.metalava.cli.compatibility.ARG_CHECK_COMPATIBILITY_BASE
 import com.android.tools.metalava.cli.compatibility.ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED
 import com.android.tools.metalava.cli.compatibility.ARG_ERROR_MESSAGE_CHECK_COMPATIBILITY_RELEASED
 import com.android.tools.metalava.cli.signature.ARG_FORMAT
+import com.android.tools.metalava.model.source.SourceModelProvider
 import com.android.tools.metalava.model.source.SourceSet
 import com.android.tools.metalava.model.text.ApiClassResolution
 import com.android.tools.metalava.model.text.ApiFile
@@ -75,11 +76,19 @@ import org.junit.Before
 import org.junit.Rule
 import org.junit.rules.ErrorCollector
 import org.junit.rules.TemporaryFolder
+import org.junit.runner.RunWith
 
+@RunWith(DriverTestRunner::class)
 abstract class DriverTest : TemporaryFolderOwner {
     @get:Rule override val temporaryFolder = TemporaryFolder()
 
     @get:Rule val errorCollector = ErrorCollector()
+
+    /** The [SourceModelTestInfo] under which this test will be run. */
+    internal var sourceModelTestInfo: SourceModelTestInfo =
+        SourceModelTestInfo(
+            SourceModelProvider.getImplementation({ it.providerName == "psi" }, "psi")
+        )
 
     @Before
     fun setup() {
@@ -103,6 +112,7 @@ abstract class DriverTest : TemporaryFolderOwner {
         args: Array<String>,
         expectedFail: String,
         reporterEnvironment: ReporterEnvironment,
+        testEnvironment: TestEnvironment,
     ): String {
         // Capture the actual input and output from System.out/err and compare it to the output
         // printed through the official writer; they should be the same, otherwise we have stray
@@ -125,6 +135,7 @@ abstract class DriverTest : TemporaryFolderOwner {
                     stdout = writer,
                     stderr = writer,
                     reporterEnvironment = reporterEnvironment,
+                    testEnvironment = testEnvironment,
                 )
             val exitCode = run(executionEnvironment, args)
             if (exitCode == 0) {
@@ -447,13 +458,7 @@ abstract class DriverTest : TemporaryFolderOwner {
          * files etc
          */
         importedPackages: List<String> = emptyList(),
-        /**
-         * Packages to skip emitting signatures/stubs for even if public. Typically used for unit
-         * tests referencing to classpath classes that aren't part of the definitions and shouldn't
-         * be part of the test output; e.g. a test may reference java.lang.Enum but we don't want to
-         * start reporting all the public APIs in the java.lang package just because it's indirectly
-         * referenced via the "enum" superclass
-         */
+        /** See [TestEnvironment.skipEmitPackages] */
         skipEmitPackages: List<String> = listOf("java.lang", "java.util", "java.io"),
         /** Whether we should include --showAnnotations=android.annotation.SystemApi */
         includeSystemApiAnnotations: Boolean = false,
@@ -919,12 +924,6 @@ abstract class DriverTest : TemporaryFolderOwner {
             importedPackageArgs.add(it)
         }
 
-        val skipEmitPackagesArgs = mutableListOf<String>()
-        skipEmitPackages.forEach {
-            skipEmitPackagesArgs.add("--skip-emit-packages")
-            skipEmitPackagesArgs.add(it)
-        }
-
         val kotlinPathArgs = findKotlinStdlibPathArgs(sourceList)
 
         val sdkFilesDir: File?
@@ -1046,10 +1045,8 @@ abstract class DriverTest : TemporaryFolderOwner {
                 *suppressCompatMetaAnnotationArguments,
                 *showForStubPurposesAnnotationArguments,
                 *showUnannotatedArgs,
-                *apiLintArgs,
                 *sdkFilesArgs,
                 *importedPackageArgs.toTypedArray(),
-                *skipEmitPackagesArgs.toTypedArray(),
                 *extractAnnotationsArgs,
                 *validateNullabilityArgs,
                 *validateNullabilityFromListArgs,
@@ -1060,6 +1057,8 @@ abstract class DriverTest : TemporaryFolderOwner {
                 *errorMessageApiLintArgs,
                 *errorMessageCheckCompatibilityReleasedArgs,
                 *repeatErrorsMaxArgs,
+                // Must always be last as this can consume a following argument, breaking the test.
+                *apiLintArgs,
             ) +
                 buildList {
                         if (commonSourcePath != null) {
@@ -1069,11 +1068,19 @@ abstract class DriverTest : TemporaryFolderOwner {
                     }
                     .toTypedArray()
 
+        val testEnvironment =
+            TestEnvironment(
+                skipEmitPackages = skipEmitPackages,
+                sourceModelProvider = sourceModelTestInfo.sourceModelProvider,
+                modelOptions = sourceModelTestInfo.modelOptions,
+            )
+
         val actualOutput =
             runDriver(
                 args = args,
                 expectedFail = actualExpectedFail,
                 reporterEnvironment = reporterEnvironment,
+                testEnvironment = testEnvironment,
             )
 
         if (expectedIssues != null || allReportedIssues.toString() != "") {

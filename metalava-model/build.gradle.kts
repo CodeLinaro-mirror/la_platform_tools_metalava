@@ -27,6 +27,7 @@ dependencies {
     testImplementation(libs.truth)
     testImplementation(libs.kotlinTest)
 
+    testFixturesImplementation(project(":metalava-testing"))
     testFixturesImplementation(libs.truth)
     testFixturesImplementation(libs.kotlinTest)
 }

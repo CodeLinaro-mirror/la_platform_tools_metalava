@@ -16,12 +16,8 @@
 
 package com.android.tools.metalava.model.psi
 
-import com.android.tools.metalava.model.ClassTypeItem
-import com.android.tools.metalava.model.Codebase
-import com.android.tools.metalava.model.Item
-import com.android.tools.metalava.model.PrimitiveTypeItem
-import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.VisibilityLevel
+import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.KnownSourceFiles.jetbrainsNullableTypeUseSource
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
@@ -31,100 +27,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
-class PsiModifierItemTest : BasePsiTest() {
-    private fun TypeItem.annotationNames(): List<String?> {
-        return modifiers.annotations().map { it.qualifiedName }
-    }
-
-    private fun Item.annotationNames(): List<String?> {
-        return modifiers.annotations().map { it.qualifiedName }
-    }
-
-    @Test
-    fun `Test type-use annotations from Java and Kotlin source, used by Java and Kotlin source`() {
-        val javaUsageSource =
-            java(
-                """
-                package test.pkg;
-                public class Foo {
-                    public @A int foo1() {}
-                    public @A String foo2() {}
-                    public @A <T> T foo3() {}
-                }
-            """
-                    .trimIndent()
-            )
-        val kotlinUsageSource =
-            kotlin(
-                """
-                package test.pkg
-                class Foo {
-                    fun foo1(): @A Int {}
-                    fun foo2(): @A String {}
-                    fun <T> foo3(): @A T {}
-                }
-            """
-                    .trimIndent()
-            )
-        val javaAnnotationSource =
-            java(
-                """
-                package test.pkg;
-                @java.lang.annotation.Target(java.lang.annotation.ElementType.TYPE_USE)
-                public @interface A {}
-            """
-                    .trimIndent()
-            )
-        val kotlinAnnotationSource =
-            kotlin(
-                """
-                package test.pkg
-                @Target(AnnotationTarget.TYPE)
-                annotation class A
-            """
-                    .trimIndent()
-            )
-
-        val codebaseTest = { codebase: Codebase ->
-            val methods = codebase.assertClass("test.pkg.Foo").methods()
-            assertThat(methods).hasSize(3)
-
-            // @test.pkg.A int
-            val primitiveMethod = methods[0]
-            val primitive = primitiveMethod.returnType()
-            assertThat(primitive).isInstanceOf(PrimitiveTypeItem::class.java)
-            assertThat(primitive.annotationNames()).containsExactly("test.pkg.A")
-            assertThat(primitiveMethod.annotationNames()).isEmpty()
-
-            // @test.pkg.A String
-            val stringMethod = methods[1]
-            val string = stringMethod.returnType()
-            assertThat(string).isInstanceOf(ClassTypeItem::class.java)
-            assertThat(string.annotationNames()).containsExactly("test.pkg.A")
-            val stringMethodAnnotations = stringMethod.annotationNames()
-            if ((stringMethod as PsiMethodItem).psiMethod.isKotlin()) {
-                // The Kotlin version puts a nullability annotation on the method
-                assertThat(stringMethodAnnotations)
-                    .containsExactly("org.jetbrains.annotations.NotNull")
-            } else {
-                assertThat(stringMethodAnnotations).isEmpty()
-            }
-
-            // @test.pkg.A T
-            val variableMethod = methods[2]
-            val variable = variableMethod.returnType()
-            val typeParameter = variableMethod.typeParameterList.single()
-            variable.assertReferencesTypeParameter(typeParameter)
-            assertThat(variable.annotationNames()).containsExactly("test.pkg.A")
-            assertThat(variableMethod.annotationNames()).isEmpty()
-        }
-
-        testCodebase(javaUsageSource, javaAnnotationSource, action = codebaseTest)
-        testCodebase(javaUsageSource, kotlinAnnotationSource, action = codebaseTest)
-        testCodebase(kotlinUsageSource, javaAnnotationSource, action = codebaseTest)
-        testCodebase(kotlinUsageSource, kotlinAnnotationSource, action = codebaseTest)
-    }
-
+class PsiModifierItemTest : BaseModelTest() {
     @Test
     fun `Test type-use nullability annotation used from Java and Kotlin source`() {
         val javaSource =
@@ -147,21 +50,21 @@ class PsiModifierItemTest : BasePsiTest() {
             """
                     .trimIndent()
             )
-        val codebaseTest = { codebase: Codebase ->
+
+        runCodebaseTest(
+            inputSet(javaSource, jetbrainsNullableTypeUseSource),
+            inputSet(kotlinSource, jetbrainsNullableTypeUseSource),
+        ) {
             val method = codebase.assertClass("test.pkg.Foo").methods().single()
             // For now, the nullability annotation needs to be attached to the method.
             assertThat(method.annotationNames())
                 .containsExactly("org.jetbrains.annotations.Nullable")
-            // Explicit Unit return is required by compiler
-            Unit
         }
-        testCodebase(javaSource, jetbrainsNullableTypeUseSource, action = codebaseTest)
-        testCodebase(kotlinSource, jetbrainsNullableTypeUseSource, action = codebaseTest)
     }
 
     @Test
     fun `Kotlin implicit internal visibility inheritance`() {
-        testCodebase(
+        runCodebaseTest(
             kotlin(
                 """
                     open class Base {
@@ -175,7 +78,7 @@ class PsiModifierItemTest : BasePsiTest() {
                     }
                 """
             )
-        ) { codebase ->
+        ) {
             val inherited = codebase.assertClass("Inherited")
             val method = inherited.methods().first { it.name().startsWith("method") }
             val property = inherited.properties().single()
@@ -187,7 +90,7 @@ class PsiModifierItemTest : BasePsiTest() {
 
     @Test
     fun `Kotlin class visibility modifiers`() {
-        testCodebase(
+        runCodebaseTest(
             kotlin(
                 """
                     internal class Internal
@@ -199,7 +102,7 @@ class PsiModifierItemTest : BasePsiTest() {
                     }
                 """
             )
-        ) { codebase ->
+        ) {
             assertTrue(codebase.assertClass("Internal").isInternal)
             assertTrue(codebase.assertClass("Public").isPublic)
             assertTrue(codebase.assertClass("DefaultPublic").isPublic)
@@ -210,7 +113,7 @@ class PsiModifierItemTest : BasePsiTest() {
 
     @Test
     fun `Kotlin class abstract and final modifiers`() {
-        testCodebase(
+        runCodebaseTest(
             kotlin(
                 """
                     abstract class Abstract
@@ -222,7 +125,7 @@ class PsiModifierItemTest : BasePsiTest() {
                     annotation class Annotation
                 """
             )
-        ) { codebase ->
+        ) {
             codebase.assertClass("Abstract").modifiers.let {
                 assertTrue(it.isAbstract())
                 assertFalse(it.isSealed())
@@ -264,7 +167,7 @@ class PsiModifierItemTest : BasePsiTest() {
 
     @Test
     fun `Kotlin class type modifiers`() {
-        testCodebase(
+        runCodebaseTest(
             kotlin(
                 """
                     inline class Inline(val value: Int)
@@ -279,7 +182,7 @@ class PsiModifierItemTest : BasePsiTest() {
                     }
                 """
             )
-        ) { codebase ->
+        ) {
             assertTrue(codebase.assertClass("Inline").modifiers.isInline())
             assertTrue(codebase.assertClass("Value").modifiers.isValue())
             assertTrue(codebase.assertClass("Data").modifiers.isData())
@@ -290,7 +193,7 @@ class PsiModifierItemTest : BasePsiTest() {
 
     @Test
     fun `Kotlin class static modifiers`() {
-        testCodebase(
+        runCodebaseTest(
             kotlin(
                 """
                     class TopLevel {
@@ -303,7 +206,7 @@ class PsiModifierItemTest : BasePsiTest() {
                     object Object
                 """
             )
-        ) { codebase ->
+        ) {
             assertFalse(codebase.assertClass("TopLevel").modifiers.isStatic())
             assertFalse(codebase.assertClass("TopLevel.Inner").modifiers.isStatic())
             assertFalse(codebase.assertClass("Object").modifiers.isStatic())
@@ -315,8 +218,9 @@ class PsiModifierItemTest : BasePsiTest() {
         }
     }
 
+    @Test
     fun `Kotlin vararg parameters`() {
-        testCodebase(
+        runCodebaseTest(
             kotlin(
                 "Foo.kt",
                 """
@@ -324,7 +228,7 @@ class PsiModifierItemTest : BasePsiTest() {
                     fun nonVarArg(parameter: Int) { TODO() }
                 """
             )
-        ) { codebase ->
+        ) {
             val facade = codebase.assertClass("FooKt")
             val varArg = facade.methods().single { it.name() == "varArg" }.parameters().single()
             val nonVarArg =

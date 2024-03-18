@@ -62,10 +62,6 @@ internal class PsiTypeParameterItem(
 
     internal lateinit var bounds: List<BoundsTypeItem>
 
-    override fun toString(): String {
-        return String.format("%s [0x%x]", name, System.identityHashCode(this))
-    }
-
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (other !is TypeParameterItem) return false

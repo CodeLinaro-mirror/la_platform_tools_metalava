@@ -24,13 +24,11 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertSame
 import org.junit.Test
-import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 
-@RunWith(Parameterized::class)
 class ParameterizedFindClassTest : BaseModelTest() {
 
-    @Parameterized.Parameter(1) lateinit var params: TestParams
+    @Parameterized.Parameter(0) lateinit var params: TestParams
 
     data class TestParams(
         val className: String,
@@ -101,11 +99,7 @@ class ParameterizedFindClassTest : BaseModelTest() {
                 ),
             )
 
-        @JvmStatic
-        @Parameterized.Parameters(name = "{0},{1}")
-        fun data(): Collection<Array<Any>> {
-            return crossProduct(params)
-        }
+        @JvmStatic @Parameterized.Parameters fun params() = params
     }
 
     private fun assertFound(className: String, expectedFound: Boolean, foundClass: ClassItem?) {
