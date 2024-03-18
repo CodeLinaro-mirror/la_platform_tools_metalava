@@ -20,7 +20,7 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.MemberItem
 
-abstract class TextMemberItem(
+internal abstract class TextMemberItem(
     codebase: TextCodebase,
     private val name: String,
     private val containingClass: ClassItem,

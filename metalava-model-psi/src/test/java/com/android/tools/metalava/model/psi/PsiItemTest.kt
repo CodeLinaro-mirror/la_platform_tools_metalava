@@ -19,7 +19,6 @@ package com.android.tools.metalava.model.psi
 import com.android.tools.metalava.testing.java
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertNotNull
 
 class PsiItemTest : BasePsiTest() {
     @Test
@@ -49,8 +48,7 @@ class PsiItemTest : BasePsiTest() {
                 """,
             )
         ) { codebase ->
-            val testClass = codebase.findClass("test.pkg.Test")
-            assertNotNull(testClass)
+            val testClass = codebase.assertClass("test.pkg.Test")
             val method = testClass.methods().first { it.name().equals("foo") }
             val barJavadoc = "@param bar The bar to foo with\n     *     the thing."
             val bazJavadoc = "@param baz The baz to foo\n     *     I think."

@@ -59,6 +59,11 @@ interface AnnotationItem {
     /** Attributes of the annotation; may be empty. */
     val attributes: List<AnnotationAttribute>
 
+    /**
+     * The [TypeNullability] associated with this or `null` if this is not a nullability annotation.
+     */
+    val typeNullability: TypeNullability?
+
     /** True if this annotation represents @Nullable or @NonNull (or some synonymous annotation) */
     fun isNullnessAnnotation(): Boolean
 
@@ -235,6 +240,10 @@ interface AnnotationItem {
     }
 }
 
+/** Get the [TypeNullability] from a list of [AnnotationItem]s. */
+val List<AnnotationItem>.typeNullability
+    get() = mapNotNull { it.typeNullability }.singleOrNull()
+
 /**
  * Get the value of the named attribute as an object of the specified type or null if the attribute
  * could not be found.
@@ -257,18 +266,16 @@ interface AnnotationItem {
  * Any other types will result in a [ClassCastException].
  */
 inline fun <reified T : Any> AnnotationItem.getAttributeValue(name: String): T? {
-    @Suppress("DEPRECATION") val value = nonInlineGetAttributeValue(T::class, name) ?: return null
+    val value = nonInlineGetAttributeValue(T::class, name) ?: return null
     return value as T
 }
 
 /**
  * Non-inline portion of functionality needed by [getAttributeValue]; separated to reduce the cost
  * of inlining [getAttributeValue].
- *
- * Deprecated to discourage direct calls.
  */
-@Deprecated(message = "use getAttributeValue() instead")
-fun AnnotationItem.nonInlineGetAttributeValue(kClass: KClass<*>, name: String): Any? {
+@PublishedApi
+internal fun AnnotationItem.nonInlineGetAttributeValue(kClass: KClass<*>, name: String): Any? {
     val attributeValue = findAttribute(name)?.value ?: return null
     val value =
         when (attributeValue) {
@@ -291,17 +298,15 @@ fun AnnotationItem.nonInlineGetAttributeValue(kClass: KClass<*>, name: String): 
  * items in the array).
  */
 inline fun <reified T : Any> AnnotationItem.getAttributeValues(name: String): List<T>? {
-    @Suppress("DEPRECATION") return nonInlineGetAttributeValues(T::class, name) { it as T }
+    return nonInlineGetAttributeValues(T::class, name) { it as T }
 }
 
 /**
  * Non-inline portion of functionality needed by [getAttributeValues]; separated to reduce the cost
  * of inlining [getAttributeValues].
- *
- * Deprecated to discourage direct calls.
  */
-@Deprecated(message = "use getAttributeValues() instead")
-fun <T : Any> AnnotationItem.nonInlineGetAttributeValues(
+@PublishedApi
+internal fun <T : Any> AnnotationItem.nonInlineGetAttributeValues(
     kClass: KClass<*>,
     name: String,
     caster: (Any) -> T
@@ -396,16 +401,19 @@ private constructor(
     /** Information that metalava has gathered about this annotation item. */
     val info: AnnotationInfo by lazy { codebase.annotationManager.getAnnotationInfo(this) }
 
+    override val typeNullability: TypeNullability?
+        get() = info.typeNullability
+
     override fun isNullnessAnnotation(): Boolean {
-        return info.nullability != null
+        return info.typeNullability != null
     }
 
     override fun isNullable(): Boolean {
-        return info.nullability == Nullability.NULLABLE
+        return info.typeNullability == TypeNullability.NULLABLE
     }
 
     override fun isNonNull(): Boolean {
-        return info.nullability == Nullability.NON_NULL
+        return info.typeNullability == TypeNullability.NONNULL
     }
 
     override val showability: Showability
@@ -575,7 +583,7 @@ interface AnnotationArrayAttributeValue : AnnotationAttributeValue {
     override fun value() = values.mapNotNull { it.value() }.toTypedArray()
 }
 
-open class DefaultAnnotationAttribute(
+class DefaultAnnotationAttribute(
     override val name: String,
     override val value: AnnotationAttributeValue
 ) : AnnotationAttribute {
@@ -742,7 +750,7 @@ open class DefaultAnnotationSingleAttributeValue(
     }
 }
 
-open class DefaultAnnotationArrayAttributeValue(
+class DefaultAnnotationArrayAttributeValue(
     sourceGetter: () -> String,
     valuesGetter: () -> List<AnnotationAttributeValue>
 ) : DefaultAnnotationValue(sourceGetter), AnnotationArrayAttributeValue {

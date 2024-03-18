@@ -181,7 +181,7 @@ fun addApisFromCodebase(
                         internalDesc(voidConstructorTypes = true)
                 } else {
                     val paramString = parameters().joinToString(",") { it.type().toTypeString() }
-                    name() + typeParameterList() + "(" + paramString + ")"
+                    name() + typeParameterList + "(" + paramString + ")"
                 }
             }
 
@@ -233,7 +233,7 @@ fun MethodItem.internalDesc(voidConstructorTypes: Boolean = false): String {
             containingClass().containingClass() != null &&
             !containingClass().modifiers.isStatic()
     ) {
-        sb.append(containingClass().containingClass()?.toType()?.internalName() ?: "")
+        sb.append(containingClass().containingClass()?.type()?.internalName() ?: "")
     }
 
     for (parameter in parameters()) {

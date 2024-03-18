@@ -88,6 +88,7 @@ Available Issues                             |  Category                |   Defa
   DeprecatedOption                           |  unknown                 |   warning
   DeprecationMismatch                        |  documentation           |   error
   DocumentExceptions                         |  api_lint                |   error
+  DuplicateSourceClass                       |  unknown                 |   warning
   EndsWithImpl                               |  api_lint                |   error
   Enum                                       |  api_lint                |   error
   EqualsAndHashCode                          |  api_lint                |   error
@@ -96,6 +97,7 @@ Available Issues                             |  Category                |   Defa
   ExpectedPlatformType                       |  unknown                 |   hidden
   ExtendsDeprecated                          |  unknown                 |   hidden
   ExtendsError                               |  api_lint                |   error
+  FlaggedApiLiteral                          |  api_lint                |   hidden
   ForbiddenSuperClass                        |  api_lint                |   error
   ForbiddenTag                               |  unknown                 |   error
   FractionFloat                              |  api_lint                |   error

@@ -23,6 +23,7 @@ import com.android.tools.metalava.cli.common.existingFile
 import com.android.tools.metalava.cli.common.map
 import com.android.tools.metalava.model.Codebase
 import com.github.ajalt.clikt.parameters.groups.OptionGroup
+import com.github.ajalt.clikt.parameters.options.multiple
 import com.github.ajalt.clikt.parameters.options.option
 import java.io.File
 
@@ -67,10 +68,16 @@ class CompatibilityCheckOptions :
                 help =
                     """
                         Check compatibility of the previously released API.
+
+                        When multiple files are provided any files that are a delta on another file
+                        must come after the other file, e.g. if `system` is a delta on `public` then
+                        `public` must come first, then `system`. Or, in other words, they must be
+                        provided in order from the narrowest API to the widest API.
                     """
                         .trimIndent(),
             )
             .existingFile()
+            .multiple()
             .allowStructuredOptionName()
             .map { CheckRequest.optionalCheckRequest(it, ApiType.PUBLIC_API) }
 
@@ -80,10 +87,16 @@ class CompatibilityCheckOptions :
                 help =
                     """
                         Check compatibility of the previously released but since removed APIs.
+
+                        When multiple files are provided any files that are a delta on another file
+                        must come after the other file, e.g. if `system` is a delta on `public` then
+                        `public` must come first, then `system`. Or, in other words, they must be
+                        provided in order from the narrowest API to the widest API.
                     """
                         .trimIndent(),
             )
             .existingFile()
+            .multiple()
             .allowStructuredOptionName()
             .map { CheckRequest.optionalCheckRequest(it, ApiType.REMOVED) }
 
@@ -106,20 +119,20 @@ class CompatibilityCheckOptions :
             .allowStructuredOptionName()
 
     /**
-     * Request for compatibility checks. [file] represents the signature file to be checked.
+     * Request for compatibility checks. [files] represents the signature files to be checked.
      * [apiType] represents which part of the API should be checked.
      */
-    data class CheckRequest(val file: File, val apiType: ApiType) {
+    data class CheckRequest(val files: List<File>, val apiType: ApiType) {
 
         companion object {
-            /** Create a [CheckRequest] if the [file] is not-null, otherwise return `null`. */
-            internal fun optionalCheckRequest(file: File?, apiType: ApiType) =
-                file?.let { CheckRequest(it, apiType) }
+            /** Create a [CheckRequest] if [files] is not empty, otherwise return `null`. */
+            internal fun optionalCheckRequest(files: List<File>, apiType: ApiType) =
+                if (files.isEmpty()) null else CheckRequest(files, apiType)
         }
 
         override fun toString(): String {
             // This is only used when reporting progress.
-            return "--check-compatibility:${apiType.flagName}:released $file"
+            return "--check-compatibility:${apiType.flagName}:released $files"
         }
     }
 
@@ -131,5 +144,5 @@ class CompatibilityCheckOptions :
 
     /** The list of [Codebase]s corresponding to [compatibilityChecks]. */
     fun previouslyReleasedCodebases(signatureFileCache: SignatureFileCache): List<Codebase> =
-        compatibilityChecks.map { signatureFileCache.load(it.file) }
+        compatibilityChecks.flatMap { it.files.map { signatureFileCache.load(it) } }
 }

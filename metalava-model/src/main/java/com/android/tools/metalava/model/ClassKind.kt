@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2023 The Android Open Source Project
+ * Copyright (C) 2024 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,16 +14,23 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava.model.turbine
+package com.android.tools.metalava.model
 
-import com.android.tools.metalava.model.Codebase
-import com.android.tools.metalava.model.DefaultTypeParameterList
+/**
+ * The kind of class.
+ *
+ * Corresponds to similarly named values in [javax.lang.model.element.ElementKind].
+ */
+enum class ClassKind {
+    /** An interface. */
+    INTERFACE,
 
-internal class TurbineTypeParameterList(
-    val codebase: Codebase,
-) : DefaultTypeParameterList() {
+    /** An enum class. */
+    ENUM,
 
-    internal lateinit var typeParameters: List<TurbineTypeParameterItem>
+    /** An annotation class. */
+    ANNOTATION_TYPE,
 
-    override fun typeParameters(): List<TurbineTypeParameterItem> = typeParameters
+    /** A normal class. */
+    CLASS
 }

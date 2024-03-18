@@ -21,18 +21,14 @@ import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.TypeItem
 
-class TextPropertyItem(
+internal class TextPropertyItem(
     codebase: TextCodebase,
     name: String,
     containingClass: TextClassItem,
     modifiers: DefaultModifierList,
-    private val type: TextTypeItem,
+    private val type: TypeItem,
     position: SourcePositionInfo
 ) : TextMemberItem(codebase, name, containingClass, position, modifiers), PropertyItem {
-
-    init {
-        modifiers.setOwner(this)
-    }
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true

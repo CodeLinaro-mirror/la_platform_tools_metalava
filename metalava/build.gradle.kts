@@ -44,11 +44,12 @@ dependencies {
     implementation(libs.androidToolsSdklib)
     implementation(libs.clikt)
     implementation(libs.kotlinStdlib)
-    implementation(libs.kotlinReflect)
     implementation(libs.asm)
     implementation(libs.asmTree)
     implementation(libs.gson)
+
     testImplementation(project(":metalava-testing"))
+    testImplementation(testFixtures(project(":metalava-model")))
     testImplementation(testFixtures(project(":metalava-model-text")))
     testImplementation(libs.androidLintTests)
     testImplementation(libs.junit4)

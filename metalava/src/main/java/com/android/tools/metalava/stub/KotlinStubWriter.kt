@@ -16,11 +16,10 @@
 
 package com.android.tools.metalava.stub
 
-import com.android.tools.metalava.model.AnnotationTarget
 import com.android.tools.metalava.model.BaseItemVisitor
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.Item
-import com.android.tools.metalava.model.Language
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ModifierListWriter
 import com.android.tools.metalava.model.TypeItem
@@ -31,20 +30,11 @@ import java.util.function.Predicate
 
 internal class KotlinStubWriter(
     private val writer: PrintWriter,
+    private val modifierListWriter: ModifierListWriter,
     private val filterReference: Predicate<Item>,
-    private val generateAnnotations: Boolean = false,
     private val preFiltered: Boolean = true,
-    private val annotationTarget: AnnotationTarget,
     private val config: StubWriterConfig,
 ) : BaseItemVisitor() {
-
-    private val modifierListWriter =
-        ModifierListWriter.forStubs(
-            writer = writer,
-            target = annotationTarget,
-            runtimeAnnotationsOnly = !generateAnnotations,
-            language = Language.KOTLIN,
-        )
 
     override fun visitClass(cls: ClassItem) {
         if (cls.isTopLevelClass()) {
@@ -76,7 +66,7 @@ internal class KotlinStubWriter(
         writer.print(" ")
         writer.print(cls.simpleName())
 
-        generateTypeParameterList(typeList = cls.typeParameterList(), addSpace = false)
+        generateTypeParameterList(typeList = cls.typeParameterList, addSpace = false)
         val printedSuperClass = generateSuperClassDeclaration(cls)
         generateInterfaceList(cls, printedSuperClass)
         writer.print(" {\n")
@@ -178,8 +168,8 @@ internal class KotlinStubWriter(
         // TODO: Should be an annotation
         generateThrowsList(method)
 
-        val requiresBody = appendModifiers(method)
-        generateTypeParameterList(typeList = method.typeParameterList(), addSpace = true)
+        appendModifiers(method)
+        generateTypeParameterList(typeList = method.typeParameterList, addSpace = true)
 
         writer.print("fun ")
         writer.print(method.name())
@@ -197,7 +187,7 @@ internal class KotlinStubWriter(
             }
         }
 
-        if (requiresBody) {
+        if (ModifierListWriter.requiresMethodBodyInStubs(method)) {
             writer.print(" = ")
             writeThrowStub()
         }
@@ -237,11 +227,13 @@ internal class KotlinStubWriter(
             }
         if (throws.any()) {
             writer.print("@Throws(")
-            throws.asSequence().sortedWith(ClassItem.fullNameComparator).forEachIndexed { i, type ->
+            throws.asSequence().sortedWith(ExceptionTypeItem.fullNameComparator).forEachIndexed {
+                i,
+                type ->
                 if (i > 0) {
                     writer.print(",")
                 }
-                writer.print(type.qualifiedName())
+                writer.print(type.toTypeString())
                 writer.print("::class")
             }
             writer.print(")")

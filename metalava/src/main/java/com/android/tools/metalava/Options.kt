@@ -136,6 +136,7 @@ var options by OptionsDelegate
 private const val INDENT_WIDTH = 45
 
 const val ARG_CLASS_PATH = "--classpath"
+const val ARG_COMMON_SOURCE_PATH = "--common-source-path"
 const val ARG_SOURCE_PATH = "--source-path"
 const val ARG_SOURCE_FILES = "--source-files"
 const val ARG_XML_API = "--api-xml"
@@ -231,6 +232,8 @@ class Options(
 
     /** Internal list backing [sources] */
     private val mutableSources: MutableList<File> = mutableListOf()
+    /** Internal list backing [commonSourcePath] */
+    private val mutableCommonSourcePath: MutableList<File> = mutableListOf()
     /** Internal list backing [sourcePath] */
     private val mutableSourcePath: MutableList<File> = mutableListOf()
     /** Internal list backing [classpath] */
@@ -329,6 +332,9 @@ class Options(
 
     /** If true, treat all API lint warnings as errors */
     var lintsAreErrors: Boolean = false
+
+    /** Ths list of source roots in the common module */
+    val commonSourcePath: List<File> = mutableCommonSourcePath
 
     /** The list of source roots */
     val sourcePath: List<File> = mutableSourcePath
@@ -441,7 +447,7 @@ class Options(
                 ARG_SUPPRESS_COMPATIBILITY_META_ANNOTATION,
                 help =
                     """
-                       Suppress compatibility checks for any elements within the scope of an 
+                       Suppress compatibility checks for any elements within the scope of an
                        annotation which is itself annotated with the given meta-annotation.
                     """
                         .trimIndent(),
@@ -805,6 +811,21 @@ class Options(
                 else -> error("Internal error: Invalid flag: $flag")
             }
 
+        fun getSourcePath(path: String, arg: String, sourcePathToStore: MutableList<File>) {
+            if (path.isBlank()) {
+                // Don't compute absolute path; we want to skip this file later on.
+                // For current directory one should use ".", not "".
+                sourcePathToStore.add(File(""))
+            } else {
+                if (path.endsWith(SdkConstants.DOT_JAVA)) {
+                    throw MetalavaCliException(
+                        "$arg should point to a source root directory, not a source file ($path)"
+                    )
+                }
+                sourcePathToStore.addAll(stringToExistingDirsOrJars(path))
+            }
+        }
+
         var index = 0
         while (index < args.size) {
             when (val arg = args[index]) {
@@ -813,22 +834,15 @@ class Options(
                     val path = getValue(args, ++index)
                     mutableClassPath.addAll(stringToExistingDirsOrJars(path))
                 }
+                ARG_COMMON_SOURCE_PATH -> {
+                    val path = getValue(args, ++index)
+                    getSourcePath(path, arg, mutableCommonSourcePath)
+                }
                 ARG_SOURCE_PATH,
                 "--sources",
                 "--sourcepath" -> {
                     val path = getValue(args, ++index)
-                    if (path.isBlank()) {
-                        // Don't compute absolute path; we want to skip this file later on.
-                        // For current directory one should use ".", not "".
-                        mutableSourcePath.add(File(""))
-                    } else {
-                        if (path.endsWith(SdkConstants.DOT_JAVA)) {
-                            throw MetalavaCliException(
-                                "$arg should point to a source root directory, not a source file ($path)"
-                            )
-                        }
-                        mutableSourcePath.addAll(stringToExistingDirsOrJars(path))
-                    }
+                    getSourcePath(path, arg, mutableSourcePath)
                 }
                 ARG_SOURCE_FILES -> {
                     val listString = getValue(args, ++index)
@@ -1483,6 +1497,11 @@ object OptionsHelp {
                 "$ARG_SOURCE_PATH <paths>",
                 "One or more directories (separated by `${File.pathSeparator}`) " +
                     "containing source files (within a package hierarchy).",
+                "$ARG_COMMON_SOURCE_PATH <paths>",
+                "One or more directories (separated by `${File.pathSeparator}`) " +
+                    "containing common source files (within a package hierarchy) " +
+                    "where platform-agnostic `expect` declarations as well as " +
+                    "common business logic are defined.",
                 "$ARG_CLASS_PATH <paths>",
                 "One or more directories or jars (separated by " +
                     "`${File.pathSeparator}`) containing classes that should be on the classpath when parsing the " +

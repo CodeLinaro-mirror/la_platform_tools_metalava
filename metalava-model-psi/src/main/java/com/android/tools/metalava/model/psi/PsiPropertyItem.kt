@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.psi
 
+import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.TypeItem
@@ -31,7 +32,7 @@ private constructor(
     private val psiMethod: PsiMethod,
     containingClass: PsiClassItem,
     name: String,
-    modifiers: PsiModifierItem,
+    modifiers: DefaultModifierList,
     documentation: String,
     private val fieldType: PsiTypeItem,
     override val getter: PsiMethodItem,
@@ -95,7 +96,7 @@ private constructor(
          * Most properties on classes without a custom getter have a [backingField] to hold their
          * value. This is private except for [JvmField] properties.
          */
-        fun create(
+        internal fun create(
             codebase: PsiBasedCodebase,
             containingClass: PsiClassItem,
             name: String,
@@ -152,7 +153,6 @@ private constructor(
             setter?.property = property
             constructorParameter?.property = property
             backingField?.property = property
-            property.modifiers.setOwner(property)
             return property
         }
     }

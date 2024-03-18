@@ -33,7 +33,7 @@ It puts build artifacts in `../../out/metalava/`.
 
 To run the metalava executable:
 
-### Through Gradle 
+### Through Gradle
 
 To list all the options:
 
@@ -86,9 +86,13 @@ Then locate the artifacts under `../../out/dist/repo/m2repository`.
 To build and run Metalava against a pinned version of an AndroidX library you can
 run the following:
 
-    $ INTEGRATION=true ./gradlew integration:run --rerun
+    $ INTEGRATION=true ./gradlew integration:run
 
 Details on what runs are in `integration/build.gradle.kts`.
+
+It can also be run for repeated measurement using [gradle-profiler](https://github.com/gradle/gradle-profiler) with
+
+    $ INTEGRATION=true /path/to/gradle-profiler --benchmark --project-dir . --scenario-file integration/integration.scenarios
 
 ## Features
 

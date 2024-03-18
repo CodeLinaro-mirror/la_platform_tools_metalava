@@ -16,40 +16,46 @@
 
 package com.android.tools.metalava.model.turbine
 
-import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.BoundsTypeItem
+import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.TypeParameterItem
-import com.android.tools.metalava.model.TypeParameterList
-import com.google.turbine.binder.sym.ClassSymbol
-import com.google.turbine.binder.sym.TyVarSymbol
+import com.android.tools.metalava.model.VariableTypeItem
+import com.android.tools.metalava.model.type.DefaultTypeModifiers
+import com.android.tools.metalava.model.type.DefaultVariableTypeItem
 
 internal class TurbineTypeParameterItem(
     codebase: TurbineBasedCodebase,
-    modifiers: TurbineModifierItem,
-    internal val symbol: TyVarSymbol,
-    name: String = symbol.name(),
-    private val bounds: List<TypeItem>,
-    private val document: String = "",
+    modifiers: DefaultModifierList,
+    private val name: String,
 ) :
-    TurbineClassItem(
+    TurbineItem(
         codebase,
-        name,
-        name,
-        name,
-        ClassSymbol(name),
         modifiers,
-        TurbineClassType.TYPE_PARAMETER,
-        TypeParameterList.NONE,
-        document,
-        null,
+        "",
     ),
     TypeParameterItem {
+
+    lateinit var bounds: List<BoundsTypeItem>
+
+    override fun name() = name
 
     // Java does not supports reified generics
     override fun isReified(): Boolean = false
 
-    override fun typeBounds(): List<TypeItem> = bounds
+    override fun typeBounds(): List<BoundsTypeItem> = bounds
 
-    override fun toType(): TurbineTypeItem {
-        return TurbineVariableTypeItem(codebase, TurbineTypeModifiers(emptyList()), symbol)
+    override fun type(): VariableTypeItem {
+        return DefaultVariableTypeItem(DefaultTypeModifiers.create(emptyList()), this)
+    }
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is TypeParameterItem) return false
+
+        return name == other.name()
+    }
+
+    override fun hashCode(): Int {
+        return name.hashCode()
     }
 }

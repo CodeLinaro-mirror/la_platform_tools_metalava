@@ -16,20 +16,24 @@
 
 package com.android.tools.metalava.model.turbine
 
+import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.DefaultModifierList
+import com.android.tools.metalava.model.DefaultTypeParameterList
+import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.google.turbine.binder.sym.MethodSymbol
 
-class TurbineConstructorItem(
+internal class TurbineConstructorItem(
     codebase: TurbineBasedCodebase,
     private val name: String,
     methodSymbol: MethodSymbol,
     containingClass: TurbineClassItem,
-    returnType: TurbineTypeItem,
-    modifiers: TurbineModifierItem,
+    returnType: ClassTypeItem,
+    modifiers: DefaultModifierList,
     typeParameters: TypeParameterList,
     documentation: String,
+    private val defaultValue: String,
 ) :
     TurbineMethodItem(
         codebase,
@@ -38,7 +42,8 @@ class TurbineConstructorItem(
         returnType,
         modifiers,
         typeParameters,
-        documentation
+        documentation,
+        defaultValue,
     ),
     ConstructorItem {
 
@@ -48,7 +53,7 @@ class TurbineConstructorItem(
 
     override fun isConstructor(): Boolean = true
 
-    internal fun setReturnType(type: TurbineTypeItem) {
+    internal fun setReturnType(type: TypeItem) {
         returnType = type
     }
 
@@ -59,10 +64,9 @@ class TurbineConstructorItem(
             symbol: MethodSymbol
         ): TurbineConstructorItem {
             val name = containingClass.simpleName()
-            val modifiers = TurbineModifierItem(codebase, DefaultModifierList.PACKAGE_PRIVATE, null)
+            val modifiers = DefaultModifierList(codebase, DefaultModifierList.PACKAGE_PRIVATE, null)
             modifiers.setVisibilityLevel(containingClass.modifiers.getVisibilityLevel())
-            val parameters = TurbineTypeParameterList(codebase)
-            parameters.typeParameters = emptyList()
+            val typeParameterList = DefaultTypeParameterList(emptyList())
 
             val ctorItem =
                 TurbineConstructorItem(
@@ -70,15 +74,14 @@ class TurbineConstructorItem(
                     name,
                     symbol,
                     containingClass,
-                    containingClass.toType(),
+                    containingClass.type(),
                     modifiers,
-                    parameters,
+                    typeParameterList,
+                    "",
                     "",
                 )
-            modifiers.setOwner(ctorItem)
             ctorItem.parameters = emptyList()
-            ctorItem.throwsClassNames = emptyList()
-            ctorItem.setThrowsTypes()
+            ctorItem.throwableTypes = emptyList()
             return ctorItem
         }
     }

@@ -27,11 +27,7 @@ fun findKotlinStdlibPaths(sources: Array<String>): List<File> {
     for (path in classPath.split(':')) {
         val file = File(path)
         val name = file.name
-        if (
-            name.startsWith("kotlin-stdlib") ||
-                name.startsWith("kotlin-reflect") ||
-                name.startsWith("kotlin-script-runtime")
-        ) {
+        if (name.startsWith("kotlin-stdlib") || name.startsWith("kotlin-script-runtime")) {
             paths.add(file)
         }
     }

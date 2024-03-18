@@ -38,6 +38,7 @@ import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.psi.PsiItem
 import com.android.tools.metalava.options
@@ -99,11 +100,11 @@ class CompatibilityCheck(
         if (oldNullnessAnnotation != null) {
             val newNullnessAnnotation = findNullnessAnnotation(new)
             if (newNullnessAnnotation == null) {
-                val implicitNullness = new.implicitNullness()
-                if (implicitNullness == true && isNullable(old)) {
+                val typeNullability = new.type()?.modifiers?.nullability()
+                if (typeNullability == TypeNullability.NULLABLE && isNullable(old)) {
                     return
                 }
-                if (implicitNullness == false && !isNullable(old)) {
+                if (typeNullability == TypeNullability.NONNULL && !isNullable(old)) {
                     return
                 }
                 val name = AnnotationItem.simpleName(oldNullnessAnnotation)
@@ -361,16 +362,18 @@ class CompatibilityCheck(
         }
 
         if (old.hasTypeVariables() || new.hasTypeVariables()) {
-            val oldTypeParamsCount = old.typeParameterList().typeParameterCount()
-            val newTypeParamsCount = new.typeParameterList().typeParameterCount()
+            val oldTypeParamsCount = old.typeParameterList.size
+            val newTypeParamsCount = new.typeParameterList.size
             if (oldTypeParamsCount > 0 && oldTypeParamsCount != newTypeParamsCount) {
                 report(
                     Issues.CHANGED_TYPE,
                     new,
-                    "${describe(
-                        old,
-                        capitalize = true
-                    )} changed number of type parameters from $oldTypeParamsCount to $newTypeParamsCount"
+                    "${
+                        describe(
+                            old,
+                            capitalize = true
+                        )
+                    } changed number of type parameters from $oldTypeParamsCount to $newTypeParamsCount"
                 )
             }
         }
@@ -609,21 +612,29 @@ class CompatibilityCheck(
         }
         */
 
-        for (exception in old.throwsTypes()) {
-            if (!new.throws(exception.qualifiedName())) {
+        for (throwType in old.throwsTypes()) {
+            // Get the throwable class, if none could be found then it is either because there is an
+            // error in the codebase or the codebase is incomplete, either way reporting an error
+            // would be unhelpful.
+            val throwableClass = throwType.erasedClass ?: continue
+            if (!new.throws(throwableClass.qualifiedName())) {
                 // exclude 'throws' changes to finalize() overrides with no arguments
                 if (old.name() != "finalize" || old.parameters().isNotEmpty()) {
                     report(
                         Issues.CHANGED_THROWS,
                         new,
-                        "${describe(new, capitalize = true)} no longer throws exception ${exception.qualifiedName()}"
+                        "${describe(new, capitalize = true)} no longer throws exception ${throwType.description()}"
                     )
                 }
             }
         }
 
-        for (exec in new.filteredThrowsTypes(filterReference)) {
-            if (!old.throws(exec.qualifiedName())) {
+        for (throwType in new.filteredThrowsTypes(filterReference)) {
+            // Get the throwable class, if none could be found then it is either because there is an
+            // error in the codebase or the codebase is incomplete, either way reporting an error
+            // would be unhelpful.
+            val throwableClass = throwType.erasedClass ?: continue
+            if (!old.throws(throwableClass.qualifiedName())) {
                 // exclude 'throws' changes to finalize() overrides with no arguments
                 if (
                     !(old.name() == "finalize" && old.parameters().isEmpty()) &&
@@ -632,25 +643,27 @@ class CompatibilityCheck(
                         !old.isEnumSyntheticMethod()
                 ) {
                     val message =
-                        "${describe(new, capitalize = true)} added thrown exception ${exec.qualifiedName()}"
+                        "${describe(new, capitalize = true)} added thrown exception ${throwType.description()}"
                     report(Issues.CHANGED_THROWS, new, message)
                 }
             }
         }
 
         if (new.modifiers.isInline()) {
-            val oldTypes = old.typeParameterList().typeParameters()
-            val newTypes = new.typeParameterList().typeParameters()
+            val oldTypes = old.typeParameterList
+            val newTypes = new.typeParameterList
             for (i in oldTypes.indices) {
                 if (i == newTypes.size) {
                     break
                 }
                 if (newTypes[i].isReified() && !oldTypes[i].isReified()) {
                     val message =
-                        "${describe(
-                        new,
-                        capitalize = true
-                    )} made type variable ${newTypes[i].simpleName()} reified: incompatible change"
+                        "${
+                            describe(
+                                new,
+                                capitalize = true
+                            )
+                        } made type variable ${newTypes[i].name()} reified: incompatible change"
                     report(Issues.ADDED_REIFIED, new, message)
                 }
             }
@@ -988,7 +1001,7 @@ class CompatibilityCheck(
         @Suppress("DEPRECATION")
         fun checkCompatibility(
             newCodebase: Codebase,
-            oldCodebase: Codebase,
+            oldCodebases: MergedCodebase,
             apiType: ApiType,
             baseApi: Codebase?,
             reporter: Reporter,
@@ -1011,19 +1024,22 @@ class CompatibilityCheck(
 
             val oldFullCodebase =
                 if (options.showUnannotated && apiType == ApiType.PUBLIC_API) {
-                    MergedCodebase(listOfNotNull(oldCodebase, baseApi))
+                    baseApi?.let { MergedCodebase(oldCodebases.children + baseApi) } ?: oldCodebases
                 } else {
                     // To avoid issues with partial oldCodeBase we fill gaps with newCodebase, the
                     // first parameter is master, so we don't change values of oldCodeBase
-                    MergedCodebase(listOfNotNull(oldCodebase, newCodebase))
+                    MergedCodebase(oldCodebases.children + newCodebase)
                 }
             val newFullCodebase = MergedCodebase(listOfNotNull(newCodebase, baseApi))
 
-            CodebaseComparator().compare(checker, oldFullCodebase, newFullCodebase, filter)
+            CodebaseComparator(
+                    apiVisitorConfig = @Suppress("DEPRECATION") options.apiVisitorConfig,
+                )
+                .compare(checker, oldFullCodebase, newFullCodebase, filter)
 
             val message =
                 "Found compatibility problems checking " +
-                    "the ${apiType.displayName} API (${newCodebase.location}) against the API in ${oldCodebase.location}"
+                    "the ${apiType.displayName} API (${newCodebase.location}) against the API in ${oldCodebases.children.last().location}"
 
             if (checker.foundProblems) {
                 throw MetalavaCliException(exitCode = -1, stderr = message)

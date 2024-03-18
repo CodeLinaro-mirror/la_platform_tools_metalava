@@ -16,11 +16,10 @@
 
 package com.android.tools.metalava.model
 
-interface TypeParameterListOwner {
-    fun typeParameterList(): TypeParameterList
-    /** Given a variable in this owner, resolves to a type parameter item */
-    fun resolveParameter(variable: String): TypeParameterItem?
-
-    /** Parent type parameter list owner */
-    fun typeParameterListOwnerParent(): TypeParameterListOwner?
+/** Interface common to all [Item]s that can have type parameters. */
+sealed interface TypeParameterListOwner {
+    /**
+     * Any type parameters for the [Item], if there are no parameters then [TypeParameterList.NONE].
+     */
+    val typeParameterList: TypeParameterList
 }

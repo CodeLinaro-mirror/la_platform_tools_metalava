@@ -16,7 +16,11 @@
 
 package com.android.tools.metalava.cli.compatibility
 
+import com.android.tools.metalava.ApiType
 import com.android.tools.metalava.cli.common.BaseOptionGroupTest
+import com.android.tools.metalava.testing.signature
+import com.google.common.truth.Truth.assertThat
+import org.junit.Test
 
 val COMPATIBILITY_CHECK_OPTIONS_HELP =
     """
@@ -30,8 +34,18 @@ Compatibility Checks:
                                              @SystemApi txt file), which allows us to recognize when an API is moved
                                              from the partial API to the base API and avoid incorrectly flagging this
   --check-compatibility:api:released <file>  Check compatibility of the previously released API.
+
+                                             When multiple files are provided any files that are a delta on another file
+                                             must come after the other file, e.g. if `system` is a delta on `public`
+                                             then `public` must come first, then `system`. Or, in other words, they must
+                                             be provided in order from the narrowest API to the widest API.
   --check-compatibility:removed:released <file>
                                              Check compatibility of the previously released but since removed APIs.
+
+                                             When multiple files are provided any files that are a delta on another file
+                                             must come after the other file, e.g. if `system` is a delta on `public`
+                                             then `public` must come first, then `system`. Or, in other words, they must
+                                             be provided in order from the narrowest API to the widest API.
   --error-message:compatibility:released <message>
                                              If set, this is output when errors are detected in
                                              --check-compatibility:api:released or
@@ -45,4 +59,64 @@ class CompatibilityCheckOptionsTest :
     ) {
 
     override fun createOptions(): CompatibilityCheckOptions = CompatibilityCheckOptions()
+
+    @Test
+    fun `check compatibility api released`() {
+        val file =
+            signature("released.txt", "// Signature format: 2.0\n").createFile(temporaryFolder.root)
+        runTest(ARG_CHECK_COMPATIBILITY_API_RELEASED, file.path) {
+            assertThat(options.compatibilityChecks)
+                .isEqualTo(
+                    listOf(
+                        CompatibilityCheckOptions.CheckRequest(
+                            files = listOf(file),
+                            apiType = ApiType.PUBLIC_API,
+                        ),
+                    )
+                )
+        }
+    }
+
+    @Test
+    fun `check compatibility api released multiple files`() {
+        val file1 =
+            signature("released1.txt", "// Signature format: 2.0\n")
+                .createFile(temporaryFolder.root)
+        val file2 =
+            signature("released2.txt", "// Signature format: 2.0\n")
+                .createFile(temporaryFolder.root)
+        runTest(
+            ARG_CHECK_COMPATIBILITY_API_RELEASED,
+            file1.path,
+            ARG_CHECK_COMPATIBILITY_API_RELEASED,
+            file2.path,
+        ) {
+            assertThat(options.compatibilityChecks)
+                .isEqualTo(
+                    listOf(
+                        CompatibilityCheckOptions.CheckRequest(
+                            files = listOf(file1, file2),
+                            apiType = ApiType.PUBLIC_API,
+                        ),
+                    )
+                )
+        }
+    }
+
+    @Test
+    fun `check compatibility removed api released`() {
+        val file =
+            signature("removed.txt", "// Signature format: 2.0\n").createFile(temporaryFolder.root)
+        runTest(ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED, file.path) {
+            assertThat(options.compatibilityChecks)
+                .isEqualTo(
+                    listOf(
+                        CompatibilityCheckOptions.CheckRequest(
+                            files = listOf(file),
+                            apiType = ApiType.REMOVED,
+                        ),
+                    )
+                )
+        }
+    }
 }

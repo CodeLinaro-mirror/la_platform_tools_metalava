@@ -39,15 +39,14 @@ import com.android.tools.metalava.cli.signature.UpdateSignatureHeaderCommand
 import com.android.tools.metalava.compatibility.CompatibilityCheck
 import com.android.tools.metalava.doc.DocAnalyzer
 import com.android.tools.metalava.lint.ApiLint
-import com.android.tools.metalava.model.AnnotationTarget
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.Codebase
-import com.android.tools.metalava.model.psi.gatherSources
+import com.android.tools.metalava.model.MergedCodebase
 import com.android.tools.metalava.model.source.EnvironmentManager
 import com.android.tools.metalava.model.source.SourceParser
+import com.android.tools.metalava.model.source.SourceSet
 import com.android.tools.metalava.model.text.ApiClassResolution
-import com.android.tools.metalava.model.text.TextCodebase
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
@@ -419,14 +418,13 @@ internal fun processFlags(
 @Suppress("DEPRECATION")
 private fun addMissingItemsRequiredForGeneratingStubs(
     sourceParser: SourceParser,
-    textCodebase: TextCodebase,
+    codebase: Codebase,
     reporterApiLint: Reporter,
 ) {
     // Reuse the existing ApiAnalyzer support for adding constructors that is used in
     // [loadFromSources], to make sure that the constructors are correct when generating stubs
     // from source files.
-    val analyzer =
-        ApiAnalyzer(sourceParser, textCodebase, reporterApiLint, options.apiAnalyzerConfig)
+    val analyzer = ApiAnalyzer(sourceParser, codebase, reporterApiLint, options.apiAnalyzerConfig)
     analyzer.addConstructors { _ -> true }
 }
 
@@ -447,7 +445,9 @@ private fun ActionContext.subtractApi(
         }
 
     @Suppress("DEPRECATION")
-    CodebaseComparator()
+    CodebaseComparator(
+            apiVisitorConfig = @Suppress("DEPRECATION") options.apiVisitorConfig,
+        )
         .compare(
             object : ComparisonVisitor() {
                 override fun compare(old: ClassItem, new: ClassItem) {
@@ -469,7 +469,6 @@ private fun ActionContext.checkCompatibility(
     check: CheckRequest,
 ) {
     progressTracker.progress("Checking API compatibility ($check): ")
-    val signatureFile = check.file
 
     val apiType = check.apiType
     val generatedApiFile =
@@ -489,6 +488,7 @@ private fun ActionContext.checkCompatibility(
     //   check the lengths first and then compare contents byte for byte so that it exits
     //   quickly if they're different and does not do all the UTF-8 conversions.
     generatedApiFile?.let { apiFile ->
+        val signatureFile = check.files.last()
         val compatibilityCheckCanBeSkipped =
             signatureFile.extension == "txt" && compareFileContents(apiFile, signatureFile)
         // TODO(b/301282006): Remove global variable use when this can be tested properly
@@ -496,11 +496,13 @@ private fun ActionContext.checkCompatibility(
         if (compatibilityCheckCanBeSkipped) return
     }
 
-    val oldCodebase =
-        if (signatureFile.path.endsWith(DOT_JAR)) {
-            loadFromJarFile(signatureFile)
-        } else {
-            signatureFileCache.load(signatureFile, classResolverProvider.classResolver)
+    val oldCodebases =
+        check.files.map { signatureFile ->
+            if (signatureFile.path.endsWith(DOT_JAR)) {
+                loadFromJarFile(signatureFile)
+            } else {
+                signatureFileCache.load(signatureFile, classResolverProvider.classResolver)
+            }
         }
 
     var baseApi: Codebase? = null
@@ -518,11 +520,15 @@ private fun ActionContext.checkCompatibility(
         )
     }
 
+    // The MergedCodebase assume that the codebases are in order from widest to narrowest which is
+    // the opposite of how they are supplied so this reverses them.
+    val mergedOldCodebases = MergedCodebase(oldCodebases.reversed())
+
     // If configured, compares the new API with the previous API and reports
     // any incompatibilities.
     CompatibilityCheck.checkCompatibility(
         newCodebase,
-        oldCodebase,
+        mergedOldCodebases,
         apiType,
         baseApi,
         options.reporterCompatibilityReleased,
@@ -595,22 +601,29 @@ private fun ActionContext.loadFromSources(
 ): Codebase {
     progressTracker.progress("Processing sources: ")
 
-    val sources =
-        options.sources.ifEmpty {
+    val sourceSet =
+        if (options.sources.isEmpty()) {
             if (options.verbose) {
                 options.stdout.println(
                     "No source files specified: recursively including all sources found in the source path (${options.sourcePath.joinToString()}})"
                 )
             }
-            gatherSources(options.reporter, options.sourcePath)
+            SourceSet.createFromSourcePath(options.reporter, options.sourcePath)
+        } else {
+            SourceSet(options.sources, options.sourcePath)
         }
+
+    val commonSourceSet =
+        if (options.commonSourcePath.isNotEmpty())
+            SourceSet.createFromSourcePath(options.reporter, options.commonSourcePath)
+        else SourceSet.empty()
 
     progressTracker.progress("Reading Codebase: ")
     val codebase =
         sourceParser.parseSources(
-            sources,
+            sourceSet,
+            commonSourceSet,
             "Codebase loaded from source folders",
-            sourcePath = options.sourcePath,
             classPath = options.classpath,
         )
 
@@ -756,16 +769,6 @@ private fun createStubFiles(
     codebase: Codebase,
     docStubs: Boolean,
 ) {
-    if (codebase is TextCodebase) {
-        if (options.verbose) {
-            options.stdout.println(
-                "Generating stubs from text based codebase is an experimental feature. " +
-                    "It is not guaranteed that stubs generated from text based codebase are " +
-                    "class level equivalent to the stubs generated from source files. "
-            )
-        }
-    }
-
     if (docStubs) {
         progressTracker.progress("Generating documentation stub files: ")
     } else {
@@ -786,13 +789,10 @@ private fun createStubFiles(
 
     val stubWriter =
         StubWriter(
-            codebase = codebase,
             stubsDir = stubDir,
             generateAnnotations = options.generateAnnotations,
             preFiltered = codebase.preFiltered,
             docStubs = docStubs,
-            annotationTarget =
-                if (docStubs) AnnotationTarget.DOC_STUBS_FILE else AnnotationTarget.SDK_STUBS_FILE,
             reporter = options.reporter,
             config = stubWriterConfig,
         )

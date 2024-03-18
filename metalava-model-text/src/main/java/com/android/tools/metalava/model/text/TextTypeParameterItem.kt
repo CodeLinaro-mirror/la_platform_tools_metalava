@@ -16,65 +16,76 @@
 
 package com.android.tools.metalava.model.text
 
+import com.android.tools.metalava.model.BoundsTypeItem
 import com.android.tools.metalava.model.DefaultModifierList
-import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterItem
-import com.android.tools.metalava.model.TypeParameterList
-import com.android.tools.metalava.model.TypeParameterListOwner
+import com.android.tools.metalava.model.VariableTypeItem
+import com.android.tools.metalava.model.type.DefaultTypeModifiers
+import com.android.tools.metalava.model.type.DefaultVariableTypeItem
 
-class TextTypeParameterItem(
+internal class TextTypeParameterItem(
     codebase: TextCodebase,
-    private var owner: TypeParameterListOwner?,
-    private val typeParameterString: String,
-    name: String,
+    private val name: String,
     private val isReified: Boolean,
-    private var bounds: List<TypeItem>? = null,
 ) :
-    TextClassItem(
+    TextItem(
         codebase = codebase,
+        position = SourcePositionInfo.UNKNOWN,
         modifiers = DefaultModifierList(codebase, DefaultModifierList.PUBLIC),
-        name = name,
-        qualifiedName = name,
-        typeParameterList = TypeParameterList.NONE
     ),
     TypeParameterItem {
 
-    override fun toType(): TextTypeItem {
-        return TextVariableTypeItem(
-            codebase,
-            name,
-            this,
-            TextTypeModifiers.create(codebase, emptyList(), null)
-        )
+    lateinit var bounds: List<BoundsTypeItem>
+
+    override fun name(): String {
+        return name
     }
 
-    override fun typeBounds(): List<TypeItem> {
-        if (bounds == null) {
-            val boundsStringList = bounds(typeParameterString, owner)
-            bounds =
-                if (boundsStringList.isEmpty()) {
-                    emptyList()
-                } else {
-                    boundsStringList.map {
-                        codebase.typeResolver.obtainTypeFromString(it, gatherTypeParams(owner))
-                    }
+    override fun toString() =
+        if (bounds.isEmpty() && !isReified) name
+        else
+            buildString {
+                if (isReified) append("reified ")
+                append(name)
+                if (bounds.isNotEmpty()) {
+                    append(" extends ")
+                    bounds.joinTo(this, " & ")
                 }
-        }
-        return bounds!!
+            }
+
+    override fun type(): VariableTypeItem {
+        return DefaultVariableTypeItem(DefaultTypeModifiers.create(emptyList()), this)
     }
+
+    override fun typeBounds(): List<BoundsTypeItem> = bounds
 
     override fun isReified(): Boolean = isReified
 
-    internal fun setOwner(newOwner: TypeParameterListOwner) {
-        owner = newOwner
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is TypeParameterItem) return false
+
+        return name == other.name()
+    }
+
+    override fun hashCode(): Int {
+        return name.hashCode()
     }
 
     companion object {
+
+        /**
+         * Create a partially initialized [TextTypeParameterItem].
+         *
+         * This extracts the [isReified] and [name] from the [typeParameterString] and creates a
+         * [TextTypeParameterItem] with those properties initialized but the [bounds] is not.
+         *
+         * This must ONLY be used by [ApiFile.createTypeParameterList] as that will complete the
+         * initialization of the [bounds] property.
+         */
         fun create(
             codebase: TextCodebase,
-            owner: TypeParameterListOwner?,
             typeParameterString: String,
-            bounds: List<TypeItem>? = null
         ): TextTypeParameterItem {
             val length = typeParameterString.length
             var nameEnd = length
@@ -95,88 +106,12 @@ class TextTypeParameterItem(
                 }
             }
             val name = typeParameterString.substring(nameStart, nameEnd)
+
             return TextTypeParameterItem(
                 codebase = codebase,
-                owner = owner,
-                typeParameterString = typeParameterString,
                 name = name,
                 isReified = isReified,
-                bounds = bounds
             )
-        }
-
-        fun bounds(typeString: String?, owner: TypeParameterListOwner? = null): List<String> {
-            val s = typeString ?: return emptyList()
-            val index = s.indexOf("extends ")
-            if (index == -1) {
-                // See if this is a type variable that has bounds in the parent
-                val parameters =
-                    (owner as? TextMemberItem)
-                        ?.containingClass()
-                        ?.typeParameterList()
-                        ?.typeParameters()
-                        ?: return emptyList()
-                for (p in parameters) {
-                    if (p.simpleName() == s) {
-                        return p.typeBounds().map { it.toTypeString() }
-                    }
-                }
-
-                return emptyList()
-            }
-            val list = mutableListOf<String>()
-            var angleBracketBalance = 0
-            var start = index + "extends ".length
-            val length = s.length
-            for (i in start until length) {
-                val c = s[i]
-                if (c == '&' && angleBracketBalance == 0) {
-                    add(list, typeString, start, i)
-                    start = i + 1
-                } else if (c == '<') {
-                    angleBracketBalance++
-                } else if (c == '>') {
-                    angleBracketBalance--
-                    if (angleBracketBalance == 0) {
-                        add(list, typeString, start, i + 1)
-                        start = i + 1
-                    }
-                }
-            }
-            if (start < length) {
-                add(list, typeString, start, length)
-            }
-            return list
-        }
-
-        private fun add(list: MutableList<String>, s: String, from: Int, to: Int) {
-            for (i in from until to) {
-                if (!Character.isWhitespace(s[i])) {
-                    var end = to
-                    while (end > i && s[end - 1].isWhitespace()) {
-                        end--
-                    }
-                    var begin = i
-                    while (begin < end && s[begin].isWhitespace()) {
-                        begin++
-                    }
-                    if (begin == end) {
-                        return
-                    }
-                    val element = s.substring(begin, end)
-                    list.add(element)
-                    return
-                }
-            }
-        }
-
-        /** Collect all the type parameters in scope for the given [owner]. */
-        private fun gatherTypeParams(owner: TypeParameterListOwner?): List<TypeParameterItem> {
-            return owner?.let {
-                it.typeParameterList().typeParameters() +
-                    gatherTypeParams(owner.typeParameterListOwnerParent())
-            }
-                ?: emptyList()
         }
     }
 }

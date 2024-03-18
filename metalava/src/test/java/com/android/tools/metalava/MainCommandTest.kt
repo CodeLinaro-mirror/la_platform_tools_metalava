@@ -103,6 +103,10 @@ API sources:
 --source-path <paths>
                                              One or more directories (separated by `:`) containing source files (within
                                              a package hierarchy).
+--common-source-path <paths>
+                                             One or more directories (separated by `:`) containing common source files
+                                             (within a package hierarchy) where platform-agnostic `expect` declarations
+                                             as well as common business logic are defined.
 --classpath <paths>
                                              One or more directories or jars (separated by `:`) containing classes that
                                              should be on the classpath when parsing the source files

@@ -19,6 +19,7 @@ package com.android.tools.metalava.model.testsuite.propertyitem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.kotlin
+import com.google.common.truth.Truth
 import org.junit.Assert.assertEquals
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -27,6 +28,48 @@ import org.junit.runners.Parameterized
 /** Common tests for implementations of [PropertyItem]. */
 @RunWith(Parameterized::class)
 class CommonPropertyItemTest : BaseModelTest() {
+
+    @Test
+    fun `Test access type parameter of outer class`() {
+        runCodebaseTest(
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public class Outer<O> {
+                      }
+                      public class Outer.Middle {
+                      }
+                      public abstract class Outer.Middle.Inner {
+                        property public abstract O property;
+                      }
+                    }
+                """
+            ),
+            kotlin(
+                """
+                    package test.pkg
+
+                    class Outer<O> private constructor() {
+                        inner class Middle private constructor() {
+                            abstract inner class Inner private constructor() {
+                                abstract val property: O
+                            }
+                        }
+                    }
+                """
+            ),
+        ) {
+            val oTypeParameter = codebase.assertClass("test.pkg.Outer").typeParameterList.single()
+            val propertyType =
+                codebase
+                    .assertClass("test.pkg.Outer.Middle.Inner")
+                    .assertProperty("property")
+                    .type()
+
+            propertyType.assertReferencesTypeParameter(oTypeParameter)
+        }
+    }
 
     @Test
     fun `Test deprecated getter and setter by annotation`() {
@@ -54,6 +97,40 @@ class CommonPropertyItemTest : BaseModelTest() {
             assertEquals("property originallyDeprecated", true, property.originallyDeprecated)
             assertEquals("getter originallyDeprecated", true, getter.originallyDeprecated)
             assertEquals("setter originallyDeprecated", true, setter.originallyDeprecated)
+        }
+    }
+
+    @Test
+    fun `Test property delegate to Kotlin object`() {
+        runCodebaseTest(
+            kotlin(
+                """
+                    package test.pkg
+                    import kotlin.properties.ReadOnlyProperty
+                    import kotlin.reflect.KProperty
+                    class Foo {
+                        val field: String by object : ReadOnlyProperty<Foo, String> {
+                            fun getValue(thisRef: T, property: KProperty<*>) = "foo"
+                        }
+                    }
+                """
+            ),
+            // No signature file as it does not care about field values that are not constant
+            // literals.
+        ) {
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+            val fieldType = fooClass.fields().single().type()
+            fieldType.assertClassTypeItem {
+                // The type of the field is NOT `String` (that is the type of the property). The
+                // type of the field is the property delegate which in this case is an anonymous
+                // object.
+                Truth.assertThat(qualifiedName).isEqualTo("java.lang.Object")
+            }
+
+            val propertyType = fooClass.properties().single().type()
+            propertyType.assertClassTypeItem {
+                Truth.assertThat(qualifiedName).isEqualTo("java.lang.String")
+            }
         }
     }
 }

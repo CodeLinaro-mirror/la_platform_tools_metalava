@@ -16,8 +16,10 @@
 
 package com.android.tools.metalava.model.psi
 
+import com.android.tools.metalava.model.BoundsTypeItem
+import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.TypeParameterItem
-import com.android.tools.metalava.model.psi.ClassType.TYPE_PARAMETER
+import com.android.tools.metalava.model.VariableTypeItem
 import com.intellij.psi.PsiTypeParameter
 import org.jetbrains.kotlin.asJava.elements.KotlinLightTypeParameterBuilder
 import org.jetbrains.kotlin.asJava.elements.KtLightDeclaration
@@ -26,47 +28,59 @@ import org.jetbrains.kotlin.psi.KtTypeParameter
 
 internal class PsiTypeParameterItem(
     codebase: PsiBasedCodebase,
-    psiClass: PsiTypeParameter,
-    name: String,
-    modifiers: PsiModifierItem
+    private val psiClass: PsiTypeParameter,
+    private val name: String,
+    modifiers: DefaultModifierList
 ) :
-    PsiClassItem(
+    PsiItem(
         codebase = codebase,
-        psiClass = psiClass,
-        name = name,
-        fullName = name,
-        qualifiedName = name,
-        hasImplicitDefaultConstructor = false,
-        classType = TYPE_PARAMETER,
+        element = psiClass,
         modifiers = modifiers,
         documentation = "",
-        fromClassPath = false
     ),
     TypeParameterItem {
-    override fun typeBounds(): List<PsiTypeItem> = bounds
+
+    override fun name() = name
+
+    /** Must only be used by [type] to cache its result. */
+    private lateinit var variableTypeItem: VariableTypeItem
+
+    override fun type(): VariableTypeItem {
+        if (!::variableTypeItem.isInitialized) {
+            variableTypeItem = codebase.globalTypeItemFactory.getVariableTypeForTypeParameter(this)
+        }
+        return variableTypeItem
+    }
+
+    override fun psi() = psiClass
+
+    override fun typeBounds(): List<BoundsTypeItem> = bounds
 
     override fun isReified(): Boolean {
         return isReified(psiClass as? PsiTypeParameter)
     }
 
-    private lateinit var bounds: List<PsiTypeItem>
+    internal lateinit var bounds: List<BoundsTypeItem>
 
-    override fun finishInitialization() {
-        super.finishInitialization()
+    override fun toString(): String {
+        return String.format("%s [0x%x]", name, System.identityHashCode(this))
+    }
 
-        val refs = psiClass.extendsList?.referencedTypes
-        bounds =
-            if (refs.isNullOrEmpty()) {
-                emptyList()
-            } else {
-                refs.mapNotNull { codebase.getType(it) }
-            }
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is TypeParameterItem) return false
+
+        return name == other.name()
+    }
+
+    override fun hashCode(): Int {
+        return name.hashCode()
     }
 
     companion object {
         fun create(codebase: PsiBasedCodebase, psiClass: PsiTypeParameter): PsiTypeParameterItem {
             val simpleName = psiClass.name!!
-            val modifiers = modifiers(codebase, psiClass, "")
+            val modifiers = modifiers(codebase, psiClass)
 
             val item =
                 PsiTypeParameterItem(
@@ -75,8 +89,7 @@ internal class PsiTypeParameterItem(
                     name = simpleName,
                     modifiers = modifiers
                 )
-            item.modifiers.setOwner(item)
-            item.initialize(emptyList(), emptyList(), emptyList(), emptyList(), emptyList())
+            item.finishInitialization()
             return item
         }
 

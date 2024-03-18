@@ -145,7 +145,7 @@ private constructor(
 
         private val REGEX_DELIMITERS = Regex("[.#$]")
 
-        /*
+        /**
          * Create an ApiToExtensionsMap from a list of text based rules.
          *
          * The input is XML:
@@ -157,26 +157,19 @@ private constructor(
          *     </sdk-extensions-info>
          *
          * The <sdk> and <symbol> tags may be repeated.
-         *
          * - <name> is a long name for the SDK, e.g. "R Extensions".
-         *
          * - <short-name> is a short name for the SDK, e.g. "R-ext".
-         *
          * - <id> is the numerical identifier for the SDK, e.g. 30. It is an error to use the
          *   Android SDK ID (0).
-         *
          * - <jar> is the jar file symbol belongs to, named after the jar file in
          *   prebuilts/sdk/extensions/<int>/public, e.g. "framework-sdkextensions".
-         *
          * - <constant> is a Java symbol that can be passed to `SdkExtensions.getExtensionVersion`
          *   to look up the version of the corresponding SDK, e.g.
          *   "android/os/Build$VERSION_CODES$R"
-         *
          * - <pattern> is either '*', which matches everything, or a 'com.foo.Bar$Inner#member'
          *   string (or prefix thereof terminated before . or $), which matches anything with that
          *   prefix. Note that arguments and return values of methods are omitted (and there is no
          *   way to distinguish overloaded methods).
-         *
          * - <sdks> is a comma separated list of SDKs in which the symbol defined by <jar> and
          *   <pattern> appears; the list items are <name> attributes of SDKs defined in the XML.
          *
@@ -184,7 +177,8 @@ private constructor(
          *
          * A more specific <symbol> rule has higher precedence than a less specific rule.
          *
-         * @param jar jar file to limit lookups to: ignore symbols not present in this jar file
+         * @param filterByJar jar file to limit lookups to: ignore symbols not present in this jar
+         *   file
          * @param xml XML as described above
          * @throws IllegalArgumentException if the XML is malformed
          */

@@ -43,8 +43,12 @@ import org.junit.runners.model.Statement
  * ran last. However, the test reports in the model implementation projects do list each run
  * separately. If this is an issue then the [ModelSuiteRunner] implementations could all be moved
  * into the same project and run tests against them all at the same time.
+ *
+ * @param fixedParameters A set of fixed [TestParameters], used for creating tests that run for a
+ *   fixed set of [ModelSuiteRunner] and [InputFormat]. This is useful when writing model specific
+ *   tests that want to take advantage of the infrastructure for running suite tests.
  */
-abstract class BaseModelTest : Assertions {
+abstract class BaseModelTest(fixedParameters: TestParameters? = null) : Assertions {
 
     /**
      * Set by injection by [Parameterized] after class initializers are called.
@@ -68,6 +72,12 @@ abstract class BaseModelTest : Assertions {
      * 3. Follows the normal test class life-cycle.
      */
     @Parameter(0) lateinit var baseParameters: TestParameters
+
+    init {
+        if (fixedParameters != null) {
+            this.baseParameters = fixedParameters
+        }
+    }
 
     /** The [ModelSuiteRunner] that this test must use. */
     private val runner by lazy { baseParameters.runner }
@@ -131,49 +141,47 @@ abstract class BaseModelTest : Assertions {
         val testFiles: List<TestFile>,
     )
 
+    /** Create an [InputSet] from a list of [TestFile]s. */
+    fun inputSet(testFiles: List<TestFile>): InputSet = inputSet(*testFiles.toTypedArray())
+
     /**
      * Create an [InputSet].
      *
-     * It is an error if [testFiles] is empty or if [testFiles] have different [InputFormat]. That
-     * means that it is not currently possible to mix Kotlin and Java files.
+     * It is an error if [testFiles] is empty or if [testFiles] have a mixture of source
+     * ([InputFormat.JAVA] or [InputFormat.KOTLIN]) and signature ([InputFormat.SIGNATURE]). If it
+     * contains both [InputFormat.JAVA] and [InputFormat.KOTLIN] then the latter will be used.
      */
     fun inputSet(vararg testFiles: TestFile): InputSet {
         if (testFiles.isEmpty()) {
             throw IllegalStateException("Must provide at least one source file")
         }
 
-        val (htmlFiles, nonHtmlFiles) =
-            testFiles.partition { it.targetRelativePath.endsWith(".html") }
+        val inputFormat =
+            testFiles
+                .asSequence()
+                // Map to path.
+                .map { it.targetRelativePath }
+                // Ignore HTML files.
+                .filter { !it.endsWith(".html") }
+                // Map to InputFormat.
+                .map { InputFormat.fromFilename(it) }
+                // Combine InputFormats to produce a single one, may throw an exception if they
+                // are incompatible.
+                .reduce { if1, if2 -> if1.combineWith(if2) }
 
-        // Make sure that all the test files are the same InputFormat. Ignore HTML files.
-        val byInputFormat = nonHtmlFiles.groupBy { InputFormat.fromFilename(it.targetRelativePath) }
-
-        val inputFormatCount = byInputFormat.size
-        if (inputFormatCount != 1) {
-            throw IllegalStateException(
-                buildString {
-                    append(
-                        "All files in the list must be the same input format, but found $inputFormatCount different input formats:\n"
-                    )
-                    byInputFormat.forEach { (format, files) ->
-                        append("    $format\n")
-                        files.forEach { append("        $it\n") }
-                    }
-                }
-            )
-        }
-
-        val (inputFormat, files) = byInputFormat.entries.single()
-        return InputSet(inputFormat, files + htmlFiles)
+        return InputSet(inputFormat, testFiles.toList())
     }
 
     /**
      * Context within which the main body of tests that check the state of the [Codebase] will run.
      */
-    class CodebaseContext<C : Codebase>(
+    interface CodebaseContext<C : Codebase> {
         /** The newly created [Codebase]. */
-        val codebase: C,
-    )
+        val codebase: C
+    }
+
+    private class DefaultCodebaseContext<C : Codebase>(override val codebase: C) :
+        CodebaseContext<C>
 
     /**
      * Create a [Codebase] from one of the supplied [inputSets] and then run a test on that
@@ -229,7 +237,7 @@ abstract class BaseModelTest : Assertions {
         createCodebaseFromInputSetAndRun(
             *sources,
         ) { codebase ->
-            val context = CodebaseContext(codebase)
+            val context = DefaultCodebaseContext(codebase)
             context.test()
         }
     }
@@ -265,15 +273,20 @@ abstract class BaseModelTest : Assertions {
             *sources,
         ) { codebase ->
             codebase as SourceCodebase
-            val context = CodebaseContext(codebase)
+            val context = DefaultCodebaseContext(codebase)
             context.test()
         }
     }
 
-    /** Create a signature [TestFile] with the supplied [contents]. */
-    fun signature(contents: String): TestFile {
-        return TestFiles.source("api.txt", contents.trimIndent())
-    }
+    /**
+     * Create a signature [TestFile] with the supplied [contents] in a file with a path of
+     * `api.txt`.
+     */
+    fun signature(contents: String): TestFile = signature("api.txt", contents)
+
+    /** Create a signature [TestFile] with the supplied [contents] in a file with a path of [to]. */
+    fun signature(to: String, contents: String): TestFile =
+        TestFiles.source(to, contents.trimIndent())
 }
 
 private const val GRADLEW_UPDATE_MODEL_TEST_SUITE_BASELINE =
@@ -296,19 +309,15 @@ private class BaselineTestRule(private val runner: ModelSuiteRunner) : TestRule 
                     // Run the test even if it is expected to fail as a change that fixes one test
                     // may fix more. Instead, this will just discard any failure.
                     base.evaluate()
-                    if (expectedFailure) {
-                        // If a test that was expected to fail passes then updating the baseline
-                        // will remove that test from the expected test failures.
-                        System.err.println(
-                            "Test was expected to fail but passed, please run $GRADLEW_UPDATE_MODEL_TEST_SUITE_BASELINE"
-                        )
-                    }
                 } catch (e: Throwable) {
                     if (expectedFailure) {
                         // If this was expected to fail then throw an AssumptionViolatedException
-                        // so it is not treated as either a pass or fail.
+                        // that way it is not treated as either a pass or fail. Indent the exception
+                        // output and include it in the message instead of chaining the exception as
+                        // that reads better than the default formatting of chained exceptions.
+                        val actualErrorStackTrace = e.stackTraceToString().prependIndent("    ")
                         throw AssumptionViolatedException(
-                            "Test skipped since it is listed in the baseline file for $runner"
+                            "Test skipped since it is listed in the baseline file for $runner.\n$actualErrorStackTrace"
                         )
                     } else {
                         // Inform the developer on how to ignore this failing test.
@@ -319,6 +328,24 @@ private class BaselineTestRule(private val runner: ModelSuiteRunner) : TestRule 
                         // Rethrow the error
                         throw e
                     }
+                }
+
+                // Perform this check outside the try...catch block otherwise the exception gets
+                // caught, making it look like an actual failing test.
+                if (expectedFailure) {
+                    // If a test that was expected to fail passes then updating the baseline
+                    // will remove that test from the expected test failures. Fail the test so
+                    // that the developer will be forced to clean it up.
+                    throw IllegalStateException(
+                        """
+                            **************************************************************************************************
+                                Test was listed in the baseline file as it was expected to fail but it passed, please run:
+                                    $GRADLEW_UPDATE_MODEL_TEST_SUITE_BASELINE
+                            **************************************************************************************************
+
+                        """
+                            .trimIndent()
+                    )
                 }
             }
         }

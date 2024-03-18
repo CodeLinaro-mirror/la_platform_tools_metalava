@@ -53,6 +53,14 @@ enum class InputFormat(
         SourceLanguage.KOTLIN,
     );
 
+    fun combineWith(other: InputFormat): InputFormat {
+        if (this == other) return this
+        if (this == SIGNATURE || other == SIGNATURE) error("Cannot mix signature and source files")
+        // When mixing Kotlin and Java then it should be treated as Kotlin as a Kotlin provider can
+        // handle Java but the reverse is not true.
+        return KOTLIN
+    }
+
     companion object {
         fun fromFilename(path: String): InputFormat {
             val extension = File(path).extension

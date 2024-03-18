@@ -18,6 +18,7 @@ package com.android.tools.metalava
 
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ConstructorItem
+import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MethodItem
@@ -90,7 +91,7 @@ class SignatureWriter(
         fun writeConstructor(skipMask: BitSet? = null) {
             write("    ctor ")
             writeModifiers(constructor)
-            writeTypeParameterList(constructor.typeParameterList(), addSpace = true)
+            writeTypeParameterList(constructor.typeParameterList, addSpace = true)
             write(constructor.containingClass().fullName())
             writeParameterList(constructor, skipMask)
             writeThrowsList(constructor)
@@ -163,7 +164,7 @@ class SignatureWriter(
     override fun visitMethod(method: MethodItem) {
         write("    method ")
         writeModifiers(method)
-        writeTypeParameterList(method.typeParameterList(), addSpace = true)
+        writeTypeParameterList(method.typeParameterList, addSpace = true)
 
         if (fileFormat.kotlinNameTypeOrder) {
             // Kotlin style: write the name of the method and the parameters, then the type.
@@ -208,7 +209,7 @@ class SignatureWriter(
         }
         write(" ")
         write(cls.fullName())
-        writeTypeParameterList(cls.typeParameterList(), addSpace = false)
+        writeTypeParameterList(cls.typeParameterList, addSpace = false)
         writeSuperClassStatement(cls)
         writeInterfaceList(cls)
 
@@ -392,11 +393,13 @@ class SignatureWriter(
             }
         if (throws.any()) {
             write(" throws ")
-            throws.asSequence().sortedWith(ClassItem.fullNameComparator).forEachIndexed { i, type ->
+            throws.asSequence().sortedWith(ExceptionTypeItem.fullNameComparator).forEachIndexed {
+                i,
+                type ->
                 if (i > 0) {
                     write(", ")
                 }
-                write(type.qualifiedName())
+                write(type.toTypeString())
             }
         }
     }

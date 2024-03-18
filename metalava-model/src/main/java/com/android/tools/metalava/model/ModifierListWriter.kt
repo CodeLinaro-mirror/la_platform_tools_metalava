@@ -43,26 +43,58 @@ private constructor(
 
         fun forStubs(
             writer: Writer,
-            target: AnnotationTarget,
+            docStubs: Boolean,
             runtimeAnnotationsOnly: Boolean = false,
             language: Language = Language.JAVA,
         ) =
             ModifierListWriter(
                 writer = writer,
-                target = target,
+                target =
+                    if (docStubs) AnnotationTarget.DOC_STUBS_FILE
+                    else AnnotationTarget.SDK_STUBS_FILE,
                 runtimeAnnotationsOnly = runtimeAnnotationsOnly,
                 skipNullnessAnnotations = language == Language.KOTLIN,
                 language = language,
             )
+
+        /**
+         * Checks whether the `abstract` modifier should be ignored on the method item when
+         * generating stubs.
+         *
+         * Methods that are in annotations are implicitly `abstract`. Methods in an enum can be
+         * `abstract` which requires them to be implemented in each Enum constant but the stubs do
+         * not generate overrides in the enum constants so the method needs to be concrete otherwise
+         * the stubs will not compile.
+         */
+        private fun mustIgnoreAbstractInStubs(methodItem: MethodItem): Boolean {
+            val containingClass = methodItem.containingClass()
+
+            // Need to filter out abstract from the modifiers list and turn it into
+            // a concrete method to make the stub compile
+            return containingClass.isEnum() || containingClass.isAnnotationType()
+        }
+
+        /**
+         * Checks whether the method requires a body to be generated in the stubs.
+         * * Methods that are annotations are implicitly `abstract` but the body is provided by the
+         *   runtime, so they never need bodies.
+         * * Native methods never need bodies.
+         * * Abstract methods do not need bodies unless they are enums in which case see
+         *   [mustIgnoreAbstractInStubs] for an explanation as to why they need bodies.
+         */
+        fun requiresMethodBodyInStubs(methodItem: MethodItem): Boolean {
+            val modifiers = methodItem.modifiers
+            val containingClass = methodItem.containingClass()
+
+            val isEnum = containingClass.isEnum()
+            val isAnnotation = containingClass.isAnnotationType()
+
+            return (!modifiers.isAbstract() || isEnum) && !isAnnotation && !modifiers.isNative()
+        }
     }
 
-    /**
-     * Write the modifier list (possibly including annotations) to the supplied [writer].
-     *
-     * @return true if generating stubs and [Item] is a [MethodItem] and requires a body in order
-     *   for the stub to compile.
-     */
-    fun write(item: Item): Boolean {
+    /** Write the modifier list (possibly including annotations) to the supplied [writer]. */
+    fun write(item: Item) {
         writeAnnotations(item)
 
         if (
@@ -73,7 +105,7 @@ private constructor(
         ) {
             // Packages and enum constants (in a stubs file) use a modifier list, but only
             // annotations apply.
-            return false
+            return
         }
 
         // Kotlin order:
@@ -102,21 +134,14 @@ private constructor(
                     !list.isStatic())
 
         val isAbstract = list.isAbstract()
-        val removeAbstract =
+        val ignoreAbstract =
             isAbstract &&
                 target != AnnotationTarget.SIGNATURE_FILE &&
-                methodItem?.let {
-                    val containingClass = methodItem.containingClass()
-
-                    // Need to filter out abstract from the modifiers list and turn it into
-                    // a concrete method to make the stub compile
-                    containingClass.isEnum() || containingClass.isAnnotationType()
-                }
-                    ?: false
+                methodItem?.let { mustIgnoreAbstractInStubs(methodItem) } ?: false
 
         if (
             isAbstract &&
-                !removeAbstract &&
+                !ignoreAbstract &&
                 classItem?.isEnum() != true &&
                 classItem?.isAnnotationType() != true &&
                 !isInterface
@@ -192,18 +217,6 @@ private constructor(
             if (list.isData()) {
                 writer.write("data ")
             }
-        }
-
-        // Compute whether a method body is required.
-        return if (target == AnnotationTarget.SIGNATURE_FILE || methodItem == null) {
-            false
-        } else {
-            val containingClass = methodItem.containingClass()
-
-            val isEnum = containingClass.isEnum()
-            val isAnnotation = containingClass.isAnnotationType()
-
-            (!list.isAbstract() || removeAbstract || isEnum) && !isAnnotation && !list.isNative()
         }
     }
 

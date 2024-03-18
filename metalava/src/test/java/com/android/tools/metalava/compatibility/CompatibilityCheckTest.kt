@@ -30,7 +30,6 @@ import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.nonNullSource
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.restrictToSource
-import com.android.tools.metalava.supportParameterName
 import com.android.tools.metalava.suppressLintSource
 import com.android.tools.metalava.systemApiSource
 import com.android.tools.metalava.testApiSource
@@ -244,77 +243,6 @@ class CompatibilityCheckTest : DriverTest() {
                             fun method2(string: String, maybeString: String?): String? = null
                             fun method3(maybeString: String?, string : String): String = ""
                         }
-                    }
-                    """
-                    )
-                )
-        )
-    }
-
-    @Test
-    fun `Java Parameter Name Change`() {
-        check(
-            expectedIssues =
-                """
-                src/test/pkg/JavaClass.java:6: error: Attempted to remove parameter name from parameter newName in test.pkg.JavaClass.method1 [ParameterNameChange]
-                src/test/pkg/JavaClass.java:7: error: Attempted to change parameter name from secondParameter to newName in method test.pkg.JavaClass.method2 [ParameterNameChange]
-                """,
-            checkCompatibilityApiReleased =
-                """
-                package test.pkg {
-                  public class JavaClass {
-                    ctor public JavaClass();
-                    method public String method1(String parameterName);
-                    method public String method2(String firstParameter, String secondParameter);
-                  }
-                }
-                """,
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
-                    @Suppress("all")
-                    package test.pkg;
-                    import androidx.annotation.ParameterName;
-
-                    public class JavaClass {
-                        public String method1(String newName) { return null; }
-                        public String method2(@ParameterName("firstParameter") String s, @ParameterName("newName") String prevName) { return null; }
-                    }
-                    """
-                    ),
-                    supportParameterName
-                ),
-            extraArguments = arrayOf(ARG_HIDE_PACKAGE, "androidx.annotation")
-        )
-    }
-
-    @Test
-    fun `Kotlin Parameter Name Change`() {
-        check(
-            expectedIssues =
-                """
-                src/test/pkg/KotlinClass.kt:4: error: Attempted to change parameter name from prevName to newName in method test.pkg.KotlinClass.method1 [ParameterNameChange]
-                """,
-            format = FileFormat.V2,
-            checkCompatibilityApiReleased =
-                """
-                // Signature format: 3.0
-                package test.pkg {
-                  public final class KotlinClass {
-                    ctor public KotlinClass();
-                    method public final String? method1(String prevName);
-                  }
-                }
-                """,
-            sourceFiles =
-                arrayOf(
-                    kotlin(
-                        """
-                    package test.pkg
-
-                    class KotlinClass {
-                        fun method1(newName: String): String? = null
                     }
                     """
                     )
@@ -1685,98 +1613,6 @@ class CompatibilityCheckTest : DriverTest() {
     }
 
     @Test
-    fun `Incompatible method change -- throws list -- java`() {
-        check(
-            expectedIssues =
-                """
-                src/test/pkg/MyClass.java:7: error: Method test.pkg.MyClass.method1 added thrown exception java.io.IOException [ChangedThrows]
-                src/test/pkg/MyClass.java:8: error: Method test.pkg.MyClass.method2 no longer throws exception java.io.IOException [ChangedThrows]
-                src/test/pkg/MyClass.java:9: error: Method test.pkg.MyClass.method3 no longer throws exception java.io.IOException [ChangedThrows]
-                src/test/pkg/MyClass.java:9: error: Method test.pkg.MyClass.method3 no longer throws exception java.lang.NumberFormatException [ChangedThrows]
-                src/test/pkg/MyClass.java:9: error: Method test.pkg.MyClass.method3 added thrown exception java.lang.UnsupportedOperationException [ChangedThrows]
-                """,
-            checkCompatibilityApiReleased =
-                """
-                package test.pkg {
-                  public abstract class MyClass {
-                      method public void finalize() throws java.lang.Throwable;
-                      method public void method1();
-                      method public void method2() throws java.io.IOException;
-                      method public void method3() throws java.io.IOException, java.lang.NumberFormatException;
-                  }
-                }
-                """,
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
-                    package test.pkg;
-
-                    @SuppressWarnings("RedundantThrows")
-                    public abstract class MyClass {
-                        private MyClass() {}
-                        public void finalize() {}
-                        public void method1() throws java.io.IOException {}
-                        public void method2() {}
-                        public void method3() throws java.lang.UnsupportedOperationException {}
-                    }
-                    """
-                    )
-                )
-        )
-    }
-
-    @Test
-    fun `Incompatible method change -- throws list -- kt`() {
-        check(
-            expectedIssues =
-                """
-                src/test/pkg/MyClass.kt:4: error: Constructor test.pkg.MyClass added thrown exception test.pkg.MyException [ChangedThrows]
-                src/test/pkg/MyClass.kt:12: error: Method test.pkg.MyClass.getProperty1 added thrown exception test.pkg.MyException [ChangedThrows]
-                src/test/pkg/MyClass.kt:15: error: Method test.pkg.MyClass.getProperty2 added thrown exception test.pkg.MyException [ChangedThrows]
-                src/test/pkg/MyClass.kt:9: error: Method test.pkg.MyClass.method1 added thrown exception test.pkg.MyException [ChangedThrows]
-            """,
-            checkCompatibilityApiReleased =
-                """
-                package test.pkg {
-                  public final class MyClass {
-                    ctor public MyClass(int);
-                    method public final void method1();
-                    method public final String getProperty1();
-                    method public final String getProperty2();
-                  }
-                }
-            """,
-            sourceFiles =
-                arrayOf(
-                    kotlin(
-                        """
-                        package test.pkg
-
-                        class MyClass
-                        @Throws(MyException::class)
-                        constructor(
-                            val p: Int
-                        ) {
-                            @Throws(MyException::class)
-                            fun method1() {}
-
-                            @get:Throws(MyException::class)
-                            val property1 : String = "42"
-
-                            val property2 : String = "42"
-                                @Throws(MyException::class)
-                                get
-                        }
-
-                        class MyException : Exception()
-                    """
-                    )
-                )
-        )
-    }
-
-    @Test
     fun `Incompatible method change -- return types`() {
         check(
             expectedIssues =
@@ -2433,81 +2269,6 @@ class CompatibilityCheckTest : DriverTest() {
                   public abstract class RoleControllerService extends android.rolecontrollerservice.Service {
                     ctor public RoleControllerService();
                     method public abstract void onClearRoleHolders();
-                  }
-                }
-                """
-        )
-    }
-
-    @Test
-    fun `Partial text file where type previously did not exist`() {
-        check(
-            expectedIssues = """
-                """,
-            sourceFiles =
-                arrayOf(
-                    java(
-                            """
-                    package test.pkg;
-                    import android.annotation.SystemApi;
-
-                    /**
-                     * @hide
-                     */
-                    @SystemApi
-                    public class SampleException1 extends java.lang.Exception {
-                    }
-                    """
-                        )
-                        .indented(),
-                    java(
-                            """
-                    package test.pkg;
-                    import android.annotation.SystemApi;
-
-                    /**
-                     * @hide
-                     */
-                    @SystemApi
-                    public class SampleException2 extends java.lang.Throwable {
-                    }
-                    """
-                        )
-                        .indented(),
-                    java(
-                        """
-                    package test.pkg;
-                    import android.annotation.SystemApi;
-
-                    /**
-                     * @hide
-                     */
-                    @SystemApi
-                    public class Utils {
-                        public void method1() throws SampleException1 { }
-                        public void method2() throws SampleException2 { }
-                    }
-                    """
-                    ),
-                    systemApiSource
-                ),
-            extraArguments =
-                arrayOf(
-                    ARG_SHOW_ANNOTATION,
-                    "android.annotation.SystemApi",
-                    ARG_HIDE_PACKAGE,
-                    "android.annotation",
-                ),
-            checkCompatibilityApiReleased =
-                """
-                package test.pkg {
-                  public class Utils {
-                    ctor public Utils();
-                    // We don't define SampleException1 or SampleException in this file,
-                    // in this partial signature, so we don't need to validate that they
-                    // have not been changed
-                    method public void method1() throws test.pkg.SampleException1;
-                    method public void method2() throws test.pkg.SampleException2;
                   }
                 }
                 """
@@ -4805,25 +4566,25 @@ class CompatibilityCheckTest : DriverTest() {
             expectedIssues =
                 """
                 error: Method test.pkg.MyCollection.add has changed 'abstract' qualifier [ChangedAbstract]
-                error: Attempted to change parameter name from e to p in method test.pkg.MyCollection.add [ParameterNameChange]
+                error: Attempted to remove parameter name from parameter p in test.pkg.MyCollection.add [ParameterNameChange]
                 error: Method test.pkg.MyCollection.addAll has changed 'abstract' qualifier [ChangedAbstract]
-                error: Attempted to change parameter name from c to p in method test.pkg.MyCollection.addAll [ParameterNameChange]
+                error: Attempted to remove parameter name from parameter p in test.pkg.MyCollection.addAll [ParameterNameChange]
                 error: Method test.pkg.MyCollection.clear has changed 'abstract' qualifier [ChangedAbstract]
                 load-api.txt:5: error: Attempted to change parameter name from o to element in method test.pkg.MyCollection.contains [ParameterNameChange]
                 load-api.txt:5: error: Attempted to change parameter name from o to element in method test.pkg.MyCollection.contains [ParameterNameChange]
                 load-api.txt:6: error: Attempted to change parameter name from c to elements in method test.pkg.MyCollection.containsAll [ParameterNameChange]
                 load-api.txt:6: error: Attempted to change parameter name from c to elements in method test.pkg.MyCollection.containsAll [ParameterNameChange]
                 error: Method test.pkg.MyCollection.remove has changed 'abstract' qualifier [ChangedAbstract]
-                error: Attempted to change parameter name from o to p in method test.pkg.MyCollection.remove [ParameterNameChange]
+                error: Attempted to remove parameter name from parameter p in test.pkg.MyCollection.remove [ParameterNameChange]
                 error: Method test.pkg.MyCollection.removeAll has changed 'abstract' qualifier [ChangedAbstract]
-                error: Attempted to change parameter name from c to p in method test.pkg.MyCollection.removeAll [ParameterNameChange]
+                error: Attempted to remove parameter name from parameter p in test.pkg.MyCollection.removeAll [ParameterNameChange]
                 error: Method test.pkg.MyCollection.retainAll has changed 'abstract' qualifier [ChangedAbstract]
-                error: Attempted to change parameter name from c to p in method test.pkg.MyCollection.retainAll [ParameterNameChange]
+                error: Attempted to remove parameter name from parameter p in test.pkg.MyCollection.retainAll [ParameterNameChange]
                 error: Method test.pkg.MyCollection.size has changed 'abstract' qualifier [ChangedAbstract]
                 error: Method test.pkg.MyCollection.toArray has changed 'abstract' qualifier [ChangedAbstract]
                 error: Method test.pkg.MyCollection.toArray has changed 'abstract' qualifier [ChangedAbstract]
-                error: Attempted to change parameter name from a to p in method test.pkg.MyCollection.toArray [ParameterNameChange]
-            """,
+                error: Attempted to remove parameter name from parameter p in test.pkg.MyCollection.toArray [ParameterNameChange]
+                """,
             checkCompatibilityApiReleased =
                 """
                 // Signature format: 4.0
@@ -4859,37 +4620,6 @@ class CompatibilityCheckTest : DriverTest() {
                     method public java.util.Iterator<E> iterator();
                     property public int size;
                   }
-                }
-            """
-        )
-    }
-
-    @Test
-    fun `Flag renaming a parameter from the classpath`() {
-        check(
-            apiClassResolution = ApiClassResolution.API_CLASSPATH,
-            expectedIssues =
-                """
-                error: Attempted to change parameter name from prefix to suffix in method test.pkg.MyString.endsWith [ParameterNameChange]
-                load-api.txt:4: error: Attempted to change parameter name from prefix to suffix in method test.pkg.MyString.startsWith [ParameterNameChange]
-            """
-                    .trimIndent(),
-            checkCompatibilityApiReleased =
-                """
-                // Signature format: 4.0
-                package test.pkg {
-                    public class MyString extends java.lang.String {
-                        method public boolean endsWith(String prefix);
-                    }
-                }
-            """,
-            signatureSource =
-                """
-                // Signature format: 4.0
-                package test.pkg {
-                    public class MyString extends java.lang.String {
-                        method public boolean startsWith(String suffix);
-                    }
                 }
             """
         )

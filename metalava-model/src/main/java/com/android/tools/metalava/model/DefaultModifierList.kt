@@ -16,12 +16,13 @@
 
 package com.android.tools.metalava.model
 
-open class DefaultModifierList(
+class DefaultModifierList(
     override val codebase: Codebase,
-    protected var flags: Int = PACKAGE_PRIVATE,
-    protected open var annotations: MutableList<AnnotationItem>? = null
+    private var flags: Int = PACKAGE_PRIVATE,
+    private var annotations: MutableList<AnnotationItem>? = null
 ) : MutableModifierList {
-    private lateinit var owner: Item
+    /** Set in [DefaultItem] initialization. */
+    internal lateinit var owner: Item
 
     private operator fun set(mask: Int, set: Boolean) {
         flags =
@@ -42,17 +43,6 @@ open class DefaultModifierList(
 
     override fun owner(): Item {
         return owner
-    }
-
-    fun setOwner(owner: Item) {
-        this.owner = owner
-
-        if (owner.hasInheritedGenericType()) {
-            // https://youtrack.jetbrains.com/issue/KTIJ-19087
-            // Incorrect nullness annotation was added to generic parameter
-            // whose nullability is determined at subclass declaration site.
-            annotations?.removeIf { it.isNullnessAnnotation() }
-        }
     }
 
     override fun getVisibilityLevel(): VisibilityLevel {
@@ -292,6 +282,10 @@ open class DefaultModifierList(
         return flags and VISIBILITY_MASK == PACKAGE_PRIVATE
     }
 
+    /**
+     * Copy this, so it can be used on (and possibly modified by) another [Item] from the same
+     * codebase.
+     */
     fun duplicate(): DefaultModifierList {
         val annotations = this.annotations
         val newAnnotations =
@@ -335,7 +329,7 @@ open class DefaultModifierList(
         return false
     }
 
-    final override fun equals(other: Any?): Boolean {
+    override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (javaClass != other?.javaClass) return false
 
@@ -347,7 +341,7 @@ open class DefaultModifierList(
         return true
     }
 
-    final override fun hashCode(): Int {
+    override fun hashCode(): Int {
         var result = flags
         result = 31 * result + (annotations?.hashCode() ?: 0)
         return result

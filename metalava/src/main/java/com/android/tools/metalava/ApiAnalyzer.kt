@@ -40,10 +40,11 @@ import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
+import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.findAnnotation
 import com.android.tools.metalava.model.psi.PsiClassItem
-import com.android.tools.metalava.model.psi.PsiItem.Companion.isKotlin
+import com.android.tools.metalava.model.psi.isKotlin
 import com.android.tools.metalava.model.source.SourceParser
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.reporter.Issues
@@ -302,16 +303,15 @@ class ApiAnalyzer(
     ) {
         if (!cls.isClass()) return
         if (cls.superClass() == null) return
-        val superClasses: Sequence<ClassItem> =
-            generateSequence(cls.superClass()) { it.superClass() }
-        val hiddenSuperClasses: Sequence<ClassItem> =
-            superClasses.filter { !filterReference.test(it) && !it.isJavaLangObject() }
+        val allSuperClasses = cls.allSuperClasses()
+        val hiddenSuperClasses =
+            allSuperClasses.filter { !filterReference.test(it) && !it.isJavaLangObject() }
 
         if (hiddenSuperClasses.none()) { // not missing any implementation methods
             return
         }
 
-        addInheritedStubsFrom(cls, hiddenSuperClasses, superClasses, filterEmit, filterReference)
+        addInheritedStubsFrom(cls, hiddenSuperClasses, allSuperClasses, filterEmit, filterReference)
         addInheritedInterfacesFrom(cls, hiddenSuperClasses, filterReference)
     }
 
@@ -320,7 +320,7 @@ class ApiAnalyzer(
         hiddenSuperClasses: Sequence<ClassItem>,
         filterReference: Predicate<Item>
     ) {
-        var interfaceTypes: MutableList<TypeItem>? = null
+        var interfaceTypes: MutableList<ClassTypeItem>? = null
         var interfaceTypeClasses: MutableList<ClassItem>? = null
         for (hiddenSuperClass in hiddenSuperClasses) {
             for (hiddenInterface in hiddenSuperClass.interfaceTypes()) {
@@ -344,7 +344,7 @@ class ApiAnalyzer(
                     if (hiddenInterfaceClass.hasTypeVariables()) {
                         val mapping = cls.mapTypeVariables(hiddenSuperClass)
                         if (mapping.isNotEmpty()) {
-                            val mappedType: TypeItem = hiddenInterface.convertType(mapping)
+                            val mappedType = hiddenInterface.convertType(mapping)
                             interfaceTypes.add(mappedType)
                             continue
                         }
@@ -414,15 +414,12 @@ class ApiAnalyzer(
             // Determine if there is a non-hidden class between the superClass and this class.
             // If non-hidden classes are found, don't include the methods for this hiddenSuperClass,
             // as it will already have been included in a previous super class
-            var includeHiddenSuperClassMethods = true
-            var currentClass = cls.superClass()
-            while (currentClass != superClass && currentClass != null) {
-                if (!hiddenSuperClasses.contains(currentClass)) {
-                    includeHiddenSuperClassMethods = false
-                    break
-                }
-                currentClass = currentClass.superClass()
-            }
+            val includeHiddenSuperClassMethods =
+                !cls.allSuperClasses()
+                    // Search from this class up to, but not including the superClass.
+                    .takeWhile { currentClass -> currentClass != superClass }
+                    // Find any class that is not hidden.
+                    .any { currentClass -> !hiddenSuperClasses.contains(currentClass) }
 
             if (!includeHiddenSuperClassMethods) {
                 continue
@@ -564,7 +561,7 @@ class ApiAnalyzer(
             val psi = (cls as? PsiClassItem)?.psi()
             if (
                 psi != null &&
-                    isKotlin(psi) &&
+                    psi.isKotlin() &&
                     psi is UClass &&
                     psi.javaPsi is KtLightClassForFacade &&
                     // a facade class needs to be emitted if it has any top-level fun/prop to emit
@@ -1261,10 +1258,7 @@ class ApiAnalyzer(
             return
         }
 
-        if (
-            (cl.isHiddenOrRemoved() || cl.isPackagePrivate && !cl.isApiCandidate()) &&
-                !cl.isTypeParameter
-        ) {
+        if (cl.isHiddenOrRemoved() || cl.isPackagePrivate && !cl.isApiCandidate()) {
             reporter.report(
                 Issues.REFERENCES_HIDDEN,
                 from,
@@ -1295,7 +1289,7 @@ class ApiAnalyzer(
             )
         }
         // cant strip any of the type's generics
-        cantStripThis(cl.typeParameterList(), filter, notStrippable, stubImportPackages, cl)
+        cantStripThis(cl.typeParameterList, filter, notStrippable, stubImportPackages, cl)
         // cant strip any of the annotation elements
         // cantStripThis(cl.annotationElements(), notStrippable);
         // take care of methods
@@ -1319,7 +1313,8 @@ class ApiAnalyzer(
         cl.superClass()?.let { superClass -> superItems.add(superClass) }
 
         for (superItem in superItems) {
-            if (superItem.isHiddenOrRemoved()) {
+            // allInterfaces includes cl itself if cl is an interface
+            if (superItem.isHiddenOrRemoved() && superItem != cl) {
                 // cl is a public class declared as extending a hidden superclass.
                 // this is not a desired practice, but it's happened, so we deal
                 // with it by finding the first super class which passes checkLevel for purposes of
@@ -1368,7 +1363,7 @@ class ApiAnalyzer(
                 continue
             }
             cantStripThis(
-                method.typeParameterList(),
+                method.typeParameterList,
                 filter,
                 notStrippable,
                 stubImportPackages,
@@ -1385,8 +1380,10 @@ class ApiAnalyzer(
                 )
             }
             for (thrown in method.throwsTypes()) {
+                if (thrown is VariableTypeItem) continue
+                val classItem = thrown.erasedClass ?: continue
                 cantStripThis(
-                    thrown,
+                    classItem,
                     filter,
                     notStrippable,
                     stubImportPackages,
@@ -1412,7 +1409,7 @@ class ApiAnalyzer(
         stubImportPackages: Set<String>?,
         context: Item
     ) {
-        for (typeParameter in typeParameterList.typeParameters()) {
+        for (typeParameter in typeParameterList) {
             for (bound in typeParameter.typeBounds()) {
                 cantStripThis(
                     bound,

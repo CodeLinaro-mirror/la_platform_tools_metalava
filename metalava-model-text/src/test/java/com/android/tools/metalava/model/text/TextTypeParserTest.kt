@@ -16,16 +16,23 @@
 
 package com.android.tools.metalava.model.text
 
+import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ArrayTypeItem
-import com.android.tools.metalava.model.Assertions
 import com.android.tools.metalava.model.ClassTypeItem
+import com.android.tools.metalava.model.DefaultAnnotationItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeNullability
+import com.android.tools.metalava.model.TypeParameterScope
 import com.google.common.truth.Truth.assertThat
 import org.junit.Assert
 import org.junit.Test
 
-class TextTypeParserTest : Assertions {
+class TextTypeParserTest : BaseTextCodebaseTest() {
+    private val typeParser = TextTypeParser(ApiFile.parseApi("test", ""))
+
+    private fun parseType(type: String) =
+        typeParser.obtainTypeFromString(type, TypeParameterScope.empty)
+
     @Test
     fun `Test type parameter strings`() {
         assertThat(TextTypeParser.typeParameterStrings(null).toString()).isEqualTo("[]")
@@ -81,40 +88,6 @@ class TextTypeParserTest : Assertions {
     }
 
     @Test
-    fun `Test caching of type variables`() {
-        val codebase =
-            ApiFile.parseApi(
-                "test",
-                """
-                    // Signature format: 4.0
-                    package test.pkg {
-                      public class Foo<A> {
-                        method public void bar1<B extends java.lang.String>(B p0);
-                        method public void bar2<B extends java.lang.String>(B p0);
-                        method public void bar3<C>(java.util.List<C> p0);
-                        method public void bar4<C>(java.util.List<C> p0);
-                      }
-                    }
-                """
-                    .trimIndent()
-            )
-        val foo = codebase.assertClass("test.pkg.Foo")
-        assertThat(foo.methods()).hasSize(4)
-
-        val bar1Param = foo.methods()[0].parameters()[0].type()
-        val bar2Param = foo.methods()[1].parameters()[0].type()
-
-        // The type variable should not be reused between methods
-        assertThat(bar1Param).isNotSameInstanceAs(bar2Param)
-
-        val bar3Param = foo.methods()[2].parameters()[0].type()
-        val bar4Param = foo.methods()[3].parameters()[0].type()
-
-        // The type referencing a type variable should not be reused between methods
-        assertThat(bar3Param).isNotSameInstanceAs(bar4Param)
-    }
-
-    @Test
     fun `Test splitting Kotlin nullability suffix`() {
         assertThat(TextTypeParser.splitNullabilitySuffix("String!", true))
             .isEqualTo(Pair("String", TypeNullability.PLATFORM))
@@ -157,11 +130,13 @@ class TextTypeParserTest : Assertions {
         original: String,
         expectedType: String,
         expectedAnnotations: List<String>,
-        annotationFunction: (String) -> Pair<String, List<String>>
+        annotationFunction: (String) -> Pair<String, List<AnnotationItem>>
     ) {
         val (type, annotations) = annotationFunction(original)
         assertThat(type).isEqualTo(expectedType)
-        assertThat(annotations).isEqualTo(expectedAnnotations)
+        val expectedAnnotationItems =
+            expectedAnnotations.map { DefaultAnnotationItem.create(typeParser.codebase, it) }
+        assertThat(annotations).isEqualTo(expectedAnnotationItems)
     }
 
     @Test
@@ -171,7 +146,7 @@ class TextTypeParserTest : Assertions {
             original = "java.util.List",
             expectedType = "java.util.List",
             expectedAnnotations = emptyList(),
-            TextTypeParser::trimLeadingAnnotations
+            typeParser::trimLeadingAnnotations
         )
 
         // Annotations not at the start of the type aren't trimmed
@@ -179,13 +154,13 @@ class TextTypeParserTest : Assertions {
             original = "java.util.@libcore.util.Nullable List",
             expectedType = "java.util.@libcore.util.Nullable List",
             expectedAnnotations = emptyList(),
-            TextTypeParser::trimLeadingAnnotations
+            typeParser::trimLeadingAnnotations
         )
         testAnnotations(
             original = "java.util.List @libcore.util.Nullable",
             expectedType = "java.util.List @libcore.util.Nullable",
             expectedAnnotations = emptyList(),
-            TextTypeParser::trimLeadingAnnotations
+            typeParser::trimLeadingAnnotations
         )
 
         // Trimming annotations from the start
@@ -193,38 +168,38 @@ class TextTypeParserTest : Assertions {
             original = "@libcore.util.Nullable java.util.List",
             expectedType = "java.util.List",
             expectedAnnotations = listOf("@libcore.util.Nullable"),
-            TextTypeParser::trimLeadingAnnotations
+            typeParser::trimLeadingAnnotations
         )
         testAnnotations(
             original = " @libcore.util.Nullable java.util.List ",
             expectedType = "java.util.List",
             expectedAnnotations = listOf("@libcore.util.Nullable"),
-            TextTypeParser::trimLeadingAnnotations
+            typeParser::trimLeadingAnnotations
         )
         testAnnotations(
             original = "@test.pkg.A @test.pkg.B java.util.List",
             expectedType = "java.util.List",
             expectedAnnotations = listOf("@test.pkg.A", "@test.pkg.B"),
-            TextTypeParser::trimLeadingAnnotations
+            typeParser::trimLeadingAnnotations
         )
         testAnnotations(
             original = "@test.pkg.A(a = \"hi@\", b = 0) java.util.List",
             expectedType = "java.util.List",
             expectedAnnotations = listOf("@test.pkg.A(a = \"hi@\", b = 0)"),
-            TextTypeParser::trimLeadingAnnotations
+            typeParser::trimLeadingAnnotations
         )
         testAnnotations(
             original = "@test.pkg.A(a = \"hi@\", b = 0) @test.pkg.B(v = \"\") java.util.List",
             expectedType = "java.util.List",
             expectedAnnotations =
                 listOf("@test.pkg.A(a = \"hi@\", b = 0)", "@test.pkg.B(v = \"\")"),
-            TextTypeParser::trimLeadingAnnotations
+            typeParser::trimLeadingAnnotations
         )
         testAnnotations(
             original = "@test.pkg.A @test.pkg.B java.util.List<java.lang.@test.pkg.C String>",
             expectedType = "java.util.List<java.lang.@test.pkg.C String>",
             expectedAnnotations = listOf("@test.pkg.A", "@test.pkg.B"),
-            TextTypeParser::trimLeadingAnnotations
+            typeParser::trimLeadingAnnotations
         )
     }
 
@@ -235,7 +210,7 @@ class TextTypeParserTest : Assertions {
             original = "java.util.List",
             expectedType = "java.util.List",
             expectedAnnotations = emptyList(),
-            TextTypeParser::trimTrailingAnnotations
+            typeParser::trimTrailingAnnotations
         )
 
         // Annotations that aren't at the end aren't trimmed
@@ -243,13 +218,13 @@ class TextTypeParserTest : Assertions {
             original = "java.util.@libcore.util.Nullable List",
             expectedType = "java.util.@libcore.util.Nullable List",
             expectedAnnotations = emptyList(),
-            TextTypeParser::trimTrailingAnnotations
+            typeParser::trimTrailingAnnotations
         )
         testAnnotations(
             original = "@libcore.util.Nullable java.util.List",
             expectedType = "@libcore.util.Nullable java.util.List",
             expectedAnnotations = emptyList(),
-            TextTypeParser::trimTrailingAnnotations
+            typeParser::trimTrailingAnnotations
         )
 
         // Trimming annotations from the end
@@ -257,19 +232,19 @@ class TextTypeParserTest : Assertions {
             original = "java.util.List @libcore.util.Nullable",
             expectedType = "java.util.List",
             expectedAnnotations = listOf("@libcore.util.Nullable"),
-            TextTypeParser::trimTrailingAnnotations
+            typeParser::trimTrailingAnnotations
         )
         testAnnotations(
             original = " java.util.List @libcore.util.Nullable ",
             expectedType = "java.util.List",
             expectedAnnotations = listOf("@libcore.util.Nullable"),
-            TextTypeParser::trimTrailingAnnotations
+            typeParser::trimTrailingAnnotations
         )
         testAnnotations(
             original = "java.util.List @test.pkg.A @test.pkg.B",
             expectedType = "java.util.List",
             expectedAnnotations = listOf("@test.pkg.A", "@test.pkg.B"),
-            TextTypeParser::trimTrailingAnnotations
+            typeParser::trimTrailingAnnotations
         )
 
         // Verify that annotations at the end with `@`s in them work correctly.
@@ -277,20 +252,20 @@ class TextTypeParserTest : Assertions {
             original = "java.util.List @test.pkg.A(a = \"hi@\", b = 0)",
             expectedType = "java.util.List",
             expectedAnnotations = listOf("@test.pkg.A(a = \"hi@\", b = 0)"),
-            TextTypeParser::trimTrailingAnnotations
+            typeParser::trimTrailingAnnotations
         )
         testAnnotations(
             original = "java.util.List @test.pkg.A(a = \"hi@\", b = 0) @test.pkg.B(v = \"\")",
             expectedType = "java.util.List",
             expectedAnnotations =
                 listOf("@test.pkg.A(a = \"hi@\", b = 0)", "@test.pkg.B(v = \"\")"),
-            TextTypeParser::trimTrailingAnnotations
+            typeParser::trimTrailingAnnotations
         )
         testAnnotations(
             original = "java.util.@test.pkg.A List<java.lang.@text.pkg.B String> @test.pkg.C",
             expectedType = "java.util.@test.pkg.A List<java.lang.@text.pkg.B String>",
             expectedAnnotations = listOf("@test.pkg.C"),
-            TextTypeParser::trimTrailingAnnotations
+            typeParser::trimTrailingAnnotations
         )
     }
 
@@ -304,10 +279,12 @@ class TextTypeParserTest : Assertions {
         expectedParams: String?,
         expectedAnnotations: List<String>
     ) {
-        val (className, params, annotations) = TextTypeParser.splitClassType(original)
+        val (className, params, annotations) = typeParser.splitClassType(original)
         assertThat(className).isEqualTo(expectedClassName)
         assertThat(params).isEqualTo(expectedParams)
-        assertThat(annotations).isEqualTo(expectedAnnotations)
+        val expectedAnnotationItems =
+            expectedAnnotations.map { DefaultAnnotationItem.create(typeParser.codebase, it) }
+        assertThat(annotations).isEqualTo(expectedAnnotationItems)
     }
 
     @Test
@@ -413,23 +390,19 @@ class TextTypeParserTest : Assertions {
         )
     }
 
-    private val typeParser = TextTypeParser(ApiFile.parseApi("test", ""))
-
-    private fun parseType(type: String) = typeParser.obtainTypeFromString(type)
-
     /**
      * Tests that [inputType] is parsed as an [ArrayTypeItem] with component type equal to
      * [expectedInnerType] and vararg iff [expectedVarargs] is true.
      */
     private fun testArrayType(
         inputType: String,
-        expectedInnerType: TextTypeItem,
+        expectedInnerType: TypeItem,
         expectedVarargs: Boolean
     ) {
         val type = parseType(inputType)
         assertThat(type).isInstanceOf(ArrayTypeItem::class.java)
         assertThat((type as ArrayTypeItem).componentType).isEqualTo(expectedInnerType)
-        assertThat((type as ArrayTypeItem).isVarargs).isEqualTo(expectedVarargs)
+        assertThat(type.isVarargs).isEqualTo(expectedVarargs)
     }
 
     @Test
@@ -453,17 +426,17 @@ class TextTypeParserTest : Assertions {
 
     /**
      * Tests that [inputType] is parsed as a [ClassTypeItem] with qualified name equal to
-     * [expectedQualifiedName] and parameters equal to [expectedParameterTypes].
+     * [expectedQualifiedName] and [ClassTypeItem.arguments] is equal to [expectedTypeArguments].
      */
     private fun testClassType(
         inputType: String,
         expectedQualifiedName: String,
-        expectedParameterTypes: List<TypeItem>
+        expectedTypeArguments: List<TypeItem>
     ) {
         val type = parseType(inputType)
         assertThat(type).isInstanceOf(ClassTypeItem::class.java)
         assertThat((type as ClassTypeItem).qualifiedName).isEqualTo(expectedQualifiedName)
-        assertThat((type as ClassTypeItem).parameters).isEqualTo(expectedParameterTypes)
+        assertThat(type.arguments).isEqualTo(expectedTypeArguments)
     }
 
     @Test
@@ -471,7 +444,7 @@ class TextTypeParserTest : Assertions {
         testClassType(
             inputType = "String",
             expectedQualifiedName = "java.lang.String",
-            expectedParameterTypes = emptyList()
+            expectedTypeArguments = emptyList()
         )
         testArrayType(
             inputType = "String[]",
@@ -490,27 +463,27 @@ class TextTypeParserTest : Assertions {
         testClassType(
             inputType = "@A @B test.pkg.Foo",
             expectedQualifiedName = "test.pkg.Foo",
-            expectedParameterTypes = emptyList()
+            expectedTypeArguments = emptyList()
         )
         testClassType(
             inputType = "@A @B test.pkg.Foo",
             expectedQualifiedName = "test.pkg.Foo",
-            expectedParameterTypes = emptyList()
+            expectedTypeArguments = emptyList()
         )
         testClassType(
             inputType = "java.lang.annotation.@NonNull Annotation",
             expectedQualifiedName = "java.lang.annotation.Annotation",
-            expectedParameterTypes = emptyList()
+            expectedTypeArguments = emptyList()
         )
         testClassType(
             inputType = "java.util.Map.@NonNull Entry<a.A,b.B>",
             expectedQualifiedName = "java.util.Map.Entry",
-            expectedParameterTypes = listOf(parseType("a.A"), parseType("b.B"))
+            expectedTypeArguments = listOf(parseType("a.A"), parseType("b.B"))
         )
         testClassType(
             inputType = "java.util.@NonNull Set<java.util.Map.@NonNull Entry<a.A,b.B>>",
             expectedQualifiedName = "java.util.Set",
-            expectedParameterTypes = listOf(parseType("java.util.Map.@NonNull Entry<a.A,b.B>"))
+            expectedTypeArguments = listOf(parseType("java.util.Map.@NonNull Entry<a.A,b.B>"))
         )
     }
 }

@@ -16,82 +16,184 @@
 
 package com.android.tools.metalava.model.text
 
+import com.android.tools.metalava.model.AnnotationItem
+import com.android.tools.metalava.model.ArrayTypeItem
+import com.android.tools.metalava.model.BaseTypeVisitor
+import com.android.tools.metalava.model.ClassTypeItem
+import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.DefaultAnnotationItem
+import com.android.tools.metalava.model.JAVA_LANG_ANNOTATION
+import com.android.tools.metalava.model.JAVA_LANG_ENUM
 import com.android.tools.metalava.model.JAVA_LANG_OBJECT
 import com.android.tools.metalava.model.PrimitiveTypeItem
+import com.android.tools.metalava.model.ReferenceTypeItem
+import com.android.tools.metalava.model.TypeArgumentTypeItem
+import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.TypeModifiers
 import com.android.tools.metalava.model.TypeNullability
-import com.android.tools.metalava.model.TypeParameterItem
-import java.util.HashMap
+import com.android.tools.metalava.model.TypeParameterScope
+import com.android.tools.metalava.model.TypeUse
+import com.android.tools.metalava.model.TypeVisitor
+import com.android.tools.metalava.model.VariableTypeItem
+import com.android.tools.metalava.model.WildcardTypeItem
+import com.android.tools.metalava.model.type.DefaultArrayTypeItem
+import com.android.tools.metalava.model.type.DefaultClassTypeItem
+import com.android.tools.metalava.model.type.DefaultPrimitiveTypeItem
+import com.android.tools.metalava.model.type.DefaultTypeModifiers
+import com.android.tools.metalava.model.type.DefaultVariableTypeItem
+import com.android.tools.metalava.model.type.DefaultWildcardTypeItem
+import kotlin.collections.HashMap
 
 /** Parses and caches types for a [codebase]. */
-internal class TextTypeParser(val codebase: TextCodebase, var kotlinStyleNulls: Boolean = false) {
-    private val typeCache = Cache<String, TextTypeItem>()
+internal class TextTypeParser(val codebase: Codebase, val kotlinStyleNulls: Boolean = false) {
 
     /**
-     * Creates a [TextTypeItem] representing the type of [cl]. Since this is definitely a class
-     * type, the steps in [obtainTypeFromString] aren't needed.
-     */
-    fun obtainTypeFromClass(cl: TextClassItem): TextTypeItem {
-        val params = cl.typeParameterList.typeParameters().map { it.toType() }
-        return TextClassTypeItem(codebase, cl.qualifiedName, params, null, emptyModifiers)
-    }
-
-    /** Creates or retrieves from cache a [TextTypeItem] representing `java.lang.Object` */
-    fun obtainObjectType(): TextTypeItem {
-        return typeCache.obtain(JAVA_LANG_OBJECT) {
-            TextClassTypeItem(codebase, JAVA_LANG_OBJECT, emptyList(), null, emptyModifiers)
-        }
-    }
-
-    /**
-     * Creates or retrieves from the cache a [TextTypeItem] representing [type], in the context of
-     * the type parameters from [typeParams], if applicable.
+     * The cache key, incorporates the information from [TypeUse] and [kotlinStyleNulls] as well as
+     * the type string as they can all affect the created [TypeItem].
      *
-     * The [annotations] are optional leading type-use annotations that have already been removed
-     * from the type string.
+     * e.g. [TypeUse.SUPER_TYPE] will cause the type to be treated as a super class and so always be
+     * [TypeNullability.NONNULL] even if [kotlinStyleNulls] is `false` which would normally cause it
+     * to be [TypeNullability.PLATFORM]. However, when [kotlinStyleNulls] is `true` then there is no
+     * difference between [TypeUse.SUPER_TYPE] and [TypeUse.GENERAL] as they will both cause a class
+     * type with no nullability suffix to be treated as [TypeNullability.NONNULL].
+     *
+     * That information is encapsulated in the [forceClassToBeNonNull] property.
+     */
+    private data class Key(val forceClassToBeNonNull: Boolean, val type: String)
+
+    /** The cache from [Key] to [CacheEntry]. */
+    private val typeCache = HashMap<Key, CacheEntry>()
+
+    internal var requests = 0
+    internal var cacheSkip = 0
+    internal var cacheHit = 0
+    internal var cacheSize = 0
+
+    /** A [JAVA_LANG_ANNOTATION] suitable for use as a super type. */
+    val superAnnotationType
+        get() = createJavaLangSuperType(JAVA_LANG_ANNOTATION)
+
+    /** A [JAVA_LANG_ENUM] suitable for use as a super type. */
+    val superEnumType
+        get() = createJavaLangSuperType(JAVA_LANG_ENUM)
+
+    /** A [JAVA_LANG_OBJECT] suitable for use as a super type. */
+    val superObjectType
+        get() = createJavaLangSuperType(JAVA_LANG_OBJECT)
+
+    /**
+     * Create a [ClassTypeItem] for a standard java.lang class suitable for use by a super class or
+     * interface.
+     */
+    private fun createJavaLangSuperType(standardClassName: String): ClassTypeItem {
+        return getSuperType(standardClassName, TypeParameterScope.empty)
+    }
+
+    /** A [TypeItem] representing `java.lang.Object`, suitable for general use. */
+    private val objectType: ReferenceTypeItem
+        get() = cachedParseType(JAVA_LANG_OBJECT, TypeParameterScope.empty) as ReferenceTypeItem
+
+    /**
+     * Creates or retrieves a previously cached [ClassTypeItem] that is suitable for use as a super
+     * type, e.g. in an `extends` or `implements` list.
+     */
+    fun getSuperType(
+        type: String,
+        typeParameterScope: TypeParameterScope,
+    ): ClassTypeItem =
+        obtainTypeFromString(type, typeParameterScope, TypeUse.SUPER_TYPE) as ClassTypeItem
+
+    /**
+     * Creates or retrieves from the cache a [TypeItem] representing [type], in the context of the
+     * type parameters from [typeParameterScope], if applicable.
      */
     fun obtainTypeFromString(
         type: String,
-        typeParams: List<TypeParameterItem> = emptyList(),
-        annotations: List<String> = emptyList()
-    ): TextTypeItem {
-        // Only use the cache if there are no type parameters to prevent identically named type
-        // variables from different contexts being parsed as the same type.
-        // Also don't use the cache when there are type-use annotations not contained in the string.
-        return if (typeParams.isEmpty() && annotations.isEmpty()) {
-            typeCache.obtain(type) { parseType(it, typeParams, annotations) }
+        typeParameterScope: TypeParameterScope,
+        typeUse: TypeUse = TypeUse.GENERAL,
+    ): TypeItem = cachedParseType(type, typeParameterScope, emptyList(), typeUse)
+
+    /**
+     * Creates or retrieves from the cache a [TypeItem] representing [type], in the context of the
+     * type parameters from [typeParameterScope], if applicable.
+     *
+     * Used internally, as it has an extra [annotations] parameter that allows the annotations on
+     * array components to be correctly associated with the correct component. They are optional
+     * leading type-use annotations that have already been removed from the arrays type string.
+     */
+    private fun cachedParseType(
+        type: String,
+        typeParameterScope: TypeParameterScope,
+        annotations: List<AnnotationItem> = emptyList(),
+        typeUse: TypeUse = TypeUse.GENERAL,
+    ): TypeItem {
+        requests++
+
+        // Class types used as super types, i.e. in an extends or implements list are forced to be
+        // [TypeNullability.NONNULL], just as they would be if kotlinStyleNulls was true. Use the
+        // same cache key for both so that they reuse cached types where possible.
+        val forceClassToBeNonNull = typeUse == TypeUse.SUPER_TYPE || kotlinStyleNulls
+
+        // Don't use the cache when there are type-use annotations not contained in the string.
+        return if (annotations.isEmpty()) {
+            val key = Key(forceClassToBeNonNull, type)
+
+            // Get the cache entry for the supplied type and forceClassToBeNonNull.
+            val result =
+                typeCache.computeIfAbsent(key) { CacheEntry(it.type, it.forceClassToBeNonNull) }
+
+            // Get the appropriate [TypeItem], creating one if necessary.
+            result.getTypeItem(typeParameterScope)
         } else {
-            parseType(type, typeParams, annotations)
+            cacheSkip++
+            parseType(type, typeParameterScope, annotations, forceClassToBeNonNull)
         }
     }
 
-    /** Converts the [type] to a [TextTypeItem] in the context of the [typeParams]. */
+    /** Converts the [type] to a [TypeItem] in the context of the [typeParameterScope]. */
     private fun parseType(
         type: String,
-        typeParams: List<TypeParameterItem>,
-        annotations: List<String> = emptyList()
-    ): TextTypeItem {
+        typeParameterScope: TypeParameterScope,
+        annotations: List<AnnotationItem>,
+        // Forces a [ClassTypeItem] to have [TypeNullability.NONNULL]
+        forceClassToBeNonNull: Boolean = false,
+    ): TypeItem {
         val (unannotated, annotationsFromString) = trimLeadingAnnotations(type)
         val allAnnotations = annotations + annotationsFromString
         val (withoutNullability, nullability) =
-            splitNullabilitySuffix(unannotated, kotlinStyleNulls)
+            splitNullabilitySuffix(
+                unannotated,
+                // If forceClassToBeNonNull is true then a plain class type without any nullability
+                // suffix must be treated as if it was not null, which is just how it would be
+                // treated when kotlinStyleNulls is true. So, pretend that kotlinStyleNulls is true.
+                kotlinStyleNulls || forceClassToBeNonNull
+            )
         val trimmed = withoutNullability.trim()
 
-        // Figure out what kind of type this is. Start with the simple cases: primitive or variable.
-        return asPrimitive(type, trimmed, allAnnotations, nullability)
-            ?: asVariable(trimmed, typeParams, allAnnotations, nullability)
+        // Figure out what kind of type this is.
+        //
+        // Start with variable as the type parameter scope allows us to determine whether something
+        // is a type parameter or not. Also, if a type parameter has the same name as a primitive
+        // type (possible in Kotlin, but not Java) then it will be treated as a type parameter not a
+        // primitive.
+        //
+        // Then try parsing as a primitive as while Kotlin classes can shadow primitive types
+        // they would need to be fully qualified.
+        return asVariable(trimmed, typeParameterScope, allAnnotations, nullability)
+            ?: asPrimitive(type, trimmed, allAnnotations, nullability)
             // Try parsing as a wildcard before trying to parse as an array.
             // `? extends java.lang.String[]` should be parsed as a wildcard with an array bound,
             // not as an array of wildcards, for consistency with how this would be compiled.
-            ?: asWildcard(trimmed, typeParams, allAnnotations, nullability)
+            ?: asWildcard(trimmed, typeParameterScope, allAnnotations, nullability)
             // Try parsing as an array.
-            ?: asArray(trimmed, allAnnotations, nullability, typeParams)
+            ?: asArray(trimmed, allAnnotations, nullability, typeParameterScope)
             // If it isn't anything else, parse the type as a class.
-            ?: asClass(trimmed, typeParams, allAnnotations, nullability)
+            ?: asClass(trimmed, typeParameterScope, allAnnotations, nullability)
     }
 
     /**
-     * Try parsing [type] as a primitive. This will return a non-null [TextPrimitiveTypeItem] if
-     * [type] exactly matches a primitive name.
+     * Try parsing [type] as a primitive. This will return a non-null [PrimitiveTypeItem] if [type]
+     * exactly matches a primitive name.
      *
      * [type] should have annotations and nullability markers stripped, with [original] as the
      * complete annotated type. Once annotations are properly handled (b/300081840), preserving
@@ -100,9 +202,9 @@ internal class TextTypeParser(val codebase: TextCodebase, var kotlinStyleNulls: 
     private fun asPrimitive(
         original: String,
         type: String,
-        annotations: List<String>,
+        annotations: List<AnnotationItem>,
         nullability: TypeNullability?
-    ): TextPrimitiveTypeItem? {
+    ): PrimitiveTypeItem? {
         val kind =
             when (type) {
                 "byte" -> PrimitiveTypeItem.Primitive.BYTE
@@ -119,25 +221,21 @@ internal class TextTypeParser(val codebase: TextCodebase, var kotlinStyleNulls: 
         if (nullability != null && nullability != TypeNullability.NONNULL) {
             throw ApiParseException("Invalid nullability suffix on primitive: $original")
         }
-        return TextPrimitiveTypeItem(
-            codebase,
-            kind,
-            modifiers(annotations, TypeNullability.NONNULL)
-        )
+        return DefaultPrimitiveTypeItem(modifiers(annotations, TypeNullability.NONNULL), kind)
     }
 
     /**
-     * Try parsing [type] as an array. This will return a non-null [TextArrayTypeItem] if [type]
-     * ends with `[]` or `...`.
+     * Try parsing [type] as an array. This will return a non-null [ArrayTypeItem] if [type] ends
+     * with `[]` or `...`.
      *
-     * The context [typeParams] are used to parse the component type of the array.
+     * The context [typeParameterScope] are used to parse the component type of the array.
      */
     private fun asArray(
         type: String,
-        componentAnnotations: List<String>,
+        componentAnnotations: List<AnnotationItem>,
         nullability: TypeNullability?,
-        typeParams: List<TypeParameterItem>
-    ): TextArrayTypeItem? {
+        typeParameterScope: TypeParameterScope
+    ): ArrayTypeItem? {
         // Check if this is a regular array or varargs.
         val (inner, varargs) =
             if (type.endsWith("...")) {
@@ -157,7 +255,7 @@ internal class TextTypeParser(val codebase: TextCodebase, var kotlinStyleNulls: 
         // (for `T[]![]?[]`, the three-dimensional array has no nullability marker, the inner
         // two-dimensional arrays have `?` as the nullability marker, and the innermost arrays have
         // `!` as a nullability marker.
-        val allAnnotations = mutableListOf<List<String>>()
+        val allAnnotations = mutableListOf<List<AnnotationItem>>()
         // The nullability marker for the outer array is already known, include it in the list.
         val allNullability = mutableListOf(nullability)
 
@@ -194,7 +292,7 @@ internal class TextTypeParser(val codebase: TextCodebase, var kotlinStyleNulls: 
         // the leading annotations already removed from the type string.
         componentString += componentNullability?.suffix.orEmpty()
         val deepComponentType =
-            obtainTypeFromString(componentString, typeParams, componentAnnotations)
+            cachedParseType(componentString, typeParameterScope, componentAnnotations)
 
         // Join the annotations and nullability markers -- as described in the comment above, these
         // appear in the string in reverse order of each other. The modifiers list will be ordered
@@ -209,57 +307,54 @@ internal class TextTypeParser(val codebase: TextCodebase, var kotlinStyleNulls: 
         // Create the component type of the outermost array by building up the inner component type.
         val componentType =
             componentModifiers.fold(deepComponentType) { component, modifiers ->
-                TextArrayTypeItem(codebase, component, false, modifiers)
+                DefaultArrayTypeItem(modifiers, component, false)
             }
 
         // Create the outer array.
-        return TextArrayTypeItem(codebase, componentType, varargs, arrayModifiers)
+        return DefaultArrayTypeItem(arrayModifiers, componentType, varargs)
     }
 
     /**
-     * Try parsing [type] as a wildcard. This will return a non-null [TextWildcardTypeItem] if
-     * [type] begins with `?`.
+     * Try parsing [type] as a wildcard. This will return a non-null [WildcardTypeItem] if [type]
+     * begins with `?`.
      *
-     * The context [typeParams] are needed to parse the bounds of the wildcard.
+     * The context [typeParameterScope] are needed to parse the bounds of the wildcard.
      *
      * [type] should have annotations and nullability markers stripped.
      */
     private fun asWildcard(
         type: String,
-        typeParams: List<TypeParameterItem>,
-        annotations: List<String>,
+        typeParameterScope: TypeParameterScope,
+        annotations: List<AnnotationItem>,
         nullability: TypeNullability?
-    ): TextWildcardTypeItem? {
+    ): WildcardTypeItem? {
         // See if this is a wildcard
         if (!type.startsWith("?")) return null
 
         // Unbounded wildcard type: there is an implicit Object extends bound
         if (type == "?")
-            return TextWildcardTypeItem(
-                codebase,
-                obtainObjectType(),
+            return DefaultWildcardTypeItem(
+                modifiers(annotations, TypeNullability.UNDEFINED),
+                objectType,
                 null,
-                modifiers(annotations, TypeNullability.UNDEFINED)
             )
 
         // If there's a bound, the nullability suffix applies there instead.
         val bound = type.substring(2) + nullability?.suffix.orEmpty()
         return if (bound.startsWith("extends")) {
             val extendsBound = bound.substring(8)
-            TextWildcardTypeItem(
-                codebase,
-                obtainTypeFromString(extendsBound, typeParams),
+            DefaultWildcardTypeItem(
+                modifiers(annotations, TypeNullability.UNDEFINED),
+                getWildcardBound(extendsBound, typeParameterScope),
                 null,
-                modifiers(annotations, TypeNullability.UNDEFINED)
             )
         } else if (bound.startsWith("super")) {
             val superBound = bound.substring(6)
-            TextWildcardTypeItem(
-                codebase,
+            DefaultWildcardTypeItem(
+                modifiers(annotations, TypeNullability.UNDEFINED),
                 // All wildcards have an implicit Object extends bound
-                obtainObjectType(),
-                obtainTypeFromString(superBound, typeParams),
-                modifiers(annotations, TypeNullability.UNDEFINED)
+                objectType,
+                getWildcardBound(superBound, typeParameterScope),
             )
         } else {
             throw ApiParseException(
@@ -268,37 +363,40 @@ internal class TextTypeParser(val codebase: TextCodebase, var kotlinStyleNulls: 
         }
     }
 
+    private fun getWildcardBound(bound: String, typeParameterScope: TypeParameterScope) =
+        cachedParseType(bound, typeParameterScope) as ReferenceTypeItem
+
     /**
-     * Try parsing [type] as a type variable. This will return a non-null [TextVariableTypeItem] if
-     * [type] matches a parameter from [typeParams].
+     * Try parsing [type] as a type variable. This will return a non-null [VariableTypeItem] if
+     * [type] matches a parameter from [typeParameterScope].
      *
      * [type] should have annotations and nullability markers stripped.
      */
     private fun asVariable(
         type: String,
-        typeParams: List<TypeParameterItem>,
-        annotations: List<String>,
+        typeParameterScope: TypeParameterScope,
+        annotations: List<AnnotationItem>,
         nullability: TypeNullability?
-    ): TextVariableTypeItem? {
-        val param = typeParams.firstOrNull { it.simpleName() == type } ?: return null
-        return TextVariableTypeItem(codebase, type, param, modifiers(annotations, nullability))
+    ): VariableTypeItem? {
+        val param = typeParameterScope.findTypeParameter(type) ?: return null
+        return DefaultVariableTypeItem(modifiers(annotations, nullability), param)
     }
 
     /**
-     * Parse the [type] as a class. This function will always return a non-null [TextClassTypeItem],
-     * so it should only be used when it is certain that [type] is not a different kind of type.
+     * Parse the [type] as a class. This function will always return a non-null [ClassTypeItem], so
+     * it should only be used when it is certain that [type] is not a different kind of type.
      *
-     * The context [typeParams] are used to parse the parameters of the class type.
+     * The context [typeParameterScope] are used to parse the parameters of the class type.
      *
      * [type] should have annotations and nullability markers stripped.
      */
     private fun asClass(
         type: String,
-        typeParams: List<TypeParameterItem>,
-        annotations: List<String>,
+        typeParameterScope: TypeParameterScope,
+        annotations: List<AnnotationItem>,
         nullability: TypeNullability?
-    ): TextClassTypeItem {
-        return createClassType(type, null, typeParams, annotations, nullability)
+    ): ClassTypeItem {
+        return createClassType(type, null, typeParameterScope, annotations, nullability)
     }
 
     /**
@@ -309,11 +407,11 @@ internal class TextTypeParser(val codebase: TextCodebase, var kotlinStyleNulls: 
      */
     private fun createClassType(
         type: String,
-        outerClassType: TextClassTypeItem?,
-        typeParams: List<TypeParameterItem>,
-        annotations: List<String>,
+        outerClassType: ClassTypeItem?,
+        typeParameterScope: TypeParameterScope,
+        annotations: List<AnnotationItem>,
         nullability: TypeNullability?
-    ): TextClassTypeItem {
+    ): ClassTypeItem {
         val (name, afterName, classAnnotations) = splitClassType(type)
 
         val qualifiedName =
@@ -327,8 +425,9 @@ internal class TextTypeParser(val codebase: TextCodebase, var kotlinStyleNulls: 
                 name
             }
 
-        val (paramStrings, remainder) = typeParameterStringsWithRemainder(afterName)
-        val params = paramStrings.map { obtainTypeFromString(it, typeParams) }
+        val (argumentStrings, remainder) = typeParameterStringsWithRemainder(afterName)
+        val arguments =
+            argumentStrings.map { cachedParseType(it, typeParameterScope) as TypeArgumentTypeItem }
         // If this is an outer class type (there's a remainder), call it non-null and don't apply
         // the leading annotations (they belong to the inner class type).
         val classModifiers =
@@ -338,7 +437,7 @@ internal class TextTypeParser(val codebase: TextCodebase, var kotlinStyleNulls: 
                 modifiers(classAnnotations + annotations, nullability)
             }
         val classType =
-            TextClassTypeItem(codebase, qualifiedName, params, outerClassType, classModifiers)
+            DefaultClassTypeItem(codebase, classModifiers, qualifiedName, arguments, outerClassType)
 
         if (remainder != null) {
             if (!remainder.startsWith('.')) {
@@ -350,7 +449,7 @@ internal class TextTypeParser(val codebase: TextCodebase, var kotlinStyleNulls: 
             return createClassType(
                 remainder.substring(1),
                 classType,
-                typeParams,
+                typeParameterScope,
                 annotations,
                 nullability
             )
@@ -359,28 +458,143 @@ internal class TextTypeParser(val codebase: TextCodebase, var kotlinStyleNulls: 
         return classType
     }
 
-    private val emptyModifiers: TextTypeModifiers =
-        TextTypeModifiers.create(codebase, emptyList(), null)
-
     private fun modifiers(
-        annotations: List<String>,
+        annotations: List<AnnotationItem>,
         nullability: TypeNullability?
-    ): TextTypeModifiers {
-        return TextTypeModifiers.create(codebase, annotations, nullability)
+    ): TypeModifiers {
+        return DefaultTypeModifiers.create(
+            annotations,
+            nullability,
+            "Type modifiers created by the text model are immutable because they are cached",
+        )
     }
 
-    private class Cache<Key, Value> {
-        private val cache = HashMap<Key, Value>()
-
-        fun obtain(o: Key, make: (Key) -> Value): Value {
-            var r = cache[o]
-            if (r == null) {
-                r = make(o)
-                cache[o] = r
-            }
-            // r must be non-null: either it was cached or created with make
-            return r!!
+    /**
+     * Removes all annotations at the beginning of the type, returning the trimmed type and list of
+     * annotations.
+     */
+    fun trimLeadingAnnotations(type: String): Pair<String, List<AnnotationItem>> {
+        val annotations = mutableListOf<AnnotationItem>()
+        var trimmed = type.trim()
+        while (trimmed.startsWith('@')) {
+            val end = findAnnotationEnd(trimmed, 1)
+            val annotationSource = trimmed.substring(0, end).trim()
+            annotations.add(DefaultAnnotationItem.create(codebase, annotationSource))
+            trimmed = trimmed.substring(end).trim()
         }
+        return Pair(trimmed, annotations)
+    }
+
+    /**
+     * Removes all annotations at the end of the [type], returning the trimmed type and list of
+     * annotations. This is for use with arrays where annotations applying to the array type go
+     * after the component type, for instance `String @A []`. The input [type] should **not**
+     * include the array suffix (`[]` or `...`).
+     */
+    fun trimTrailingAnnotations(type: String): Pair<String, List<AnnotationItem>> {
+        // The simple way to implement this would be to work from the end of the string, finding
+        // `@` and removing annotations from the end. However, it is possible for an annotation
+        // string to contain an `@`, so this is not a safe way to remove the annotations.
+        // Instead, this finds all annotations starting from the beginning of the string, then
+        // works backwards to find which ones are the trailing annotations.
+        val allAnnotationIndices = mutableListOf<Pair<Int, Int>>()
+        var trimmed = type.trim()
+
+        // First find all annotations, saving the first and last index.
+        var currIndex = 0
+        while (currIndex < trimmed.length) {
+            if (trimmed[currIndex] == '@') {
+                val endIndex = findAnnotationEnd(trimmed, currIndex + 1)
+                allAnnotationIndices.add(Pair(currIndex, endIndex))
+                currIndex = endIndex + 1
+            } else {
+                currIndex++
+            }
+        }
+
+        val annotations = mutableListOf<AnnotationItem>()
+        // Go through all annotations from the back, seeing if they're at the end of the string.
+        for ((start, end) in allAnnotationIndices.reversed()) {
+            // This annotation isn't at the end, so we've hit the last trailing annotation
+            if (end < trimmed.length) {
+                break
+            }
+            val annotationSource = trimmed.substring(start)
+            annotations.add(DefaultAnnotationItem.create(codebase, annotationSource))
+            // Cut this annotation off, so now the next one can end at the last index.
+            trimmed = trimmed.substring(0, start).trim()
+        }
+        return Pair(trimmed, annotations.reversed())
+    }
+
+    /**
+     * Given [type] which represents a class, splits the string into the qualified name of the
+     * class, the remainder of the type string, and a list of type-use annotations. The remainder of
+     * the type string might be the type parameter list, inner class names, or a combination
+     *
+     * For `java.util.@A @B List<java.lang.@C String>`, returns the triple ("java.util.List",
+     * "<java.lang.@C String", listOf("@A", "@B")).
+     *
+     * For `test.pkg.Outer.Inner`, returns the triple ("test.pkg.Outer", ".Inner", emptyList()).
+     *
+     * For `test.pkg.@test.pkg.A Outer<P1>.@test.pkg.B Inner<P2>`, returns the triple
+     * ("test.pkg.Outer", "<P1>.@test.pkg.B Inner<P2>", listOf("@test.pkg.A")).
+     */
+    fun splitClassType(type: String): Triple<String, String?, List<AnnotationItem>> {
+        // The constructed qualified type name
+        var name = ""
+        // The part of the type which still needs to be parsed
+        var remaining = type.trim()
+        // The annotations of the type, may be set later
+        var annotations = emptyList<AnnotationItem>()
+
+        var dotIndex = remaining.indexOf('.')
+        var paramIndex = remaining.indexOf('<')
+        var annotationIndex = remaining.indexOf('@')
+
+        // Find which of '.', '<', or '@' comes first, if any
+        var minIndex = minIndex(dotIndex, paramIndex, annotationIndex)
+        while (minIndex != null) {
+            when (minIndex) {
+                // '.' is first, the next part is part of the qualified class name.
+                dotIndex -> {
+                    val nextNameChunk = remaining.substring(0, dotIndex)
+                    name += nextNameChunk
+                    remaining = remaining.substring(dotIndex)
+                    // Assumes that package names are all lower case and class names will have
+                    // an upper class character (the [START_WITH_UPPER] API lint check should
+                    // make this a safe assumption). If the name is a class name, we've found
+                    // the complete class name, return.
+                    if (nextNameChunk.any { it.isUpperCase() }) {
+                        return Triple(name, remaining, annotations)
+                    }
+                }
+                // '<' is first, the end of the class name has been reached.
+                paramIndex -> {
+                    name += remaining.substring(0, paramIndex)
+                    remaining = remaining.substring(paramIndex)
+                    return Triple(name, remaining, annotations)
+                }
+                // '@' is first, trim all annotations.
+                annotationIndex -> {
+                    name += remaining.substring(0, annotationIndex)
+                    trimLeadingAnnotations(remaining.substring(annotationIndex)).let {
+                        (first, second) ->
+                        remaining = first
+                        annotations = second
+                    }
+                }
+            }
+            // Reset indices -- the string may now start with '.' for the next chunk of the name
+            // but this should find the end of the next chunk.
+            dotIndex = remaining.indexOf('.', 1)
+            paramIndex = remaining.indexOf('<')
+            annotationIndex = remaining.indexOf('@')
+            minIndex = minIndex(dotIndex, paramIndex, annotationIndex)
+        }
+        // End of the name reached with no leftover string.
+        name += remaining
+        return Triple(name, null, annotations)
     }
 
     companion object {
@@ -410,133 +624,6 @@ internal class TextTypeParser(val codebase: TextCodebase, var kotlinStyleNulls: 
             } else {
                 Pair(type, null)
             }
-        }
-
-        /**
-         * Removes all annotations at the beginning of the type, returning the trimmed type and list
-         * of annotations.
-         */
-        fun trimLeadingAnnotations(type: String): Pair<String, List<String>> {
-            val annotations = mutableListOf<String>()
-            var trimmed = type.trim()
-            while (trimmed.startsWith('@')) {
-                val end = findAnnotationEnd(trimmed, 1)
-                annotations.add(trimmed.substring(0, end).trim())
-                trimmed = trimmed.substring(end).trim()
-            }
-            return Pair(trimmed, annotations)
-        }
-
-        /**
-         * Removes all annotations at the end of the [type], returning the trimmed type and list of
-         * annotations. This is for use with arrays where annotations applying to the array type go
-         * after the component type, for instance `String @A []`. The input [type] should **not**
-         * include the array suffix (`[]` or `...`).
-         */
-        fun trimTrailingAnnotations(type: String): Pair<String, List<String>> {
-            // The simple way to implement this would be to work from the end of the string, finding
-            // `@` and removing annotations from the end. However, it is possible for an annotation
-            // string to contain an `@`, so this is not a safe way to remove the annotations.
-            // Instead, this finds all annotations starting from the beginning of the string, then
-            // works backwards to find which ones are the trailing annotations.
-            val allAnnotationIndices = mutableListOf<Pair<Int, Int>>()
-            var trimmed = type.trim()
-
-            // First find all annotations, saving the first and last index.
-            var currIndex = 0
-            while (currIndex < trimmed.length) {
-                if (trimmed[currIndex] == '@') {
-                    val endIndex = findAnnotationEnd(trimmed, currIndex + 1)
-                    allAnnotationIndices.add(Pair(currIndex, endIndex))
-                    currIndex = endIndex + 1
-                } else {
-                    currIndex++
-                }
-            }
-
-            val annotations = mutableListOf<String>()
-            // Go through all annotations from the back, seeing if they're at the end of the string.
-            for ((start, end) in allAnnotationIndices.reversed()) {
-                // This annotation isn't at the end, so we've hit the last trailing annotation
-                if (end < trimmed.length) {
-                    break
-                }
-                annotations.add(trimmed.substring(start))
-                // Cut this annotation off, so now the next one can end at the last index.
-                trimmed = trimmed.substring(0, start).trim()
-            }
-            return Pair(trimmed, annotations.reversed())
-        }
-
-        /**
-         * Given [type] which represents a class, splits the string into the qualified name of the
-         * class, the remainder of the type string, and a list of type-use annotations. The
-         * remainder of the type string might be the type parameter list, inner class names, or a
-         * combination
-         *
-         * For `java.util.@A @B List<java.lang.@C String>`, returns the triple ("java.util.List",
-         * "<java.lang.@C String", listOf("@A", "@B")).
-         *
-         * For `test.pkg.Outer.Inner`, returns the triple ("test.pkg.Outer", ".Inner", emptyList()).
-         *
-         * For `test.pkg.@test.pkg.A Outer<P1>.@test.pkg.B Inner<P2>`, returns the triple
-         * ("test.pkg.Outer", "<P1>.@test.pkg.B Inner<P2>", listOf("@test.pkg.A")).
-         */
-        fun splitClassType(type: String): Triple<String, String?, List<String>> {
-            // The constructed qualified type name
-            var name = ""
-            // The part of the type which still needs to be parsed
-            var remaining = type.trim()
-            // The annotations of the type, may be set later
-            var annotations = emptyList<String>()
-
-            var dotIndex = remaining.indexOf('.')
-            var paramIndex = remaining.indexOf('<')
-            var annotationIndex = remaining.indexOf('@')
-
-            // Find which of '.', '<', or '@' comes first, if any
-            var minIndex = minIndex(dotIndex, paramIndex, annotationIndex)
-            while (minIndex != null) {
-                when (minIndex) {
-                    // '.' is first, the next part is part of the qualified class name.
-                    dotIndex -> {
-                        val nextNameChunk = remaining.substring(0, dotIndex)
-                        name += nextNameChunk
-                        remaining = remaining.substring(dotIndex)
-                        // Assumes that package names are all lower case and class names will have
-                        // an upper class character (the [START_WITH_UPPER] API lint check should
-                        // make this a safe assumption). If the name is a class name, we've found
-                        // the complete class name, return.
-                        if (nextNameChunk.any { it.isUpperCase() }) {
-                            return Triple(name, remaining, annotations)
-                        }
-                    }
-                    // '<' is first, the end of the class name has been reached.
-                    paramIndex -> {
-                        name += remaining.substring(0, paramIndex)
-                        remaining = remaining.substring(paramIndex)
-                        return Triple(name, remaining, annotations)
-                    }
-                    // '@' is first, trim all annotations.
-                    annotationIndex -> {
-                        name += remaining.substring(0, annotationIndex)
-                        trimLeadingAnnotations(remaining.substring(annotationIndex)).let {
-                            (first, second) ->
-                            remaining = first
-                            annotations = second
-                        }
-                    }
-                }
-                // Reset indices -- the string may now start with '.' for the next chunk of the name
-                // but this should find the end of the next chunk.
-                dotIndex = remaining.indexOf('.', 1)
-                paramIndex = remaining.indexOf('<')
-                annotationIndex = remaining.indexOf('@')
-                minIndex = minIndex(dotIndex, paramIndex, annotationIndex)
-            }
-            // End of the name reached with no leftover string.
-            name += remaining
-            return Triple(name, null, annotations)
         }
 
         /**
@@ -647,4 +734,151 @@ internal class TextTypeParser(val codebase: TextCodebase, var kotlinStyleNulls: 
             }
         }
     }
+
+    /**
+     * The cache entry, that contains the [TypeItem] that has been produced from the [type] and
+     * [forceClassToBeNonNull] properties.
+     */
+    internal inner class CacheEntry(
+        /** The string type from which the [TypeItem] will be parsed. */
+        private val type: String,
+
+        /**
+         * Indicates whether an outermost [ClassTypeItem] is forced to be [TypeNullability.NONNULL].
+         *
+         * It is passed into [parseType] and if `true` it will cause the top level class type to be
+         * treated as if it was being parsed when [kotlinStyleNulls] is `true` as that sets
+         * [TypeNullability.NONNULL] by default.
+         */
+        private val forceClassToBeNonNull: Boolean,
+    ) {
+        /**
+         * Map from [TypeParameterScope] to the [TypeItem] created for it.
+         *
+         * The [TypeParameterScope] that will be used to cache a type depends on the unqualified
+         * names used in the type. It will use the closest enclosing scope of the one supplied that
+         * adds at least one type parameter whose name is used in the type.
+         *
+         * See [TypeParameterScope.findSignificantScope].
+         */
+        private val scopeToItem = mutableMapOf<TypeParameterScope, TypeItem>()
+
+        /**
+         * The set of unqualified names used by [type].
+         *
+         * This is determined solely by the contents of the [type] string and so will be the same
+         * for all [TypeItem]s cached in this entry.
+         *
+         * If this has not been set then no type items have been cached in this entry. It is set the
+         * first time that a [TypeItem] is cached.
+         */
+        private lateinit var unqualifiedNamesInType: Set<String>
+
+        /** Get the [TypeItem] for this type depending on the setting of [forceClassToBeNonNull]. */
+        fun getTypeItem(typeParameterScope: TypeParameterScope): TypeItem {
+            // If this is not the first time through then check to see if anything suitable has been
+            // cached.
+            val scopeForCachingOrNull =
+                if (::unqualifiedNamesInType.isInitialized) {
+                    // Find the scope to use for caching this type and then check to see if a
+                    // [TypeItem]
+                    // has been cached for that scope and if so return it. Otherwise, drop out.
+                    typeParameterScope.findSignificantScope(unqualifiedNamesInType).also {
+                        scopeForCaching ->
+                        scopeToItem[scopeForCaching]?.let {
+                            cacheHit++
+                            return it
+                        }
+                    }
+                } else {
+                    // This is the first time through, so [unqualifiedNamesInType] is not available
+                    // so drop through and initialize later.
+                    null
+                }
+
+            // Parse the [type] to produce a [TypeItem].
+            val typeItem = createTypeItem(typeParameterScope)
+            cacheSize++
+
+            // Find the scope for caching if it was not found above.
+            val scopeForCaching =
+                scopeForCachingOrNull
+                    ?: let {
+                        // This will only happen if [unqualifiedNamesInType] is uninitialized so
+                        // make sure to initialize it.
+                        unqualifiedNamesInType = unqualifiedNameGatherer.gatherFrom(typeItem)
+
+                        // Find the scope for caching. It could not be found before because
+                        // [unqualifiedNamesInType] was not initialized.
+                        typeParameterScope.findSignificantScope(unqualifiedNamesInType)
+                    }
+
+            // Store the type item in the scope selected for caching.
+            scopeToItem[scopeForCaching] = typeItem
+
+            // Return it.
+            return typeItem
+        }
+
+        /**
+         * Create a new [TypeItem] for [type] with the given [forceClassToBeNonNull] setting and for
+         * the requested [typeParameterScope].
+         */
+        private fun createTypeItem(typeParameterScope: TypeParameterScope): TypeItem {
+            return parseType(type, typeParameterScope, emptyList(), forceClassToBeNonNull)
+        }
+    }
+
+    /**
+     * A [TypeVisitor] that will extract all unqualified names from the type.
+     *
+     * These are the names that could be used as a type parameter name and so whose meaning could
+     * change depending on the [TypeParameterScope], i.e. the set of type parameters currently in
+     * scope.
+     */
+    private class UnqualifiedNameGatherer : BaseTypeVisitor() {
+
+        private val unqualifiedNames = mutableSetOf<String>()
+
+        override fun visit(primitiveType: PrimitiveTypeItem) {
+            // Primitive type names are added because Kotlin allows them to be shadowed by a type
+            // parameter.
+            unqualifiedNames.add(primitiveType.kind.primitiveName)
+        }
+
+        override fun visitClassType(classType: ClassTypeItem) {
+            // Classes in java.lang package can be represented in the type without the leading
+            // package, all other types must be fully qualified. At this point it is not clear
+            // whether the type used in the input type string was qualified or not as the package
+            // has been prepended so this assumes that they all are just to be on the safe side.
+            // It is only for legacy reasons that all `java.lang` package prefixes are stripped
+            // when generating the API signature files. See b/324047248.
+            val name = classType.qualifiedName
+            if (!name.contains('.')) {
+                unqualifiedNames.add(name)
+            } else {
+                val trimmed = TypeItem.stripJavaLangPrefix(name)
+                if (trimmed != name) {
+                    unqualifiedNames.add(trimmed)
+                }
+            }
+        }
+
+        override fun visitVariableType(variableType: VariableTypeItem) {
+            unqualifiedNames.add(variableType.name)
+        }
+
+        /** Gather the names from [typeItem] returning an immutable set of the unqualified names. */
+        fun gatherFrom(typeItem: TypeItem): Set<String> {
+            unqualifiedNames.clear()
+            typeItem.accept(this)
+            return unqualifiedNames.toSet()
+        }
+    }
+
+    /**
+     * An instance of [UnqualifiedNameGatherer] used for gathering all the unqualified names from
+     * all the [TypeItem]s cached by this.
+     */
+    private val unqualifiedNameGatherer = UnqualifiedNameGatherer()
 }

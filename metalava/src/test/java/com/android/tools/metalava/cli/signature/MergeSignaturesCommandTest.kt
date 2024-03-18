@@ -365,7 +365,8 @@ Arguments:
 
         val source2 =
             """
-                // Signature format: 3.0
+                // Signature format: 5.0
+                // - kotlin-style-nulls=no
                 package Test.pkg {
                 }
             """

@@ -16,14 +16,59 @@
 
 package com.android.tools.metalava.model.text
 
-import com.android.tools.metalava.model.Assertions
+import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassResolver
+import com.android.tools.metalava.model.Codebase
+import com.google.common.truth.Truth.assertThat
+import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertSame
+import org.junit.Assert.assertThrows
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.junit.runners.Parameterized
 
-class ApiFileTest : Assertions {
+@RunWith(Parameterized::class)
+class ApiFileTest : BaseTextCodebaseTest() {
+
+    @Test
+    fun `Test mixture of kotlinStyleNulls settings`() {
+        val exception =
+            assertThrows(ApiParseException::class.java) {
+                runSignatureTest(
+                    signature(
+                        "file1.txt",
+                        """
+                            // Signature format: 5.0
+                            // - kotlin-style-nulls=yes
+                            package test.pkg {
+                                public class Foo {
+                                    method void foo(Object);
+                                }
+                            }
+                        """
+                    ),
+                    signature(
+                        "file2.txt",
+                        """
+                            // Signature format: 5.0
+                            // - kotlin-style-nulls=no
+                            package test.pkg {
+                                public class Bar {
+                                    method void bar(Object);
+                                }
+                            }
+                        """
+                    )
+                ) {}
+            }
+
+        assertThat(exception.message)
+            .contains("Cannot mix signature files with different settings of kotlinStyleNulls")
+    }
 
     @Test
     fun `Test parse from InputStream`() {
@@ -37,9 +82,8 @@ class ApiFileTest : Assertions {
 
     @Test
     fun `Test known Throwable`() {
-        val codebase =
-            ApiFile.parseApi(
-                "api.txt",
+        runSignatureTest(
+            signature(
                 """
                     // Signature format: 2.0
                     package java.lang {
@@ -52,24 +96,29 @@ class ApiFileTest : Assertions {
                         }
                     }
                 """
-                    .trimIndent()
-            )
+            ),
+        ) {
+            val throwable = codebase.assertClass("java.lang.Throwable")
 
-        val objectClass = codebase.assertClass("java.lang.Object")
-        val throwable = codebase.assertClass("java.lang.Throwable")
-        assertSame(objectClass, throwable.superClass())
+            // Get the super class to force it to be loaded.
+            val throwableSuperClass = throwable.superClass()
 
-        // Make sure the stub Throwable is used in the throws types.
-        val exception =
-            codebase.assertClass("test.pkg.Foo").assertMethod("foo", "").throwsTypes().first()
-        assertSame(throwable, exception)
+            // Now get the object class.
+            val objectClass = codebase.assertClass("java.lang.Object")
+
+            assertSame(objectClass, throwableSuperClass)
+
+            // Make sure the stub Throwable is used in the throws types.
+            val exception =
+                codebase.assertClass("test.pkg.Foo").assertMethod("foo", "").throwsTypes().first()
+            assertSame(throwable, exception.erasedClass)
+        }
     }
 
     @Test
     fun `Test known Throwable subclass`() {
-        val codebase =
-            ApiFile.parseApi(
-                "api.txt",
+        runSignatureTest(
+            signature(
                 """
                     // Signature format: 2.0
                     package java.lang {
@@ -82,24 +131,29 @@ class ApiFileTest : Assertions {
                         }
                     }
                 """
-                    .trimIndent()
-            )
+            ),
+        ) {
+            val error = codebase.assertClass("java.lang.Error")
 
-        val throwable = codebase.assertClass("java.lang.Throwable")
-        val error = codebase.assertClass("java.lang.Error")
-        assertSame(throwable, error.superClass())
+            // Get the super class to force it to be loaded.
+            val errorSuperClass = error.superClassType()?.asClass()
 
-        // Make sure the stub Throwable is used in the throws types.
-        val exception =
-            codebase.assertClass("test.pkg.Foo").assertMethod("foo", "").throwsTypes().first()
-        assertSame(error, exception)
+            // Now get the throwable class.
+            val throwable = codebase.assertClass("java.lang.Throwable")
+
+            assertSame(throwable, errorSuperClass)
+
+            // Make sure the stub Throwable is used in the throws types.
+            val exception =
+                codebase.assertClass("test.pkg.Foo").assertMethod("foo", "").throwsTypes().first()
+            assertSame(error, exception.erasedClass)
+        }
     }
 
     @Test
     fun `Test unknown Throwable`() {
-        val codebase =
-            ApiFile.parseApi(
-                "api.txt",
+        runSignatureTest(
+            signature(
                 """
                     // Signature format: 2.0
                     package test.pkg {
@@ -108,24 +162,23 @@ class ApiFileTest : Assertions {
                         }
                     }
                 """
-                    .trimIndent()
-            )
+            ),
+        ) {
+            val throwable = codebase.assertResolvedClass("java.lang.Throwable")
+            // This should probably be Object.
+            assertNull(throwable.superClass())
 
-        val throwable = codebase.assertClass("java.lang.Throwable")
-        // This should probably be Object.
-        assertNull(throwable.superClass())
-
-        // Make sure the stub Throwable is used in the throws types.
-        val exception =
-            codebase.assertClass("test.pkg.Foo").assertMethod("foo", "").throwsTypes().first()
-        assertSame(throwable, exception)
+            // Make sure the stub Throwable is used in the throws types.
+            val exception =
+                codebase.assertClass("test.pkg.Foo").assertMethod("foo", "").throwsTypes().first()
+            assertSame(throwable, exception.erasedClass)
+        }
     }
 
     @Test
     fun `Test unknown Throwable subclass`() {
-        val codebase =
-            ApiFile.parseApi(
-                "api.txt",
+        runSignatureTest(
+            signature(
                 """
                     // Signature format: 2.0
                     package test.pkg {
@@ -134,18 +187,26 @@ class ApiFileTest : Assertions {
                         }
                     }
                 """
-                    .trimIndent()
-            )
+            ),
+        ) {
+            val throwable = codebase.assertResolvedClass("java.lang.Throwable")
 
-        val throwable = codebase.assertClass("java.lang.Throwable")
-        val unknownExceptionClass = codebase.assertClass("other.UnknownException")
-        // Make sure the stub UnknownException is initialized correctly.
-        assertSame(throwable, unknownExceptionClass.superClass())
+            val exceptionType =
+                codebase.assertClass("test.pkg.Foo").methods().single().throwsTypes().single()
 
-        // Make sure the stub UnknownException is used in the throws types.
-        val exception =
-            codebase.assertClass("test.pkg.Foo").assertMethod("foo", "").throwsTypes().first()
-        assertSame(unknownExceptionClass, exception)
+            // Force the unknown exception class to be resolved, creating a stub in the process. It
+            // is checked below.
+            exceptionType.erasedClass
+
+            val unknownExceptionClass = codebase.assertClass("other.UnknownException")
+            // Make sure the stub UnknownException is initialized correctly.
+            assertSame(throwable, unknownExceptionClass.superClass())
+
+            // Make sure the stub UnknownException is used in the throws types.
+            val exception =
+                codebase.assertClass("test.pkg.Foo").assertMethod("foo", "").throwsTypes().first()
+            assertSame(unknownExceptionClass, exception.erasedClass)
+        }
     }
 
     @Test
@@ -176,13 +237,251 @@ class ApiFileTest : Assertions {
         // types.
         val exception =
             codebase.assertClass("test.pkg.Foo").assertMethod("foo", "").throwsTypes().first()
-        assertSame(unknownExceptionClass, exception)
+        assertSame(unknownExceptionClass, exception.erasedClass)
+    }
+
+    @Test
+    fun `Test matching package annotations are allowed`() {
+        runSignatureTest(
+            signature(
+                "file1.txt",
+                """
+                    // Signature format: 2.0
+                    package @PackageAnnotation test.pkg {
+                        public class Foo {
+                        }
+                    }
+                """
+            ),
+            signature(
+                "file2.txt",
+                """
+                    // Signature format: 2.0
+                    package @PackageAnnotation test.pkg {
+                        public class Foo {
+                        }
+                    }
+                """
+            ),
+        ) {}
+    }
+
+    @Test
+    fun `Test different package annotations are not allowed`() {
+        val exception =
+            assertThrows(ApiParseException::class.java) {
+                runSignatureTest(
+                    signature(
+                        "file1.txt",
+                        """
+                            // Signature format: 2.0
+                            package @PackageAnnotation1 test.pkg {
+                                public class Foo {
+                                }
+                            }
+                        """
+                    ),
+                    signature(
+                        "file2.txt",
+                        """
+                            // Signature format: 2.0
+                            package @PackageAnnotation2 test.pkg {
+                                public class Foo {
+                                }
+                            }
+                        """
+                    ),
+                ) {}
+            }
+        assertThat(exception.message).contains("Contradicting declaration of package test.pkg")
+    }
+
+    /** Dump the package structure of [codebase] to a string for easy comparison. */
+    private fun dumpPackageStructure(codebase: Codebase) = buildString {
+        codebase.getPackages().packages.map { packageItem ->
+            append("${packageItem.qualifiedName()}\n")
+            for (classItem in packageItem.allClasses()) {
+                append("    ${classItem.qualifiedName()}\n")
+            }
+        }
+    }
+
+    /** Check that the package structure created from the [sources] matches what is expected. */
+    private fun checkPackageStructureCreatedCorrectly(vararg sources: TestFile) {
+        runSignatureTest(*sources) {
+            val data = dumpPackageStructure(codebase)
+
+            assertEquals(
+                """
+                    test.pkg
+                        test.pkg.Outer
+                        test.pkg.Outer.Middle
+                        test.pkg.Outer.Middle.Inner
+                """
+                    .trimIndent(),
+                data.trimEnd()
+            )
+        }
+    }
+
+    @Test
+    fun `Test missing all containing classes`() {
+        checkPackageStructureCreatedCorrectly(
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                        public class Outer.Middle.Inner {
+                        }
+                    }
+                """
+            ),
+        )
+    }
+
+    @Test
+    fun `Test missing outer class`() {
+        checkPackageStructureCreatedCorrectly(
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                        public class Outer.Middle {
+                        }
+                        public class Outer.Middle.Inner {
+                        }
+                    }
+                """
+            ),
+        )
+    }
+
+    @Test
+    fun `Test missing middle class`() {
+        checkPackageStructureCreatedCorrectly(
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                        public class Outer {
+                        }
+                        public class Outer.Middle.Inner {
+                        }
+                    }
+                """
+            ),
+        )
+    }
+
+    @Test
+    fun `Test split across multiple files, middle missing`() {
+        checkPackageStructureCreatedCorrectly(
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                        public class Outer {
+                        }
+                    }
+                """
+            ),
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                        public class Outer.Middle.Inner {
+                        }
+                    }
+                """
+            ),
+        )
+    }
+
+    @Test
+    fun `Test split across multiple files`() {
+        checkPackageStructureCreatedCorrectly(
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                        public class Outer {
+                        }
+                    }
+                """
+            ),
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                        public class Outer.Middle {
+                        }
+                    }
+                """
+            ),
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                        public class Outer.Middle.Inner {
+                        }
+                    }
+                """
+            ),
+        )
+    }
+
+    @Test
+    fun `Test unknown interface should still be marked as such`() {
+        runSignatureTest(
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                        public class Foo implements test.unknown.Interface {
+                        }
+                    }
+                """
+            ),
+        ) {
+            // Resolve the class. Even though it does not exist, the text model will fabricate an
+            // instance.
+            val unknownInterfaceClass =
+                codebase.assertResolvedClass("test.pkg.Foo").interfaceTypes().single().asClass()
+            assertNotNull(unknownInterfaceClass)
+
+            // Make sure that the fabricated instance is of the correct structure.
+            assertThat(unknownInterfaceClass.classKind).isEqualTo(ClassKind.INTERFACE)
+        }
+    }
+
+    @Test
+    fun testTypeParameterNames() {
+        assertThat(ApiFile.extractTypeParameterBoundsStringList(null).toString()).isEqualTo("[]")
+        assertThat(ApiFile.extractTypeParameterBoundsStringList("").toString()).isEqualTo("[]")
+        assertThat(ApiFile.extractTypeParameterBoundsStringList("X").toString()).isEqualTo("[]")
+        assertThat(ApiFile.extractTypeParameterBoundsStringList("DEF extends T").toString())
+            .isEqualTo("[T]")
+        assertThat(
+                ApiFile.extractTypeParameterBoundsStringList(
+                        "T extends java.lang.Comparable<? super T>"
+                    )
+                    .toString()
+            )
+            .isEqualTo("[java.lang.Comparable<? super T>]")
+        assertThat(
+                ApiFile.extractTypeParameterBoundsStringList(
+                        "T extends java.util.List<Number> & java.util.RandomAccess"
+                    )
+                    .toString()
+            )
+            .isEqualTo("[java.util.List<Number>, java.util.RandomAccess]")
     }
 
     class TestClassItem private constructor(delegate: ClassItem) : ClassItem by delegate {
         companion object {
             fun create(name: String): TestClassItem {
-                val codebase = ApiFile.parseApi("other.txt", "// Signature format: 2.0")
+                val codebase =
+                    ApiFile.parseApi("other.txt", "// Signature format: 2.0") as TextCodebase
                 val delegate = codebase.getOrCreateClass(name)
                 return TestClassItem(delegate)
             }

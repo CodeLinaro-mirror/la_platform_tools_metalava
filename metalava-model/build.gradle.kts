@@ -27,5 +27,6 @@ dependencies {
     testImplementation(libs.truth)
     testImplementation(libs.kotlinTest)
 
+    testFixturesImplementation(libs.truth)
     testFixturesImplementation(libs.kotlinTest)
 }

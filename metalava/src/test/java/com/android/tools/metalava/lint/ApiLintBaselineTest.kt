@@ -241,12 +241,12 @@ class ApiLintBaselineTest : DriverTest() {
                     public class Base {
                         public static abstract class BaseBuilder<B extends BaseBuilder<B>> {
                             protected int field;
-                            
+
                             protected BaseBuilder() {}
-                            
+
                             @NonNull
                             protected abstract B getThis();
-                            
+
                             @NonNull
                             public B setField(int i) {
                                 this.field = i;
@@ -265,7 +265,7 @@ class ApiLintBaselineTest : DriverTest() {
                         private Foo(int i) {
                             this.field = i;
                         }
-                        
+
                         public static final class Builder extends BaseBuilder<Builder> {
                             public Builder() {}
 

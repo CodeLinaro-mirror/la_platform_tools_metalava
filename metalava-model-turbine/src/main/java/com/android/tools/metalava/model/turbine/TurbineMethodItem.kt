@@ -17,25 +17,28 @@
 package com.android.tools.metalava.model.turbine
 
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.DefaultModifierList
+import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
+import com.android.tools.metalava.model.computeSuperMethods
 import com.google.turbine.binder.sym.MethodSymbol
 
-open class TurbineMethodItem(
+internal open class TurbineMethodItem(
     codebase: TurbineBasedCodebase,
     private val methodSymbol: MethodSymbol,
-    private val containingClass: TurbineClassItem,
-    protected var returnType: TurbineTypeItem,
-    modifiers: TurbineModifierItem,
-    private val typeParameters: TypeParameterList,
+    private val containingClass: ClassItem,
+    protected var returnType: TypeItem,
+    modifiers: DefaultModifierList,
+    override val typeParameterList: TypeParameterList,
     documentation: String,
+    private val defaultValue: String,
 ) : TurbineItem(codebase, modifiers, documentation), MethodItem {
 
     private lateinit var superMethodList: List<MethodItem>
-    internal lateinit var throwsClassNames: List<String>
-    private lateinit var throwsTypes: List<ClassItem>
+    internal lateinit var throwableTypes: List<ExceptionTypeItem>
     internal lateinit var parameters: List<ParameterItem>
 
     override var inheritedFrom: ClassItem? = null
@@ -46,11 +49,9 @@ open class TurbineMethodItem(
 
     override fun returnType(): TypeItem = returnType
 
-    override fun throwsTypes(): List<ClassItem> = throwsTypes
+    override fun throwsTypes(): List<ExceptionTypeItem> = throwableTypes
 
-    override fun isExtensionMethod(): Boolean {
-        TODO("b/295800205")
-    }
+    override fun isExtensionMethod(): Boolean = false // java does not support extension methods
 
     override fun isConstructor(): Boolean = false
 
@@ -70,36 +71,9 @@ open class TurbineMethodItem(
      */
     override fun superMethods(): List<MethodItem> {
         if (!::superMethodList.isInitialized) {
-            if (isConstructor()) {
-                superMethodList = emptyList()
-            }
-
-            val methods = mutableSetOf<MethodItem>()
-
-            // Method from SuperClass or its ancestors
-            containingClass().superClass()?.let {
-                val superMethod = it.findMethod(this, includeSuperClasses = true)
-                superMethod?.let { methods.add(superMethod) }
-            }
-
-            // Methods implemented from direct interfaces or its ancestors
-            val containingTurbineClass = containingClass() as TurbineClassItem
-            methods.addAll(superMethodsFromInterfaces(containingTurbineClass.directInterfaces()))
-
-            superMethodList = methods.toList()
+            superMethodList = computeSuperMethods()
         }
         return superMethodList
-    }
-
-    private fun superMethodsFromInterfaces(interfaces: List<TurbineClassItem>): List<MethodItem> {
-        var methods = mutableListOf<MethodItem>()
-
-        for (itf in interfaces) {
-            val itfMethod = itf.findMethod(this)
-            if (itfMethod != null) methods.add(itfMethod)
-            else methods.addAll(superMethodsFromInterfaces(itf.directInterfaces()))
-        }
-        return methods
     }
 
     override fun equals(other: Any?): Boolean {
@@ -120,15 +94,50 @@ open class TurbineMethodItem(
     @Deprecated("This property should not be accessed directly.")
     override var _requiresOverride: Boolean? = null
 
-    override fun duplicate(targetContainingClass: ClassItem): TurbineMethodItem =
-        TODO("b/295800205")
+    override fun duplicate(targetContainingClass: ClassItem): TurbineMethodItem {
+        // Duplicate the parameters
+        val params = parameters.map { TurbineParameterItem.duplicate(codebase, it, emptyMap()) }
+        val retType = returnType.duplicate()
+        val mods = modifiers.duplicate()
+        val duplicateMethod =
+            TurbineMethodItem(
+                codebase,
+                methodSymbol,
+                targetContainingClass,
+                retType,
+                mods,
+                typeParameterList,
+                documentation,
+                defaultValue,
+            )
+        duplicateMethod.parameters = params
+        duplicateMethod.inheritedFrom = containingClass
+        duplicateMethod.throwableTypes = throwableTypes
+
+        // Preserve flags that may have been inherited (propagated) from surrounding packages
+        if (targetContainingClass.hidden) {
+            duplicateMethod.hidden = true
+        }
+        if (targetContainingClass.removed) {
+            duplicateMethod.removed = true
+        }
+        if (targetContainingClass.docOnly) {
+            duplicateMethod.docOnly = true
+        }
+        if (targetContainingClass.deprecated) {
+            duplicateMethod.deprecated = true
+        }
+
+        return duplicateMethod
+    }
 
     override fun findMainDocumentation(): String = TODO("b/295800205")
 
-    override fun typeParameterList(): TypeParameterList = typeParameters
-
-    internal fun setThrowsTypes() {
-        val result = throwsClassNames.map { codebase.findOrCreateClass(it)!! }
-        throwsTypes = result.sortedWith(ClassItem.fullNameComparator)
+    internal fun setThrowsTypes(throwsList: List<ExceptionTypeItem>) {
+        throwableTypes = throwsList
     }
+
+    internal fun getSymbol(): MethodSymbol = methodSymbol
+
+    override fun defaultValue(): String = defaultValue
 }

@@ -93,7 +93,10 @@ class NullnessMigration : ComparisonVisitor(visitAddedItemsRecursively = true) {
 
     companion object {
         fun migrateNulls(codebase: Codebase, previous: Codebase) {
-            CodebaseComparator().compare(NullnessMigration(), previous, codebase)
+            CodebaseComparator(
+                    apiVisitorConfig = @Suppress("DEPRECATION") options.apiVisitorConfig,
+                )
+                .compare(NullnessMigration(), previous, codebase)
         }
 
         fun hasNullnessInformation(item: Item): Boolean {

@@ -16,10 +16,10 @@
 
 package com.android.tools.metalava.stub
 
-import com.android.tools.metalava.model.AnnotationTarget
 import com.android.tools.metalava.model.BaseItemVisitor
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ConstructorItem
+import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MethodItem
@@ -32,20 +32,12 @@ import java.util.function.Predicate
 
 internal class JavaStubWriter(
     private val writer: PrintWriter,
+    private val modifierListWriter: ModifierListWriter,
     private val filterEmit: Predicate<Item>,
     private val filterReference: Predicate<Item>,
-    private val generateAnnotations: Boolean = false,
     private val preFiltered: Boolean = true,
-    private val annotationTarget: AnnotationTarget,
     private val config: StubWriterConfig,
 ) : BaseItemVisitor() {
-
-    private val modifierListWriter =
-        ModifierListWriter.forStubs(
-            writer = writer,
-            target = annotationTarget,
-            runtimeAnnotationsOnly = !generateAnnotations,
-        )
 
     override fun visitClass(cls: ClassItem) {
         if (cls.isTopLevelClass()) {
@@ -88,7 +80,7 @@ internal class JavaStubWriter(
         writer.print(" ")
         writer.print(cls.simpleName())
 
-        generateTypeParameterList(typeList = cls.typeParameterList(), addSpace = false)
+        generateTypeParameterList(typeList = cls.typeParameterList, addSpace = false)
         generateSuperClassDeclaration(cls)
         generateInterfaceList(cls)
         writer.print(" {\n")
@@ -183,7 +175,7 @@ internal class JavaStubWriter(
         writer.println()
         appendDocumentation(constructor, writer, config)
         appendModifiers(constructor)
-        generateTypeParameterList(typeList = constructor.typeParameterList(), addSpace = true)
+        generateTypeParameterList(typeList = constructor.typeParameterList, addSpace = true)
         writer.print(constructor.containingClass().simpleName())
 
         generateParameterList(constructor)
@@ -246,7 +238,7 @@ internal class JavaStubWriter(
                                     constructor
                                         .containingClass()
                                         .mapTypeVariables(it.containingClass())
-                                val cast = map[type]?.toTypeString() ?: typeString
+                                val cast = map[type.asTypeParameter]?.toTypeString() ?: typeString
                                 writer.write(cast)
                             } else {
                                 writer.write(typeString)
@@ -302,8 +294,8 @@ internal class JavaStubWriter(
         writer.println()
         appendDocumentation(method, writer, config)
 
-        val requiresBody = appendModifiers(method)
-        generateTypeParameterList(typeList = method.typeParameterList(), addSpace = true)
+        appendModifiers(method)
+        generateTypeParameterList(typeList = method.typeParameterList, addSpace = true)
 
         val returnType = method.returnType()
         writer.print(returnType.toTypeString(annotations = false, filter = filterReference))
@@ -321,7 +313,7 @@ internal class JavaStubWriter(
             }
         }
 
-        if (requiresBody) {
+        if (ModifierListWriter.requiresMethodBodyInStubs(method)) {
             writer.print(" { ")
             writeThrowStub()
             writer.println(" }")
@@ -393,11 +385,11 @@ internal class JavaStubWriter(
             }
         if (throws.any()) {
             writer.print(" throws ")
-            throws.sortedWith(ClassItem.fullNameComparator).forEachIndexed { i, type ->
+            throws.sortedWith(ExceptionTypeItem.fullNameComparator).forEachIndexed { i, type ->
                 if (i > 0) {
                     writer.print(", ")
                 }
-                writer.print(type.qualifiedName())
+                writer.print(type.toTypeString())
             }
         }
     }
