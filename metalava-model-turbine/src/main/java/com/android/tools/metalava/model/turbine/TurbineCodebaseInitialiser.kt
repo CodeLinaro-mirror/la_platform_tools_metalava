@@ -21,7 +21,6 @@ import com.android.tools.metalava.model.AnnotationAttribute
 import com.android.tools.metalava.model.AnnotationAttributeValue
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ArrayTypeItem
-import com.android.tools.metalava.model.BaseItemVisitor
 import com.android.tools.metalava.model.BoundsTypeItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
@@ -32,13 +31,11 @@ import com.android.tools.metalava.model.DefaultAnnotationItem
 import com.android.tools.metalava.model.DefaultAnnotationSingleAttributeValue
 import com.android.tools.metalava.model.DefaultTypeParameterList
 import com.android.tools.metalava.model.ExceptionTypeItem
-import com.android.tools.metalava.model.FieldItem
-import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.TypeParameterScope
-import com.android.tools.metalava.model.fixUpTypeNullability
+import com.android.tools.metalava.model.type.MethodFingerprint
 import com.android.tools.metalava.reporter.FileLocation
 import com.google.common.collect.ImmutableList
 import com.google.common.collect.ImmutableMap
@@ -175,29 +172,6 @@ internal open class TurbineCodebaseInitialiser(
 
         createAllPackages()
         createAllClasses()
-        correctNullability()
-    }
-
-    /**
-     * Corrects the nullability of types in the codebase based on their context items. If an item is
-     * non-null or nullable, its type is too.
-     */
-    private fun correctNullability() {
-        codebase.accept(
-            object : BaseItemVisitor() {
-                override fun visitItem(item: Item) {
-                    // The ClassItem.type() is never nullable even if the class has an @Nullable
-                    // annotation.
-                    if (item is ClassItem) return
-                    // Fields are handle by [TurbineTypeItemFactory.getFieldType].
-                    if (item is FieldItem) return
-                    // Ignore any items that do not have types.
-                    val type = item.type() ?: return
-
-                    type.fixUpTypeNullability(item)
-                }
-            }
-        )
     }
 
     private fun createAllPackages() {
@@ -257,13 +231,7 @@ internal open class TurbineCodebaseInitialiser(
             createTopLevelClassAndContents(classSymbol)
         }
 
-        // Iterate over all the classes resolving their super class and interface types.
-        codebase.iterateAllClasses { classItem ->
-            classItem.superClass()
-            for (interfaceType in classItem.interfaceTypes()) {
-                interfaceType.asClass()
-            }
-        }
+        codebase.resolveSuperTypes()
     }
 
     val ClassSymbol.isTopClass
@@ -402,7 +370,7 @@ internal open class TurbineCodebaseInitialiser(
         createConstructors(classItem, cls.methods(), classTypeItemFactory)
 
         // Add to the codebase
-        codebase.addClass(classItem, isTopClass)
+        codebase.registerClass(classItem, isTopClass)
 
         // Add the class to corresponding PackageItem
         if (isTopClass) {
@@ -727,15 +695,26 @@ internal open class TurbineCodebaseInitialiser(
                         if (method.defaultValue() != null)
                             extractAnnotationDefaultValue(method.defaultValue()!!, defaultValueExpr)
                         else ""
+
+                    val parameters = method.parameters()
+                    val fingerprint = MethodFingerprint(method.name(), parameters.size)
+                    val isAnnotationElement =
+                        classItem.isAnnotationType() && !methodModifierItem.isStatic()
+                    val returnType =
+                        methodTypeItemFactory.getMethodReturnType(
+                            underlyingReturnType = method.returnType(),
+                            itemAnnotations = methodModifierItem.annotations(),
+                            fingerprint = fingerprint,
+                            isAnnotationElement = isAnnotationElement,
+                        )
+
                     val methodItem =
                         TurbineMethodItem(
                             codebase,
                             TurbineFileLocation.forTree(classItem, decl),
                             method.sym(),
                             classItem,
-                            methodTypeItemFactory.getGeneralType(
-                                method.returnType(),
-                            ),
+                            returnType,
                             methodModifierItem,
                             typeParams,
                             getCommentedDoc(documentation),
@@ -744,8 +723,8 @@ internal open class TurbineCodebaseInitialiser(
                     createParameters(
                         methodItem,
                         decl?.params(),
-                        method.parameters(),
-                        methodTypeItemFactory
+                        parameters,
+                        methodTypeItemFactory,
                     )
                     methodItem.throwableTypes =
                         getThrowsList(method.exceptions(), methodTypeItemFactory)
@@ -762,6 +741,7 @@ internal open class TurbineCodebaseInitialiser(
         parameters: List<ParamInfo>,
         typeItemFactory: TurbineTypeItemFactory,
     ) {
+        val fingerprint = MethodFingerprint(methodItem.name(), parameters.size)
         // Some parameters in [parameters] are implicit parameters that do not have a corresponding
         // entry in the [parameterDecls] list. The number of implicit parameters is the total
         // number of [parameters] minus the number of declared parameters [parameterDecls]. The
@@ -775,9 +755,12 @@ internal open class TurbineCodebaseInitialiser(
                 val parameterModifierItem =
                     TurbineModifierItem.create(codebase, parameter.access(), annotations, false)
                 val type =
-                    typeItemFactory.createType(
-                        parameter.type(),
-                        parameterModifierItem.isVarArg(),
+                    typeItemFactory.getMethodParameterType(
+                        underlyingParameterType = parameter.type(),
+                        itemAnnotations = annotations,
+                        fingerprint = fingerprint,
+                        parameterIndex = idx,
+                        isVarArg = parameterModifierItem.isVarArg(),
                     )
                 // Get the [Tree.VarDecl] corresponding to the [ParamInfo], if available.
                 val decl =
@@ -848,7 +831,7 @@ internal open class TurbineCodebaseInitialiser(
                         constructorItem,
                         decl?.params(),
                         constructor.parameters(),
-                        constructorTypeItemFactory
+                        constructorTypeItemFactory,
                     )
                     constructorItem.throwableTypes =
                         getThrowsList(constructor.exceptions(), constructorTypeItemFactory)

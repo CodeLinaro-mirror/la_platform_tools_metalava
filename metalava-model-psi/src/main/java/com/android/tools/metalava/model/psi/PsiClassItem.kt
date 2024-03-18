@@ -210,33 +210,6 @@ internal constructor(
         return PsiSourceFile(codebase, containingFile, uFile)
     }
 
-    override fun finishInitialization() {
-        super.finishInitialization()
-
-        // Force the super class and interfaces to be resolved. Otherwise, they are not added to the
-        // list of classes to be scanned in [PsiPackageItem] which causes problems for operations
-        // that expect that to be done.
-        superClass()
-        for (interfaceType in interfaceTypes) {
-            interfaceType.asClass()
-        }
-
-        for (method in methods) {
-            method.finishInitialization()
-        }
-        for (method in constructors) {
-            method.finishInitialization()
-        }
-        for (field in fields) {
-            // There may be non-Psi fields here later (thanks to addField) but not during
-            // construction
-            (field as PsiFieldItem).finishInitialization()
-        }
-        for (inner in innerClasses) {
-            inner.finishInitialization()
-        }
-    }
-
     override fun equals(other: Any?): Boolean {
         if (this === other) {
             return true
@@ -255,8 +228,6 @@ internal constructor(
             "Unexpected attempt to copy $method from one codebase (${method.codebase.location}) to another (${codebase.location})"
         }
         val newMethod = PsiMethodItem.create(this, method)
-
-        newMethod.finishInitialization()
 
         // Remember which class this method was copied from.
         newMethod.inheritedFrom = template.containingClass()

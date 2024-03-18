@@ -24,9 +24,9 @@ import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterBindings
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.findAnnotation
-import com.android.tools.metalava.model.fixUpTypeNullability
 import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.model.psi.CodePrinter.Companion.constantToSource
+import com.android.tools.metalava.model.type.MethodFingerprint
 import com.intellij.psi.LambdaUtil
 import com.intellij.psi.PsiArrayType
 import com.intellij.psi.PsiEllipsisType
@@ -303,14 +303,10 @@ internal constructor(
         }
     }
 
-    override fun finishInitialization() {
-        super.finishInitialization()
-        type.fixUpTypeNullability(this)
-    }
-
     companion object {
         internal fun create(
             codebase: PsiBasedCodebase,
+            fingerprint: MethodFingerprint,
             psiParameter: PsiParameter,
             parameterIndex: Int,
             enclosingMethodTypeItemFactory: PsiTypeItemFactory,
@@ -344,7 +340,14 @@ internal constructor(
                 } else {
                     psiType
                 }
-            val type = enclosingMethodTypeItemFactory.getType(workaroundPsiType, psiParameter)
+            val type =
+                enclosingMethodTypeItemFactory.getMethodParameterType(
+                    underlyingParameterType = PsiTypeInfo(workaroundPsiType, psiParameter),
+                    itemAnnotations = modifiers.annotations(),
+                    fingerprint = fingerprint,
+                    parameterIndex = parameterIndex,
+                    isVarArg = psiType is PsiEllipsisType,
+                )
             val parameter =
                 PsiParameterItem(
                     codebase = codebase,
@@ -352,7 +355,9 @@ internal constructor(
                     name = name,
                     parameterIndex = parameterIndex,
                     modifiers = modifiers,
-                    type = type
+                    // Need to down cast as [isSamCompatibleOrKotlinLambda] needs access to the
+                    // underlying PsiType.
+                    type = type as PsiTypeItem
                 )
             return parameter
         }

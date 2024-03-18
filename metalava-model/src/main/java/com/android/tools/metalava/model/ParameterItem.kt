@@ -105,22 +105,6 @@ interface ParameterItem : Item {
         return modifiers.hasNullnessInfo()
     }
 
-    override fun implicitNullness(): TypeNullability? {
-        // Delegate to the super class, only dropping through if it did not determine an implicit
-        // nullness.
-        super.implicitNullness()?.let { nullable ->
-            return nullable
-        }
-
-        // Equals has known nullness
-        val method = containingMethod()
-        if (method.name() == "equals" && method.parameters().size == 1) {
-            return TypeNullability.NULLABLE
-        }
-
-        return null
-    }
-
     override fun containingClass(): ClassItem? = containingMethod().containingClass()
 
     override fun containingPackage(): PackageItem? = containingMethod().containingPackage()

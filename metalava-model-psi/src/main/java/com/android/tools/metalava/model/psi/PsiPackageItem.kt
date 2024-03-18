@@ -117,18 +117,6 @@ internal constructor(
 
     override fun hashCode(): Int = qualifiedName.hashCode()
 
-    override fun finishInitialization() {
-        super.finishInitialization()
-
-        // Take a copy of the list just in case additional classes are added during iteration. Those
-        // classes will have their [PsiClassItem.finishInitialization] called so there is no need to
-        // handle them here.
-        val initialClasses = ArrayList(classes)
-        for (cls in initialClasses) {
-            if (cls is PsiClassItem) cls.finishInitialization()
-        }
-    }
-
     override fun isFromClassPath(): Boolean = fromClassPath
 
     companion object {

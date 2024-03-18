@@ -75,7 +75,6 @@ class PsiFieldItem(
                 codebase.globalTypeItemFactory.from(targetContainingClass),
             )
         duplicated.inheritedFrom = containingClass
-        duplicated.finishInitialization()
 
         // Preserve flags that may have been inherited (propagated) from surrounding packages
         if (targetContainingClass.hidden) {

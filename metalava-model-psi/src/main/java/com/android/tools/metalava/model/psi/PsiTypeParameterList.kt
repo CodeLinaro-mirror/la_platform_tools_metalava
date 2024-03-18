@@ -37,7 +37,7 @@ internal object PsiTypeParameterList {
                 enclosingTypeItemFactory,
                 scopeDescription,
                 psiTypeParameterList.typeParameters.toList(),
-                { PsiTypeParameterItem.create(codebase, it).apply { finishInitialization() } },
+                { PsiTypeParameterItem.create(codebase, it) },
                 // Create bounds and store it in the [PsiTypeParameterItem.bounds] property.
                 { typeItemFactory, item, psiTypeParameter ->
                     val refs = psiTypeParameter.extendsList.referencedTypes

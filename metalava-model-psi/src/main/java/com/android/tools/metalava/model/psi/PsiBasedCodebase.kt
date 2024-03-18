@@ -22,6 +22,7 @@ import com.android.tools.metalava.model.ANDROIDX_NONNULL
 import com.android.tools.metalava.model.ANDROIDX_NULLABLE
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.AnnotationManager
+import com.android.tools.metalava.model.CLASS_ESTIMATE
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.DefaultCodebase
 import com.android.tools.metalava.model.FieldItem
@@ -70,7 +71,6 @@ import org.jetbrains.uast.UastFacade
 import org.jetbrains.uast.kotlin.BaseKotlinUastResolveProviderService
 
 const val PACKAGE_ESTIMATE = 500
-const val CLASS_ESTIMATE = 15000
 const val METHOD_ESTIMATE = 1000
 
 /**
@@ -113,7 +113,7 @@ open class PsiBasedCodebase(
      * Returns the compilation units used in this codebase (may be empty when the codebase is not
      * loaded from source, such as from .jar files or from signature files)
      */
-    internal var units: List<PsiFile> = emptyList()
+    private var units: List<PsiFile> = emptyList()
 
     /**
      * Printer which can convert PSI, UAST and constants into source code, with ability to filter
@@ -301,19 +301,15 @@ open class PsiBasedCodebase(
     }
 
     /**
-     * Finish initializing a [PsiClassItem] by calling [PsiClassItem.finishedInitialization].
+     * Finish initializing a [PsiClassItem].
      *
      * This must only be called when [initializing] is `false`.
-     *
-     * It will invoke [PsiClassItem.finishInitialization] immediately and add it directly to the
-     * [PsiPackageItem].
      */
     private fun finishClassInitialization(classItem: PsiClassItem) {
         if (initializing) {
             error("incorrectly called on $classItem when initializing=`true`")
         }
 
-        classItem.finishInitialization()
         val pkgName = getPackageName(classItem.psiClass)
         val pkg = findPackage(pkgName)
         if (pkg == null) {
@@ -335,7 +331,7 @@ open class PsiBasedCodebase(
      * * Finalizing [PsiClassItem]s which may involve creating some more, e.g. super classes and
      *   interfaces referenced from the source code but provided on the class path.
      */
-    internal fun finishInitialization(packages: PackageDocs?) {
+    private fun finishInitialization(packages: PackageDocs?) {
 
         // Next construct packages
         val packageDocs = packages?.packageDocs ?: emptyMap()
@@ -364,14 +360,8 @@ open class PsiBasedCodebase(
 
         emptyPackage = findPackage("")!!
 
-        // Finish initialization
-        // Take a copy of the list just in case additional classes are added during iteration that
-        // require additional packages to be added. Those classes will have their
-        // [PsiClassItem.finishInitialization] called so there is no need to handle them here.
-        val initialPackages = ArrayList(packageMap.values)
-        for (pkg in initialPackages) {
-            pkg.finishInitialization()
-        }
+        // Resolve the super types of all the classes that have been loaded.
+        resolveSuperTypes()
 
         // Point to "parent" packages, since doclava treats packages as nested (e.g. an @hide on
         // android.foo will also apply to android.foo.bar)
@@ -821,9 +811,6 @@ open class PsiBasedCodebase(
                     PsiMethodItem.create(this, cls, updatedMethod, globalTypeItemFactory.from(cls))
                 methods[method] = extra
                 methods[updatedMethod] = extra
-                if (!initializing) {
-                    extra.finishInitialization()
-                }
 
                 return extra
             }
@@ -925,7 +912,7 @@ open class PsiBasedCodebase(
             return
         }
 
-        classMap[qualifiedName] = classItem
+        addClass(classItem)
     }
 
     internal val uastResolveService: BaseKotlinUastResolveProviderService? by lazy {

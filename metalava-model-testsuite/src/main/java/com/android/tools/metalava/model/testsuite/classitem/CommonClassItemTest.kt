@@ -1325,7 +1325,7 @@ class CommonClassItemTest : BaseModelTest() {
                         package test.pkg;
                         import java.util.List;
                         import type.use.only.*;
-                        class HiddenClass<@Nullable T, @Nullable S> {
+                        class HiddenClass<T extends @Nullable Object, S extends @Nullable Object> {
                             public void t(T t) {}
                             public void optionalT(@Nullable T optionalT) {}
                             public void listOfT(@NonNull List<? extends T> listOfT) {}
@@ -1396,6 +1396,64 @@ class CommonClassItemTest : BaseModelTest() {
                 assertWithMessage("testing type of $name")
                     .that(parameterType.toTypeString(kotlinStyleNulls = true))
                     .isEqualTo(expectedTypes[name])
+            }
+        }
+    }
+
+    @Test
+    fun `Test inheritMethodFromNonApiAncestor with type substitutions and not type use nullability annotations`() {
+        // Test for behavior of ClassItem.inheritMethodFromNonApiAncestor(...) in Java when the type
+        // parameter is used in the return type and is either unannotated, or annotated with a
+        // non-type use nullability annotation.
+        runSourceCodebaseTest(
+            inputSet(
+                typeUseOnlyNonNullSource,
+                typeUseOnlyNullableSource,
+                java(
+                    """
+                        package test.pkg;
+                        import java.util.List;
+                        import not.type.use.*;
+                        abstract class HiddenClass<T> {
+                            public T t();
+                            @NonNull public T nonNullT();
+                            @Nullable public T nullableT();
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        public abstract class PublicClass extends HiddenClass<String> {}
+                    """
+                ),
+            ),
+        ) {
+            val hiddenClass = codebase.assertClass("test.pkg.HiddenClass")
+            val publicClass = codebase.assertClass("test.pkg.PublicClass")
+
+            val expectedTypesAndNullability =
+                mapOf(
+                    "t" to Pair("java.lang.String!", TypeNullability.PLATFORM),
+                    "nonNullT" to Pair("java.lang.String", TypeNullability.NONNULL),
+                    "nullableT" to Pair("java.lang.String?", TypeNullability.NULLABLE),
+                )
+
+            for (method in hiddenClass.methods().sortedBy { it.name() }) {
+                val name = method.name()
+                val inheritedMethod = publicClass.inheritMethodFromNonApiAncestor(method)
+                assertSame(hiddenClass, inheritedMethod.inheritedFrom)
+                assertTrue(inheritedMethod.inheritedFromAncestor)
+
+                val returnType = inheritedMethod.returnType()
+                val (expectedType, expectedNullability) = expectedTypesAndNullability[name]!!
+                assertWithMessage("testing type of $name")
+                    .that(returnType.toTypeString(kotlinStyleNulls = true))
+                    .isEqualTo(expectedType)
+
+                assertWithMessage("testing type nullability of $name")
+                    .that(returnType.modifiers.nullability())
+                    .isEqualTo(expectedNullability)
             }
         }
     }

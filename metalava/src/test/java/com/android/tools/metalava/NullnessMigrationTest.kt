@@ -31,6 +31,7 @@ class NullnessMigrationTest : DriverTest() {
                     java(
                         """
                     package test.pkg;
+                    import androidx.annotation.NonNull;
                     import androidx.annotation.Nullable;
                     public class MyTest {
                         public Double convert0(Float f) { return null; }
@@ -125,7 +126,7 @@ class NullnessMigrationTest : DriverTest() {
                     java(
                         """
                     package test.pkg;
-                    import androidx.annotation.Nullable;
+                    import androidx.annotation.NonNull;
                     public abstract class MyTest {
                         private MyTest() { }
                         public Double convert1(@NonNull Float f) { return null; }
