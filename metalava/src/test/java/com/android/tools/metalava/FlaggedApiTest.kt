@@ -177,17 +177,16 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
             stubPaths = expectations.expectedStubPaths,
             expectedFail = expectations.expectedFail,
             expectedIssues = expectations.expectedIssues,
+            // Do not include flags in the output but do not mark them as hide or removed.
+            // This is needed to verify that the code to always inline the values of
+            // FlaggedApi annotations even when not hidden or removed is working correctly.
+            skipEmitPackages = listOf("test.pkg.flags"),
             extraArguments =
                 arrayOf(
                     ARG_HIDE_PACKAGE,
                     "android.annotation",
                     "--warning",
                     "UnflaggedApi",
-                    // Do not include flags in the output but do not mark them as hide or removed.
-                    // This is needed to verify that the code to always inline the values of
-                    // FlaggedApi annotations even when not hidden or removed is working correctly.
-                    "--skip-emit-packages",
-                    "test.pkg.flags",
                 ) + config.extraArguments,
         )
     }

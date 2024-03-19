@@ -283,14 +283,6 @@ internal class JavaStubWriter(
     }
 
     private fun writeMethod(containingClass: ClassItem, method: MethodItem) {
-
-        if (method.isEnumSyntheticMethod()) {
-            // Skip the values() and valueOf(String) methods in enums: these are added by
-            // the compiler for enums anyway, but was part of the doclava1 signature files
-            // so inserted in compat mode.
-            return
-        }
-
         writer.println()
         appendDocumentation(method, writer, config)
 

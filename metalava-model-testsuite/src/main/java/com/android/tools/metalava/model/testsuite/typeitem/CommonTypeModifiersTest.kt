@@ -17,13 +17,11 @@
 package com.android.tools.metalava.model.testsuite.typeitem
 
 import com.android.tools.metalava.model.Codebase
-import com.android.tools.metalava.model.Item
-import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeModifiers
 import com.android.tools.metalava.model.TypeNullability.NONNULL
 import com.android.tools.metalava.model.TypeNullability.PLATFORM
 import com.android.tools.metalava.model.isNullnessAnnotation
-import com.android.tools.metalava.model.source.SourceLanguage
+import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.model.testsuite.assertHasNonNullNullability
 import com.android.tools.metalava.model.testsuite.assertHasNullableNullability
@@ -34,19 +32,8 @@ import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import com.google.common.truth.Truth.assertThat
 import org.junit.Test
-import org.junit.runner.RunWith
-import org.junit.runners.Parameterized
 
-@RunWith(Parameterized::class)
 class CommonTypeModifiersTest : BaseModelTest() {
-
-    private fun TypeItem.annotationNames(): List<String?> {
-        return modifiers.annotations().map { it.qualifiedName }
-    }
-
-    private fun Item.annotationNames(): List<String?> {
-        return modifiers.annotations().map { it.qualifiedName }
-    }
 
     @Test
     fun `Test annotation on basic types`() {
@@ -980,7 +967,7 @@ class CommonTypeModifiersTest : BaseModelTest() {
             val fooClass = codebase.assertClass("test.pkg.Foo")
 
             // Platform nullability isn't possible from Kotlin
-            if (inputFormat.sourceLanguage != SourceLanguage.KOTLIN) {
+            if (inputFormat != InputFormat.KOTLIN) {
                 val platformString = fooClass.assertMethod("platformString", "").returnType()
                 assertThat(platformString.modifiers.nullability()).isEqualTo(PLATFORM)
             }
@@ -1060,7 +1047,7 @@ class CommonTypeModifiersTest : BaseModelTest() {
             val fooClass = codebase.assertClass("test.pkg.Foo")
 
             // Platform nullability isn't possible from Kotlin
-            if (inputFormat.sourceLanguage != SourceLanguage.KOTLIN) {
+            if (inputFormat != InputFormat.KOTLIN) {
                 val platformStringPlatformArray =
                     fooClass.assertMethod("platformStringPlatformArray", "").returnType()
                 platformStringPlatformArray.assertArrayTypeItem {
@@ -1070,7 +1057,7 @@ class CommonTypeModifiersTest : BaseModelTest() {
             }
 
             // Platform nullability isn't possible from Kotlin
-            if (inputFormat.sourceLanguage != SourceLanguage.KOTLIN) {
+            if (inputFormat != InputFormat.KOTLIN) {
                 val platformStringNullableArray =
                     fooClass.assertMethod("platformStringNullableArray", "").returnType()
                 platformStringNullableArray.assertArrayTypeItem {
@@ -1080,7 +1067,7 @@ class CommonTypeModifiersTest : BaseModelTest() {
             }
 
             // Platform nullability isn't possible from Kotlin
-            if (inputFormat.sourceLanguage != SourceLanguage.KOTLIN) {
+            if (inputFormat != InputFormat.KOTLIN) {
                 val nonNullStringPlatformArray =
                     fooClass.assertMethod("nonNullStringPlatformArray", "").returnType()
                 nonNullStringPlatformArray.assertArrayTypeItem {
@@ -1243,7 +1230,7 @@ class CommonTypeModifiersTest : BaseModelTest() {
         ) {
             val fooClass = codebase.assertClass("test.pkg.Foo")
 
-            if (inputFormat.sourceLanguage != SourceLanguage.KOTLIN) {
+            if (inputFormat != InputFormat.KOTLIN) {
                 val platformStringPlatformVararg =
                     fooClass
                         .assertMethod("platformStringPlatformVararg", "java.lang.String[]")
@@ -1256,7 +1243,7 @@ class CommonTypeModifiersTest : BaseModelTest() {
                 }
             }
 
-            if (inputFormat.sourceLanguage != SourceLanguage.KOTLIN) {
+            if (inputFormat != InputFormat.KOTLIN) {
                 val nullableStringPlatformVararg =
                     fooClass
                         .assertMethod("nullableStringPlatformVararg", "java.lang.String[]")
@@ -1269,7 +1256,7 @@ class CommonTypeModifiersTest : BaseModelTest() {
                 }
             }
 
-            if (inputFormat.sourceLanguage != SourceLanguage.KOTLIN) {
+            if (inputFormat != InputFormat.KOTLIN) {
                 val platformStringNullableVararg =
                     fooClass
                         .assertMethod("platformStringNullableVararg", "java.lang.String[]")
@@ -1282,7 +1269,7 @@ class CommonTypeModifiersTest : BaseModelTest() {
                 }
             }
 
-            if (inputFormat.sourceLanguage != SourceLanguage.KOTLIN) {
+            if (inputFormat != InputFormat.KOTLIN) {
                 val nullableStringNullableVararg =
                     fooClass
                         .assertMethod("nullableStringNullableVararg", "java.lang.String[]")
@@ -1372,7 +1359,7 @@ class CommonTypeModifiersTest : BaseModelTest() {
             val fooClass = codebase.assertClass("test.pkg.Foo")
 
             // Platform type doesn't exist in Kotlin
-            if (inputFormat.sourceLanguage != SourceLanguage.KOTLIN) {
+            if (inputFormat != InputFormat.KOTLIN) {
                 val nullableListPlatformString =
                     fooClass.assertMethod("nullableListPlatformString", "").returnType()
                 nullableListPlatformString.assertClassTypeItem {
@@ -1891,19 +1878,6 @@ class CommonTypeModifiersTest : BaseModelTest() {
             val enumConstant = fooEnum.fields().single()
             assertThat(enumConstant.isEnumConstant()).isTrue()
             enumConstant.type().assertHasNonNullNullability(expectAnnotation = false)
-
-            // method public static values(): test.pkg.Foo[];
-            val values = fooEnum.assertMethod("values", "").returnType()
-            values.assertHasNonNullNullability(expectAnnotation = false)
-            values.assertArrayTypeItem { componentType.assertHasNonNullNullability(false) }
-
-            // method public static getEntries(): kotlin.enums.EnumEntries<test.pkg.Foo>;
-            val enumEntries = fooEnum.assertMethod("getEntries", "").returnType()
-            enumEntries.assertClassTypeItem {
-                assertHasNonNullNullability(expectAnnotation = false)
-                val enumEntry = arguments.single()
-                enumEntry.assertHasNonNullNullability(expectAnnotation = false)
-            }
         }
     }
 

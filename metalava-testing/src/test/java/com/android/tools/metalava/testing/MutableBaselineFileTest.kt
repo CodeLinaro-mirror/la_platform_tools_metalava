@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2023 The Android Open Source Project
+ * Copyright (C) 2024 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava.model.testsuite
+package com.android.tools.metalava.testing
 
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -23,14 +23,14 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
 
-class MutableModelTestSuiteBaselineTest {
+class MutableBaselineFileTest {
 
     @get:Rule val temporaryFolder = TemporaryFolder()
 
     @Test
     fun `Update file`() {
         val projectDir = temporaryFolder.newFolder("project")
-        val file = projectDir.resolve("src/test/resources/model-test-suite-baseline.txt")
+        val file = projectDir.resolve(PROJECT_BASELINE_FILE)
         val contents =
             """
                 Class1
@@ -46,7 +46,7 @@ class MutableModelTestSuiteBaselineTest {
         file.parentFile.mkdirs()
         file.writeText(contents)
 
-        val baseline = ModelTestSuiteBaseline.forProject(projectDir)
+        val baseline = BaselineFile.forProject(projectDir, RESOURCE_PATH)
 
         // Clear the file.
         file.writeText("")
@@ -81,11 +81,11 @@ class MutableModelTestSuiteBaselineTest {
     @Test
     fun `Write empty`() {
         val projectDir = temporaryFolder.newFolder("project")
-        val file = projectDir.resolve("src/test/resources/model-test-suite-baseline.txt")
+        val file = projectDir.resolve(PROJECT_BASELINE_FILE)
         file.parentFile.mkdirs()
         file.writeText("")
 
-        val baseline = ModelTestSuiteBaseline.forProject(projectDir)
+        val baseline = BaselineFile.forProject(projectDir, RESOURCE_PATH)
         baseline.write()
 
         assertFalse(
@@ -97,11 +97,11 @@ class MutableModelTestSuiteBaselineTest {
     @Test
     fun `Write empty after removing last failure`() {
         val projectDir = temporaryFolder.newFolder("project")
-        val file = projectDir.resolve("src/test/resources/model-test-suite-baseline.txt")
+        val file = projectDir.resolve(PROJECT_BASELINE_FILE)
         file.parentFile.mkdirs()
         file.writeText("Class\n  Method\n")
 
-        val baseline = ModelTestSuiteBaseline.forProject(projectDir)
+        val baseline = BaselineFile.forProject(projectDir, RESOURCE_PATH)
         baseline.removeExpectedFailure("Class", "Method")
         baseline.write()
 
@@ -113,11 +113,16 @@ class MutableModelTestSuiteBaselineTest {
 
     @Test
     fun `Read resource file`() {
-        val baseline = ModelTestSuiteBaseline.fromResource
+        val baseline = BaselineFile.fromResource(RESOURCE_PATH)
 
         assertTrue(baseline.isExpectedFailure("Class1", "Method1"), message = "Class1/Method1")
         assertFalse(baseline.isExpectedFailure("Class1", "Method2"), message = "Class1/Method2")
         assertTrue(baseline.isExpectedFailure("Class2", "Method1"), message = "Class2/Method1")
         assertFalse(baseline.isExpectedFailure("Class3", "Method1"), message = "Class3/Method1")
+    }
+
+    companion object {
+        private const val RESOURCE_PATH = "baseline-for-testing.txt"
+        private const val PROJECT_BASELINE_FILE = "src/test/resources/$RESOURCE_PATH"
     }
 }

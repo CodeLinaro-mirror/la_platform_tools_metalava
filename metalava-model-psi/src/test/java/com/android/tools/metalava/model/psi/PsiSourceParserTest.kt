@@ -16,12 +16,90 @@
 
 package com.android.tools.metalava.model.psi
 
+import com.android.tools.lint.checks.infrastructure.TestFile
+import com.android.tools.metalava.model.Assertions
+import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.noOpAnnotationManager
+import com.android.tools.metalava.model.source.EnvironmentManager
 import com.android.tools.metalava.model.source.SourceSet
+import com.android.tools.metalava.reporter.BasicReporter
+import com.android.tools.metalava.reporter.Reporter
+import com.android.tools.metalava.testing.TemporaryFolderOwner
 import com.android.tools.metalava.testing.java
+import java.io.File
+import java.io.PrintWriter
+import java.io.StringWriter
 import kotlin.test.assertEquals
+import org.junit.Rule
 import org.junit.Test
+import org.junit.rules.TemporaryFolder
 
-class PsiSourceParserTest : BasePsiTest() {
+class PsiSourceParserTest : TemporaryFolderOwner, Assertions {
+
+    @get:Rule override val temporaryFolder = TemporaryFolder()
+
+    /** Project directory; initialized by [testCodebase] */
+    private lateinit var projectDir: File
+
+    /**
+     * Writer into which the output like error reports are written; initialized by [testCodebase]
+     */
+    private lateinit var outputWriter: StringWriter
+
+    /** The contents of [outputWriter], cleaned up to remove any references to temporary files. */
+    private val output
+        get() = cleanupString(outputWriter.toString(), projectDir)
+
+    /** The [Reporter] that is used to intercept reports. */
+    private lateinit var reporter: Reporter
+
+    private fun testCodebase(
+        vararg sources: TestFile,
+        action: (Codebase) -> Unit,
+    ) {
+        projectDir = temporaryFolder.newFolder()
+        PsiEnvironmentManager().use { environmentManager ->
+            outputWriter = StringWriter()
+            reporter = BasicReporter(PrintWriter(outputWriter))
+            val codebase =
+                createTestCodebase(
+                    environmentManager,
+                    projectDir,
+                    sources.toList(),
+                    reporter,
+                )
+            action(codebase)
+        }
+    }
+
+    private fun createTestCodebase(
+        environmentManager: EnvironmentManager,
+        directory: File,
+        sources: List<TestFile>,
+        reporter: Reporter,
+    ): Codebase {
+        return environmentManager
+            .createSourceParser(
+                reporter,
+                noOpAnnotationManager,
+            )
+            .parseSources(
+                createSourceSet(sources, directory),
+                SourceSet.empty(),
+                description = "Test Codebase",
+                classPath = emptyList(),
+            )
+    }
+
+    private fun createSourceSet(
+        sources: List<TestFile>,
+        sourceDirectory: File?,
+    ): SourceSet {
+        return SourceSet(
+            sources.map { it.createFile(sourceDirectory) },
+            listOfNotNull(sourceDirectory)
+        )
+    }
 
     @Test
     fun `Regression test for 124333557`() {

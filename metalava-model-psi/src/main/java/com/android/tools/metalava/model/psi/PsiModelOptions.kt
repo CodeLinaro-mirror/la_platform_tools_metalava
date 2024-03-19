@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2023 The Android Open Source Project
+ * Copyright (C) 2024 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,16 +14,15 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava.model.testsuite
+package com.android.tools.metalava.model.psi
 
-import java.util.Locale
+import com.android.tools.metalava.model.ModelOptions
 
-/** Encapsulates all the parameters for the [BaseModelTest] */
-data class TestParameters(
-    /** The [ModelSuiteRunner] to use. */
-    val runner: ModelSuiteRunner,
-    val inputFormat: InputFormat,
-) {
-    /** Override this to return the string that will be used in the test name. */
-    override fun toString(): String = "$runner,${inputFormat.name.lowercase(Locale.US)}"
+/**
+ * The model options provided by this model.
+ *
+ * Accessible outside this model to allow callers to specify it.
+ */
+object PsiModelOptions {
+    val useK2Uast = ModelOptions.Key.of("psi.useK2Uast", false)
 }

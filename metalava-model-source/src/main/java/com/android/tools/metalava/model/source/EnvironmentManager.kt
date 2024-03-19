@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model.source
 
 import com.android.tools.metalava.model.AnnotationManager
+import com.android.tools.metalava.model.ModelOptions
 import com.android.tools.metalava.reporter.Reporter
 import java.io.Closeable
 import java.io.File
@@ -37,8 +38,7 @@ interface EnvironmentManager : Closeable {
      *   any generated [SourceCodebase]s.
      * @param javaLanguageLevel the java language level as a string, e.g. 1.8, 17, etc.
      * @param kotlinLanguageLevel the kotlin language level as a string, e.g. 1.8, etc.
-     * @param useK2Uast true if this should use the Psi K2 model for processing kotlin. Only affects
-     *   the Psi model.
+     * @param modelOptions a set of model specific options provided by the caller.
      * @param jdkHome the optional path to the jdk home directory.
      */
     fun createSourceParser(
@@ -46,7 +46,7 @@ interface EnvironmentManager : Closeable {
         annotationManager: AnnotationManager,
         javaLanguageLevel: String = DEFAULT_JAVA_LANGUAGE_LEVEL,
         kotlinLanguageLevel: String = DEFAULT_KOTLIN_LANGUAGE_LEVEL,
-        useK2Uast: Boolean = false,
+        modelOptions: ModelOptions = ModelOptions.empty,
         jdkHome: File? = null,
     ): SourceParser
 }

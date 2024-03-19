@@ -315,8 +315,6 @@ class ApiFromTextTest : DriverTest() {
               public enum Foo {
                 ctor public Foo(int);
                 ctor public Foo(int, int);
-                method public static test.pkg.Foo valueOf(String);
-                method public static final test.pkg.Foo[] values();
                 enum_constant public static final test.pkg.Foo A;
                 enum_constant public static final test.pkg.Foo B;
               }

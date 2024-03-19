@@ -20,6 +20,7 @@ import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.fixUpTypeNullability
 import com.intellij.psi.PsiMethod
 import org.jetbrains.kotlin.descriptors.annotations.AnnotationUseSiteTarget
 import org.jetbrains.kotlin.psi.KtPropertyAccessor
@@ -69,11 +70,9 @@ private constructor(
         return name.hashCode()
     }
 
-    override fun toString(): String = "field ${containingClass.fullName()}.${name()}"
-
     override fun finishInitialization() {
         super.finishInitialization()
-        fieldType.finishInitialization(this)
+        fieldType.fixUpTypeNullability(this)
     }
 
     companion object {

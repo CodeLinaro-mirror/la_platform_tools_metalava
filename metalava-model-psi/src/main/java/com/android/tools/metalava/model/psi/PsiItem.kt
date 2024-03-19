@@ -45,8 +45,6 @@ internal constructor(
     override var docOnly = documentation.contains("@doconly")
     @Suppress("LeakingThis") override var removed = documentation.contains("@removed")
 
-    override val synthetic = false
-
     /** The source PSI provided by UAST */
     internal val sourcePsi: PsiElement? = (element as? UElement)?.sourcePsi
 

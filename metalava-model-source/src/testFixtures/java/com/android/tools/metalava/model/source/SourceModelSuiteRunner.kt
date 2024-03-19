@@ -16,11 +16,10 @@
 
 package com.android.tools.metalava.model.source
 
-import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.noOpAnnotationManager
-import com.android.tools.metalava.model.testsuite.InputFormat
 import com.android.tools.metalava.model.testsuite.ModelSuiteRunner
+import com.android.tools.metalava.model.testsuite.ModelSuiteRunner.TestConfiguration
 import com.android.tools.metalava.reporter.BasicReporter
 import com.android.tools.metalava.testing.getAndroidJar
 import java.io.File
@@ -38,22 +37,24 @@ class SourceModelSuiteRunner : ModelSuiteRunner {
     /** Get the [SourceModelProvider] implementation that is available. */
     private val sourceModelProvider = SourceModelProvider.getImplementation({ true }, "of any type")
 
-    override val supportedInputFormats =
-        InputFormat.values()
-            .filter { it.sourceLanguage in sourceModelProvider.supportedLanguages }
-            .toSet()
+    override val supportedInputFormats = sourceModelProvider.supportedInputFormats
+
+    override val testConfigurations: List<TestConfiguration> =
+        supportedInputFormats.flatMap { inputFormat ->
+            sourceModelProvider.modelOptionsList.map { modelOptions ->
+                TestConfiguration(inputFormat, modelOptions)
+            }
+        }
 
     override fun createCodebaseAndRun(
-        tempDir: File,
-        input: List<TestFile>,
-        test: (Codebase) -> Unit,
+        inputs: ModelSuiteRunner.TestInputs,
+        test: (Codebase) -> Unit
     ) {
         sourceModelProvider.createEnvironmentManager(forTesting = true).use { environmentManager ->
             val codebase =
                 createTestCodebase(
                     environmentManager,
-                    tempDir,
-                    input,
+                    inputs,
                     listOf(getAndroidJar()),
                 )
             test(codebase)
@@ -62,20 +63,27 @@ class SourceModelSuiteRunner : ModelSuiteRunner {
 
     private fun createTestCodebase(
         environmentManager: EnvironmentManager,
-        directory: File,
-        sources: List<TestFile>,
+        inputs: ModelSuiteRunner.TestInputs,
         classPath: List<File>,
     ): Codebase {
         val reporter = BasicReporter(PrintWriter(System.err))
-        return environmentManager
-            .createSourceParser(reporter, noOpAnnotationManager)
-            .parseSources(
-                SourceSet(sources.map { it.createFile(directory) }, listOf(directory)),
-                SourceSet.empty(),
-                description = "Test Codebase",
-                classPath = classPath,
+        val sourceParser =
+            environmentManager.createSourceParser(
+                reporter = reporter,
+                annotationManager = noOpAnnotationManager,
+                modelOptions = inputs.modelOptions,
             )
+        return sourceParser.parseSources(
+            sourceSet(inputs.mainSourceDir),
+            sourceSet(inputs.commonSourceDir),
+            description = "Test Codebase",
+            classPath = classPath,
+        )
     }
+
+    private fun sourceSet(sourceDir: ModelSuiteRunner.SourceDir?) =
+        if (sourceDir == null) SourceSet.empty()
+        else SourceSet(sourceDir.createFiles(), listOf(sourceDir.dir))
 
     override fun toString(): String = sourceModelProvider.providerName
 }

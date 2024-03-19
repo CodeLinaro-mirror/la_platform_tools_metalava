@@ -1,16 +1,26 @@
 com.android.tools.metalava.model.testsuite.BootstrapSourceModelProviderTest
-  210 Test Method exception list[psi,java]
+  210 Test Method exception list[psi,java,k1]
+  210 Test Method exception list[psi,java,k2]
 
 com.android.tools.metalava.model.testsuite.annotationitem.CommonAnnotationItemTest
-  annotation with enum values[psi,java]
+  annotation with enum values[psi,java,k1]
+  annotation with enum values[psi,java,k2]
+
+com.android.tools.metalava.model.testsuite.propertyitem.CommonPropertyItemTest
+  Test property delegate to Kotlin object[psi,kotlin,k2]
 
 com.android.tools.metalava.model.testsuite.typeitem.CommonTypeModifiersTest
-  Test inner parameterized types with annotations[psi,java]
-  Test nullability of outer classes[psi,java]
+  Test inner parameterized types with annotations[psi,java,k1]
+  Test inner parameterized types with annotations[psi,java,k2]
+  Test nullability of outer classes[psi,java,k1]
+  Test nullability of outer classes[psi,java,k2]
 
 com.android.tools.metalava.model.testsuite.typeitem.CommonTypeParameterItemTest
-  Test type parameter with annotations[psi,kotlin]
+  Test type parameter with annotations[psi,kotlin,k1]
+  Test type parameter with annotations[psi,kotlin,k2]
 
 com.android.tools.metalava.model.testsuite.typeitem.CommonTypeStringTest
-  Type string[psi,java,null annotated parameterized inner type - annotated]
-  Type string[psi,java,null annotated parameterized inner type - kotlin nulls]
+  Type string[psi,java,k1,null annotated parameterized inner type - annotated]
+  Type string[psi,java,k1,null annotated parameterized inner type - kotlin nulls]
+  Type string[psi,java,k2,null annotated parameterized inner type - annotated]
+  Type string[psi,java,k2,null annotated parameterized inner type - kotlin nulls]

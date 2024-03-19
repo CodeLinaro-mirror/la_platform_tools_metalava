@@ -134,10 +134,6 @@ class NullabilityAnnotationsValidator(
         if (type == null) {
             throw MetalavaCliException("Missing type on $method item $label")
         }
-        if (method.synthetic) {
-            // Don't validate items which don't exist in source such as an enum's valueOf(String)
-            return
-        }
         val annotations = item.modifiers.annotations()
         val nullabilityAnnotations = annotations.filter(this::isAnyNullabilityAnnotation)
         if (nullabilityAnnotations.size > 1) {

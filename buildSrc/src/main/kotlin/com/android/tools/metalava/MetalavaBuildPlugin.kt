@@ -27,6 +27,8 @@ import java.util.Properties
 import org.gradle.api.JavaVersion
 import org.gradle.api.Plugin
 import org.gradle.api.Project
+import org.gradle.api.artifacts.Configuration
+import org.gradle.api.component.AdhocComponentWithVariants
 import org.gradle.api.plugins.JavaPlugin
 import org.gradle.api.plugins.JavaPluginExtension
 import org.gradle.api.provider.Provider
@@ -103,7 +105,11 @@ class MetalavaBuildPlugin : Plugin<Project> {
 
         testTask.configure { task ->
             task as Test
-            task.jvmArgs = listOf("--add-opens=java.base/java.lang=ALL-UNNAMED")
+            task.jvmArgs = listOf(
+                "--add-opens=java.base/java.lang=ALL-UNNAMED",
+                // Needed for CustomizableParameterizedRunner
+                "--add-opens=java.base/java.lang.reflect=ALL-UNNAMED",
+            )
             task.maxParallelForks =
                 (Runtime.getRuntime().availableProcessors() / 2).takeIf { it > 0 } ?: 1
             task.testLogging.events =
@@ -132,9 +138,17 @@ class MetalavaBuildPlugin : Plugin<Project> {
             )
 
         project.extensions.getByType<PublishingExtension>().apply {
-            publications {
-                it.create<MavenPublication>(publicationName) {
-                    from(project.components["java"])
+            publications { publicationContainer ->
+                publicationContainer.create<MavenPublication>(publicationName) {
+                    val javaComponent = project.components["java"] as AdhocComponentWithVariants
+                    // Disable publishing of test fixtures as we consider them internal
+                    project.configurations.findByName("testFixturesApiElements")?.let {
+                        javaComponent.withVariantsFromConfiguration(it) { it.skip() }
+                    }
+                    project.configurations.findByName("testFixturesRuntimeElements")?.let {
+                        javaComponent.withVariantsFromConfiguration(it) { it.skip() }
+                    }
+                    from(javaComponent)
                     suppressPomMetadataWarningsFor("testFixturesApiElements")
                     suppressPomMetadataWarningsFor("testFixturesRuntimeElements")
                     pom { pom ->

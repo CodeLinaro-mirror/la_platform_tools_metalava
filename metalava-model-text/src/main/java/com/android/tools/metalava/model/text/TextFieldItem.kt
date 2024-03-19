@@ -48,8 +48,6 @@ internal class TextFieldItem(
 
     override fun initialValue(requireConstant: Boolean): Any? = constantValue
 
-    override fun toString(): String = "field ${containingClass().fullName()}.${name()}"
-
     override fun duplicate(targetContainingClass: ClassItem): TextFieldItem {
         val duplicated =
             TextFieldItem(

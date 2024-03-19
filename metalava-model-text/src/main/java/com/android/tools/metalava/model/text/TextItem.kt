@@ -29,7 +29,6 @@ internal abstract class TextItem(
     modifiers: DefaultModifierList,
 ) : DefaultItem(modifiers) {
 
-    override val synthetic = false
     override var originallyHidden = false
     override var hidden = false
     override var removed = false

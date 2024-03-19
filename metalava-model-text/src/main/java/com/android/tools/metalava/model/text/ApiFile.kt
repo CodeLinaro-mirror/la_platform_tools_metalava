@@ -29,8 +29,10 @@ import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.DefaultAnnotationItem
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.DefaultTypeParameterList
+import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.JAVA_LANG_DEPRECATED
 import com.android.tools.metalava.model.MetalavaApi
+import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
 import com.android.tools.metalava.model.TypeItem
@@ -892,6 +894,16 @@ private constructor(
                 token.lastIndexOf('.') + 1
             ) // For inner classes, strip outer classes from name
         val parameters = parseParameterList(tokenizer, typeItemFactory)
+        token = tokenizer.requireToken()
+        var throwsList = emptyList<ExceptionTypeItem>()
+        if ("throws" == token) {
+            throwsList = parseThrows(tokenizer, typeItemFactory)
+            token = tokenizer.current
+        }
+        if (";" != token) {
+            throw ApiParseException("expected ; found $token", tokenizer)
+        }
+
         method =
             TextConstructorItem(
                 codebase,
@@ -903,16 +915,28 @@ private constructor(
                 tokenizer.pos()
             )
         method.typeParameterList = typeParameterList
-        token = tokenizer.requireToken()
-        if ("throws" == token) {
-            token = parseThrows(tokenizer, method, typeItemFactory)
-        }
-        if (";" != token) {
-            throw ApiParseException("expected ; found $token", tokenizer)
-        }
+        method.setThrowsTypes(throwsList)
+
         if (!containingClass.constructors().contains(method)) {
             containingClass.addConstructor(method)
         }
+    }
+
+    /**
+     * Check whether the method is a synthetic enum method.
+     *
+     * i.e. `getEntries()` from Kotlin and `values()` and `valueOf(String)` from both Java and
+     * Kotlin.
+     */
+    private fun isEnumSyntheticMethod(
+        containingClass: ClassItem,
+        name: String,
+        parameters: List<ParameterItem>
+    ): Boolean {
+        if (!containingClass.isEnum()) return false
+        val parameterCount = parameters.size
+        return (parameterCount == 0 && (name == "values" || name == "getEntries")) ||
+            (parameterCount == 1 && name == "valueOf" && parameters[0].type().isString())
     }
 
     private fun parseMethod(
@@ -976,20 +1000,33 @@ private constructor(
         if (cl.isInterface() && !modifiers.isDefault() && !modifiers.isStatic()) {
             modifiers.setAbstract(true)
         }
-        method =
-            TextMethodItem(codebase, name, cl, modifiers, returnType, parameters, tokenizer.pos())
-        method.typeParameterList = typeParameterList
+
+        var throwsList = emptyList<ExceptionTypeItem>()
+        var defaultAnnotationMethodValue = ""
+
         when (token) {
             "throws" -> {
-                token = parseThrows(tokenizer, method, typeItemFactory)
+                throwsList = parseThrows(tokenizer, typeItemFactory)
+                token = tokenizer.current
             }
             "default" -> {
-                token = parseDefault(tokenizer, method)
+                defaultAnnotationMethodValue = parseDefault(tokenizer)
+                token = tokenizer.current
             }
         }
         if (";" != token) {
             throw ApiParseException("expected ; found $token", tokenizer)
         }
+
+        // Ignore enum synthetic methods.
+        if (isEnumSyntheticMethod(cl, name, parameters)) return
+
+        method =
+            TextMethodItem(codebase, name, cl, modifiers, returnType, parameters, tokenizer.pos())
+        method.typeParameterList = typeParameterList
+        method.setThrowsTypes(throwsList)
+        method.setAnnotationDefault(defaultAnnotationMethodValue)
+
         if (!cl.methods().contains(method)) {
             cl.addMethod(method)
         }
@@ -1494,24 +1531,23 @@ private constructor(
         }
     }
 
-    private fun parseDefault(tokenizer: Tokenizer, method: TextMethodItem): String {
-        val sb = StringBuilder()
-        while (true) {
-            val token = tokenizer.requireToken()
-            if (";" == token) {
-                method.setAnnotationDefault(sb.toString())
-                return token
-            } else {
-                sb.append(token)
+    private fun parseDefault(tokenizer: Tokenizer): String {
+        return buildString {
+            while (true) {
+                val token = tokenizer.requireToken()
+                if (";" == token) {
+                    break
+                } else {
+                    append(token)
+                }
             }
         }
     }
 
     private fun parseThrows(
         tokenizer: Tokenizer,
-        method: TextMethodItem,
         typeItemFactory: TextTypeItemFactory,
-    ): String {
+    ): List<ExceptionTypeItem> {
         var token = tokenizer.requireToken()
         val throwsList = buildList {
             var comma = true
@@ -1539,9 +1575,7 @@ private constructor(
             }
         }
 
-        method.setThrowsTypes(throwsList)
-
-        return token
+        return throwsList
     }
 
     /**

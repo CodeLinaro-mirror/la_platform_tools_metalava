@@ -23,13 +23,11 @@ import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import kotlin.test.assertEquals
 import org.junit.Test
-import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 
-@RunWith(Parameterized::class)
 class CommonParameterizedTypeItemTest : BaseModelTest() {
 
-    @Parameterized.Parameter(1) lateinit var params: TestParams
+    @Parameterized.Parameter(0) lateinit var params: TestParams
 
     data class TestParams(
         val javaTypeParameter: String? = null,
@@ -113,11 +111,7 @@ class CommonParameterizedTypeItemTest : BaseModelTest() {
                 ),
             )
 
-        @JvmStatic
-        @Parameterized.Parameters(name = "{0},{1}")
-        fun data(): Collection<Array<Any>> {
-            return crossProduct(params)
-        }
+        @JvmStatic @Parameterized.Parameters fun data() = params
     }
 
     internal data class TestContext(

@@ -15,13 +15,15 @@
  */
 
 plugins {
-    `java-library`
+    application
     id("org.jetbrains.kotlin.jvm")
     id("metalava-build-plugin")
 }
 
+application { mainClass = "com.android.tools.metalava.model.testsuite.cli.UpdateBaseline" }
+
 dependencies {
-    implementation(project(":metalava-model-testsuite"))
+    implementation(project(":metalava-testing"))
 
     // Needed for the update baseline command.
     implementation(libs.clikt)

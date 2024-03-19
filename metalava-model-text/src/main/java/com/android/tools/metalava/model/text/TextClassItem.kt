@@ -193,8 +193,6 @@ internal open class TextClassItem(
         return emit
     }
 
-    override fun toString(): String = "class ${qualifiedName()}"
-
     override fun createDefaultConstructor(): ConstructorItem {
         return TextConstructorItem.createDefaultConstructor(codebase, this, position)
     }

@@ -235,6 +235,8 @@ interface ClassItem : Item, TypeParameterListOwner {
         visitor.visit(this)
     }
 
+    override fun toStringForItem() = "class ${qualifiedName()}"
+
     companion object {
         /** Looks up the retention policy for the given class */
         fun findRetention(cls: ClassItem): AnnotationRetention {

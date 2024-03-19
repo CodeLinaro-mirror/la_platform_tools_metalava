@@ -141,9 +141,12 @@ class MainCommand(
         options = optionGroup
 
         val sourceModelProvider =
-            SourceModelProvider.getImplementation(optionGroup.sourceModelProvider)
+            // Use the [SourceModelProvider] specified by the [TestEnvironment], if any.
+            executionEnvironment.testEnvironment?.sourceModelProvider
+            // Otherwise, use the one specified on the command line, or the default.
+            ?: SourceModelProvider.getImplementation(optionGroup.sourceModelProvider)
         sourceModelProvider.createEnvironmentManager(disableStderrDumping()).use {
-            processFlags(it, progressTracker)
+            processFlags(executionEnvironment, it, progressTracker)
         }
 
         if (optionGroup.allReporters.any { it.hasErrors() } && !optionGroup.passBaselineUpdates) {

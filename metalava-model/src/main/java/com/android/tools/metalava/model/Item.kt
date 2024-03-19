@@ -97,12 +97,6 @@ interface Item {
     /** True if this element is only intended for documentation */
     var docOnly: Boolean
 
-    /**
-     * True if this is a synthetic element, such as the generated "value" and "valueOf" methods in
-     * enums
-     */
-    val synthetic: Boolean
-
     /** True if this item is either hidden or removed */
     fun isHiddenOrRemoved(): Boolean = hidden || removed
 
@@ -156,6 +150,12 @@ interface Item {
 
     override fun hashCode(): Int
 
+    /** Calls [toStringForItem]. */
+    override fun toString(): String
+
+    /** Provides a string representation of the item, suitable for use while debugging. */
+    fun toStringForItem(): String
+
     /**
      * Returns true if this item requires nullness information (e.g. for a method where either the
      * return value or any of the parameters are non-primitives. Note that it doesn't consider
@@ -172,11 +172,11 @@ interface Item {
     /**
      * Get this element's *implicit* nullness, if any.
      *
-     * This returns true for implicitly nullable elements, such as the parameter to the
-     * [Object.equals] method, false for implicitly non-null elements (such as annotation type
-     * members), and null if there is no implicit nullness.
+     * This returns [TypeNullability.NULLABLE] for implicitly nullable elements, such as the
+     * parameter to the [Object.equals] method, [TypeNullability.NONNULL] for implicitly non-null
+     * elements (such as annotation type members), and `null` if there is no implicit nullness.
      */
-    fun implicitNullness(): Boolean? = null
+    fun implicitNullness(): TypeNullability? = null
 
     /**
      * Whether this item was loaded from the classpath (e.g. jar dependencies) rather than be
@@ -429,4 +429,6 @@ abstract class DefaultItem(final override val modifiers: DefaultModifierList) : 
     override val showability: Showability by lazy {
         codebase.annotationManager.getShowabilityForItem(this)
     }
+
+    final override fun toString() = toStringForItem()
 }

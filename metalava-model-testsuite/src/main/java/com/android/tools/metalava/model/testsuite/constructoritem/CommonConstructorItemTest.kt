@@ -21,11 +21,8 @@ import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import org.junit.Test
-import org.junit.runner.RunWith
-import org.junit.runners.Parameterized
 
 /** Common tests for implementations of [MethodItem]. */
-@RunWith(Parameterized::class)
 class CommonConstructorItemTest : BaseModelTest() {
 
     @Test

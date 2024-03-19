@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava
 
+import com.android.tools.metalava.cli.common.ARG_ERROR
 import com.android.tools.metalava.lint.DefaultLintErrorMessage
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.testing.java
@@ -533,9 +534,195 @@ class ApiAnalyzerTest : DriverTest() {
             expectedIssues =
                 """
                     src/test/pkg/HiddenInterface.kt:5: error: Class test.pkg.HiddenInterface is hidden but was referenced (in return type) from public method test.pkg.PublicClass.returnsHiddenInterface() [ReferencesHidden]
-                    src/test/pkg/HiddenInterface.kt:5: warning: Method test.pkg.PublicClass.returnsHiddenInterface returns unavailable type HiddenInterface [UnavailableSymbol]
+                    src/test/pkg/HiddenInterface.kt:5: warning: Return type of unavailable type test.pkg.HiddenInterface in test.pkg.PublicClass.returnsHiddenInterface() [UnavailableSymbol]
                     src/test/pkg/HiddenInterface.kt:5: warning: Method test.pkg.PublicClass.returnsHiddenInterface() references hidden type test.pkg.HiddenInterface. [HiddenTypeParameter]
+                """,
+        )
+    }
+
+    @Test
+    fun `Test PrivateSuperclass for inner class`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                        package test.pkg;
+                        public class Container {
+                            private class PrivateInnerClass {}
+                            public class PublicInnerClass extends PrivateInnerClass {}
+                        }
+                    """
+                            .trimIndent()
+                    )
+                ),
+            api =
                 """
+                package test.pkg {
+                  public class Container {
+                    ctor public Container();
+                  }
+                  public class Container.PublicInnerClass {
+                    ctor public Container.PublicInnerClass();
+                  }
+                }
+            """
+                    .trimIndent(),
+            expectedIssues =
+                "src/test/pkg/Container.java:4: warning: Public class test.pkg.Container.PublicInnerClass extends private class test.pkg.Container.PrivateInnerClass [PrivateSuperclass]"
+        )
+    }
+
+    @Test
+    fun `Test references deprecated errors do not apply to inner class of deprecated class`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                        package test.pkg;
+                        /** @deprecated */
+                        @Deprecated
+                        public class DeprecatedOuterClass {
+                            public class EffectivelyDeprecatedInnerClass extends DeprecatedOuterClass {
+                                public void usesDeprecatedOuterClass(DeprecatedOuterClass doc) {}
+                            }
+                        }
+                    """
+                    ),
+                    java(
+                        """
+                        package test.pkg;
+                        public class NotDeprecatedClass extends DeprecatedOuterClass {
+                            public void usesDeprecatedOuterClass(DeprecatedOuterClass doc) {}
+                        }
+                    """
+                    )
+                ),
+            api =
+                """
+                    package test.pkg {
+                      @Deprecated public class DeprecatedOuterClass {
+                        ctor @Deprecated public DeprecatedOuterClass();
+                      }
+                      @Deprecated public class DeprecatedOuterClass.EffectivelyDeprecatedInnerClass extends test.pkg.DeprecatedOuterClass {
+                        ctor @Deprecated public DeprecatedOuterClass.EffectivelyDeprecatedInnerClass();
+                        method @Deprecated public void usesDeprecatedOuterClass(test.pkg.DeprecatedOuterClass!);
+                      }
+                      public class NotDeprecatedClass extends test.pkg.DeprecatedOuterClass {
+                        ctor public NotDeprecatedClass();
+                        method public void usesDeprecatedOuterClass(test.pkg.DeprecatedOuterClass!);
+                      }
+                    }
+                """,
+            extraArguments =
+                arrayOf(ARG_ERROR, "ReferencesDeprecated", ARG_ERROR, "ExtendsDeprecated"),
+            expectedFail = DefaultLintErrorMessage,
+            expectedIssues =
+                """
+                    src/test/pkg/NotDeprecatedClass.java:3: error: Parameter references deprecated type test.pkg.DeprecatedOuterClass in test.pkg.NotDeprecatedClass.usesDeprecatedOuterClass(): this method should also be deprecated [ReferencesDeprecated]
+                    src/test/pkg/NotDeprecatedClass.java:2: error: Extending deprecated super class class test.pkg.DeprecatedOuterClass from test.pkg.NotDeprecatedClass: this class should also be deprecated [ExtendsDeprecated]
+                """,
+        )
+    }
+
+    @Test
+    fun `Test that usage of effectively deprecated class is flagged`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                        package test.pkg;
+                        /** @deprecated */
+                        @Deprecated
+                        public class DeprecatedOuterClass {
+                            public class EffectivelyDeprecatedInnerClass {}
+                        }
+                    """
+                    ),
+                    java(
+                        """
+                        package test.pkg;
+                        public class NotDeprecatedClass extends DeprecatedOuterClass.EffectivelyDeprecatedInnerClass {
+                            public void usesEffectivelyDeprecatedInnerClass(DeprecatedOuterClass.EffectivelyDeprecatedInnerClass edic) {}
+                        }
+                    """
+                    )
+                ),
+            api =
+                """
+                package test.pkg {
+                  @Deprecated public class DeprecatedOuterClass {
+                    ctor @Deprecated public DeprecatedOuterClass();
+                  }
+                  @Deprecated public class DeprecatedOuterClass.EffectivelyDeprecatedInnerClass {
+                    ctor @Deprecated public DeprecatedOuterClass.EffectivelyDeprecatedInnerClass();
+                  }
+                  public class NotDeprecatedClass extends test.pkg.DeprecatedOuterClass.EffectivelyDeprecatedInnerClass {
+                    ctor public NotDeprecatedClass();
+                    method public void usesEffectivelyDeprecatedInnerClass(test.pkg.DeprecatedOuterClass.EffectivelyDeprecatedInnerClass!);
+                  }
+                }
+            """,
+            extraArguments =
+                arrayOf(ARG_ERROR, "ReferencesDeprecated", ARG_ERROR, "ExtendsDeprecated"),
+            expectedFail = DefaultLintErrorMessage,
+            expectedIssues =
+                """
+                src/test/pkg/NotDeprecatedClass.java:3: error: Parameter references deprecated type test.pkg.DeprecatedOuterClass.EffectivelyDeprecatedInnerClass in test.pkg.NotDeprecatedClass.usesEffectivelyDeprecatedInnerClass(): this method should also be deprecated [ReferencesDeprecated]
+                src/test/pkg/NotDeprecatedClass.java:3: error: Parameter references deprecated type test.pkg.DeprecatedOuterClass in test.pkg.NotDeprecatedClass.usesEffectivelyDeprecatedInnerClass(): this method should also be deprecated [ReferencesDeprecated]
+                src/test/pkg/NotDeprecatedClass.java:2: error: Extending deprecated super class class test.pkg.DeprecatedOuterClass.EffectivelyDeprecatedInnerClass from test.pkg.NotDeprecatedClass: this class should also be deprecated [ExtendsDeprecated]
+            """,
+        )
+    }
+
+    @Test
+    fun `Test usage of deprecated type `() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            /** @deprecated */
+                            @Deprecated
+                            public class DeprecatedClass {}
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            import java.util.List;
+                            public class NotDeprecatedClass {
+                                public List<DeprecatedClass> usesDeprecated(List<DeprecatedClass> list) {
+                                    return list;
+                                }
+                            }
+                        """
+                    )
+                ),
+            api =
+                """
+                package test.pkg {
+                  @Deprecated public class DeprecatedClass {
+                    ctor @Deprecated public DeprecatedClass();
+                  }
+                  public class NotDeprecatedClass {
+                    ctor public NotDeprecatedClass();
+                    method public java.util.List<test.pkg.DeprecatedClass!>! usesDeprecated(java.util.List<test.pkg.DeprecatedClass!>!);
+                  }
+                }
+            """
+                    .trimIndent(),
+            extraArguments = arrayOf(ARG_ERROR, "ReferencesDeprecated"),
+            expectedFail = DefaultLintErrorMessage,
+            expectedIssues =
+                """
+                src/test/pkg/NotDeprecatedClass.java:4: error: Return type references deprecated type test.pkg.DeprecatedClass in test.pkg.NotDeprecatedClass.usesDeprecated(): this method should also be deprecated [ReferencesDeprecated]
+                src/test/pkg/NotDeprecatedClass.java:4: error: Parameter references deprecated type test.pkg.DeprecatedClass in test.pkg.NotDeprecatedClass.usesDeprecated(): this method should also be deprecated [ReferencesDeprecated]
+            """
+                    .trimIndent()
         )
     }
 }
