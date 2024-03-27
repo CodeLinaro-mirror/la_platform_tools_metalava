@@ -40,10 +40,12 @@ class MetalavaModelProviderPlugin : Plugin<Project> {
             }
 
             val modelProject = project(":metalava-model")
+            val reporterProject = project(":metalava-reporter")
             val testSuiteProject = project(":metalava-model-testsuite")
 
-            // Add a dependency onto the metalava-model project.
+            // Add a dependency onto the metalava-model and metalava-reporter projects.
             dependencies.add("implementation", modelProject)
+            dependencies.add("implementation", reporterProject)
 
             // Add dependencies to the metalava-model-testsuite project in the testImplementation
             // and modelTestSuite configurations. The first is needed for compilation, the second is

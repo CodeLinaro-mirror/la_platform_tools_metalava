@@ -17,6 +17,8 @@
 package com.android.tools.metalava.binarycompatibility
 
 import com.android.tools.metalava.DriverTest
+import com.android.tools.metalava.model.provider.Capability
+import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.testing.kotlin
 import org.junit.Test
@@ -124,6 +126,7 @@ class BinaryCompatibilityPackagesTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Add non-public (non-API) type to API package (Compatible)`() {
         check(

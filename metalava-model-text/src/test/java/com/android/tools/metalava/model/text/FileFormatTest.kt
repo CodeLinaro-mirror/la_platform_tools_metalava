@@ -18,6 +18,7 @@ package com.android.tools.metalava.model.text
 
 import java.io.LineNumberReader
 import java.io.StringReader
+import java.nio.file.Path
 import kotlin.test.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertThrows
@@ -41,7 +42,9 @@ class FileFormatTest {
         expectedNextLine: String? = null
     ) {
         val reader = LineNumberReader(StringReader(apiText.trimIndent()))
-        val parseHeader = { FileFormat.parseHeader("api.txt", reader, formatForLegacyFiles) }
+        val parseHeader = {
+            FileFormat.parseHeader(Path.of("api.txt"), reader, formatForLegacyFiles)
+        }
         if (expectedError == null) {
             val format = parseHeader()
             assertEquals(expectedFormat, format)
@@ -68,7 +71,7 @@ class FileFormatTest {
         val reader = LineNumberReader(StringReader(header.trimIndent()))
         assertEquals(
             format,
-            FileFormat.parseHeader("api.txt", reader),
+            FileFormat.parseHeader(Path.of("api.txt"), reader),
             message = "format parsed from header does not match"
         )
         val nextLine = reader.readLine()

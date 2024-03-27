@@ -42,8 +42,13 @@ import com.android.tools.metalava.cli.compatibility.ARG_CHECK_COMPATIBILITY_BASE
 import com.android.tools.metalava.cli.compatibility.ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED
 import com.android.tools.metalava.cli.compatibility.ARG_ERROR_MESSAGE_CHECK_COMPATIBILITY_RELEASED
 import com.android.tools.metalava.cli.signature.ARG_FORMAT
+import com.android.tools.metalava.model.provider.Capability
+import com.android.tools.metalava.model.psi.PsiModelOptions
 import com.android.tools.metalava.model.source.SourceModelProvider
 import com.android.tools.metalava.model.source.SourceSet
+import com.android.tools.metalava.model.source.utils.DOT_KT
+import com.android.tools.metalava.model.testing.CodebaseCreatorConfig
+import com.android.tools.metalava.model.testing.CodebaseCreatorConfigAware
 import com.android.tools.metalava.model.text.ApiClassResolution
 import com.android.tools.metalava.model.text.ApiFile
 import com.android.tools.metalava.model.text.FileFormat
@@ -79,16 +84,22 @@ import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 
 @RunWith(DriverTestRunner::class)
-abstract class DriverTest : TemporaryFolderOwner {
+abstract class DriverTest : CodebaseCreatorConfigAware<SourceModelProvider>, TemporaryFolderOwner {
     @get:Rule override val temporaryFolder = TemporaryFolder()
 
     @get:Rule val errorCollector = ErrorCollector()
 
-    /** The [SourceModelTestInfo] under which this test will be run. */
-    internal var sourceModelTestInfo: SourceModelTestInfo =
-        SourceModelTestInfo(
-            SourceModelProvider.getImplementation({ it.providerName == "psi" }, "psi")
-        )
+    /** The [CodebaseCreatorConfig] under which this test will be run. */
+    final override lateinit var codebaseCreatorConfig: CodebaseCreatorConfig<SourceModelProvider>
+
+    /**
+     * The setting of [PsiModelOptions.useK2Uast]. Is computed lazily as it depends on
+     * [codebaseCreatorConfig] which is set after object initialization.
+     */
+    protected val isK2 by
+        lazy(LazyThreadSafetyMode.NONE) {
+            codebaseCreatorConfig.modelOptions[PsiModelOptions.useK2Uast]
+        }
 
     @Before
     fun setup() {
@@ -530,6 +541,17 @@ abstract class DriverTest : TemporaryFolderOwner {
 
         // Ensure that lint infrastructure (for UAST) knows it's dealing with a test
         LintCliClient(LintClient.CLIENT_UNIT_TESTS)
+
+        // Verify that a test that provided kotlin code is only being run against a provider that
+        // supports kotlin code.
+        val anyKotlin =
+            sourceFiles.any { it.targetPath.endsWith(DOT_KT) } ||
+                commonSourceFiles.any { it.targetPath.endsWith(DOT_KT) }
+        if (anyKotlin && Capability.KOTLIN !in codebaseCreatorConfig.creator.capabilities) {
+            error(
+                "Provider ${codebaseCreatorConfig.providerName} does not support Kotlin; please add `@RequiresCapabilities(Capability.KOTLIN)` to the test"
+            )
+        }
 
         val releasedApiCheck =
             CompatibilityCheckRequest.create(
@@ -1071,8 +1093,8 @@ abstract class DriverTest : TemporaryFolderOwner {
         val testEnvironment =
             TestEnvironment(
                 skipEmitPackages = skipEmitPackages,
-                sourceModelProvider = sourceModelTestInfo.sourceModelProvider,
-                modelOptions = sourceModelTestInfo.modelOptions,
+                sourceModelProvider = codebaseCreatorConfig.creator,
+                modelOptions = codebaseCreatorConfig.modelOptions,
             )
 
         val actualOutput =
@@ -1326,29 +1348,6 @@ abstract class DriverTest : TemporaryFolderOwner {
             // For each path in the list generate an option with the path as the value.
             return paths.flatMap { listOf(optionName, it) }.toTypedArray()
         }
-    }
-
-    protected fun uastCheck(
-        isK2: Boolean,
-        @Language("TEXT") api: String? = null,
-        format: FileFormat = FileFormat.LATEST,
-        expectedIssues: String? = "",
-        extraArguments: Array<String> = emptyArray(),
-        expectedFail: String? = null,
-        @Language("TEXT") apiLint: String? = null,
-        sourceFiles: Array<TestFile> = emptyArray(),
-        commonSourceFiles: Array<TestFile> = emptyArray(),
-    ) {
-        check(
-            api = api,
-            format = format,
-            extraArguments = extraArguments + listOfNotNull(ARG_USE_K2_UAST.takeIf { isK2 }),
-            expectedIssues = expectedIssues,
-            expectedFail = expectedFail,
-            apiLint = apiLint,
-            sourceFiles = sourceFiles,
-            commonSourceFiles = commonSourceFiles,
-        )
     }
 
     /** Checks that the given zip annotations file contains the given XML package contents */

@@ -20,9 +20,11 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.reporter.FileLocation
 
 internal class TurbineFieldItem(
     codebase: TurbineBasedCodebase,
+    fileLocation: FileLocation,
     private val name: String,
     private val containingClass: ClassItem,
     private val type: TypeItem,
@@ -30,7 +32,7 @@ internal class TurbineFieldItem(
     documentation: String,
     private val isEnumConstant: Boolean,
     private val fieldValue: TurbineFieldValue?,
-) : TurbineItem(codebase, modifiers, documentation), FieldItem {
+) : TurbineItem(codebase, fileLocation, modifiers, documentation), FieldItem {
 
     override var inheritedFrom: ClassItem? = null
 
@@ -55,6 +57,7 @@ internal class TurbineFieldItem(
         val duplicateField =
             TurbineFieldItem(
                 codebase,
+                fileLocation,
                 name,
                 targetContainingClass,
                 type.duplicate(),

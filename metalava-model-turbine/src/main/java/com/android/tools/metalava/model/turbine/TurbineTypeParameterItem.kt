@@ -22,6 +22,7 @@ import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.type.DefaultTypeModifiers
 import com.android.tools.metalava.model.type.DefaultVariableTypeItem
+import com.android.tools.metalava.reporter.FileLocation
 
 internal class TurbineTypeParameterItem(
     codebase: TurbineBasedCodebase,
@@ -30,6 +31,7 @@ internal class TurbineTypeParameterItem(
 ) :
     TurbineItem(
         codebase,
+        FileLocation.UNKNOWN,
         modifiers,
         "",
     ),

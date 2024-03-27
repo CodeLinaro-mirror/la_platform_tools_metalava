@@ -23,7 +23,6 @@ import com.android.tools.metalava.model.AnnotationAttributeValue
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.AnnotationTarget
 import com.android.tools.metalava.model.ClassItem
-import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.DefaultAnnotationArrayAttributeValue
 import com.android.tools.metalava.model.DefaultAnnotationAttribute
 import com.android.tools.metalava.model.DefaultAnnotationItem
@@ -102,20 +101,6 @@ private constructor(
             qualifiedName: String? = psiAnnotation.qualifiedName
         ): AnnotationItem {
             return PsiAnnotationItem(codebase, psiAnnotation, qualifiedName)
-        }
-
-        fun create(
-            codebase: Codebase,
-            originalName: String,
-            attributes: List<AnnotationAttribute> = emptyList(),
-            context: Item? = null
-        ): AnnotationItem {
-            if (codebase is PsiBasedCodebase) {
-                val source = formatAnnotationItem(originalName, attributes)
-                return codebase.createAnnotation(source, context)
-            } else {
-                codebase.unsupported("Converting to PSI annotation requires PSI codebase")
-            }
         }
 
         private fun getAttributes(

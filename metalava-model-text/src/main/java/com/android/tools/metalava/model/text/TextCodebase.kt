@@ -27,6 +27,7 @@ import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PackageList
+import com.android.tools.metalava.reporter.FileLocation
 import java.io.File
 import java.util.ArrayList
 import java.util.HashMap
@@ -206,7 +207,7 @@ internal class TextCodebase(
                                 this,
                                 pkgPath,
                                 DefaultModifierList(this, DefaultModifierList.PUBLIC),
-                                SourcePositionInfo.UNKNOWN
+                                FileLocation.UNKNOWN
                             )
                         addPackage(newPkg)
                         newPkg.emit = false

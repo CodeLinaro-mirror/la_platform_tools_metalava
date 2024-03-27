@@ -209,6 +209,17 @@ abstract class CustomizableParameterizedRunner(
         }
     }
 
+    override fun getDescription(): Description {
+        // Return the wrapped [parameterized]'s [Description] otherwise the description ends up
+        // looking something like this:
+        //     <class>
+        //         <class>
+        //             ...<method>...
+        //
+        // Which can cause issues with gradle test runner's handling of @Ignore.
+        return parameterized.description
+    }
+
     override fun getChildren() = children
 
     override fun describeChild(child: Runner): Description = child.description

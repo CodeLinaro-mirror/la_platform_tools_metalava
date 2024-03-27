@@ -23,4 +23,7 @@ java_library_host {
         "src/main/java/**/*.java",
         "src/main/java/**/*.kt",
     ],
+    static_libs: [
+        "metalava-reporter",
+    ],
 }

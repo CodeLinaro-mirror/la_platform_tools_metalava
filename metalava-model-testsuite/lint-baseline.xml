@@ -1,26 +1,4 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<issues format="6" by="lint 8.4.0-alpha02" type="baseline" client="gradle" dependencies="false" name="AGP (8.4.0-alpha02)" variant="all" version="8.4.0-alpha02">
-
-    <issue
-        id="CheckResult"
-        message="The result of `assertThat` is not used"
-        errorLine1="            assertThat(type.modifiers.annotations().isEmpty())"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/android/tools/metalava/model/testsuite/typeitem/CommonTypeModifiersTest.kt"
-            line="81"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="CheckResult"
-        message="The result of `assertThat` is not used"
-        errorLine1="            assertThat(type.modifiers.annotations().isEmpty())"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/android/tools/metalava/model/testsuite/typeitem/CommonTypeModifiersTest.kt"
-            line="90"
-            column="13"/>
-    </issue>
+<issues format="6" by="lint 8.4.0-alpha07" type="baseline" client="gradle" dependencies="false" name="AGP (8.4.0-alpha07)" variant="all" version="8.4.0-alpha07">
 
 </issues>

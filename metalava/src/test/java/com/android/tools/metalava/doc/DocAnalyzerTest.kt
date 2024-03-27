@@ -22,7 +22,9 @@ import com.android.tools.metalava.ARG_CURRENT_VERSION
 import com.android.tools.metalava.DriverTest
 import com.android.tools.metalava.columnSource
 import com.android.tools.metalava.lint.DefaultLintErrorMessage
+import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.psi.trimDocIndent
+import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.nonNullSource
 import com.android.tools.metalava.nullableSource
 import com.android.tools.metalava.requiresApiSource
@@ -1429,6 +1431,7 @@ class DocAnalyzerTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Include Kotlin deprecation text`() {
         check(

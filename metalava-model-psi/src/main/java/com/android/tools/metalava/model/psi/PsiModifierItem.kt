@@ -131,27 +131,23 @@ internal object PsiModifierItem {
         modifiers: DefaultModifierList,
     ): Boolean {
         // Kotlin varargs are not nullable but can sometimes and up with an @Nullable annotation
-        // added to the [PsiParameter] so remove it from the modifiers.
-        if (element is PsiParameter && element.isVarArgs && element.isKotlin()) {
+        // added to the [PsiParameter] so remove it from the modifiers. Only Kotlin varargs have a
+        // `vararg` modifier.
+        if (modifiers.isVarArg()) {
             return true
         }
 
         // Although https://youtrack.jetbrains.com/issue/KTIJ-19087 has been fixed there still
         // seems to be an issue with reified type parameters causing nullability annotations
         // being added to the parameter even when the use site does not require
-        // them. So, this removes them, except from a `suspend` function.
-        //
-        // A `suspend` function's return type is always Any?, i.e., nullable, so keep the nullable
-        // annotation for that.
-        if (!(element is PsiMethod && modifiers.isSuspend())) {
-            val kotlinTypeInfo = KotlinTypeInfo.fromContext(element)
-            if (
-                kotlinTypeInfo.analysisSession != null &&
-                    kotlinTypeInfo.ktType != null &&
-                    kotlinTypeInfo.analysisSession.isInheritedGenericType(kotlinTypeInfo.ktType)
-            ) {
-                return true
-            }
+        // them. So, this removes them.
+        val kotlinTypeInfo = KotlinTypeInfo.fromContext(element)
+        if (
+            kotlinTypeInfo.analysisSession != null &&
+                kotlinTypeInfo.ktType != null &&
+                kotlinTypeInfo.analysisSession.isInheritedGenericType(kotlinTypeInfo.ktType)
+        ) {
+            return true
         }
 
         return false
@@ -230,7 +226,7 @@ internal object PsiModifierItem {
                 ktModifierList = modifierList.kotlinOrigin as? KtModifierList
             }
             is LightModifierList -> {
-                if (element is UMethod && sourcePsi is KtModifierListOwner) {
+                if (sourcePsi is KtModifierListOwner) {
                     ktModifierList = sourcePsi.modifierList
                 }
             }
