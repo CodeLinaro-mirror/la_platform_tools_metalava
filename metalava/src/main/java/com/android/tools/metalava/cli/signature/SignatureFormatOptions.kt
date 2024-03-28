@@ -149,7 +149,7 @@ class SignatureFormatOptions(
             )
             .existingFile()
             .map { file ->
-                file?.reader(Charsets.UTF_8)?.use { FileFormat.parseHeader(file.path, it) }
+                file?.reader(Charsets.UTF_8)?.use { FileFormat.parseHeader(file.toPath(), it) }
             }
 
     /**

@@ -85,9 +85,10 @@ internal fun TypeItem.assertHasNonNullNullability(
     assertWithMessage(message ?: "")
         .that(modifiers.nullability())
         .isEqualTo(TypeNullability.NONNULL)
+    val nullabilityAnnotations = modifiers.annotations().filter { it.isNullnessAnnotation() }
     when (expectAnnotation) {
-        true -> assertThat(modifiers.annotations().single().isNonNull()).isTrue()
-        false -> assertThat(modifiers.annotations().isEmpty())
+        true -> assertThat(nullabilityAnnotations.single().isNonNull()).isTrue()
+        false -> assertThat(nullabilityAnnotations).isEmpty()
         else -> {}
     }
 }
@@ -101,9 +102,10 @@ internal fun TypeItem.assertHasNonNullNullability(
  */
 internal fun TypeItem.assertHasNullableNullability(expectAnnotation: Boolean? = null) {
     assertThat(modifiers.nullability()).isEqualTo(TypeNullability.NULLABLE)
+    val nullabilityAnnotations = modifiers.annotations().filter { it.isNullnessAnnotation() }
     when (expectAnnotation) {
-        true -> assertThat(modifiers.annotations().single().isNullable()).isTrue()
-        false -> assertThat(modifiers.annotations().isEmpty())
+        true -> assertThat(nullabilityAnnotations.single().isNullable()).isTrue()
+        false -> assertThat(nullabilityAnnotations).isEmpty()
         else -> {}
     }
 }

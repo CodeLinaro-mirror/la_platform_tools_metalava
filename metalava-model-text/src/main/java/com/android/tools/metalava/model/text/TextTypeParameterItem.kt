@@ -22,6 +22,7 @@ import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.type.DefaultTypeModifiers
 import com.android.tools.metalava.model.type.DefaultVariableTypeItem
+import com.android.tools.metalava.reporter.FileLocation
 
 internal class TextTypeParameterItem(
     codebase: TextCodebase,
@@ -30,7 +31,7 @@ internal class TextTypeParameterItem(
 ) :
     TextItem(
         codebase = codebase,
-        position = SourcePositionInfo.UNKNOWN,
+        fileLocation = FileLocation.UNKNOWN,
         modifiers = DefaultModifierList(codebase, DefaultModifierList.PUBLIC),
     ),
     TypeParameterItem {

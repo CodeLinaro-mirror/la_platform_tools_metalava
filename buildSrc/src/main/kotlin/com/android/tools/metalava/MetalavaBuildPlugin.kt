@@ -29,6 +29,7 @@ import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.artifacts.Configuration
 import org.gradle.api.component.AdhocComponentWithVariants
+import org.gradle.api.internal.tasks.testing.filter.DefaultTestFilter
 import org.gradle.api.plugins.JavaPlugin
 import org.gradle.api.plugins.JavaPluginExtension
 import org.gradle.api.provider.Provider
@@ -110,13 +111,66 @@ class MetalavaBuildPlugin : Plugin<Project> {
                 // Needed for CustomizableParameterizedRunner
                 "--add-opens=java.base/java.lang.reflect=ALL-UNNAMED",
             )
+
+            task.doFirst {
+                // Before running the tests update the filter.
+                task.filter { testFilter ->
+                    testFilter as DefaultTestFilter
+
+                    // The majority of Metalava tests are now parameterized, as they run against
+                    // multiple providers. As parameterized tests they include a suffix of `[....]`
+                    // after the method name that contains the arguments for those parameters. The
+                    // problem with parameterized tests is that the test name does not match the
+                    // method name so when running a specific test an IDE cannot just use the
+                    // method name in the test filter, it has to use a wildcard to match all the
+                    // instances of the test method. When IntelliJ runs a test that has
+                    // `@RunWith(org.junit.runners.Parameterized::class)` it will add `[*]` to the
+                    // end of the test filter to match all instances of that test method.
+                    // Unfortunately, that only applies to tests that explicitly use
+                    // `org.junit.runners.Parameterized` and the Metalava tests use their own
+                    // custom runner that uses `Parameterized` under the covers. Without the `[*]`,
+                    // any attempt to run a specific parameterized test method just results in an
+                    // error that "no tests matched".
+                    //
+                    // This code avoids that by checking the patterns that have been provided on the
+                    // command line and adding a wildcard. It cannot add `[*]` as that would cause
+                    // a "no tests matched" error for non-parameterized tests and while most tests
+                    // in Metalava are parameterized, some are not. Also, it is necessary to be able
+                    // to run a specific instance of a test with a specific set of arguments.
+                    //
+                    // This code adds a `*` to the end of the pattern if it does not already end
+                    // with a `*` or a `\]`. i.e.:
+                    // * "pkg.ClassTest" will become "pkg.ClassTest*". That does run the risk of
+                    //   matching other classes, e.g. "ClassTestOther" but they are unlikely to
+                    //   exist and can be renamed if it becomes an issue.
+                    // * "pkg.ClassTest.method" will become "pkg.ClassTest.method*". That does run
+                    //   the risk of running other non-parameterized methods, e.g.
+                    //   "pkg.ClassTest.methodWithSuffix" but again they can be renamed if it
+                    //   becomes an issue.
+                    // * "pkg.ClassTest.method[*]" will be unmodified and will match any
+                    //   parameterized instance of the method.
+                    // * "pkg.ClassTest.method[a,b]" will be unmodified and will match a specific
+                    //   parameterized instance of the method.
+                    val commandLineIncludePatterns = testFilter.commandLineIncludePatterns
+                    if (commandLineIncludePatterns.isNotEmpty()) {
+                        val transformedPatterns = commandLineIncludePatterns.map { pattern ->
+
+                            if (!pattern.endsWith("]") && !pattern.endsWith("*")) {
+                                "$pattern*"
+                            } else {
+                                pattern
+                            }
+                        }
+                        testFilter.setCommandLineIncludePatterns(transformedPatterns)
+                    }
+                }
+            }
+
             task.maxParallelForks =
                 (Runtime.getRuntime().availableProcessors() / 2).takeIf { it > 0 } ?: 1
             task.testLogging.events =
                 hashSetOf(
                     TestLogEvent.FAILED,
-                    TestLogEvent.PASSED,
-                    TestLogEvent.SKIPPED,
                     TestLogEvent.STANDARD_OUT,
                     TestLogEvent.STANDARD_ERROR
                 )

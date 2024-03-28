@@ -18,6 +18,8 @@ package com.android.tools.metalava.stub
 
 import com.android.tools.metalava.ARG_KOTLIN_STUBS
 import com.android.tools.metalava.model.SUPPORT_TYPE_USE_ANNOTATIONS
+import com.android.tools.metalava.model.provider.Capability
+import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
@@ -496,6 +498,7 @@ class StubsInterfaceTest : AbstractStubsTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Extends and implements multiple interfaces in Kotlin Stubs`() {
         check(

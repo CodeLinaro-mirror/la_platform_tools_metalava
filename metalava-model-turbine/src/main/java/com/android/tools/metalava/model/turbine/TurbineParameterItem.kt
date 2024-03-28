@@ -24,15 +24,17 @@ import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterBindings
 import com.android.tools.metalava.model.findAnnotation
 import com.android.tools.metalava.model.hasAnnotation
+import com.android.tools.metalava.reporter.FileLocation
 
 internal class TurbineParameterItem(
     codebase: TurbineBasedCodebase,
+    fileLocation: FileLocation,
     private val name: String,
     private val containingMethod: MethodItem,
     override val parameterIndex: Int,
     private val type: TypeItem,
     modifiers: DefaultModifierList,
-) : TurbineItem(codebase, modifiers, ""), ParameterItem {
+) : TurbineItem(codebase, fileLocation, modifiers, ""), ParameterItem {
 
     override fun name(): String = name
 
@@ -55,9 +57,16 @@ internal class TurbineParameterItem(
         return annotation?.attributes?.firstOrNull()?.value?.value()?.toString()
     }
 
-    override fun equals(other: Any?): Boolean = TODO("b/295800205")
+    override fun equals(other: Any?): Boolean {
+        if (this === other) {
+            return true
+        }
+        return other is ParameterItem &&
+            parameterIndex == other.parameterIndex &&
+            containingMethod == other.containingMethod()
+    }
 
-    override fun hashCode(): Int = TODO("b/295800205")
+    override fun hashCode(): Int = parameterIndex
 
     override fun type(): TypeItem = type
 
@@ -73,6 +82,7 @@ internal class TurbineParameterItem(
             val mods = (parameter.modifiers as DefaultModifierList).duplicate()
             return TurbineParameterItem(
                 codebase,
+                FileLocation.UNKNOWN,
                 parameter.name(),
                 parameter.containingMethod(),
                 parameter.parameterIndex,

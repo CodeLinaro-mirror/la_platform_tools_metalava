@@ -77,6 +77,8 @@ interface TypeParameterItem : Item {
     // Methods from [Item] that are not needed. They will be removed in a follow-up change.
     override fun parent() = error("Not needed for TypeParameterItem")
 
+    override fun baselineElementId() = error("Not needed for TypeParameterItem")
+
     override fun accept(visitor: ItemVisitor) = error("Not needed for TypeParameterItem")
 
     override fun containingPackage() = error("Not needed for TypeParameterItem")

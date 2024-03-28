@@ -97,7 +97,7 @@ class UpdateSignatureHeaderCommand :
             LineNumberReader(file.reader()).use { reader ->
                 // Read the format from the file. That will consume the header (and only the header)
                 // from the reader so that it can be used to read the rest of the content.
-                val currentFormat = parseHeader(file.path, reader)
+                val currentFormat = parseHeader(file.toPath(), reader)
 
                 // If the format is not changing then do nothing.
                 if (outputFormat == currentFormat) {

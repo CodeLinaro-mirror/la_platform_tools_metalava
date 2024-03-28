@@ -24,10 +24,7 @@ import java.io.File
 import org.junit.Assert.assertTrue
 import org.junit.AssumptionViolatedException
 import org.junit.Test
-import org.junit.runner.RunWith
-import org.junit.runners.Parameterized
 
-@RunWith(Parameterized::class)
 abstract class CompatibilityCheckAndroidApisTest(
     private val apiLevelCheck: ApiLevelCheck,
 ) : DriverTest() {

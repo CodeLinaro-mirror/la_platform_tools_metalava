@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.text
 
+import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.AnnotationRetention
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
@@ -30,18 +31,19 @@ import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.type.DefaultResolvedClassTypeItem
+import com.android.tools.metalava.reporter.FileLocation
 import java.util.function.Predicate
 
 internal open class TextClassItem(
     override val codebase: TextCodebase,
-    position: SourcePositionInfo = SourcePositionInfo.UNKNOWN,
+    fileLocation: FileLocation = FileLocation.UNKNOWN,
     modifiers: DefaultModifierList,
     override val classKind: ClassKind = ClassKind.CLASS,
     val qualifiedName: String = "",
     var simpleName: String = qualifiedName.substring(qualifiedName.lastIndexOf('.') + 1),
     val fullName: String = simpleName,
     override val typeParameterList: TypeParameterList = TypeParameterList.NONE
-) : TextItem(codebase = codebase, position = position, modifiers = modifiers), ClassItem {
+) : TextItem(codebase = codebase, fileLocation = fileLocation, modifiers = modifiers), ClassItem {
 
     override var artifact: String? = null
 
@@ -159,6 +161,10 @@ internal open class TextClassItem(
         innerClasses.add(cls)
     }
 
+    fun addAnnotation(annotation: AnnotationItem) {
+        modifiers.addAnnotation(annotation)
+    }
+
     override fun filteredSuperClassType(predicate: Predicate<Item>): TypeItem? {
         // No filtering in signature files: we assume signature APIs
         // have already been filtered and all items should match.
@@ -189,11 +195,11 @@ internal open class TextClassItem(
     override fun qualifiedName(): String = qualifiedName
 
     override fun isDefined(): Boolean {
-        assert(emit == (position != SourcePositionInfo.UNKNOWN))
+        assert(emit == (fileLocation != FileLocation.UNKNOWN))
         return emit
     }
 
     override fun createDefaultConstructor(): ConstructorItem {
-        return TextConstructorItem.createDefaultConstructor(codebase, this, position)
+        return TextConstructorItem.createDefaultConstructor(codebase, this, fileLocation)
     }
 }

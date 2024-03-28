@@ -20,6 +20,7 @@ import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.BoundsTypeItem
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.ExceptionTypeItem
+import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeNullability
@@ -88,12 +89,14 @@ interface TypeItemFactory<in T, F : TypeItemFactory<T, F>> {
      *
      * This considers a number of factors, in addition to the declared type, to determine the
      * appropriate [TypeNullability] for the field type, i.e.:
+     * * Any [AnnotationItem.typeNullability] annotations in [itemAnnotations].
      * * Setting of [isEnumConstant]; if it is `true` then it is always [TypeNullability.NONNULL].
      * * If the field is `final` then the nullability of the field's value can be considered
      *   ([isInitialValueNonNull]). Otherwise, it cannot as it may change over the lifetime of the
      *   field.
      *
      * @param underlyingType the underlying model's type.
+     * @param itemAnnotations the annotations on the field (not the type).
      * @param isFinal `true` if the field is `final`.
      * @param isEnumConstant `true` if the field is actually an enum constant.
      * @param isInitialValueNonNull a lambda that will be invoked on `final` fields to determine
@@ -131,6 +134,14 @@ class ContextNullability(
     val forcedNullability: TypeNullability? = null,
 
     /**
+     * The annotations from the [Item] whose type this is.
+     *
+     * If supplied then this may be used by [compute] to determine the [TypeNullability] of the
+     * constructed type.
+     */
+    val itemAnnotations: List<AnnotationItem>? = null,
+
+    /**
      * A [TypeNullability] that can be inferred from the context.
      *
      * It is passed as a lambda as it may be expensive to compute.
@@ -151,6 +162,8 @@ class ContextNullability(
         ?: kotlinNullability?.takeIf { nullability -> nullability != TypeNullability.PLATFORM }
             // If annotations provide it then use them as the developer requested.
             ?: typeAnnotations.typeNullability
+            // If item annotations are found then check them.
+            ?: itemAnnotations?.typeNullability
             // If an inferred nullability is provided then use it.
             ?: inferNullability?.invoke()
             // Finally default to [TypeNullability.PLATFORM].
@@ -208,12 +221,10 @@ abstract class DefaultTypeItemFactory<in T, F : DefaultTypeItemFactory<T, F>>(
             if (isEnumConstant) ContextNullability.forceNonNull
             else {
                 ContextNullability(
+                    itemAnnotations = itemAnnotations,
                     inferNullability = {
-                        // Check annotations from the item first, and then whether the field is
-                        // final and has a non-null value.
-                        itemAnnotations.typeNullability
-                            ?: if (isFinal && isInitialValueNonNull()) TypeNullability.NONNULL
-                            else null
+                        // Treat the field as non-null if it is final and has a non-null value.
+                        TypeNullability.NONNULL.takeIf { isFinal && isInitialValueNonNull() }
                     }
                 )
             }

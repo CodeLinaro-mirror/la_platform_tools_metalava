@@ -18,6 +18,8 @@ package com.android.tools.metalava
 
 import com.android.tools.metalava.cli.common.ARG_ERROR
 import com.android.tools.metalava.lint.DefaultLintErrorMessage
+import com.android.tools.metalava.model.provider.Capability
+import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
@@ -377,6 +379,7 @@ class ApiAnalyzerTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Test deprecated class and parameters are output in kotlin`() {
         check(
@@ -504,6 +507,7 @@ class ApiAnalyzerTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Test warnings for usage of hidden interface type`() {
         check(

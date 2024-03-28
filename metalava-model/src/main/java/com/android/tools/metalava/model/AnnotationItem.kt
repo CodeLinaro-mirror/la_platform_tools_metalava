@@ -22,7 +22,7 @@ fun isNullnessAnnotation(qualifiedName: String): Boolean =
     isNullableAnnotation(qualifiedName) || isNonNullAnnotation(qualifiedName)
 
 fun isNullableAnnotation(qualifiedName: String): Boolean {
-    return qualifiedName.endsWith("Nullable")
+    return qualifiedName.endsWith("Nullable") || qualifiedName.endsWith("NullableType")
 }
 
 fun isNonNullAnnotation(qualifiedName: String): Boolean {
@@ -242,7 +242,7 @@ interface AnnotationItem {
 
 /** Get the [TypeNullability] from a list of [AnnotationItem]s. */
 val List<AnnotationItem>.typeNullability
-    get() = mapNotNull { it.typeNullability }.singleOrNull()
+    get() = mapNotNull { it.typeNullability }.firstOrNull()
 
 /**
  * Get the value of the named attribute as an object of the specified type or null if the attribute
@@ -507,6 +507,16 @@ private constructor(
                 }
 
             return DefaultAnnotationItem(codebase, originalName, ::attributes)
+        }
+
+        fun create(
+            codebase: Codebase,
+            originalName: String,
+            attributes: List<AnnotationAttribute> = emptyList(),
+            context: Item? = null
+        ): AnnotationItem {
+            val source = formatAnnotationItem(originalName, attributes)
+            return codebase.createAnnotation(source, context)
         }
     }
 }

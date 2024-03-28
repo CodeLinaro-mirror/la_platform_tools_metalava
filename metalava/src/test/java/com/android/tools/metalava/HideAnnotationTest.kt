@@ -16,12 +16,15 @@
 
 package com.android.tools.metalava
 
+import com.android.tools.metalava.model.provider.Capability
+import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import org.junit.Test
 
 class HideAnnotationTest : DriverTest() {
     // Regression test for b/133364476 crash
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Using hide annotation with Kotlin source`() {
         check(
@@ -136,6 +139,7 @@ class HideAnnotationTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Using hide annotation on file scope`() {
         check(

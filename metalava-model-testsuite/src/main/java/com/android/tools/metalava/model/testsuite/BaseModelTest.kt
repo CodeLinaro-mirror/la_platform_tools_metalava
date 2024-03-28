@@ -22,7 +22,8 @@ import com.android.tools.metalava.model.Assertions
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.source.SourceCodebase
-import com.android.tools.metalava.model.testsuite.ModelProviderAwareTest.ModelProviderTestInfo
+import com.android.tools.metalava.model.testing.CodebaseCreatorConfig
+import com.android.tools.metalava.model.testing.CodebaseCreatorConfigAware
 import com.android.tools.metalava.testing.TemporaryFolderOwner
 import org.junit.Rule
 import org.junit.rules.TemporaryFolder
@@ -33,7 +34,7 @@ import org.junit.runners.Parameterized.Parameter
 /**
  * Base class for tests that verify the behavior of model implementations.
  *
- * This is parameterized by [ModelProviderTestInfo] as even though the tests are run in different
+ * This is parameterized by [CodebaseCreatorConfig] as even though the tests are run in different
  * projects the test results are collated and reported together. Having the parameters in the test
  * name makes it easier to differentiate them.
  *
@@ -43,7 +44,8 @@ import org.junit.runners.Parameterized.Parameter
  * into the same project and run tests against them all at the same time.
  */
 @RunWith(ModelTestSuiteRunner::class)
-abstract class BaseModelTest() : ModelProviderAwareTest, TemporaryFolderOwner, Assertions {
+abstract class BaseModelTest() :
+    CodebaseCreatorConfigAware<ModelSuiteRunner>, TemporaryFolderOwner, Assertions {
 
     /**
      * Set by injection by [Parameterized] after class initializers are called.
@@ -66,7 +68,18 @@ abstract class BaseModelTest() : ModelProviderAwareTest, TemporaryFolderOwner, A
      * 2. The parameters are injected into the [Parameter] annotated fields.
      * 3. Follows the normal test class life-cycle.
      */
-    final override lateinit var modelProviderTestInfo: ModelProviderTestInfo
+    final override lateinit var codebaseCreatorConfig: CodebaseCreatorConfig<ModelSuiteRunner>
+
+    /** The [ModelSuiteRunner] that this test must use. */
+    private val runner
+        get() = codebaseCreatorConfig.creator
+
+    /**
+     * The [InputFormat] of the test files that should be processed by this test. It must ignore all
+     * other [InputFormat]s.
+     */
+    protected val inputFormat
+        get() = codebaseCreatorConfig.inputFormat
 
     @get:Rule override val temporaryFolder = TemporaryFolder()
 
@@ -150,7 +163,8 @@ abstract class BaseModelTest() : ModelProviderAwareTest, TemporaryFolderOwner, A
 
                 val inputs =
                     ModelSuiteRunner.TestInputs(
-                        modelOptions = modelProviderTestInfo.modelOptions,
+                        inputFormat = inputSet.inputFormat,
+                        modelOptions = codebaseCreatorConfig.modelOptions,
                         mainSourceDir = mainSourceDir,
                         commonSourceDir = commonSourceDir,
                     )

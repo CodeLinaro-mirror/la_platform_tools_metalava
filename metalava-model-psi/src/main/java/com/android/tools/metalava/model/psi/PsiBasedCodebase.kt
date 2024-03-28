@@ -919,7 +919,7 @@ open class PsiBasedCodebase(
             reporter.report(
                 Issues.DUPLICATE_SOURCE_CLASS,
                 classItem,
-                "Ignoring this duplicate definition of $qualifiedName; previous definition was loaded from ${existing.location().path}"
+                "Ignoring this duplicate definition of $qualifiedName; previous definition was loaded from ${existing.issueLocation.path}"
             )
             return
         }

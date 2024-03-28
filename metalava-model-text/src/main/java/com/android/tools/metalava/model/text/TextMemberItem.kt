@@ -19,14 +19,15 @@ package com.android.tools.metalava.model.text
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.MemberItem
+import com.android.tools.metalava.reporter.FileLocation
 
 internal abstract class TextMemberItem(
     codebase: TextCodebase,
     private val name: String,
     private val containingClass: ClassItem,
-    position: SourcePositionInfo,
+    fileLocation: FileLocation,
     modifiers: DefaultModifierList
-) : TextItem(codebase, position = position, modifiers = modifiers), MemberItem {
+) : TextItem(codebase, fileLocation = fileLocation, modifiers = modifiers), MemberItem {
 
     override fun name(): String = name
 

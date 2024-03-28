@@ -32,11 +32,13 @@ import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.type.DefaultResolvedClassTypeItem
 import com.android.tools.metalava.model.type.DefaultTypeModifiers
 import com.android.tools.metalava.model.type.DefaultVariableTypeItem
+import com.android.tools.metalava.reporter.FileLocation
 import com.google.turbine.binder.sym.ClassSymbol
 import com.google.turbine.binder.sym.MethodSymbol
 
 internal open class TurbineClassItem(
     codebase: TurbineBasedCodebase,
+    fileLocation: FileLocation,
     private val name: String,
     private val fullName: String,
     private val qualifiedName: String,
@@ -46,7 +48,7 @@ internal open class TurbineClassItem(
     override val typeParameterList: TypeParameterList,
     documentation: String,
     private val source: SourceFile?
-) : TurbineItem(codebase, modifiers, documentation), ClassItem {
+) : TurbineItem(codebase, fileLocation, modifiers, documentation), ClassItem {
 
     override var artifact: String? = null
 
@@ -204,6 +206,7 @@ internal open class TurbineClassItem(
         val duplicateMethod =
             TurbineMethodItem(
                 codebase,
+                FileLocation.UNKNOWN,
                 method.getSymbol(),
                 this,
                 retType,

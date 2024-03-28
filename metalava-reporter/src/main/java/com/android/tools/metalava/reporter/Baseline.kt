@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.reporter
 
-import com.android.tools.metalava.model.Location
 import java.io.File
 import java.io.PrintWriter
 import kotlin.text.Charsets.UTF_8
@@ -88,7 +87,7 @@ private constructor(
     }
 
     /** Returns true if the given issue is listed in the baseline, otherwise false */
-    fun mark(location: Location, message: String, issue: Issues.Issue): Boolean {
+    fun mark(location: IssueLocation, message: String, issue: Issues.Issue): Boolean {
         val elementId =
             location.baselineKey.elementId(pathTransformer = this::transformBaselinePath)
         return mark(elementId, message, issue)
@@ -97,18 +96,6 @@ private constructor(
     private fun MutableMap<String, String>.findOldMessageByElementId(elementId: String): String? {
         get(elementId)?.let {
             return it
-        }
-
-        // Previously, text properties used "Field" as their prefix not "property", and psi
-        // properties used "field" as their prefix, so try with those.
-        if (elementId.startsWith("property ")) {
-            val withoutPrefix = elementId.removePrefix("property ")
-            get("field $withoutPrefix")?.let {
-                return it
-            }
-            get("Field $withoutPrefix")?.let {
-                return it
-            }
         }
 
         return null
