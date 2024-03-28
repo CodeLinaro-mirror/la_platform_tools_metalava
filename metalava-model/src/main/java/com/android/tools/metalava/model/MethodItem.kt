@@ -138,6 +138,15 @@ interface MethodItem : MemberItem, TypeParameterListOwner {
         return null
     }
 
+    override fun baselineElementId() = buildString {
+        append(containingClass().qualifiedName())
+        append("#")
+        append(name())
+        append("(")
+        parameters().joinTo(this) { it.type().toSimpleType() }
+        append(")")
+    }
+
     override fun accept(visitor: ItemVisitor) {
         visitor.visit(this)
     }

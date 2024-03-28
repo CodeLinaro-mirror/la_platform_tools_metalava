@@ -17,17 +17,11 @@
 package com.android.tools.metalava.model.source
 
 import com.android.tools.metalava.model.ModelOptions
-import com.android.tools.metalava.model.provider.InputFormat
+import com.android.tools.metalava.model.provider.FilterableCodebaseCreator
 import java.util.ServiceLoader
 
 /** Service provider interface for a model implementation that consumes source code. */
-interface SourceModelProvider {
-
-    /** The name of the provider. */
-    val providerName: String
-
-    /** The set of supported input formats. */
-    val supportedInputFormats: Set<InputFormat>
+interface SourceModelProvider : FilterableCodebaseCreator {
 
     /**
      * Create an [EnvironmentManager] that will manage any resources needed while creating

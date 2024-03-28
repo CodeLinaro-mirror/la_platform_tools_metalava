@@ -1,30 +1,30 @@
 com.android.tools.metalava.model.testsuite.annotationitem.CommonAnnotationItemTest
-  annotation toSource() with boolean values[text,signature]
-  annotation toSource() with char values[text,signature]
-  annotation toSource() with class values[text,signature]
-  annotation toSource() with compound expression values[text,signature]
-  annotation toSource() with enum values[text,signature]
-  annotation toSource() with number values[text,signature]
-  annotation toSource() with string values[text,signature]
-  annotation with constant literal values[text,signature]
-  annotation with infinity values[text,signature]
-  annotation with negative number values[text,signature]
-  annotation with type cast values[text,signature]
+  annotation toSource() with boolean values
+  annotation toSource() with char values
+  annotation toSource() with class values
+  annotation toSource() with compound expression values
+  annotation toSource() with enum values
+  annotation toSource() with number values
+  annotation toSource() with string values
+  annotation with constant literal values
+  annotation with infinity values
+  annotation with negative number values
+  annotation with type cast values
 
 com.android.tools.metalava.model.testsuite.fielditem.CommonFieldItemTest
-  Test implicit nullability of enum constant[text,signature]
-  Test nullability of non-null field annotated with @Nullable or kotlin equivalent[text,signature]
+  Test implicit nullability of enum constant
+  Test nullability of non-null field annotated with @Nullable or kotlin equivalent
 
 com.android.tools.metalava.model.testsuite.typeitem.CommonIsAssignableFromTest
-  Test assignability without unboxing[text,signature,boxedInt to primitiveInt]
-  Test assignability without unboxing[text,signature,number to boxedInt]
-  Test assignability without unboxing[text,signature,number to primitiveInt]
-  Test assignability without unboxing[text,signature,obj to string]
+  Test assignability without unboxing[boxedInt to primitiveInt]
+  Test assignability without unboxing[number to boxedInt]
+  Test assignability without unboxing[number to primitiveInt]
+  Test assignability without unboxing[obj to string]
 
 com.android.tools.metalava.model.testsuite.typeitem.CommonTypeModifiersTest
-  Test implicit nullability of annotation members[text,signature]
-  Test implicit nullability of equals parameter[text,signature]
-  Test implicit nullability of toString[text,signature]
+  Test implicit nullability of annotation members
+  Test implicit nullability of equals parameter
+  Test implicit nullability of toString
 
 com.android.tools.metalava.model.testsuite.typeitem.CommonTypeParameterItemTest
-  Test type parameter with annotations[text,signature]
+  Test type parameter with annotations

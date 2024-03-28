@@ -427,7 +427,7 @@ class CommonParameterItemTest : BaseModelTest() {
     }
 
     @Test
-    fun `Test nullability of Kotlin varargs`() {
+    fun `Test nullability of Kotlin varargs last`() {
         runCodebaseTest(
             kotlin(
                 """
@@ -459,11 +459,86 @@ class CommonParameterItemTest : BaseModelTest() {
                 )
             for (method in codebase.assertClass("test.pkg.Foo").methods()) {
                 val name = method.name()
-                val expectedType = expectedTypes[name]!!
+                val parameterItem = method.parameters().single()
+
+                // Make sure that it is modelled as a varargs parameter.
+                assertWithMessage("$name isVarArgs").that(parameterItem.isVarArgs()).isTrue()
+
                 // Compare the kotlin style format of the parameter to ensure that only the
                 // outermost type is affected by the not-type-use nullability annotation.
-                val type = method.parameters().single().type()
+                val type = parameterItem.type()
+                val expectedType = expectedTypes[name]!!
+                assertWithMessage("$name type")
+                    .that(type.toTypeString(kotlinStyleNulls = true))
+                    .isEqualTo(expectedType)
+            }
+        }
+    }
+
+    @Test
+    fun `Test nullability of Kotlin varargs not-last`() {
+        runCodebaseTest(
+            kotlin(
+                """
+                    package test.pkg
+
+                    fun nullable(vararg p: Any?, i: String = "") {}
+                    fun nonNull(vararg p: Any, i: String = "") {}
+                """
+            ),
+        ) {
+            val expectedTypes =
+                mapOf(
+                    "nullable" to "java.lang.Object?[]",
+                    "nonNull" to "java.lang.Object[]",
+                )
+            for (method in codebase.assertClass("test.pkg.TestKt").methods()) {
+                val name = method.name()
+                val parameterItem = method.parameters().first()
+
+                // Make sure that it is modelled as a varargs parameter.
+                assertWithMessage("$name isVarArgs").that(parameterItem.isVarArgs()).isTrue()
+
+                // Compare the kotlin style format of the parameter to ensure that only the
+                // outermost type is affected by the not-type-use nullability annotation.
+                val type = parameterItem.type()
+                val expectedType = expectedTypes[name]!!
                 assertWithMessage(name)
+                    .that(type.toTypeString(kotlinStyleNulls = true))
+                    .isEqualTo(expectedType)
+            }
+        }
+    }
+
+    @Test
+    fun `Test nullability of Kotlin varargs last in inline reified fun`() {
+        runCodebaseTest(
+            kotlin(
+                """
+                    package test.pkg
+
+                    inline fun <reified T> nullable(vararg elements: T?) = listOf(*elements)
+                    inline fun <reified T> nonNull(vararg elements: T) = listOf(*elements)
+                """
+            ),
+        ) {
+            val expectedTypes =
+                mapOf(
+                    "nullable" to "T?...",
+                    "nonNull" to "T...",
+                )
+            for (method in codebase.assertClass("test.pkg.TestKt").methods()) {
+                val name = method.name()
+                val parameterItem = method.parameters().single()
+
+                // Make sure that it is modelled as a varargs parameter.
+                assertWithMessage("$name isVarArgs").that(parameterItem.isVarArgs()).isTrue()
+
+                // Compare the kotlin style format of the parameter to ensure that only the
+                // outermost type is affected by the not-type-use nullability annotation.
+                val type = parameterItem.type()
+                val expectedType = expectedTypes[name]!!
+                assertWithMessage("$name type")
                     .that(type.toTypeString(kotlinStyleNulls = true))
                     .isEqualTo(expectedType)
             }

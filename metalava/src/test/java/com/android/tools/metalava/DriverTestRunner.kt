@@ -16,25 +16,31 @@
 
 package com.android.tools.metalava
 
+import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.source.SourceModelProvider
 import com.android.tools.metalava.model.testing.BaseModelProviderRunner
+import com.android.tools.metalava.model.testing.CodebaseCreatorConfig
 
 /**
  * A [BaseModelProviderRunner] that will retrieve [SourceModelProvider]s from the
  * [SourceModelProvider] and run the tests against them.
  */
 class DriverTestRunner(clazz: Class<*>) :
-    BaseModelProviderRunner<SourceModelTestInfo, DriverTest>(
-        clazz,
-        DriverTest::class.java,
-        { m -> sourceModelTestInfo = m },
-        { getSourceModelProviders() },
-        "source-model-provider-baseline.txt",
+    BaseModelProviderRunner<SourceModelProvider, DriverTest>(
+        clazz = clazz,
+        codebaseCreatorConfigsGetter = { getSourceModelProviders() },
+        baselineResourcePath = "source-model-provider-baseline.txt",
+        minimumCapabilities = setOf(Capability.JAVA, Capability.DOCUMENTATION),
     ) {
     companion object {
-        fun getSourceModelProviders(): List<SourceModelTestInfo> {
-            return SourceModelProvider.implementations.map {
-                SourceModelTestInfo(sourceModelProvider = it)
+        fun getSourceModelProviders(): List<CodebaseCreatorConfig<SourceModelProvider>> {
+            return SourceModelProvider.implementations.flatMap { provider ->
+                provider.modelOptionsList.map { modelOptions ->
+                    CodebaseCreatorConfig(
+                        creator = provider,
+                        modelOptions = modelOptions,
+                    )
+                }
             }
         }
     }

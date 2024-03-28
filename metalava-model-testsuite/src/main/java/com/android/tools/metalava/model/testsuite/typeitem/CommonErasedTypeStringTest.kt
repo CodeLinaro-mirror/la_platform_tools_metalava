@@ -158,7 +158,7 @@ class CommonErasedTypeStringTest : BaseModelTest() {
      * Anything that accesses this, either directly or indirectly must do it after initialization,
      * e.g. from lazy fields or in methods called from test methods.
      *
-     * See [modelProviderTestInfo] for more info.
+     * See [codebaseCreatorConfig] for more info.
      */
     @Parameter(0) lateinit var parameters: TypeStringParameters
 

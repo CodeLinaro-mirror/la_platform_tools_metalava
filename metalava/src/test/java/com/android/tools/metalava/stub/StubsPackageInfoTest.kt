@@ -19,6 +19,8 @@ package com.android.tools.metalava.stub
 import com.android.tools.metalava.ARG_HIDE_PACKAGE
 import com.android.tools.metalava.ARG_PASS_THROUGH_ANNOTATION
 import com.android.tools.metalava.androidxNullableSource
+import com.android.tools.metalava.model.provider.Capability
+import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.restrictToSource
 import com.android.tools.metalava.testing.html
@@ -164,6 +166,7 @@ class StubsPackageInfoTest : AbstractStubsTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Test package-info annotations`() {
         check(

@@ -24,10 +24,12 @@ import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.computeSuperMethods
+import com.android.tools.metalava.reporter.FileLocation
 import com.google.turbine.binder.sym.MethodSymbol
 
 internal open class TurbineMethodItem(
     codebase: TurbineBasedCodebase,
+    fileLocation: FileLocation,
     private val methodSymbol: MethodSymbol,
     private val containingClass: ClassItem,
     protected var returnType: TypeItem,
@@ -35,7 +37,7 @@ internal open class TurbineMethodItem(
     override val typeParameterList: TypeParameterList,
     documentation: String,
     private val defaultValue: String,
-) : TurbineItem(codebase, modifiers, documentation), MethodItem {
+) : TurbineItem(codebase, fileLocation, modifiers, documentation), MethodItem {
 
     private lateinit var superMethodList: List<MethodItem>
     internal lateinit var throwableTypes: List<ExceptionTypeItem>
@@ -102,6 +104,7 @@ internal open class TurbineMethodItem(
         val duplicateMethod =
             TurbineMethodItem(
                 codebase,
+                fileLocation,
                 methodSymbol,
                 targetContainingClass,
                 retType,

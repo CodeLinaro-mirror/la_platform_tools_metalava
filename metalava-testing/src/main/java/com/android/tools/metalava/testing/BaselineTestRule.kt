@@ -22,7 +22,7 @@ import org.junit.runner.Description
 import org.junit.runners.model.Statement
 
 private const val GRADLEW_UPDATE_MODEL_TEST_SUITE_BASELINE =
-    "`scripts/refresh-testsuite-baselines.sh` to update the baseline"
+    "`scripts/refresh-baselines.py` to update the baseline"
 
 /**
  * A JUnit [TestRule] that uses information from the [ModelTestSuiteBaseline] to ignore tests.
@@ -48,6 +48,9 @@ class BaselineTestRule(
                     // Run the test even if it is expected to fail as a change that fixes one test
                     // may fix more. Instead, this will just discard any failure.
                     base.evaluate()
+                } catch (e: AssumptionViolatedException) {
+                    // Catch and rethrow but do not treat as a failure.
+                    throw e
                 } catch (e: Throwable) {
                     if (expectedFailure) {
                         // If this was expected to fail then throw an AssumptionViolatedException

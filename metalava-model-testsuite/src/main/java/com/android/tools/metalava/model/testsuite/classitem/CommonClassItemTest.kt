@@ -22,9 +22,12 @@ import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.testsuite.BaseModelTest
+import com.android.tools.metalava.testing.KnownSourceFiles.typeUseOnlyNonNullSource
+import com.android.tools.metalava.testing.KnownSourceFiles.typeUseOnlyNullableSource
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import com.google.common.truth.Truth.assertThat
+import com.google.common.truth.Truth.assertWithMessage
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 import kotlin.test.assertSame
@@ -305,6 +308,13 @@ class CommonClassItemTest : BaseModelTest() {
                     public interface Foo {}
                 """
             ),
+            kotlin(
+                """
+                    package test.pkg
+
+                    interface Foo
+                """
+            ),
         ) {
             val fooInterface = codebase.assertClass("test.pkg.Foo")
 
@@ -347,6 +357,16 @@ class CommonClassItemTest : BaseModelTest() {
                     public interface Foo extends A, B, C {}
                 """
             ),
+            kotlin(
+                """
+                    package test.pkg
+
+                    interface A
+                    interface B
+                    interface C
+                    interface Foo: A, B, C
+                """
+            ),
         ) {
             val interfaceA = codebase.assertClass("test.pkg.A")
             val interfaceB = codebase.assertClass("test.pkg.B")
@@ -381,6 +401,13 @@ class CommonClassItemTest : BaseModelTest() {
                     package test.pkg;
 
                     public class Foo {}
+                """
+            ),
+            kotlin(
+                """
+                    package test.pkg
+
+                    class Foo
                 """
             ),
         ) {
@@ -424,6 +451,14 @@ class CommonClassItemTest : BaseModelTest() {
                     public class Foo extends Bar {}
                 """
             ),
+            kotlin(
+                """
+                    package test.pkg
+
+                    open class Bar
+                    class Foo: Bar()
+                """
+            ),
         ) {
             val barClass = codebase.assertClass("test.pkg.Bar")
             val fooClass = codebase.assertClass("test.pkg.Foo")
@@ -465,6 +500,16 @@ class CommonClassItemTest : BaseModelTest() {
                     public interface B {}
                     public interface C {}
                     public class Foo implements A, B, C {}
+                """
+            ),
+            kotlin(
+                """
+                    package test.pkg
+
+                    interface A
+                    interface B
+                    interface C
+                    class Foo: A, B, C
                 """
             ),
         ) {
@@ -520,6 +565,17 @@ class CommonClassItemTest : BaseModelTest() {
                     public class Foo extends Bar implements A, B, C {}
                 """
             ),
+            kotlin(
+                """
+                    package test.pkg
+
+                    open class Bar
+                    interface A
+                    interface B
+                    interface C
+                    class Foo: Bar(), A, B, C
+                """
+            ),
         ) {
             val barClass = codebase.assertClass("test.pkg.Bar")
             val interfaceA = codebase.assertClass("test.pkg.A")
@@ -535,6 +591,132 @@ class CommonClassItemTest : BaseModelTest() {
 
             val allInterfaces = fooClass.allInterfaces().toList()
             assertEquals(listOf(interfaceA, interfaceB, interfaceC), allInterfaces)
+        }
+    }
+
+    @Test
+    fun `Test class super class generic type`() {
+        runCodebaseTest(
+            inputSet(
+                signature(
+                    """
+                        // Signature format: 3.0
+                        package test.pkg {
+                          public class Generic<T, U> {
+                          }
+                          public class Foo extends test.pkg.Generic<String?, Integer> {
+                          }
+                        }
+                    """
+                ),
+            ),
+            inputSet(
+                typeUseOnlyNonNullSource,
+                typeUseOnlyNullableSource,
+                java(
+                    """
+                        package test.pkg;
+                        import type.use.only.*;
+                        public class Generic<T, U> {
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        import type.use.only.*;
+                        public class Foo extends Generic<@Nullable String, @NonNull Integer> {
+                        }
+                    """
+                ),
+            ),
+            inputSet(
+                kotlin(
+                    """
+                        package test.pkg
+
+                        open class Generic<T, U>
+                    """
+                ),
+                kotlin(
+                    """
+                        package test.pkg
+
+                        class Foo: Generic<String?, Integer>()
+                    """
+                ),
+            ),
+        ) {
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+
+            val superClassType = fooClass.superClassType()!!
+            assertEquals(
+                "test.pkg.Generic<java.lang.String?,java.lang.Integer>",
+                superClassType.toTypeString(kotlinStyleNulls = true)
+            )
+        }
+    }
+
+    @Test
+    fun `Test class super interface generic type`() {
+        runCodebaseTest(
+            inputSet(
+                signature(
+                    """
+                        // Signature format: 3.0
+                        package test.pkg {
+                          public interface Generic<T, U> {
+                          }
+                          public class Foo implements test.pkg.Generic<String?, Integer> {
+                          }
+                        }
+                    """
+                ),
+            ),
+            inputSet(
+                typeUseOnlyNonNullSource,
+                typeUseOnlyNullableSource,
+                java(
+                    """
+                        package test.pkg;
+                        import type.use.only.*;
+                        public interface Generic<T, U> {
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        import type.use.only.*;
+                        public class Foo implements Generic<@Nullable String, @NonNull Integer> {
+                        }
+                    """
+                ),
+            ),
+            inputSet(
+                kotlin(
+                    """
+                        package test.pkg
+
+                        interface Generic<T, U>
+                    """
+                ),
+                kotlin(
+                    """
+                        package test.pkg
+
+                        class Foo: Generic<String?, Integer>
+                    """
+                ),
+            ),
+        ) {
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+
+            val superClassType = fooClass.interfaceTypes().single()
+            assertEquals(
+                "test.pkg.Generic<java.lang.String?,java.lang.Integer>",
+                superClassType.toTypeString(kotlinStyleNulls = true)
+            )
         }
     }
 
@@ -1084,7 +1266,7 @@ class CommonClassItemTest : BaseModelTest() {
     }
 
     @Test
-    fun `Test inheritMethodFromNonApiAncestor`() {
+    fun `Test inheritMethodFromNonApiAncestor without type substitutions`() {
         runSourceCodebaseTest(
             inputSet(
                 java(
@@ -1102,6 +1284,23 @@ class CommonClassItemTest : BaseModelTest() {
                     """
                 ),
             ),
+            inputSet(
+                kotlin(
+                    """
+                        package test.pkg
+                        /** @hide */
+                        open class HiddenClass {
+                            fun foo() {}
+                        }
+                    """
+                ),
+                kotlin(
+                    """
+                        package test.pkg
+                        class PublicClass: HiddenClass()
+                    """
+                ),
+            ),
         ) {
             val hiddenClass = codebase.assertClass("test.pkg.HiddenClass")
             val hiddenClassMethod = hiddenClass.methods().single()
@@ -1110,6 +1309,94 @@ class CommonClassItemTest : BaseModelTest() {
             val inheritedMethod = publicClass.inheritMethodFromNonApiAncestor(hiddenClassMethod)
             assertSame(hiddenClass, inheritedMethod.inheritedFrom)
             assertTrue(inheritedMethod.inheritedFromAncestor)
+
+            assertEquals("fun foo(): void", inheritedMethod.kotlinLikeDescription())
+        }
+    }
+
+    @Test
+    fun `Test inheritMethodFromNonApiAncestor with type substitutions`() {
+        runSourceCodebaseTest(
+            inputSet(
+                typeUseOnlyNonNullSource,
+                typeUseOnlyNullableSource,
+                java(
+                    """
+                        package test.pkg;
+                        import java.util.List;
+                        import type.use.only.*;
+                        class HiddenClass<@Nullable T, @Nullable S> {
+                            public void t(T t) {}
+                            public void optionalT(@Nullable T optionalT) {}
+                            public void listOfT(@NonNull List<? extends T> listOfT) {}
+                            public void listOfOptionalT(@NonNull List<? extends @Nullable T>listOfOptionalT) {}
+
+                            public void s(S s) {}
+                            public void optionalS(@Nullable S optionalS) {}
+                            public void listOfS(@NonNull List<? extends S> listOfS) {}
+                            public void listOfOptionalS(@NonNull List<? extends @Nullable S> listOfOptionalS) {}
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        import type.use.only.*;
+                        public class PublicClass extends HiddenClass<@NonNull String, @Nullable Integer> {}
+                    """
+                ),
+            ),
+            inputSet(
+                kotlin(
+                    """
+                        package test.pkg
+                        internal class HiddenClass<T, S> {
+                            fun t(t: T) {}
+                            fun optionalT(optionalT: T?) {}
+                            fun listOfT(listOfT: List<T>) {}
+                            fun listOfOptionalT(listOfOptionalT: List<T?>) {}
+
+                            fun s(s: S) {}
+                            fun optionalS(optionalS: S?) {}
+                            fun listOfS(listOfS: List<S>) {}
+                            fun listOfOptionalS(listOfOptionalS: List<S?>) {}
+                        }
+                    """
+                ),
+                kotlin(
+                    """
+                        package test.pkg
+                        class PublicClass: HiddenClass<String, Integer?>()
+                    """
+                ),
+            ),
+        ) {
+            val hiddenClass = codebase.assertClass("test.pkg.HiddenClass")
+            val publicClass = codebase.assertClass("test.pkg.PublicClass")
+
+            val expectedTypes =
+                mapOf(
+                    "t" to "java.lang.String",
+                    "optionalT" to "java.lang.String?",
+                    "listOfT" to "java.util.List<? extends java.lang.String>",
+                    "listOfOptionalT" to "java.util.List<? extends java.lang.String?>",
+                    "s" to "java.lang.Integer?",
+                    "optionalS" to "java.lang.Integer?",
+                    "listOfS" to "java.util.List<? extends java.lang.Integer?>",
+                    "listOfOptionalS" to "java.util.List<? extends java.lang.Integer?>",
+                )
+
+            for (method in hiddenClass.methods().sortedBy { it.name() }) {
+                val name = method.name()
+                val inheritedMethod = publicClass.inheritMethodFromNonApiAncestor(method)
+                assertSame(hiddenClass, inheritedMethod.inheritedFrom)
+                assertTrue(inheritedMethod.inheritedFromAncestor)
+
+                val parameterType = inheritedMethod.parameters().single().type()
+                assertWithMessage("testing type of $name")
+                    .that(parameterType.toTypeString(kotlinStyleNulls = true))
+                    .isEqualTo(expectedTypes[name])
+            }
         }
     }
 

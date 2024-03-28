@@ -19,13 +19,14 @@ package com.android.tools.metalava.model.text
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.PackageItem
+import com.android.tools.metalava.reporter.FileLocation
 
 internal class TextPackageItem(
     codebase: TextCodebase,
     private val name: String,
     modifiers: DefaultModifierList,
-    position: SourcePositionInfo
-) : TextItem(codebase, position, modifiers = modifiers), PackageItem {
+    fileLocation: FileLocation
+) : TextItem(codebase, fileLocation, modifiers = modifiers), PackageItem {
 
     private val classes = ArrayList<ClassItem>(100)
 

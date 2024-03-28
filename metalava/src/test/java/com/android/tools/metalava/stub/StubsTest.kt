@@ -21,6 +21,8 @@ import com.android.tools.metalava.ARG_EXCLUDE_DOCUMENTATION_FROM_STUBS
 import com.android.tools.metalava.ARG_KOTLIN_STUBS
 import com.android.tools.metalava.deprecatedForSdkSource
 import com.android.tools.metalava.lint.DefaultLintErrorMessage
+import com.android.tools.metalava.model.provider.Capability
+import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.supportParameterName
 import com.android.tools.metalava.systemApiSource
@@ -1135,6 +1137,7 @@ class StubsTest : AbstractStubsTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Basic Kotlin stubs`() {
         check(
@@ -1354,6 +1357,7 @@ class StubsTest : AbstractStubsTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Translate DeprecatedForSdk with API Filtering`() {
         // See b/144111352.

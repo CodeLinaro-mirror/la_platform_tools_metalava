@@ -21,9 +21,9 @@ import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.DefaultModifierList.Companion.PACKAGE_PRIVATE
 import com.android.tools.metalava.model.ExceptionTypeItem
-import com.android.tools.metalava.model.Location
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.TypeParameterList
+import com.android.tools.metalava.reporter.FileLocation
 import com.intellij.psi.JavaPsiFacade
 import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiMethod
@@ -72,18 +72,10 @@ private constructor(
      * Override to handle providing the location for a synthetic/implicit constructor which has no
      * associated file.
      */
-    override fun location(): Location {
-        // If no PSI element, is this a synthetic/implicit constructor? If so
-        // grab the parent class' PSI element instead for file/location purposes
-        val element =
-            if (implicitConstructor && psiMethod.containingFile?.virtualFile == null) {
-                (containingClass() as PsiClassItem).psi()
-            } else {
-                psiMethod
-            }
-
-        return PsiLocationProvider.elementToLocation(element, Location.getBaselineKeyForItem(this))
-    }
+    override val fileLocation: FileLocation
+        get() =
+            super<PsiMethodItem>.fileLocation.takeIf { it != FileLocation.UNKNOWN }
+                ?: containingClass().fileLocation
 
     companion object {
         internal fun create(
