@@ -148,6 +148,7 @@ internal fun processFlags(
             javaLanguageLevel = options.javaLanguageLevelAsString,
             kotlinLanguageLevel = options.kotlinLanguageLevelAsString,
             modelOptions = modelOptions,
+            allowReadingComments = options.allowReadingComments,
             jdkHome = options.jdkHome,
         )
 

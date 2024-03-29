@@ -247,7 +247,7 @@ class SignatureWriter(
         val superClassString =
             typeItem.toTypeString(
                 annotations = fileFormat.includeTypeUseAnnotations,
-                kotlinStyleNulls = false,
+                kotlinStyleNulls = fileFormat.kotlinStyleNulls,
                 filter = filterReference
             )
         write(" ")

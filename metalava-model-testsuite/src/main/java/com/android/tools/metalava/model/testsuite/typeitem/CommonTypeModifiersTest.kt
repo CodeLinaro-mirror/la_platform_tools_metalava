@@ -28,6 +28,7 @@ import com.android.tools.metalava.model.testsuite.assertHasNullableNullability
 import com.android.tools.metalava.model.testsuite.assertHasPlatformNullability
 import com.android.tools.metalava.model.testsuite.assertHasUndefinedNullability
 import com.android.tools.metalava.model.testsuite.runNullabilityTest
+import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import com.google.common.truth.Truth.assertThat
@@ -1559,15 +1560,18 @@ class CommonTypeModifiersTest : BaseModelTest() {
     fun `Test resetting nullability`() {
         // Mutating modifiers isn't supported for a text codebase due to type caching.
         val javaSource =
-            java(
-                """
-                    package test.pkg;
-                    import libcore.util.Nullable;
-                    public class Foo {
-                        public java.lang.@Nullable String foo() {}
-                    }
-                """
-                    .trimIndent()
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+                        import libcore.util.Nullable;
+                        public class Foo {
+                            public java.lang.@Nullable String foo() {}
+                        }
+                    """
+                        .trimIndent()
+                ),
+                KnownSourceFiles.libcoreNullableSource
             )
         val kotlinSource =
             kotlin(

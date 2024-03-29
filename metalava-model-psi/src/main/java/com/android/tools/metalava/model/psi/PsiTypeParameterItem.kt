@@ -78,15 +78,12 @@ internal class PsiTypeParameterItem(
             val simpleName = psiClass.name!!
             val modifiers = modifiers(codebase, psiClass)
 
-            val item =
-                PsiTypeParameterItem(
-                    codebase = codebase,
-                    psiClass = psiClass,
-                    name = simpleName,
-                    modifiers = modifiers
-                )
-            item.finishInitialization()
-            return item
+            return PsiTypeParameterItem(
+                codebase = codebase,
+                psiClass = psiClass,
+                name = simpleName,
+                modifiers = modifiers
+            )
         }
 
         fun isReified(element: PsiTypeParameter?): Boolean {

@@ -599,7 +599,7 @@ class StubsTest : AbstractStubsTest() {
                   public class Generics {
                     ctor public Generics();
                   }
-                  public class Generics.MyClass<X, Y extends java.lang.Number> extends test.pkg.Generics.PublicParent<X,Y> implements test.pkg.Generics.PublicInterface<X,Y> {
+                  public class Generics.MyClass<X, Y extends java.lang.Number> extends test.pkg.Generics.PublicParent<X!,Y!> implements test.pkg.Generics.PublicInterface<X!,Y!> {
                     ctor public Generics.MyClass();
                     method public java.util.Map<X!,java.util.Map<Y!,java.lang.String!>!>! createMap(java.util.List<X!>!) throws java.io.IOException;
                     method protected java.util.List<X!>! foo();
@@ -1105,7 +1105,7 @@ class StubsTest : AbstractStubsTest() {
             api =
                 """
                 package test.pkg {
-                  public class Alpha extends test.pkg.Charlie<test.pkg.Orange> {
+                  public class Alpha extends test.pkg.Charlie<test.pkg.Orange!> {
                   }
                   public class Charlie<T> {
                   }

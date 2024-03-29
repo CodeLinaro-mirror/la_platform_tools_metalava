@@ -43,21 +43,6 @@ interface MemberItem : Item {
             containingClass().modifiers.isSealed()
     }
 
-    override fun implicitNullness(): TypeNullability? {
-        // Delegate to the super class, only dropping through if it did not determine an implicit
-        // nullness.
-        super.implicitNullness()?.let { nullable ->
-            return nullable
-        }
-
-        // Annotation type members cannot be null
-        if (containingClass().isAnnotationType()) {
-            return TypeNullability.NONNULL
-        }
-
-        return null
-    }
-
     /** True if this member was inherited from an ancestor class or interface. */
     val inheritedFromAncestor
         get() = inheritedFrom != null
