@@ -21,102 +21,22 @@ import com.android.tools.metalava.reporter.FileLocation
 import com.android.tools.metalava.reporter.IssueLocation
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
-import com.intellij.openapi.util.TextRange
 import com.intellij.openapi.vfs.VfsUtilCore
 import com.intellij.psi.PsiClass
-import com.intellij.psi.PsiCompiledElement
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiField
 import com.intellij.psi.PsiFile
 import com.intellij.psi.PsiMethod
-import com.intellij.psi.PsiModifierListOwner
-import com.intellij.psi.PsiNameIdentifierOwner
 import com.intellij.psi.PsiPackage
 import com.intellij.psi.PsiParameter
-import com.intellij.psi.impl.light.LightElement
 import org.jetbrains.kotlin.psi.KtClass
-import org.jetbrains.kotlin.psi.KtModifierListOwner
 import org.jetbrains.kotlin.psi.KtProperty
 import org.jetbrains.kotlin.psi.psiUtil.containingClass
 import org.jetbrains.kotlin.psi.psiUtil.parameterIndex
-import org.jetbrains.uast.UClass
-import org.jetbrains.uast.UElement
 
 class PsiLocationProvider {
 
     companion object {
-        private fun getTextRange(element: PsiElement): TextRange? {
-            var range: TextRange? = null
-
-            if (element is UClass) {
-                range = element.sourcePsi?.textRange
-            } else if (element is PsiCompiledElement) {
-                if (element is LightElement) {
-                    range = (element as PsiElement).textRange
-                }
-                if (range == null || TextRange.EMPTY_RANGE == range) {
-                    return null
-                }
-            } else {
-                range = element.textRange
-            }
-
-            return range
-        }
-
-        /** Returns the 0-based line number of character position <offset> in <text> */
-        private fun getLineNumber(text: String, offset: Int): Int {
-            var line = 0
-            var curr = 0
-            val target = offset.coerceAtMost(text.length)
-            while (curr < target) {
-                if (text[curr++] == '\n') {
-                    line++
-                }
-            }
-            return line
-        }
-
-        /**
-         * Compute a [FileLocation] from a [PsiElement]
-         *
-         * @param element the optional element from which the path and line will be computed.
-         */
-        fun elementToFileLocation(
-            element: PsiElement?,
-        ): FileLocation {
-            element ?: return FileLocation.UNKNOWN
-            val psiFile = element.containingFile ?: return FileLocation.UNKNOWN
-            val virtualFile = psiFile.virtualFile ?: return FileLocation.UNKNOWN
-            val virtualFileAbsolutePath =
-                try {
-                    virtualFile.toNioPath().toAbsolutePath()
-                } catch (e: UnsupportedOperationException) {
-                    return FileLocation.UNKNOWN
-                }
-
-            // Unwrap UAST for accurate Kotlin line numbers (UAST synthesizes text offsets
-            // sometimes)
-            val sourceElement = (element as? UElement)?.sourcePsi ?: element
-
-            // Skip doc comments for classes, methods and fields by pointing at the line where the
-            // element's name is or falling back to the first line of its modifier list (which may
-            // include annotations) or lastly to the start of the element itself
-            val rangeElement =
-                (sourceElement as? PsiNameIdentifierOwner)?.nameIdentifier
-                    ?: (sourceElement as? KtModifierListOwner)?.modifierList
-                        ?: (sourceElement as? PsiModifierListOwner)?.modifierList ?: sourceElement
-
-            val range = getTextRange(rangeElement)
-            val lineNumber =
-                if (range == null) {
-                    -1 // No source offsets, use invalid line number
-                } else {
-                    getLineNumber(psiFile.text, range.startOffset) + 1
-                }
-            return FileLocation.createLocation(virtualFileAbsolutePath, lineNumber)
-        }
-
         /**
          * Compute a [IssueLocation] (including [BaselineKey]) from a [PsiElement]
          *
@@ -129,7 +49,7 @@ class PsiLocationProvider {
             element: PsiElement?,
             overridingBaselineKey: BaselineKey? = null
         ): IssueLocation {
-            val fileLocation = elementToFileLocation(element)
+            val fileLocation = element?.let { PsiFileLocation(it) } ?: FileLocation.UNKNOWN
             val actualBaselineKey = overridingBaselineKey ?: getBaselineKey(element)
             return IssueLocation(fileLocation, actualBaselineKey)
         }

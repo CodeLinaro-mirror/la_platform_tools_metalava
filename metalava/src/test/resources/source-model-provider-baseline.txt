@@ -60,6 +60,7 @@ com.android.tools.metalava.ExtractAnnotationsTest
   Include merged annotations in exported source annotations[turbine]
   Inlining typedef signatures in api files[turbine]
   Only including class retention annotations in stubs[turbine]
+  Test annotations on inherited methods[turbine]
   Test generics in XML attributes are encoded[turbine]
   Test string literal encoding[turbine]
 

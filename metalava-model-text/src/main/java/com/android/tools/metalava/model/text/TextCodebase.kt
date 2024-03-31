@@ -40,27 +40,28 @@ internal class TextCodebase(
     annotationManager: AnnotationManager,
     private val classResolver: ClassResolver?,
 ) : DefaultCodebase(location, "Codebase", true, annotationManager) {
-    internal val mPackages = HashMap<String, TextPackageItem>(300)
-    internal val mAllClasses = HashMap<String, TextClassItem>(30000)
+    private val packagesByName = HashMap<String, TextPackageItem>(300)
+    private val allClassesByName = HashMap<String, TextClassItem>(30000)
 
-    private val externalClasses = HashMap<String, ClassItem>()
+    private val externalClassesByName = HashMap<String, ClassItem>()
 
     override fun trustedApi(): Boolean = true
 
     override fun getPackages(): PackageList {
-        val list = ArrayList<PackageItem>(mPackages.values)
+        val list = ArrayList<PackageItem>(packagesByName.values)
         list.sortWith(PackageItem.comparator)
         return PackageList(this, list)
     }
 
     override fun size(): Int {
-        return mPackages.size
+        return packagesByName.size
     }
 
     /** Find a class in this codebase, i.e. not classes loaded from the [classResolver]. */
-    fun findClassInCodebase(className: String) = mAllClasses[className]
+    fun findClassInCodebase(className: String) = allClassesByName[className]
 
-    override fun findClass(className: String) = mAllClasses[className] ?: externalClasses[className]
+    override fun findClass(className: String) =
+        allClassesByName[className] ?: externalClassesByName[className]
 
     override fun resolveClass(className: String) = getOrCreateClass(className)
 
@@ -68,17 +69,24 @@ internal class TextCodebase(
 
     fun addPackage(pInfo: TextPackageItem) {
         // track the set of organized packages in the API
-        mPackages[pInfo.name()] = pInfo
+        packagesByName[pInfo.name()] = pInfo
 
         // accumulate a direct map of all the classes in the API
         for (cl in pInfo.allClasses()) {
-            mAllClasses[cl.qualifiedName()] = cl as TextClassItem
+            allClassesByName[cl.qualifiedName()] = cl as TextClassItem
         }
     }
 
-    fun registerClass(cls: TextClassItem) {
-        val qualifiedName = cls.qualifiedName
-        mAllClasses[qualifiedName] = cls
+    fun registerClass(classItem: TextClassItem) {
+        val qualifiedName = classItem.qualifiedName
+        val existing = allClassesByName.put(qualifiedName, classItem)
+        if (existing != null) {
+            error(
+                "Attempted to register $qualifiedName twice; once from ${existing.issueLocation.path} and this one from ${classItem.issueLocation.path}"
+            )
+        }
+
+        addClass(classItem)
 
         // A real class exists so a stub will not be created.
         requiredStubKindForClass.remove(qualifiedName)
@@ -112,7 +120,7 @@ internal class TextCodebase(
         val qualifiedName = classTypeItem.qualifiedName
 
         // If a real class already exists then a stub will not need to be created.
-        if (mAllClasses[qualifiedName] != null) return
+        if (allClassesByName[qualifiedName] != null) return
 
         val existing = requiredStubKindForClass.put(qualifiedName, stubKind)
         if (existing != null && existing != stubKind) {
@@ -125,9 +133,9 @@ internal class TextCodebase(
     /**
      * Gets an existing, or creates a new [ClassItem].
      *
-     * Tries to find [name] in [mAllClasses]. If not found, then if a [classResolver] is provided it
-     * will invoke that and return the [ClassItem] it returns if any. Otherwise, it will create an
-     * empty stub class of the [StubKind] specified in [requiredStubKindForClass] or
+     * Tries to find [name] in [allClassesByName]. If not found, then if a [classResolver] is
+     * provided it will invoke that and return the [ClassItem] it returns if any. Otherwise, it will
+     * create an empty stub class of the [StubKind] specified in [requiredStubKindForClass] or
      * [StubKind.CLASS] if no specific [StubKind] was required.
      *
      * Initializes outer classes and packages for the created class as needed.
@@ -142,7 +150,7 @@ internal class TextCodebase(
         isOuterClass: Boolean = false,
     ): ClassItem {
         // Check this codebase first, if found then return it.
-        mAllClasses[name]?.let { found ->
+        allClassesByName[name]?.let { found ->
             return found
         }
 
@@ -151,7 +159,7 @@ internal class TextCodebase(
         if (!isOuterClass && classResolver != null) {
             // Check to see whether the class has already been retrieved from the resolver. If it
             // has then return it.
-            externalClasses[name]?.let { found ->
+            externalClassesByName[name]?.let { found ->
                 return found
             }
 
@@ -160,7 +168,7 @@ internal class TextCodebase(
             if (classItem != null) {
                 // Save the class item, so it can be retrieved the next time this is loaded. This is
                 // needed because otherwise TextTypeItem.asClass would not work properly.
-                externalClasses[name] = classItem
+                externalClassesByName[name] = classItem
                 return classItem
             }
         }
@@ -220,7 +228,7 @@ internal class TextCodebase(
     }
 
     override fun findPackage(pkgName: String): TextPackageItem? {
-        return mPackages[pkgName]
+        return packagesByName[pkgName]
     }
 
     override fun createAnnotation(

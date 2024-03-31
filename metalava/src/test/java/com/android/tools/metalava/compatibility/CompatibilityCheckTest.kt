@@ -23,6 +23,7 @@ import com.android.tools.metalava.ARG_SHOW_ANNOTATION
 import com.android.tools.metalava.ARG_SHOW_UNANNOTATED
 import com.android.tools.metalava.DriverTest
 import com.android.tools.metalava.androidxNonNullSource
+import com.android.tools.metalava.androidxNullableSource
 import com.android.tools.metalava.cli.common.ARG_ERROR_CATEGORY
 import com.android.tools.metalava.cli.common.ARG_HIDE
 import com.android.tools.metalava.model.provider.Capability
@@ -3329,13 +3330,14 @@ class CompatibilityCheckTest : DriverTest() {
                     java(
                         """
                     package test.pkg;
-
+                    import androidx.annotation.Nullable;
                     public class Parent {
                         public void sample(@Nullable String arg) {
                         }
                     }
                     """
-                    )
+                    ),
+                    androidxNullableSource
                 ),
             // The correct behavior would be for this test to fail, because of the removal of
             // nullability annotations on the child class. However, when we generate signature

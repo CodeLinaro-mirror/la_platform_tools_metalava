@@ -1325,7 +1325,7 @@ class ApiLintTest : DriverTest() {
             expectedIssues =
                 """
                 src/android/pkg/MySubClass.java:5: warning: Public class android.pkg.MySubClass stripped of unavailable superclass android.pkg.MyHiddenInterface [HiddenSuperclass]
-                src/android/pkg/MyCallback.java:4: warning: Type of parameter list in android.pkg.MyCallback.onFoo(java.util.List<java.lang.String> list) is a nullable collection (`java.util.List`); must be non-null [NullableCollection]
+                src/android/pkg/MyCallback.java:6: warning: Type of parameter list in android.pkg.MyCallback.onFoo(java.util.List<java.lang.String> list) is a nullable collection (`java.util.List`); must be non-null [NullableCollection]
                 src/android/pkg/MyClass.java:9: warning: Return type of method android.pkg.MyClass.getList(java.util.List<java.lang.String>) is a nullable collection (`java.util.List`); must be non-null [NullableCollection]
                 src/android/pkg/MyClass.java:13: warning: Type of field android.pkg.MyClass.STRINGS is a nullable collection (`java.lang.String[]`); must be non-null [NullableCollection]
                 src/android/pkg/MySubClass.java:14: warning: Return type of method android.pkg.MySubClass.getOtherList(java.util.List<java.lang.String>) is a nullable collection (`java.util.List`); must be non-null [NullableCollection]
@@ -1398,6 +1398,8 @@ class ApiLintTest : DriverTest() {
                     java(
                         """
                     package android.pkg;
+
+                    import androidx.annotation.Nullable;
 
                     public class MyCallback {
                         public void onFoo(@Nullable java.util.List<String> list) {
@@ -2348,8 +2350,8 @@ class ApiLintTest : DriverTest() {
             extraArguments = arrayOf(ARG_API_LINT, ARG_HIDE, "AutoBoxing"),
             expectedIssues =
                 """
-                src/android/pkg/ArrayTest.java:12: warning: Method should return Collection<Object> (or subclass) instead of raw array; was `java.lang.Object[]` [ArrayReturn]
-                src/android/pkg/ArrayTest.java:13: warning: Method parameter should be Collection<Number> (or subclass) instead of raw array; was `java.lang.Number[]` [ArrayReturn]
+                src/android/pkg/ArrayTest.java:13: warning: Method should return Collection<Object> (or subclass) instead of raw array; was `java.lang.Object[]` [ArrayReturn]
+                src/android/pkg/ArrayTest.java:14: warning: Method parameter should be Collection<Number> (or subclass) instead of raw array; was `java.lang.Number[]` [ArrayReturn]
                 """,
             sourceFiles =
                 arrayOf(
@@ -2358,6 +2360,7 @@ class ApiLintTest : DriverTest() {
                     package android.pkg;
 
                     import androidx.annotation.NonNull;
+                    import androidx.annotation.Nullable;
 
                     public class ArrayTest {
                         @NonNull
@@ -2378,7 +2381,8 @@ class ApiLintTest : DriverTest() {
                     fun okMethod(vararg values: Integer, foo: Float, bar: Float)
                     """
                     ),
-                    androidxNonNullSource
+                    androidxNonNullSource,
+                    androidxNullableSource,
                 )
         )
     }
@@ -2545,7 +2549,7 @@ class ApiLintTest : DriverTest() {
                         """
                     package android.pkg;
 
-                    import androidx.annotation.Nullable;
+                    import androidx.annotation.NonNull;
 
                     public class CloneTest {
                         public void clone(int i) { } // ok
@@ -2554,7 +2558,7 @@ class ApiLintTest : DriverTest() {
                     }
                     """
                     ),
-                    androidxNullableSource
+                    androidxNonNullSource
                 )
         )
     }
@@ -2617,6 +2621,8 @@ class ApiLintTest : DriverTest() {
                     java(
                         """
                     package android.system;
+
+                    import androidx.annotation.Nullable;
 
                     public class Os {
                         public void ok(@Nullable java.io.FileDescriptor fd) { }
@@ -3326,6 +3332,7 @@ class ApiLintTest : DriverTest() {
                     java(
                         """
                         package test.pkg;
+                        import androidx.annotation.NonNull;
                         public class Foo() {
                             // Doesn't require nullability
                             public Foo(@NonNull String bar);
@@ -3333,7 +3340,8 @@ class ApiLintTest : DriverTest() {
                             public @NonNull String baz(@NonNull String whatever);
                         }
                     """
-                    )
+                    ),
+                    androidxNonNullSource
                 )
         )
     }
@@ -3343,12 +3351,12 @@ class ApiLintTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                src/test/pkg/Foo.java:13: error: Invalid nullability on method `bar` return. Overrides of unannotated super method cannot be Nullable. [InvalidNullabilityOverride]
-                src/test/pkg/Foo.java:13: error: Invalid nullability on parameter `baz` in method `bar`. Parameters of overrides cannot be NonNull if the super parameter is unannotated. [InvalidNullabilityOverride]
-                src/test/pkg/Foo.java:16: error: Invalid nullability on parameter `y` in method `x`. Parameters of overrides cannot be NonNull if the super parameter is unannotated. [InvalidNullabilityOverride]
-                src/test/pkg/Foo.java:5: error: Missing nullability on method `bar` return [MissingNullability]
-                src/test/pkg/Foo.java:5: error: Missing nullability on parameter `baz` in method `bar` [MissingNullability]
-                src/test/pkg/Foo.java:8: error: Missing nullability on parameter `y` in method `x` [MissingNullability]
+                src/test/pkg/Foo.java:16: error: Invalid nullability on method `bar` return. Overrides of unannotated super method cannot be Nullable. [InvalidNullabilityOverride]
+                src/test/pkg/Foo.java:16: error: Invalid nullability on parameter `baz` in method `bar`. Parameters of overrides cannot be NonNull if the super parameter is unannotated. [InvalidNullabilityOverride]
+                src/test/pkg/Foo.java:19: error: Invalid nullability on parameter `y` in method `x`. Parameters of overrides cannot be NonNull if the super parameter is unannotated. [InvalidNullabilityOverride]
+                src/test/pkg/Foo.java:8: error: Missing nullability on method `bar` return [MissingNullability]
+                src/test/pkg/Foo.java:8: error: Missing nullability on parameter `baz` in method `bar` [MissingNullability]
+                src/test/pkg/Foo.java:11: error: Missing nullability on parameter `y` in method `x` [MissingNullability]
                 """,
             apiLint = "",
             expectedFail = DefaultLintErrorMessage,
@@ -3357,6 +3365,9 @@ class ApiLintTest : DriverTest() {
                     java(
                         """
                         package test.pkg;
+
+                        import androidx.annotation.NonNull;
+                        import androidx.annotation.Nullable;
 
                         public class Foo {
                             // Not annotated
@@ -3426,7 +3437,7 @@ class ApiLintTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                src/test/pkg/Foo.java:9: error: Invalid nullability on method `bar` return. Overrides of NonNull methods cannot be Nullable. [InvalidNullabilityOverride]
+                src/test/pkg/Foo.java:12: error: Invalid nullability on method `bar` return. Overrides of NonNull methods cannot be Nullable. [InvalidNullabilityOverride]
                 """,
             apiLint = "",
             expectedFail = DefaultLintErrorMessage,
@@ -3435,6 +3446,9 @@ class ApiLintTest : DriverTest() {
                     java(
                         """
                         package test.pkg;
+
+                        import androidx.annotation.NonNull;
+                        import androidx.annotation.Nullable;
 
                         public class Foo {
                             @NonNull public String bar(@Nullable String baz);
@@ -3457,7 +3471,7 @@ class ApiLintTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                src/test/pkg/Foo.java:10: error: Invalid nullability on parameter `baz` in method `bar`. Parameters of overrides cannot be NonNull if super parameter is Nullable. [InvalidNullabilityOverride]
+                src/test/pkg/Foo.java:13: error: Invalid nullability on parameter `baz` in method `bar`. Parameters of overrides cannot be NonNull if super parameter is Nullable. [InvalidNullabilityOverride]
                 """,
             apiLint = "",
             expectedFail = DefaultLintErrorMessage,
@@ -3466,6 +3480,9 @@ class ApiLintTest : DriverTest() {
                     java(
                         """
                         package test.pkg;
+
+                        import androidx.annotation.NonNull;
+                        import androidx.annotation.Nullable;
 
                         public class Foo {
                             // Not annotated
@@ -3539,6 +3556,8 @@ class ApiLintTest : DriverTest() {
                         package test.pkg;
 
                         import java.util.Map;
+                        import androidx.annotation.NonNull;
+                        import androidx.annotation.Nullable;
 
                         public class ArrayMap<K, V> extends SimpleArrayMap<K, V> implements Map<K, V> {
                             @Override
@@ -3549,7 +3568,9 @@ class ApiLintTest : DriverTest() {
                         }
 
                     """
-                    )
+                    ),
+                    androidxNonNullSource,
+                    androidxNullableSource,
                 )
         )
     }
@@ -3577,6 +3598,7 @@ class ApiLintTest : DriverTest() {
                         package test.pkg;
 
                         import java.util.Map;
+                        import androidx.annotation.Nullable;
 
                         public class ArrayMap<K, V> extends SimpleArrayMap<K, V> implements Map<K, V> {
                             @Override
@@ -3586,7 +3608,8 @@ class ApiLintTest : DriverTest() {
                             }
                         }
                     """
-                    )
+                    ),
+                    androidxNullableSource
                 )
         )
     }

@@ -75,7 +75,6 @@ class PsiFieldItem(
                 codebase.globalTypeItemFactory.from(targetContainingClass),
             )
         duplicated.inheritedFrom = containingClass
-        duplicated.finishInitialization()
 
         // Preserve flags that may have been inherited (propagated) from surrounding packages
         if (targetContainingClass.hidden) {
@@ -111,10 +110,10 @@ class PsiFieldItem(
             codebase: PsiBasedCodebase,
             containingClass: PsiClassItem,
             psiField: PsiField,
-            enclosingClassTypeItemFactory: PsiTypeItemFactory
+            enclosingClassTypeItemFactory: PsiTypeItemFactory,
         ): PsiFieldItem {
             val name = psiField.name
-            val commentText = javadoc(psiField)
+            val commentText = javadoc(psiField, codebase.allowReadingComments)
             val modifiers = modifiers(codebase, psiField, commentText)
 
             val isEnumConstant = psiField is PsiEnumConstant

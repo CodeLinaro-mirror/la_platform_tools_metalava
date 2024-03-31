@@ -69,12 +69,18 @@ internal class PsiSourceParser(
     private val javaLanguageLevel: LanguageLevel = defaultJavaLanguageLevel,
     private val kotlinLanguageLevel: LanguageVersionSettings = defaultKotlinLanguageLevel,
     private val useK2Uast: Boolean = false,
+    private val allowReadingComments: Boolean,
     private val jdkHome: File? = null,
 ) : SourceParser {
 
     override fun getClassResolver(classPath: List<File>): ClassResolver {
         val uastEnvironment = loadUastFromJars(classPath)
-        return PsiBasedClassResolver(uastEnvironment, annotationManager, reporter)
+        return PsiBasedClassResolver(
+            uastEnvironment,
+            annotationManager,
+            reporter,
+            allowReadingComments
+        )
     }
 
     /**
@@ -136,7 +142,14 @@ internal class PsiSourceParser(
         val units = Extractor.createUnitsForFiles(environment.ideaProject, sourceSet.sources)
         val packageDocs = gatherPackageJavadoc(sourceSet)
 
-        val codebase = PsiBasedCodebase(rootDir, description, annotationManager, reporter)
+        val codebase =
+            PsiBasedCodebase(
+                location = rootDir,
+                description = description,
+                annotationManager = annotationManager,
+                reporter = reporter,
+                allowReadingComments = allowReadingComments,
+            )
         codebase.initializeFromSources(environment, units, packageDocs)
         return codebase
     }
@@ -148,7 +161,13 @@ internal class PsiSourceParser(
     override fun loadFromJar(apiJar: File, preFiltered: Boolean): SourceCodebase {
         val environment = loadUastFromJars(listOf(apiJar))
         val codebase =
-            PsiBasedCodebase(apiJar, "Codebase loaded from $apiJar", annotationManager, reporter)
+            PsiBasedCodebase(
+                location = apiJar,
+                description = "Codebase loaded from $apiJar",
+                annotationManager = annotationManager,
+                reporter = reporter,
+                allowReadingComments = allowReadingComments
+            )
         codebase.initializeFromJar(environment, apiJar, preFiltered)
         return codebase
     }
