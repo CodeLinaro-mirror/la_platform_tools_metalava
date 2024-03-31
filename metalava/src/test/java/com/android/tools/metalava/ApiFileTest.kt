@@ -757,7 +757,7 @@ class ApiFileTest : DriverTest() {
                 """
                 // Signature format: 3.0
                 package androidx.collection {
-                  public class ArrayMap<K, V> extends java.util.HashMap<K,V> implements java.util.Map<K,V> {
+                  public class ArrayMap<K, V> extends java.util.HashMap<K!,V!> implements java.util.Map<K!,V!> {
                     ctor public ArrayMap();
                   }
                   public final class ArrayMapKt {
@@ -765,7 +765,7 @@ class ApiFileTest : DriverTest() {
                     method public static <K, V> androidx.collection.ArrayMap<K,V> arrayMapOf(kotlin.Pair<? extends K,? extends V>... pairs);
                     method public static <K, V> androidx.collection.ArrayMap<K,V>? arrayMapOfNullable(kotlin.Pair<? extends K,? extends V>?... pairs);
                   }
-                  public class ArraySet<E> extends java.util.HashSet<E> implements java.util.Set<E> {
+                  public class ArraySet<E> extends java.util.HashSet<E!> implements java.util.Set<E!> {
                     ctor public ArraySet();
                   }
                   public final class ArraySetKt {
@@ -1806,7 +1806,7 @@ class ApiFileTest : DriverTest() {
             api =
                 """
                 package test.pkg {
-                  public class MyStringBuilder<A, B> extends test.pkg.PublicSuper<A,B> {
+                  public class MyStringBuilder<A, B> extends test.pkg.PublicSuper<A!,B!> {
                     ctor public MyStringBuilder();
                     method public void setLength(int);
                   }
@@ -4220,7 +4220,7 @@ class ApiFileTest : DriverTest() {
         val expected =
             """
             package Test.pkg {
-              public class IpcDataCache<Query, Result> extends android.app.PropertyInvalidatedCache<Query,Result> {
+              public class IpcDataCache<Query, Result> extends android.app.PropertyInvalidatedCache<Query!,Result!> {
                 ctor public IpcDataCache(int, String, String, String, android.os.IpcDataCache.QueryHandler<Query!,Result!>);
                 method public void disableForCurrentProcess();
                 method public static void disableForCurrentProcess(String);
@@ -6254,7 +6254,7 @@ class ApiFileTest : DriverTest() {
                 """
                     // Signature format: 5.0
                     package test.pkg {
-                      public class Foo<F> implements test.pkg.VisibleInterface<java.util.List> {
+                      public class Foo<F> implements test.pkg.VisibleInterface<java.util.List!> {
                         ctor public Foo();
                       }
                       public interface VisibleInterface<V> {

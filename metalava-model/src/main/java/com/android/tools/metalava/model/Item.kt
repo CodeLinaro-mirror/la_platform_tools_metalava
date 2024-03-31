@@ -415,7 +415,10 @@ interface Item : Reportable {
     }
 }
 
-abstract class DefaultItem(final override val modifiers: DefaultModifierList) : Item {
+abstract class DefaultItem(
+    final override val fileLocation: FileLocation,
+    final override val modifiers: DefaultModifierList,
+) : Item {
 
     init {
         @Suppress("LeakingThis")

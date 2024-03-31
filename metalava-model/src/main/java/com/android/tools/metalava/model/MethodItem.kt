@@ -363,21 +363,6 @@ interface MethodItem : MemberItem, TypeParameterListOwner {
         return true
     }
 
-    override fun implicitNullness(): TypeNullability? {
-        // Delegate to the super class, only dropping through if it did not determine an implicit
-        // nullness.
-        super.implicitNullness()?.let { nullable ->
-            return nullable
-        }
-
-        // toString has known nullness
-        if (name() == "toString" && parameters().isEmpty()) {
-            return TypeNullability.NONNULL
-        }
-
-        return null
-    }
-
     fun isImplicitConstructor(): Boolean {
         return isConstructor() && modifiers.isPublic() && parameters().isEmpty()
     }

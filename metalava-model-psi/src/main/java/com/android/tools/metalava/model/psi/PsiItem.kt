@@ -35,9 +35,14 @@ abstract class PsiItem
 internal constructor(
     override val codebase: PsiBasedCodebase,
     element: PsiElement,
+    fileLocation: FileLocation = PsiFileLocation(element),
     modifiers: DefaultModifierList,
     override var documentation: String,
-) : DefaultItem(modifiers) {
+) :
+    DefaultItem(
+        fileLocation = fileLocation,
+        modifiers = modifiers,
+    ) {
 
     @Suppress(
         "LeakingThis"
@@ -60,9 +65,6 @@ internal constructor(
 
     /** Returns the PSI element for this item */
     abstract fun psi(): PsiElement
-
-    override val fileLocation: FileLocation
-        get() = PsiLocationProvider.elementToFileLocation(psi())
 
     override fun isFromClassPath(): Boolean {
         return codebase.fromClasspath || containingClass()?.isFromClassPath() ?: false
@@ -223,9 +225,6 @@ internal constructor(
         return codebase.docQualifier.toFullyQualifiedDocumentation(this, documentation)
     }
 
-    /** Finish initialization of the item */
-    open fun finishInitialization() {}
-
     override fun isJava(): Boolean {
         return !isKotlin()
     }
@@ -235,7 +234,13 @@ internal constructor(
     }
 
     companion object {
-        internal fun javadoc(element: PsiElement): String {
+
+        // Gets the javadoc of the current element, unless reading comments is
+        // disabled via allowReadingComments
+        internal fun javadoc(element: PsiElement, allowReadingComments: Boolean): String {
+            if (!allowReadingComments) {
+                return ""
+            }
             if (element is PsiCompiledElement) {
                 return ""
             }

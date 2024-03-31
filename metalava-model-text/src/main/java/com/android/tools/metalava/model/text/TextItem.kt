@@ -22,11 +22,15 @@ import com.android.tools.metalava.reporter.FileLocation
 
 internal abstract class TextItem(
     override val codebase: TextCodebase,
-    override val fileLocation: FileLocation,
+    fileLocation: FileLocation,
     override var docOnly: Boolean = false,
     override var documentation: String = "",
     modifiers: DefaultModifierList,
-) : DefaultItem(modifiers) {
+) :
+    DefaultItem(
+        fileLocation = fileLocation,
+        modifiers = modifiers,
+    ) {
 
     override var originallyHidden = false
     override var hidden = false

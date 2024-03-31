@@ -23,10 +23,14 @@ import com.android.tools.metalava.reporter.FileLocation
 
 internal abstract class TurbineItem(
     override val codebase: TurbineBasedCodebase,
-    override val fileLocation: FileLocation,
+    fileLocation: FileLocation,
     modifiers: DefaultModifierList,
     final override var documentation: String,
-) : DefaultItem(modifiers) {
+) :
+    DefaultItem(
+        fileLocation = fileLocation,
+        modifiers = modifiers,
+    ) {
 
     override var docOnly: Boolean = documentation.contains("@doconly")
 

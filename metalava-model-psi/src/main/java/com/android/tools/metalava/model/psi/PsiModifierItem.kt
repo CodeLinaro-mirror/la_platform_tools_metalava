@@ -111,10 +111,16 @@ internal object PsiModifierItem {
             modifiers.removeAnnotations { it.isNullnessAnnotation() }
         }
 
+        val docDeprecated =
+            if (codebase.allowReadingComments) {
+                documentation?.contains("@deprecated") == true ||
+                    // Check for @Deprecated annotation
+                    ((element as? PsiDocCommentOwner)?.isDeprecated == true)
+            } else {
+                false
+            }
         if (
-            documentation?.contains("@deprecated") == true ||
-                // Check for @Deprecated annotation
-                ((element as? PsiDocCommentOwner)?.isDeprecated == true) ||
+            docDeprecated ||
                 hasDeprecatedAnnotation(modifiers) ||
                 // Check for @Deprecated on sourcePsi
                 isDeprecatedFromSourcePsi(element)

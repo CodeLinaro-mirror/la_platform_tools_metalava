@@ -40,6 +40,10 @@ private constructor(
         return description
     }
 
+    fun isEmpty(): Boolean {
+        return settings.isEmpty()
+    }
+
     /** Builder for [ModelOptionsBuilder]. */
     class ModelOptionsBuilder internal constructor() {
         /** The option settings. */
