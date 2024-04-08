@@ -48,6 +48,7 @@ dependencies {
     implementation(libs.asmTree)
     implementation(libs.gson)
 
+    testImplementation(project(":metalava-model-turbine"))
     testImplementation(project(":metalava-testing"))
     testImplementation(testFixtures(project(":metalava-model")))
     testImplementation(testFixtures(project(":metalava-model-text")))

@@ -20,16 +20,12 @@ import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.DefaultTypeItem
-import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.LambdaTypeItem
-import com.android.tools.metalava.model.MemberItem
-import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.ReferenceTypeItem
 import com.android.tools.metalava.model.TypeArgumentTypeItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeModifiers
-import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.WildcardTypeItem
@@ -121,6 +117,7 @@ internal class PsiLambdaTypeItem(
     outerClassType: PsiClassTypeItem?,
     className: String,
     modifiers: TypeModifiers,
+    override val isSuspend: Boolean,
     override val receiverType: TypeItem?,
     override val parameterTypes: List<TypeItem>,
     override val returnType: TypeItem,
@@ -148,6 +145,7 @@ internal class PsiLambdaTypeItem(
             outerClassType = outerClass as? PsiClassTypeItem,
             className = className,
             modifiers = modifiers.duplicate(),
+            isSuspend = isSuspend,
             receiverType = receiverType,
             parameterTypes = parameterTypes,
             returnType = returnType,
@@ -189,51 +187,4 @@ internal class PsiWildcardTypeItem(
             superBound = superBound,
             modifiers = modifiers.duplicate()
         )
-}
-
-/**
- * Determine if this item implies that its associated type is a non-null array with non-null
- * components. This is true for the synthetic `Enum.values()` method and any annotation properties
- * or accessors.
- */
-private fun Item.impliesNonNullArrayComponents(): Boolean {
-    fun MemberItem.isAnnotationPropertiesOrAccessors(): Boolean =
-        containingClass().isAnnotationType() && !modifiers.isStatic()
-
-    // TODO: K2 UAST regression, KTIJ-24754
-    fun MethodItem.isEnumValues(): Boolean =
-        containingClass().isEnum() &&
-            modifiers.isStatic() &&
-            name() == "values" &&
-            parameters().isEmpty()
-
-    return when (this) {
-        is MemberItem -> {
-            isAnnotationPropertiesOrAccessors() || (this is MethodItem && isEnumValues())
-        }
-        else -> false
-    }
-}
-
-/**
- * Finishes initialization of a type by correcting its nullability based on the owning item, which
- * was not constructed yet when the type was created.
- */
-internal fun TypeItem.finishInitialization(owner: PsiItem) {
-    val implicitNullness = owner.implicitNullness()
-    // Kotlin varargs can't be null, but the annotation for the component type ends up on the
-    // context item, so avoid setting Kotlin varargs to nullable.
-    if (
-        (implicitNullness == true || owner.modifiers.isNullable()) &&
-            !(owner.isKotlin() && this is ArrayTypeItem && isVarargs)
-    ) {
-        modifiers.setNullability(TypeNullability.NULLABLE)
-    } else if (implicitNullness == false || owner.modifiers.isNonNull()) {
-        modifiers.setNullability(TypeNullability.NONNULL)
-    }
-
-    // Also set component array types that should be non-null.
-    if (this is PsiArrayTypeItem && owner.impliesNonNullArrayComponents()) {
-        componentType.modifiers.setNullability(TypeNullability.NONNULL)
-    }
 }

@@ -18,18 +18,20 @@ package com.android.tools.metalava.model.text
 
 import com.android.tools.metalava.model.DefaultItem
 import com.android.tools.metalava.model.DefaultModifierList
-import com.android.tools.metalava.model.Location
-import java.nio.file.Path
+import com.android.tools.metalava.reporter.FileLocation
 
 internal abstract class TextItem(
     override val codebase: TextCodebase,
-    internal val position: SourcePositionInfo,
+    fileLocation: FileLocation,
     override var docOnly: Boolean = false,
     override var documentation: String = "",
     modifiers: DefaultModifierList,
-) : DefaultItem(modifiers) {
+) :
+    DefaultItem(
+        fileLocation = fileLocation,
+        modifiers = modifiers,
+    ) {
 
-    override val synthetic = false
     override var originallyHidden = false
     override var hidden = false
     override var removed = false
@@ -44,11 +46,4 @@ internal abstract class TextItem(
 
     override fun isKotlin(): Boolean =
         codebase.unsupported() // source language not recorded in signature files
-
-    override fun location(): Location {
-        val path = if (position == SourcePositionInfo.UNKNOWN) null else Path.of(position.file)
-        val line = position.line
-        val baselineKey = Location.getBaselineKeyForItem(this)
-        return Location(path, line, baselineKey)
-    }
 }

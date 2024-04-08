@@ -25,6 +25,7 @@ import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PropertyItem
+import com.android.tools.metalava.reporter.FileLocation
 import java.io.File
 
 /**
@@ -67,7 +68,7 @@ class TextCodebaseBuilder private constructor(private val codebase: TextCodebase
                 codebase,
                 pkgName,
                 DefaultModifierList(codebase, DefaultModifierList.PUBLIC),
-                SourcePositionInfo.UNKNOWN
+                FileLocation.UNKNOWN
             )
         codebase.addPackage(newPkg)
         return newPkg
@@ -111,7 +112,7 @@ class TextCodebaseBuilder private constructor(private val codebase: TextCodebase
         val newClass =
             TextClassItem(
                 codebase = codebase,
-                position = SourcePositionInfo.UNKNOWN,
+                fileLocation = FileLocation.UNKNOWN,
                 modifiers = textClass.modifiers,
                 classKind = textClass.classKind,
                 qualifiedName = textClass.qualifiedName,

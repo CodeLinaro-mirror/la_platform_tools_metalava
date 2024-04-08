@@ -84,9 +84,14 @@ interface ParameterItem : Item {
 
     override fun parent(): MethodItem? = containingMethod()
 
+    override fun baselineElementId() =
+        containingMethod().baselineElementId() + " parameter #" + parameterIndex
+
     override fun accept(visitor: ItemVisitor) {
         visitor.visit(this)
     }
+
+    override fun toStringForItem() = "parameter ${name()}"
 
     override fun requiresNullnessInfo(): Boolean {
         return type() !is PrimitiveTypeItem
@@ -98,28 +103,6 @@ interface ParameterItem : Item {
         }
 
         return modifiers.hasNullnessInfo()
-    }
-
-    override fun implicitNullness(): Boolean? {
-        // Delegate to the super class, only dropping through if it did not determine an implicit
-        // nullness.
-        super.implicitNullness()?.let { nullable ->
-            return nullable
-        }
-
-        val method = containingMethod()
-        if (synthetic && method.isEnumSyntheticMethod()) {
-            // Workaround the fact that the Kotlin synthetic enum methods
-            // do not have nullness information
-            return false
-        }
-
-        // Equals has known nullness
-        if (method.name() == "equals" && method.parameters().size == 1) {
-            return true
-        }
-
-        return null
     }
 
     override fun containingClass(): ClassItem? = containingMethod().containingClass()

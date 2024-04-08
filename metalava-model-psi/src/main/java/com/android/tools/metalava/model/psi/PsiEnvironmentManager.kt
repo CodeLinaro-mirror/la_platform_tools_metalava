@@ -18,6 +18,7 @@ package com.android.tools.metalava.model.psi
 
 import com.android.tools.lint.UastEnvironment
 import com.android.tools.metalava.model.AnnotationManager
+import com.android.tools.metalava.model.ModelOptions
 import com.android.tools.metalava.model.source.EnvironmentManager
 import com.android.tools.metalava.model.source.SourceParser
 import com.android.tools.metalava.reporter.Reporter
@@ -120,7 +121,8 @@ class PsiEnvironmentManager(
         annotationManager: AnnotationManager,
         javaLanguageLevel: String,
         kotlinLanguageLevel: String,
-        useK2Uast: Boolean,
+        modelOptions: ModelOptions,
+        allowReadingComments: Boolean,
         jdkHome: File?,
     ): SourceParser {
         return PsiSourceParser(
@@ -129,7 +131,8 @@ class PsiEnvironmentManager(
             annotationManager = annotationManager,
             javaLanguageLevel = javaLanguageLevelFromString(javaLanguageLevel),
             kotlinLanguageLevel = kotlinLanguageVersionSettings(kotlinLanguageLevel),
-            useK2Uast = useK2Uast,
+            useK2Uast = modelOptions[PsiModelOptions.useK2Uast],
+            allowReadingComments = allowReadingComments,
             jdkHome = jdkHome,
         )
     }

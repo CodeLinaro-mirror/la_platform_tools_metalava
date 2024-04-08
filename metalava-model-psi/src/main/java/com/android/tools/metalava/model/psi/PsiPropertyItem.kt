@@ -69,13 +69,6 @@ private constructor(
         return name.hashCode()
     }
 
-    override fun toString(): String = "field ${containingClass.fullName()}.${name()}"
-
-    override fun finishInitialization() {
-        super.finishInitialization()
-        fieldType.finishInitialization(this)
-    }
-
     companion object {
         /**
          * Creates a new property item, given a [name], [type] and relationships to other items.
@@ -109,8 +102,9 @@ private constructor(
             val psiMethod = getter.psiMethod
             val documentation =
                 when (val sourcePsi = getter.sourcePsi) {
-                    is KtPropertyAccessor -> javadoc(sourcePsi.property)
-                    else -> javadoc(sourcePsi ?: psiMethod)
+                    is KtPropertyAccessor ->
+                        javadoc(sourcePsi.property, codebase.allowReadingComments)
+                    else -> javadoc(sourcePsi ?: psiMethod, codebase.allowReadingComments)
                 }
             val modifiers = modifiers(codebase, psiMethod, documentation)
             // Alas, annotations whose target is property won't be bound to anywhere in LC/UAST,

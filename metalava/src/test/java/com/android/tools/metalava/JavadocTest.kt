@@ -185,6 +185,84 @@ class JavadocTest : DriverTest() {
     }
 
     @Test
+    fun `Check allowReadingComments = false`() {
+        checkStubs(
+            extraArguments = arrayOf(ARG_SKIP_READING_COMMENTS),
+            docStubs = false,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                    package test.pkg1;
+                    import java.io.IOException;
+                    import test.pkg2.OtherClass;
+
+                    /**
+                     *  Blah blah {@link OtherClass} blah blah.
+                     *  Referencing <b>field</b> {@link OtherClass#foo},
+                     *  and referencing method {@link OtherClass#bar(int,
+                     *   boolean)}.
+                     *  And relative method reference {@link #baz()}.
+                     *  And relative field reference {@link #importance}.
+                     *  Here's an already fully qualified reference: {@link test.pkg2.OtherClass}.
+                     *  And here's one in the same package: {@link LocalClass}.
+                     *
+                     *  @deprecated
+                     *  @see OtherClass
+                     *  @see OtherClass#bar(int, boolean)
+                     */
+                    @SuppressWarnings("all")
+                    public class SomeClass {
+                       /**
+                       * My method.
+                       * @param focus The focus to find. One of {@link OtherClass#FOCUS_INPUT} or
+                       *         {@link OtherClass#FOCUS_ACCESSIBILITY}.
+                       * @throws IOException when blah blah blah
+                       * @throws {@link RuntimeException} when blah blah blah
+                       */
+                       public void baz(int focus) throws IOException;
+                       public boolean importance;
+                    }
+                    """
+                    ),
+                    java(
+                        """
+                    package test.pkg2;
+
+                    @SuppressWarnings("all")
+                    public class OtherClass {
+                        public static final int FOCUS_INPUT = 1;
+                        public static final int FOCUS_ACCESSIBILITY = 2;
+                        public int foo;
+                        public void bar(int baz, boolean bar);
+                    }
+                    """
+                    ),
+                    java(
+                        """
+                    package test.pkg1;
+
+                    @SuppressWarnings("all")
+                    public class LocalClass {
+                    }
+                    """
+                    )
+                ),
+            warnings = "",
+            source =
+                """
+                    package test.pkg1;
+                    @SuppressWarnings({"unchecked", "deprecation", "all"})
+                    public class SomeClass {
+                    public SomeClass() { throw new RuntimeException("Stub!"); }
+                    public void baz(int focus) throws java.io.IOException { throw new RuntimeException("Stub!"); }
+                    public boolean importance;
+                    }
+                    """
+        )
+    }
+
+    @Test
     fun `Rewrite relative documentation links in doc-stubs`() {
         checkStubs(
             docStubs = true,

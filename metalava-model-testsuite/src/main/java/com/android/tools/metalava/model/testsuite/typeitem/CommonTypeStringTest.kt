@@ -29,11 +29,9 @@ import com.android.tools.metalava.testing.java
 import com.google.common.truth.Truth.assertThat
 import java.util.function.Predicate
 import org.junit.Test
-import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 import org.junit.runners.Parameterized.Parameter
 
-@RunWith(Parameterized::class)
 class CommonTypeStringTest : BaseModelTest() {
 
     data class TypeStringParameters(
@@ -123,9 +121,9 @@ class CommonTypeStringTest : BaseModelTest() {
      * Anything that accesses this, either directly or indirectly must do it after initialization,
      * e.g. from lazy fields or in methods called from test methods.
      *
-     * See [baseParameters] for more info.
+     * See [codebaseCreatorConfig] for more info.
      */
-    @Parameter(1) lateinit var parameters: TypeStringParameters
+    @Parameter(0) lateinit var parameters: TypeStringParameters
 
     private fun javaTestFiles() =
         inputSet(
@@ -209,11 +207,7 @@ class CommonTypeStringTest : BaseModelTest() {
                 }
             """
 
-        @JvmStatic
-        @Parameterized.Parameters(name = "{0},{1}")
-        fun combinedTestParameters(): Iterable<Array<Any>> {
-            return crossProduct(testCases)
-        }
+        @JvmStatic @Parameterized.Parameters fun testCases() = testCases
 
         private val testCases =
             // Test primitives besides void (the test setup puts the type in parameter position, and

@@ -22,7 +22,9 @@ import com.android.tools.metalava.ARG_CURRENT_VERSION
 import com.android.tools.metalava.DriverTest
 import com.android.tools.metalava.columnSource
 import com.android.tools.metalava.lint.DefaultLintErrorMessage
+import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.psi.trimDocIndent
+import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.nonNullSource
 import com.android.tools.metalava.nullableSource
 import com.android.tools.metalava.requiresApiSource
@@ -108,6 +110,55 @@ class DocAnalyzerTest : DriverTest() {
                     """
                     )
                 )
+        )
+    }
+
+    @Test
+    fun `Check construct ApiLookup works correctly`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+
+                            public class Foo {
+                                public Foo() {}
+                                public Foo(int i) { this.i = i; }
+
+                                private int i;
+                            }
+                        """
+                    ),
+                ),
+            checkCompilation = true,
+            docStubs = true,
+            applyApiLevelsXml =
+                """
+                    <?xml version="1.0" encoding="utf-8"?>
+                    <api version="2">
+                        <class name="test/pkg/Foo" since="17">
+                            <method name="&lt;init>()V" since="18"/>
+                            <method name="&lt;init>(I)V" since="19"/>
+                        </class>
+                    </api>
+                """,
+            stubFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            /** @apiSince 17 */
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public class Foo {
+                            /** @apiSince 18 */
+                            public Foo() { throw new RuntimeException("Stub!"); }
+                            /** @apiSince 19 */
+                            public Foo(int i) { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    ),
+                ),
         )
     }
 
@@ -1380,6 +1431,7 @@ class DocAnalyzerTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Include Kotlin deprecation text`() {
         check(

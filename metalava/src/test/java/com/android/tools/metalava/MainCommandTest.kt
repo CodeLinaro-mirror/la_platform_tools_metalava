@@ -177,6 +177,8 @@ API sources:
 --ignore-classes-on-classpath
                                              Prevents references to classes on the classpath from being added to the
                                              generated stub files.
+--ignore-comments
+                                             Ignore any comments in source files.
 
 
 Extracting Signature Files:

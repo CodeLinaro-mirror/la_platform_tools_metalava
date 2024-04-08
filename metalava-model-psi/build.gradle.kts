@@ -25,9 +25,7 @@ plugins {
 }
 
 dependencies {
-    implementation(project(":metalava-model"))
     implementation(project(":metalava-model-source"))
-    implementation(project(":metalava-reporter"))
     implementation(libs.androidToolsExternalUast)
     implementation(libs.androidToolsExternalKotlinCompiler)
     implementation(libs.androidToolsExternalIntellijCore)

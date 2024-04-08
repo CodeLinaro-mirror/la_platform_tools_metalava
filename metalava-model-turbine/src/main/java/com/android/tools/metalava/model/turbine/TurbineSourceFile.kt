@@ -20,6 +20,7 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Import
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.SourceFile
+import com.google.turbine.diag.LineMap
 import com.google.turbine.tree.Tree.CompUnit
 import java.util.TreeSet
 import java.util.function.Predicate
@@ -29,7 +30,7 @@ internal class TurbineSourceFile(
     val compUnit: CompUnit,
 ) : SourceFile {
 
-    override fun getHeaderComments(): String? = getHeaderComments(compUnit.source().source())
+    override fun getHeaderComments() = getHeaderComments(compUnit.source().source())
 
     override fun classes(): Sequence<ClassItem> {
         val pkgName = getPackageName(compUnit)
@@ -41,6 +42,10 @@ internal class TurbineSourceFile(
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         return other is TurbineSourceFile && compUnit == other.compUnit
+    }
+
+    override fun hashCode(): Int {
+        return compUnit.hashCode()
     }
 
     override fun getImports(predicate: Predicate<Item>): Collection<Import> {
@@ -78,4 +83,18 @@ internal class TurbineSourceFile(
 
         return emptyList()
     }
+
+    /**
+     * The [LineMap] used to map positions in the source file into line numbers.
+     *
+     * Created lazily as it can be expensive to create.
+     */
+    private val lineMap by
+        lazy(LazyThreadSafetyMode.NONE) { LineMap.create(compUnit.source().source()) }
+
+    /**
+     * Get the line number for [position] which was retrieved from
+     * [com.google.turbine.tree.Tree.position].
+     */
+    fun lineForPosition(position: Int) = lineMap.lineNumber(position)
 }

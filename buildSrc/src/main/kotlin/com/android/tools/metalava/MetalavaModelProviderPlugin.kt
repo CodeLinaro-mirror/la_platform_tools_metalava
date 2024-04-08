@@ -16,11 +16,8 @@
 
 package com.android.tools.metalava
 
-import java.io.File
-import java.io.FileFilter
 import org.gradle.api.Plugin
 import org.gradle.api.Project
-import org.gradle.api.tasks.JavaExec
 import org.gradle.api.tasks.testing.Test
 import org.gradle.kotlin.dsl.named
 
@@ -43,43 +40,18 @@ class MetalavaModelProviderPlugin : Plugin<Project> {
             }
 
             val modelProject = project(":metalava-model")
+            val reporterProject = project(":metalava-reporter")
             val testSuiteProject = project(":metalava-model-testsuite")
 
-            // Add a dependency onto the metalava-model project.
+            // Add a dependency onto the metalava-model and metalava-reporter projects.
             dependencies.add("implementation", modelProject)
+            dependencies.add("implementation", reporterProject)
 
             // Add dependencies to the metalava-model-testsuite project in the testImplementation
             // and modelTestSuite configurations. The first is needed for compilation, the second is
             // needed to add the testsuite classes to the list of test classes to run.
             dependencies.add(modelTestSuite.name, testSuiteProject)
             dependencies.add("testImplementation", testSuiteProject)
-
-            // Register a task that will update the model test suite baseline file using information
-            // extracted from test report files.
-            tasks.register("updateModelTestSuiteBaseline", JavaExec::class.java).configure { exec ->
-                exec.apply {
-                    description =
-                        "Updates the metalava model test suite baseline file for project `${project.name}`"
-
-                    // The class path must include the jar and the runtimeClasspath for the
-                    // metalava-model-testsuite-cli project.
-                    val testSuiteCliProject = project(":metalava-model-testsuite-cli")
-                    classpath =
-                        files(
-                            testSuiteCliProject.tasks.named("jar"),
-                            testSuiteCliProject.configurations.named("runtimeClasspath"),
-                        )
-
-                    mainClass.set("com.android.tools.metalava.model.testsuite.cli.UpdateBaseline")
-
-                    val propertyTestResultsDir = project.property("testResultsDir") as File
-                    val testTaskResultsDir = propertyTestResultsDir.resolve("test")
-                    val testReportFiles =
-                        testTaskResultsDir.listFiles(FileFilter { it.isFile })?.map { it.path }
-                            ?: emptyList()
-                    args = testReportFiles + listOf("--project-dir", project.projectDir.path)
-                }
-            }
         }
     }
 }

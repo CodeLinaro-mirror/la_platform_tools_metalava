@@ -21,9 +21,9 @@ import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.DefaultModifierList.Companion.PACKAGE_PRIVATE
 import com.android.tools.metalava.model.ExceptionTypeItem
-import com.android.tools.metalava.model.Location
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.TypeParameterList
+import com.android.tools.metalava.reporter.FileLocation
 import com.intellij.psi.JavaPsiFacade
 import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiMethod
@@ -35,6 +35,7 @@ class PsiConstructorItem
 private constructor(
     codebase: PsiBasedCodebase,
     psiMethod: PsiMethod,
+    fileLocation: FileLocation = PsiFileLocation(psiMethod),
     containingClass: PsiClassItem,
     name: String,
     modifiers: DefaultModifierList,
@@ -51,6 +52,7 @@ private constructor(
         modifiers = modifiers,
         documentation = documentation,
         psiMethod = psiMethod,
+        fileLocation = fileLocation,
         containingClass = containingClass,
         name = name,
         returnType = returnType,
@@ -68,23 +70,6 @@ private constructor(
 
     override fun superMethods(): List<MethodItem> = emptyList()
 
-    /**
-     * Override to handle providing the location for a synthetic/implicit constructor which has no
-     * associated file.
-     */
-    override fun location(): Location {
-        // If no PSI element, is this a synthetic/implicit constructor? If so
-        // grab the parent class' PSI element instead for file/location purposes
-        val element =
-            if (implicitConstructor && psiMethod.containingFile?.virtualFile == null) {
-                (containingClass() as PsiClassItem).psi()
-            } else {
-                psiMethod
-            }
-
-        return PsiLocationProvider.elementToLocation(element, Location.getBaselineKeyForItem(this))
-    }
-
     companion object {
         internal fun create(
             codebase: PsiBasedCodebase,
@@ -94,7 +79,7 @@ private constructor(
         ): PsiConstructorItem {
             assert(psiMethod.isConstructor)
             val name = psiMethod.name
-            val commentText = javadoc(psiMethod)
+            val commentText = javadoc(psiMethod, codebase.allowReadingComments)
             val modifiers = modifiers(codebase, psiMethod, commentText)
             // Create the TypeParameterList for this before wrapping any of the other types used by
             // it as they may reference a type parameter in the list.
@@ -140,6 +125,9 @@ private constructor(
                 PsiConstructorItem(
                     codebase = codebase,
                     psiMethod = psiMethod,
+                    // Use the location of the containing class for the implicit default
+                    // constructor.
+                    fileLocation = containingClass.fileLocation,
                     containingClass = containingClass,
                     name = name,
                     documentation = "",

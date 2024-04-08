@@ -21,10 +21,8 @@ import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import com.google.common.truth.Truth.assertThat
 import org.junit.Test
-import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 
-@RunWith(Parameterized::class)
 class CommonIsAssignableFromTest : BaseModelTest() {
 
     data class Comparison(
@@ -57,11 +55,7 @@ class CommonIsAssignableFromTest : BaseModelTest() {
                 Comparison("mapOfIntToString", "mapOfNumberToString", false),
             )
 
-        @JvmStatic
-        @Parameterized.Parameters(name = "{0},{1}")
-        fun combinedTestParameters(): Iterable<Array<Any>> {
-            return crossProduct(comparisons)
-        }
+        @JvmStatic @Parameterized.Parameters fun comparisons() = comparisons
     }
 
     /**
@@ -70,9 +64,9 @@ class CommonIsAssignableFromTest : BaseModelTest() {
      * Anything that accesses this, either directly or indirectly must do it after initialization,
      * e.g. from lazy fields or in methods called from test methods.
      *
-     * See [baseParameters] for more info.
+     * See [codebaseCreatorConfig] for more info.
      */
-    @Parameterized.Parameter(1) lateinit var comparison: Comparison
+    @Parameterized.Parameter(0) lateinit var comparison: Comparison
 
     @Test
     fun `Test assignability without unboxing`() {

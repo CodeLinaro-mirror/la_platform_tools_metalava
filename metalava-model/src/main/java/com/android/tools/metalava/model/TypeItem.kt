@@ -920,6 +920,9 @@ interface ClassTypeItem : TypeItem, BoundsTypeItem, ReferenceTypeItem, Exception
  * has been updated to handle lambdas specifically it will need to remain a [ClassTypeItem].
  */
 interface LambdaTypeItem : ClassTypeItem {
+    /** True if the lambda is a suspend function, false otherwise. */
+    val isSuspend: Boolean
+
     /** The type of the optional receiver. */
     val receiverType: TypeItem?
 
@@ -957,7 +960,24 @@ interface VariableTypeItem : TypeItem, BoundsTypeItem, ReferenceTypeItem, Except
     }
 
     override fun convertType(typeParameterBindings: TypeParameterBindings): ReferenceTypeItem {
-        return (typeParameterBindings[asTypeParameter] ?: this).duplicate()
+        val nullability = modifiers.nullability()
+        return (typeParameterBindings[asTypeParameter] ?: this).duplicate().apply {
+            // If this use of the type parameter is marked as nullable, then it overrides the
+            // nullability of the substituted type.
+            if (nullability == TypeNullability.NULLABLE) {
+                modifiers.setNullability(nullability)
+            } else {
+                // If the type that is replacing the type parameter has platform nullability, i.e.
+                // carries no information one way or another about whether it is nullable, then
+                // use the nullability of the use of the type parameter as while at worst it may
+                // also have no nullability information, it could have some, e.g. from a declaration
+                // nullability annotation.
+                val typeParameterNullability = modifiers.nullability()
+                if (typeParameterNullability == TypeNullability.PLATFORM) {
+                    modifiers.setNullability(nullability)
+                }
+            }
+        }
     }
 
     override fun asClass() = asTypeParameter.asErasedType()?.asClass()

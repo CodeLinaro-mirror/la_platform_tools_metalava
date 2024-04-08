@@ -23,6 +23,8 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.computeSuperMethods
+import com.android.tools.metalava.model.type.MethodFingerprint
+import com.android.tools.metalava.reporter.FileLocation
 import com.intellij.psi.PsiAnnotationMethod
 import com.intellij.psi.PsiMethod
 import com.intellij.psi.PsiParameter
@@ -46,6 +48,7 @@ import org.jetbrains.uast.visitor.AbstractUastVisitor
 open class PsiMethodItem(
     codebase: PsiBasedCodebase,
     val psiMethod: PsiMethod,
+    fileLocation: FileLocation = PsiFileLocation(psiMethod),
     // Takes ClassItem as this may be duplicated from a PsiBasedCodebase on the classpath into a
     // TextClassItem.
     containingClass: ClassItem,
@@ -62,6 +65,7 @@ open class PsiMethodItem(
         modifiers = modifiers,
         documentation = documentation,
         element = psiMethod,
+        fileLocation = fileLocation,
         containingClass = containingClass,
         name = name,
     ),
@@ -113,9 +117,6 @@ open class PsiMethodItem(
     override fun returnType(): TypeItem = returnType
 
     override fun parameters(): List<PsiParameterItem> = parameters
-
-    override val synthetic: Boolean
-        get() = isEnumSyntheticMethod()
 
     override fun psi() = psiMethod
 
@@ -274,13 +275,6 @@ open class PsiMethodItem(
             parameters.any { it.hasDefaultValue() }
     }
 
-    override fun finishInitialization() {
-        super.finishInitialization()
-
-        returnType.finishInitialization(this)
-        parameters.forEach { it.finishInitialization() }
-    }
-
     companion object {
         /**
          * Create a [PsiMethodItem].
@@ -319,7 +313,7 @@ open class PsiMethodItem(
                 } else {
                     psiMethod.name
                 }
-            val commentText = javadoc(psiMethod)
+            val commentText = javadoc(psiMethod, codebase.allowReadingComments)
             val modifiers = modifiers(codebase, psiMethod, commentText)
             // Create the TypeParameterList for this before wrapping any of the other types used by
             // it as they may reference a type parameter in the list.
@@ -331,8 +325,16 @@ open class PsiMethodItem(
                     psiMethod
                 )
             val parameters = parameterList(codebase, psiMethod, methodTypeItemFactory)
-            val psiReturnType = psiMethod.returnType
-            val returnType = methodTypeItemFactory.getType(psiReturnType!!, psiMethod)
+            val fingerprint = MethodFingerprint(psiMethod.name, psiMethod.parameters.size)
+            val isAnnotationElement = containingClass.isAnnotationType() && !modifiers.isStatic()
+            val returnType =
+                methodTypeItemFactory.getMethodReturnType(
+                    underlyingReturnType = PsiTypeInfo(psiMethod.returnType!!, psiMethod),
+                    itemAnnotations = modifiers.annotations(),
+                    fingerprint = fingerprint,
+                    isAnnotationElement = isAnnotationElement,
+                )
+
             val method =
                 PsiMethodItem(
                     codebase = codebase,
@@ -352,11 +354,7 @@ open class PsiMethodItem(
                 // No need to apply 'final' to each method. (We do it here rather than just in the
                 // signature emit code since we want to make sure that the signature comparison
                 // methods with super methods also consider this method non-final.)
-                if (!method.isEnumSyntheticMethod()) {
-                    // Unless this is a non-synthetic enum member
-                    // See: https://youtrack.jetbrains.com/issue/KT-57567
-                    modifiers.setFinal(false)
-                }
+                modifiers.setFinal(false)
             }
 
             return method
@@ -413,10 +411,19 @@ open class PsiMethodItem(
             codebase: PsiBasedCodebase,
             psiMethod: PsiMethod,
             enclosingTypeItemFactory: PsiTypeItemFactory,
-        ) =
-            psiMethod.psiParameters.mapIndexed { index, parameter ->
-                PsiParameterItem.create(codebase, parameter, index, enclosingTypeItemFactory)
+        ): List<PsiParameterItem> {
+            val psiParameters = psiMethod.psiParameters
+            val fingerprint = MethodFingerprint(psiMethod.name, psiParameters.size)
+            return psiParameters.mapIndexed { index, parameter ->
+                PsiParameterItem.create(
+                    codebase,
+                    fingerprint,
+                    parameter,
+                    index,
+                    enclosingTypeItemFactory
+                )
             }
+        }
 
         internal fun throwsTypes(
             psiMethod: PsiMethod,
@@ -437,10 +444,6 @@ open class PsiMethodItem(
                 .sortedWith(ExceptionTypeItem.fullNameComparator)
         }
     }
-
-    override fun toString(): String =
-        "${if (isConstructor()) "constructor" else "method"} ${
-    containingClass.qualifiedName()}.${name()}(${parameters().joinToString { it.type().toSimpleType() }})"
 }
 
 /** Get the [PsiParameter]s for a [PsiMethod]. */

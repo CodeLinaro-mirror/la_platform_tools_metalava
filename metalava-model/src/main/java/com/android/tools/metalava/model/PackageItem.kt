@@ -58,9 +58,13 @@ interface PackageItem : Item {
     /** Whether this package is empty */
     fun empty() = topLevelClasses().none()
 
+    override fun baselineElementId() = qualifiedName()
+
     override fun accept(visitor: ItemVisitor) {
         visitor.visit(this)
     }
+
+    override fun toStringForItem() = "package ${qualifiedName()}"
 
     companion object {
         val comparator: Comparator<PackageItem> = Comparator { a, b ->

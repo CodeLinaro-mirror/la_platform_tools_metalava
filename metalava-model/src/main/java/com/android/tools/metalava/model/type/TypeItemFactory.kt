@@ -20,6 +20,7 @@ import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.BoundsTypeItem
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.ExceptionTypeItem
+import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeNullability
@@ -88,12 +89,14 @@ interface TypeItemFactory<in T, F : TypeItemFactory<T, F>> {
      *
      * This considers a number of factors, in addition to the declared type, to determine the
      * appropriate [TypeNullability] for the field type, i.e.:
+     * * Any [AnnotationItem.typeNullability] annotations in [itemAnnotations].
      * * Setting of [isEnumConstant]; if it is `true` then it is always [TypeNullability.NONNULL].
      * * If the field is `final` then the nullability of the field's value can be considered
      *   ([isInitialValueNonNull]). Otherwise, it cannot as it may change over the lifetime of the
      *   field.
      *
      * @param underlyingType the underlying model's type.
+     * @param itemAnnotations the annotations on the field (not the type).
      * @param isFinal `true` if the field is `final`.
      * @param isEnumConstant `true` if the field is actually an enum constant.
      * @param isInitialValueNonNull a lambda that will be invoked on `final` fields to determine
@@ -107,7 +110,64 @@ interface TypeItemFactory<in T, F : TypeItemFactory<T, F>> {
         isFinal: Boolean,
         isInitialValueNonNull: () -> Boolean,
     ): TypeItem = error("unsupported")
+
+    /**
+     * Get the parameter type for a method (or constructor).
+     *
+     * This considers a number of factors, in addition to the declared type, to determine the
+     * appropriate [TypeNullability] for the method parameter type, i.e.:
+     * * Any [AnnotationItem.typeNullability] annotations in [itemAnnotations].
+     * * Method [fingerprint], which may match a known method whose return type has a known
+     *   [TypeNullability].
+     *
+     * @param underlyingParameterType the underlying model's type.
+     * @param itemAnnotations the annotations on the method parameter (not the type).
+     * @param fingerprint method fingerprint
+     * @param parameterIndex the index of the parameter in the method's list of parameters.
+     * @param isVarArg whether this parameter is a vararg parameter. This is provided separately to
+     *   the [underlyingParameterType] because while some models encapsulate that information within
+     *   the type not all do.
+     */
+    fun getMethodParameterType(
+        underlyingParameterType: T,
+        itemAnnotations: List<AnnotationItem>,
+        fingerprint: MethodFingerprint,
+        parameterIndex: Int,
+        isVarArg: Boolean,
+    ): TypeItem = error("unsupported")
+
+    /**
+     * Get the return type for a method.
+     *
+     * This considers a number of factors, in addition to the declared type, to determine the
+     * appropriate [TypeNullability] for the field type, i.e.:
+     * * If it [isAnnotationElement], they must be [TypeNullability.NONNULL].
+     * * Method [fingerprint], which may match a known method whose return type has a known
+     *   [TypeNullability].
+     *
+     * @param underlyingReturnType the underlying model's return type.
+     * @param itemAnnotations the annotations on the field (not the type).
+     * @param fingerprint method fingerprint
+     * @param isAnnotationElement true for a non-static method of an annotation class.
+     */
+    fun getMethodReturnType(
+        underlyingReturnType: T,
+        itemAnnotations: List<AnnotationItem>,
+        fingerprint: MethodFingerprint,
+        isAnnotationElement: Boolean,
+    ): TypeItem = error("unsupported")
 }
+
+/**
+ * A fingerprint of a method that is used to determined if it is a known method with known
+ * nullability.
+ */
+data class MethodFingerprint(
+    /** The name of the method. */
+    val name: String,
+    /** The number of parameters. */
+    val parameterCount: Int,
+)
 
 /**
  * Encapsulates the information necessary to compute the [TypeNullability] from a variety of
@@ -131,6 +191,24 @@ class ContextNullability(
     val forcedNullability: TypeNullability? = null,
 
     /**
+     * The [TypeNullability] that a [TypeItem] that is a component of an array MUST have.
+     *
+     * This is used to ensure that annotation attributes, i.e. methods on an annotation class, that
+     * return arrays cannot return arrays of a nullable component type.
+     *
+     * This CANNOT be overridden by a nullability annotation.
+     */
+    val forcedComponentNullability: TypeNullability? = null,
+
+    /**
+     * The annotations from the [Item] whose type this is.
+     *
+     * If supplied then this may be used by [compute] to determine the [TypeNullability] of the
+     * constructed type.
+     */
+    val itemAnnotations: List<AnnotationItem>? = null,
+
+    /**
      * A [TypeNullability] that can be inferred from the context.
      *
      * It is passed as a lambda as it may be expensive to compute.
@@ -151,10 +229,22 @@ class ContextNullability(
         ?: kotlinNullability?.takeIf { nullability -> nullability != TypeNullability.PLATFORM }
             // If annotations provide it then use them as the developer requested.
             ?: typeAnnotations.typeNullability
+            // If item annotations are found then check them.
+            ?: itemAnnotations?.typeNullability
             // If an inferred nullability is provided then use it.
             ?: inferNullability?.invoke()
             // Finally default to [TypeNullability.PLATFORM].
             ?: TypeNullability.PLATFORM
+
+    /**
+     * Get a [ContextNullability] instance for components of arrays.
+     *
+     * If [forcedComponentNullability] is null then this returns [ContextNullability.none],
+     * otherwise it returns a [ContextNullability] whose [forcedNullability] is set to
+     * [forcedComponentNullability].
+     */
+    fun forComponentType() =
+        forcedComponentNullability?.let { ContextNullability(forcedNullability = it) } ?: none
 
     companion object {
         val none = ContextNullability()
@@ -208,18 +298,63 @@ abstract class DefaultTypeItemFactory<in T, F : DefaultTypeItemFactory<T, F>>(
             if (isEnumConstant) ContextNullability.forceNonNull
             else {
                 ContextNullability(
+                    itemAnnotations = itemAnnotations,
                     inferNullability = {
-                        // Check annotations from the item first, and then whether the field is
-                        // final and has a non-null value.
-                        itemAnnotations.typeNullability
-                            ?: if (isFinal && isInitialValueNonNull()) TypeNullability.NONNULL
-                            else null
+                        // Treat the field as non-null if it is final and has a non-null value.
+                        TypeNullability.NONNULL.takeIf { isFinal && isInitialValueNonNull() }
                     }
                 )
             }
 
         // Get the field's type, passing in the context nullability.
         return getType(underlyingType, contextNullability = contextNullability)
+    }
+
+    override fun getMethodParameterType(
+        underlyingParameterType: T,
+        itemAnnotations: List<AnnotationItem>,
+        fingerprint: MethodFingerprint,
+        parameterIndex: Int,
+        isVarArg: Boolean
+    ): TypeItem {
+        val contextNullability =
+            ContextNullability(
+                itemAnnotations = itemAnnotations,
+                inferNullability = {
+                    // Check for a known method's nullability.
+                    getMethodParameterNullability(fingerprint, parameterIndex)
+                }
+            )
+
+        return getType(
+            underlyingParameterType,
+            contextNullability = contextNullability,
+            isVarArg = isVarArg,
+        )
+    }
+
+    override fun getMethodReturnType(
+        underlyingReturnType: T,
+        itemAnnotations: List<AnnotationItem>,
+        fingerprint: MethodFingerprint,
+        isAnnotationElement: Boolean,
+    ): TypeItem {
+        // Annotation elements, aka attributes, or methods on an annotation class cannot have a null
+        // value.
+        val annotationElementNullability = TypeNullability.NONNULL.takeIf { isAnnotationElement }
+        val contextNullability =
+            ContextNullability(
+                forcedNullability = annotationElementNullability,
+                forcedComponentNullability = annotationElementNullability,
+                itemAnnotations = itemAnnotations,
+                inferNullability = {
+                    // Check for a known method's nullability.
+                    getMethodReturnTypeNullability(fingerprint)
+                }
+            )
+
+        // Get the method's return type, passing in the context nullability.
+        return getType(underlyingReturnType, contextNullability = contextNullability)
     }
 
     /** Type safe access to `this`. */
@@ -230,9 +365,45 @@ abstract class DefaultTypeItemFactory<in T, F : DefaultTypeItemFactory<T, F>>(
 
     /**
      * Get the [TypeItem] corresponding to the [underlyingType] and within the [contextNullability].
+     *
+     * The [isVarArg] is provided separately to the [underlyingType] because not all models
+     * encapsulate that information within the type.
      */
     protected abstract fun getType(
         underlyingType: T,
         contextNullability: ContextNullability = ContextNullability.none,
+        isVarArg: Boolean = false,
     ): TypeItem
+
+    companion object {
+        /**
+         * Get known [TypeNullability] for parameter [parameterIndex] of method with [fingerprint]
+         * if available, or `null`.
+         */
+        private fun getMethodParameterNullability(
+            fingerprint: MethodFingerprint,
+            parameterIndex: Int
+        ): TypeNullability? {
+            val (name, parameterCount) = fingerprint
+            return when {
+                name == "equals" && parameterCount == 1 ->
+                    TypeNullability.NULLABLE.takeIf { parameterIndex == 0 }
+                else -> null
+            }
+        }
+
+        /**
+         * Get [TypeNullability], if known, for the return type of the method with [fingerprint], or
+         * `null` if the method is not known.
+         */
+        private fun getMethodReturnTypeNullability(
+            fingerprint: MethodFingerprint
+        ): TypeNullability? {
+            val (name, parameterCount) = fingerprint
+            return when {
+                name == "toString" && parameterCount == 0 -> TypeNullability.NONNULL
+                else -> null
+            }
+        }
+    }
 }

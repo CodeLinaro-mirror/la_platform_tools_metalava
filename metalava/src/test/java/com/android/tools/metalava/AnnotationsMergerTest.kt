@@ -834,12 +834,14 @@ class AnnotationsMergerTest : DriverTest() {
                     java(
                         """
                     package android.graphics;
+                    import androidx.annotation.NonNull;
                     public class RuntimeShader {
                         public RuntimeShader(@NonNull String sksl) {
                         }
                     }
                     """
-                    )
+                    ),
+                    androidxNonNullSource,
                 ),
             mergeXmlAnnotations =
                 """<?xml version="1.0" encoding="UTF-8"?>
@@ -880,6 +882,7 @@ class AnnotationsMergerTest : DriverTest() {
                   }
                 }
                 """,
+            skipEmitPackages = listOf("androidx.annotation"),
             extractAnnotations =
                 mapOf(
                     "android.text" to

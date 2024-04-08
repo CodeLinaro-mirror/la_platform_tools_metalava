@@ -23,10 +23,14 @@ plugins {
 }
 
 dependencies {
+    implementation(project(":metalava-reporter"))
+
     testImplementation(libs.junit4)
     testImplementation(libs.truth)
     testImplementation(libs.kotlinTest)
 
+    testFixturesImplementation(project(":metalava-reporter"))
+    testFixturesImplementation(project(":metalava-testing"))
     testFixturesImplementation(libs.truth)
     testFixturesImplementation(libs.kotlinTest)
 }

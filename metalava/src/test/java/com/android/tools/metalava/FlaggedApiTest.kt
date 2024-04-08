@@ -21,7 +21,6 @@ import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.testing.java
 import java.util.Locale
 import org.junit.Test
-import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 
 private val annotationsList = listOf(systemApiSource, flaggedApiSource, nonNullSource)
@@ -33,7 +32,6 @@ private const val FULLY_QUALIFIED_MODULE_LIB_API_SURFACE_ANNOTATION =
     "android.annotation.SystemApi(client=android.annotation.SystemApi.Client.MODULE_LIBRARIES)"
 
 @Suppress("JavadocDeclaration")
-@RunWith(Parameterized::class)
 class FlaggedApiTest(private val config: Configuration) : DriverTest() {
 
     /** The configuration of the test. */
@@ -177,17 +175,16 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
             stubPaths = expectations.expectedStubPaths,
             expectedFail = expectations.expectedFail,
             expectedIssues = expectations.expectedIssues,
+            // Do not include flags in the output but do not mark them as hide or removed.
+            // This is needed to verify that the code to always inline the values of
+            // FlaggedApi annotations even when not hidden or removed is working correctly.
+            skipEmitPackages = listOf("test.pkg.flags"),
             extraArguments =
                 arrayOf(
                     ARG_HIDE_PACKAGE,
                     "android.annotation",
                     "--warning",
                     "UnflaggedApi",
-                    // Do not include flags in the output but do not mark them as hide or removed.
-                    // This is needed to verify that the code to always inline the values of
-                    // FlaggedApi annotations even when not hidden or removed is working correctly.
-                    "--skip-emit-packages",
-                    "test.pkg.flags",
                 ) + config.extraArguments,
         )
     }

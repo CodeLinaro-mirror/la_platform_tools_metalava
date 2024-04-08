@@ -16,14 +16,15 @@
 
 package com.android.tools.metalava.model.text
 
-import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.noOpAnnotationManager
-import com.android.tools.metalava.model.testsuite.InputFormat
+import com.android.tools.metalava.model.provider.Capability
+import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.testsuite.ModelSuiteRunner
+import com.android.tools.metalava.reporter.FileLocation
 import com.android.tools.metalava.testing.getAndroidJar
 import java.io.File
 import java.net.URLClassLoader
@@ -31,22 +32,27 @@ import java.net.URLClassLoader
 // @AutoService(ModelSuiteRunner::class)
 class TextModelSuiteRunner : ModelSuiteRunner {
 
+    override val providerName = "text"
+
     override val supportedInputFormats = setOf(InputFormat.SIGNATURE)
 
+    override val capabilities: Set<Capability> = setOf()
+
     override fun createCodebaseAndRun(
-        tempDir: File,
-        input: List<TestFile>,
-        test: (Codebase) -> Unit,
+        inputs: ModelSuiteRunner.TestInputs,
+        test: (Codebase) -> Unit
     ) {
-        val signatureFiles = input.map { it.createFile(tempDir) }
+        if (inputs.commonSourceDir != null) {
+            error("text model does not support common sources")
+        }
 
+        val signatureFiles = inputs.mainSourceDir.createFiles()
         val resolver = ClassLoaderBasedClassResolver(getAndroidJar())
-
         val codebase = ApiFile.parseApi(signatureFiles, classResolver = resolver)
         test(codebase)
     }
 
-    override fun toString(): String = "text"
+    override fun toString() = providerName
 }
 
 /**
@@ -105,7 +111,7 @@ internal class ClassLoaderBasedClassResolver(jar: File) : ClassResolver {
                                 codebase = codebase,
                                 name = packageName,
                                 modifiers = DefaultModifierList(codebase),
-                                position = SourcePositionInfo.UNKNOWN,
+                                fileLocation = FileLocation.UNKNOWN,
                             )
                             .also { newPackageItem -> codebase.addPackage(newPackageItem) }
 

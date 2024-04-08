@@ -20,6 +20,7 @@ import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.reporter.FileLocation
 
 internal class TextPropertyItem(
     codebase: TextCodebase,
@@ -27,8 +28,8 @@ internal class TextPropertyItem(
     containingClass: TextClassItem,
     modifiers: DefaultModifierList,
     private val type: TypeItem,
-    position: SourcePositionInfo
-) : TextMemberItem(codebase, name, containingClass, position, modifiers), PropertyItem {
+    fileLocation: FileLocation
+) : TextMemberItem(codebase, name, containingClass, fileLocation, modifiers), PropertyItem {
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -44,6 +45,4 @@ internal class TextPropertyItem(
     override fun hashCode(): Int = name().hashCode()
 
     override fun type(): TypeItem = type
-
-    override fun toString(): String = "Field ${containingClass().fullName()}.${name()}"
 }

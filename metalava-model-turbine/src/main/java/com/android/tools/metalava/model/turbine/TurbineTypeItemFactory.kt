@@ -35,6 +35,9 @@ import com.android.tools.metalava.model.type.DefaultWildcardTypeItem
 import com.google.turbine.model.TurbineConstantTypeKind
 import com.google.turbine.type.AnnoInfo
 import com.google.turbine.type.Type
+import javax.lang.model.element.Element
+import javax.lang.model.element.TypeElement
+import javax.lang.model.type.TypeKind
 
 /** Creates [TypeItem]s from [Type]s. */
 internal class TurbineTypeItemFactory(
@@ -48,8 +51,11 @@ internal class TurbineTypeItemFactory(
     override fun createNestedFactory(scope: TypeParameterScope) =
         TurbineTypeItemFactory(codebase, initializer, scope)
 
-    override fun getType(underlyingType: Type, contextNullability: ContextNullability) =
-        createType(underlyingType, false, contextNullability)
+    override fun getType(
+        underlyingType: Type,
+        contextNullability: ContextNullability,
+        isVarArg: Boolean,
+    ) = createType(underlyingType, isVarArg, contextNullability)
 
     private fun createModifiers(
         annos: List<AnnoInfo>,
@@ -105,7 +111,7 @@ internal class TurbineTypeItemFactory(
                 for (simpleClass in type.classes()) {
                     // For all outer class types, set the nullability to non-null.
                     outerClass?.modifiers?.setNullability(TypeNullability.NONNULL)
-                    outerClass = createSimpleClassType(simpleClass, outerClass, contextNullability)
+                    outerClass = createInnerClassType(simpleClass, outerClass, contextNullability)
                 }
                 outerClass!!
             }
@@ -188,8 +194,10 @@ internal class TurbineTypeItemFactory(
             curr = curr.elementType()
         }
 
-        // Then, get the type for the innermost component, it has the correct annotations.
-        val componentType = getGeneralType(curr)
+        // Then, get the type for the innermost component, it has the correct annotations. Pass
+        // in the [ContextNullability.forComponentType] just in case this is the return type of an
+        // annotation method, or in other words the type of an annotation attribute.
+        val componentType = getType(curr, contextNullability.forComponentType())
 
         // Finally, traverse over the annotations from the innermost component type to the outermost
         // array and construct a [DefaultArrayTypeItem] around the inner component type using its
@@ -211,14 +219,64 @@ internal class TurbineTypeItemFactory(
         }
     }
 
-    private fun createSimpleClassType(
+    /**
+     * Retrieves the `ClassTypeItem` representation of the outer class associated with a given
+     * nested class type. Intended for types that are not explicitly mentioned within the source
+     * code.
+     *
+     * @param type The `Type.ClassTy.SimpleClassTy` object representing the nested class.
+     * @return The `ClassTypeItem` representing the outer class.
+     */
+    private fun getOuterClassType(type: Type.ClassTy.SimpleClassTy): ClassTypeItem {
+        val className = initializer.getQualifiedName(type.sym().binaryName())
+        val classTypeElement = initializer.getTypeElement(className)!!
+        return createOuterClassType(classTypeElement.enclosingElement!!)!!
+    }
+
+    /**
+     * Constructs a `ClassTypeItem` representation from a type element. Intended for types that are
+     * not explicitly mentioned within the source code.
+     *
+     * @param element The `Element` object representing the type.
+     * @return The corresponding `ClassTypeItem`, or null if the `element` does not represent a
+     *   declared type.
+     */
+    private fun createOuterClassType(element: Element): ClassTypeItem? {
+        if (element.asType().kind != TypeKind.DECLARED) return null
+
+        val outerClassElement = element.enclosingElement!!
+        val outerClassTypeItem = createOuterClassType(outerClassElement)
+
+        element as TypeElement
+
+        // Since this type was never part of source , it won't have any annotation or arguments
+        val modifiers = DefaultTypeModifiers.create(emptyList(), TypeNullability.NONNULL)
+        val classTypeItem =
+            DefaultClassTypeItem(
+                codebase,
+                modifiers,
+                element.qualifiedName.toString(), // Assuming qualifiedName is available on element
+                emptyList(),
+                outerClassTypeItem
+            )
+        return classTypeItem
+    }
+
+    private fun createInnerClassType(
         type: Type.ClassTy.SimpleClassTy,
         outerClass: ClassTypeItem?,
         contextNullability: ContextNullability,
     ): ClassTypeItem {
+        val outerClassItem =
+            if (type.sym().binaryName().contains("$") && outerClass == null) {
+                getOuterClassType(type)
+            } else {
+                outerClass
+            }
+
         val modifiers = createModifiers(type.annos(), contextNullability)
         val qualifiedName = initializer.getQualifiedName(type.sym().binaryName())
         val parameters = type.targs().map { getGeneralType(it) as TypeArgumentTypeItem }
-        return DefaultClassTypeItem(codebase, modifiers, qualifiedName, parameters, outerClass)
+        return DefaultClassTypeItem(codebase, modifiers, qualifiedName, parameters, outerClassItem)
     }
 }

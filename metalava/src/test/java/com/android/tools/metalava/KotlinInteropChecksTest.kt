@@ -18,6 +18,8 @@ package com.android.tools.metalava
 
 import com.android.tools.metalava.cli.common.ARG_HIDE
 import com.android.tools.metalava.lint.DefaultLintErrorMessage
+import com.android.tools.metalava.model.provider.Capability
+import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import org.junit.Test
@@ -57,6 +59,7 @@ class KotlinInteropChecksTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Sam-compatible parameters should be last`() {
         check(
@@ -134,6 +137,7 @@ class KotlinInteropChecksTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Companion object methods should be marked with JvmStatic`() {
         check(
@@ -184,6 +188,7 @@ class KotlinInteropChecksTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Methods with default parameters should specify JvmOverloads`() {
         check(
@@ -217,6 +222,7 @@ class KotlinInteropChecksTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Methods annotated @JvmSynthetic with default parameters don't require @JvmOverloads`() {
         check(
@@ -240,6 +246,7 @@ class KotlinInteropChecksTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Methods which throw exceptions should document them`() {
         check(

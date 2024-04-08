@@ -49,9 +49,13 @@ interface FieldItem : MemberItem {
      */
     override fun duplicate(targetContainingClass: ClassItem): FieldItem
 
+    override fun baselineElementId() = containingClass().qualifiedName() + "#" + name()
+
     override fun accept(visitor: ItemVisitor) {
         visitor.visit(this)
     }
+
+    override fun toStringForItem() = "field ${containingClass().fullName()}.${name()}"
 
     /**
      * Check the declared value with a typed comparison, not a string comparison, to accommodate

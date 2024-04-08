@@ -17,36 +17,24 @@
 package com.android.tools.metalava.model.testsuite.typeitem
 
 import com.android.tools.metalava.model.Codebase
-import com.android.tools.metalava.model.Item
-import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeModifiers
 import com.android.tools.metalava.model.TypeNullability.NONNULL
 import com.android.tools.metalava.model.TypeNullability.PLATFORM
 import com.android.tools.metalava.model.isNullnessAnnotation
-import com.android.tools.metalava.model.source.SourceLanguage
+import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.model.testsuite.assertHasNonNullNullability
 import com.android.tools.metalava.model.testsuite.assertHasNullableNullability
 import com.android.tools.metalava.model.testsuite.assertHasPlatformNullability
 import com.android.tools.metalava.model.testsuite.assertHasUndefinedNullability
 import com.android.tools.metalava.model.testsuite.runNullabilityTest
+import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import com.google.common.truth.Truth.assertThat
 import org.junit.Test
-import org.junit.runner.RunWith
-import org.junit.runners.Parameterized
 
-@RunWith(Parameterized::class)
 class CommonTypeModifiersTest : BaseModelTest() {
-
-    private fun TypeItem.annotationNames(): List<String?> {
-        return modifiers.annotations().map { it.qualifiedName }
-    }
-
-    private fun Item.annotationNames(): List<String?> {
-        return modifiers.annotations().map { it.qualifiedName }
-    }
 
     @Test
     fun `Test annotation on basic types`() {
@@ -980,7 +968,7 @@ class CommonTypeModifiersTest : BaseModelTest() {
             val fooClass = codebase.assertClass("test.pkg.Foo")
 
             // Platform nullability isn't possible from Kotlin
-            if (inputFormat.sourceLanguage != SourceLanguage.KOTLIN) {
+            if (inputFormat != InputFormat.KOTLIN) {
                 val platformString = fooClass.assertMethod("platformString", "").returnType()
                 assertThat(platformString.modifiers.nullability()).isEqualTo(PLATFORM)
             }
@@ -1060,7 +1048,7 @@ class CommonTypeModifiersTest : BaseModelTest() {
             val fooClass = codebase.assertClass("test.pkg.Foo")
 
             // Platform nullability isn't possible from Kotlin
-            if (inputFormat.sourceLanguage != SourceLanguage.KOTLIN) {
+            if (inputFormat != InputFormat.KOTLIN) {
                 val platformStringPlatformArray =
                     fooClass.assertMethod("platformStringPlatformArray", "").returnType()
                 platformStringPlatformArray.assertArrayTypeItem {
@@ -1070,7 +1058,7 @@ class CommonTypeModifiersTest : BaseModelTest() {
             }
 
             // Platform nullability isn't possible from Kotlin
-            if (inputFormat.sourceLanguage != SourceLanguage.KOTLIN) {
+            if (inputFormat != InputFormat.KOTLIN) {
                 val platformStringNullableArray =
                     fooClass.assertMethod("platformStringNullableArray", "").returnType()
                 platformStringNullableArray.assertArrayTypeItem {
@@ -1080,7 +1068,7 @@ class CommonTypeModifiersTest : BaseModelTest() {
             }
 
             // Platform nullability isn't possible from Kotlin
-            if (inputFormat.sourceLanguage != SourceLanguage.KOTLIN) {
+            if (inputFormat != InputFormat.KOTLIN) {
                 val nonNullStringPlatformArray =
                     fooClass.assertMethod("nonNullStringPlatformArray", "").returnType()
                 nonNullStringPlatformArray.assertArrayTypeItem {
@@ -1243,7 +1231,7 @@ class CommonTypeModifiersTest : BaseModelTest() {
         ) {
             val fooClass = codebase.assertClass("test.pkg.Foo")
 
-            if (inputFormat.sourceLanguage != SourceLanguage.KOTLIN) {
+            if (inputFormat != InputFormat.KOTLIN) {
                 val platformStringPlatformVararg =
                     fooClass
                         .assertMethod("platformStringPlatformVararg", "java.lang.String[]")
@@ -1256,7 +1244,7 @@ class CommonTypeModifiersTest : BaseModelTest() {
                 }
             }
 
-            if (inputFormat.sourceLanguage != SourceLanguage.KOTLIN) {
+            if (inputFormat != InputFormat.KOTLIN) {
                 val nullableStringPlatformVararg =
                     fooClass
                         .assertMethod("nullableStringPlatformVararg", "java.lang.String[]")
@@ -1269,7 +1257,7 @@ class CommonTypeModifiersTest : BaseModelTest() {
                 }
             }
 
-            if (inputFormat.sourceLanguage != SourceLanguage.KOTLIN) {
+            if (inputFormat != InputFormat.KOTLIN) {
                 val platformStringNullableVararg =
                     fooClass
                         .assertMethod("platformStringNullableVararg", "java.lang.String[]")
@@ -1282,7 +1270,7 @@ class CommonTypeModifiersTest : BaseModelTest() {
                 }
             }
 
-            if (inputFormat.sourceLanguage != SourceLanguage.KOTLIN) {
+            if (inputFormat != InputFormat.KOTLIN) {
                 val nullableStringNullableVararg =
                     fooClass
                         .assertMethod("nullableStringNullableVararg", "java.lang.String[]")
@@ -1372,7 +1360,7 @@ class CommonTypeModifiersTest : BaseModelTest() {
             val fooClass = codebase.assertClass("test.pkg.Foo")
 
             // Platform type doesn't exist in Kotlin
-            if (inputFormat.sourceLanguage != SourceLanguage.KOTLIN) {
+            if (inputFormat != InputFormat.KOTLIN) {
                 val nullableListPlatformString =
                     fooClass.assertMethod("nullableListPlatformString", "").returnType()
                 nullableListPlatformString.assertClassTypeItem {
@@ -1572,15 +1560,18 @@ class CommonTypeModifiersTest : BaseModelTest() {
     fun `Test resetting nullability`() {
         // Mutating modifiers isn't supported for a text codebase due to type caching.
         val javaSource =
-            java(
-                """
-                    package test.pkg;
-                    import libcore.util.Nullable;
-                    public class Foo {
-                        public java.lang.@Nullable String foo() {}
-                    }
-                """
-                    .trimIndent()
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+                        import libcore.util.Nullable;
+                        public class Foo {
+                            public java.lang.@Nullable String foo() {}
+                        }
+                    """
+                        .trimIndent()
+                ),
+                KnownSourceFiles.libcoreNullableSource
             )
         val kotlinSource =
             kotlin(
@@ -1607,9 +1598,8 @@ class CommonTypeModifiersTest : BaseModelTest() {
 
             // Set to non-null
             stringType.modifiers.setNullability(NONNULL)
-            // A non-null annotation wasn't added
-            stringType.assertHasNonNullNullability(expectAnnotation = false)
-            // The nullable annotation was not removed
+            assertThat(stringType.modifiers.nullability()).isEqualTo(NONNULL)
+            // The nullable annotation was not removed, a nonnull annotation was not added
             if (annotations) {
                 assertThat(stringType.annotationNames().single()).endsWith("Nullable")
             }
@@ -1891,19 +1881,6 @@ class CommonTypeModifiersTest : BaseModelTest() {
             val enumConstant = fooEnum.fields().single()
             assertThat(enumConstant.isEnumConstant()).isTrue()
             enumConstant.type().assertHasNonNullNullability(expectAnnotation = false)
-
-            // method public static values(): test.pkg.Foo[];
-            val values = fooEnum.assertMethod("values", "").returnType()
-            values.assertHasNonNullNullability(expectAnnotation = false)
-            values.assertArrayTypeItem { componentType.assertHasNonNullNullability(false) }
-
-            // method public static getEntries(): kotlin.enums.EnumEntries<test.pkg.Foo>;
-            val enumEntries = fooEnum.assertMethod("getEntries", "").returnType()
-            enumEntries.assertClassTypeItem {
-                assertHasNonNullNullability(expectAnnotation = false)
-                val enumEntry = arguments.single()
-                enumEntry.assertHasNonNullNullability(expectAnnotation = false)
-            }
         }
     }
 
@@ -1982,7 +1959,7 @@ class CommonTypeModifiersTest : BaseModelTest() {
     }
 
     @Test
-    fun `Test inherited nullability of Kotlin type variables`() {
+    fun `Test inherited nullability of unbounded Kotlin type variables - usage is not null`() {
         runCodebaseTest(
             kotlin(
                 """
@@ -1995,8 +1972,72 @@ class CommonTypeModifiersTest : BaseModelTest() {
             )
         ) {
             // T is unbounded, so it has an implicit `Any?` bound, making it possibly nullable, but
-            // not necessarily. That means the usage of the variable doesn't have a nullability on
-            // its own, it depends on what type is used as the parameter.
+            // not necessarily. That means the usage of the variable without any nullable suffix
+            // doesn't have a nullability on its own, it depends on what type is used as the
+            // parameter.
+            val tVar = codebase.assertClass("test.pkg.Foo").methods().single().returnType()
+            tVar.assertHasUndefinedNullability()
+        }
+    }
+
+    @Test
+    fun `Test inherited nullability of unbounded Kotlin type variables - usage is nullable`() {
+        runCodebaseTest(
+            kotlin(
+                """
+                    package test.pkg
+                    class Foo<T> {
+                        fun foo(): T? {}
+                    }
+                """
+                    .trimIndent()
+            )
+        ) {
+            // T is unbounded, so it has an implicit `Any?` bound, making it possibly nullable, but
+            // not necessarily. That means the usage of the variable without any nullable suffix
+            // doesn't have a nullability on its own, it depends on what type is used as the
+            // parameter. However, when it has a nullable suffix then it is nullable.
+            val tVar = codebase.assertClass("test.pkg.Foo").methods().single().returnType()
+            tVar.assertHasNullableNullability()
+        }
+    }
+
+    @Test
+    fun `Test inherited nullability of bounded Kotlin type variables - bound is not nullable`() {
+        runCodebaseTest(
+            kotlin(
+                """
+                    package test.pkg
+                    class Foo<T : Any> {
+                        fun foo(): T {}
+                    }
+                """
+                    .trimIndent()
+            )
+        ) {
+            // T is bounded by `Any` so it cannot be nullable which means that the variable on its
+            // own is not nullable.
+            val tVar = codebase.assertClass("test.pkg.Foo").methods().single().returnType()
+            tVar.assertHasNonNullNullability()
+        }
+    }
+
+    @Test
+    fun `Test inherited nullability of bounded Kotlin type variables - bound is nullable`() {
+        runCodebaseTest(
+            kotlin(
+                """
+                    package test.pkg
+                    class Foo<T : Number?> {
+                        fun foo(): T {}
+                    }
+                """
+                    .trimIndent()
+            )
+        ) {
+            // T is bounded by `Number?`, making it possibly nullable, but not necessarily. That
+            // means the usage of the variable without any nullable suffix doesn't have a
+            // nullability on its own, it depends on what type is used as the parameter.
             val tVar = codebase.assertClass("test.pkg.Foo").methods().single().returnType()
             tVar.assertHasUndefinedNullability()
         }

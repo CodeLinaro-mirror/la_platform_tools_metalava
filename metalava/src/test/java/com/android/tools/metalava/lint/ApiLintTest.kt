@@ -22,6 +22,10 @@ import com.android.tools.metalava.androidxNonNullSource
 import com.android.tools.metalava.androidxNullableSource
 import com.android.tools.metalava.cli.common.ARG_ERROR
 import com.android.tools.metalava.cli.common.ARG_HIDE
+import com.android.tools.metalava.model.provider.Capability
+import com.android.tools.metalava.model.testing.FilterAction
+import com.android.tools.metalava.model.testing.FilterByProvider
+import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.nonNullSource
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
@@ -29,6 +33,7 @@ import org.junit.Test
 
 class ApiLintTest : DriverTest() {
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Test names`() {
         // Make sure we only flag issues in new API
@@ -538,6 +543,7 @@ class ApiLintTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Fields must be final and properly named`() {
         check(
@@ -1104,6 +1110,7 @@ class ApiLintTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Check boolean property accessor naming patterns in Kotlin`() {
         check(
@@ -1176,11 +1183,9 @@ class ApiLintTest : DriverTest() {
     }
 
     private fun `Check boolean constructor parameter accessor naming patterns in Kotlin`(
-        isK2: Boolean,
         expectedIssues: String?,
     ) {
-        uastCheck(
-            isK2 = isK2,
+        check(
             apiLint = "", // enabled
             expectedIssues = expectedIssues,
             expectedFail = DefaultLintErrorMessage,
@@ -1236,10 +1241,11 @@ class ApiLintTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
+    @FilterByProvider("psi", "k2", action = FilterAction.EXCLUDE)
     @Test
     fun `Check boolean constructor parameter accessor naming patterns in Kotlin -- K1`() {
         `Check boolean constructor parameter accessor naming patterns in Kotlin`(
-            isK2 = false,
             // missing errors for `isVisibleSetterBad`,
             // `hasTransientStateGetterBad`, `canRecordGetterBad`, `shouldFitWidthGetterBad`
             expectedIssues =
@@ -1255,10 +1261,11 @@ class ApiLintTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
+    @FilterByProvider("psi", "k1", action = FilterAction.EXCLUDE)
     @Test
     fun `Check boolean constructor parameter accessor naming patterns in Kotlin -- K2`() {
         `Check boolean constructor parameter accessor naming patterns in Kotlin`(
-            isK2 = true,
             expectedIssues =
                 """
                 src/android/pkg/MyClass.kt:19: error: Invalid name for boolean property `visibleBad`. Should start with one of `has`, `can`, `should`, `is`. [GetterSetterNames]
@@ -1318,7 +1325,7 @@ class ApiLintTest : DriverTest() {
             expectedIssues =
                 """
                 src/android/pkg/MySubClass.java:5: warning: Public class android.pkg.MySubClass stripped of unavailable superclass android.pkg.MyHiddenInterface [HiddenSuperclass]
-                src/android/pkg/MyCallback.java:4: warning: Type of parameter list in android.pkg.MyCallback.onFoo(java.util.List<java.lang.String> list) is a nullable collection (`java.util.List`); must be non-null [NullableCollection]
+                src/android/pkg/MyCallback.java:6: warning: Type of parameter list in android.pkg.MyCallback.onFoo(java.util.List<java.lang.String> list) is a nullable collection (`java.util.List`); must be non-null [NullableCollection]
                 src/android/pkg/MyClass.java:9: warning: Return type of method android.pkg.MyClass.getList(java.util.List<java.lang.String>) is a nullable collection (`java.util.List`); must be non-null [NullableCollection]
                 src/android/pkg/MyClass.java:13: warning: Type of field android.pkg.MyClass.STRINGS is a nullable collection (`java.lang.String[]`); must be non-null [NullableCollection]
                 src/android/pkg/MySubClass.java:14: warning: Return type of method android.pkg.MySubClass.getOtherList(java.util.List<java.lang.String>) is a nullable collection (`java.util.List`); must be non-null [NullableCollection]
@@ -1391,6 +1398,8 @@ class ApiLintTest : DriverTest() {
                     java(
                         """
                     package android.pkg;
+
+                    import androidx.annotation.Nullable;
 
                     public class MyCallback {
                         public void onFoo(@Nullable java.util.List<String> list) {
@@ -1611,6 +1620,7 @@ class ApiLintTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Check context first`() {
         check(
@@ -1695,6 +1705,7 @@ class ApiLintTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Check listener last for suspend functions`() {
         check(
@@ -2332,14 +2343,15 @@ class ApiLintTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Return collections instead of arrays`() {
         check(
             extraArguments = arrayOf(ARG_API_LINT, ARG_HIDE, "AutoBoxing"),
             expectedIssues =
                 """
-                src/android/pkg/ArrayTest.java:12: warning: Method should return Collection<Object> (or subclass) instead of raw array; was `java.lang.Object[]` [ArrayReturn]
-                src/android/pkg/ArrayTest.java:13: warning: Method parameter should be Collection<Number> (or subclass) instead of raw array; was `java.lang.Number[]` [ArrayReturn]
+                src/android/pkg/ArrayTest.java:13: warning: Method should return Collection<Object> (or subclass) instead of raw array; was `java.lang.Object[]` [ArrayReturn]
+                src/android/pkg/ArrayTest.java:14: warning: Method parameter should be Collection<Number> (or subclass) instead of raw array; was `java.lang.Number[]` [ArrayReturn]
                 """,
             sourceFiles =
                 arrayOf(
@@ -2348,6 +2360,7 @@ class ApiLintTest : DriverTest() {
                     package android.pkg;
 
                     import androidx.annotation.NonNull;
+                    import androidx.annotation.Nullable;
 
                     public class ArrayTest {
                         @NonNull
@@ -2368,7 +2381,8 @@ class ApiLintTest : DriverTest() {
                     fun okMethod(vararg values: Integer, foo: Float, bar: Float)
                     """
                     ),
-                    androidxNonNullSource
+                    androidxNonNullSource,
+                    androidxNullableSource,
                 )
         )
     }
@@ -2535,7 +2549,7 @@ class ApiLintTest : DriverTest() {
                         """
                     package android.pkg;
 
-                    import androidx.annotation.Nullable;
+                    import androidx.annotation.NonNull;
 
                     public class CloneTest {
                         public void clone(int i) { } // ok
@@ -2544,7 +2558,7 @@ class ApiLintTest : DriverTest() {
                     }
                     """
                     ),
-                    androidxNullableSource
+                    androidxNonNullSource
                 )
         )
     }
@@ -2607,6 +2621,8 @@ class ApiLintTest : DriverTest() {
                     java(
                         """
                     package android.system;
+
+                    import androidx.annotation.Nullable;
 
                     public class Os {
                         public void ok(@Nullable java.io.FileDescriptor fd) { }
@@ -2743,6 +2759,7 @@ class ApiLintTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Test fields, parameters and returns require nullability`() {
         check(
@@ -2995,6 +3012,7 @@ class ApiLintTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `vararg use in annotations`() {
         check(
@@ -3123,6 +3141,7 @@ class ApiLintTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `No warnings about nullability on private constructor getters`() {
         check(
@@ -3232,6 +3251,7 @@ class ApiLintTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `No warning on generic return type`() {
         check(
@@ -3281,6 +3301,7 @@ class ApiLintTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `No error for nullability on synthetic methods`() {
         check(
@@ -3311,6 +3332,7 @@ class ApiLintTest : DriverTest() {
                     java(
                         """
                         package test.pkg;
+                        import androidx.annotation.NonNull;
                         public class Foo() {
                             // Doesn't require nullability
                             public Foo(@NonNull String bar);
@@ -3318,7 +3340,8 @@ class ApiLintTest : DriverTest() {
                             public @NonNull String baz(@NonNull String whatever);
                         }
                     """
-                    )
+                    ),
+                    androidxNonNullSource
                 )
         )
     }
@@ -3328,12 +3351,12 @@ class ApiLintTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                src/test/pkg/Foo.java:13: error: Invalid nullability on method `bar` return. Overrides of unannotated super method cannot be Nullable. [InvalidNullabilityOverride]
-                src/test/pkg/Foo.java:13: error: Invalid nullability on parameter `baz` in method `bar`. Parameters of overrides cannot be NonNull if the super parameter is unannotated. [InvalidNullabilityOverride]
-                src/test/pkg/Foo.java:16: error: Invalid nullability on parameter `y` in method `x`. Parameters of overrides cannot be NonNull if the super parameter is unannotated. [InvalidNullabilityOverride]
-                src/test/pkg/Foo.java:5: error: Missing nullability on method `bar` return [MissingNullability]
-                src/test/pkg/Foo.java:5: error: Missing nullability on parameter `baz` in method `bar` [MissingNullability]
-                src/test/pkg/Foo.java:8: error: Missing nullability on parameter `y` in method `x` [MissingNullability]
+                src/test/pkg/Foo.java:16: error: Invalid nullability on method `bar` return. Overrides of unannotated super method cannot be Nullable. [InvalidNullabilityOverride]
+                src/test/pkg/Foo.java:16: error: Invalid nullability on parameter `baz` in method `bar`. Parameters of overrides cannot be NonNull if the super parameter is unannotated. [InvalidNullabilityOverride]
+                src/test/pkg/Foo.java:19: error: Invalid nullability on parameter `y` in method `x`. Parameters of overrides cannot be NonNull if the super parameter is unannotated. [InvalidNullabilityOverride]
+                src/test/pkg/Foo.java:8: error: Missing nullability on method `bar` return [MissingNullability]
+                src/test/pkg/Foo.java:8: error: Missing nullability on parameter `baz` in method `bar` [MissingNullability]
+                src/test/pkg/Foo.java:11: error: Missing nullability on parameter `y` in method `x` [MissingNullability]
                 """,
             apiLint = "",
             expectedFail = DefaultLintErrorMessage,
@@ -3342,6 +3365,9 @@ class ApiLintTest : DriverTest() {
                     java(
                         """
                         package test.pkg;
+
+                        import androidx.annotation.NonNull;
+                        import androidx.annotation.Nullable;
 
                         public class Foo {
                             // Not annotated
@@ -3366,6 +3392,7 @@ class ApiLintTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Override enforcement on kotlin sourced child class`() {
         check(
@@ -3410,7 +3437,7 @@ class ApiLintTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                src/test/pkg/Foo.java:9: error: Invalid nullability on method `bar` return. Overrides of NonNull methods cannot be Nullable. [InvalidNullabilityOverride]
+                src/test/pkg/Foo.java:12: error: Invalid nullability on method `bar` return. Overrides of NonNull methods cannot be Nullable. [InvalidNullabilityOverride]
                 """,
             apiLint = "",
             expectedFail = DefaultLintErrorMessage,
@@ -3419,6 +3446,9 @@ class ApiLintTest : DriverTest() {
                     java(
                         """
                         package test.pkg;
+
+                        import androidx.annotation.NonNull;
+                        import androidx.annotation.Nullable;
 
                         public class Foo {
                             @NonNull public String bar(@Nullable String baz);
@@ -3441,7 +3471,7 @@ class ApiLintTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                src/test/pkg/Foo.java:10: error: Invalid nullability on parameter `baz` in method `bar`. Parameters of overrides cannot be NonNull if super parameter is Nullable. [InvalidNullabilityOverride]
+                src/test/pkg/Foo.java:13: error: Invalid nullability on parameter `baz` in method `bar`. Parameters of overrides cannot be NonNull if super parameter is Nullable. [InvalidNullabilityOverride]
                 """,
             apiLint = "",
             expectedFail = DefaultLintErrorMessage,
@@ -3450,6 +3480,9 @@ class ApiLintTest : DriverTest() {
                     java(
                         """
                         package test.pkg;
+
+                        import androidx.annotation.NonNull;
+                        import androidx.annotation.Nullable;
 
                         public class Foo {
                             // Not annotated
@@ -3468,6 +3501,7 @@ class ApiLintTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Nullability overrides in unbounded generics should be allowed`() {
         check(
@@ -3499,6 +3533,7 @@ class ApiLintTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Nullability overrides in unbounded generics (Object to generic and back)`() {
         check(
@@ -3521,6 +3556,8 @@ class ApiLintTest : DriverTest() {
                         package test.pkg;
 
                         import java.util.Map;
+                        import androidx.annotation.NonNull;
+                        import androidx.annotation.Nullable;
 
                         public class ArrayMap<K, V> extends SimpleArrayMap<K, V> implements Map<K, V> {
                             @Override
@@ -3531,11 +3568,14 @@ class ApiLintTest : DriverTest() {
                         }
 
                     """
-                    )
+                    ),
+                    androidxNonNullSource,
+                    androidxNullableSource,
                 )
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Nullability overrides in unbounded generics (one super method lacks nullness info)`() {
         check(
@@ -3558,6 +3598,7 @@ class ApiLintTest : DriverTest() {
                         package test.pkg;
 
                         import java.util.Map;
+                        import androidx.annotation.Nullable;
 
                         public class ArrayMap<K, V> extends SimpleArrayMap<K, V> implements Map<K, V> {
                             @Override
@@ -3567,11 +3608,13 @@ class ApiLintTest : DriverTest() {
                             }
                         }
                     """
-                    )
+                    ),
+                    androidxNullableSource
                 )
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Nullability on vararg with inherited generic type`() {
         check(
@@ -3612,6 +3655,7 @@ class ApiLintTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Kotlin required parameters must come before optional parameters`() {
         check(
@@ -3834,6 +3878,7 @@ src/android/pkg/Interface.kt:92: error: Parameter `default` has a default value 
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `No parameter ordering for sealed class constructor`() {
         check(
@@ -3855,6 +3900,7 @@ src/android/pkg/Interface.kt:92: error: Parameter `default` has a default value 
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `members in sealed class are not hidden abstract`() {
         check(

@@ -2,6 +2,8 @@ package com.android.tools.metalava
 
 import com.android.tools.lint.checks.infrastructure.TestFiles.base64gzip
 import com.android.tools.metalava.lint.DefaultLintErrorMessage
+import com.android.tools.metalava.model.provider.Capability
+import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
@@ -386,6 +388,7 @@ class ShowAnnotationTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `showAnnotation with parameters`() {
         check(
@@ -539,6 +542,7 @@ class ShowAnnotationTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Testing that file order does not affect output`() {
         check(
@@ -692,6 +696,7 @@ class ShowAnnotationTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Check @PublishedApi handling`() {
         check(

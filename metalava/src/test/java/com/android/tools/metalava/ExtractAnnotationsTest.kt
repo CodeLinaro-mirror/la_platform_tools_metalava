@@ -16,6 +16,8 @@
 
 package com.android.tools.metalava
 
+import com.android.tools.metalava.model.provider.Capability
+import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
@@ -112,6 +114,7 @@ class ExtractAnnotationsTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Check Kotlin and referencing hidden constants from typedef`() {
         check(
@@ -194,6 +197,7 @@ class ExtractAnnotationsTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Check including only class retention annotations other than typedefs`() {
         check(
@@ -726,6 +730,67 @@ class ExtractAnnotationsTest : DriverTest() {
                   </item>
                 </root>
                 """
+                )
+        )
+    }
+
+    @Test
+    fun `Test annotations on inherited methods`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    intDefAnnotationSource,
+                    java(
+                        """
+                        package test.pkg;
+
+                        import android.annotation.IntDef;
+
+                        import java.lang.annotation.Retention;
+                        import java.lang.annotation.RetentionPolicy;
+
+                        @SuppressWarnings({"UnusedDeclaration", "WeakerAccess"})
+                        public class PublicClass {
+                            /** @hide */
+                            @IntDef({VALUE1, VALUE2})
+                            @Retention(RetentionPolicy.SOURCE)
+                            protected @interface IntDefType {}
+
+                            public static final int VALUE1 = 0;
+                            public static final int VALUE2 = 1;
+
+                            static class HiddenNestedClass {
+                                private final int intDefTypeValue = VALUE1;
+
+                                public @IntDefType int getIntDefType() { return intDefTypeValue; }
+                            }
+
+                            public static class PublicNestedClassA extends HiddenNestedClass {}
+                            public static class PublicNestedClassB extends HiddenNestedClass {}
+                        }
+                    """
+                    ),
+                ),
+            extractAnnotations =
+                mapOf(
+                    "test.pkg" to
+                        // TODO(b/329116156): One of the IntDef annotations should be on
+                        //  PublicNestedClassB
+                        """
+                            <?xml version="1.0" encoding="UTF-8"?>
+                            <root>
+                              <item name="test.pkg.PublicClass.PublicNestedClassA int getIntDefType()">
+                                <annotation name="androidx.annotation.IntDef">
+                                  <val name="value" val="{test.pkg.PublicClass.VALUE1, test.pkg.PublicClass.VALUE2}" />
+                                </annotation>
+                              </item>
+                              <item name="test.pkg.PublicClass.PublicNestedClassB int getIntDefType()">
+                                <annotation name="androidx.annotation.IntDef">
+                                  <val name="value" val="{test.pkg.PublicClass.VALUE1, test.pkg.PublicClass.VALUE2}" />
+                                </annotation>
+                              </item>
+                            </root>
+                        """
                 )
         )
     }

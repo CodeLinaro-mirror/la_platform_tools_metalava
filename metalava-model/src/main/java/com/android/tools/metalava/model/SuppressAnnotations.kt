@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2023 The Android Open Source Project
+ * Copyright (C) 2024 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,10 +14,11 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava.model.source
+package com.android.tools.metalava.model
 
-/** The source languages that may be supported by a [SourceModelProvider]. */
-enum class SourceLanguage {
-    JAVA,
-    KOTLIN
-}
+const val ANDROID_SUPPRESS_LINT = "android.annotation.SuppressLint"
+const val JAVA_LANG_SUPPRESS_WARNINGS = "java.lang.SuppressWarnings"
+const val KOTLIN_SUPPRESS = "kotlin.Suppress"
+
+val SUPPRESS_ANNOTATIONS =
+    listOf(ANDROID_SUPPRESS_LINT, JAVA_LANG_SUPPRESS_WARNINGS, KOTLIN_SUPPRESS)

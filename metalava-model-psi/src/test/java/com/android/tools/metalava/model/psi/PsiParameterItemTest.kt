@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.psi
 
+import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.kotlin
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -25,10 +26,10 @@ import kotlin.test.assertNull
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
-class PsiParameterItemTest : BasePsiTest() {
+class PsiParameterItemTest : BaseModelTest() {
     @Test
     fun `primary constructor parameters have properties`() {
-        testCodebase(kotlin("class Foo(val property: Int, parameter: Int)")) { codebase ->
+        runCodebaseTest(kotlin("class Foo(val property: Int, parameter: Int)")) {
             val constructorItem = codebase.assertClass("Foo").constructors().single()
             val propertyParameter = constructorItem.parameters().single { it.name() == "property" }
             val regularParameter = constructorItem.parameters().single { it.name() == "parameter" }
@@ -39,7 +40,8 @@ class PsiParameterItemTest : BasePsiTest() {
         }
     }
 
-    private fun `actuals get params from expects`(isK2: Boolean) {
+    @Test
+    fun `actuals get params from expects`() {
         val commonSource =
             kotlin(
                 "commonMain/src/Expect.kt",
@@ -54,13 +56,11 @@ class PsiParameterItemTest : BasePsiTest() {
                     }
                 """
             )
-        testCodebase(
-            commonSources = listOf(commonSource),
-            sources =
-                listOf(
-                    kotlin(
-                        "jvmMain/src/Actual.kt",
-                        """
+        runCodebaseTest(
+            inputSet(
+                kotlin(
+                    "jvmMain/src/Actual.kt",
+                    """
                     actual suspend fun String.testFun(param: String) {}
                     actual class Test actual constructor(param: String) {
                         actual fun something(
@@ -69,13 +69,14 @@ class PsiParameterItemTest : BasePsiTest() {
                             required: Int
                         ) {}
                     }
-                """
-                    ),
-                    commonSource,
+                    """
                 ),
-            isK2 = isK2
-        ) { codebase ->
-            // Expect classes are ignored by UAST/Kotlin light classes, verify we test actuals
+                commonSource,
+            ),
+            commonSources = arrayOf(inputSet(commonSource)),
+        ) {
+            // Expect classes are ignored by UAST/Kotlin light classes, verify we test actual
+            // classes.
             val actualFile = codebase.assertClass("ActualKt").getSourceFile()
 
             val functionItem = codebase.assertClass("ActualKt").methods().single()
@@ -118,15 +119,5 @@ class PsiParameterItemTest : BasePsiTest() {
                 assertFalse(parameters[2].hasDefaultValue())
             }
         }
-    }
-
-    @Test
-    fun `actuals get params from expects -- K1`() {
-        `actuals get params from expects`(isK2 = false)
-    }
-
-    @Test
-    fun `actuals get params from expects -- K2`() {
-        `actuals get params from expects`(isK2 = true)
     }
 }

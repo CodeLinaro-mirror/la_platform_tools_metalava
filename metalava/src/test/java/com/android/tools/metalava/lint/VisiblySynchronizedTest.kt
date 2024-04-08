@@ -18,6 +18,8 @@ package com.android.tools.metalava.lint
 
 import com.android.tools.metalava.DriverTest
 import com.android.tools.metalava.androidxNullableSource
+import com.android.tools.metalava.model.provider.Capability
+import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.nullableSource
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.testing.java
@@ -32,6 +34,7 @@ import org.junit.Test
 )
 class VisiblySynchronizedTest : DriverTest() {
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Api methods should not be synchronized in their signature`() {
         check(

@@ -62,10 +62,6 @@ internal class PsiTypeParameterItem(
 
     internal lateinit var bounds: List<BoundsTypeItem>
 
-    override fun toString(): String {
-        return String.format("%s [0x%x]", name, System.identityHashCode(this))
-    }
-
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (other !is TypeParameterItem) return false
@@ -82,15 +78,12 @@ internal class PsiTypeParameterItem(
             val simpleName = psiClass.name!!
             val modifiers = modifiers(codebase, psiClass)
 
-            val item =
-                PsiTypeParameterItem(
-                    codebase = codebase,
-                    psiClass = psiClass,
-                    name = simpleName,
-                    modifiers = modifiers
-                )
-            item.finishInitialization()
-            return item
+            return PsiTypeParameterItem(
+                codebase = codebase,
+                psiClass = psiClass,
+                name = simpleName,
+                modifiers = modifiers
+            )
         }
 
         fun isReified(element: PsiTypeParameter?): Boolean {

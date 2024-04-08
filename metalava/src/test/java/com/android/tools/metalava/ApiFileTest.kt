@@ -23,6 +23,8 @@ import com.android.tools.metalava.cli.common.ARG_ERROR
 import com.android.tools.metalava.cli.common.ARG_HIDE
 import com.android.tools.metalava.cli.common.ARG_WARNING
 import com.android.tools.metalava.lint.DefaultLintErrorMessage
+import com.android.tools.metalava.model.provider.Capability
+import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.model.text.FileFormat.OverloadedMethodOrder
 import com.android.tools.metalava.testing.java
@@ -66,6 +68,7 @@ class ApiFileTest : DriverTest() {
       - Test recursive package filtering.
     */
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Kotlin language level`() {
         // static method in interface is not overridable.
@@ -203,6 +206,7 @@ class ApiFileTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Default Values and Names in Kotlin`() {
         // Kotlin code which explicitly specifies parameter names
@@ -279,6 +283,7 @@ class ApiFileTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Default Values in Kotlin for expressions`() {
         // Testing trickier default values; regression test for problem
@@ -360,6 +365,7 @@ class ApiFileTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Basic Kotlin class`() {
         check(
@@ -435,6 +441,7 @@ class ApiFileTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Kotlin Reified Methods 2`() {
         check(
@@ -475,6 +482,7 @@ class ApiFileTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Suspend functions`() {
         check(
@@ -505,6 +513,7 @@ class ApiFileTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Var properties with private setters`() {
         check(
@@ -541,6 +550,7 @@ class ApiFileTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Kotlin Generics`() {
         check(
@@ -574,6 +584,7 @@ class ApiFileTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Nullness in reified signatures`() {
         check(
@@ -641,6 +652,7 @@ class ApiFileTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Nullness in varargs`() {
         check(
@@ -745,7 +757,7 @@ class ApiFileTest : DriverTest() {
                 """
                 // Signature format: 3.0
                 package androidx.collection {
-                  public class ArrayMap<K, V> extends java.util.HashMap<K,V> implements java.util.Map<K,V> {
+                  public class ArrayMap<K, V> extends java.util.HashMap<K!,V!> implements java.util.Map<K!,V!> {
                     ctor public ArrayMap();
                   }
                   public final class ArrayMapKt {
@@ -753,7 +765,7 @@ class ApiFileTest : DriverTest() {
                     method public static <K, V> androidx.collection.ArrayMap<K,V> arrayMapOf(kotlin.Pair<? extends K,? extends V>... pairs);
                     method public static <K, V> androidx.collection.ArrayMap<K,V>? arrayMapOfNullable(kotlin.Pair<? extends K,? extends V>?... pairs);
                   }
-                  public class ArraySet<E> extends java.util.HashSet<E> implements java.util.Set<E> {
+                  public class ArraySet<E> extends java.util.HashSet<E!> implements java.util.Set<E!> {
                     ctor public ArraySet();
                   }
                   public final class ArraySetKt {
@@ -784,6 +796,7 @@ class ApiFileTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Nullness in type parameters`() {
         check(
@@ -849,6 +862,7 @@ class ApiFileTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Nullness in type parameter -- suspend fun`() {
         check(
@@ -887,6 +901,7 @@ class ApiFileTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Nullness in type parameter -- property and accessor`() {
         check(
@@ -923,6 +938,7 @@ class ApiFileTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Propagate Platform types in Kotlin`() {
         check(
@@ -1052,6 +1068,7 @@ class ApiFileTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Known nullness`() {
         // Don't emit platform types for some unannotated elements that we know the
@@ -1193,8 +1210,6 @@ class ApiFileTest : DriverTest() {
                     method public test.pkg.Issue create(String id, String briefDescription, String explanation);
                   }
                   public enum Language {
-                    method public static test.pkg.Language valueOf(String value) throws java.lang.IllegalArgumentException, java.lang.NullPointerException;
-                    method public static test.pkg.Language[] values();
                     enum_constant public static final test.pkg.Language JAVA;
                     enum_constant public static final test.pkg.Language KOTLIN;
                   }
@@ -1215,6 +1230,7 @@ class ApiFileTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun JvmOverloads() {
         // Regression test for https://github.com/android/android-ktx/issues/366
@@ -1268,6 +1284,7 @@ class ApiFileTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Test JvmStatic`() {
         check(
@@ -1306,6 +1323,7 @@ class ApiFileTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Test JvmField`() {
         check(
@@ -1341,6 +1359,7 @@ class ApiFileTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Test JvmName`() {
         check(
@@ -1378,6 +1397,7 @@ class ApiFileTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Test RequiresOptIn and OptIn`() {
         check(
@@ -1662,6 +1682,7 @@ class ApiFileTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Enum class -- kt`() {
         check(
@@ -1680,8 +1701,6 @@ class ApiFileTest : DriverTest() {
                 """
                 package test.pkg {
                   public enum Foo {
-                    method public static test.pkg.Foo valueOf(String value) throws java.lang.IllegalArgumentException, java.lang.NullPointerException;
-                    method public static test.pkg.Foo[] values();
                     enum_constant public static final test.pkg.Foo A;
                     enum_constant public static final test.pkg.Foo B;
                   }
@@ -1787,7 +1806,7 @@ class ApiFileTest : DriverTest() {
             api =
                 """
                 package test.pkg {
-                  public class MyStringBuilder<A, B> extends test.pkg.PublicSuper<A,B> {
+                  public class MyStringBuilder<A, B> extends test.pkg.PublicSuper<A!,B!> {
                     ctor public MyStringBuilder();
                     method public void setLength(int);
                   }
@@ -1799,6 +1818,7 @@ class ApiFileTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Annotation retention`() {
         // For annotations where the java.lang.annotation classes themselves are not
@@ -2426,8 +2446,6 @@ class ApiFileTest : DriverTest() {
             """
             package java.nio.file.attribute {
               public enum AclEntryPermission {
-                method public static java.nio.file.attribute.AclEntryPermission valueOf(String);
-                method public static final java.nio.file.attribute.AclEntryPermission[] values();
                 enum_constant public static final java.nio.file.attribute.AclEntryPermission APPEND_DATA;
                 enum_constant public static final java.nio.file.attribute.AclEntryPermission DELETE;
                 enum_constant public static final java.nio.file.attribute.AclEntryPermission DELETE_CHILD;
@@ -3108,6 +3126,7 @@ class ApiFileTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Test invalid class name`() {
         // Regression test for b/73018978
@@ -3759,6 +3778,7 @@ class ApiFileTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Test Visible For Testing`() {
         // Use the otherwise= visibility in signatures
@@ -3853,9 +3873,8 @@ class ApiFileTest : DriverTest() {
                 arrayOf(ARG_ERROR, "ReferencesDeprecated", ARG_ERROR, "ExtendsDeprecated"),
             expectedIssues =
                 """
-            src/test/pkg/MyClass.java:3: error: Parameter of deprecated type test.pkg.DeprecatedClass in test.pkg.MyClass.method1(): this method should also be deprecated [ReferencesDeprecated]
-            src/test/pkg/MyClass.java:4: error: Return type of deprecated type test.pkg.DeprecatedInterface in test.pkg.MyClass.method2(): this method should also be deprecated [ReferencesDeprecated]
-            src/test/pkg/MyClass.java:4: error: Returning deprecated type test.pkg.DeprecatedInterface from test.pkg.MyClass.method2(): this method should also be deprecated [ReferencesDeprecated]
+            src/test/pkg/MyClass.java:3: error: Parameter references deprecated type test.pkg.DeprecatedClass in test.pkg.MyClass.method1(): this method should also be deprecated [ReferencesDeprecated]
+            src/test/pkg/MyClass.java:4: error: Return type references deprecated type test.pkg.DeprecatedInterface in test.pkg.MyClass.method2(): this method should also be deprecated [ReferencesDeprecated]
             src/test/pkg/MyClass.java:2: error: Extending deprecated super class class test.pkg.DeprecatedClass from test.pkg.MyClass: this class should also be deprecated [ExtendsDeprecated]
             src/test/pkg/MyClass.java:2: error: Implementing interface of deprecated type test.pkg.DeprecatedInterface in test.pkg.MyClass: this class should also be deprecated [ExtendsDeprecated]
             """,
@@ -3938,6 +3957,7 @@ class ApiFileTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `FooKt class constructors are not public`() {
         check(
@@ -4200,7 +4220,7 @@ class ApiFileTest : DriverTest() {
         val expected =
             """
             package Test.pkg {
-              public class IpcDataCache<Query, Result> extends android.app.PropertyInvalidatedCache<Query,Result> {
+              public class IpcDataCache<Query, Result> extends android.app.PropertyInvalidatedCache<Query!,Result!> {
                 ctor public IpcDataCache(int, String, String, String, android.os.IpcDataCache.QueryHandler<Query!,Result!>);
                 method public void disableForCurrentProcess();
                 method public static void disableForCurrentProcess(String);
@@ -4266,6 +4286,7 @@ class ApiFileTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Test tracking of @Composable annotation from classpath`() {
         check(
@@ -4341,6 +4362,7 @@ class ApiFileTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Test for experimental annotations from classpath`() {
         check(
@@ -4416,6 +4438,7 @@ class ApiFileTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Inline suppress compatibility metadata for experimental annotations from classpath`() {
         check(
@@ -4490,6 +4513,7 @@ class ApiFileTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `@IntRange value in kotlin`() {
         check(
@@ -4562,6 +4586,7 @@ class ApiFileTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Kotlin properties with overriding get`() {
         check(
@@ -4599,6 +4624,7 @@ class ApiFileTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Constructor property tracking`() {
         check(
@@ -4687,6 +4713,7 @@ class ApiFileTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Concise default Values and Names in Kotlin`() {
         // Kotlin code which explicitly specifies parameter names
@@ -4763,6 +4790,7 @@ class ApiFileTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Concise default Values in Kotlin for expressions`() {
         // Testing trickier default values; regression test for problem
@@ -4869,6 +4897,7 @@ class ApiFileTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Functional interface in signature`() {
         check(
@@ -4902,6 +4931,7 @@ class ApiFileTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Inline class`() {
         check(
@@ -4940,6 +4970,7 @@ class ApiFileTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Value class`() {
         check(
@@ -4988,6 +5019,7 @@ class ApiFileTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Kotlin doesn't expand java named constants`() {
         check(
@@ -5014,6 +5046,7 @@ class ApiFileTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Kotlin constructors with JvmOverloads`() {
         check(
@@ -5074,6 +5107,7 @@ class ApiFileTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Kotlin expect-actual with JvmOverloads`() {
         check(
@@ -5153,6 +5187,7 @@ class ApiFileTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Kotlin public methods with DeprecationLevel HIDDEN are public API`() {
         check(
@@ -5198,6 +5233,7 @@ class ApiFileTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Annotations aren't dropped when DeprecationLevel is HIDDEN`() {
         // Regression test for http://b/219792969
@@ -5246,6 +5282,7 @@ class ApiFileTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Constants in a file scope annotation`() {
         check(
@@ -5278,6 +5315,7 @@ class ApiFileTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `RestrictTo on a file hiding it`() {
         check(
@@ -5306,6 +5344,7 @@ class ApiFileTest : DriverTest() {
     }
 
     /** Regression test for b/202968090 */
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `annotation arrays should be non-null`() {
         check(
@@ -5337,6 +5376,7 @@ class ApiFileTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `property setter parameters are unnamed`() {
         check(
@@ -5363,6 +5403,7 @@ class ApiFileTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `implements kotlin collection`() {
         check(
@@ -5389,6 +5430,7 @@ class ApiFileTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `companion object in annotation`() {
         check(
@@ -5428,6 +5470,7 @@ class ApiFileTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `APIs before and after @Deprecated(HIDDEN)`() {
         val sameModifiersAndReturnType = "public static test.pkg.State<java.lang.String>"
@@ -5481,6 +5524,7 @@ class ApiFileTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `APIs before and after @Deprecated(HIDDEN) on constructors`() {
         check(
@@ -5538,6 +5582,7 @@ class ApiFileTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `@Deprecated sealed interface and its members`() {
         check(
@@ -5569,6 +5614,7 @@ class ApiFileTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `@Repeatable annotation`() {
         check(
@@ -5607,6 +5653,7 @@ class ApiFileTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Don't print empty facade classes`() {
         check(
@@ -5769,6 +5816,7 @@ class ApiFileTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Test @JvmMultifileClass appears only once`() {
         check(
@@ -5811,6 +5859,7 @@ class ApiFileTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `@JvmName on @Deprecated hidden`() {
         check(
@@ -5852,6 +5901,7 @@ class ApiFileTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Ordering of methods`() {
         check(
@@ -6167,6 +6217,7 @@ class ApiFileTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Test signature including parameterized converted type`() {
         check(
@@ -6203,7 +6254,7 @@ class ApiFileTest : DriverTest() {
                 """
                     // Signature format: 5.0
                     package test.pkg {
-                      public class Foo<F> implements test.pkg.VisibleInterface<java.util.List> {
+                      public class Foo<F> implements test.pkg.VisibleInterface<java.util.List!> {
                         ctor public Foo();
                       }
                       public interface VisibleInterface<V> {
@@ -6217,6 +6268,7 @@ class ApiFileTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `sealed class with internal setter`() {
         check(
@@ -6254,6 +6306,43 @@ class ApiFileTest : DriverTest() {
                     property public abstract S currentState;
                   }
                 }
+                """
+        )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Usage of NullableType annotation`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            import java.util.List;
+                            public class Foo {
+                                public List<@NullableType String> foo(@NullableType Number nullableNumber, Number otherNumber) { return null; }
+                            }
+                        """
+                    ),
+                    kotlin(
+                        """
+                            package test.pkg
+                            @Target(AnnotationTarget.TYPE)
+                            annotation class NullableType
+                        """
+                    )
+                ),
+            api =
+                """
+                    package test.pkg {
+                      public class Foo {
+                        ctor public Foo();
+                        method public java.util.List<java.lang.String?>! foo(Number?, Number!);
+                      }
+                      @kotlin.annotation.Target(allowedTargets=kotlin.annotation.AnnotationTarget.TYPE) public @interface NullableType {
+                      }
+                    }
                 """
         )
     }

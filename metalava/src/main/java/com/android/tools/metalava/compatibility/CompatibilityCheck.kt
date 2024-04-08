@@ -636,12 +636,7 @@ class CompatibilityCheck(
             val throwableClass = throwType.erasedClass ?: continue
             if (!old.throws(throwableClass.qualifiedName())) {
                 // exclude 'throws' changes to finalize() overrides with no arguments
-                if (
-                    !(old.name() == "finalize" && old.parameters().isEmpty()) &&
-                        // exclude cases where throws clause was missing in signatures from
-                        // old enum methods
-                        !old.isEnumSyntheticMethod()
-                ) {
+                if (!(old.name() == "finalize" && old.parameters().isEmpty())) {
                     val message =
                         "${describe(new, capitalize = true)} added thrown exception ${throwType.description()}"
                     report(Issues.CHANGED_THROWS, new, message)
@@ -874,11 +869,6 @@ class CompatibilityCheck(
                 new.containingClass()
                     .findMethod(new, includeSuperClasses = true, includeInterfaces = false)
             }
-
-        // Builtin annotation methods: just a difference in signature file
-        if (new.isEnumSyntheticMethod()) {
-            return
-        }
 
         // In most cases it is not permitted to add a new method to an interface, even with a
         // default implementation because it could could create ambiguity if client code implements

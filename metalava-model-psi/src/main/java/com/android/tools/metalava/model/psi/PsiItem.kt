@@ -18,9 +18,9 @@ package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.model.DefaultItem
 import com.android.tools.metalava.model.DefaultModifierList
-import com.android.tools.metalava.model.Location
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.source.utils.LazyDelegate
+import com.android.tools.metalava.reporter.FileLocation
 import com.intellij.psi.PsiCompiledElement
 import com.intellij.psi.PsiDocCommentOwner
 import com.intellij.psi.PsiElement
@@ -35,17 +35,20 @@ abstract class PsiItem
 internal constructor(
     override val codebase: PsiBasedCodebase,
     element: PsiElement,
+    fileLocation: FileLocation = PsiFileLocation(element),
     modifiers: DefaultModifierList,
     override var documentation: String,
-) : DefaultItem(modifiers) {
+) :
+    DefaultItem(
+        fileLocation = fileLocation,
+        modifiers = modifiers,
+    ) {
 
     @Suppress(
         "LeakingThis"
     ) // Documentation can change, but we don't want to pick up subsequent @docOnly mutations
     override var docOnly = documentation.contains("@doconly")
     @Suppress("LeakingThis") override var removed = documentation.contains("@removed")
-
-    override val synthetic = false
 
     /** The source PSI provided by UAST */
     internal val sourcePsi: PsiElement? = (element as? UElement)?.sourcePsi
@@ -62,10 +65,6 @@ internal constructor(
 
     /** Returns the PSI element for this item */
     abstract fun psi(): PsiElement
-
-    override fun location(): Location {
-        return PsiLocationProvider.elementToLocation(psi(), Location.getBaselineKeyForItem(this))
-    }
 
     override fun isFromClassPath(): Boolean {
         return codebase.fromClasspath || containingClass()?.isFromClassPath() ?: false
@@ -226,9 +225,6 @@ internal constructor(
         return codebase.docQualifier.toFullyQualifiedDocumentation(this, documentation)
     }
 
-    /** Finish initialization of the item */
-    open fun finishInitialization() {}
-
     override fun isJava(): Boolean {
         return !isKotlin()
     }
@@ -238,7 +234,13 @@ internal constructor(
     }
 
     companion object {
-        internal fun javadoc(element: PsiElement): String {
+
+        // Gets the javadoc of the current element, unless reading comments is
+        // disabled via allowReadingComments
+        internal fun javadoc(element: PsiElement, allowReadingComments: Boolean): String {
+            if (!allowReadingComments) {
+                return ""
+            }
             if (element is PsiCompiledElement) {
                 return ""
             }

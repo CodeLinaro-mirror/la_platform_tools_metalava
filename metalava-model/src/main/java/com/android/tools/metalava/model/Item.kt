@@ -16,6 +16,10 @@
 
 package com.android.tools.metalava.model
 
+import com.android.tools.metalava.reporter.BaselineKey
+import com.android.tools.metalava.reporter.FileLocation
+import com.android.tools.metalava.reporter.IssueLocation
+import com.android.tools.metalava.reporter.Reportable
 import java.util.concurrent.atomic.AtomicInteger
 
 /**
@@ -29,7 +33,7 @@ import java.util.concurrent.atomic.AtomicInteger
  * The abstraction also lets us back the model by an alternative implementation read from signature
  * files, to do compatibility checks.
  */
-interface Item {
+interface Item : Reportable {
     val codebase: Codebase
 
     /** Return the modifiers of this class */
@@ -97,12 +101,6 @@ interface Item {
     /** True if this element is only intended for documentation */
     var docOnly: Boolean
 
-    /**
-     * True if this is a synthetic element, such as the generated "value" and "valueOf" methods in
-     * enums
-     */
-    val synthetic: Boolean
-
     /** True if this item is either hidden or removed */
     fun isHiddenOrRemoved(): Boolean = hidden || removed
 
@@ -156,6 +154,12 @@ interface Item {
 
     override fun hashCode(): Int
 
+    /** Calls [toStringForItem]. */
+    override fun toString(): String
+
+    /** Provides a string representation of the item, suitable for use while debugging. */
+    fun toStringForItem(): String
+
     /**
      * Returns true if this item requires nullness information (e.g. for a method where either the
      * return value or any of the parameters are non-primitives. Note that it doesn't consider
@@ -172,11 +176,11 @@ interface Item {
     /**
      * Get this element's *implicit* nullness, if any.
      *
-     * This returns true for implicitly nullable elements, such as the parameter to the
-     * [Object.equals] method, false for implicitly non-null elements (such as annotation type
-     * members), and null if there is no implicit nullness.
+     * This returns [TypeNullability.NULLABLE] for implicitly nullable elements, such as the
+     * parameter to the [Object.equals] method, [TypeNullability.NONNULL] for implicitly non-null
+     * elements (such as annotation type members), and `null` if there is no implicit nullness.
      */
-    fun implicitNullness(): Boolean? = null
+    fun implicitNullness(): TypeNullability? = null
 
     /**
      * Whether this item was loaded from the classpath (e.g. jar dependencies) rather than be
@@ -226,8 +230,12 @@ interface Item {
         return null
     }
 
-    /** Returns the [Location] for this item, if any. */
-    fun location(): Location = Location.unknownLocationAndBaselineKey
+    override val fileLocation: FileLocation
+        get() = FileLocation.UNKNOWN
+
+    /** Returns the [IssueLocation] for this item, if any. */
+    override val issueLocation
+        get() = IssueLocation(fileLocation, baselineKey)
 
     /**
      * Returns the [documentation], but with fully qualified links (except for the same package, and
@@ -270,6 +278,25 @@ interface Item {
      * item.
      */
     fun findCorrespondingItemIn(codebase: Codebase): Item?
+
+    /**
+     * Get the set of suppressed issues for this [Item].
+     *
+     * These are the values supplied to any of the [SUPPRESS_ANNOTATIONS] on this item. It DOES not
+     * include suppressed issues from the [parent].
+     */
+    override fun suppressedIssues(): Set<String>
+
+    /** The [BaselineKey] for this. */
+    val baselineKey
+        get() = BaselineKey.forElementId(baselineElementId())
+
+    /**
+     * Get the baseline element id from which [baselineKey] is constructed.
+     *
+     * See [BaselineKey.forElementId] for more details.
+     */
+    fun baselineElementId(): String
 
     companion object {
         fun describe(item: Item, capitalize: Boolean = false): String {
@@ -388,7 +415,10 @@ interface Item {
     }
 }
 
-abstract class DefaultItem(final override val modifiers: DefaultModifierList) : Item {
+abstract class DefaultItem(
+    final override val fileLocation: FileLocation,
+    final override val modifiers: DefaultModifierList,
+) : Item {
 
     init {
         @Suppress("LeakingThis")
@@ -429,4 +459,30 @@ abstract class DefaultItem(final override val modifiers: DefaultModifierList) : 
     override val showability: Showability by lazy {
         codebase.annotationManager.getShowabilityForItem(this)
     }
+
+    override fun suppressedIssues(): Set<String> {
+        return buildSet {
+            for (annotation in modifiers.annotations()) {
+                val annotationName = annotation.qualifiedName
+                if (annotationName != null && annotationName in SUPPRESS_ANNOTATIONS) {
+                    for (attribute in annotation.attributes) {
+                        // Assumption that all annotations in SUPPRESS_ANNOTATIONS only have
+                        // one attribute such as value/names that is varargs of String
+                        val value = attribute.value
+                        if (value is AnnotationArrayAttributeValue) {
+                            // Example: @SuppressLint({"RequiresFeature", "AllUpper"})
+                            for (innerValue in value.values) {
+                                innerValue.value()?.toString()?.let { add(it) }
+                            }
+                        } else {
+                            // Example: @SuppressLint("RequiresFeature")
+                            value.value()?.toString()?.let { add(it) }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    final override fun toString() = toStringForItem()
 }

@@ -16,16 +16,12 @@
 
 package com.android.tools.metalava.model.source
 
+import com.android.tools.metalava.model.ModelOptions
+import com.android.tools.metalava.model.provider.FilterableCodebaseCreator
 import java.util.ServiceLoader
 
 /** Service provider interface for a model implementation that consumes source code. */
-interface SourceModelProvider {
-
-    /** The name of the provider. */
-    val providerName: String
-
-    /** The set of supported languages. */
-    val supportedLanguages: Set<SourceLanguage>
+interface SourceModelProvider : FilterableCodebaseCreator {
 
     /**
      * Create an [EnvironmentManager] that will manage any resources needed while creating
@@ -41,7 +37,21 @@ interface SourceModelProvider {
         forTesting: Boolean = false,
     ): EnvironmentManager
 
+    /**
+     * A list of sets of [ModelOptions] that must be tested.
+     *
+     * Default to a list of [ModelOptions.empty].
+     */
+    val modelOptionsList: List<ModelOptions>
+        get() = listOf(ModelOptions.empty)
+
     companion object {
+        /**
+         * Implementations of this interface that were found by the [ServiceLoader] in the
+         * [ClassLoader] from which this class was loaded.
+         */
+        val implementations by lazy { ServiceLoader.load(SourceModelProvider::class.java).toList() }
+
         /**
          * Get an implementation of this interface that matches the [filter].
          *
@@ -52,11 +62,10 @@ interface SourceModelProvider {
             filter: (SourceModelProvider) -> Boolean,
             filterDescription: String
         ): SourceModelProvider {
-            val unfiltered = ServiceLoader.load(SourceModelProvider::class.java).toList()
-            val sourceModelProviders = unfiltered.filter(filter).toList()
+            val sourceModelProviders = implementations.filter(filter).toList()
             return sourceModelProviders.singleOrNull()
                 ?: throw IllegalStateException(
-                    "Expected exactly one SourceModelProvider $filterDescription but found $unfiltered of which $sourceModelProviders matched"
+                    "Expected exactly one SourceModelProvider $filterDescription but found $implementations of which $sourceModelProviders matched"
                 )
         }
 

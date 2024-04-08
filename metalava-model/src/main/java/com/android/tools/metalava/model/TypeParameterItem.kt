@@ -62,8 +62,22 @@ interface TypeParameterItem : Item {
         }
     }
 
+    override fun toStringForItem(): String =
+        if (typeBounds().isEmpty() && !isReified()) name()
+        else
+            buildString {
+                if (isReified()) append("reified ")
+                append(name())
+                if (typeBounds().isNotEmpty()) {
+                    append(" extends ")
+                    typeBounds().joinTo(this, " & ")
+                }
+            }
+
     // Methods from [Item] that are not needed. They will be removed in a follow-up change.
     override fun parent() = error("Not needed for TypeParameterItem")
+
+    override fun baselineElementId() = error("Not needed for TypeParameterItem")
 
     override fun accept(visitor: ItemVisitor) = error("Not needed for TypeParameterItem")
 

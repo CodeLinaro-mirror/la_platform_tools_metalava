@@ -23,8 +23,11 @@ import com.android.tools.metalava.ARG_SHOW_ANNOTATION
 import com.android.tools.metalava.ARG_SHOW_UNANNOTATED
 import com.android.tools.metalava.DriverTest
 import com.android.tools.metalava.androidxNonNullSource
+import com.android.tools.metalava.androidxNullableSource
 import com.android.tools.metalava.cli.common.ARG_ERROR_CATEGORY
 import com.android.tools.metalava.cli.common.ARG_HIDE
+import com.android.tools.metalava.model.provider.Capability
+import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.model.text.ApiClassResolution
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.nonNullSource
@@ -199,6 +202,7 @@ class CompatibilityCheckTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Kotlin Nullness`() {
         check(
@@ -278,6 +282,7 @@ class CompatibilityCheckTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Remove operator`() {
         check(
@@ -309,6 +314,7 @@ class CompatibilityCheckTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Remove vararg`() {
         check(
@@ -445,6 +451,7 @@ class CompatibilityCheckTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Add final to class that can be extended`() {
         // Adding final on a class is incompatible.
@@ -497,6 +504,7 @@ class CompatibilityCheckTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Add final to class that cannot be extended`() {
         // Adding final on a class is incompatible unless the class could not be extended.
@@ -546,6 +554,7 @@ class CompatibilityCheckTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Add final to method of class that can be extended`() {
         // Adding final on a method is incompatible.
@@ -594,6 +603,7 @@ class CompatibilityCheckTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Add final to method of class that cannot be extended`() {
         // Adding final on a method is incompatible unless the containing class could not be
@@ -877,6 +887,7 @@ class CompatibilityCheckTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Remove infix`() {
         check(
@@ -912,6 +923,7 @@ class CompatibilityCheckTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Add seal`() {
         check(
@@ -938,6 +950,7 @@ class CompatibilityCheckTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Remove default parameter`() {
         check(
@@ -978,6 +991,7 @@ class CompatibilityCheckTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Remove optional parameter`() {
         check(
@@ -1867,6 +1881,7 @@ class CompatibilityCheckTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Test Kotlin extensions`() {
         check(
@@ -1916,6 +1931,7 @@ class CompatibilityCheckTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Test Kotlin type bounds`() {
         check(
@@ -2549,6 +2565,7 @@ class CompatibilityCheckTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Implicit nullness`() {
         check(
@@ -2726,6 +2743,7 @@ class CompatibilityCheckTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Compare signatures with Kotlin nullability from source`() {
         check(
@@ -2760,6 +2778,7 @@ class CompatibilityCheckTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Adding and removing reified`() {
         check(
@@ -3311,13 +3330,14 @@ class CompatibilityCheckTest : DriverTest() {
                     java(
                         """
                     package test.pkg;
-
+                    import androidx.annotation.Nullable;
                     public class Parent {
                         public void sample(@Nullable String arg) {
                         }
                     }
                     """
-                    )
+                    ),
+                    androidxNullableSource
                 ),
             // The correct behavior would be for this test to fail, because of the removal of
             // nullability annotations on the child class. However, when we generate signature
@@ -3779,6 +3799,7 @@ class CompatibilityCheckTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Remove fun modifier from interface`() {
         check(
@@ -3869,6 +3890,7 @@ class CompatibilityCheckTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `adding methods to interfaces`() {
         check(
@@ -4758,6 +4780,7 @@ class CompatibilityCheckTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `@JvmDefaultWithCompatibility check works with source files`() {
         check(
@@ -4890,6 +4913,7 @@ class CompatibilityCheckTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Test adding method with same name as method with type parameter`() {
         check(

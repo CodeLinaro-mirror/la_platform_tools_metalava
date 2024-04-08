@@ -21,6 +21,8 @@ import com.android.tools.metalava.ARG_EXCLUDE_DOCUMENTATION_FROM_STUBS
 import com.android.tools.metalava.ARG_KOTLIN_STUBS
 import com.android.tools.metalava.deprecatedForSdkSource
 import com.android.tools.metalava.lint.DefaultLintErrorMessage
+import com.android.tools.metalava.model.provider.Capability
+import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.supportParameterName
 import com.android.tools.metalava.systemApiSource
@@ -559,10 +561,12 @@ class StubsTest : AbstractStubsTest() {
 
                     @SuppressWarnings({"RedundantThrows", "WeakerAccess"})
                     public class Generics {
+                        @SuppressWarnings("HiddenSuperclass") // HiddenParent is not public
                         public class MyClass<X, Y extends Number> extends HiddenParent<X, Y> implements PublicInterface<X, Y> {
                         }
 
                         class HiddenParent<M, N extends Number> extends PublicParent<M, N> {
+                            @SuppressWarnings("ReferencesHidden") // MyThrowable is not public
                             public Map<M, Map<N, String>> createMap(List<M> list) throws MyThrowable {
                                 return null;
                             }
@@ -595,7 +599,7 @@ class StubsTest : AbstractStubsTest() {
                   public class Generics {
                     ctor public Generics();
                   }
-                  public class Generics.MyClass<X, Y extends java.lang.Number> extends test.pkg.Generics.PublicParent<X,Y> implements test.pkg.Generics.PublicInterface<X,Y> {
+                  public class Generics.MyClass<X, Y extends java.lang.Number> extends test.pkg.Generics.PublicParent<X!,Y!> implements test.pkg.Generics.PublicInterface<X!,Y!> {
                     ctor public Generics.MyClass();
                     method public java.util.Map<X!,java.util.Map<Y!,java.lang.String!>!>! createMap(java.util.List<X!>!) throws java.io.IOException;
                     method protected java.util.List<X!>! foo();
@@ -1101,7 +1105,7 @@ class StubsTest : AbstractStubsTest() {
             api =
                 """
                 package test.pkg {
-                  public class Alpha extends test.pkg.Charlie<test.pkg.Orange> {
+                  public class Alpha extends test.pkg.Charlie<test.pkg.Orange!> {
                   }
                   public class Charlie<T> {
                   }
@@ -1133,6 +1137,7 @@ class StubsTest : AbstractStubsTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Basic Kotlin stubs`() {
         check(
@@ -1352,6 +1357,7 @@ class StubsTest : AbstractStubsTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Translate DeprecatedForSdk with API Filtering`() {
         // See b/144111352.

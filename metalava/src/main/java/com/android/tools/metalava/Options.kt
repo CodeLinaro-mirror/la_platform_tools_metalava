@@ -157,6 +157,7 @@ const val ARG_PROGUARD = "--proguard"
 const val ARG_EXTRACT_ANNOTATIONS = "--extract-annotations"
 const val ARG_EXCLUDE_DOCUMENTATION_FROM_STUBS = "--exclude-documentation-from-stubs"
 const val ARG_ENHANCE_DOCUMENTATION = "--enhance-documentation"
+const val ARG_SKIP_READING_COMMENTS = "--ignore-comments"
 const val ARG_HIDE_PACKAGE = "--hide-package"
 const val ARG_MANIFEST = "--manifest"
 const val ARG_MIGRATE_NULLNESS = "--migrate-nullness"
@@ -258,8 +259,6 @@ class Options(
     private val mutableMergeInclusionAnnotations: MutableList<File> = mutableListOf()
     /** Internal list backing [hidePackages] */
     private val mutableHidePackages: MutableList<String> = mutableListOf()
-    /** Internal list backing [skipEmitPackages] */
-    private val mutableSkipEmitPackages: MutableList<String> = mutableListOf()
     /** Internal list backing [passThroughAnnotations] */
     private val mutablePassThroughAnnotations: MutableSet<String> = mutableSetOf()
     /** Internal list backing [excludeAnnotations] */
@@ -326,6 +325,13 @@ class Options(
      * source annotations present in the code. This is implied by --doc-stubs.
      */
     var enhanceDocumentation = false
+
+    /**
+     * Whether to allow reading comments If false, any attempts by Metalava to read a PSI comment
+     * will return "" This can help callers to be sure that comment-only changes shouldn't affect
+     * Metalava output
+     */
+    var allowReadingComments = true
 
     /** If true, treat all warnings as errors */
     var warningsAreErrors: Boolean = false
@@ -410,7 +416,8 @@ class Options(
     var hidePackages: List<String> = mutableHidePackages
 
     /** Packages that we should skip generating even if not hidden; typically only used by tests */
-    var skipEmitPackages: List<String> = mutableSkipEmitPackages
+    val skipEmitPackages
+        get() = executionEnvironment.testEnvironment?.skipEmitPackages ?: emptyList()
 
     /** Annotations to hide */
     val hideAnnotations by lazy(hideAnnotationsBuilder::build)
@@ -764,7 +771,7 @@ class Options(
     /** Temporary folder to use instead of the JDK default, if any */
     private var tempFolder: File? = null
 
-    var useK2Uast = false
+    var useK2Uast: Boolean? = null
 
     val sourceModelProvider by
         option(
@@ -908,6 +915,7 @@ class Options(
                 ARG_KOTLIN_STUBS -> kotlinStubs = true
                 ARG_EXCLUDE_DOCUMENTATION_FROM_STUBS -> includeDocumentationInStubs = false
                 ARG_ENHANCE_DOCUMENTATION -> enhanceDocumentation = true
+                ARG_SKIP_READING_COMMENTS -> allowReadingComments = false
                 ARG_PASS_THROUGH_ANNOTATION -> {
                     val annotations = getValue(args, ++index)
                     annotations.split(",").forEach { path ->
@@ -938,10 +946,6 @@ class Options(
                         mutableStubImportPackages.add(pkg)
                         mutableHidePackages.add(pkg)
                     }
-                }
-                "--skip-emit-packages" -> {
-                    val packages = getValue(args, ++index)
-                    mutableSkipEmitPackages += packages.split(File.pathSeparatorChar)
                 }
                 ARG_IGNORE_CLASSES_ON_CLASSPATH -> {
                     allowClassesFromClasspath = false
@@ -1571,6 +1575,8 @@ object OptionsHelp {
                 ARG_IGNORE_CLASSES_ON_CLASSPATH,
                 "Prevents references to classes on the classpath from being added to " +
                     "the generated stub files.",
+                ARG_SKIP_READING_COMMENTS,
+                "Ignore any comments in source files.",
                 "",
                 "Extracting Signature Files:",
                 // TODO: Document --show-annotation!

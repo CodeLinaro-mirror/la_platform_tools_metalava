@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.reporter
 
-import com.android.tools.metalava.model.Location
 import java.io.File
 import java.io.PrintWriter
 import kotlin.text.Charsets.UTF_8
@@ -88,10 +87,18 @@ private constructor(
     }
 
     /** Returns true if the given issue is listed in the baseline, otherwise false */
-    fun mark(location: Location, message: String, issue: Issues.Issue): Boolean {
+    fun mark(location: IssueLocation, message: String, issue: Issues.Issue): Boolean {
         val elementId =
             location.baselineKey.elementId(pathTransformer = this::transformBaselinePath)
         return mark(elementId, message, issue)
+    }
+
+    private fun MutableMap<String, String>.findOldMessageByElementId(elementId: String): String? {
+        get(elementId)?.let {
+            return it
+        }
+
+        return null
     }
 
     private fun mark(elementId: String, message: String, issue: Issues.Issue): Boolean {
@@ -113,10 +120,9 @@ private constructor(
                     }
                 }
 
-        val oldMessage: String? = idMap?.get(elementId)
-        if (oldMessage != null) {
-            // for now not matching messages; the ids are unique enough and allows us
-            // to tweak issue messages compatibly without recording all the deltas here
+        idMap?.findOldMessageByElementId(elementId)?.let {
+            // Do not match the error messages; the ids are unique enough and allows us
+            // to tweak issue messages compatibly without recording all the deltas here.
             return true
         }
 

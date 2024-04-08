@@ -25,6 +25,7 @@ import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.computeSuperMethods
+import com.android.tools.metalava.reporter.FileLocation
 import java.util.function.Predicate
 
 internal open class TextMethodItem(
@@ -34,8 +35,10 @@ internal open class TextMethodItem(
     modifiers: DefaultModifierList,
     private val returnType: TypeItem,
     private val parameters: List<TextParameterItem>,
-    position: SourcePositionInfo
-) : TextMemberItem(codebase, name, containingClass, position, modifiers = modifiers), MethodItem {
+    fileLocation: FileLocation,
+) :
+    TextMemberItem(codebase, name, containingClass, fileLocation, modifiers = modifiers),
+    MethodItem {
     init {
         parameters.forEach { it.containingMethod = this }
     }
@@ -113,7 +116,7 @@ internal open class TextMethodItem(
                 modifiers.duplicate(),
                 returnType.convertType(typeVariableMap),
                 parameters.map { it.duplicate(typeVariableMap) },
-                position
+                fileLocation
             )
         duplicated.inheritedFrom = containingClass()
 
@@ -136,9 +139,6 @@ internal open class TextMethodItem(
         return duplicated
     }
 
-    override val synthetic: Boolean
-        get() = isEnumSyntheticMethod()
-
     private var throwsTypes: List<ExceptionTypeItem> = emptyList()
 
     override fun throwsTypes(): List<ExceptionTypeItem> = this.throwsTypes
@@ -155,12 +155,6 @@ internal open class TextMethodItem(
 
     @Deprecated("This property should not be accessed directly.")
     override var _requiresOverride: Boolean? = null
-
-    override fun toString(): String =
-        "${if (isConstructor()) "constructor" else "method"} ${containingClass().qualifiedName()}.${toSignatureString()}"
-
-    fun toSignatureString(): String =
-        "${name()}(${parameters().joinToString { it.type().toSimpleType() }})"
 
     private var annotationDefault = ""
 

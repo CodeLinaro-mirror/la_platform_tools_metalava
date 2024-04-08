@@ -23,11 +23,8 @@ import com.android.tools.metalava.testing.java
 import java.util.function.Predicate
 import kotlin.test.assertEquals
 import org.junit.Test
-import org.junit.runner.RunWith
-import org.junit.runners.Parameterized
 
 /** Common tests for implementations of [SourceFile]. */
-@RunWith(Parameterized::class)
 class CommonSourceFileTest : BaseModelTest() {
     internal class AlwaysTrue : Predicate<Item> {
         override fun test(item: Item): Boolean = true
