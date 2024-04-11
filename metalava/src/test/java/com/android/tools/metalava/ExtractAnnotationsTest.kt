@@ -794,4 +794,43 @@ class ExtractAnnotationsTest : DriverTest() {
                 )
         )
     }
+
+    @Test
+    fun `Test generating annotations zip from signature file`() {
+        check(
+            signatureSources =
+                arrayOf(
+                    """
+                        // Signature format: 2.0
+                        package test.pkg {
+                            public class Foo {
+                                method @RequiresPermission(test.pkg.Permissions.PERMISSION1) public void foo1();
+                                method @RequiresPermission(test.pkg.Permissions.PERMISSION2) public void foo2();
+                                method @RequiresPermission("UnresolvedPermission") public void foo3();
+                            }
+                            public class Permissions {
+                                field public static final String PERMISSION1 = "Permission1";
+                                field public static final String PERMISSION2 = "Permission2";
+                            }
+                        }
+                    """,
+                ),
+            extractAnnotations =
+                mapOf(
+                    "test.pkg" to
+                        // TODO(b/331752084): Add missing annotations
+                        """
+                            <?xml version="1.0" encoding="UTF-8"?>
+                            <root>
+                              <item name="test.pkg.Foo void foo1()">
+                              </item>
+                              <item name="test.pkg.Foo void foo2()">
+                              </item>
+                              <item name="test.pkg.Foo void foo3()">
+                              </item>
+                            </root>
+                        """
+                )
+        )
+    }
 }

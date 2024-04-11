@@ -1,11 +1,8 @@
 com.android.tools.metalava.model.testsuite.annotationitem.CommonAnnotationItemTest
-  annotation toSource() with boolean values
   annotation toSource() with char values
   annotation toSource() with class values
   annotation toSource() with compound expression values
-  annotation toSource() with enum values
   annotation toSource() with number values
-  annotation toSource() with string values
   annotation with constant literal values
   annotation with infinity values
   annotation with negative number values

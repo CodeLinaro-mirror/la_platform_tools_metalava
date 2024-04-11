@@ -505,7 +505,10 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
     }
 
     override fun hasHideAnnotations(modifiers: ModifierList): Boolean {
-        if (config.hideAnnotations.isEmpty()) {
+        // If there are no hide annotations or revert annotations registered then this can never
+        // return true. Revert annotations are checked because they can behave like hide if they end
+        // up reverting a newly added API.
+        if (config.hideAnnotations.isEmpty() && config.revertAnnotations.isEmpty()) {
             return false
         }
         return modifiers.hasAnnotation(AnnotationItem::isHideAnnotation)

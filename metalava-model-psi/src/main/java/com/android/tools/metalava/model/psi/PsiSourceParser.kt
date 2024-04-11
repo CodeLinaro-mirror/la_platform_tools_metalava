@@ -25,7 +25,6 @@ import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.noOpAnnotationManager
 import com.android.tools.metalava.model.source.DEFAULT_JAVA_LANGUAGE_LEVEL
-import com.android.tools.metalava.model.source.DEFAULT_KOTLIN_LANGUAGE_LEVEL
 import com.android.tools.metalava.model.source.SourceCodebase
 import com.android.tools.metalava.model.source.SourceParser
 import com.android.tools.metalava.model.source.SourceSet
@@ -37,7 +36,6 @@ import com.intellij.pom.java.LanguageLevel
 import java.io.File
 import org.jetbrains.kotlin.config.ApiVersion
 import org.jetbrains.kotlin.config.JVMConfigurationKeys
-import org.jetbrains.kotlin.config.LanguageFeature
 import org.jetbrains.kotlin.config.LanguageVersion
 import org.jetbrains.kotlin.config.LanguageVersionSettings
 import org.jetbrains.kotlin.config.LanguageVersionSettingsImpl
@@ -189,14 +187,14 @@ internal class PsiSourceParser(
         classpath: List<File>,
         rootDir: File = sourceRoots.firstOrNull() ?: File("").canonicalFile
     ) {
-        // TODO(jsjeon): should set language version _per_ module (Lint Project)
-        val lintClient = MetalavaCliClient(kotlinLanguageLevel)
+        val lintClient = MetalavaCliClient()
         // From ...lint.detector.api.Project, `dir` is, e.g., /tmp/foo/dev/src/project1,
         // and `referenceDir` is /tmp/foo/. However, in many use cases, they are just same.
         // `referenceDir` is used to adjust `lib` dir accordingly if needed,
         // but we set `classpath` anyway below.
         val lintProject =
             Project.create(lintClient, /* dir = */ rootDir, /* referenceDir = */ rootDir)
+        lintProject.kotlinLanguageLevel = kotlinLanguageLevel
         lintProject.javaSourceFolders.addAll(sourceRoots)
         lintProject.javaLibraries.addAll(classpath)
         config.addModules(
@@ -221,7 +219,8 @@ internal class PsiSourceParser(
         rootDir: File,
     ) {
         // TODO(b/322111050): consider providing a nice DSL at Lint level
-        val projectXml = File.createTempFile("project", ".xml", rootDir)
+        val projectXml = File.createTempFile("project", ".xml")
+        projectXml.deleteOnExit()
 
         fun describeSources(sources: List<File>) = buildString {
             for (source in sources) {
@@ -295,17 +294,7 @@ internal class PsiSourceParser(
         }
         projectXml.writeText(description)
 
-        // TODO: use Lint's [withKMPEnabled] util when available
-        val languageLevel = LanguageVersion.fromVersionString(DEFAULT_KOTLIN_LANGUAGE_LEVEL)!!
-        val apiVersion = ApiVersion.createByLanguageVersion(languageLevel)
-        val kotlinLanguageLevel =
-            LanguageVersionSettingsImpl(
-                languageLevel,
-                apiVersion,
-                emptyMap(),
-                mapOf(LanguageFeature.MultiPlatformProjects to LanguageFeature.State.ENABLED),
-            )
-        val lintClient = MetalavaCliClient(kotlinLanguageLevel)
+        val lintClient = MetalavaCliClient()
         // This will parse the description of Lint's project model and populate the module structure
         // inside the given Lint client. We will use it to set up the project structure that
         // [UastEnvironment] requires, which in turn uses that to set up Kotlin compiler frontend.
@@ -316,9 +305,10 @@ internal class PsiSourceParser(
         //  * UastEnvironment Module simply reuses existing Lint Project model.
         computeMetadata(lintClient, projectXml)
         config.addModules(
-            lintClient.knownProjects.map { module ->
+            lintClient.knownProjects.map { lintProject ->
+                lintProject.kotlinLanguageLevel = kotlinLanguageLevel
                 UastEnvironment.Module(
-                    module,
+                    lintProject,
                     // K2 UAST: building KtSdkModule for JDK
                     jdkHome,
                     includeTests = false,
