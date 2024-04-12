@@ -16,7 +16,6 @@ com.android.tools.metalava.model.testsuite.typeitem.CommonTypeModifiersTest
 
 com.android.tools.metalava.model.testsuite.typeitem.CommonTypeParameterItemTest
   Test type parameter with annotations[kotlin,k1]
-  Test type parameter with annotations[kotlin,k2]
 
 com.android.tools.metalava.model.testsuite.typeitem.CommonTypeStringTest
   Type string[java,k1,null annotated parameterized inner type - annotated]

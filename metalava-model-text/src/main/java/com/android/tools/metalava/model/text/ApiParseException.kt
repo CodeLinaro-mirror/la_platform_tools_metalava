@@ -27,9 +27,9 @@ class ApiParseException(
 
     internal constructor(
         message: String,
-        tokenizer: Tokenizer,
+        fileLocationTracker: FileLocationTracker,
         cause: Exception? = null,
-    ) : this(message, tokenizer.fileLocation(), cause = cause)
+    ) : this(message, fileLocationTracker.fileLocation(), cause = cause)
 
     override val message: String
         get() {

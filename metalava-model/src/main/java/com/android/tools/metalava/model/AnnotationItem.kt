@@ -666,7 +666,7 @@ class DefaultAnnotationAttribute(
             val valueBegin: Int
             val valueEnd: Int
             if (split == -1) {
-                valueBegin = 0
+                valueBegin = from
                 valueEnd = to
                 name = "value"
             } else {
@@ -675,7 +675,9 @@ class DefaultAnnotationAttribute(
                 valueEnd = to
             }
             value = source.substring(valueBegin, valueEnd).trim()
-            list.add(create(name, value))
+            if (!value.isEmpty()) {
+                list.add(create(name, value))
+            }
         }
     }
 
