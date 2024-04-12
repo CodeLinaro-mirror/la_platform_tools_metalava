@@ -46,9 +46,6 @@ com.android.tools.metalava.ApiFileTest
   Type-use annotations can be included in signature files[turbine]
   When implementing rather than extending package private class, inline members instead[turbine]
 
-com.android.tools.metalava.BaselineTest
-  Check baseline[turbine]
-
 com.android.tools.metalava.CoreApiTest
   Hidden with --hide-annotation[turbine]
   Hidden with package javadoc and hiding default constructor explicitly[turbine]
@@ -143,9 +140,6 @@ com.android.tools.metalava.ShowAnnotationTest
   Include interface-inherited fields in stubs[turbine]
   Testing parsing an annotation whose attribute references the annotated class[turbine]
   showAnnotation with default parameters[turbine]
-
-com.android.tools.metalava.SymlinkTest
-  Symlink test making sure we don't iterate forever[turbine]
 
 com.android.tools.metalava.SyntaxErrorTest
   Invalid syntax[turbine]

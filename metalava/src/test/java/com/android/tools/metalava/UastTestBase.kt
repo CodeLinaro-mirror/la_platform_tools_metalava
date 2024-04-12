@@ -733,9 +733,7 @@ abstract class UastTestBase : DriverTest() {
 
     @Test
     fun `Upper bound wildcards -- extension function type`() {
-        // TODO: https://youtrack.jetbrains.com/issue/KT-61734
-        val wildcard1 = if (isK2) "? super " else ""
-        val wildcard2 = if (isK2) "? extends " else ""
+        // https://youtrack.jetbrains.com/issue/KT-61734
         check(
             sourceFiles =
                 arrayOf(
@@ -770,7 +768,7 @@ abstract class UastTestBase : DriverTest() {
                   public interface NavGraphBuilder {
                   }
                   public final class NavGraphBuilderKt {
-                    method public static Void compose(test.pkg.NavGraphBuilder, optional kotlin.jvm.functions.Function1<${wildcard1}test.pkg.AnimatedContentTransitionScope<test.pkg.NavBackStackEntry>,${wildcard2}test.pkg.EnterTransition?>? enterTransition);
+                    method public static Void compose(test.pkg.NavGraphBuilder, optional kotlin.jvm.functions.Function1<test.pkg.AnimatedContentTransitionScope<test.pkg.NavBackStackEntry>,test.pkg.EnterTransition?>? enterTransition);
                   }
                 }
                 """

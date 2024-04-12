@@ -416,6 +416,48 @@ class ApiAnalyzerTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Deprecation when ignoring comments`() {
+        check(
+            extraArguments = arrayOf(ARG_SKIP_READING_COMMENTS, ARG_ERROR, "ReferencesDeprecated"),
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                            package test.pkg
+
+                            @Deprecated
+                            class TestClass(
+                                val content: String,
+                            )
+
+                            @Deprecated
+                            val TestClass.propertyDeprecated: String
+                                get() = TestClass.content
+
+                            @get:Deprecated
+                            val TestClass.getterDeprecated: String
+                                get() = TestClass.content
+
+                            /**
+                             * @deprecated
+                             */
+                            val TestClass.commentDeprecated: String
+                                get() = TestClass.content
+
+                        """
+                    ),
+                ),
+            format = FileFormat.V2,
+            expectedFail = DefaultLintErrorMessage,
+            expectedIssues =
+                """
+                src/test/pkg/TestClass.kt:20: error: Parameter references deprecated type test.pkg.TestClass in test.pkg.TestClassKt.getCommentDeprecated(): this method should also be deprecated [ReferencesDeprecated]
+                """,
+        )
+    }
+
     @Test
     fun `Test inherited method from hidden class into deprecated class inherits deprecated status`() {
         check(
