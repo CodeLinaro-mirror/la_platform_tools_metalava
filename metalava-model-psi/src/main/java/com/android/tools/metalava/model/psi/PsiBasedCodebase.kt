@@ -451,9 +451,7 @@ open class PsiBasedCodebase(
     internal fun initializeFromJar(
         uastEnvironment: UastEnvironment,
         jarFile: File,
-        preFiltered: Boolean = false,
     ) {
-        this.preFiltered = preFiltered
         initializing = true
         hideClassesFromJars = false
 

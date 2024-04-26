@@ -450,7 +450,7 @@ abstract class DefaultItem(
     override val isPrivate: Boolean
         get() = modifiers.isPrivate()
 
-    override var emit = true
+    final override var emit = true
 
     companion object {
         private var nextRank = AtomicInteger()

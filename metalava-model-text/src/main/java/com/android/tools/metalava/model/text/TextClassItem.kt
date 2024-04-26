@@ -194,11 +194,6 @@ internal open class TextClassItem(
 
     override fun qualifiedName(): String = qualifiedName
 
-    override fun isDefined(): Boolean {
-        assert(emit == (fileLocation != FileLocation.UNKNOWN))
-        return emit
-    }
-
     override fun createDefaultConstructor(): ConstructorItem {
         return TextConstructorItem.createDefaultConstructor(codebase, this, fileLocation)
     }

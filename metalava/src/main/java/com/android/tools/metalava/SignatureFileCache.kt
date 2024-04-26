@@ -22,14 +22,7 @@ import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.Codebase
 import java.io.File
 
-private data class CacheKey(val files: List<File>, val classResolver: ClassResolver?) {
-    fun load(signatureFileLoader: SignatureFileLoader): Codebase =
-        if (files.size == 1) {
-            signatureFileLoader.load(files.single(), classResolver)
-        } else {
-            signatureFileLoader.loadFiles(files, classResolver)
-        }
-}
+private data class CacheKey(val files: List<File>, val classResolver: ClassResolver?)
 
 /** Loads signature files, caching them for reuse where appropriate. */
 class SignatureFileCache(annotationManager: AnnotationManager) {

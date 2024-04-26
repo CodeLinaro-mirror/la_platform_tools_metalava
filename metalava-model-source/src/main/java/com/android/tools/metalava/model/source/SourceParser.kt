@@ -57,8 +57,6 @@ interface SourceParser {
      * Load a [SourceCodebase] from a single jar.
      *
      * @param apiJar the jar file from which the [SourceCodebase] will be loaded.
-     * @param preFiltered true if the jar file contains classes which have already been filtered to
-     *   include only those classes that form an API surface, e.g. a stubs jar file.
      */
-    fun loadFromJar(apiJar: File, preFiltered: Boolean): SourceCodebase
+    fun loadFromJar(apiJar: File): SourceCodebase
 }

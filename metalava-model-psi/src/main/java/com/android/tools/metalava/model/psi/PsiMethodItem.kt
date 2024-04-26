@@ -78,8 +78,6 @@ open class PsiMethodItem(
         }
     }
 
-    override var emit: Boolean = !modifiers.isExpect()
-
     override var inheritedFrom: ClassItem? = null
 
     override var property: PsiPropertyItem? = null
