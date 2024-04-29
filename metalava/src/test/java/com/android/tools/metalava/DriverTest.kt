@@ -1420,11 +1420,32 @@ abstract class DriverTest : CodebaseCreatorConfigAware<SourceModelProvider>, Tem
                 if (maybeFile.isFile) {
                     maybeFile
                 } else {
-                    val file = File(project, newBasename)
+                    val file = findNonExistentFile(project, newBasename)
                     file.writeSignatureText(fileOrFileContents)
                     file
                 }
             }
+
+        private fun findNonExistentFile(project: File, basename: String): File {
+            // Split the basename into the name without any extension an optional extension.
+            val index = basename.lastIndexOf('.')
+            val (nameWithoutExtension, optionalExtension) =
+                if (index == -1) {
+                    Pair(basename, "")
+                } else {
+                    Pair(basename.substring(0, index), basename.substring(index))
+                }
+
+            var count = 0
+            do {
+                val name =
+                    if (count == 0) basename else "$nameWithoutExtension-$count$optionalExtension"
+                count += 1
+
+                val file = File(project, name)
+                if (!file.isFile) return file
+            } while (true)
+        }
     }
 }
 

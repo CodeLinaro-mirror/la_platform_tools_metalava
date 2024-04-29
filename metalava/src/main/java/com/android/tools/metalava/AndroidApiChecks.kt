@@ -38,6 +38,7 @@ class AndroidApiChecks(val reporter: Reporter) {
                 ApiVisitor(
                     // Sort by source order such that warnings follow source line number order
                     methodComparator = MethodItem.sourceOrderComparator,
+                    config = @Suppress("DEPRECATION") options.apiVisitorConfig,
                 ) {
                 override fun skip(item: Item): Boolean {
                     // Limit the checks to the android.* namespace (except for ICU)

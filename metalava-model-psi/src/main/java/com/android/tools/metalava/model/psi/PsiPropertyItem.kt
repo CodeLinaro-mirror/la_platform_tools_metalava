@@ -50,8 +50,6 @@ private constructor(
     ),
     PropertyItem {
 
-    override var emit: Boolean = !modifiers.isExpect()
-
     override fun type(): TypeItem = fieldType
 
     override fun psi() = psiMethod

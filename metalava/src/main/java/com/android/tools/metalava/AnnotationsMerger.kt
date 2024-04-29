@@ -189,7 +189,7 @@ class AnnotationsMerger(
             try {
                 // .txt: Old style signature files
                 // Others: new signature files (e.g. kotlin-style nullness info)
-                mergeAnnotationsSignatureFile(file.path)
+                mergeAnnotationsSignatureFile(file)
             } catch (e: IOException) {
                 error("I/O problem during transform: $e")
             }
@@ -239,17 +239,17 @@ class AnnotationsMerger(
         }
     }
 
-    private fun mergeAnnotationsSignatureFile(path: String) {
+    private fun mergeAnnotationsSignatureFile(file: File) {
         try {
             val signatureCodebase =
                 ApiFile.parseApi(
-                    File(path),
+                    file,
                     codebase.annotationManager,
-                    "Signature files for annotation merger: loaded from $path"
+                    "Signature files for annotation merger: loaded from $file"
                 )
             mergeQualifierAnnotationsFromCodebase(signatureCodebase)
         } catch (ex: ApiParseException) {
-            val message = "Unable to parse signature file $path: ${ex.message}"
+            val message = "Unable to parse signature file $file: ${ex.message}"
             throw MetalavaCliException(message)
         }
     }
@@ -674,7 +674,11 @@ class AnnotationsMerger(
 
                         // Attempt to sort in reflection order
                         if (!found && reflectionFields != null) {
-                            val filterEmit = ApiVisitor().filterEmit
+                            val filterEmit =
+                                ApiVisitor(
+                                        config = @Suppress("DEPRECATION") options.apiVisitorConfig,
+                                    )
+                                    .filterEmit
 
                             // Attempt with reflection
                             var first = true

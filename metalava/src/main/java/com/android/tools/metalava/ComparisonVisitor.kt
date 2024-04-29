@@ -278,7 +278,7 @@ class CodebaseComparator(
     private fun visitAdded(visitor: ComparisonVisitor, new: Item) {
         if (visitor.visitAddedItemsRecursively) {
             new.accept(
-                object : ApiVisitor() {
+                object : ApiVisitor(config = apiVisitorConfig) {
                     override fun visitItem(item: Item) {
                         doVisitAdded(visitor, item)
                     }

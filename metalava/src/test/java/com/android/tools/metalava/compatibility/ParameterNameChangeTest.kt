@@ -39,7 +39,7 @@ class ParameterNameChangeTest : DriverTest() {
             signatureSource =
                 """
                     package test.pkg {
-                      class Foo {
+                      public class Foo {
                         method public void bar(Int toast);
                       }
                     }
@@ -47,7 +47,7 @@ class ParameterNameChangeTest : DriverTest() {
             checkCompatibilityApiReleased =
                 """
                     package test.pkg {
-                      class Foo {
+                      public class Foo {
                         method public void bar(Int bread);
                       }
                     }
@@ -65,7 +65,7 @@ class ParameterNameChangeTest : DriverTest() {
             signatureSource =
                 """
                     package test.pkg {
-                      interface Foo {
+                      public interface Foo {
                         method public void bar(int toast);
                       }
                     }
@@ -73,7 +73,7 @@ class ParameterNameChangeTest : DriverTest() {
             checkCompatibilityApiReleased =
                 """
                     package test.pkg {
-                      interface Foo {
+                      public interface Foo {
                         method public void bar(int bread);
                       }
                     }

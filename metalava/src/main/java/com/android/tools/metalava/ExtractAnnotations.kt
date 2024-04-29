@@ -73,7 +73,10 @@ class ExtractAnnotations(
     private val codebase: Codebase,
     private val reporter: Reporter,
     private val outputFile: File,
-) : ApiVisitor() {
+) :
+    ApiVisitor(
+        config = @Suppress("DEPRECATION") options.apiVisitorConfig,
+    ) {
     // Used linked hash map for order such that we always emit parameters after their surrounding
     // method etc
     private val packageToAnnotationPairs =

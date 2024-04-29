@@ -60,7 +60,7 @@ internal class TurbineSourceParser(
             .map { SourceFile(it.path, it.readText()) }
     }
 
-    override fun loadFromJar(apiJar: File, preFiltered: Boolean): SourceCodebase {
+    override fun loadFromJar(apiJar: File): SourceCodebase {
         TODO("b/299044569 handle this")
     }
 }

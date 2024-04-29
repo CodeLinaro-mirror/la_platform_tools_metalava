@@ -52,8 +52,6 @@ class PsiFieldItem(
     ),
     FieldItem {
 
-    override var emit: Boolean = !modifiers.isExpect()
-
     override var property: PsiPropertyItem? = null
 
     override fun type(): TypeItem = fieldType
