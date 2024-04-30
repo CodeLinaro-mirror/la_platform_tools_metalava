@@ -104,7 +104,7 @@ const val CLASS_ESTIMATE = 15000
 abstract class DefaultCodebase(
     final override var location: File,
     final override var description: String,
-    final override var preFiltered: Boolean,
+    final override val preFiltered: Boolean,
     final override val annotationManager: AnnotationManager,
 ) : Codebase {
     final override var original: Codebase? = null

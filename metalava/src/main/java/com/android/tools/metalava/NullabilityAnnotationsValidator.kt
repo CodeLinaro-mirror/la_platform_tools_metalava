@@ -94,7 +94,11 @@ class NullabilityAnnotationsValidator(
             // constructors as we don't want to check their return types. This visits members of
             // inner classes as well.
             topLevelClass.accept(
-                object : ApiVisitor(visitConstructorsAsMethods = false) {
+                object :
+                    ApiVisitor(
+                        visitConstructorsAsMethods = false,
+                        config = @Suppress("DEPRECATION") options.apiVisitorConfig,
+                    ) {
 
                     override fun visitMethod(method: MethodItem) {
                         checkItem(method, RETURN_LABEL, method.returnType(), method)

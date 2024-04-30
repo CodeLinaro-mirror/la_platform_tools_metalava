@@ -514,13 +514,15 @@ private fun ActionContext.checkCompatibility(
     }
 
     val oldCodebases =
-        check.files.map { signatureFile ->
-            if (signatureFile.path.endsWith(DOT_JAR)) {
-                loadFromJarFile(signatureFile)
-            } else {
-                signatureFileCache.load(signatureFile, classResolverProvider.classResolver)
-            }
-        }
+        check
+            .loadPreviouslyReleasedApi(
+                jarLoader = { jarFile -> loadFromJarFile(jarFile) },
+                signatureLoader = { signatureFile ->
+                    signatureFileCache.load(signatureFile, classResolverProvider.classResolver)
+                }
+            )
+            // Only use the last codebase to replicate previous behavior of only reporting
+            .takeLast(1)
 
     var baseApi: Codebase? = null
 
@@ -731,7 +733,6 @@ private class ClassResolverProvider(
 @Suppress("DEPRECATION")
 fun ActionContext.loadFromJarFile(
     apiJar: File,
-    preFiltered: Boolean = false,
     apiAnalyzerConfig: ApiAnalyzer.Config = options.apiAnalyzerConfig,
     codebaseValidator: (Codebase) -> Unit = { codebase ->
         options.nullabilityAnnotationsValidator?.validateAllFrom(
@@ -744,7 +745,7 @@ fun ActionContext.loadFromJarFile(
 ): Codebase {
     progressTracker.progress("Processing jar file: ")
 
-    val codebase = sourceParser.loadFromJar(apiJar, preFiltered)
+    val codebase = sourceParser.loadFromJar(apiJar)
     val apiEmit =
         ApiPredicate(
             config = apiPredicateConfig.copy(ignoreShown = true),

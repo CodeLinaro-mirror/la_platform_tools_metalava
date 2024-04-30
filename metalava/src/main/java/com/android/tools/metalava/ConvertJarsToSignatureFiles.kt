@@ -93,9 +93,6 @@ class ConvertJarsToSignatureFiles(
             val jarCodebase =
                 actionContext.loadFromJarFile(
                     apiJar,
-                    // Treat android.jar file as not filtered since they contain misc stuff that
-                    // shouldn't be there: package private super classes etc.
-                    preFiltered = false,
                     apiAnalyzerConfig = ApiAnalyzer.Config(),
                     codebaseValidator = {},
                     apiPredicateConfig = ApiPredicate.Config(),
@@ -109,7 +106,10 @@ class ConvertJarsToSignatureFiles(
                 // may be @RecentlyNullable/@RecentlyNonNull. Translate these back into
                 // normal @Nullable/@NonNull
                 jarCodebase.accept(
-                    object : ApiVisitor() {
+                    object :
+                        ApiVisitor(
+                            config = ApiVisitor.Config(),
+                        ) {
                         override fun visitItem(item: Item) {
                             unmarkRecent(item)
                             super.visitItem(item)

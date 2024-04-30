@@ -139,10 +139,6 @@ internal open class TurbineClassItem(
 
     override fun interfaceTypes(): List<ClassTypeItem> = interfaceTypesList
 
-    override fun isDefined(): Boolean {
-        TODO("b/295800205")
-    }
-
     override fun methods(): List<MethodItem> = methods
 
     /**

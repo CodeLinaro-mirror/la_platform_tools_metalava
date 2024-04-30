@@ -39,7 +39,8 @@ class ProguardWriter(
         nestInnerClasses = false,
         inlineInheritedFields = true,
         filterEmit = filterEmit,
-        filterReference = filterReference
+        filterReference = filterReference,
+        config = @Suppress("DEPRECATION") options.apiVisitorConfig,
     ) {
 
     override fun visitClass(cls: ClassItem) {

@@ -22,6 +22,7 @@ import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.visitors.ApiVisitor
+import com.android.tools.metalava.options
 import java.util.function.Predicate
 
 /**
@@ -43,7 +44,8 @@ fun addApisFromCodebase(
                 visitConstructorsAsMethods = true,
                 nestInnerClasses = false,
                 filterEmit = providedFilterEmit,
-                filterReference = providedFilterReference
+                filterReference = providedFilterReference,
+                config = @Suppress("DEPRECATION") options.apiVisitorConfig,
             ) {
 
             var currentClass: ApiClass? = null
