@@ -223,7 +223,14 @@ internal class PsiTypeItemFactory(
                     kotlinType = kotlinType,
                 )
             // There are other [PsiType]s, but none can appear in API surfaces.
-            else -> throw IllegalStateException("Invalid type in API surface: $psiType")
+            else ->
+                throw IllegalStateException(
+                    "Invalid type in API surface: $psiType${
+                    if (kotlinType != null) {
+                        " in file " + kotlinType.context.containingFile.name
+                    } else ""
+                }"
+                )
         }
     }
 

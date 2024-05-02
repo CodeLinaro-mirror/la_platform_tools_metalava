@@ -1039,17 +1039,6 @@ interface WildcardTypeItem : TypeItem, TypeArgumentTypeItem {
     }
 }
 
-/** Different uses to which a [TypeItem] might be used that might affect its construction. */
-enum class TypeUse {
-    /** General type use; no special behavior. */
-    GENERAL,
-
-    /**
-     * Super type, e.g. in an `extends` or `implements` list; is always [TypeNullability.NONNULL].
-     */
-    SUPER_TYPE,
-}
-
 /**
  * Attempt to get the full name from the qualified name.
  *
