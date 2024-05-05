@@ -752,6 +752,59 @@ abstract class UastTestBase : DriverTest() {
     }
 
     @Test
+    fun `Upper bound wildcards -- extension function type -- deprecated`() {
+        // https://youtrack.jetbrains.com/issue/KT-61734
+        val wildcard1 = if (isK2) "" else "? super "
+        val wildcard2 = if (isK2) "" else "? extends "
+        check(
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                        package test.pkg
+
+                        interface NavGraphBuilder
+
+                        interface AnimatedContentTransitionScope<S>
+
+                        interface NavBackStackEntry
+
+                        interface EnterTransition
+
+                        fun NavGraphBuilder.after(
+                          enterTransition: (@JvmSuppressWildcards
+                              AnimatedContentTransitionScope<NavBackStackEntry>.() -> EnterTransition?)? = null,
+                        ) = TODO()
+
+                        @Deprecated("no more composable", level = DeprecationLevel.HIDDEN)
+                        fun NavGraphBuilder.before(
+                          enterTransition: (@JvmSuppressWildcards
+                              AnimatedContentTransitionScope<NavBackStackEntry>.() -> EnterTransition?)? = null,
+                        ) = TODO()
+                        """
+                    )
+                ),
+            api =
+                """
+                package test.pkg {
+                  public interface AnimatedContentTransitionScope<S> {
+                  }
+                  public interface EnterTransition {
+                  }
+                  public interface NavBackStackEntry {
+                  }
+                  public interface NavGraphBuilder {
+                  }
+                  public final class NavGraphBuilderKt {
+                    method public static Void after(test.pkg.NavGraphBuilder, optional kotlin.jvm.functions.Function1<test.pkg.AnimatedContentTransitionScope<test.pkg.NavBackStackEntry>,test.pkg.EnterTransition?>? enterTransition);
+                    method @Deprecated public static Void before(test.pkg.NavGraphBuilder, optional kotlin.jvm.functions.Function1<${wildcard1}test.pkg.AnimatedContentTransitionScope<test.pkg.NavBackStackEntry>,${wildcard2}test.pkg.EnterTransition?>? enterTransition);
+                  }
+                }
+                """
+        )
+    }
+
+    @Test
     fun `boxed type argument as method return type`() {
         // https://youtrack.jetbrains.com/issue/KT-57579
         check(

@@ -64,6 +64,7 @@ import com.android.tools.metalava.model.source.SourceParser
 import com.android.tools.metalava.model.source.SourceSet
 import com.android.tools.metalava.model.text.ApiFile
 import com.android.tools.metalava.model.text.ApiParseException
+import com.android.tools.metalava.model.text.SignatureFile
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
@@ -243,7 +244,7 @@ class AnnotationsMerger(
         try {
             val signatureCodebase =
                 ApiFile.parseApi(
-                    file,
+                    SignatureFile.fromFile(file),
                     codebase.annotationManager,
                     "Signature files for annotation merger: loaded from $file"
                 )
