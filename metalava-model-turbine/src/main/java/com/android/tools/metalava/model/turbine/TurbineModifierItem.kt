@@ -58,6 +58,8 @@ internal object TurbineModifierItem {
      * Given flag value corresponding to Turbine modifiers compute the equivalent flag in Metalava.
      */
     private fun computeFlag(flag: Int): Int {
+        // If no visibility flag is provided, result remains 0, implying a 'package-private' default
+        // state.
         var result = 0
 
         if (flag and TurbineFlag.ACC_STATIC != 0) {

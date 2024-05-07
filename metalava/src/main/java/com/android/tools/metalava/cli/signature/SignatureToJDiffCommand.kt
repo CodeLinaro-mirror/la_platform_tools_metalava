@@ -36,6 +36,7 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.text.FileFormat
+import com.android.tools.metalava.model.text.SignatureFile
 import com.android.tools.metalava.model.text.TextCodebaseBuilder
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.github.ajalt.clikt.parameters.arguments.argument
@@ -134,7 +135,7 @@ class SignatureToJDiffCommand :
                 formatForLegacyFiles = formatForLegacyFiles,
             )
 
-        val signatureApi = signatureFileLoader.load(apiFile)
+        val signatureApi = signatureFileLoader.load(SignatureFile.fromFile(apiFile))
 
         val apiVisitorConfig = ApiVisitor.Config()
         val apiPredicateConfig = apiVisitorConfig.apiPredicateConfig
@@ -149,7 +150,7 @@ class SignatureToJDiffCommand :
         val outputApi =
             if (baseFile != null) {
                 // Convert base on a diff
-                val baseApi = signatureFileLoader.load(baseFile)
+                val baseApi = signatureFileLoader.load(SignatureFile.fromFile(baseFile))
                 computeDelta(baseFile, baseApi, signatureApi, apiVisitorConfig)
             } else {
                 signatureApi

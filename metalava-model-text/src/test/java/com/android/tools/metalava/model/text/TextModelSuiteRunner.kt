@@ -46,7 +46,7 @@ class TextModelSuiteRunner : ModelSuiteRunner {
             error("text model does not support common sources")
         }
 
-        val signatureFiles = inputs.mainSourceDir.createFiles()
+        val signatureFiles = SignatureFile.fromFiles(inputs.mainSourceDir.createFiles())
         val resolver = ClassLoaderBasedClassResolver(getAndroidJar())
         val codebase = ApiFile.parseApi(signatureFiles, classResolver = resolver)
         test(codebase)

@@ -55,7 +55,7 @@ Arguments:
     """
         .trimIndent()
 
-class SignatureToJDiffCommandTest :
+open class SignatureToJDiffCommandTest :
     BaseCommandTest<SignatureToJDiffCommand>({ SignatureToJDiffCommand() }) {
 
     @Test

@@ -221,7 +221,7 @@ class SignatureWriter(
     }
 
     private fun writeModifiers(item: Item) {
-        modifierListWriter.write(item)
+        modifierListWriter.write(item.actualItem)
     }
 
     /** Get the filtered super class type, ignoring java.lang.Object. */

@@ -18,6 +18,7 @@ package com.android.tools.metalava.stub
 
 import com.android.tools.metalava.ApiPredicate
 import com.android.tools.metalava.FilterPredicate
+import com.android.tools.metalava.actualItem
 import com.android.tools.metalava.model.BaseItemVisitor
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ConstructorItem
@@ -37,6 +38,7 @@ import java.io.FileWriter
 import java.io.IOException
 import java.io.PrintWriter
 import java.io.Writer
+import java.util.regex.Pattern
 
 internal class StubWriter(
     private val stubsDir: File,
@@ -280,8 +282,83 @@ internal fun appendDocumentation(item: Item, writer: PrintWriter, config: StubWr
         val documentation = item.fullyQualifiedDocumentation()
         if (documentation.isNotBlank()) {
             val trimmed = trimDocIndent(documentation)
-            writer.println(trimmed)
+            val output = revertDocumentationDeprecationChange(item, trimmed)
+            writer.println(output)
             writer.println()
         }
+    }
+}
+
+/** Regular expression to match the start of a doc comment. */
+private const val DOC_COMMENT_START_RE = """\Q/**\E"""
+/**
+ * Regular expression to match the end of a block comment. If the block comment is at the start of a
+ * line, preceded by some white space then it includes all that white space.
+ */
+private const val BLOCK_COMMENT_END_RE = """(?m:^\s*)?\Q*/\E"""
+
+/**
+ * Regular expression to match the start of a line Javadoc tag, i.e. a Javadoc tag at the beginning
+ * of a line. Optionally, includes the preceding white space and a `*` forming a left hand border.
+ */
+private const val START_OF_LINE_TAG_RE = """(?m:^\s*)\Q*\E\s*@"""
+
+/**
+ * A [Pattern[] for matching an `@deprecated` tag and its associated text. If the tag is at the
+ * start of the line then it includes everything from the start of the line. It includes everything
+ * up to the end of the comment (apart from the line for the end of the comment) or the start of the
+ * next line tag.
+ */
+private val deprecatedTagPattern =
+    """((?m:^\s*\*\s*)?@deprecated\b(?m:\s*.*?))($START_OF_LINE_TAG_RE|$BLOCK_COMMENT_END_RE)"""
+        .toPattern(Pattern.DOTALL)
+
+/** A [Pattern] that matches a blank, i.e. white space only, doc comment. */
+private val blankDocCommentPattern = """$DOC_COMMENT_START_RE\s*$BLOCK_COMMENT_END_RE""".toPattern()
+
+/**
+ * Revert the documentation change that accompanied a deprecation change.
+ *
+ * Deprecating an API requires adding an `@Deprecated` annotation and an `@deprecated` Javadoc tag
+ * with text that explains why it is being deprecated and what will replace it. When the deprecation
+ * change is being reverted then this will remove the `@deprecated` tag and its associated text to
+ * avoid warnings when compiling and misleading information being written into the Javadoc.
+ */
+fun revertDocumentationDeprecationChange(currentItem: Item, docs: String): String {
+    val actualItem = currentItem.actualItem
+    // The documentation does not need to be reverted if...
+    if (
+        // the current item is not being reverted
+        currentItem === actualItem
+        // or if the current item and the actual item have the same deprecation setting
+        ||
+            currentItem.deprecated == actualItem.deprecated
+            // or if the actual item is deprecated
+            ||
+            actualItem.deprecated
+    )
+        return docs
+
+    // Find the `@deprecated` tag.
+    val deprecatedTagMatcher = deprecatedTagPattern.matcher(docs)
+    if (!deprecatedTagMatcher.find()) {
+        // Nothing to do as the documentation does not include @deprecated.
+        return docs
+    }
+
+    // Remove the @deprecated tag and associated text.
+    val withoutDeprecated =
+        // The part before the `@deprecated` tag.
+        docs.substring(0, deprecatedTagMatcher.start(1)) +
+            // The part after the `@deprecated` tag.
+            docs.substring(deprecatedTagMatcher.end(1))
+
+    // Check to see if the resulting document comment is empty and if it is then discard it all
+    // together.
+    val emptyDocCommentMatcher = blankDocCommentPattern.matcher(withoutDeprecated)
+    return if (emptyDocCommentMatcher.matches()) {
+        ""
+    } else {
+        withoutDeprecated
     }
 }

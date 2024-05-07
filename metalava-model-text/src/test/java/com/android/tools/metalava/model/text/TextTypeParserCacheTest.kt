@@ -73,7 +73,7 @@ class TextTypeParserCacheTest : BaseTextCodebaseTest() {
         val androidTxtFiles =
             listOf("public", "system", "module-lib").map { surface -> getAndroidTxt(34, surface) }
         ApiFile.parseApi(
-            androidTxtFiles,
+            SignatureFile.fromFiles(androidTxtFiles),
             apiStatsConsumer = { stats ->
                 assertThat(stats)
                     .isEqualTo(
@@ -99,7 +99,7 @@ class TextTypeParserCacheTest : BaseTextCodebaseTest() {
         }
 
         ApiFile.parseApi(
-            listOf(testFile),
+            listOf(SignatureFile.fromFile(testFile)),
             apiStatsConsumer = { stats ->
                 assertThat(stats)
                     .isEqualTo(
