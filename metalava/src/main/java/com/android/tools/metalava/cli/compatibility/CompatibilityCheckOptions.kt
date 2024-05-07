@@ -23,6 +23,7 @@ import com.android.tools.metalava.cli.common.allowStructuredOptionName
 import com.android.tools.metalava.cli.common.existingFile
 import com.android.tools.metalava.cli.common.map
 import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.text.SignatureFile
 import com.github.ajalt.clikt.parameters.groups.OptionGroup
 import com.github.ajalt.clikt.parameters.options.multiple
 import com.github.ajalt.clikt.parameters.options.option
@@ -127,7 +128,7 @@ class CompatibilityCheckOptions :
         /** Load the files into a list of [Codebase]s. */
         fun load(
             jarLoader: (File) -> Codebase,
-            signatureLoader: (File) -> Codebase,
+            signatureLoader: (SignatureFile) -> Codebase,
         ): List<Codebase>
     }
 
@@ -135,7 +136,7 @@ class CompatibilityCheckOptions :
     data class JarBasedApi(override val files: List<File>) : PreviouslyReleasedApi {
         override fun load(
             jarLoader: (File) -> Codebase,
-            signatureLoader: (File) -> Codebase,
+            signatureLoader: (SignatureFile) -> Codebase,
         ) = files.map { jarLoader(it) }
     }
 
@@ -146,11 +147,29 @@ class CompatibilityCheckOptions :
      * files are provided then they are expected to be provided in order from the narrowest API to
      * the widest API, where all but the first files are deltas on the preceding file.
      */
-    data class SignatureBasedApi(override val files: List<File>) : PreviouslyReleasedApi {
+    data class SignatureBasedApi(val signatureFiles: List<SignatureFile>) : PreviouslyReleasedApi {
+
+        override val files: List<File> = signatureFiles.map { it.file }
+
         override fun load(
             jarLoader: (File) -> Codebase,
-            signatureLoader: (File) -> Codebase,
-        ) = files.map { signatureLoader(it) }
+            signatureLoader: (SignatureFile) -> Codebase,
+        ) = signatureFiles.map { signatureLoader(it) }
+
+        companion object {
+            fun fromFiles(files: List<File>): SignatureBasedApi {
+                val lastIndex = files.size - 1
+                return SignatureBasedApi(
+                    files.mapIndexed { index, file ->
+                        SignatureFile(
+                            file,
+                            // The last file is assumed to be for the current API surface.
+                            forCurrentApiSurface = index == lastIndex,
+                        )
+                    }
+                )
+            }
+        }
     }
 
     /**
@@ -185,7 +204,7 @@ class CompatibilityCheckOptions :
                         files.partition { it.path.endsWith(SdkConstants.DOT_JAR) }
                     when {
                         jarFiles.isEmpty() ->
-                            CheckRequest(SignatureBasedApi(signatureFiles), apiType)
+                            CheckRequest(SignatureBasedApi.fromFiles(signatureFiles), apiType)
                         signatureFiles.isEmpty() -> CheckRequest(JarBasedApi(jarFiles), apiType)
                         else ->
                             throw IllegalStateException(
@@ -201,12 +220,12 @@ class CompatibilityCheckOptions :
         /** Load the previously released API [files] in as a list of [Codebase]s. */
         fun loadPreviouslyReleasedApi(
             jarLoader: (File) -> Codebase,
-            signatureLoader: (File) -> Codebase,
+            signatureLoader: (SignatureFile) -> Codebase,
         ) = previouslyReleasedApi.load(jarLoader, signatureLoader)
 
         override fun toString(): String {
             // This is only used when reporting progress.
-            return checkCompatibilityOptionForApiType(apiType) + " $files"
+            return checkCompatibilityOptionForApiType(apiType) + " ${files.joinToString(",")}"
         }
     }
 

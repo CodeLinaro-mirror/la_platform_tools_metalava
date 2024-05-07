@@ -17,7 +17,6 @@
 package com.android.tools.metalava
 
 import com.android.SdkConstants
-import com.android.tools.metalava.cli.common.ActionContext
 import com.android.tools.metalava.cli.common.SignatureFileLoader
 import com.android.tools.metalava.model.ANDROIDX_NONNULL
 import com.android.tools.metalava.model.ANDROIDX_NULLABLE
@@ -28,10 +27,9 @@ import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.SUPPORT_TYPE_USE_ANNOTATIONS
-import com.android.tools.metalava.model.source.EnvironmentManager
 import com.android.tools.metalava.model.text.FileFormat
+import com.android.tools.metalava.model.text.SignatureFile
 import com.android.tools.metalava.model.visitors.ApiVisitor
-import com.android.tools.metalava.reporter.Reporter
 import java.io.File
 import java.io.IOException
 import java.io.PrintWriter
@@ -52,10 +50,9 @@ class ConvertJarsToSignatureFiles(
     private val stderr: PrintWriter,
     private val stdout: PrintWriter,
     private val progressTracker: ProgressTracker,
-    private val reporter: Reporter,
     private val fileFormat: FileFormat,
 ) {
-    fun convertJars(environmentManager: EnvironmentManager, root: File) {
+    fun convertJars(jarCodebaseLoader: JarCodebaseLoader, root: File) {
         var api = 1
         while (true) {
             val apiJar =
@@ -78,25 +75,7 @@ class ConvertJarsToSignatureFiles(
             val annotationManager = DefaultAnnotationManager()
             val signatureFileLoader = SignatureFileLoader(annotationManager = annotationManager)
 
-            val sourceParser =
-                environmentManager.createSourceParser(
-                    reporter,
-                    annotationManager,
-                )
-            val actionContext =
-                ActionContext(
-                    progressTracker = progressTracker,
-                    reporter = reporter,
-                    reporterApiLint = reporter, // Use the same reporter for everything.
-                    sourceParser = sourceParser,
-                )
-            val jarCodebase =
-                actionContext.loadFromJarFile(
-                    apiJar,
-                    apiAnalyzerConfig = ApiAnalyzer.Config(),
-                    codebaseValidator = {},
-                    apiPredicateConfig = ApiPredicate.Config(),
-                )
+            val jarCodebase = jarCodebaseLoader.loadFromJarFile(apiJar)
             val apiPredicateConfig = ApiPredicate.Config()
             val apiEmit = ApiType.PUBLIC_API.getEmitFilter(apiPredicateConfig)
             val apiReference = ApiType.PUBLIC_API.getReferenceFilter(apiPredicateConfig)
@@ -146,7 +125,7 @@ class ConvertJarsToSignatureFiles(
             // javap. So as another fallback, read from the existing signature files:
             if (oldApiFile.isFile) {
                 try {
-                    val oldCodebase = signatureFileLoader.load(oldApiFile)
+                    val oldCodebase = signatureFileLoader.load(SignatureFile.fromFile(oldApiFile))
                     val visitor =
                         object : ComparisonVisitor() {
                             override fun compare(old: Item, new: Item) {

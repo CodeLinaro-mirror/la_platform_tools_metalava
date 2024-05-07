@@ -348,9 +348,13 @@ class DefaultModifierList(
     }
 
     companion object {
-        const val PRIVATE = 0
-        const val INTERNAL = 1
-        const val PACKAGE_PRIVATE = 2
+        /**
+         * 'PACKAGE_PRIVATE' is set to 0 to act as the default visibility when no other visibility
+         * flags are explicitly set.
+         */
+        const val PACKAGE_PRIVATE = 0
+        const val PRIVATE = 1
+        const val INTERNAL = 2
         const val PROTECTED = 3
         const val PUBLIC = 4
         const val VISIBILITY_MASK = 0b111
@@ -367,9 +371,9 @@ class DefaultModifierList(
         // corresponding enum
         // constant's ordinal.
         init {
+            check(PACKAGE_PRIVATE == VisibilityLevel.PACKAGE_PRIVATE.ordinal)
             check(PRIVATE == VisibilityLevel.PRIVATE.ordinal)
             check(INTERNAL == VisibilityLevel.INTERNAL.ordinal)
-            check(PACKAGE_PRIVATE == VisibilityLevel.PACKAGE_PRIVATE.ordinal)
             check(PROTECTED == VisibilityLevel.PROTECTED.ordinal)
             check(PUBLIC == VisibilityLevel.PUBLIC.ordinal)
             // Calculate the mask required to hold as many different values as there are

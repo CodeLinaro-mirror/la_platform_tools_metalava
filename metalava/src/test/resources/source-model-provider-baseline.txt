@@ -1,7 +1,3 @@
-com.android.tools.metalava.AddAdditionalOverridesTest
-  Do not elide method inherited from inaccessible class and default method from interface[turbine]
-  Elide methods inherited from one inaccessible class if they override method inherited from another inaccessible class[turbine]
-
 com.android.tools.metalava.AndroidApiChecksTest
   Document Permissions[turbine]
 
@@ -9,16 +5,12 @@ com.android.tools.metalava.AnnotationsMergerTest
   Merge @FlaggedApi inclusion annotations from Java stub files[turbine]
   Merge Contract and Language annotations from XML files[turbine]
   Merge Contract and Language annotations from signature files[turbine]
-  Merge qualifier annotations from Java stub files making sure they apply to public members of hidden superclasses[turbine]
   Merge type use qualifier annotations from Java stub files[turbine]
   Signature files contain annotations[turbine]
 
 com.android.tools.metalava.ApiAnalyzerTest
   Test PrivateSuperclass for inner class[turbine]
   Test deprecated status not propagated to removed items[turbine]
-  Test inherited method from hidden class into deprecated class inherits deprecated status[turbine]
-  Test inheriting methods from hidden class preserves deprecated status[turbine]
-  Test inheriting methods from hidden generic class preserves deprecated status[turbine]
   Test references deprecated errors do not apply to inner class of deprecated class[turbine]
   Test that usage of effectively deprecated class is flagged[turbine]
 
@@ -26,25 +18,15 @@ com.android.tools.metalava.ApiFileTest
   Annotation class extraction[turbine]
   Annotation value visibility[turbine]
   Check @remove class[turbine]
-  Check all modifiers[turbine]
   Check basic @remove scenarios[turbine]
   Check generic type signature insertion[turbine]
   Check skipping implicit final or deprecated override[turbine]
   Check various generics signature subtleties[turbine]
-  Implementing package private class[turbine]
-  Indirect Field Includes from Interfaces[turbine]
-  Inheriting from package private classes, package private class should be included[turbine]
-  Inheriting generic method from package private class[turbine]
   Kotlin expect-actual with JvmOverloads[psi,k2]
   Remove findViewById type nullness annotation[turbine]
-  Skip inherited package private methods from private parents[turbine]
   Subclass definition is not included in removed api file[turbine]
   Test KDoc suppress[turbine]
-  Test inherited hidden methods for descendant classes - Package private[turbine]
-  Test inherited methods that use generics[turbine]
-  Type substitution for generic method referencing parent type parameter[turbine]
   Type-use annotations can be included in signature files[turbine]
-  When implementing rather than extending package private class, inline members instead[turbine]
 
 com.android.tools.metalava.CoreApiTest
   Hidden with --hide-annotation[turbine]
@@ -137,7 +119,6 @@ com.android.tools.metalava.SdkFileWriterTest
 
 com.android.tools.metalava.ShowAnnotationTest
   Can't expose item from a hidden parent[turbine]
-  Include interface-inherited fields in stubs[turbine]
   Testing parsing an annotation whose attribute references the annotated class[turbine]
   showAnnotation with default parameters[turbine]
 
@@ -158,7 +139,6 @@ com.android.tools.metalava.SystemServiceCheckTest
 
 com.android.tools.metalava.UnhideApisTest
   Including private interfaces from types[turbine]
-  Report hidden API access rather than opening up access[turbine]
 
 com.android.tools.metalava.apilevels.ApiGeneratorTest
   APIs annotated with suppress-compatibility-meta-annotations appear in output[turbine]
@@ -184,7 +164,6 @@ com.android.tools.metalava.compatibility.CompatibilityCheckTest
   Empty bundle files[turbine]
   Expected API changes converting collections to Kotlin[turbine]
   Implementing undefined interface[turbine]
-  Implicit modifiers from inherited super classes[turbine]
   Incompatible method change -- final[turbine]
   No issues using the same classpath class twice[turbine]
   Removed method from classpath[turbine]
@@ -241,7 +220,6 @@ com.android.tools.metalava.lint.ApiLintTest
   CompletableFuture and plain Future not allowed[turbine]
   Constructors return types don't require nullability[turbine]
   Listener replaceable with OutcomeReceiver or ListenableFuture[turbine]
-  Nullability check for generic methods referencing parent type parameter[turbine]
   Test listeners[turbine]
   Typedef must be hidden[turbine]
 
@@ -259,10 +237,6 @@ com.android.tools.metalava.stub.StubsAnnotationTest
   Pass through libcore annotations[turbine]
   Rewrite unknown nullability annotations as doc stubs[turbine]
 
-com.android.tools.metalava.stub.StubsClassTest
-  Check inheriting from package private class[turbine]
-  Include package private classes referenced from public API[turbine]
-
 com.android.tools.metalava.stub.StubsConstructorTest
   Arguments to super constructors with showAnnotations[turbine]
   Arguments to super constructors[turbine]
@@ -275,8 +249,6 @@ com.android.tools.metalava.stub.StubsGenericTest
   Generics Variable Rewriting[turbine]
 
 com.android.tools.metalava.stub.StubsInterfaceTest
-  Check generating required stubs from hidden super classes and interfaces[turbine]
-  Check implementing a package private interface[turbine]
   Rewriting type parameters in interfaces from hidden super classes and in throws lists[turbine]
 
 com.android.tools.metalava.stub.StubsPackageInfoTest
@@ -295,7 +267,6 @@ com.android.tools.metalava.stub.StubsTest
   Generate stubs for various modifier scenarios[turbine]
   Missing overridden method[turbine]
   Picking super class throwables[turbine]
-  Rewriting implements class references[turbine]
   Skip type variables in casts[turbine]
   Translate DeprecatedForSdk to Deprecated[turbine]
   Type-use annotations are not included in stubs[turbine]

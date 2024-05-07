@@ -75,7 +75,7 @@ class CompatibilityCheckOptionsTest :
                 .isEqualTo(
                     listOf(
                         CompatibilityCheckOptions.CheckRequest(
-                            previouslyReleasedApi = SignatureBasedApi(listOf(file)),
+                            previouslyReleasedApi = SignatureBasedApi.fromFiles(listOf(file)),
                             apiType = ApiType.PUBLIC_API,
                         ),
                     )
@@ -101,7 +101,8 @@ class CompatibilityCheckOptionsTest :
                 .isEqualTo(
                     listOf(
                         CompatibilityCheckOptions.CheckRequest(
-                            previouslyReleasedApi = SignatureBasedApi(listOf(file1, file2)),
+                            previouslyReleasedApi =
+                                SignatureBasedApi.fromFiles(listOf(file1, file2)),
                             apiType = ApiType.PUBLIC_API,
                         ),
                     )
@@ -118,7 +119,7 @@ class CompatibilityCheckOptionsTest :
                 .isEqualTo(
                     listOf(
                         CompatibilityCheckOptions.CheckRequest(
-                            previouslyReleasedApi = SignatureBasedApi(listOf(file)),
+                            previouslyReleasedApi = SignatureBasedApi.fromFiles(listOf(file)),
                             apiType = ApiType.REMOVED,
                         ),
                     )

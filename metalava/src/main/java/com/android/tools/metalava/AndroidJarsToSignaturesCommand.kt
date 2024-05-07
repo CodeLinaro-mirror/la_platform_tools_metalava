@@ -23,7 +23,6 @@ import com.android.tools.metalava.cli.common.progressTracker
 import com.android.tools.metalava.cli.common.stderr
 import com.android.tools.metalava.cli.common.stdout
 import com.android.tools.metalava.cli.signature.SignatureFormatOptions
-import com.android.tools.metalava.model.source.SourceModelProvider
 import com.android.tools.metalava.reporter.BasicReporter
 import com.github.ajalt.clikt.parameters.arguments.argument
 import com.github.ajalt.clikt.parameters.arguments.validate
@@ -69,17 +68,15 @@ class AndroidJarsToSignaturesCommand :
         // property.
         OptionsDelegate.disallowAccess()
 
-        val sourceModelProvider = SourceModelProvider.getImplementation("psi")
-        sourceModelProvider.createEnvironmentManager(disableStderrDumping()).use {
-            environmentManager ->
+        StandaloneJarCodebaseLoader.create(progressTracker, BasicReporter(stderr)).use {
+            jarCodebaseLoader ->
             ConvertJarsToSignatureFiles(
                     stderr,
                     stdout,
                     progressTracker,
-                    BasicReporter(stderr),
-                    signatureFormat.fileFormat
+                    signatureFormat.fileFormat,
                 )
-                .convertJars(environmentManager, androidRootDir)
+                .convertJars(jarCodebaseLoader, androidRootDir)
         }
     }
 }

@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.stub
 
+import com.android.tools.metalava.actualItem
 import com.android.tools.metalava.model.BaseItemVisitor
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ConstructorItem
@@ -115,7 +116,9 @@ internal class JavaStubWriter(
         writer.print("}\n\n")
     }
 
-    private fun appendModifiers(item: Item) = modifierListWriter.write(item)
+    private fun appendModifiers(item: Item) {
+        modifierListWriter.write(item.actualItem)
+    }
 
     private fun generateSuperClassDeclaration(cls: ClassItem) {
         if (cls.isEnum() || cls.isAnnotationType() || cls.isInterface()) {

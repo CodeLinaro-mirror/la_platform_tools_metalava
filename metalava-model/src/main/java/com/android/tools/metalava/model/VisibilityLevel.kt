@@ -33,9 +33,9 @@ enum class VisibilityLevel(
     /** Representation in the internal flags. */
     val visibilityFlagValue: Int
 ) {
+    PACKAGE_PRIVATE("", "", "package private", DefaultModifierList.PACKAGE_PRIVATE),
     PRIVATE("private", "private", "private", DefaultModifierList.PRIVATE),
     INTERNAL("internal", "internal", "internal", DefaultModifierList.INTERNAL),
-    PACKAGE_PRIVATE("", "", "package private", DefaultModifierList.PACKAGE_PRIVATE),
     PROTECTED("protected", "protected", "protected", DefaultModifierList.PROTECTED),
     PUBLIC("public", "", "public", DefaultModifierList.PUBLIC)
 }

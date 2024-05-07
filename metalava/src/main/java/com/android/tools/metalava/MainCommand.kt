@@ -28,6 +28,7 @@ import com.android.tools.metalava.cli.common.stderr
 import com.android.tools.metalava.cli.common.stdout
 import com.android.tools.metalava.cli.common.terminal
 import com.android.tools.metalava.cli.compatibility.CompatibilityCheckOptions
+import com.android.tools.metalava.cli.lint.ApiLintOptions
 import com.android.tools.metalava.cli.signature.SignatureFormatOptions
 import com.android.tools.metalava.model.source.SourceModelProvider
 import com.github.ajalt.clikt.core.CliktCommand
@@ -81,6 +82,9 @@ class MainCommand(
     private val issueReportingOptions by
         IssueReportingOptions(executionEnvironment.reporterEnvironment)
 
+    /** API lint options. */
+    private val apiLintOptions by ApiLintOptions()
+
     /** Compatibility check options. */
     private val compatibilityCheckOptions by CompatibilityCheckOptions()
 
@@ -100,6 +104,7 @@ class MainCommand(
     internal val optionGroup by
         Options(
             commonOptions = commonOptions,
+            apiLintOptions = apiLintOptions,
             compatibilityCheckOptions = compatibilityCheckOptions,
             issueReportingOptions = issueReportingOptions,
             signatureFileOptions = signatureFileOptions,
