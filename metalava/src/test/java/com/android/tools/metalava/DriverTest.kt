@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava
 
-import com.android.SdkConstants
 import com.android.SdkConstants.DOT_TXT
 import com.android.ide.common.process.DefaultProcessExecutor
 import com.android.ide.common.process.LoggedProcessOutputHandler
@@ -31,15 +30,20 @@ import com.android.tools.lint.checks.infrastructure.TestFiles.java
 import com.android.tools.lint.checks.infrastructure.TestFiles.kotlin
 import com.android.tools.lint.checks.infrastructure.stripComments
 import com.android.tools.lint.client.api.LintClient
+import com.android.tools.metalava.cli.common.ARG_COMMON_SOURCE_PATH
 import com.android.tools.metalava.cli.common.ARG_HIDE
 import com.android.tools.metalava.cli.common.ARG_NO_COLOR
 import com.android.tools.metalava.cli.common.ARG_QUIET
 import com.android.tools.metalava.cli.common.ARG_REPEAT_ERRORS_MAX
+import com.android.tools.metalava.cli.common.ARG_SOURCE_PATH
 import com.android.tools.metalava.cli.common.ARG_VERBOSE
+import com.android.tools.metalava.cli.common.ExecutionEnvironment
+import com.android.tools.metalava.cli.common.TestEnvironment
 import com.android.tools.metalava.cli.compatibility.ARG_CHECK_COMPATIBILITY_API_RELEASED
 import com.android.tools.metalava.cli.compatibility.ARG_CHECK_COMPATIBILITY_BASE_API
 import com.android.tools.metalava.cli.compatibility.ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED
 import com.android.tools.metalava.cli.compatibility.ARG_ERROR_MESSAGE_CHECK_COMPATIBILITY_RELEASED
+import com.android.tools.metalava.cli.lint.ARG_API_LINT
 import com.android.tools.metalava.cli.lint.ARG_API_LINT_PREVIOUS_API
 import com.android.tools.metalava.cli.signature.ARG_FORMAT
 import com.android.tools.metalava.model.provider.Capability
@@ -103,7 +107,6 @@ abstract class DriverTest : CodebaseCreatorConfigAware<SourceModelProvider>, Tem
 
     @Before
     fun setup() {
-        System.setProperty(ENV_VAR_METALAVA_TESTS_RUNNING, SdkConstants.VALUE_TRUE)
         Disposer.setDebugMode(true)
     }
 

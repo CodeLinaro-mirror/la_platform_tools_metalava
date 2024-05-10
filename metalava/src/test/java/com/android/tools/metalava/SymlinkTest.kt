@@ -83,8 +83,7 @@ class SymlinkTest : DriverTest() {
                         """
                         )
                 },
-                // Empty source path: don't pick up random directory stuff
-                extraArguments = arrayOf("--pwd", temporaryFolder.root.path, ARG_SOURCE_PATH, ""),
+                extraArguments = arrayOf("--pwd", temporaryFolder.root.path),
                 checkCompilation = false, // needs androidx.annotations in classpath
                 stubFiles =
                     arrayOf(

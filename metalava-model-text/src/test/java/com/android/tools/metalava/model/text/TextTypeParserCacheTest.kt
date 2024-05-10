@@ -79,10 +79,10 @@ class TextTypeParserCacheTest : BaseTextCodebaseTest() {
                     .isEqualTo(
                         ApiFile.Stats(
                             totalClasses = 7315,
-                            typeCacheRequests = 190871,
+                            typeCacheRequests = 190875,
                             typeCacheSkip = 0,
-                            typeCacheHit = 179508,
-                            typeCacheSize = 11363,
+                            typeCacheHit = 179355,
+                            typeCacheSize = 11520,
                         )
                     )
             }

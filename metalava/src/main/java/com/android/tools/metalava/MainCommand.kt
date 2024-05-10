@@ -17,10 +17,12 @@
 package com.android.tools.metalava
 
 import com.android.tools.metalava.cli.common.CommonOptions
+import com.android.tools.metalava.cli.common.ExecutionEnvironment
 import com.android.tools.metalava.cli.common.IssueReportingOptions
 import com.android.tools.metalava.cli.common.LegacyHelpFormatter
 import com.android.tools.metalava.cli.common.MetalavaCliException
 import com.android.tools.metalava.cli.common.MetalavaLocalization
+import com.android.tools.metalava.cli.common.SourceOptions
 import com.android.tools.metalava.cli.common.executionEnvironment
 import com.android.tools.metalava.cli.common.progressTracker
 import com.android.tools.metalava.cli.common.registerPostCommandAction
@@ -78,9 +80,11 @@ class MainCommand(
             )
             .multiple()
 
+    private val sourceOptions by SourceOptions()
+
     /** Issue reporter configuration. */
     private val issueReportingOptions by
-        IssueReportingOptions(executionEnvironment.reporterEnvironment)
+        IssueReportingOptions(executionEnvironment.reporterEnvironment, commonOptions)
 
     /** API lint options. */
     private val apiLintOptions by ApiLintOptions()
@@ -104,6 +108,7 @@ class MainCommand(
     internal val optionGroup by
         Options(
             commonOptions = commonOptions,
+            sourceOptions = sourceOptions,
             apiLintOptions = apiLintOptions,
             compatibilityCheckOptions = compatibilityCheckOptions,
             issueReportingOptions = issueReportingOptions,
@@ -129,7 +134,7 @@ class MainCommand(
                 }
             }
 
-            optionGroup.reportEvenIfSuppressedWriter?.close()
+            issueReportingOptions.reporterConfig.reportEvenIfSuppressedWriter?.close()
 
             // Show failure messages, if any.
             optionGroup.allReporters.forEach { it.writeErrorMessage(stderr) }
@@ -150,9 +155,9 @@ class MainCommand(
             executionEnvironment.testEnvironment?.sourceModelProvider
             // Otherwise, use the one specified on the command line, or the default.
             ?: SourceModelProvider.getImplementation(optionGroup.sourceModelProvider)
-        sourceModelProvider.createEnvironmentManager(disableStderrDumping()).use {
-            processFlags(executionEnvironment, it, progressTracker)
-        }
+        sourceModelProvider
+            .createEnvironmentManager(executionEnvironment.disableStderrDumping())
+            .use { processFlags(executionEnvironment, it, progressTracker) }
 
         if (optionGroup.allReporters.any { it.hasErrors() } && !optionGroup.passBaselineUpdates) {
             // Repeat the errors at the end to make it easy to find the actual problems.

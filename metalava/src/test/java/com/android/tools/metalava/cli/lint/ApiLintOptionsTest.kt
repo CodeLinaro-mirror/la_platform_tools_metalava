@@ -27,6 +27,7 @@ Api Lint:
 
   Options controlling API linting.
 
+  --api-lint                                 Check API for Android API best practices.
   --api-lint-previous-api <file>             An API signature file that defines a previously released API. API Lint
                                              issues found in that API will be ignored.
     """

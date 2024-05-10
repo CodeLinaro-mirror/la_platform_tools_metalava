@@ -16,12 +16,12 @@
 
 package com.android.tools.metalava.lint
 
-import com.android.tools.metalava.ARG_API_LINT
 import com.android.tools.metalava.DriverTest
 import com.android.tools.metalava.androidxNonNullSource
 import com.android.tools.metalava.androidxNullableSource
 import com.android.tools.metalava.cli.common.ARG_ERROR
 import com.android.tools.metalava.cli.common.ARG_HIDE
+import com.android.tools.metalava.cli.lint.ARG_API_LINT
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.testing.FilterAction
 import com.android.tools.metalava.model.testing.FilterByProvider

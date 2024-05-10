@@ -21,11 +21,21 @@ import org.xml.sax.Attributes
 import org.xml.sax.helpers.DefaultHandler
 
 /**
+ * The base of dessert release independent SDKs.
+ *
+ * A dessert release independent SDK is one which is not coupled to the Android dessert release
+ * numbering. Any SDK greater than or equal to this is not comparable to either each other, or to
+ * the Android dessert release. e.g. `1000000` is not the same as, later than, or earlier than
+ * SDK 31. Similarly, `1000001` is not the same as, later than, or earlier then `1000000`.
+ */
+private const val DESSERT_RELEASE_INDEPENDENT_SDK_BASE = 1000000
+
+/**
  * A filter of classes, fields and methods that are allowed in and extension SDK, and for each item,
  * what extension SDK it first appeared in. Also, a mapping between SDK name and numerical ID.
  *
- * Internally, the filers are represented as a tree, where each node in the tree matches a part of a
- * package, class or member name. For example, given the patterns
+ * Internally, the filters are represented as a tree, where each node in the tree matches a part of
+ * a package, class or member name. For example, given the patterns
  *
  * com.example.Foo -> [A] com.example.Foo#someMethod -> [B] com.example.Bar -> [A, C]
  *
@@ -125,7 +135,9 @@ private constructor(
                     sdkIdentifiers.find { it.shortname == ext }
                         ?: throw IllegalStateException("unknown extension SDK \"$ext\"")
                 assert(ident.id != ANDROID_PLATFORM_SDK_ID) // invariant
-                versions.add("${ident.id}:$extensionsSince")
+                if (ident.id >= DESSERT_RELEASE_INDEPENDENT_SDK_BASE || ident.id <= androidSince) {
+                    versions.add("${ident.id}:$extensionsSince")
+                }
             }
         }
 
