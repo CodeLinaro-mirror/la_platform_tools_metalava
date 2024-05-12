@@ -39,7 +39,6 @@ import java.io.OutputStreamWriter
 import java.io.PrintWriter
 import java.nio.file.Path
 
-@Suppress("DEPRECATION")
 internal class DefaultReporter(
     private val environment: ReporterEnvironment,
     private val issueConfiguration: IssueConfiguration,
@@ -55,9 +54,35 @@ internal class DefaultReporter(
 
     /** Filter to hide issues reported in packages which are not part of the API. */
     private val packageFilter: PackageFilter? = null,
+
+    /** Additional config properties. */
+    private val config: Config = Config(),
 ) : Reporter {
     private var errors = mutableListOf<String>()
     private var warningCount = 0
+
+    /**
+     * Configuration properties for the reporter.
+     *
+     * This contains properties that are shared across all instances of [DefaultReporter], except
+     * for the bootstrapping reporter. That receives a default instance of this.
+     */
+    class Config(
+        /** If true, treat all API lint warnings as errors */
+        val lintsAsErrors: Boolean = false,
+
+        /** If true, treat all warnings as errors */
+        val warningsAsErrors: Boolean = false,
+
+        /** Whether output should be colorized */
+        val terminal: Terminal = plainTerminal,
+
+        /**
+         * Optional writer to which, if present, all errors, even if they were suppressed in
+         * baseline or via annotation, will be written.
+         */
+        val reportEvenIfSuppressedWriter: PrintWriter? = null,
+    )
 
     /** The number of errors. */
     val errorCount
@@ -77,6 +102,14 @@ internal class DefaultReporter(
             return false
         }
 
+        val effectiveSeverity =
+            if (severity == LINT && config.lintsAsErrors) ERROR
+            else if (severity == WARNING && config.warningsAsErrors) {
+                ERROR
+            } else {
+                severity
+            }
+
         fun dispatch(
             which:
                 (
@@ -93,7 +126,7 @@ internal class DefaultReporter(
                     else -> null
                 }
 
-            return which(severity, reportLocation, message, id)
+            return which(effectiveSeverity, reportLocation, message, id)
         }
 
         // Optionally write to the --report-even-if-suppressed file.
@@ -200,27 +233,15 @@ internal class DefaultReporter(
         message: String,
         id: Issues.Issue?,
     ): Boolean {
-        if (severity == HIDDEN) {
-            return false
-        }
-
-        val effectiveSeverity =
-            if (severity == LINT && options.lintsAreErrors) ERROR
-            else if (severity == WARNING && options.warningsAreErrors) {
-                ERROR
-            } else {
-                severity
-            }
-
-        val terminal: Terminal = options.terminal
-        val formattedMessage = format(effectiveSeverity, location, message, id, terminal)
-        if (effectiveSeverity == ERROR) {
+        val terminal: Terminal = config.terminal
+        val formattedMessage = format(severity, location, message, id, terminal)
+        if (severity == ERROR) {
             errors.add(formattedMessage)
         } else if (severity == WARNING) {
             warningCount++
         }
 
-        environment.printReport(formattedMessage, effectiveSeverity)
+        environment.printReport(formattedMessage, severity)
         return true
     }
 
@@ -258,7 +279,7 @@ internal class DefaultReporter(
         message: String,
         id: Issues.Issue
     ): Boolean {
-        options.reportEvenIfSuppressedWriter?.println(
+        config.reportEvenIfSuppressedWriter?.println(
             format(severity, location, message, id, terminal = plainTerminal)
         )
         return true

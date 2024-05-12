@@ -46,6 +46,10 @@ Issue Reporting:
   --warning-category <name>                  Report all issues in the given category as warnings
   --lint-category <name>                     Report all issues in the given category as having lint-severity
   --hide-category <name>                     Hide/skip all issues in the given category
+  --lints-as-errors                          Promote all API lint issues to errors.
+  --warnings-as-errors                       Promote all warnings to errors.
+  --report-even-if-suppressed <file>         Write all issues into the given file, even if suppressed (via annotation or
+                                             baseline) but not if hidden (by '--hide' or '--hide-category').
   --repeat-errors-max <n>                    When specified, repeat at most N errors before finishing. (default: 0)
     """
         .trimIndent()

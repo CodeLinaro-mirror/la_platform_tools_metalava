@@ -24,7 +24,7 @@ import com.android.tools.lint.helpers.DefaultJavaEvaluator
 import com.android.tools.metalava.PROGRAM_NAME
 import com.android.tools.metalava.SdkIdentifier
 import com.android.tools.metalava.apilevels.ApiToExtensionsMap
-import com.android.tools.metalava.isUnderTest
+import com.android.tools.metalava.cli.common.ExecutionEnvironment
 import com.android.tools.metalava.model.ANDROIDX_ANNOTATION_PREFIX
 import com.android.tools.metalava.model.ANNOTATION_ATTR_VALUE
 import com.android.tools.metalava.model.AnnotationAttributeValue
@@ -69,6 +69,7 @@ private const val CARRIER_PRIVILEGES_MARKER = "carrier privileges"
  *   (It works around this by replacing the space with &nbsp;.)
  */
 class DocAnalyzer(
+    private val executionEnvironment: ExecutionEnvironment,
     /** The codebase to analyze */
     private val codebase: Codebase,
     private val reporter: Reporter,
@@ -692,7 +693,11 @@ class DocAnalyzer(
     }
 
     fun applyApiLevels(applyApiLevelsXml: File) {
-        val apiLookup = getApiLookup(applyApiLevelsXml)
+        val apiLookup =
+            getApiLookup(
+                xmlFile = applyApiLevelsXml,
+                underTest = executionEnvironment.isUnderTest(),
+            )
         val elementToSdkExtSinceMap = createSymbolToSdkExtSinceMap(applyApiLevelsXml)
 
         val pkgApi = HashMap<PackageItem, Int?>(300)
@@ -910,7 +915,11 @@ fun ApiLookup.getFieldDeprecatedIn(field: FieldItem): Int {
     return getFieldDeprecatedInVersions(owner, field.name()).minApiLevel()
 }
 
-fun getApiLookup(xmlFile: File, cacheDir: File? = null): ApiLookup {
+fun getApiLookup(
+    xmlFile: File,
+    cacheDir: File? = null,
+    underTest: Boolean = true,
+): ApiLookup {
     val client =
         object : LintCliClient(PROGRAM_NAME) {
             override fun getCacheDir(name: String?, create: Boolean): File? {
@@ -918,7 +927,7 @@ fun getApiLookup(xmlFile: File, cacheDir: File? = null): ApiLookup {
                     return cacheDir
                 }
 
-                if (create && isUnderTest()) {
+                if (create && underTest) {
                     // Pick unique directory during unit tests
                     return Files.createTempDirectory(PROGRAM_NAME).toFile()
                 }

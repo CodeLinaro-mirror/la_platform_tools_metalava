@@ -18,9 +18,11 @@ package com.android.tools.metalava.cli.lint
 
 import com.android.tools.metalava.cli.common.existingFile
 import com.github.ajalt.clikt.parameters.groups.OptionGroup
+import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.option
 import java.io.File
 
+const val ARG_API_LINT = "--api-lint"
 const val ARG_API_LINT_PREVIOUS_API = "--api-lint-previous-api"
 
 /** The name of the group, can be used in help text to refer to the options in this group. */
@@ -35,6 +37,17 @@ class ApiLintOptions :
             """
                 .trimIndent(),
     ) {
+
+    internal val apiLintEnabled: Boolean by
+        option(
+                ARG_API_LINT,
+                help =
+                    """
+                        Check API for Android API best practices.
+                    """
+                        .trimIndent(),
+            )
+            .flag()
 
     internal val apiLintPreviousApi: File? by
         option(

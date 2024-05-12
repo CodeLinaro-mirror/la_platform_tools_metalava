@@ -20,6 +20,7 @@ import com.android.tools.lint.checks.infrastructure.TestFiles
 import com.android.tools.metalava.cli.common.BaseCommandTest
 import com.android.tools.metalava.cli.common.CommonOptions
 import com.android.tools.metalava.cli.common.ISSUE_REPORTING_OPTIONS_HELP
+import com.android.tools.metalava.cli.common.SOURCE_OPTIONS_HELP
 import com.android.tools.metalava.cli.compatibility.COMPATIBILITY_CHECK_OPTIONS_HELP
 import com.android.tools.metalava.cli.lint.API_LINT_OPTIONS_HELP
 import com.android.tools.metalava.cli.signature.SIGNATURE_FORMAT_OPTIONS_HELP
@@ -73,6 +74,8 @@ Options:
                                              inline - will include the constants themselves into each usage site
   -h, --help                                 Show this message and exit
 
+$SOURCE_OPTIONS_HELP
+
 $ISSUE_REPORTING_OPTIONS_HELP
 
 $API_LINT_OPTIONS_HELP
@@ -103,13 +106,6 @@ API sources:
                                              A comma separated list of source files to be parsed. Can also be @ followed
                                              by a path to a text file containing paths to the full set of files to
                                              parse.
---source-path <paths>
-                                             One or more directories (separated by `:`) containing source files (within
-                                             a package hierarchy).
---common-source-path <paths>
-                                             One or more directories (separated by `:`) containing common source files
-                                             (within a package hierarchy) where platform-agnostic `expect` declarations
-                                             as well as common business logic are defined.
 --classpath <paths>
                                              One or more directories or jars (separated by `:`) containing classes that
                                              should be on the classpath when parsing the source files
@@ -220,18 +216,9 @@ Generating Stubs:
 
 
 Diffs and Checks:
---api-lint
-                                             Check API for Android API best practices.
 --migrate-nullness <api file>
                                              Compare nullness information with the previous stable API and mark newly
                                              annotated APIs as under migration.
---warnings-as-errors
-                                             Promote all warnings to errors
---lints-as-errors
-                                             Promote all API lint warnings to errors
---report-even-if-suppressed <file>
-                                             Write all issues into the given file, even if suppressed (via annotation or
-                                             baseline) but not if hidden (by '--hide' or '--hide-category')
 --baseline <file>
                                              Filter out any errors already reported in the given baseline file, or
                                              create if it does not already exist
