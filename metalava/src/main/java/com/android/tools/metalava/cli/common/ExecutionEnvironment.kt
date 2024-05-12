@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2023 The Android Open Source Project
+ * Copyright (C) 2024 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,8 +14,13 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava
+package com.android.tools.metalava.cli.common
 
+import com.android.tools.lint.detector.api.assertionsEnabled
+import com.android.tools.metalava.DefaultReporterEnvironment
+import com.android.tools.metalava.ENV_VAR_METALAVA_DUMP_ARGV
+import com.android.tools.metalava.ReporterEnvironment
+import com.android.tools.metalava.model.source.SourceModelProvider
 import java.io.OutputStreamWriter
 import java.io.PrintWriter
 import java.io.StringWriter
@@ -33,6 +38,18 @@ data class ExecutionEnvironment(
     val reporterEnvironment: ReporterEnvironment = DefaultReporterEnvironment(),
     val testEnvironment: TestEnvironment? = null,
 ) {
+    /** Whether metalava is being invoked as part of an Android platform build */
+    fun isBuildingAndroid() = System.getenv("ANDROID_BUILD_TOP") != null && !isUnderTest()
+
+    /** Whether to suppress dumping of information to stderr by a [SourceModelProvider]. */
+    fun disableStderrDumping(): Boolean {
+        return !assertionsEnabled() &&
+            System.getenv(ENV_VAR_METALAVA_DUMP_ARGV) == null &&
+            !isUnderTest()
+    }
+
+    /** Whether metalava is running unit tests */
+    fun isUnderTest() = testEnvironment != null
 
     companion object {
         /** Get an [ExecutionEnvironment] suitable for use by tests. */

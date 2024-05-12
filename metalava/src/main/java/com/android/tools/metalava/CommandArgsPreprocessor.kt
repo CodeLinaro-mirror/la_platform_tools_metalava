@@ -17,6 +17,7 @@
 package com.android.tools.metalava
 
 import com.android.SdkConstants.VALUE_FALSE
+import com.android.tools.metalava.cli.common.ExecutionEnvironment
 import com.android.tools.metalava.lint.ApiLint
 import com.intellij.util.execution.ParametersListUtil
 import java.io.File
@@ -31,8 +32,11 @@ import kotlin.random.Random
  * Preprocess command line arguments.
  * 1. Prepend/append {@code ENV_VAR_METALAVA_PREPEND_ARGS} and {@code ENV_VAR_METALAVA_PREPEND_ARGS}
  */
-internal fun preprocessArgv(args: Array<String>): Array<String> {
-    return if (!isUnderTest()) {
+internal fun preprocessArgv(
+    executionEnvironment: ExecutionEnvironment,
+    args: Array<String>
+): Array<String> {
+    return if (!executionEnvironment.isUnderTest()) {
         val prepend = envVarToArgs(ENV_VAR_METALAVA_PREPEND_ARGS)
         val append = envVarToArgs(ENV_VAR_METALAVA_APPEND_ARGS)
         if (prepend.isEmpty() && append.isEmpty()) {
@@ -63,14 +67,16 @@ private fun envVarToArgs(varName: String): Array<String> {
  * If the variable is set to "script", it'll generate a "rerun" script instead.
  */
 internal fun maybeDumpArgv(
-    out: PrintWriter,
+    executionEnvironment: ExecutionEnvironment,
     originalArgs: Array<String>,
     modifiedArgs: Array<String>
 ) {
     val dumpOption = System.getenv(ENV_VAR_METALAVA_DUMP_ARGV)
-    if (dumpOption == null || dumpOption == VALUE_FALSE || isUnderTest()) {
+    if (dumpOption == null || dumpOption == VALUE_FALSE || executionEnvironment.isUnderTest()) {
         return
     }
+
+    val out = executionEnvironment.stdout
 
     // Generate a rerun script, if needed, with the original args.
     if ("script" == dumpOption) {

@@ -19,10 +19,10 @@ package com.android.tools.metalava
 
 import com.android.SdkConstants.DOT_JAR
 import com.android.SdkConstants.DOT_TXT
-import com.android.tools.lint.detector.api.assertionsEnabled
 import com.android.tools.metalava.apilevels.ApiGenerator
 import com.android.tools.metalava.cli.common.ActionContext
 import com.android.tools.metalava.cli.common.EarlyOptions
+import com.android.tools.metalava.cli.common.ExecutionEnvironment
 import com.android.tools.metalava.cli.common.MetalavaCliException
 import com.android.tools.metalava.cli.common.MetalavaCommand
 import com.android.tools.metalava.cli.common.SignatureFileLoader
@@ -42,6 +42,7 @@ import com.android.tools.metalava.lint.ApiLint
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.ItemVisitor
 import com.android.tools.metalava.model.MergedCodebase
 import com.android.tools.metalava.model.ModelOptions
 import com.android.tools.metalava.model.psi.PsiModelOptions
@@ -50,7 +51,6 @@ import com.android.tools.metalava.model.source.SourceParser
 import com.android.tools.metalava.model.source.SourceSet
 import com.android.tools.metalava.model.text.ApiClassResolution
 import com.android.tools.metalava.model.text.SignatureFile
-import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
 import com.android.tools.metalava.stub.StubWriter
@@ -89,7 +89,7 @@ fun run(
 
     // Preprocess the arguments by adding any additional arguments specified in environment
     // variables.
-    val modifiedArgs = preprocessArgv(originalArgs)
+    val modifiedArgs = preprocessArgv(executionEnvironment, originalArgs)
 
     // Process the early options. This does not consume any arguments, they will be parsed again
     // later. A little inefficient but produces cleaner code.
@@ -100,7 +100,7 @@ fun run(
     progressTracker.progress("$PROGRAM_NAME started\n")
 
     // Dump the arguments, and maybe generate a rerun-script.
-    maybeDumpArgv(stdout, originalArgs, modifiedArgs)
+    maybeDumpArgv(executionEnvironment, originalArgs, modifiedArgs)
 
     // Actual work begins here.
     val command =
@@ -253,7 +253,7 @@ internal fun processFlags(
             error("Codebase does not support documentation, so it cannot be enhanced.")
         }
         progressTracker.progress("Enhancing docs: ")
-        val docAnalyzer = DocAnalyzer(codebase, reporterApiLint)
+        val docAnalyzer = DocAnalyzer(executionEnvironment, codebase, reporterApiLint)
         docAnalyzer.enhance()
         val applyApiLevelsXml = options.applyApiLevelsXml
         if (applyApiLevelsXml != null) {
@@ -660,7 +660,7 @@ private fun ActionContext.loadFromSources(
     // General API checks for Android APIs
     AndroidApiChecks(reporterApiLint).check(codebase)
 
-    if (options.checkApi) {
+    if (options.apiLintEnabled) {
         progressTracker.progress("API Lint: ")
         val localTimer = Stopwatch.createStarted()
         // See if we should provide a previous codebase to provide a delta from?
@@ -728,12 +728,6 @@ fun ActionContext.loadFromJarFile(
             sourceParser,
         )
     return jarCodebaseLoader.loadFromJarFile(apiJar, apiAnalyzerConfig)
-}
-
-internal fun disableStderrDumping(): Boolean {
-    return !assertionsEnabled() &&
-        System.getenv(ENV_VAR_METALAVA_DUMP_ARGV) == null &&
-        !isUnderTest()
 }
 
 @Suppress("DEPRECATION")
@@ -809,7 +803,7 @@ fun createReportFile(
     apiFile: File,
     description: String?,
     deleteEmptyFiles: Boolean = false,
-    createVisitor: (PrintWriter) -> ApiVisitor
+    createVisitor: (PrintWriter) -> ItemVisitor
 ) {
     if (description != null) {
         progressTracker.progress("Writing $description file: ")
@@ -835,12 +829,6 @@ fun createReportFile(
         )
     }
 }
-
-/** Whether metalava is running unit tests */
-fun isUnderTest() = java.lang.Boolean.getBoolean(ENV_VAR_METALAVA_TESTS_RUNNING)
-
-/** Whether metalava is being invoked as part of an Android platform build */
-fun isBuildingAndroid() = System.getenv("ANDROID_BUILD_TOP") != null && !isUnderTest()
 
 private fun createMetalavaCommand(
     executionEnvironment: ExecutionEnvironment,

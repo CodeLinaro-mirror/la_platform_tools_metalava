@@ -25,6 +25,7 @@ import com.android.tools.metalava.reporter.Reporter
 import com.android.tools.metalava.reporter.Severity
 import com.github.ajalt.clikt.parameters.groups.OptionGroup
 import com.github.ajalt.clikt.parameters.options.default
+import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.types.int
 import com.github.ajalt.clikt.parameters.types.restrictTo
@@ -39,11 +40,17 @@ const val ARG_WARNING_CATEGORY = "--warning-category"
 const val ARG_LINT_CATEGORY = "--lint-category"
 const val ARG_HIDE_CATEGORY = "--hide-category"
 
+const val ARG_LINTS_AS_ERRORS = "--lints-as-errors"
+const val ARG_WARNINGS_AS_ERRORS = "--warnings-as-errors"
+
+const val ARG_REPORT_EVEN_IF_SUPPRESSED = "--report-even-if-suppressed"
+
 /** The name of the group, can be used in help text to refer to the options in this group. */
 const val REPORTING_OPTIONS_GROUP = "Issue Reporting"
 
 class IssueReportingOptions(
-    reporterEnvironment: ReporterEnvironment = DefaultReporterEnvironment()
+    reporterEnvironment: ReporterEnvironment = DefaultReporterEnvironment(),
+    commonOptions: CommonOptions = CommonOptions(),
 ) :
     OptionGroup(
         name = REPORTING_OPTIONS_GROUP,
@@ -124,6 +131,41 @@ class IssueReportingOptions(
         registerOption(issueOption)
     }
 
+    private val lintsAsErrors: Boolean by
+        option(
+                ARG_LINTS_AS_ERRORS,
+                help =
+                    """
+                        Promote all API lint issues to errors.
+                    """
+                        .trimIndent()
+            )
+            .flag()
+
+    private val warningsAsErrors: Boolean by
+        option(
+                ARG_WARNINGS_AS_ERRORS,
+                help =
+                    """
+                        Promote all warnings to errors.
+                    """
+                        .trimIndent()
+            )
+            .flag()
+
+    /** Writes a list of all errors, even if they were suppressed in baseline or via annotation. */
+    private val reportEvenIfSuppressedFile by
+        option(
+                ARG_REPORT_EVEN_IF_SUPPRESSED,
+                help =
+                    """
+                        Write all issues into the given file, even if suppressed (via annotation or
+                        baseline) but not if hidden (by '$ARG_HIDE' or '$ARG_HIDE_CATEGORY').
+                    """
+                        .trimIndent(),
+            )
+            .newOrExistingFile()
+
     /** When non-0, metalava repeats all the errors at the end of the run, at most this many. */
     val repeatErrorsMax by
         option(
@@ -134,6 +176,18 @@ class IssueReportingOptions(
             .int()
             .restrictTo(min = 0)
             .default(0)
+
+    internal val reporterConfig by
+        lazy(LazyThreadSafetyMode.NONE) {
+            val reportEvenIfSuppressedWriter = reportEvenIfSuppressedFile?.printWriter()
+
+            DefaultReporter.Config(
+                lintsAsErrors = lintsAsErrors,
+                warningsAsErrors = warningsAsErrors,
+                terminal = commonOptions.terminal,
+                reportEvenIfSuppressedWriter = reportEvenIfSuppressedWriter,
+            )
+        }
 }
 
 /** The different configurable aspects of [IssueConfiguration]. */

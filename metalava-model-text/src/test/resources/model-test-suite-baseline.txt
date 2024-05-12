@@ -8,20 +8,11 @@ com.android.tools.metalava.model.testsuite.annotationitem.CommonAnnotationItemTe
   annotation with negative number values
   annotation with type cast values
 
-com.android.tools.metalava.model.testsuite.fielditem.CommonFieldItemTest
-  Test implicit nullability of enum constant
-  Test nullability of non-null field annotated with @Nullable or kotlin equivalent
-
 com.android.tools.metalava.model.testsuite.typeitem.CommonIsAssignableFromTest
   Test assignability without unboxing[boxedInt to primitiveInt]
   Test assignability without unboxing[number to boxedInt]
   Test assignability without unboxing[number to primitiveInt]
   Test assignability without unboxing[obj to string]
-
-com.android.tools.metalava.model.testsuite.typeitem.CommonTypeModifiersTest
-  Test implicit nullability of annotation members
-  Test implicit nullability of equals parameter
-  Test implicit nullability of toString
 
 com.android.tools.metalava.model.testsuite.typeitem.CommonTypeParameterItemTest
   Test type parameter with annotations

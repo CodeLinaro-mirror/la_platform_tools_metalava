@@ -1825,7 +1825,7 @@ class CommonTypeModifiersTest : BaseModelTest() {
                 """
                     package test.pkg;
                     public @interface Foo {
-                        String[] value();
+                        String[] values();
                     }
                 """
                     .trimIndent()
@@ -1834,7 +1834,7 @@ class CommonTypeModifiersTest : BaseModelTest() {
                 """
                     package test.pkg
                     annotation class Foo {
-                        fun value(): Array<String>
+                        fun values(): Array<String>
                     }
                 """
                     .trimIndent()
@@ -1847,7 +1847,7 @@ class CommonTypeModifiersTest : BaseModelTest() {
                     // - kotlin-style-nulls=no
                     package test.pkg {
                       public @interface Foo {
-                        method public value(): String[]
+                        method public values(): String[];
                       }
                     }
                 """
