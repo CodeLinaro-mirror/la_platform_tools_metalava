@@ -20,29 +20,25 @@ import com.android.tools.metalava.cli.common.SignatureFileLoader
 import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.Codebase
-import java.io.File
+import com.android.tools.metalava.model.text.SignatureFile
 
-private data class CacheKey(val files: List<File>, val classResolver: ClassResolver?) {
-    fun load(signatureFileLoader: SignatureFileLoader): Codebase =
-        if (files.size == 1) {
-            signatureFileLoader.load(files.single(), classResolver)
-        } else {
-            signatureFileLoader.loadFiles(files, classResolver)
-        }
-}
+private data class CacheKey(
+    val signatureFiles: List<SignatureFile>,
+    val classResolver: ClassResolver?
+)
 
 /** Loads signature files, caching them for reuse where appropriate. */
 class SignatureFileCache(annotationManager: AnnotationManager) {
     private val signatureFileLoader = SignatureFileLoader(annotationManager)
     private val map = mutableMapOf<CacheKey, Codebase>()
 
-    fun load(file: File, classResolver: ClassResolver? = null): Codebase =
-        load(listOf(file), classResolver)
+    fun load(signatureFile: SignatureFile, classResolver: ClassResolver? = null): Codebase =
+        load(listOf(signatureFile), classResolver)
 
-    fun load(files: List<File>, classResolver: ClassResolver? = null): Codebase {
-        val key = CacheKey(files, classResolver)
+    fun load(signatureFiles: List<SignatureFile>, classResolver: ClassResolver? = null): Codebase {
+        val key = CacheKey(signatureFiles, classResolver)
         return map.computeIfAbsent(key) { k ->
-            signatureFileLoader.loadFiles(k.files, k.classResolver)
+            signatureFileLoader.loadFiles(k.signatureFiles, k.classResolver)
         }
     }
 }

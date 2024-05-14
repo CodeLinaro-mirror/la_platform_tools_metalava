@@ -276,56 +276,7 @@ abstract class UastTestBase : DriverTest() {
     fun `declarations with value class in its signature`() {
         // https://youtrack.jetbrains.com/issue/KT-57546
         // https://youtrack.jetbrains.com/issue/KT-57577
-        // TODO(b/297113621)
-        val alignmentMembersDelegateToCompanion =
-            if (isK2) ""
-            else
-                """
-                    method public int getHorizontal();
-                    method public int getVertical();
-                    property public final int horizontal;
-                    property public final int vertical;"""
-        val alignmentCompanionAccessors =
-            if (isK2) ""
-            else
-                """
-                    method public int getStart();
-                    method public int getTop();"""
-        val alignmentCompanionProperties =
-            if (isK2) ""
-            else
-                """
-                    property public final int Start;
-                    property public final int Top;"""
-        val alignmentHorizontalCompanionMembers =
-            if (isK2) ""
-            else
-                """
-                    method public int getCenterHorizontally();
-                    method public int getEnd();
-                    method public int getStart();
-                    property public final int CenterHorizontally;
-                    property public final int End;
-                    property public final int Start;"""
-        val alignmentVerticalCompanionMembers =
-            if (isK2) ""
-            else
-                """
-                    method public int getBottom();
-                    method public int getCenterVertically();
-                    method public int getTop();
-                    property public final int Bottom;
-                    property public final int CenterVertically;
-                    property public final int Top;"""
-        val userPropertyAndAccessors =
-            if (isK2) ""
-            else
-                """
-                    method public float getP();
-                    method public float getQ();
-                    method public void setQ(float);
-                    property public final float p;
-                    property public final float q;"""
+        val mod = if (isK2) "" else " final"
         check(
             sourceFiles =
                 arrayOf(
@@ -380,22 +331,42 @@ abstract class UastTestBase : DriverTest() {
                 """
                 package test.pkg {
                   public final class Alignment {
-                    ctor public Alignment(int horizontal, int vertical);$alignmentMembersDelegateToCompanion
+                    ctor public Alignment(int horizontal, int vertical);
+                    method public int getHorizontal();
+                    method public int getVertical();
+                    property public$mod int horizontal;
+                    property public$mod int vertical;
                     field public static final test.pkg.Alignment.Companion Companion;
                   }
-                  public static final class Alignment.Companion {$alignmentCompanionAccessors
-                    method public test.pkg.Alignment getTopStart();$alignmentCompanionProperties
+                  public static final class Alignment.Companion {
+                    method public int getStart();
+                    method public int getTop();
+                    method public test.pkg.Alignment getTopStart();
+                    property public$mod int Start;
+                    property public$mod int Top;
                     property public final test.pkg.Alignment TopStart;
                   }
                   @kotlin.jvm.JvmInline public static final value class Alignment.Horizontal {
                     field public static final test.pkg.Alignment.Horizontal.Companion Companion;
                   }
-                  public static final class Alignment.Horizontal.Companion {$alignmentHorizontalCompanionMembers
+                  public static final class Alignment.Horizontal.Companion {
+                    method public int getCenterHorizontally();
+                    method public int getEnd();
+                    method public int getStart();
+                    property public$mod int CenterHorizontally;
+                    property public$mod int End;
+                    property public$mod int Start;
                   }
                   @kotlin.jvm.JvmInline public static final value class Alignment.Vertical {
                     field public static final test.pkg.Alignment.Vertical.Companion Companion;
                   }
-                  public static final class Alignment.Vertical.Companion {$alignmentVerticalCompanionMembers
+                  public static final class Alignment.Vertical.Companion {
+                    method public int getBottom();
+                    method public int getCenterVertically();
+                    method public int getTop();
+                    property public$mod int Bottom;
+                    property public$mod int CenterVertically;
+                    property public$mod int Top;
                   }
                   @kotlin.jvm.JvmInline public final value class AnchorType {
                     field public static final test.pkg.AnchorType.Companion Companion;
@@ -411,7 +382,12 @@ abstract class UastTestBase : DriverTest() {
                   public final class User {
                     ctor public User(float p, float q);
                     method public kotlin.jvm.functions.Function0<test.pkg.AnchorType> bar();
-                    method public float foo();$userPropertyAndAccessors
+                    method public float foo();
+                    method public float getP();
+                    method public float getQ();
+                    method public void setQ(float);
+                    property public$mod float p;
+                    property public$mod float q;
                   }
                 }
         """
@@ -776,6 +752,59 @@ abstract class UastTestBase : DriverTest() {
     }
 
     @Test
+    fun `Upper bound wildcards -- extension function type -- deprecated`() {
+        // https://youtrack.jetbrains.com/issue/KT-61734
+        val wildcard1 = if (isK2) "" else "? super "
+        val wildcard2 = if (isK2) "" else "? extends "
+        check(
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                        package test.pkg
+
+                        interface NavGraphBuilder
+
+                        interface AnimatedContentTransitionScope<S>
+
+                        interface NavBackStackEntry
+
+                        interface EnterTransition
+
+                        fun NavGraphBuilder.after(
+                          enterTransition: (@JvmSuppressWildcards
+                              AnimatedContentTransitionScope<NavBackStackEntry>.() -> EnterTransition?)? = null,
+                        ) = TODO()
+
+                        @Deprecated("no more composable", level = DeprecationLevel.HIDDEN)
+                        fun NavGraphBuilder.before(
+                          enterTransition: (@JvmSuppressWildcards
+                              AnimatedContentTransitionScope<NavBackStackEntry>.() -> EnterTransition?)? = null,
+                        ) = TODO()
+                        """
+                    )
+                ),
+            api =
+                """
+                package test.pkg {
+                  public interface AnimatedContentTransitionScope<S> {
+                  }
+                  public interface EnterTransition {
+                  }
+                  public interface NavBackStackEntry {
+                  }
+                  public interface NavGraphBuilder {
+                  }
+                  public final class NavGraphBuilderKt {
+                    method public static Void after(test.pkg.NavGraphBuilder, optional kotlin.jvm.functions.Function1<test.pkg.AnimatedContentTransitionScope<test.pkg.NavBackStackEntry>,test.pkg.EnterTransition?>? enterTransition);
+                    method @Deprecated public static Void before(test.pkg.NavGraphBuilder, optional kotlin.jvm.functions.Function1<${wildcard1}test.pkg.AnimatedContentTransitionScope<test.pkg.NavBackStackEntry>,${wildcard2}test.pkg.EnterTransition?>? enterTransition);
+                  }
+                }
+                """
+        )
+    }
+
+    @Test
     fun `boxed type argument as method return type`() {
         // https://youtrack.jetbrains.com/issue/KT-57579
         check(
@@ -1045,22 +1074,22 @@ abstract class UastTestBase : DriverTest() {
                       public final class Test_accessors {
                         ctor public Test_accessors();
                         method public String? getPNew_accessors();
-                        method public String? getPOld_accessors_deprecatedOnGetter();
+                        method @Deprecated public String? getPOld_accessors_deprecatedOnGetter();
                         method public String? getPOld_accessors_deprecatedOnProperty();
                         method public String? getPOld_accessors_deprecatedOnSetter();
                         method public void setPNew_accessors(String?);
                         method public void setPOld_accessors_deprecatedOnGetter(String?);
                         method public void setPOld_accessors_deprecatedOnProperty(String?);
-                        method public void setPOld_accessors_deprecatedOnSetter(String?);
+                        method @Deprecated public void setPOld_accessors_deprecatedOnSetter(String?);
                         property public final String? pNew_accessors;
-                        property public String? pOld_accessors_deprecatedOnGetter;
+                        property @Deprecated public String? pOld_accessors_deprecatedOnGetter;
                         property public String? pOld_accessors_deprecatedOnProperty;
                         property public final String? pOld_accessors_deprecatedOnSetter;
                       }
                       public final class Test_getter {
                         ctor public Test_getter();
                         method public String? getPNew_getter();
-                        method public String? getPOld_getter_deprecatedOnGetter();
+                        method @Deprecated public String? getPOld_getter_deprecatedOnGetter();
                         method public String? getPOld_getter_deprecatedOnProperty();
                         method public String? getPOld_getter_deprecatedOnSetter();
                         method public void setPNew_getter(String?);
@@ -1068,7 +1097,7 @@ abstract class UastTestBase : DriverTest() {
                         method @Deprecated public void setPOld_getter_deprecatedOnProperty(String?);
                         method @Deprecated public void setPOld_getter_deprecatedOnSetter(String?);
                         property public final String? pNew_getter;
-                        property public String? pOld_getter_deprecatedOnGetter;
+                        property @Deprecated public String? pOld_getter_deprecatedOnGetter;
                         property public String? pOld_getter_deprecatedOnProperty;
                         property public final String? pOld_getter_deprecatedOnSetter;
                       }
@@ -1096,7 +1125,7 @@ abstract class UastTestBase : DriverTest() {
                         method public void setPNew_setter(String?);
                         method public void setPOld_setter_deprecatedOnGetter(String?);
                         method public void setPOld_setter_deprecatedOnProperty(String?);
-                        method public void setPOld_setter_deprecatedOnSetter(String?);
+                        method @Deprecated public void setPOld_setter_deprecatedOnSetter(String?);
                         property public final String? pNew_setter;
                         property @Deprecated public String? pOld_setter_deprecatedOnGetter;
                         property @Deprecated public String? pOld_setter_deprecatedOnProperty;
@@ -1138,25 +1167,25 @@ abstract class UastTestBase : DriverTest() {
                       public final class Test_accessors {
                         ctor public Test_accessors();
                         method public String? getPNew_accessors();
-                        method public String? getPOld_accessors_deprecatedOnGetter();
+                        method @Deprecated public String? getPOld_accessors_deprecatedOnGetter();
                         method public String? getPOld_accessors_deprecatedOnProperty();
                         method public void setPNew_accessors(String?);
                         method public void setPOld_accessors_deprecatedOnProperty(String?);
-                        method public void setPOld_accessors_deprecatedOnSetter(String?);
+                        method @Deprecated public void setPOld_accessors_deprecatedOnSetter(String?);
                         property public final String? pNew_accessors;
-                        property public String? pOld_accessors_deprecatedOnGetter;
+                        property @Deprecated public String? pOld_accessors_deprecatedOnGetter;
                         property public String? pOld_accessors_deprecatedOnProperty;
                       }
                       public final class Test_getter {
                         ctor public Test_getter();
                         method public String? getPNew_getter();
-                        method public String? getPOld_getter_deprecatedOnGetter();
+                        method @Deprecated public String? getPOld_getter_deprecatedOnGetter();
                         method public String? getPOld_getter_deprecatedOnProperty();
                         method public void setPNew_getter(String?);
                         method @Deprecated public void setPOld_getter_deprecatedOnProperty(String?);
                         method @Deprecated public void setPOld_getter_deprecatedOnSetter(String?);
                         property public final String? pNew_getter;
-                        property public String? pOld_getter_deprecatedOnGetter;
+                        property @Deprecated public String? pOld_getter_deprecatedOnGetter;
                         property public String? pOld_getter_deprecatedOnProperty;
                       }
                       public final class Test_noAccessor {
@@ -1178,7 +1207,7 @@ abstract class UastTestBase : DriverTest() {
                         method @Deprecated public String? getPOld_setter_deprecatedOnProperty();
                         method public void setPNew_setter(String?);
                         method public void setPOld_setter_deprecatedOnProperty(String?);
-                        method public void setPOld_setter_deprecatedOnSetter(String?);
+                        method @Deprecated public void setPOld_setter_deprecatedOnSetter(String?);
                         property public final String? pNew_setter;
                         property @Deprecated public String? pOld_setter_deprecatedOnGetter;
                         property @Deprecated public String? pOld_setter_deprecatedOnProperty;

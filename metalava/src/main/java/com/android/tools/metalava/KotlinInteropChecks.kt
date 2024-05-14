@@ -54,7 +54,8 @@ class KotlinInteropChecks(val reporter: Reporter) {
                     // Sort by source order such that warnings follow source line number order
                     methodComparator = MethodItem.sourceOrderComparator,
                     // No need to check "for stubs only APIs" (== "implicit" APIs)
-                    includeApisForStubPurposes = false
+                    includeApisForStubPurposes = false,
+                    config = @Suppress("DEPRECATION") options.apiVisitorConfig,
                 ) {
                 private var isKotlin = false
 

@@ -156,7 +156,7 @@ internal class PsiSourceParser(
         return File(homePath, "jmods").isDirectory
     }
 
-    override fun loadFromJar(apiJar: File, preFiltered: Boolean): SourceCodebase {
+    override fun loadFromJar(apiJar: File): SourceCodebase {
         val environment = loadUastFromJars(listOf(apiJar))
         val codebase =
             PsiBasedCodebase(
@@ -166,7 +166,7 @@ internal class PsiSourceParser(
                 reporter = reporter,
                 allowReadingComments = allowReadingComments
             )
-        codebase.initializeFromJar(environment, apiJar, preFiltered)
+        codebase.initializeFromJar(environment, apiJar)
         return codebase
     }
 

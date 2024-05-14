@@ -25,7 +25,6 @@ import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PropertyItem
-import com.android.tools.metalava.options
 import java.util.function.Predicate
 
 open class ApiVisitor(
@@ -70,7 +69,7 @@ open class ApiVisitor(
     val showUnannotated: Boolean = true,
 
     /** Configuration that may come from the command line. */
-    @Suppress("DEPRECATION") config: Config = options.apiVisitorConfig,
+    config: Config,
 ) : BaseItemVisitor(visitConstructorsAsMethods, nestInnerClasses) {
 
     private val packageFilter: PackageFilter? = config.packageFilter
@@ -130,7 +129,7 @@ open class ApiVisitor(
         includeApisForStubPurposes: Boolean = true,
 
         /** Configuration that may come from the command line. */
-        @Suppress("DEPRECATION") config: Config = options.apiVisitorConfig,
+        config: Config,
     ) : this(
         visitConstructorsAsMethods = visitConstructorsAsMethods,
         nestInnerClasses = nestInnerClasses,

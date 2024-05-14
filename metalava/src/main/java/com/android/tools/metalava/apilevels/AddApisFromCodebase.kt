@@ -16,12 +16,14 @@
 
 package com.android.tools.metalava.apilevels
 
+import com.android.tools.metalava.actualItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.visitors.ApiVisitor
+import com.android.tools.metalava.options
 import java.util.function.Predicate
 
 /**
@@ -43,7 +45,8 @@ fun addApisFromCodebase(
                 visitConstructorsAsMethods = true,
                 nestInnerClasses = false,
                 filterEmit = providedFilterEmit,
-                filterReference = providedFilterReference
+                filterReference = providedFilterReference,
+                config = @Suppress("DEPRECATION") options.apiVisitorConfig,
             ) {
 
             var currentClass: ApiClass? = null
@@ -52,8 +55,15 @@ fun addApisFromCodebase(
                 currentClass = null
             }
 
+            /**
+             * Get the value of [Item.deprecated] from the [Item.actualItem], i.e. the item that
+             * would actually be written out.
+             */
+            private val Item.actualDeprecated
+                get() = actualItem.deprecated
+
             override fun visitClass(cls: ClassItem) {
-                val newClass = api.addClass(cls.nameInApi(), apiLevel, cls.deprecated)
+                val newClass = api.addClass(cls.nameInApi(), apiLevel, cls.actualDeprecated)
                 currentClass = newClass
 
                 if (cls.isClass()) {
@@ -151,15 +161,14 @@ fun addApisFromCodebase(
                 if (method.isPrivate || method.isPackagePrivate) {
                     return
                 }
-                currentClass?.addMethod(method.nameInApi(), apiLevel, method.deprecated)
+                currentClass?.addMethod(method.nameInApi(), apiLevel, method.actualDeprecated)
             }
 
             override fun visitField(field: FieldItem) {
                 if (field.isPrivate || field.isPackagePrivate) {
                     return
                 }
-
-                currentClass?.addField(field.nameInApi(), apiLevel, field.deprecated)
+                currentClass?.addField(field.nameInApi(), apiLevel, field.actualDeprecated)
             }
 
             /** The name of the field in this [Api], based on [useInternalNames] */

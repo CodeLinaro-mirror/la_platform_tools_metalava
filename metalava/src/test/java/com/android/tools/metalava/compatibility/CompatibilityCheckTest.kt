@@ -4030,7 +4030,7 @@ class CompatibilityCheckTest : DriverTest() {
             signatureSource =
                 """
                 package test.pkg {
-                  class Foo {
+                  public class Foo {
                     field public int bar;
                     field protected int baz;
                     field protected int spam;
@@ -4040,7 +4040,7 @@ class CompatibilityCheckTest : DriverTest() {
             checkCompatibilityApiReleased =
                 """
                 package test.pkg {
-                  class Foo {
+                  public class Foo {
                     field protected int bar;
                     field private int baz;
                     field internal int spam;
@@ -4062,7 +4062,7 @@ class CompatibilityCheckTest : DriverTest() {
             signatureSource =
                 """
                 package test.pkg {
-                  class Foo {
+                  public class Foo {
                     field protected int bar;
                     field private int baz;
                     field internal int spam;
@@ -4072,7 +4072,7 @@ class CompatibilityCheckTest : DriverTest() {
             checkCompatibilityApiReleased =
                 """
                 package test.pkg {
-                  class Foo {
+                  public class Foo {
                     field public int bar;
                     field protected int baz;
                     field protected int spam;
@@ -4088,7 +4088,7 @@ class CompatibilityCheckTest : DriverTest() {
             signatureSource =
                 """
                 package test.pkg {
-                  class Foo {
+                  public class Foo {
                     method public void bar();
                     method protected void baz();
                     method protected void spam();
@@ -4099,7 +4099,7 @@ class CompatibilityCheckTest : DriverTest() {
             checkCompatibilityApiReleased =
                 """
                 package test.pkg {
-                  class Foo {
+                  public class Foo {
                     method protected void bar();
                     method private void baz();
                     method internal void spam();
@@ -4121,7 +4121,7 @@ class CompatibilityCheckTest : DriverTest() {
             signatureSource =
                 """
                 package test.pkg {
-                  class Foo {
+                  public class Foo {
                     method protected void bar();
                     method private void baz();
                     method internal void spam();
@@ -4132,7 +4132,7 @@ class CompatibilityCheckTest : DriverTest() {
             checkCompatibilityApiReleased =
                 """
                 package test.pkg {
-                  class Foo {
+                  public class Foo {
                     method public void bar();
                     method protected void baz();
                     method protected void spam();
@@ -4228,7 +4228,7 @@ class CompatibilityCheckTest : DriverTest() {
             signatureSource =
                 """
                 package test.pkg {
-                  interface Foo {
+                  public interface Foo {
                     method abstract public void bar(Int);
                   }
                 }
@@ -4236,7 +4236,7 @@ class CompatibilityCheckTest : DriverTest() {
             checkCompatibilityApiReleased =
                 """
                 package test.pkg {
-                  interface Foo {
+                  public interface Foo {
                     method default public void bar(Int);
                     }
                   }

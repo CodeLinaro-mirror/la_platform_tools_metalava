@@ -16,12 +16,14 @@
 
 package com.android.tools.metalava.cli.compatibility
 
+import com.android.SdkConstants
 import com.android.tools.metalava.ApiType
 import com.android.tools.metalava.SignatureFileCache
 import com.android.tools.metalava.cli.common.allowStructuredOptionName
 import com.android.tools.metalava.cli.common.existingFile
 import com.android.tools.metalava.cli.common.map
 import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.text.SignatureFile
 import com.github.ajalt.clikt.parameters.groups.OptionGroup
 import com.github.ajalt.clikt.parameters.options.multiple
 import com.github.ajalt.clikt.parameters.options.option
@@ -118,21 +120,112 @@ class CompatibilityCheckOptions :
             )
             .allowStructuredOptionName()
 
+    /** A previously released API. */
+    sealed interface PreviouslyReleasedApi {
+        /** The set of files defining the previously released API. */
+        val files: List<File>
+
+        /** Load the files into a list of [Codebase]s. */
+        fun load(
+            jarLoader: (File) -> Codebase,
+            signatureLoader: (SignatureFile) -> Codebase,
+        ): List<Codebase>
+    }
+
+    /** A previously released API defined by jar files. */
+    data class JarBasedApi(override val files: List<File>) : PreviouslyReleasedApi {
+        override fun load(
+            jarLoader: (File) -> Codebase,
+            signatureLoader: (SignatureFile) -> Codebase,
+        ) = files.map { jarLoader(it) }
+    }
+
     /**
-     * Request for compatibility checks. [files] represents the signature files to be checked.
-     * [apiType] represents which part of the API should be checked.
+     * A previously released API defined by signature files.
+     *
+     * If a single file is provided then it may be a full API or a delta on another API. If multiple
+     * files are provided then they are expected to be provided in order from the narrowest API to
+     * the widest API, where all but the first files are deltas on the preceding file.
      */
-    data class CheckRequest(val files: List<File>, val apiType: ApiType) {
+    data class SignatureBasedApi(val signatureFiles: List<SignatureFile>) : PreviouslyReleasedApi {
+
+        override val files: List<File> = signatureFiles.map { it.file }
+
+        override fun load(
+            jarLoader: (File) -> Codebase,
+            signatureLoader: (SignatureFile) -> Codebase,
+        ) = signatureFiles.map { signatureLoader(it) }
+
+        companion object {
+            fun fromFiles(files: List<File>): SignatureBasedApi {
+                val lastIndex = files.size - 1
+                return SignatureBasedApi(
+                    files.mapIndexed { index, file ->
+                        SignatureFile(
+                            file,
+                            // The last file is assumed to be for the current API surface.
+                            forCurrentApiSurface = index == lastIndex,
+                        )
+                    }
+                )
+            }
+        }
+    }
+
+    /**
+     * Encapsulates information needed to perform a compatibility check of the current API being
+     * generated against a previously released API.
+     */
+    data class CheckRequest(
+        /**
+         * The previously released API with which the API being generated must be compatible.
+         *
+         * Each file is either a jar file (i.e. has an extension of `.jar`), or otherwise is a
+         * signature file. The latter's extension is not checked because while it usually has an
+         * extension of `.txt`, for legacy reasons Metalava will treat any file without a `,jar`
+         * extension as if it was a signature file.
+         */
+        val previouslyReleasedApi: PreviouslyReleasedApi,
+
+        /** The part of the API to be checked. */
+        val apiType: ApiType,
+    ) {
+        /** The files defining the previously released API. */
+        val files by previouslyReleasedApi::files
 
         companion object {
             /** Create a [CheckRequest] if [files] is not empty, otherwise return `null`. */
             internal fun optionalCheckRequest(files: List<File>, apiType: ApiType) =
-                if (files.isEmpty()) null else CheckRequest(files, apiType)
+                if (files.isEmpty()) null
+                else {
+                    // Partition the files into jar and non-jar files, the latter are assumed to be
+                    // signature files.
+                    val (jarFiles, signatureFiles) =
+                        files.partition { it.path.endsWith(SdkConstants.DOT_JAR) }
+                    when {
+                        jarFiles.isEmpty() ->
+                            CheckRequest(SignatureBasedApi.fromFiles(signatureFiles), apiType)
+                        signatureFiles.isEmpty() -> CheckRequest(JarBasedApi(jarFiles), apiType)
+                        else ->
+                            throw IllegalStateException(
+                                "${checkCompatibilityOptionForApiType(apiType)}: Cannot mix jar files (e.g. ${jarFiles.first()}) and signature files (e.g. ${signatureFiles.first()})"
+                            )
+                    }
+                }
+
+            private fun checkCompatibilityOptionForApiType(apiType: ApiType) =
+                "--check-compatibility:${apiType.flagName}:released"
         }
+
+        /** Load the previously released API [files] in as a list of [Codebase]s. */
+        fun loadPreviouslyReleasedApi(
+            jarLoader: (File) -> Codebase,
+            signatureLoader: (SignatureFile) -> Codebase,
+        ) = previouslyReleasedApi.load(jarLoader, signatureLoader)
 
         override fun toString(): String {
             // This is only used when reporting progress.
-            return "--check-compatibility:${apiType.flagName}:released $files"
+            return checkCompatibilityOptionForApiType(apiType) + " ${files.joinToString(",")}"
         }
     }
 
@@ -142,7 +235,21 @@ class CompatibilityCheckOptions :
     val compatibilityChecks by
         lazy(LazyThreadSafetyMode.NONE) { listOfNotNull(checkReleasedApi, checkReleasedRemoved) }
 
-    /** The list of [Codebase]s corresponding to [compatibilityChecks]. */
+    /**
+     * The list of [Codebase]s corresponding to [compatibilityChecks].
+     *
+     * This is used to provide the previously released API needed for `--revert-annotation`. It does
+     * not support jar files.
+     */
     fun previouslyReleasedCodebases(signatureFileCache: SignatureFileCache): List<Codebase> =
-        compatibilityChecks.flatMap { it.files.map { signatureFileCache.load(it) } }
+        compatibilityChecks.flatMap {
+            it.previouslyReleasedApi.load(
+                {
+                    throw IllegalStateException(
+                        "Unexpected file $it: jar files do not work with --revert-annotation"
+                    )
+                },
+                { signatureFileCache.load(it) }
+            )
+        }
 }

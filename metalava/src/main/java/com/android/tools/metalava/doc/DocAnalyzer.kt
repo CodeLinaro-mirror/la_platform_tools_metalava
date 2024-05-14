@@ -74,6 +74,8 @@ class DocAnalyzer(
     private val reporter: Reporter,
 ) {
 
+    private val apiVisitorConfig = @Suppress("DEPRECATION") options.apiVisitorConfig
+
     /** Computes the visible part of the API from all the available code in the codebase */
     fun enhance() {
         // Apply options for packages that should be hidden
@@ -102,7 +104,7 @@ class DocAnalyzer(
         // like an unreasonable burden.
 
         codebase.accept(
-            object : ApiVisitor() {
+            object : ApiVisitor(config = apiVisitorConfig) {
                 override fun visitItem(item: Item) {
                     val annotations = item.modifiers.annotations()
                     if (annotations.isEmpty()) {
@@ -671,7 +673,7 @@ class DocAnalyzer(
 
     private fun tweakGrammar() {
         codebase.accept(
-            object : ApiVisitor() {
+            object : ApiVisitor(config = apiVisitorConfig) {
                 override fun visitItem(item: Item) {
                     var doc = item.documentation
                     if (doc.isBlank()) {
@@ -695,7 +697,11 @@ class DocAnalyzer(
 
         val pkgApi = HashMap<PackageItem, Int?>(300)
         codebase.accept(
-            object : ApiVisitor(visitConstructorsAsMethods = true) {
+            object :
+                ApiVisitor(
+                    visitConstructorsAsMethods = true,
+                    config = apiVisitorConfig,
+                ) {
                 override fun visitMethod(method: MethodItem) {
                     // Do not add API information to implicit constructor. It is not clear exactly
                     // why this is needed but without it some existing tests break.

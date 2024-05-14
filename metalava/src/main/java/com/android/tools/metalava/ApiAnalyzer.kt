@@ -884,7 +884,10 @@ class ApiAnalyzer(
                 config.allShowAnnotations.isNotEmpty()
 
         packages.accept(
-            object : ApiVisitor() {
+            object :
+                ApiVisitor(
+                    config = @Suppress("DEPRECATION") options.apiVisitorConfig,
+                ) {
                 override fun visitParameter(parameter: ParameterItem) {
                     checkTypeReferencesHidden(parameter, parameter.type())
                 }

@@ -26,12 +26,13 @@ class BinaryCompatibilityInterfaceMethodsTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                released-api.txt:4: error: Removed method test.pkg.Foo.bar(int) [RemovedMethod]
-            """,
+                    released-api.txt:4: error: Removed method test.pkg.Foo.bar(int) [RemovedMethod]
+                    load-api.txt:4: error: Added method test.pkg.Foo.baz(int) [AddedAbstractMethod]
+                """,
             signatureSource =
                 """
                 package test.pkg {
-                  interface Foo {
+                  public interface Foo {
                     method public void baz(int);
                   }
                 }
@@ -39,7 +40,7 @@ class BinaryCompatibilityInterfaceMethodsTest : DriverTest() {
             checkCompatibilityApiReleased =
                 """
                 package test.pkg {
-                  interface Foo {
+                  public interface Foo {
                     method public void bar(int);
                   }
                 }
@@ -52,12 +53,13 @@ class BinaryCompatibilityInterfaceMethodsTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                released-api.txt:4: error: Removed method test.pkg.Foo.bar(int) [RemovedMethod]
-            """,
+                    load-api.txt:4: error: Added method test.pkg.Foo.bar() [AddedAbstractMethod]
+                    released-api.txt:4: error: Removed method test.pkg.Foo.bar(int) [RemovedMethod]
+                """,
             signatureSource =
                 """
                 package test.pkg {
-                  interface Foo {
+                  public interface Foo {
                     method public void bar();
                   }
                 }
@@ -65,7 +67,7 @@ class BinaryCompatibilityInterfaceMethodsTest : DriverTest() {
             checkCompatibilityApiReleased =
                 """
                 package test.pkg {
-                  interface Foo {
+                  public interface Foo {
                     method public void bar(int);
                   }
                 }
@@ -78,12 +80,13 @@ class BinaryCompatibilityInterfaceMethodsTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                released-api.txt:4: error: Removed method test.pkg.Foo.bar(int) [RemovedMethod]
-            """,
+                    load-api.txt:4: error: Added method test.pkg.Foo.bar(Float) [AddedAbstractMethod]
+                    released-api.txt:4: error: Removed method test.pkg.Foo.bar(int) [RemovedMethod]
+                """,
             signatureSource =
                 """
                 package test.pkg {
-                  interface Foo {
+                  public interface Foo {
                     method public void bar(Float);
                   }
                 }
@@ -91,7 +94,7 @@ class BinaryCompatibilityInterfaceMethodsTest : DriverTest() {
             checkCompatibilityApiReleased =
                 """
                 package test.pkg {
-                  interface Foo {
+                  public interface Foo {
                     method public void bar(int);
                   }
                 }
@@ -109,7 +112,7 @@ class BinaryCompatibilityInterfaceMethodsTest : DriverTest() {
             signatureSource =
                 """
                 package test.pkg {
-                  interface Foo {
+                  public interface Foo {
                     method public int bar(int);
                   }
                 }
@@ -117,7 +120,7 @@ class BinaryCompatibilityInterfaceMethodsTest : DriverTest() {
             checkCompatibilityApiReleased =
                 """
                 package test.pkg {
-                  interface Foo {
+                  public interface Foo {
                     method public void bar(int);
                   }
                 }
@@ -135,7 +138,7 @@ class BinaryCompatibilityInterfaceMethodsTest : DriverTest() {
             signatureSource =
                 """
                 package test.pkg {
-                  interface Foo {
+                  public interface Foo {
                     method public void bar(int) throws java.lang.Throwable;
                   }
                 }
@@ -143,7 +146,7 @@ class BinaryCompatibilityInterfaceMethodsTest : DriverTest() {
             checkCompatibilityApiReleased =
                 """
                 package test.pkg {
-                  interface Foo {
+                  public interface Foo {
                     method public void bar(int);
                   }
                 }
@@ -161,7 +164,7 @@ class BinaryCompatibilityInterfaceMethodsTest : DriverTest() {
             signatureSource =
                 """
                 package test.pkg {
-                  interface Foo {
+                  public interface Foo {
                     method public void bar(int);
                   }
                 }
@@ -169,7 +172,7 @@ class BinaryCompatibilityInterfaceMethodsTest : DriverTest() {
             checkCompatibilityApiReleased =
                 """
                 package test.pkg {
-                  interface Foo {
+                  public interface Foo {
                     method public void bar(int) throws java.lang.Throwable;
                   }
                 }
@@ -183,7 +186,7 @@ class BinaryCompatibilityInterfaceMethodsTest : DriverTest() {
             signatureSource =
                 """
                 package test.pkg {
-                  interface Foo {
+                  public interface Foo {
                     method public void bar(int) throws java.lang.Exception, java.lang.Throwable;
                   }
                 }
@@ -191,7 +194,7 @@ class BinaryCompatibilityInterfaceMethodsTest : DriverTest() {
             checkCompatibilityApiReleased =
                 """
                 package test.pkg {
-                  interface Foo {
+                  public interface Foo {
                     method public void bar(int) throws java.lang.Throwable, java.lang.Exception;
                   }
                 }
@@ -209,7 +212,7 @@ class BinaryCompatibilityInterfaceMethodsTest : DriverTest() {
             signatureSource =
                 """
                 package test.pkg {
-                  interface Foo {
+                  public interface Foo {
                     method public void bar(int);
                   }
                 }
@@ -217,7 +220,7 @@ class BinaryCompatibilityInterfaceMethodsTest : DriverTest() {
             checkCompatibilityApiReleased =
                 """
                 package test.pkg {
-                  interface Foo {
+                  public interface Foo {
                     method static public void bar(int);
                   }
                 }
@@ -235,7 +238,7 @@ class BinaryCompatibilityInterfaceMethodsTest : DriverTest() {
             signatureSource =
                 """
                 package test.pkg {
-                  interface Foo {
+                  public interface Foo {
                     method static public void bar(int);
                   }
                 }
@@ -243,7 +246,7 @@ class BinaryCompatibilityInterfaceMethodsTest : DriverTest() {
             checkCompatibilityApiReleased =
                 """
                 package test.pkg {
-                  interface Foo {
+                  public interface Foo {
                     method public void bar(int);
                   }
                 }
@@ -261,7 +264,7 @@ class BinaryCompatibilityInterfaceMethodsTest : DriverTest() {
             signatureSource =
                 """
                 package test.pkg {
-                  interface Foo {
+                  public interface Foo {
                     method abstract public void bar(int);
                   }
                 }
@@ -269,7 +272,7 @@ class BinaryCompatibilityInterfaceMethodsTest : DriverTest() {
             checkCompatibilityApiReleased =
                 """
                 package test.pkg {
-                  interface Foo {
+                  public interface Foo {
                     method default public void bar(int);
                   }
                 }
@@ -283,7 +286,7 @@ class BinaryCompatibilityInterfaceMethodsTest : DriverTest() {
             signatureSource =
                 """
                 package test.pkg {
-                  interface Foo {
+                  public interface Foo {
                     method default public void bar(int);
                   }
                 }
@@ -291,7 +294,7 @@ class BinaryCompatibilityInterfaceMethodsTest : DriverTest() {
             checkCompatibilityApiReleased =
                 """
                 package test.pkg {
-                  interface Foo {
+                  public interface Foo {
                     method abstract public void bar(int);
                   }
                 }
@@ -307,14 +310,14 @@ class BinaryCompatibilityInterfaceMethodsTest : DriverTest() {
         check(
             signatureSource = """
                 package test.pkg {
-                  class Foo {
+                  public class Foo {
                     method public <T> void bar(int);
                   }
                 }
             """,
             checkCompatibilityApiReleased = """
                 package test.pkg {
-                  class Foo {
+                  public class Foo {
                     method public void bar(int);
                   }
                 }
@@ -327,14 +330,14 @@ class BinaryCompatibilityInterfaceMethodsTest : DriverTest() {
         check(
             signatureSource = """
                 package test.pkg {
-                  interface Foo {
+                  public interface Foo {
                     method public <T, K> void bar();
                   }
                 }
             """,
             checkCompatibilityApiReleased = """
                 package test.pkg {
-                  interface Foo {
+                  public interface Foo {
                     method public <T> void bar();
                   }
                 }
@@ -347,14 +350,14 @@ class BinaryCompatibilityInterfaceMethodsTest : DriverTest() {
         check(
             signatureSource = """
                 package test.pkg {
-                  class Foo {
+                  public class Foo {
                     method public void bar(int);
                   }
                 }
             """,
             checkCompatibilityApiReleased = """
                 package test.pkg {
-                  class Foo {
+                  public class Foo {
                     method public <T> void bar(int);
                   }
                 }
@@ -367,14 +370,14 @@ class BinaryCompatibilityInterfaceMethodsTest : DriverTest() {
         check(
             signatureSource = """
                 package test.pkg {
-                  class Foo {
+                  public class Foo {
                     method public <T, K> void bar(int);
                   }
                 }
             """,
             checkCompatibilityApiReleased = """
                 package test.pkg {
-                  class Foo {
+                  public class Foo {
                     method public <K, T> void bar(int);
                   }
                 }
@@ -387,14 +390,14 @@ class BinaryCompatibilityInterfaceMethodsTest : DriverTest() {
          check(
             signatureSource = """
                 package test.pkg {
-                  class Foo {
+                  public class Foo {
                     method public <T> void bar(int);
                   }
                 }
             """,
             checkCompatibilityApiReleased = """
                 package test.pkg {
-                  class Foo {
+                  public class Foo {
                     method public <K> void bar(int);
                   }
                 }
@@ -407,14 +410,14 @@ class BinaryCompatibilityInterfaceMethodsTest : DriverTest() {
         check(
             signatureSource = """
                 package test.pkg {
-                  class Foo {
+                  public class Foo {
                     method public <T extends Foo> void bar(int);
                   }
                 }
             """,
             checkCompatibilityApiReleased = """
                 package test.pkg {
-                  class Foo {
+                  public class Foo {
                     method public <T> void bar(int);
                   }
                 }
@@ -429,7 +432,7 @@ class BinaryCompatibilityInterfaceMethodsTest : DriverTest() {
             signatureSource =
                 """
                 package test.pkg {
-                    interface Foo {
+                    public interface Foo {
                         method public <T> void bar(T...);
                     }
                 }
@@ -437,7 +440,7 @@ class BinaryCompatibilityInterfaceMethodsTest : DriverTest() {
             checkCompatibilityApiReleased =
                 """
                 package test.pkg {
-                    interface Foo {
+                    public interface Foo {
                         method public <T> void bar(T[]);
                     }
                 }
@@ -455,7 +458,7 @@ class BinaryCompatibilityInterfaceMethodsTest : DriverTest() {
             signatureSource =
                 """
                 package test.pkg {
-                    interface Foo {
+                    public interface Foo {
                         method public <T> void bar(T[]);
                     }
                 }
@@ -463,7 +466,7 @@ class BinaryCompatibilityInterfaceMethodsTest : DriverTest() {
             checkCompatibilityApiReleased =
                 """
                 package test.pkg {
-                    interface Foo {
+                    public interface Foo {
                         method public <T> void bar(T...);
                     }
                 }
