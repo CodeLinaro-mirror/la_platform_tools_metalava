@@ -276,8 +276,13 @@ interface Item : Reportable {
     /**
      * Find the [Item] in [codebase] that corresponds to this item, or `null` if there is no such
      * item.
+     *
+     * @param superMethods if true and this is a [MethodItem] then this method will search for super
+     *   methods. If this is a [ParameterItem] then the value of this parameter will be passed to
+     *   the [findCorrespondingItemIn] call which is used to find the [MethodItem] corresponding to
+     *   the [ParameterItem.containingMethod].
      */
-    fun findCorrespondingItemIn(codebase: Codebase): Item?
+    fun findCorrespondingItemIn(codebase: Codebase, superMethods: Boolean = false): Item?
 
     /**
      * Get the set of suppressed issues for this [Item].

@@ -54,9 +54,6 @@ private constructor(
         /** Configuration for the issues that will be stored in the baseline file. */
         val issueConfiguration: IssueConfiguration,
 
-        /** True if this should only store errors in the baseline, false otherwise. */
-        val baselineErrorsOnly: Boolean,
-
         /** True if this should delete empty baseline files, false otherwise. */
         val deleteEmptyBaselines: Boolean,
 
@@ -106,12 +103,6 @@ private constructor(
             map[issue]
                 ?: run {
                     if (updateFile != null) {
-                        if (
-                            config.baselineErrorsOnly &&
-                                config.issueConfiguration.getSeverity(issue) != Severity.ERROR
-                        ) {
-                            return true
-                        }
                         val new = HashMap<String, String>()
                         map[issue] = new
                         new

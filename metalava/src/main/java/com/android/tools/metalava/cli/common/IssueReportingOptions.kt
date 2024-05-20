@@ -19,6 +19,7 @@ package com.android.tools.metalava.cli.common
 import com.android.tools.metalava.DefaultReporter
 import com.android.tools.metalava.DefaultReporterEnvironment
 import com.android.tools.metalava.ReporterEnvironment
+import com.android.tools.metalava.reporter.ERROR_WHEN_NEW_SUFFIX
 import com.android.tools.metalava.reporter.IssueConfiguration
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
@@ -32,10 +33,12 @@ import com.github.ajalt.clikt.parameters.types.restrictTo
 import java.io.File
 
 const val ARG_ERROR = "--error"
+const val ARG_ERROR_WHEN_NEW = "--error-when-new"
 const val ARG_WARNING = "--warning"
 const val ARG_LINT = "--lint"
 const val ARG_HIDE = "--hide"
 const val ARG_ERROR_CATEGORY = "--error-category"
+const val ARG_ERROR_WHEN_NEW_CATEGORY = "--error-when-new-category"
 const val ARG_WARNING_CATEGORY = "--warning-category"
 const val ARG_LINT_CATEGORY = "--lint-category"
 const val ARG_HIDE_CATEGORY = "--hide-category"
@@ -255,49 +258,66 @@ private enum class ConfigLabel(
         ARG_ERROR,
         Severity.ERROR,
         ConfigurableAspect.ISSUE,
-        "Report issues of the given id as errors",
+        "Report issues of the given id as errors.",
+    ),
+    ERROR_WHEN_NEW(
+        ARG_ERROR_WHEN_NEW,
+        Severity.WARNING_ERROR_WHEN_NEW,
+        ConfigurableAspect.ISSUE,
+        """
+            Report issues of the given id as warnings in existing code and errors in new code. The
+            latter behavior relies on infrastructure that handles checking changes to the code
+            detecting the ${ERROR_WHEN_NEW_SUFFIX.trim()} text in the output and preventing the
+            change from being made.
+        """,
     ),
     WARNING(
         ARG_WARNING,
         Severity.WARNING,
         ConfigurableAspect.ISSUE,
-        "Report issues of the given id as warnings",
+        "Report issues of the given id as warnings.",
     ),
     LINT(
         ARG_LINT,
         Severity.LINT,
         ConfigurableAspect.ISSUE,
-        "Report issues of the given id as having lint-severity",
+        "Report issues of the given id as having lint-severity.",
     ),
     HIDE(
         ARG_HIDE,
         Severity.HIDDEN,
         ConfigurableAspect.ISSUE,
-        "Hide/skip issues of the given id",
+        "Hide/skip issues of the given id.",
     ),
     ERROR_CATEGORY(
         ARG_ERROR_CATEGORY,
         Severity.ERROR,
         ConfigurableAspect.CATEGORY,
-        "Report all issues in the given category as errors",
+        "Report all issues in the given category as errors.",
+    ),
+    ERROR_WHEN_NEW_CATEGORY(
+        ARG_ERROR_WHEN_NEW_CATEGORY,
+        Severity.WARNING_ERROR_WHEN_NEW,
+        ConfigurableAspect.CATEGORY,
+        "Report all issues in the given category as errors-when-new.",
     ),
     WARNING_CATEGORY(
         ARG_WARNING_CATEGORY,
         Severity.WARNING,
         ConfigurableAspect.CATEGORY,
-        "Report all issues in the given category as warnings",
+        "Report all issues in the given category as warnings.",
     ),
     LINT_CATEGORY(
         ARG_LINT_CATEGORY,
         Severity.LINT,
         ConfigurableAspect.CATEGORY,
-        "Report all issues in the given category as having lint-severity",
+        "Report all issues in the given category as having lint-severity.",
     ),
     HIDE_CATEGORY(
         ARG_HIDE_CATEGORY,
         Severity.HIDDEN,
         ConfigurableAspect.CATEGORY,
-        "Hide/skip all issues in the given category",
+        "Hide/skip all issues in the given category.",
     );
 
     /** Configure the aspect identified by [id] into the [configuration]. */
