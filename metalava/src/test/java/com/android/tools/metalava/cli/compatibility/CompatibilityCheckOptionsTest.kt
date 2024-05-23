@@ -56,6 +56,17 @@ Compatibility Checks:
                                              If set, this is output when errors are detected in
                                              --check-compatibility:api:released or
                                              --check-compatibility:removed:released.
+  --baseline:compatibility:released <file>   An optional baseline file that contains a list of known compatibility
+                                             issues which should be ignored. If this does not exist and
+                                             --update-baseline:compatibility:released is not specified then it will be
+                                             created and populated with all the known compatibility issues.
+  --update-baseline:compatibility:released <file>
+                                             An optional file into which a list of the latest compatibility issues found
+                                             will be written. If --baseline:compatibility:released is specified then any
+                                             issues listed in there will be copied into this file; that minimizes the
+                                             amount of churn in the baseline file when updating by not removing legacy
+                                             issues that have been fixed. If --delete-empty-baselines is specified and
+                                             this baseline is empty then the file will be deleted.
     """
         .trimIndent()
 

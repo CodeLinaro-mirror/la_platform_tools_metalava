@@ -38,14 +38,19 @@ Issue Reporting:
   See `metalava help issues` for more help including a table of the available issues and their category and default
   severity.
 
-  --error <id>                               Report issues of the given id as errors
-  --warning <id>                             Report issues of the given id as warnings
-  --lint <id>                                Report issues of the given id as having lint-severity
-  --hide <id>                                Hide/skip issues of the given id
-  --error-category <name>                    Report all issues in the given category as errors
-  --warning-category <name>                  Report all issues in the given category as warnings
-  --lint-category <name>                     Report all issues in the given category as having lint-severity
-  --hide-category <name>                     Hide/skip all issues in the given category
+  --error <id>                               Report issues of the given id as errors.
+  --error-when-new <id>                      Report issues of the given id as warnings in existing code and errors in
+                                             new code. The latter behavior relies on infrastructure that handles
+                                             checking changes to the code detecting the (ErrorWhenNew) text in the
+                                             output and preventing the change from being made.
+  --warning <id>                             Report issues of the given id as warnings.
+  --lint <id>                                Report issues of the given id as having lint-severity.
+  --hide <id>                                Hide/skip issues of the given id.
+  --error-category <name>                    Report all issues in the given category as errors.
+  --error-when-new-category <name>           Report all issues in the given category as errors-when-new.
+  --warning-category <name>                  Report all issues in the given category as warnings.
+  --lint-category <name>                     Report all issues in the given category as having lint-severity.
+  --hide-category <name>                     Hide/skip all issues in the given category.
   --lints-as-errors                          Promote all API lint issues to errors.
   --warnings-as-errors                       Promote all warnings to errors.
   --report-even-if-suppressed <file>         Write all issues into the given file, even if suppressed (via annotation or

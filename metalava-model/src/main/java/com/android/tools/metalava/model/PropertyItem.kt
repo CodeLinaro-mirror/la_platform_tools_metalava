@@ -39,7 +39,7 @@ interface PropertyItem : MemberItem {
     /** The type of this property */
     override fun type(): TypeItem
 
-    override fun findCorrespondingItemIn(codebase: Codebase) =
+    override fun findCorrespondingItemIn(codebase: Codebase, superMethods: Boolean) =
         containingClass().findCorrespondingItemIn(codebase)?.properties()?.find {
             it.name() == name()
         }
