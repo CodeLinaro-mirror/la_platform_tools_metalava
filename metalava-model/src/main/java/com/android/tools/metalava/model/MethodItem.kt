@@ -44,8 +44,14 @@ interface MethodItem : MemberItem, TypeParameterListOwner {
 
     override fun type() = returnType()
 
-    override fun findCorrespondingItemIn(codebase: Codebase) =
-        containingClass().findCorrespondingItemIn(codebase)?.findMethod(this)
+    override fun findCorrespondingItemIn(codebase: Codebase, superMethods: Boolean) =
+        containingClass()
+            .findCorrespondingItemIn(codebase)
+            ?.findMethod(
+                this,
+                includeSuperClasses = superMethods,
+                includeInterfaces = superMethods,
+            )
 
     /** Returns the main documentation for the method (the documentation before any tags). */
     fun findMainDocumentation(): String

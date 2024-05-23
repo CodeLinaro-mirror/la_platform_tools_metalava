@@ -42,7 +42,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
         val surface: Surface,
         val flagged: Flagged,
     ) {
-        val extraArguments = surface.args + flagged.args
+        val extraArguments = (surface.args + flagged.args)
 
         override fun toString(): String {
             val surfaceText = surface.name.lowercase(Locale.US)
@@ -79,11 +79,12 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
 
         /**
          * Represents an API without flagged APIs apart from those flagged APIs that are part of
-         * feature `foo/bar`.
+         * feature `foo_bar`.
          */
         WITHOUT_APART_FROM_FOO_BAR_APIS(
-            "without flagged api, with foo/bar",
-            WITHOUT.args + listOf(ARG_REVERT_ANNOTATION, """!$ANDROID_FLAGGED_API("foo/bar")""")
+            "without flagged api, with foo_bar",
+            WITHOUT.args +
+                listOf(ARG_REVERT_ANNOTATION, """!$ANDROID_FLAGGED_API("test.pkg.flags.foo_bar")""")
         ),
     }
 
@@ -116,6 +117,18 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
          * with an empty string.
          */
         val flaggedApiInStubsRegex = """@android\.annotation\.FlaggedApi\([^)]+\)[\n ]""".toRegex()
+
+        private val flagsFile =
+            java(
+                """
+                package test.pkg.flags;
+
+                /** @hide */
+                public class Flags {
+                    public static final String FLAG_FOO_BAR = "test.pkg.flags.foo_bar";
+                }
+            """
+            )
     }
 
     @Suppress("ArrayInDataClass")
@@ -244,6 +257,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                 buildList {
                         addAll(sourceFiles)
                         addAll(annotationsList)
+                        add(flagsFile)
                     }
                     .toTypedArray(),
             api = expectations.expectedApi,
@@ -283,19 +297,6 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
         checkFlaggedApis(
             java(
                 """
-                    package test.pkg.flags;
-
-                    import android.annotation.FlaggedApi;
-                    import android.annotation.SystemApi;
-
-                    public class Flags {
-                        private Flags() {}
-                        public static final String FOO_BAR = "foo/bar";
-                    }
-                """
-            ),
-            java(
-                """
                     package test.pkg;
 
                     import android.annotation.FlaggedApi;
@@ -303,12 +304,12 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                     import test.pkg.flags.Flags;
 
                     public class Foo {
-                        @FlaggedApi(Flags.FOO_BAR)
+                        @FlaggedApi(Flags.FLAG_FOO_BAR)
                         public void flaggedPublicApi() {}
 
                         /** @hide */
                         @SystemApi
-                        @FlaggedApi(Flags.FOO_BAR)
+                        @FlaggedApi(Flags.FLAG_FOO_BAR)
                         public void flaggedSystemApi() {}
                     }
                 """
@@ -336,7 +337,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                                 package test.pkg {
                                   public class Foo {
                                     ctor public Foo();
-                                    method @FlaggedApi("foo/bar") public void flaggedPublicApi();
+                                    method @FlaggedApi("test.pkg.flags.foo_bar") public void flaggedPublicApi();
                                   }
                                 }
                             """,
@@ -348,7 +349,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                                     public class Foo {
                                     public Foo() { throw new RuntimeException("Stub!"); }
-                                    @android.annotation.FlaggedApi("foo/bar")
+                                    @android.annotation.FlaggedApi("test.pkg.flags.foo_bar")
                                     public void flaggedPublicApi() { throw new RuntimeException("Stub!"); }
                                     }
                                 """
@@ -388,7 +389,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                                 // Signature format: 2.0
                                 package test.pkg {
                                   public class Foo {
-                                    method @FlaggedApi("foo/bar") public void flaggedSystemApi();
+                                    method @FlaggedApi("test.pkg.flags.foo_bar") public void flaggedSystemApi();
                                   }
                                 }
                             """,
@@ -400,10 +401,10 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                                         @SuppressWarnings({"unchecked", "deprecation", "all"})
                                         public class Foo {
                                         public Foo() { throw new RuntimeException("Stub!"); }
-                                        @android.annotation.FlaggedApi("foo/bar")
+                                        @android.annotation.FlaggedApi("test.pkg.flags.foo_bar")
                                         public void flaggedPublicApi() { throw new RuntimeException("Stub!"); }
                                         /** @hide */
-                                        @android.annotation.FlaggedApi("foo/bar")
+                                        @android.annotation.FlaggedApi("test.pkg.flags.foo_bar")
                                         public void flaggedSystemApi() { throw new RuntimeException("Stub!"); }
                                         }
                                     """
@@ -443,8 +444,9 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
 
                     import android.annotation.FlaggedApi;
                     import android.annotation.SystemApi;
+                    import test.pkg.flags.Flags;
 
-                    @FlaggedApi("foo/bar")
+                    @FlaggedApi(Flags.FLAG_FOO_BAR)
                     public class Foo {
                     }
                 """
@@ -455,11 +457,12 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
 
                     import android.annotation.FlaggedApi;
                     import android.annotation.SystemApi;
+                    import test.pkg.flags.Flags;
 
                     public class Bar {
                         /** @hide */
                         @SystemApi
-                        @FlaggedApi("foo/bar")
+                        @FlaggedApi(Flags.FLAG_FOO_BAR)
                         public void flaggedSystemApi(@android.annotation.NonNull Foo foo) {}
                     }
                 """
@@ -488,7 +491,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                                   public class Bar {
                                     ctor public Bar();
                                   }
-                                  @FlaggedApi("foo/bar") public class Foo {
+                                  @FlaggedApi("test.pkg.flags.foo_bar") public class Foo {
                                     ctor public Foo();
                                   }
                                 }
@@ -515,7 +518,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                                 // Signature format: 2.0
                                 package test.pkg {
                                   public class Bar {
-                                    method @FlaggedApi("foo/bar") public void flaggedSystemApi(@NonNull test.pkg.Foo);
+                                    method @FlaggedApi("test.pkg.flags.foo_bar") public void flaggedSystemApi(@NonNull test.pkg.Foo);
                                   }
                                 }
                             """,
@@ -541,14 +544,15 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
 
                     import android.annotation.FlaggedApi;
                     import android.annotation.SystemApi;
+                    import test.pkg.flags.Flags;
 
                     public class Foo {
-                        @FlaggedApi("foo/bar")
+                        @FlaggedApi(Flags.FLAG_FOO_BAR)
                         public void flaggedMethod() {}
 
                         /** @hide */
                         @SystemApi
-                        @FlaggedApi("foo/bar")
+                        @FlaggedApi(Flags.FLAG_FOO_BAR)
                         public void systemFlaggedMethod() {}
                     }
                 """
@@ -600,7 +604,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                                   }
                                   public class Foo {
                                     ctor public Foo();
-                                    method @FlaggedApi("foo/bar") public void flaggedMethod();
+                                    method @FlaggedApi("test.pkg.flags.foo_bar") public void flaggedMethod();
                                   }
                                 }
                             """,
@@ -629,7 +633,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                                 // Signature format: 2.0
                                 package test.pkg {
                                   public class Foo {
-                                    method @FlaggedApi("foo/bar") public void systemFlaggedMethod();
+                                    method @FlaggedApi("test.pkg.flags.foo_bar") public void systemFlaggedMethod();
                                   }
                                 }
                             """,
@@ -711,11 +715,12 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
 
                     import android.annotation.FlaggedApi;
                     import android.annotation.SystemApi;
+                    import test.pkg.flags.Flags;
 
                     /**
                      * @hide
                      */
-                    @FlaggedApi("foo/bar")
+                    @FlaggedApi(Flags.FLAG_FOO_BAR)
                     @SystemApi
                     public final class Foo {
                         /**
@@ -764,7 +769,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                             """
                                 // Signature format: 2.0
                                 package test.pkg {
-                                  @FlaggedApi("foo/bar") public final class Foo {
+                                  @FlaggedApi("test.pkg.flags.foo_bar") public final class Foo {
                                     ctor public Foo();
                                     method public void method();
                                   }
@@ -783,7 +788,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                                      * @hide
                                      */
                                     @SuppressWarnings({"unchecked", "deprecation", "all"})
-                                    @android.annotation.FlaggedApi("foo/bar")
+                                    @android.annotation.FlaggedApi("test.pkg.flags.foo_bar")
                                     public final class Foo {
                                     /**
                                      * @hide
@@ -831,7 +836,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                     """
                     package test.pkg;
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
-                    @android.annotation.FlaggedApi("foo/bar")
+                    @android.annotation.FlaggedApi("test.pkg.flags.foo_bar")
                     public final class Foo {
                     public Foo() { throw new RuntimeException("Stub!"); }
                     public void method() { throw new RuntimeException("Stub!"); }
@@ -858,8 +863,9 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                     package test.pkg;
 
                     import android.annotation.FlaggedApi;
+                    import test.pkg.flags.Flags;
 
-                    @FlaggedApi("foo/bar")
+                    @FlaggedApi(Flags.FLAG_FOO_BAR)
                     public final class Foo {
                         public Foo() {}
                         public void method() {}
@@ -911,7 +917,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                             """
                                 // Signature format: 2.0
                                 package test.pkg {
-                                  @FlaggedApi("foo/bar") public final class Foo {
+                                  @FlaggedApi("test.pkg.flags.foo_bar") public final class Foo {
                                     ctor public Foo();
                                     method public void method();
                                     field public final int field = 2; // 0x2
@@ -1022,7 +1028,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                     package test.pkg;
                     /** @hide */
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
-                    @android.annotation.FlaggedApi("foo/bar")
+                    @android.annotation.FlaggedApi("test.pkg.flags.foo_bar")
                     public final class Foo {
                     public Foo() { throw new RuntimeException("Stub!"); }
                     public void method() { throw new RuntimeException("Stub!"); }
@@ -1051,10 +1057,11 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
 
                     import android.annotation.FlaggedApi;
                     import android.annotation.SystemApi;
+                    import test.pkg.flags.Flags;
 
                     /** @hide */
                     @SystemApi
-                    @FlaggedApi("foo/bar")
+                    @FlaggedApi(Flags.FLAG_FOO_BAR)
                     public final class Foo {
                         public Foo() {}
                         public void method() {}
@@ -1106,7 +1113,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                             """
                                 // Signature format: 2.0
                                 package test.pkg {
-                                  @FlaggedApi("foo/bar") public final class Foo {
+                                  @FlaggedApi("test.pkg.flags.foo_bar") public final class Foo {
                                     ctor public Foo();
                                     method public void method();
                                     field public final int field = 2; // 0x2
@@ -1186,7 +1193,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                         package test.pkg;
                         @SuppressWarnings({"unchecked", "deprecation", "all"})
                         public interface Foo {
-                        @android.annotation.FlaggedApi("foo/bar") public static final int CONSTANT = 1; // 0x1
+                        @android.annotation.FlaggedApi("test.pkg.flags.foo_bar") public static final int CONSTANT = 1; // 0x1
                         }
                     """
                 ),
@@ -1211,9 +1218,10 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
 
                     import android.annotation.FlaggedApi;
                     import android.annotation.SystemApi;
+                    import test.pkg.flags.Flags;
 
                     public interface Foo {
-                        @FlaggedApi("foo/bar")
+                        @FlaggedApi(Flags.FLAG_FOO_BAR)
                         int CONSTANT = 1;
                     }
                 """
@@ -1239,7 +1247,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                                 // Signature format: 2.0
                                 package test.pkg {
                                   public interface Foo {
-                                    field @FlaggedApi("foo/bar") public static final int CONSTANT = 1; // 0x1
+                                    field @FlaggedApi("test.pkg.flags.foo_bar") public static final int CONSTANT = 1; // 0x1
                                   }
                                 }
                             """,
@@ -1300,7 +1308,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                          */
                         @SuppressWarnings({"unchecked", "deprecation", "all"})
                         @Deprecated
-                        @android.annotation.FlaggedApi("foo/bar")
+                        @android.annotation.FlaggedApi("test.pkg.flags.foo_bar")
                         public class Bar {
                         /**
                          * A Bar constructor.
@@ -1326,7 +1334,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                     """
                         package test.pkg;
                         @SuppressWarnings({"unchecked", "deprecation", "all"})
-                        @android.annotation.FlaggedApi("foo/bar")
+                        @android.annotation.FlaggedApi("test.pkg.flags.foo_bar")
                         public class Foo {
                         public Foo() { throw new RuntimeException("Stub!"); }
                         public void method(@android.annotation.Nullable java.lang.String p) { throw new RuntimeException("Stub!"); }
@@ -1383,6 +1391,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                     package test.pkg;
 
                     import android.annotation.FlaggedApi;
+                    import test.pkg.flags.Flags;
 
                     /**
                      * A Bar class.
@@ -1391,7 +1400,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                      * deprecation message. Deprecated for
                      * testing.
                      */
-                    @FlaggedApi("foo/bar")
+                    @FlaggedApi(Flags.FLAG_FOO_BAR)
                     public class Bar {
                         /**
                          * A Bar constructor.
@@ -1420,9 +1429,10 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                     package test.pkg;
 
                     import android.annotation.FlaggedApi;
+                    import test.pkg.flags.Flags;
 
                     /** @deprecated */
-                    @FlaggedApi("foo/bar")
+                    @FlaggedApi(Flags.FLAG_FOO_BAR)
                     @Deprecated
                     public class Baz {
                         /** @deprecated */
@@ -1441,8 +1451,9 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                     package test.pkg;
 
                     import android.annotation.FlaggedApi;
+                    import test.pkg.flags.Flags;
 
-                    @FlaggedApi("foo/bar")
+                    @FlaggedApi(Flags.FLAG_FOO_BAR)
                     public class Foo {
                         public Foo() {}
                         public void method(@Nullable String p) {}
@@ -1490,17 +1501,17 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                             """
                                 // Signature format: 2.0
                                 package test.pkg {
-                                  @Deprecated @FlaggedApi("foo/bar") public class Bar {
+                                  @Deprecated @FlaggedApi("test.pkg.flags.foo_bar") public class Bar {
                                     ctor @Deprecated public Bar();
                                     method @Deprecated public void method();
                                     field @Deprecated public static int field;
                                   }
-                                  @Deprecated @FlaggedApi("foo/bar") public class Baz {
+                                  @Deprecated @FlaggedApi("test.pkg.flags.foo_bar") public class Baz {
                                     ctor @Deprecated public Baz();
                                     method @Deprecated public void method();
                                     field @Deprecated public static int field;
                                   }
-                                  @FlaggedApi("foo/bar") public class Foo {
+                                  @FlaggedApi("test.pkg.flags.foo_bar") public class Foo {
                                     ctor public Foo();
                                     method public void method(@Nullable String);
                                     field @Deprecated public static int field;

@@ -19,6 +19,9 @@ package com.android.tools.metalava.cli.compatibility
 import com.android.SdkConstants
 import com.android.tools.metalava.ApiType
 import com.android.tools.metalava.SignatureFileCache
+import com.android.tools.metalava.cli.common.BaselineOptionsMixin
+import com.android.tools.metalava.cli.common.CommonBaselineOptions
+import com.android.tools.metalava.cli.common.ExecutionEnvironment
 import com.android.tools.metalava.cli.common.allowStructuredOptionName
 import com.android.tools.metalava.cli.common.existingFile
 import com.android.tools.metalava.cli.common.map
@@ -34,10 +37,17 @@ const val ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED = "--check-compatibility:remo
 const val ARG_CHECK_COMPATIBILITY_BASE_API = "--check-compatibility:base"
 const val ARG_ERROR_MESSAGE_CHECK_COMPATIBILITY_RELEASED = "--error-message:compatibility:released"
 
+const val ARG_BASELINE_CHECK_COMPATIBILITY_RELEASED = "--baseline:compatibility:released"
+const val ARG_UPDATE_BASELINE_CHECK_COMPATIBILITY_RELEASED =
+    "--update-baseline:compatibility:released"
+
 /** The name of the group, can be used in help text to refer to the options in this group. */
 const val COMPATIBILITY_CHECK_GROUP = "Compatibility Checks"
 
-class CompatibilityCheckOptions :
+class CompatibilityCheckOptions(
+    executionEnvironment: ExecutionEnvironment = ExecutionEnvironment(),
+    commonBaselineOptions: CommonBaselineOptions = CommonBaselineOptions(),
+) :
     OptionGroup(
         name = COMPATIBILITY_CHECK_GROUP,
         help =
@@ -119,6 +129,19 @@ class CompatibilityCheckOptions :
                 metavar = "<message>",
             )
             .allowStructuredOptionName()
+
+    private val baselineOptionsMixin =
+        BaselineOptionsMixin(
+            containingGroup = this,
+            executionEnvironment,
+            baselineOptionName = ARG_BASELINE_CHECK_COMPATIBILITY_RELEASED,
+            updateBaselineOptionName = ARG_UPDATE_BASELINE_CHECK_COMPATIBILITY_RELEASED,
+            issueType = "compatibility",
+            description = "compatibility:released",
+            commonBaselineOptions = commonBaselineOptions,
+        )
+
+    internal val baseline by baselineOptionsMixin::baseline
 
     /** A previously released API. */
     sealed interface PreviouslyReleasedApi {

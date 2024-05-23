@@ -29,11 +29,18 @@ interface Reporter {
      * @param id the id of the issue.
      * @param file the optional source file for which the issue is reported.
      * @param message the message to report.
+     * @param maximumSeverity the maximum [Severity] that will be reported. An issue that is
+     *   configured to have a higher [Severity] that this will use the [maximumSeverity] instead.
      * @return true if the issue was reported false it is a known issue in a baseline file.
      */
-    fun report(id: Issues.Issue, file: File?, message: String): Boolean {
+    fun report(
+        id: Issues.Issue,
+        file: File?,
+        message: String,
+        maximumSeverity: Severity = Severity.ERROR,
+    ): Boolean {
         val location = IssueLocation.forFile(file)
-        return report(id, null, message, location)
+        return report(id, null, message, location, maximumSeverity)
     }
 
     /**
@@ -68,13 +75,16 @@ interface Reporter {
      * @param reportable the optional object for which the issue is reported.
      * @param message the message to report.
      * @param location the optional location to specify.
+     * @param maximumSeverity the maximum [Severity] that will be reported. An issue that is
+     *   configured to have a higher [Severity] that this will use the [maximumSeverity] instead.
      * @return true if the issue was reported false it is a known issue in a baseline file.
      */
     fun report(
         id: Issues.Issue,
         reportable: Reportable?,
         message: String,
-        location: IssueLocation = IssueLocation.unknownLocationAndBaselineKey
+        location: IssueLocation = IssueLocation.unknownLocationAndBaselineKey,
+        maximumSeverity: Severity = Severity.ERROR,
     ): Boolean
 
     /**
@@ -101,7 +111,8 @@ class BasicReporter(private val stderr: PrintWriter) : Reporter {
         id: Issues.Issue,
         reportable: Reportable?,
         message: String,
-        location: IssueLocation
+        location: IssueLocation,
+        maximumSeverity: Severity,
     ): Boolean {
         stderr.println(
             buildString {
@@ -112,9 +123,11 @@ class BasicReporter(private val stderr: PrintWriter) : Reporter {
                     append(usableLocation.line)
                 }
                 append(": ")
-                append(id.defaultLevel.name.lowercase())
+                val severity = id.defaultLevel
+                append(severity)
                 append(": ")
                 append(message)
+                append(severity.messageSuffix)
                 append(" [")
                 append(id.name)
                 append("]")
