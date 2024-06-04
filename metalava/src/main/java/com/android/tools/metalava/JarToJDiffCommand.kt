@@ -17,6 +17,7 @@
 package com.android.tools.metalava
 
 import com.android.tools.metalava.cli.common.MetalavaSubCommand
+import com.android.tools.metalava.cli.common.executionEnvironment
 import com.android.tools.metalava.cli.common.existingFile
 import com.android.tools.metalava.cli.common.newFile
 import com.android.tools.metalava.cli.common.progressTracker
@@ -66,25 +67,29 @@ class JarToJDiffCommand :
         // property.
         OptionsDelegate.disallowAccess()
 
-        StandaloneJarCodebaseLoader.create(progressTracker, BasicReporter(stderr)).use {
-            jarCodebaseLoader ->
-            val codebase = jarCodebaseLoader.loadFromJarFile(jarFile)
+        StandaloneJarCodebaseLoader.create(
+                executionEnvironment,
+                progressTracker,
+                BasicReporter(stderr)
+            )
+            .use { jarCodebaseLoader ->
+                val codebase = jarCodebaseLoader.loadFromJarFile(jarFile)
 
-            val apiType = ApiType.PUBLIC_API
-            val apiPredicateConfig = ApiPredicate.Config()
-            val apiEmit = apiType.getEmitFilter(apiPredicateConfig)
-            val apiReference = apiType.getReferenceFilter(apiPredicateConfig)
+                val apiType = ApiType.PUBLIC_API
+                val apiPredicateConfig = ApiPredicate.Config()
+                val apiEmit = apiType.getEmitFilter(apiPredicateConfig)
+                val apiReference = apiType.getReferenceFilter(apiPredicateConfig)
 
-            createReportFile(progressTracker, codebase, xmlFile, "JDiff File") { printWriter ->
-                JDiffXmlWriter(
-                    writer = printWriter,
-                    filterEmit = apiEmit,
-                    filterReference = apiReference,
-                    preFiltered = false,
-                    showUnannotated = false,
-                    config = ApiVisitor.Config(),
-                )
+                createReportFile(progressTracker, codebase, xmlFile, "JDiff File") { printWriter ->
+                    JDiffXmlWriter(
+                        writer = printWriter,
+                        filterEmit = apiEmit,
+                        filterReference = apiReference,
+                        preFiltered = false,
+                        showUnannotated = false,
+                        config = ApiVisitor.Config(),
+                    )
+                }
             }
-        }
     }
 }

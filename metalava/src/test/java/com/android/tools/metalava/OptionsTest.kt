@@ -17,6 +17,7 @@
 package com.android.tools.metalava
 
 import com.android.tools.metalava.cli.common.ARG_NO_COLOR
+import com.android.tools.metalava.cli.common.ExecutionEnvironment
 import java.io.StringWriter
 import org.junit.Assert.assertEquals
 import org.junit.Test

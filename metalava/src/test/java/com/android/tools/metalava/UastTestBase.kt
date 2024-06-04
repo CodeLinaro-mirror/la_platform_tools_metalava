@@ -1546,4 +1546,50 @@ abstract class UastTestBase : DriverTest() {
                 """
         )
     }
+
+    @Test
+    fun `actual inline`() {
+        // b/336816056
+        val commonSource =
+            kotlin(
+                "commonMain/src/pkg/TestClass.kt",
+                """
+                    package pkg
+                    public expect class TestClass {
+                      public fun test1(a: Int = 0)
+                    }
+                    public expect inline fun TestClass.test2(a: Int = 0)
+                """
+            )
+        check(
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        "androidMain/src/pkg/TestClass.kt",
+                        """
+                            package pkg
+                            public actual class TestClass {
+                              public actual fun test1(a: Int) {}
+                            }
+                            public actual inline fun TestClass.test2(a: Int) {
+                            }
+                        """
+                    ),
+                    commonSource,
+                ),
+            commonSourceFiles = arrayOf(commonSource),
+            api =
+                """
+                package pkg {
+                  public final class TestClass {
+                    ctor public TestClass();
+                    method public void test1(optional int a);
+                  }
+                  public final class TestClassKt {
+                    method public static inline void test2(pkg.TestClass, optional int a);
+                  }
+                }
+                """
+        )
+    }
 }

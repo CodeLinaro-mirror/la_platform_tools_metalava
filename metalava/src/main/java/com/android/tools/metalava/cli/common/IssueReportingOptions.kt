@@ -19,31 +19,41 @@ package com.android.tools.metalava.cli.common
 import com.android.tools.metalava.DefaultReporter
 import com.android.tools.metalava.DefaultReporterEnvironment
 import com.android.tools.metalava.ReporterEnvironment
+import com.android.tools.metalava.reporter.ERROR_WHEN_NEW_SUFFIX
 import com.android.tools.metalava.reporter.IssueConfiguration
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
 import com.android.tools.metalava.reporter.Severity
 import com.github.ajalt.clikt.parameters.groups.OptionGroup
 import com.github.ajalt.clikt.parameters.options.default
+import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.types.int
 import com.github.ajalt.clikt.parameters.types.restrictTo
 import java.io.File
 
 const val ARG_ERROR = "--error"
+const val ARG_ERROR_WHEN_NEW = "--error-when-new"
 const val ARG_WARNING = "--warning"
 const val ARG_LINT = "--lint"
 const val ARG_HIDE = "--hide"
 const val ARG_ERROR_CATEGORY = "--error-category"
+const val ARG_ERROR_WHEN_NEW_CATEGORY = "--error-when-new-category"
 const val ARG_WARNING_CATEGORY = "--warning-category"
 const val ARG_LINT_CATEGORY = "--lint-category"
 const val ARG_HIDE_CATEGORY = "--hide-category"
+
+const val ARG_LINTS_AS_ERRORS = "--lints-as-errors"
+const val ARG_WARNINGS_AS_ERRORS = "--warnings-as-errors"
+
+const val ARG_REPORT_EVEN_IF_SUPPRESSED = "--report-even-if-suppressed"
 
 /** The name of the group, can be used in help text to refer to the options in this group. */
 const val REPORTING_OPTIONS_GROUP = "Issue Reporting"
 
 class IssueReportingOptions(
-    reporterEnvironment: ReporterEnvironment = DefaultReporterEnvironment()
+    reporterEnvironment: ReporterEnvironment = DefaultReporterEnvironment(),
+    commonOptions: CommonOptions = CommonOptions(),
 ) :
     OptionGroup(
         name = REPORTING_OPTIONS_GROUP,
@@ -124,6 +134,41 @@ class IssueReportingOptions(
         registerOption(issueOption)
     }
 
+    private val lintsAsErrors: Boolean by
+        option(
+                ARG_LINTS_AS_ERRORS,
+                help =
+                    """
+                        Promote all API lint issues to errors.
+                    """
+                        .trimIndent()
+            )
+            .flag()
+
+    private val warningsAsErrors: Boolean by
+        option(
+                ARG_WARNINGS_AS_ERRORS,
+                help =
+                    """
+                        Promote all warnings to errors.
+                    """
+                        .trimIndent()
+            )
+            .flag()
+
+    /** Writes a list of all errors, even if they were suppressed in baseline or via annotation. */
+    private val reportEvenIfSuppressedFile by
+        option(
+                ARG_REPORT_EVEN_IF_SUPPRESSED,
+                help =
+                    """
+                        Write all issues into the given file, even if suppressed (via annotation or
+                        baseline) but not if hidden (by '$ARG_HIDE' or '$ARG_HIDE_CATEGORY').
+                    """
+                        .trimIndent(),
+            )
+            .newOrExistingFile()
+
     /** When non-0, metalava repeats all the errors at the end of the run, at most this many. */
     val repeatErrorsMax by
         option(
@@ -134,6 +179,18 @@ class IssueReportingOptions(
             .int()
             .restrictTo(min = 0)
             .default(0)
+
+    internal val reporterConfig by
+        lazy(LazyThreadSafetyMode.NONE) {
+            val reportEvenIfSuppressedWriter = reportEvenIfSuppressedFile?.printWriter()
+
+            DefaultReporter.Config(
+                lintsAsErrors = lintsAsErrors,
+                warningsAsErrors = warningsAsErrors,
+                terminal = commonOptions.terminal,
+                reportEvenIfSuppressedWriter = reportEvenIfSuppressedWriter,
+            )
+        }
 }
 
 /** The different configurable aspects of [IssueConfiguration]. */
@@ -201,49 +258,66 @@ private enum class ConfigLabel(
         ARG_ERROR,
         Severity.ERROR,
         ConfigurableAspect.ISSUE,
-        "Report issues of the given id as errors",
+        "Report issues of the given id as errors.",
+    ),
+    ERROR_WHEN_NEW(
+        ARG_ERROR_WHEN_NEW,
+        Severity.WARNING_ERROR_WHEN_NEW,
+        ConfigurableAspect.ISSUE,
+        """
+            Report issues of the given id as warnings in existing code and errors in new code. The
+            latter behavior relies on infrastructure that handles checking changes to the code
+            detecting the ${ERROR_WHEN_NEW_SUFFIX.trim()} text in the output and preventing the
+            change from being made.
+        """,
     ),
     WARNING(
         ARG_WARNING,
         Severity.WARNING,
         ConfigurableAspect.ISSUE,
-        "Report issues of the given id as warnings",
+        "Report issues of the given id as warnings.",
     ),
     LINT(
         ARG_LINT,
         Severity.LINT,
         ConfigurableAspect.ISSUE,
-        "Report issues of the given id as having lint-severity",
+        "Report issues of the given id as having lint-severity.",
     ),
     HIDE(
         ARG_HIDE,
         Severity.HIDDEN,
         ConfigurableAspect.ISSUE,
-        "Hide/skip issues of the given id",
+        "Hide/skip issues of the given id.",
     ),
     ERROR_CATEGORY(
         ARG_ERROR_CATEGORY,
         Severity.ERROR,
         ConfigurableAspect.CATEGORY,
-        "Report all issues in the given category as errors",
+        "Report all issues in the given category as errors.",
+    ),
+    ERROR_WHEN_NEW_CATEGORY(
+        ARG_ERROR_WHEN_NEW_CATEGORY,
+        Severity.WARNING_ERROR_WHEN_NEW,
+        ConfigurableAspect.CATEGORY,
+        "Report all issues in the given category as errors-when-new.",
     ),
     WARNING_CATEGORY(
         ARG_WARNING_CATEGORY,
         Severity.WARNING,
         ConfigurableAspect.CATEGORY,
-        "Report all issues in the given category as warnings",
+        "Report all issues in the given category as warnings.",
     ),
     LINT_CATEGORY(
         ARG_LINT_CATEGORY,
         Severity.LINT,
         ConfigurableAspect.CATEGORY,
-        "Report all issues in the given category as having lint-severity",
+        "Report all issues in the given category as having lint-severity.",
     ),
     HIDE_CATEGORY(
         ARG_HIDE_CATEGORY,
         Severity.HIDDEN,
         ConfigurableAspect.CATEGORY,
-        "Hide/skip all issues in the given category",
+        "Hide/skip all issues in the given category.",
     );
 
     /** Configure the aspect identified by [id] into the [configuration]. */

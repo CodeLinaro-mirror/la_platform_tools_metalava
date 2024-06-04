@@ -45,6 +45,17 @@ interface AnnotationFilter {
         private val empty = AnnotationFilterBuilder().build()
 
         fun emptyFilter(): AnnotationFilter = empty
+
+        /**
+         * Create an [AnnotationFilter] from a list of [filterExpressions] each of which is an
+         * annotation filter expression that can include or exclude an annotation based on its
+         * qualified name and/or attribute values.
+         */
+        fun create(filterExpressions: List<String>): AnnotationFilter {
+            val builder = AnnotationFilterBuilder()
+            filterExpressions.forEach(builder::add)
+            return builder.build()
+        }
     }
 }
 

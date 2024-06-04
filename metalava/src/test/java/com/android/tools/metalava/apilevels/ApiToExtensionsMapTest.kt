@@ -365,8 +365,8 @@ class ApiToExtensionsMapTest {
                 <sdk shortname="R" name="R Extensions" id="30" reference="android/os/Build${'$'}VERSION_CODES${'$'}R" />
                 <sdk shortname="S" name="S Extensions" id="31" reference="android/os/Build${'$'}VERSION_CODES${'$'}S" />
                 <sdk shortname="T" name="T Extensions" id="33" reference="android/os/Build${'$'}VERSION_CODES${'$'}T" />
-                <sdk shortname="FOO" name="FOO Extensions" id="1000" reference="android/os/Build${'$'}VERSION_CODES${'$'}FOO" />
-                <sdk shortname="BAR" name="BAR Extensions" id="1001" reference="android/os/Build${'$'}VERSION_CODES${'$'}BAR" />
+                <sdk shortname="FOO" name="FOO Extensions" id="1000000" reference="android/os/Build${'$'}VERSION_CODES${'$'}FOO" />
+                <sdk shortname="BAR" name="BAR Extensions" id="1000001" reference="android/os/Build${'$'}VERSION_CODES${'$'}BAR" />
             </sdk-extensions-info>
         """
                 .trimIndent()
@@ -381,13 +381,44 @@ class ApiToExtensionsMapTest {
         Assert.assertEquals("30:4,31:4,0:33", filter.calculateSdksAttr(33, 34, listOf("R", "S"), 4))
 
         Assert.assertEquals(
-            "30:4,31:4,1000:4,0:33",
+            "30:4,31:4,1000000:4,0:33",
             filter.calculateSdksAttr(33, 34, listOf("R", "S", "FOO"), 4)
         )
 
         Assert.assertEquals(
-            "30:4,31:4,1000:4,1001:4,0:33",
+            "30:4,31:4,1000000:4,1000001:4,0:33",
             filter.calculateSdksAttr(33, 34, listOf("R", "S", "FOO", "BAR"), 4)
         )
+
+        // Make sure that if it was released in dessert released R (30) that it is reported as being
+        // in both the extension SDK included in R (30:4) and in R itself (0:30) but not in S or T.
+        Assert.assertEquals("30:4,0:30", filter.calculateSdksAttr(30, 34, listOf("R", "S"), 4))
+
+        // Make sure that if it was released in dessert released S (31) that it is reported as being
+        // in both the extension SDK included in R (30:4), S (31:4) and in S itself (0:30) but not
+        // in T.
+        Assert.assertEquals(
+            "30:4,31:4,0:31",
+            filter.calculateSdksAttr(31, 34, listOf("R", "S", "T"), 4)
+        )
+
+        // Make sure that if it was released in dessert released S+ (32) that it is reported as
+        // being in both the extension SDK included in R (30:4), S (31:4) and in S itself (0:30) but
+        // not in T.
+        Assert.assertEquals(
+            "30:4,31:4,0:32",
+            filter.calculateSdksAttr(32, 34, listOf("R", "S", "T"), 4)
+        )
+
+        // Make sure that if it was released in dessert released T (33) that it is reported as being
+        // in both the extension SDK included in R (30:4), S (31:4), T (33:4) and T itself.
+        Assert.assertEquals(
+            "30:4,31:4,33:4,0:33",
+            filter.calculateSdksAttr(33, 34, listOf("R", "S", "T"), 4)
+        )
+
+        // Make sure that if it was released in dessert release before R (21) that it is not
+        // reported as being in any sdks; it will just have `since="21"`.
+        Assert.assertEquals("", filter.calculateSdksAttr(21, 34, listOf("R", "S"), 4))
     }
 }

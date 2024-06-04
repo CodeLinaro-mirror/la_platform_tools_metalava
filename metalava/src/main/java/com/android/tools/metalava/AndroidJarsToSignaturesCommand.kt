@@ -18,6 +18,7 @@ package com.android.tools.metalava
 
 import com.android.tools.metalava.cli.common.MetalavaCliException
 import com.android.tools.metalava.cli.common.MetalavaSubCommand
+import com.android.tools.metalava.cli.common.executionEnvironment
 import com.android.tools.metalava.cli.common.existingDir
 import com.android.tools.metalava.cli.common.progressTracker
 import com.android.tools.metalava.cli.common.stderr
@@ -68,15 +69,19 @@ class AndroidJarsToSignaturesCommand :
         // property.
         OptionsDelegate.disallowAccess()
 
-        StandaloneJarCodebaseLoader.create(progressTracker, BasicReporter(stderr)).use {
-            jarCodebaseLoader ->
-            ConvertJarsToSignatureFiles(
-                    stderr,
-                    stdout,
-                    progressTracker,
-                    signatureFormat.fileFormat,
-                )
-                .convertJars(jarCodebaseLoader, androidRootDir)
-        }
+        StandaloneJarCodebaseLoader.create(
+                executionEnvironment,
+                progressTracker,
+                BasicReporter(stderr),
+            )
+            .use { jarCodebaseLoader ->
+                ConvertJarsToSignatureFiles(
+                        stderr,
+                        stdout,
+                        progressTracker,
+                        signatureFormat.fileFormat,
+                    )
+                    .convertJars(jarCodebaseLoader, androidRootDir)
+            }
     }
 }

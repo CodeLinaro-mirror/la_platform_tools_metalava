@@ -19,8 +19,6 @@ package com.android.tools.metalava.lint
 import com.android.sdklib.SdkVersionInfo
 import com.android.tools.metalava.ANDROID_FLAGGED_API
 import com.android.tools.metalava.ApiType
-import com.android.tools.metalava.CodebaseComparator
-import com.android.tools.metalava.ComparisonVisitor
 import com.android.tools.metalava.KotlinInteropChecks
 import com.android.tools.metalava.lint.ResourceType.AAPT
 import com.android.tools.metalava.lint.ResourceType.ANIM
@@ -173,6 +171,7 @@ import com.android.tools.metalava.reporter.Issues.USE_PARCEL_FILE_DESCRIPTOR
 import com.android.tools.metalava.reporter.Issues.VISIBLY_SYNCHRONIZED
 import com.android.tools.metalava.reporter.Reportable
 import com.android.tools.metalava.reporter.Reporter
+import com.android.tools.metalava.reporter.Severity
 import com.intellij.psi.JavaRecursiveElementVisitor
 import com.intellij.psi.PsiClassObjectAccessExpression
 import com.intellij.psi.PsiElement
@@ -220,11 +219,26 @@ private constructor(
             id: Issue,
             reportable: Reportable?,
             message: String,
-            location: IssueLocation
+            location: IssueLocation,
+            maximumSeverity: Severity,
         ): Boolean {
+            // The [Severity] used may be limited by the [Item] on which it is reported.
+            var actualMaximumSeverity = maximumSeverity
 
             val item = reportable as? Item
             if (item != null) {
+                if (oldCodebase != null) {
+                    // Issues on previously released APIs have reduced [Severity].
+                    val computedMaximumSeverity = computeMaximumSeverity(item)
+                    if (computedMaximumSeverity == Severity.HIDDEN) {
+                        return false
+                    }
+
+                    // Use the minimum of the [Item] specific maximum [Severity] and the one
+                    // provided by the caller.
+                    actualMaximumSeverity = minOf(actualMaximumSeverity, computedMaximumSeverity)
+                }
+
                 // Don't flag api warnings on deprecated APIs; these are obviously already known to
                 // be problematic.
                 if (item.effectivelyDeprecated) {
@@ -239,11 +253,76 @@ private constructor(
                 }
             }
 
-            return delegate.report(id, reportable, message, location)
+            return delegate.report(id, reportable, message, location, actualMaximumSeverity)
+        }
+
+        /** Compute the maximum [Severity] of issues on [item]. */
+        private fun computeMaximumSeverity(item: Item?) =
+            when {
+                // If the issue is being reported on the context Item then use its maximum.
+                item === contextItem -> maximumSeverityForItem
+                // If its containing item was previously released (so issues are hidden) but the
+                // item itself is new then generate a warning for existing code and an error in new
+                // code. That at least gives developers some indication that there is a problem with
+                // the existing code and prevents issues being added in new code.
+                maximumSeverityForItem == Severity.HIDDEN && !wasPreviouslyReleased(item) ->
+                    Severity.WARNING_ERROR_WHEN_NEW
+                // Otherwise, the use maximum for the context Item's contents.
+                else -> maximumSeverityForItemContents
+            }
+
+        /** The context [Item], i.e. the [Item] whose `visit<item-type>` method is being called. */
+        private var contextItem: Item? = null
+
+        /** The maximum [Severity] that an issue can have if it is reported on the [contextItem]. */
+        private var maximumSeverityForItem: Severity = Severity.ERROR
+
+        /**
+         * The maximum [Severity] that an issue can have if it is reported on an [Item] other than
+         * the [contextItem], i.e. on an [Item] that belongs to the [contextItem]. e.g. If
+         * [contextItem] is a [ClassItem] then this will be the maximum [Severity] of issues
+         * reported on members of that [ClassItem]. Similarly, if [contextItem] is a [MethodItem]
+         * then this will be the maximum [Severity] of issues reported on its [ParameterItem]s.
+         */
+        private var maximumSeverityForItemContents: Severity = Severity.ERROR
+
+        /**
+         * Run checks within the specific [contextItem].
+         *
+         * This allows the maximum [Severity] of checks to be dependent on whether the [Item] or its
+         * containing [Item] was previously released or not.
+         */
+        internal fun withContext(contextItem: Item, checker: () -> Unit) {
+            val oldContextItem = this.contextItem
+            val oldMaximumSeverityForItem = this.maximumSeverityForItem
+            val oldMaximumSeverityForItemContents = this.maximumSeverityForItemContents
+            try {
+                this.contextItem = contextItem
+                val previouslyReleased = oldCodebase != null && wasPreviouslyReleased(contextItem)
+                this.maximumSeverityForItem =
+                    if (previouslyReleased) Severity.HIDDEN else Severity.ERROR
+                // Hide issues on a previously released Item's contents to replicate the behavior of
+                // the legacy CodebaseComparator based ApiLint.
+                this.maximumSeverityForItemContents = maximumSeverityForItem
+
+                checker()
+            } finally {
+                this.contextItem = oldContextItem
+                this.maximumSeverityForItem = oldMaximumSeverityForItem
+                this.maximumSeverityForItemContents = oldMaximumSeverityForItemContents
+            }
         }
     }
 
-    private val reporter: Reporter = FilteringReporter(reporter)
+    /** Find the corresponding item in the previously released API if available. */
+    private fun findPreviouslyReleased(item: Item?): Item? {
+        return oldCodebase?.let { item?.findCorrespondingItemIn(oldCodebase, superMethods = true) }
+    }
+
+    /** Check to see if [item] was previously released. */
+    private fun wasPreviouslyReleased(item: Item?) = findPreviouslyReleased(item) != null
+
+    private val reporter = FilteringReporter(reporter)
 
     private fun report(
         id: Issue,
@@ -255,38 +334,7 @@ private constructor(
     }
 
     private fun check() {
-        if (oldCodebase != null) {
-            // Only check the new APIs
-            CodebaseComparator(
-                    apiVisitorConfig = @Suppress("DEPRECATION") options.apiVisitorConfig,
-                )
-                .compare(
-                    object : ComparisonVisitor() {
-                        override fun added(new: Item) {
-                            if (
-                                new is ClassItem &&
-                                    !filterEmit.test(new) &&
-                                    oldCodebase.findClass(new.qualifiedName())?.emit == false
-                            ) {
-                                // old is implied (emit == false) in the old codebase but
-                                // wasn't emitted. new is also not eligible for emitting,
-                                // no point in checking it.
-                                // Skip here to avoid checking all of new's children even if
-                                // they're pre-existing. new's children will still be visited by
-                                // CodebaseComparator if they are truly new.
-                                return
-                            }
-                            new.accept(this@ApiLint)
-                        }
-                    },
-                    oldCodebase,
-                    codebase,
-                    filterReference
-                )
-        } else {
-            // No previous codebase to compare with: visit the whole thing
-            codebase.accept(this)
-        }
+        codebase.accept(this)
     }
 
     private val kotlinInterop: KotlinInteropChecks = KotlinInteropChecks(this.reporter)
@@ -298,26 +346,32 @@ private constructor(
         val superClass = cls.filteredSuperclass(filterReference)
         val interfaces = cls.filteredInterfaceTypes(filterReference).asSequence()
         val allMethods = methods.asSequence() + constructors.asSequence()
-        checkClass(cls, methods, constructors, allMethods, fields, superClass, interfaces)
+        reporter.withContext(cls) {
+            checkClass(cls, methods, constructors, allMethods, fields, superClass, interfaces)
+        }
     }
 
     override fun visitMethod(method: MethodItem) {
-        checkMethod(method, filterReference)
-        val returnType = method.returnType()
-        checkType(returnType, method)
-        checkNullableCollections(returnType, method)
-        checkMethodSuffixListenableFutureReturn(returnType, method)
-        for (parameter in method.parameters()) {
-            checkType(parameter.type(), parameter)
+        reporter.withContext(method) {
+            checkMethod(method, filterReference)
+            val returnType = method.returnType()
+            checkType(returnType, method)
+            checkNullableCollections(returnType, method)
+            checkMethodSuffixListenableFutureReturn(returnType, method)
+            for (parameter in method.parameters()) {
+                checkType(parameter.type(), parameter)
+            }
+            checkParameterOrder(method)
+            kotlinInterop.checkMethod(method)
         }
-        checkParameterOrder(method)
-        kotlinInterop.checkMethod(method)
     }
 
     override fun visitField(field: FieldItem) {
-        checkField(field)
-        checkType(field.type(), field)
-        kotlinInterop.checkField(field)
+        reporter.withContext(field) {
+            checkField(field)
+            checkType(field.type(), field)
+            kotlinInterop.checkField(field)
+        }
     }
 
     private fun checkType(type: TypeItem, item: Item) {

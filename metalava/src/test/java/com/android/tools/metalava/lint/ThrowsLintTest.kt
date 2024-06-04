@@ -16,9 +16,9 @@
 
 package com.android.tools.metalava.lint
 
-import com.android.tools.metalava.ARG_API_LINT
 import com.android.tools.metalava.DriverTest
 import com.android.tools.metalava.cli.common.ARG_HIDE
+import com.android.tools.metalava.cli.lint.ARG_API_LINT
 import com.android.tools.metalava.testing.java
 import org.junit.Test
 

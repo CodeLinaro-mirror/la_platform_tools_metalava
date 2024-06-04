@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model.testsuite
 
 import com.android.tools.metalava.model.BaseItemVisitor
+import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
@@ -39,7 +40,7 @@ class CommonModelTest : BaseModelTest() {
     }
 
     @Test
-    fun `test findCorrespondingItemIn`() {
+    fun `test findCorrespondingItemIn check all, no super methods`() {
         runCodebaseTest(
             inputSet(
                 signature(
@@ -88,6 +89,142 @@ class CommonModelTest : BaseModelTest() {
                     }
                 }
             )
+        }
+    }
+
+    /**
+     * Pairs of [BaseModelTest.InputSet] that are used when testing [Item.findCorrespondingItemIn].
+     *
+     * [Pair.first] is used to create the base [Codebase] that represents a previously released API.
+     * [Pair.second] is used to create the latest [Codebase] that represents the current API. An
+     * [Item] is found in the latest [Codebase] and then its [Item.findCorrespondingItemIn] method
+     * is called passing in the previously released [Codebase] to find the corresponding [Item] that
+     * was previously released, if any.
+     */
+    private val pairsOfBaseAndLatestCodebasesForFindCorrespondingItemTests =
+        listOf(
+            Pair(
+                // The base API without a Bar.foo(int) override of Foo.foo(int).
+                inputSet(
+                    signature(
+                        """
+                                // Signature format: 2.0
+                                package test.pkg {
+                                  public class Foo {
+                                    ctor public Foo();
+                                    method public void foo(int i);
+                                  }
+                                  public class Bar extends test.pkg.Foo {
+                                    ctor public Bar();
+                                  }
+                                }
+                            """
+                    ),
+                ),
+                // The latest API with a Bar.foo(int) override of Foo.foo(int).
+                inputSet(
+                    signature(
+                        """
+                                // Signature format: 2.0
+                                package test.pkg {
+                                  public class Foo {
+                                    ctor public Foo();
+                                    method public void foo(int i);
+                                  }
+                                  public class Bar extends test.pkg.Foo {
+                                    ctor public Bar();
+                                    method public void foo(int i);
+                                  }
+                                }
+                            """
+                    ),
+                )
+            ),
+            Pair(
+                // The base API without a Bar.foo(int) override of Foo.foo(int).
+                inputSet(
+                    java(
+                        """
+                                package test.pkg;
+                                public class Foo {
+                                    public void foo(int i) {}
+                                }
+                            """
+                    ),
+                    java(
+                        """
+                                package test.pkg;
+                                public class Bar extends Foo {
+                                }
+                            """
+                    ),
+                ),
+                // The latest API with a Bar.foo(int) override of Foo.foo(int).
+                inputSet(
+                    java(
+                        """
+                                package test.pkg;
+                                public class Foo {
+                                    public void foo(int i) {}
+                                }
+                            """
+                    ),
+                    java(
+                        """
+                                package test.pkg;
+                                public class Bar extends Foo {
+                                    public void foo(int i) {}
+                                }
+                            """
+                    ),
+                )
+            ),
+        )
+
+    @Test
+    fun `test findCorrespondingItemIn does not find super methods`() {
+        val pairs = pairsOfBaseAndLatestCodebasesForFindCorrespondingItemTests
+        runCodebaseTest(*pairs.map { it.first }.toTypedArray()) {
+            val previouslyReleased = codebase
+            runCodebaseTest(*pairs.map { it.second }.toTypedArray()) {
+                val latest = codebase
+                val barFoo = latest.assertClass("test.pkg.Bar").assertMethod("foo", "int")
+
+                // Make sure that super methods are not found by default.
+                assertNull(barFoo.findCorrespondingItemIn(previouslyReleased))
+
+                // Ditto for the parameter.
+                val barFooParameter = barFoo.parameters().first()
+                assertNull(barFooParameter.findCorrespondingItemIn(previouslyReleased))
+            }
+        }
+    }
+
+    @Test
+    fun `test findCorrespondingItemIn does find super methods`() {
+        val pairs = pairsOfBaseAndLatestCodebasesForFindCorrespondingItemTests
+        runCodebaseTest(*pairs.map { it.first }.toTypedArray()) {
+            val previouslyReleased = codebase
+            val previouslyReleasedFooFoo =
+                previouslyReleased.assertClass("test.pkg.Foo").assertMethod("foo", "int")
+            val previouslyReleasedFooFooParameter = previouslyReleasedFooFoo.parameters().first()
+            runCodebaseTest(*pairs.map { it.second }.toTypedArray()) {
+                val latest = codebase
+                val barFoo = latest.assertClass("test.pkg.Bar").assertMethod("foo", "int")
+
+                // Make sure that super methods are found when requested
+                assertSame(
+                    previouslyReleasedFooFoo,
+                    barFoo.findCorrespondingItemIn(previouslyReleased, superMethods = true)
+                )
+
+                // Ditto for the parameter.
+                val barFooParameter = barFoo.parameters().first()
+                assertSame(
+                    previouslyReleasedFooFooParameter,
+                    barFooParameter.findCorrespondingItemIn(previouslyReleased, superMethods = true)
+                )
+            }
         }
     }
 

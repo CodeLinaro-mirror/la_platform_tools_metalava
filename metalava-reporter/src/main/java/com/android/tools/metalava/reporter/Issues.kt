@@ -225,9 +225,9 @@ object Issues {
     val NULLABLE_COLLECTION by Issue(Severity.WARNING, Category.API_LINT)
     val ASYNC_SUFFIX_FUTURE by Issue(Severity.ERROR, Category.API_LINT)
     val GENERIC_CALLBACKS by Issue(Severity.ERROR, Category.API_LINT)
-    val KOTLIN_DEFAULT_PARAMETER_ORDER by Issue(Severity.ERROR, Category.API_LINT_ANDROIDX_MISC)
+    val KOTLIN_DEFAULT_PARAMETER_ORDER by Issue(Severity.ERROR, Category.API_LINT)
     val UNFLAGGED_API by Issue(Severity.HIDDEN, Category.API_LINT)
-    val FLAGGED_API_LITERAL by Issue(Severity.HIDDEN, Category.API_LINT)
+    val FLAGGED_API_LITERAL by Issue(Severity.WARNING_ERROR_WHEN_NEW, Category.API_LINT)
 
     fun findIssueById(id: String?): Issue? {
         return nameToIssue[id]
@@ -305,8 +305,6 @@ object Issues {
         COMPATIBILITY("Compatibility"),
         DOCUMENTATION("Documentation"),
         API_LINT("API Lint"),
-        // AndroidX API guidelines are split across multiple files, so add a category per-file
-        API_LINT_ANDROIDX_MISC("API Lint"),
         UNKNOWN("Default");
 
         /** Identifier for use in command-line arguments and reporting. */

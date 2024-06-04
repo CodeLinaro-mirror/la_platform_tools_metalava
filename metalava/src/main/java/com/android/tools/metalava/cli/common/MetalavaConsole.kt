@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.cli.common
 
-import com.android.tools.metalava.ExecutionEnvironment
 import com.github.ajalt.clikt.output.CliktConsole
 
 /** [CliktConsole] that directs output to the supplied output and error writers. */

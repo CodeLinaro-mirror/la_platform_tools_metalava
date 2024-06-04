@@ -71,7 +71,7 @@ class ExtractSystemApiLevelsTest : ApiGeneratorIntegrationTestBase() {
                 <symbol jar="android.net.ipsec.ike" pattern="*" sdks="R" />
 
                 <!-- framework-connectivity: only android.net.CaptivePortal should have the 'sdks' attribute -->
-                <symbol jar="framework-connectivity" pattern="android.net.CaptivePortal" sdks="R" />
+                <symbol jar="framework-connectivity" pattern="android.net.CaptivePortalData" sdks="R" />
 
                 <!-- framework-media explicitly omitted: nothing in this module should have the 'sdks' attribute -->
                 </sdk-extensions-info>
@@ -122,11 +122,11 @@ class ExtractSystemApiLevelsTest : ApiGeneratorIntegrationTestBase() {
         assertTrue(xml.contains("<class name=\"android/Manifest\" since=\"21\">"))
         assertTrue(xml.contains("<field name=\"showWhenLocked\" since=\"27\"/>"))
 
-        // top level class marked as since=21 and R=1, implemented in the framework-mediaprovider
+        // top level class marked as since=34 and R=7, implemented in the framework-statsd
         // mainline module
         assertTrue(
             xml.contains(
-                "<class name=\"android/provider/MediaStore\" module=\"framework-mediaprovider\" since=\"21\" sdks=\"30:1,0:21\">"
+                "<class name=\"android/app/StatsCursor\" module=\"framework-statsd\" since=\"34\" sdks=\"30:7\">"
             )
         )
 
@@ -137,7 +137,7 @@ class ExtractSystemApiLevelsTest : ApiGeneratorIntegrationTestBase() {
         // method with different sdks attribute than containing class
         assertTrue(
             xml.contains(
-                "<method name=\"canManageMedia(Landroid/content/Context;)Z\" since=\"31\" sdks=\"33:1,0:31\"/>"
+                "<method name=\"setBrowserRoleHolder(Ljava/lang/String;I)Z\" since=\"34\" sdks=\"30:1\"/>"
             )
         )
 
@@ -159,11 +159,6 @@ class ExtractSystemApiLevelsTest : ApiGeneratorIntegrationTestBase() {
         // The filter says 'framework-permission-s             *    R' so RoleManager should exist
         // and should have a module/sdks attributes
         assertTrue(apiLookup.containsClass("android/app/role/RoleManager"))
-        assertTrue(
-            xml.contains(
-                "<method name=\"canManageMedia(Landroid/content/Context;)Z\" since=\"31\" sdks=\"33:1,0:31\"/>"
-            )
-        )
 
         // The filter doesn't mention framework-media, so no class in that module should have a
         // module/sdks attributes
@@ -173,7 +168,7 @@ class ExtractSystemApiLevelsTest : ApiGeneratorIntegrationTestBase() {
         // has the module/sdks attributes
         assertTrue(
             xml.contains(
-                "<class name=\"android/net/CaptivePortal\" module=\"framework-connectivity\" since=\"23\" sdks=\"30:1,0:23\">"
+                "<class name=\"android/net/CaptivePortalData\" module=\"framework-connectivity\" since=\"34\" sdks=\"30:1\">"
             )
         )
         assertTrue(

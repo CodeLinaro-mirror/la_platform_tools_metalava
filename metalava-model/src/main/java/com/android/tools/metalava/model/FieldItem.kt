@@ -27,7 +27,7 @@ interface FieldItem : MemberItem {
     /** The type of this field */
     @MetalavaApi override fun type(): TypeItem
 
-    override fun findCorrespondingItemIn(codebase: Codebase) =
+    override fun findCorrespondingItemIn(codebase: Codebase, superMethods: Boolean) =
         containingClass().findCorrespondingItemIn(codebase)?.findField(name())
 
     /**

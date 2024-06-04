@@ -22,7 +22,7 @@ interface ConstructorItem : MethodItem {
     /** Returns the internal name of the class, as seen in bytecode */
     override fun internalName(): String = "<init>"
 
-    override fun findCorrespondingItemIn(codebase: Codebase) =
+    override fun findCorrespondingItemIn(codebase: Codebase, superMethods: Boolean) =
         containingClass().findCorrespondingItemIn(codebase)?.findConstructor(this)
 
     /**

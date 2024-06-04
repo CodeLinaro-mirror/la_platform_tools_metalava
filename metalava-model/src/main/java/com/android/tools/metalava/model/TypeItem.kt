@@ -539,21 +539,51 @@ abstract class DefaultTypeItem(
                         appendAnnotations(type.modifiers, configuration)
                     }
                     append("?")
+
+                    type.superBound?.let {
+                        append(" super ")
+                        appendTypeString(it, configuration)
+                        // If there's a super bound, don't also print an object extends bound.
+                        return
+                    }
+
                     type.extendsBound?.let {
-                        // Leave out object bounds, because they're implied
-                        if (!it.isJavaLangObject()) {
+                        if (shouldIncludeExtendsBound(it, configuration)) {
                             append(" extends ")
                             appendTypeString(it, configuration)
                         }
                     }
-                    type.superBound?.let {
-                        append(" super ")
-                        appendTypeString(it, configuration)
-                    }
+
                     // It doesn't make sense to have a nullness suffix on a wildcard, this should be
                     // handled by the bound.
                 }
             }
+        }
+
+        /**
+         * Returns whether the [extendsBound] should be included in the type string based on the
+         * [configuration].
+         */
+        private fun shouldIncludeExtendsBound(
+            extendsBound: ReferenceTypeItem,
+            configuration: TypeStringConfiguration
+        ): Boolean {
+            // Non-object bounds should always be included.
+            if (!extendsBound.isJavaLangObject()) return true
+
+            // If the bound is Object, it should only be included when the nullability isn't implied
+            // by the configuration. If both kotlinStyleNulls and annotations are false, no
+            // nullability information is included anyway.
+            if (!configuration.kotlinStyleNulls && !configuration.annotations) return false
+
+            // When nullability information is included, excluded bounds imply non-null when
+            // kotlinStyleNulls is true and platform when it is false.
+            val nullability = extendsBound.modifiers.nullability()
+            if (configuration.kotlinStyleNulls && nullability == TypeNullability.NONNULL)
+                return false
+            if (!configuration.kotlinStyleNulls && nullability == TypeNullability.PLATFORM)
+                return false
+            return true
         }
 
         private fun StringBuilder.appendAnnotations(

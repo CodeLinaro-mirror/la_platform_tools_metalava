@@ -16,8 +16,18 @@
 
 package com.android.tools.metalava.reporter
 
-enum class Severity(private val displayName: String) {
+const val ERROR_WHEN_NEW_SUFFIX = " (ErrorWhenNew)"
+
+enum class Severity(
+    /** The name to output when reporting an issue of this [Severity]. */
+    private val displayName: String,
+
+    /** An optional suffix to append after the issue message, but before the */
+    val messageSuffix: String = "",
+) {
     INHERIT("inherit"),
+
+    /** The issue is not reported and not included in any baseline files. */
     HIDDEN("hidden"),
 
     /**
@@ -36,6 +46,15 @@ enum class Severity(private val displayName: String) {
      * must be resolved to preserve API compatibility.
      */
     WARNING("warning"),
+
+    /**
+     * An intermediate level between [WARNING] and [ERROR].
+     *
+     * The purpose of this is to ease transition between [WARNING] and [ERROR]. First, the severity
+     * is changed to this which will prevent any new cases being introduced into existing code. Then
+     * the existing cases are fixed. Finally, it is changed to [ERROR].
+     */
+    WARNING_ERROR_WHEN_NEW("warning", messageSuffix = ERROR_WHEN_NEW_SUFFIX),
 
     /**
      * Error level means that we encountered severe trouble and were unable to output the requested

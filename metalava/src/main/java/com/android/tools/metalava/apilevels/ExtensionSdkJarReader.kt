@@ -23,7 +23,7 @@ class ExtensionSdkJarReader() {
 
     companion object {
         private val REGEX_JAR_PATH = run {
-            var pattern = ".*/(\\d+)/public/(.*)\\.jar$"
+            var pattern = ".*/(\\d+)/[^/]+/(.*)\\.jar$"
             if (SdkConstants.currentPlatform() == PLATFORM_WINDOWS) {
                 pattern = pattern.replace("/", "\\\\")
             }

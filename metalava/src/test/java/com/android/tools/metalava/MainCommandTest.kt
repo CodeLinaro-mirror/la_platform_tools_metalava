@@ -18,8 +18,10 @@ package com.android.tools.metalava
 
 import com.android.tools.lint.checks.infrastructure.TestFiles
 import com.android.tools.metalava.cli.common.BaseCommandTest
+import com.android.tools.metalava.cli.common.COMMON_BASELINE_OPTIONS_HELP
 import com.android.tools.metalava.cli.common.CommonOptions
 import com.android.tools.metalava.cli.common.ISSUE_REPORTING_OPTIONS_HELP
+import com.android.tools.metalava.cli.common.SOURCE_OPTIONS_HELP
 import com.android.tools.metalava.cli.compatibility.COMPATIBILITY_CHECK_OPTIONS_HELP
 import com.android.tools.metalava.cli.lint.API_LINT_OPTIONS_HELP
 import com.android.tools.metalava.cli.signature.SIGNATURE_FORMAT_OPTIONS_HELP
@@ -73,7 +75,15 @@ Options:
                                              inline - will include the constants themselves into each usage site
   -h, --help                                 Show this message and exit
 
+$SOURCE_OPTIONS_HELP
+
 $ISSUE_REPORTING_OPTIONS_HELP
+
+$COMMON_BASELINE_OPTIONS_HELP
+
+$GENERAL_REPORTING_OPTIONS_HELP
+
+$API_SELECTION_OPTIONS_HELP
 
 $API_LINT_OPTIONS_HELP
 
@@ -103,13 +113,6 @@ API sources:
                                              A comma separated list of source files to be parsed. Can also be @ followed
                                              by a path to a text file containing paths to the full set of files to
                                              parse.
---source-path <paths>
-                                             One or more directories (separated by `:`) containing source files (within
-                                             a package hierarchy).
---common-source-path <paths>
-                                             One or more directories (separated by `:`) containing common source files
-                                             (within a package hierarchy) where platform-agnostic `expect` declarations
-                                             as well as common business logic are defined.
 --classpath <paths>
                                              One or more directories or jars (separated by `:`) containing classes that
                                              should be on the classpath when parsing the source files
@@ -140,17 +143,6 @@ API sources:
 --hide-package <package>
                                              Remove the given packages from the API even if they have not been marked
                                              with @hide
---show-annotation <annotation class>
-                                             Unhide any hidden elements that are also annotated with the given
-                                             annotation
---show-single-annotation <annotation>
-                                             Like --show-annotation, but does not apply to members; these must also be
-                                             explicitly annotated
---show-for-stub-purposes-annotation <annotation class>
-                                             Like --show-annotation, but elements annotated with it are assumed to be
-                                             "implicitly" included in the API surface, and they'll be included in
-                                             certain kinds of output such as stubs, but not in others, such as the
-                                             signature file and API lint
 --hide-annotation <annotation class>
                                              Treat any elements annotated with the given annotation as hidden
 --show-unannotated
@@ -220,44 +212,9 @@ Generating Stubs:
 
 
 Diffs and Checks:
---api-lint
-                                             Check API for Android API best practices.
 --migrate-nullness <api file>
                                              Compare nullness information with the previous stable API and mark newly
                                              annotated APIs as under migration.
---warnings-as-errors
-                                             Promote all warnings to errors
---lints-as-errors
-                                             Promote all API lint warnings to errors
---report-even-if-suppressed <file>
-                                             Write all issues into the given file, even if suppressed (via annotation or
-                                             baseline) but not if hidden (by '--hide' or '--hide-category')
---baseline <file>
-                                             Filter out any errors already reported in the given baseline file, or
-                                             create if it does not already exist
---update-baseline [file]
-                                             Rewrite the existing baseline file with the current set of warnings. If
-                                             some warnings have been fixed, this will delete them from the baseline
-                                             files. If a file is provided, the updated baseline is written to the given
-                                             file; otherwise the original source baseline file is updated.
---baseline:api-lint <file> --update-baseline:api-lint [file]
-                                             Same as --baseline and --update-baseline respectively, but used
-                                             specifically for API lint issues performed by --api-lint.
---baseline:compatibility:released <file> --update-baseline:compatibility:released [file]
-                                             Same as --baseline and --update-baseline respectively, but used
-                                             specifically for API compatibility issues performed by
-                                             --check-compatibility:api:released and
-                                             --check-compatibility:removed:released.
---pass-baseline-updates
-                                             Normally, encountering error will fail the build, even when updating
-                                             baselines. This flag allows you to tell metalava to continue without
-                                             errors, such that all the baselines in the source tree can be updated in
-                                             one go.
---delete-empty-baselines
-                                             Whether to delete baseline files if they are updated and there is nothing
-                                             to include.
---error-message:api-lint <message>
-                                             If set, metalava shows it when errors are detected in --api-lint.
 
 
 Extracting Annotations:
