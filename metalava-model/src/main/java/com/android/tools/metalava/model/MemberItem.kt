@@ -34,13 +34,21 @@ interface MemberItem : Item {
     override fun parent(): ClassItem? = containingClass()
 
     /**
-     * Returns true if this member is effectively final: it's either final itself, or implied to be
-     * final because its containing class is final
+     * Returns true if this member is effectively final based on modifiers: it's either final
+     * itself, or implied to be final because its containing class is final or sealed.
      */
     fun isEffectivelyFinal(): Boolean {
         return modifiers.isFinal() ||
             containingClass().modifiers.isFinal() ||
             containingClass().modifiers.isSealed()
+    }
+
+    /**
+     * Returns whether the item can be overridden outside the API surface, which is true is it is
+     * not final and its containing class can be extended.
+     */
+    fun canBeExternallyOverridden(): Boolean {
+        return !modifiers.isFinal() && containingClass().isExtensible()
     }
 
     /** True if this member was inherited from an ancestor class or interface. */

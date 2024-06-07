@@ -22,10 +22,7 @@ import com.android.tools.metalava.ApiType
 import com.android.tools.metalava.CodebaseComparator
 import com.android.tools.metalava.ComparisonVisitor
 import com.android.tools.metalava.JVM_DEFAULT_WITH_COMPATIBILITY
-import com.android.tools.metalava.NullnessMigration.Companion.findNullnessAnnotation
-import com.android.tools.metalava.NullnessMigration.Companion.isNullable
 import com.android.tools.metalava.cli.common.MetalavaCliException
-import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
@@ -36,7 +33,6 @@ import com.android.tools.metalava.model.MergedCodebase
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
-import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.VariableTypeItem
@@ -53,8 +49,6 @@ import java.util.function.Predicate
 /**
  * Compares the current API with a previous version and makes sure the changes are compatible. For
  * example, you can make a previously nullable parameter non null, but not vice versa.
- *
- * TODO: Only allow nullness changes on final classes!
  */
 class CompatibilityCheck(
     val filterReference: Predicate<Item>,
@@ -75,7 +69,7 @@ class CompatibilityCheck(
         return null
     }
 
-    private fun compareNullability(old: Item, new: Item) {
+    private fun compareItemNullability(old: Item, new: Item) {
         val oldMethod = containingMethod(old)
         val newMethod = containingMethod(new)
 
@@ -86,60 +80,66 @@ class CompatibilityCheck(
                     ((oldMethod.inheritedFrom != null) != (newMethod.inheritedFrom != null))
             ) {
                 // If the old method and new method are defined on different classes, then it's
-                // possible
-                // that the old method was previously overridden and we omitted it.
+                // possible that the old method was previously overridden and we omitted it.
                 // So, if the old method and new methods are defined on different classes, then we
-                // skip
-                // nullability checks
+                // skip nullability checks
                 return
             }
         }
+
+        compareTypeNullability(old.type(), new.type(), new)
+    }
+
+    private fun compareTypeNullability(old: TypeItem?, new: TypeItem?, context: Item) {
+        old ?: return
+        new ?: return
+
         // Should not remove nullness information
         // Can't change information incompatibly
-        val oldNullnessAnnotation = findNullnessAnnotation(old)
-        if (oldNullnessAnnotation != null) {
-            val newNullnessAnnotation = findNullnessAnnotation(new)
-            if (newNullnessAnnotation == null) {
-                val typeNullability = new.type()?.modifiers?.nullability()
-                if (typeNullability == TypeNullability.NULLABLE && isNullable(old)) {
-                    return
-                }
-                if (typeNullability == TypeNullability.NONNULL && !isNullable(old)) {
-                    return
-                }
-                val name = AnnotationItem.simpleName(oldNullnessAnnotation)
-                if (old.type() is PrimitiveTypeItem) {
-                    return
-                }
+        val oldNullability = old.modifiers.nullability()
+        val newNullability = new.modifiers.nullability()
+        if (
+            (oldNullability == TypeNullability.NONNULL ||
+                oldNullability == TypeNullability.NULLABLE) &&
+                newNullability == TypeNullability.PLATFORM
+        ) {
+            report(
+                Issues.INVALID_NULL_CONVERSION,
+                context,
+                "Attempted to remove nullability from ${new.toTypeString()} (was $oldNullability) in ${describe(context)}"
+            )
+        } else if (oldNullability != newNullability) {
+            // In a final method, you can change a parameter from nonnull to nullable
+            val allowNonNullToNullable =
+                context is ParameterItem && !context.containingMethod().canBeExternallyOverridden()
+            // In a final method, you can change a method return from nullable to nonnull
+            val allowNullableToNonNull =
+                context is MethodItem && !context.canBeExternallyOverridden()
+            if (
+                (oldNullability == TypeNullability.NULLABLE &&
+                    newNullability == TypeNullability.NONNULL &&
+                    !allowNullableToNonNull) ||
+                    (oldNullability == TypeNullability.NONNULL &&
+                        newNullability == TypeNullability.NULLABLE &&
+                        !allowNonNullToNullable)
+            ) {
+                // This check used to be more permissive. To transition to a stronger check, use
+                // WARNING_ERROR_WHEN_NEW if the change used to be allowed.
+                val previouslyAllowed =
+                    (oldNullability == TypeNullability.NULLABLE && context is MethodItem) ||
+                        ((oldNullability == TypeNullability.NONNULL && context is ParameterItem))
+                val maximumSeverity =
+                    if (previouslyAllowed) {
+                        Severity.WARNING_ERROR_WHEN_NEW
+                    } else {
+                        Severity.ERROR
+                    }
                 report(
                     Issues.INVALID_NULL_CONVERSION,
-                    new,
-                    "Attempted to remove $name annotation from ${describe(new)}"
+                    context,
+                    "Attempted to change nullability of ${new.toTypeString()} (from $oldNullability to $newNullability) in ${describe(context)}",
+                    maximumSeverity = maximumSeverity,
                 )
-            } else {
-                val oldNullable = isNullable(old)
-                val newNullable = isNullable(new)
-                if (oldNullable != newNullable) {
-                    // You can change a parameter from nonnull to nullable
-                    // You can change a method from nullable to nonnull
-                    // You cannot change a parameter from nullable to nonnull
-                    // You cannot change a method from nonnull to nullable
-                    if (oldNullable && old is ParameterItem) {
-                        report(
-                            Issues.INVALID_NULL_CONVERSION,
-                            new,
-                            "Attempted to change parameter from @Nullable to @NonNull: " +
-                                "incompatible change for ${describe(new)}"
-                        )
-                    } else if (!oldNullable && old is MethodItem) {
-                        report(
-                            Issues.INVALID_NULL_CONVERSION,
-                            new,
-                            "Attempted to change method return from @NonNull to @Nullable: " +
-                                "incompatible change for ${describe(new)}"
-                        )
-                    }
-                }
             }
         }
     }
@@ -171,7 +171,7 @@ class CompatibilityCheck(
             )
         }
 
-        compareNullability(old, new)
+        compareItemNullability(old, new)
     }
 
     override fun compare(old: ParameterItem, new: ParameterItem) {
@@ -390,15 +390,6 @@ class CompatibilityCheck(
             )
         }
     }
-
-    /**
-     * Return true if a [ClassItem] loaded from a signature file could be subclassed, i.e. is not
-     * final, or sealed and has at least one accessible constructor.
-     */
-    private fun ClassItem.isExtensible() =
-        !modifiers.isFinal() &&
-            !modifiers.isSealed() &&
-            constructors().any { it.isPublic || it.isProtected }
 
     /**
      * Check if the return types are compatible, which is true when:
@@ -972,18 +963,25 @@ class CompatibilityCheck(
         }
     }
 
-    private fun report(issue: Issue, item: Item, message: String) {
+    private fun report(
+        issue: Issue,
+        item: Item,
+        message: String,
+        maximumSeverity: Severity = Severity.ERROR
+    ) {
         if (item.isCompatibilitySuppressed()) {
             // Long-term, we should consider allowing meta-annotations to specify a different
             // `configuration` so it can use a separate set of severities. For now, though, we'll
             // treat all issues for all unchecked items as `Severity.IGNORE`.
             return
         }
-        if (
-            reporter.report(issue, item, message) &&
-                issueConfiguration.getSeverity(issue) == Severity.ERROR
-        ) {
-            foundProblems = true
+        if (reporter.report(issue, item, message, maximumSeverity = maximumSeverity)) {
+            // If the issue was reported and was an error then remember that this found some
+            // problems so that the process can be aborted after finishing the checks.
+            val severity = minOf(maximumSeverity, issueConfiguration.getSeverity(issue))
+            if (severity == Severity.ERROR) {
+                foundProblems = true
+            }
         }
     }
 
