@@ -308,7 +308,7 @@ internal class JavaStubWriter(
             }
         }
 
-        if (ModifierListWriter.requiresMethodBodyInStubs(method)) {
+        if (ModifierListWriter.requiresMethodBodyInStubs(method.actualItem)) {
             writer.print(" { ")
             writeThrowStub()
             writer.println(" }")

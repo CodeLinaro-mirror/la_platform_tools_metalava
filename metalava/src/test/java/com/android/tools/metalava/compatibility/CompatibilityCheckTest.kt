@@ -191,6 +191,7 @@ class CompatibilityCheckTest : DriverTest() {
                 """,
             checkCompatibilityApiReleased =
                 """
+                // Signature format: 5.0
                 package test.pkg {
                   public final class Foo {
                     ctor public Foo();
@@ -223,6 +224,7 @@ class CompatibilityCheckTest : DriverTest() {
                 """,
             checkCompatibilityApiReleased =
                 """
+                // Signature format: 5.0
                 package test.pkg {
                   public final class TestKt {
                     method public static final void method1(int[] x);
@@ -343,9 +345,9 @@ class CompatibilityCheckTest : DriverTest() {
                 """
                 released-api.txt:3: error: Removed class test.pkg.FacetProvider [RemovedInterface]
                 released-api.txt:6: error: Removed class test.pkg.FacetProviderAdapter [RemovedInterface]
-                src/test/pkg/FacetProviderAdapterImpl.java:6: error: Attempted to remove @Nullable annotation from method test.pkg.FacetProviderAdapterImpl.getFacetProvider(int) [InvalidNullConversion]
-                src/test/pkg/FacetProviderAdapterImpl.java:13: error: Attempted to remove @Nullable annotation from method test.pkg.FacetProviderAdapterImpl.FacetProviderImpl.getFacet(Class<?>) [InvalidNullConversion]
-                src/test/pkg/FacetProviderAdapterImpl.java:13: error: Attempted to remove @Nullable annotation from parameter facetClass in test.pkg.FacetProviderAdapterImpl.FacetProviderImpl.getFacet(Class<?> facetClass) [InvalidNullConversion]
+                src/test/pkg/FacetProviderAdapterImpl.java:6: error: Attempted to remove nullability from test.pkg.FacetProvider (was NULLABLE) in method test.pkg.FacetProviderAdapterImpl.getFacetProvider(int) [InvalidNullConversion]
+                src/test/pkg/FacetProviderAdapterImpl.java:13: error: Attempted to remove nullability from java.lang.Object (was NULLABLE) in method test.pkg.FacetProviderAdapterImpl.FacetProviderImpl.getFacet(Class<?>) [InvalidNullConversion]
+                src/test/pkg/FacetProviderAdapterImpl.java:13: error: Attempted to remove nullability from java.lang.Class<?> (was NULLABLE) in parameter facetClass in test.pkg.FacetProviderAdapterImpl.FacetProviderImpl.getFacet(Class<?> facetClass) [InvalidNullConversion]
             """
         )
     }
@@ -368,6 +370,7 @@ class CompatibilityCheckTest : DriverTest() {
                 """,
             checkCompatibilityApiReleased =
                 """
+                // Signature format: 5.0
                 package test.pkg {
                   public class Java {
                     ctor public Java();
@@ -419,6 +422,7 @@ class CompatibilityCheckTest : DriverTest() {
                 """,
             checkCompatibilityApiReleased =
                 """
+                // Signature format: 5.0
                 package test.pkg {
                   public class Java {
                     method public void method(int);
@@ -467,6 +471,7 @@ class CompatibilityCheckTest : DriverTest() {
                 """,
             checkCompatibilityApiReleased =
                 """
+                // Signature format: 5.0
                 package test.pkg {
                   public class Java {
                     ctor public Java();
@@ -518,6 +523,7 @@ class CompatibilityCheckTest : DriverTest() {
                     .trimIndent(),
             checkCompatibilityApiReleased =
                 """
+                // Signature format: 5.0
                 package test.pkg {
                   public class Java {
                     method public void method(int);
@@ -796,6 +802,7 @@ class CompatibilityCheckTest : DriverTest() {
                 """,
             checkCompatibilityApiReleased =
                 """
+                // Signature format: 5.0
                 package test.pkg {
                   public final class Foo {
                     ctor public Foo();
@@ -1791,7 +1798,7 @@ class CompatibilityCheckTest : DriverTest() {
                 // Signature format: 3.0
                 package androidx.content {
                   public final class ContentValuesKt {
-                    method public static android.content.ContentValues contentValuesOf(kotlin.Pair<String,?>... pairs);
+                    method public static android.content.ContentValues contentValuesOf(kotlin.Pair<String,Object?>... pairs);
                   }
                 }
                 """,
@@ -2470,7 +2477,7 @@ class CompatibilityCheckTest : DriverTest() {
         check(
             checkCompatibilityApiReleased =
                 """
-                // Signature format: 2.0
+                // Signature format: 5.0
                 package androidx.annotation {
                   @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS) @java.lang.annotation.Target({java.lang.annotation.ElementType.ANNOTATION_TYPE, java.lang.annotation.ElementType.TYPE, java.lang.annotation.ElementType.METHOD, java.lang.annotation.ElementType.CONSTRUCTOR, java.lang.annotation.ElementType.FIELD, java.lang.annotation.ElementType.PACKAGE}) public @interface RestrictTo {
                     method public abstract androidx.annotation.RestrictTo.Scope[] value();
@@ -2617,10 +2624,10 @@ class CompatibilityCheckTest : DriverTest() {
                 // Signature format: 3.0
                 package test.pkg {
                   public final class TestKt {
-                    method public static inline <T> void add(T! t);
-                    method public static inline <reified T> void remove(T! t);
-                    method public static inline <reified T> void unchanged(T! t);
-                    method public static inline <S, reified T> void two(S! s, T! t);
+                    method public static inline <T> void add(T t);
+                    method public static inline <reified T> void remove(T t);
+                    method public static inline <reified T> void unchanged(T t);
+                    method public static inline <S, reified T> void two(S s, T t);
                   }
                 }
                 """,
@@ -3697,7 +3704,7 @@ class CompatibilityCheckTest : DriverTest() {
                 // Signature format: 4.0
                 package androidx.annotation.experimental {
                   public @interface UseExperimental {
-                    method public abstract Class<?> markerClass();
+                    method public abstract Class<? extends java.lang.Object!> markerClass();
                   }
                 }
                 """,
@@ -4097,9 +4104,10 @@ class CompatibilityCheckTest : DriverTest() {
         check(
             checkCompatibilityApiReleased =
                 """
+                // Signature format: 5.0
                 package test.pkg {
                     public abstract class Foo<T extends test.pkg.Foo<T>> {
-                            method public static <T extends test.pkg.Foo<T>> T valueOf(Class<T>, String);
+                            method public static <T extends test.pkg.Foo<T>> T valueOf(Class<T!>, String);
                     }
                 }
             """,
@@ -4747,7 +4755,7 @@ class CompatibilityCheckTest : DriverTest() {
                     // Signature format: 5.0
                     package test.pkg {
                       public final class TestKt {
-                        method public static <T> T! foo(T! target);
+                        method public static <T> T foo(T target);
                       }
                     }
                 """,

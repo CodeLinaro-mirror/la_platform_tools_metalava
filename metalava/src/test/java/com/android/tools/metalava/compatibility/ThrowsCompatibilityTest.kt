@@ -82,6 +82,7 @@ class ThrowsCompatibilityTest : DriverTest() {
                 """,
             checkCompatibilityApiReleased =
                 """
+                    // Signature format: 5.0
                     package test.pkg {
                       public final class MyClass {
                         ctor public MyClass(int);

@@ -1299,6 +1299,187 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                 java(
                     """
                         package test.pkg;
+                        @SuppressWarnings({"unchecked", "deprecation", "all"})
+                        @android.annotation.FlaggedApi("test.pkg.flags.foo_bar")
+                        public class Foo {
+                        public Foo() { throw new RuntimeException("Stub!"); }
+                        public void abstractMethod() { throw new RuntimeException("Stub!"); }
+                        public void method(@android.annotation.Nullable java.lang.String p) { throw new RuntimeException("Stub!"); }
+                        public native void nativeMethod();
+                        public static int field;
+                        }
+                    """
+                ),
+            )
+
+        val stubsWithoutFlaggedApis =
+            arrayOf(
+                java(
+                    """
+                        package test.pkg;
+                        @SuppressWarnings({"unchecked", "deprecation", "all"})
+                        public abstract class Foo {
+                        protected Foo() { throw new RuntimeException("Stub!"); }
+                        public abstract void abstractMethod();
+                        public final void method(@android.annotation.Nullable java.lang.String p) { throw new RuntimeException("Stub!"); }
+                        public void nativeMethod() { throw new RuntimeException("Stub!"); }
+                        public static final int field;
+                        }
+                    """
+                ),
+            )
+
+        checkFlaggedApis(
+            java(
+                """
+                    package test.pkg;
+
+                    import android.annotation.FlaggedApi;
+                    import test.pkg.flags.Flags;
+
+                    @FlaggedApi(Flags.FLAG_FOO_BAR)
+                    public class Foo {
+                        public Foo() {}
+                        public void abstractMethod();
+                        public void method(@Nullable String p) {}
+                        public native void nativeMethod();
+                        public static int field;
+                    }
+                """
+            ),
+            extraArguments =
+                arrayOf(
+                    ARG_HIDE,
+                    Issues.REMOVED_FINAL_STRICT.name,
+                ),
+            // The previously released public api.
+            previouslyReleasedApi =
+                mapOf(
+                    Surface.PUBLIC to
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                              public abstract class Foo {
+                                ctor protected Foo();
+                                method public abstract void abstractMethod();
+                                method public final void method(@Nullable String);
+                                method public void nativeMethod();
+                                field public static final int field;
+                              }
+                            }
+                        """,
+                ),
+            expectationsList =
+                listOf(
+                    Expectations(
+                        Surface.PUBLIC,
+                        Flagged.WITH,
+                        expectedApi =
+                            """
+                                // Signature format: 2.0
+                                package test.pkg {
+                                  @FlaggedApi("test.pkg.flags.foo_bar") public class Foo {
+                                    ctor public Foo();
+                                    method public void abstractMethod();
+                                    method public void method(@Nullable String);
+                                    method public void nativeMethod();
+                                    field public static int field;
+                                  }
+                                }
+                            """,
+                        expectedStubs = stubsWithFlaggedApis,
+                        expectedApiVersions =
+                            """
+                                <?xml version="1.0" encoding="utf-8"?>
+                                <api version="3" min="30">
+                                  <class name="test/pkg/Foo" since="33">
+                                    <method name="&lt;init>()V"/>
+                                    <method name="abstractMethod()V"/>
+                                    <method name="method(Ljava/lang/String;)V"/>
+                                    <method name="nativeMethod()V"/>
+                                    <field name="field"/>
+                                  </class>
+                                </api>
+                            """,
+                    ),
+                    Expectations(
+                        Surface.PUBLIC,
+                        Flagged.WITHOUT,
+                        expectedApi =
+                            """
+                                // Signature format: 2.0
+                                package test.pkg {
+                                  public abstract class Foo {
+                                    ctor protected Foo();
+                                    method public abstract void abstractMethod();
+                                    method public final void method(@Nullable String);
+                                    method public void nativeMethod();
+                                    field public static final int field;
+                                  }
+                                }
+                            """,
+                        expectedStubs = stubsWithoutFlaggedApis,
+                        expectedApiVersions =
+                            """
+                                <?xml version="1.0" encoding="utf-8"?>
+                                <api version="3" min="30">
+                                  <class name="test/pkg/Foo" since="33">
+                                    <method name="&lt;init>()V"/>
+                                    <method name="abstractMethod()V"/>
+                                    <method name="method(Ljava/lang/String;)V"/>
+                                    <method name="nativeMethod()V"/>
+                                    <field name="field"/>
+                                  </class>
+                                </api>
+                            """,
+                    ),
+                    Expectations(
+                        Surface.SYSTEM,
+                        Flagged.WITH,
+                        expectedApi =
+                            """
+                                // Signature format: 2.0
+                            """,
+                        expectedStubs = stubsWithFlaggedApis,
+                    ),
+                    Expectations(
+                        Surface.SYSTEM,
+                        Flagged.WITHOUT,
+                        expectedApi =
+                            """
+                                // Signature format: 2.0
+                            """,
+                        expectedStubs = stubsWithoutFlaggedApis,
+                    ),
+                    Expectations(
+                        Surface.MODULE_LIB,
+                        Flagged.WITH,
+                        expectedApi =
+                            """
+                                // Signature format: 2.0
+                            """,
+                        expectedStubs = stubsWithFlaggedApis,
+                    ),
+                    Expectations(
+                        Surface.MODULE_LIB,
+                        Flagged.WITHOUT,
+                        expectedApi =
+                            """
+                                // Signature format: 2.0
+                            """,
+                        expectedStubs = stubsWithoutFlaggedApis,
+                    ),
+                ),
+        )
+    }
+
+    @Test
+    fun `Test that changing deprecated status of public class can be reverted`() {
+        val stubsWithFlaggedApis =
+            arrayOf(
+                java(
+                    """
+                        package test.pkg;
                         /**
                          * A Bar class.
                          *
@@ -1336,7 +1517,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                         @SuppressWarnings({"unchecked", "deprecation", "all"})
                         @android.annotation.FlaggedApi("test.pkg.flags.foo_bar")
                         public class Foo {
-                        public Foo() { throw new RuntimeException("Stub!"); }
+                        Foo() { throw new RuntimeException("Stub!"); }
                         public void method(@android.annotation.Nullable java.lang.String p) { throw new RuntimeException("Stub!"); }
                         /** @deprecated */
                         @Deprecated public static int field;
@@ -1345,7 +1526,6 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                 ),
             )
 
-        // TODO(b/319874764): Fix this, @deprecated tags should be removed from the docs.
         val stubsWithoutFlaggedApis =
             arrayOf(
                 java(
@@ -1376,9 +1556,9 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                     """
                         package test.pkg;
                         @SuppressWarnings({"unchecked", "deprecation", "all"})
-                        public abstract class Foo {
-                        protected Foo() { throw new RuntimeException("Stub!"); }
-                        public final void method(java.lang.String p) { throw new RuntimeException("Stub!"); }
+                        public class Foo {
+                        Foo() { throw new RuntimeException("Stub!"); }
+                        public void method(@android.annotation.Nullable java.lang.String p) { throw new RuntimeException("Stub!"); }
                         public static int field;
                         }
                     """
@@ -1455,18 +1635,13 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
 
                     @FlaggedApi(Flags.FLAG_FOO_BAR)
                     public class Foo {
-                        public Foo() {}
+                        private Foo() {}
                         public void method(@Nullable String p) {}
                         /** @deprecated */
                         public @Deprecated static int field;
                     }
                 """
             ),
-            extraArguments =
-                arrayOf(
-                    ARG_HIDE,
-                    Issues.REMOVED_FINAL_STRICT.name,
-                ),
             // The previously released public api.
             previouslyReleasedApi =
                 mapOf(
@@ -1474,9 +1649,8 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                         """
                             // Signature format: 2.0
                             package test.pkg {
-                              public abstract class Foo {
-                                ctor protected Foo();
-                                method public final void method(String);
+                              public class Foo {
+                                method public void method(@Nullable String);
                                 field public static int field;
                               }
                               public class Bar {
@@ -1512,7 +1686,6 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                                     field @Deprecated public static int field;
                                   }
                                   @FlaggedApi("test.pkg.flags.foo_bar") public class Foo {
-                                    ctor public Foo();
                                     method public void method(@Nullable String);
                                     field @Deprecated public static int field;
                                   }
@@ -1534,7 +1707,6 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                                     <field name="field" deprecated="33"/>
                                   </class>
                                   <class name="test/pkg/Foo" since="33">
-                                    <method name="&lt;init>()V"/>
                                     <method name="method(Ljava/lang/String;)V"/>
                                     <field name="field" deprecated="33"/>
                                   </class>
@@ -1558,9 +1730,8 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                                     method @Deprecated public void method();
                                     field @Deprecated public static int field;
                                   }
-                                  public abstract class Foo {
-                                    ctor protected Foo();
-                                    method public final void method(String);
+                                  public class Foo {
+                                    method public void method(@Nullable String);
                                     field public static int field;
                                   }
                                 }
@@ -1581,7 +1752,6 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                                     <field name="field" deprecated="33"/>
                                   </class>
                                   <class name="test/pkg/Foo" since="33">
-                                    <method name="&lt;init>()V"/>
                                     <method name="method(Ljava/lang/String;)V"/>
                                     <field name="field"/>
                                   </class>

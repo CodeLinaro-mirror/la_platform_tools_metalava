@@ -107,7 +107,7 @@ class NullnessMigration : ComparisonVisitor(visitAddedItemsRecursively = true) {
             return item.modifiers.findAnnotation(AnnotationItem::isNullnessAnnotation)
         }
 
-        fun isNullable(item: Item): Boolean {
+        private fun isNullable(item: Item): Boolean {
             return item.modifiers.hasAnnotation(AnnotationItem::isNullable)
         }
 

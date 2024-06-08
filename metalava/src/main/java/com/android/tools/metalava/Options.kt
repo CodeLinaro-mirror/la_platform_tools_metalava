@@ -197,7 +197,7 @@ class Options(
         IssueReportingOptions(commonOptions = commonOptions),
     private val generalReportingOptions: GeneralReportingOptions = GeneralReportingOptions(),
     private val apiSelectionOptions: ApiSelectionOptions = ApiSelectionOptions(),
-    private val apiLintOptions: ApiLintOptions = ApiLintOptions(),
+    val apiLintOptions: ApiLintOptions = ApiLintOptions(),
     private val compatibilityCheckOptions: CompatibilityCheckOptions = CompatibilityCheckOptions(),
     signatureFileOptions: SignatureFileOptions = SignatureFileOptions(),
     signatureFormatOptions: SignatureFormatOptions = SignatureFormatOptions(),
@@ -335,13 +335,6 @@ class Options(
      * applies to signature files, not stub files.
      */
     var showUnannotated = false
-
-    /** Whether to validate the API for best practices */
-    val apiLintEnabled by apiLintOptions::apiLintEnabled
-
-    /** If non-null, an API file to use to hide for controlling what parts of the API are new */
-    val apiLintPreviousApi: File?
-        get() = apiLintOptions.apiLintPreviousApi
 
     /** Packages to include (if null, include all) */
     private var stubPackages: PackageFilter? = null
