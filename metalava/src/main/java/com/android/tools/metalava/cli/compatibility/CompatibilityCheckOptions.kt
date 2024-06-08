@@ -16,17 +16,17 @@
 
 package com.android.tools.metalava.cli.compatibility
 
-import com.android.SdkConstants
 import com.android.tools.metalava.ApiType
 import com.android.tools.metalava.SignatureFileCache
 import com.android.tools.metalava.cli.common.BaselineOptionsMixin
 import com.android.tools.metalava.cli.common.CommonBaselineOptions
 import com.android.tools.metalava.cli.common.ExecutionEnvironment
+import com.android.tools.metalava.cli.common.JarBasedApi
+import com.android.tools.metalava.cli.common.PreviouslyReleasedApi
 import com.android.tools.metalava.cli.common.allowStructuredOptionName
 import com.android.tools.metalava.cli.common.existingFile
 import com.android.tools.metalava.cli.common.map
 import com.android.tools.metalava.model.Codebase
-import com.android.tools.metalava.model.text.SignatureFile
 import com.github.ajalt.clikt.parameters.groups.OptionGroup
 import com.github.ajalt.clikt.parameters.options.multiple
 import com.github.ajalt.clikt.parameters.options.option
@@ -143,58 +143,6 @@ class CompatibilityCheckOptions(
 
     internal val baseline by baselineOptionsMixin::baseline
 
-    /** A previously released API. */
-    sealed interface PreviouslyReleasedApi {
-        /** The set of files defining the previously released API. */
-        val files: List<File>
-
-        /** Load the files into a list of [Codebase]s. */
-        fun load(
-            jarLoader: (File) -> Codebase,
-            signatureLoader: (SignatureFile) -> Codebase,
-        ): List<Codebase>
-    }
-
-    /** A previously released API defined by jar files. */
-    data class JarBasedApi(override val files: List<File>) : PreviouslyReleasedApi {
-        override fun load(
-            jarLoader: (File) -> Codebase,
-            signatureLoader: (SignatureFile) -> Codebase,
-        ) = files.map { jarLoader(it) }
-    }
-
-    /**
-     * A previously released API defined by signature files.
-     *
-     * If a single file is provided then it may be a full API or a delta on another API. If multiple
-     * files are provided then they are expected to be provided in order from the narrowest API to
-     * the widest API, where all but the first files are deltas on the preceding file.
-     */
-    data class SignatureBasedApi(val signatureFiles: List<SignatureFile>) : PreviouslyReleasedApi {
-
-        override val files: List<File> = signatureFiles.map { it.file }
-
-        override fun load(
-            jarLoader: (File) -> Codebase,
-            signatureLoader: (SignatureFile) -> Codebase,
-        ) = signatureFiles.map { signatureLoader(it) }
-
-        companion object {
-            fun fromFiles(files: List<File>): SignatureBasedApi {
-                val lastIndex = files.size - 1
-                return SignatureBasedApi(
-                    files.mapIndexed { index, file ->
-                        SignatureFile(
-                            file,
-                            // The last file is assumed to be for the current API surface.
-                            forCurrentApiSurface = index == lastIndex,
-                        )
-                    }
-                )
-            }
-        }
-    }
-
     /**
      * Encapsulates information needed to perform a compatibility check of the current API being
      * generated against a previously released API.
@@ -213,42 +161,36 @@ class CompatibilityCheckOptions(
         /** The part of the API to be checked. */
         val apiType: ApiType,
     ) {
-        /** The files defining the previously released API. */
-        val files by previouslyReleasedApi::files
+        /** The last signature file, if any, defining the previously released API. */
+        val lastSignatureFile by previouslyReleasedApi::lastSignatureFile
 
         companion object {
             /** Create a [CheckRequest] if [files] is not empty, otherwise return `null`. */
             internal fun optionalCheckRequest(files: List<File>, apiType: ApiType) =
-                if (files.isEmpty()) null
-                else {
-                    // Partition the files into jar and non-jar files, the latter are assumed to be
-                    // signature files.
-                    val (jarFiles, signatureFiles) =
-                        files.partition { it.path.endsWith(SdkConstants.DOT_JAR) }
-                    when {
-                        jarFiles.isEmpty() ->
-                            CheckRequest(SignatureBasedApi.fromFiles(signatureFiles), apiType)
-                        signatureFiles.isEmpty() -> CheckRequest(JarBasedApi(jarFiles), apiType)
-                        else ->
+                PreviouslyReleasedApi.optionalPreviouslyReleasedApi(
+                        checkCompatibilityOptionForApiType(apiType),
+                        files
+                    )
+                    ?.let { previouslyReleasedApi ->
+                        // It makes no sense to supply a jar file for the removed API because the
+                        // removed API is only a tiny fraction and incomplete part of an API
+                        // surface, so it could never be guaranteed to be able to compile into a jar
+                        // file.
+                        if (apiType == ApiType.REMOVED && previouslyReleasedApi is JarBasedApi) {
                             throw IllegalStateException(
-                                "${checkCompatibilityOptionForApiType(apiType)}: Cannot mix jar files (e.g. ${jarFiles.first()}) and signature files (e.g. ${signatureFiles.first()})"
+                                "$ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED: Cannot specify jar files for removed API but found ${previouslyReleasedApi.file}"
                             )
+                        }
+                        CheckRequest(previouslyReleasedApi, apiType)
                     }
-                }
 
             private fun checkCompatibilityOptionForApiType(apiType: ApiType) =
                 "--check-compatibility:${apiType.flagName}:released"
         }
 
-        /** Load the previously released API [files] in as a list of [Codebase]s. */
-        fun loadPreviouslyReleasedApi(
-            jarLoader: (File) -> Codebase,
-            signatureLoader: (SignatureFile) -> Codebase,
-        ) = previouslyReleasedApi.load(jarLoader, signatureLoader)
-
         override fun toString(): String {
             // This is only used when reporting progress.
-            return checkCompatibilityOptionForApiType(apiType) + " ${files.joinToString(",")}"
+            return "${checkCompatibilityOptionForApiType(apiType)} $previouslyReleasedApi"
         }
     }
 
@@ -265,7 +207,7 @@ class CompatibilityCheckOptions(
      * not support jar files.
      */
     fun previouslyReleasedCodebases(signatureFileCache: SignatureFileCache): List<Codebase> =
-        compatibilityChecks.flatMap {
+        compatibilityChecks.map {
             it.previouslyReleasedApi.load(
                 {
                     throw IllegalStateException(
