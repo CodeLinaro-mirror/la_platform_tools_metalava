@@ -967,7 +967,7 @@ class CompatibilityCheck(
         issue: Issue,
         item: Item,
         message: String,
-        maximumSeverity: Severity = Severity.ERROR
+        maximumSeverity: Severity = Severity.UNLIMITED,
     ) {
         if (item.isCompatibilitySuppressed()) {
             // Long-term, we should consider allowing meta-annotations to specify a different

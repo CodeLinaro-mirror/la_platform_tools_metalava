@@ -44,14 +44,11 @@ Issue Reporting:
                                              checking changes to the code detecting the (ErrorWhenNew) text in the
                                              output and preventing the change from being made.
   --warning <id>                             Report issues of the given id as warnings.
-  --lint <id>                                Report issues of the given id as having lint-severity.
   --hide <id>                                Hide/skip issues of the given id.
   --error-category <name>                    Report all issues in the given category as errors.
   --error-when-new-category <name>           Report all issues in the given category as errors-when-new.
   --warning-category <name>                  Report all issues in the given category as warnings.
-  --lint-category <name>                     Report all issues in the given category as having lint-severity.
   --hide-category <name>                     Hide/skip all issues in the given category.
-  --lints-as-errors                          Promote all API lint issues to errors.
   --warnings-as-errors                       Promote all warnings to errors.
   --report-even-if-suppressed <file>         Write all issues into the given file, even if suppressed (via annotation or
                                              baseline) but not if hidden (by '--hide' or '--hide-category').
@@ -131,8 +128,6 @@ class IssueReportingOptionsTest :
         runTest(
             "--hide",
             "StartWithLower",
-            "--lint",
-            "EndsWithImpl",
             "--warning",
             "StartWithUpper",
             "--error",
@@ -141,7 +136,6 @@ class IssueReportingOptionsTest :
             val issueConfiguration = options.issueConfiguration
 
             assertEquals(Severity.HIDDEN, issueConfiguration.getSeverity(Issues.START_WITH_LOWER))
-            assertEquals(Severity.LINT, issueConfiguration.getSeverity(Issues.ENDS_WITH_IMPL))
             assertEquals(Severity.WARNING, issueConfiguration.getSeverity(Issues.START_WITH_UPPER))
             assertEquals(Severity.ERROR, issueConfiguration.getSeverity(Issues.ARRAY_RETURN))
         }

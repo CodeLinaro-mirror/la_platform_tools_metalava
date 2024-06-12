@@ -311,7 +311,10 @@ class AndroidApiChecks(val reporter: Reporter) {
             }
         }
 
-        if (nullPattern.matcher(getDocumentation(item, tag)).find() && !item.hasNullnessInfo()) {
+        if (
+            nullPattern.matcher(getDocumentation(item, tag)).find() &&
+                item.type()?.modifiers?.isPlatformNullability == true
+        ) {
             reporter.report(
                 Issues.NULLABLE,
                 item,

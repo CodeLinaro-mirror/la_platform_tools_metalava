@@ -226,9 +226,7 @@ com.android.tools.metalava.lint.ApiLintTest
   Check package layering[turbine]
   Check suppress works on inherited methods[turbine]
   CompletableFuture and plain Future not allowed[turbine]
-  Constructors return types don't require nullability[turbine]
   Listener replaceable with OutcomeReceiver or ListenableFuture[turbine]
-  Test listeners[turbine]
   Typedef must be hidden[turbine]
 
 com.android.tools.metalava.lint.CheckBuilderTest

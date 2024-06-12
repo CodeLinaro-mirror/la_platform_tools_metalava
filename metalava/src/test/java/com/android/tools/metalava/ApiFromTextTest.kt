@@ -389,7 +389,7 @@ class ApiFromTextTest : DriverTest() {
                   }
                   @Deprecated protected static interface Foo.Inner3 {
                     method public default void method3();
-                    method public abstract static void method4(int);
+                    method public static void method4(int);
                   }
                 }
                 """

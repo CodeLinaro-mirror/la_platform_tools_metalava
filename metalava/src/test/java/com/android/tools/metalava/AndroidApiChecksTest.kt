@@ -17,6 +17,7 @@
 package com.android.tools.metalava
 
 import com.android.tools.metalava.cli.common.ARG_WARNING
+import com.android.tools.metalava.lint.DefaultLintErrorMessage
 import com.android.tools.metalava.testing.java
 import org.junit.Test
 
@@ -24,10 +25,11 @@ class AndroidApiChecksTest : DriverTest() {
     @Test
     fun `Flag TODO documentation`() {
         check(
+            expectedFail = DefaultLintErrorMessage,
             expectedIssues =
                 """
-                src/android/pkg/Test.java:4: lint: Documentation mentions 'TODO' [Todo]
-                src/android/pkg/Test.java:6: lint: Documentation mentions 'TODO' [Todo]
+                src/android/pkg/Test.java:4: error: Documentation mentions 'TODO' [Todo]
+                src/android/pkg/Test.java:6: error: Documentation mentions 'TODO' [Todo]
                 """,
             sourceFiles =
                 arrayOf(
@@ -69,10 +71,11 @@ class AndroidApiChecksTest : DriverTest() {
     @Test
     fun `Document Permissions`() {
         check(
+            expectedFail = DefaultLintErrorMessage,
             expectedIssues =
                 """
-                src/android/pkg/PermissionTest.java:14: lint: Method 'test0' documentation mentions permissions without declaring @RequiresPermission [RequiresPermission]
-                src/android/pkg/PermissionTest.java:21: lint: Method 'test1' documentation mentions permissions already declared by @RequiresPermission [RequiresPermission]
+                src/android/pkg/PermissionTest.java:14: error: Method 'test0' documentation mentions permissions without declaring @RequiresPermission [RequiresPermission]
+                src/android/pkg/PermissionTest.java:21: error: Method 'test1' documentation mentions permissions already declared by @RequiresPermission [RequiresPermission]
                 """,
             sourceFiles =
                 arrayOf(
@@ -130,11 +133,12 @@ class AndroidApiChecksTest : DriverTest() {
     @Test
     fun `Document Intent Actions`() {
         check(
+            expectedFail = DefaultLintErrorMessage,
             expectedIssues =
                 """
-                src/android/pkg/IntentActionTest.java:30: lint: Field 'BAR_FOO_ERROR_ACTION' is missing @SdkConstant(SdkConstantType.ACTIVITY_INTENT_ACTION) [SdkConstant]
-                src/android/pkg/IntentActionTest.java:19: lint: Field 'FOO_BAR_ERROR_ACTION' is missing @BroadcastBehavior [BroadcastBehavior]
-                src/android/pkg/IntentActionTest.java:19: lint: Field 'FOO_BAR_ERROR_ACTION' is missing @SdkConstant(SdkConstantType.BROADCAST_INTENT_ACTION) [SdkConstant]
+                src/android/pkg/IntentActionTest.java:30: error: Field 'BAR_FOO_ERROR_ACTION' is missing @SdkConstant(SdkConstantType.ACTIVITY_INTENT_ACTION) [SdkConstant]
+                src/android/pkg/IntentActionTest.java:19: error: Field 'FOO_BAR_ERROR_ACTION' is missing @BroadcastBehavior [BroadcastBehavior]
+                src/android/pkg/IntentActionTest.java:19: error: Field 'FOO_BAR_ERROR_ACTION' is missing @SdkConstant(SdkConstantType.BROADCAST_INTENT_ACTION) [SdkConstant]
                 """,
             sourceFiles =
                 arrayOf(

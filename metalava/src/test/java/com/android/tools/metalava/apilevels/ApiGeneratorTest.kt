@@ -30,6 +30,7 @@ import com.android.tools.metalava.ARG_SDK_JAR_ROOT
 import com.android.tools.metalava.DriverTest
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
+import com.android.tools.metalava.testing.signature
 import com.google.common.truth.Truth.assertThat
 import com.google.gson.GsonBuilder
 import com.google.gson.JsonElement
@@ -45,19 +46,18 @@ class ApiGeneratorTest : DriverTest() {
 
     @Test
     fun `Generate API for test prebuilts`() {
-        var testPrebuiltsRoot = File(System.getenv("METALAVA_TEST_PREBUILTS_SDK_ROOT"))
+        val testPrebuiltsRoot = File(System.getenv("METALAVA_TEST_PREBUILTS_SDK_ROOT"))
         if (!testPrebuiltsRoot.isDirectory) {
             fail("test prebuilts not found: $testPrebuiltsRoot")
         }
 
-        val api_versions_xml = File.createTempFile("api-versions", "xml")
-        api_versions_xml.deleteOnExit()
+        val apiVersionsXml = temporaryFolder.newFile("api-versions.xml")
 
         check(
             extraArguments =
                 arrayOf(
                     ARG_GENERATE_API_LEVELS,
-                    api_versions_xml.path,
+                    apiVersionsXml.path,
                     ARG_ANDROID_JAR_PATTERN,
                     "${testPrebuiltsRoot.path}/%/public/android.jar",
                     ARG_SDK_JAR_ROOT,
@@ -81,7 +81,7 @@ class ApiGeneratorTest : DriverTest() {
                         public static final int FIELD_ADDED_IN_API_31_AND_EXT_2 = 1;
                         public static final int FIELD_ADDED_IN_EXT_3 = 2;
                         public void methodAddedInApi31AndExt2() { throw new RuntimeException("Stub!"); }
-                        public void methodAddedInExt3() { throw new RuntimeException("Stub!"); };
+                        public void methodAddedInExt3() { throw new RuntimeException("Stub!"); }
                         public void methodNotFinalized() { throw new RuntimeException("Stub!"); }
                     }
                     """
@@ -89,8 +89,8 @@ class ApiGeneratorTest : DriverTest() {
                 )
         )
 
-        assertTrue(api_versions_xml.isFile)
-        val xml = api_versions_xml.readText(UTF_8)
+        assertTrue(apiVersionsXml.isFile)
+        val xml = apiVersionsXml.readText(UTF_8)
 
         val expected =
             """
@@ -139,19 +139,18 @@ class ApiGeneratorTest : DriverTest() {
 
     @Test
     fun `Generate API for test prebuilts skip SDK extensions 3+`() {
-        var testPrebuiltsRoot = File(System.getenv("METALAVA_TEST_PREBUILTS_SDK_ROOT"))
+        val testPrebuiltsRoot = File(System.getenv("METALAVA_TEST_PREBUILTS_SDK_ROOT"))
         if (!testPrebuiltsRoot.isDirectory) {
             fail("test prebuilts not found: $testPrebuiltsRoot")
         }
 
-        val api_versions_xml = File.createTempFile("api-versions", "xml")
-        api_versions_xml.deleteOnExit()
+        val apiVersionsXml = temporaryFolder.newFile("api-versions.xml")
 
         check(
             extraArguments =
                 arrayOf(
                     ARG_GENERATE_API_LEVELS,
-                    api_versions_xml.path,
+                    apiVersionsXml.path,
                     ARG_ANDROID_JAR_PATTERN,
                     "${testPrebuiltsRoot.path}/%/public/android.jar",
                     ARG_SDK_JAR_ROOT,
@@ -169,8 +168,8 @@ class ApiGeneratorTest : DriverTest() {
                 ),
         )
 
-        assertTrue(api_versions_xml.isFile)
-        val xml = api_versions_xml.readText(UTF_8)
+        assertTrue(apiVersionsXml.isFile)
+        val xml = apiVersionsXml.readText(UTF_8)
 
         val expected =
             """
@@ -209,14 +208,13 @@ class ApiGeneratorTest : DriverTest() {
 
     @Test
     fun `Generate API while removing missing class references`() {
-        val api_versions_xml = File.createTempFile("api-versions", "xml")
-        api_versions_xml.deleteOnExit()
+        val apiVersionsXml = temporaryFolder.newFile("api-versions.xml")
 
         check(
             extraArguments =
                 arrayOf(
                     ARG_GENERATE_API_LEVELS,
-                    api_versions_xml.path,
+                    apiVersionsXml.path,
                     ARG_REMOVE_MISSING_CLASS_REFERENCES_IN_API_LEVELS,
                     ARG_FIRST_VERSION,
                     "30",
@@ -237,8 +235,8 @@ class ApiGeneratorTest : DriverTest() {
                 )
         )
 
-        assertTrue(api_versions_xml.isFile)
-        val xml = api_versions_xml.readText(UTF_8)
+        assertTrue(apiVersionsXml.isFile)
+        val xml = apiVersionsXml.readText(UTF_8)
 
         val expected =
             """
@@ -258,13 +256,12 @@ class ApiGeneratorTest : DriverTest() {
 
     @Test
     fun `Generate API finds missing class references`() {
-        var testPrebuiltsRoot = File(System.getenv("METALAVA_TEST_PREBUILTS_SDK_ROOT"))
+        val testPrebuiltsRoot = File(System.getenv("METALAVA_TEST_PREBUILTS_SDK_ROOT"))
         if (!testPrebuiltsRoot.isDirectory) {
             fail("test prebuilts not found: $testPrebuiltsRoot")
         }
 
-        val api_versions_xml = File.createTempFile("api-versions", "xml")
-        api_versions_xml.deleteOnExit()
+        val apiVersionsXml = temporaryFolder.newFile("api-versions.xml")
 
         var exception: IllegalStateException? = null
         try {
@@ -272,7 +269,7 @@ class ApiGeneratorTest : DriverTest() {
                 extraArguments =
                     arrayOf(
                         ARG_GENERATE_API_LEVELS,
-                        api_versions_xml.path,
+                        apiVersionsXml.path,
                         ARG_FIRST_VERSION,
                         "30",
                         ARG_CURRENT_VERSION,
@@ -312,84 +309,80 @@ class ApiGeneratorTest : DriverTest() {
 
     @Test
     fun `Create API levels from signature files`() {
-        val output = File.createTempFile("api-info", ".json")
-        output.deleteOnExit()
-        val outputPath = output.path
-
         val pastVersions =
             listOf(
                 createTextFile(
                     "1.1.0",
                     """
-                    // Signature format: 2.0
-                    package test.pkg {
-                      public class Foo {
-                        method public <T extends java.lang.String> void methodV1(T);
-                        field public int fieldV1;
-                      }
-                      public class Foo.Bar {
-                      }
-                    }
-                """
-                        .trimIndent()
+                        // Signature format: 2.0
+                        package test.pkg {
+                          public class Foo {
+                            method public <T extends java.lang.String> void methodV1(T);
+                            field public int fieldV1;
+                          }
+                          public class Foo.Bar {
+                          }
+                        }
+                    """
                 ),
                 createTextFile(
                     "1.2.0",
                     """
-                    // Signature format: 2.0
-                    package test.pkg {
-                      public class Foo {
-                        method public <T extends java.lang.String> void methodV1(T);
-                        method @Deprecated public <T> void methodV2(String, int);
-                        field public int fieldV1;
-                        field public int fieldV2;
-                      }
-                      public class Foo.Bar {
-                      }
-                    }
-                """
-                        .trimIndent()
+                        // Signature format: 2.0
+                        package test.pkg {
+                          public class Foo {
+                            method public <T extends java.lang.String> void methodV1(T);
+                            method @Deprecated public <T> void methodV2(String);
+                            method @Deprecated public <T> void methodV2(String, int);
+                            field public int fieldV1;
+                            field public int fieldV2;
+                          }
+                          public class Foo.Bar {
+                          }
+                        }
+                    """
                 ),
                 createTextFile(
                     "1.3.0",
                     """
-                    // Signature format: 2.0
-                    package test.pkg {
-                      public class Foo {
-                        method @Deprecated public <T extends java.lang.String> void methodV1(T);
-                        method public void methodV3();
-                        field public int fieldV1;
-                        field public int fieldV2;
-                      }
-                      @Deprecated public class Foo.Bar {
-                      }
-                    }
-                """
-                        .trimIndent()
-                )
+                        // Signature format: 2.0
+                        package test.pkg {
+                          public class Foo {
+                            method @Deprecated public <T extends java.lang.String> void methodV1(T);
+                            method public <T> void methodV2(String);
+                            method public void methodV3();
+                            field public int fieldV1;
+                            field public int fieldV2;
+                          }
+                          @Deprecated public class Foo.Bar {
+                          }
+                        }
+                    """
+                ),
             )
         val currentVersion =
             """
-            package test.pkg {
-              public class Foo {
-                method @Deprecated public <T extends java.lang.String> void methodV1(T);
-                method public void methodV3();
-                method public void methodV4();
-                field public int fieldV1;
-                field public int fieldV2;
-              }
-              @Deprecated public class Foo.Bar {
-              }
-            }
-        """
-                .trimIndent()
+                package test.pkg {
+                  public class Foo {
+                    method @Deprecated public <T extends java.lang.String> void methodV1(T);
+                    method public void methodV3();
+                    method public void methodV4();
+                    field public int fieldV1;
+                    field public int fieldV2;
+                  }
+                  @Deprecated public class Foo.Bar {
+                  }
+                }
+            """
+
+        val output = temporaryFolder.newFile("api-info.json")
 
         check(
             signatureSource = currentVersion,
             extraArguments =
                 arrayOf(
                     ARG_GENERATE_API_VERSION_HISTORY,
-                    outputPath,
+                    output.path,
                     ARG_API_VERSION_SIGNATURE_FILES,
                     pastVersions.joinToString(":") { it.absolutePath },
                     ARG_API_VERSION_NAMES,
@@ -421,6 +414,10 @@ class ApiGeneratorTest : DriverTest() {
                         "method": "methodV1<T extends java.lang.String>(T)",
                         "addedIn": "1.1.0",
                         "deprecatedIn": "1.3.0"
+                      },
+                      {
+                        "method": "methodV2<T>(java.lang.String)",
+                        "addedIn": "1.2.0"
                       },
                       {
                         "method": "methodV2<T>(java.lang.String,int)",
@@ -456,14 +453,11 @@ class ApiGeneratorTest : DriverTest() {
 
     @Test
     fun `Correct error with different number of API signature files and API version names`() {
-        val output = File.createTempFile("api-info", ".json")
-        output.deleteOnExit()
-        val outputPath = output.path
+        val output = temporaryFolder.newFile("api-info.json")
 
         val filePaths =
             listOf("1.1.0", "1.2.0", "1.3.0").map { name ->
-                val file = File.createTempFile(name, ".txt")
-                file.deleteOnExit()
+                val file = createTextFile("$name.txt", "")
                 file.path
             }
 
@@ -471,7 +465,7 @@ class ApiGeneratorTest : DriverTest() {
             extraArguments =
                 arrayOf(
                     ARG_GENERATE_API_VERSION_HISTORY,
-                    outputPath,
+                    output.path,
                     ARG_API_VERSION_SIGNATURE_FILES,
                     filePaths.joinToString(":"),
                     ARG_API_VERSION_NAMES,
@@ -484,9 +478,7 @@ class ApiGeneratorTest : DriverTest() {
 
     @Test
     fun `API levels can be generated from just the current codebase`() {
-        val output = File.createTempFile("api-info", ".json")
-        output.deleteOnExit()
-        val outputPath = output.path
+        val output = temporaryFolder.newFile("api-info.json")
 
         val api =
             """
@@ -496,15 +488,14 @@ class ApiGeneratorTest : DriverTest() {
                     method public void foo(String?);
                   }
                 }
-        """
-                .trimIndent()
+            """
 
         check(
             signatureSource = api,
             extraArguments =
                 arrayOf(
                     ARG_GENERATE_API_VERSION_HISTORY,
-                    outputPath,
+                    output.path,
                     ARG_API_VERSION_NAMES,
                     "0.0.0"
                 )
@@ -517,27 +508,24 @@ class ApiGeneratorTest : DriverTest() {
 
     @Test
     fun `API levels using source as current version does not include inherited methods excluded from signatures`() {
-        val output = File.createTempFile("api-info", ".json")
-        output.deleteOnExit()
-        val outputPath = output.path
+        val output = temporaryFolder.newFile("api-info.json")
 
         val pastVersions =
             listOf(
                 createTextFile(
                     "1.1.0",
                     """
-                    // Signature format: 4.0
-                    package test.pkg {
-                      public class Bar extends test.pkg.Foo {
-                        ctor public Bar();
-                      }
-                      public class Foo {
-                        ctor public Foo();
-                        method public void inherited();
-                      }
-                    }
-                """
-                        .trimIndent()
+                        // Signature format: 4.0
+                        package test.pkg {
+                          public class Bar extends test.pkg.Foo {
+                            ctor public Bar();
+                          }
+                          public class Foo {
+                            ctor public Foo();
+                            method public void inherited();
+                          }
+                        }
+                    """
                 )
             )
         val currentVersion =
@@ -568,7 +556,7 @@ class ApiGeneratorTest : DriverTest() {
             extraArguments =
                 arrayOf(
                     ARG_GENERATE_API_VERSION_HISTORY,
-                    outputPath,
+                    output.path,
                     ARG_API_VERSION_SIGNATURE_FILES,
                     pastVersions.joinToString(":") { it.absolutePath },
                     ARG_API_VERSION_NAMES,
@@ -620,39 +608,35 @@ class ApiGeneratorTest : DriverTest() {
 
     @Test
     fun `APIs annotated with suppress-compatibility-meta-annotations appear in output`() {
-        val output = File.createTempFile("api-info", ".json")
-        output.deleteOnExit()
-        val outputPath = output.path
+        val output = temporaryFolder.newFile("api-info.json")
 
         val pastVersions =
             listOf(
                 createTextFile(
                     "1.1.0.txt",
                     """
-                    // Signature format: 4.0
-                    package test.pkg {
-                      public final class Foo {
-                        ctor public Foo();
-                        method @SuppressCompatibility @kotlin.RequiresOptIn public void experimentalFunction();
-                        method public void regularFunction();
-                      }
-                    }
-                """
-                        .trimIndent(),
+                        // Signature format: 4.0
+                        package test.pkg {
+                          public final class Foo {
+                            ctor public Foo();
+                            method @SuppressCompatibility @kotlin.RequiresOptIn public void experimentalFunction();
+                            method public void regularFunction();
+                          }
+                        }
+                    """
                 )
             )
         val currentVersion =
             arrayOf(
                 kotlin(
                     """
-                    package test.pkg
-                    class Foo {
-                        @RequiresOptIn fun experimentalFunction() {}
-                        @RequiresOptIn fun newExperimentalFunction() {}
-                        fun regularFunction() {}
-                    }
-                """
-                        .trimIndent()
+                        package test.pkg
+                        class Foo {
+                            @RequiresOptIn fun experimentalFunction() {}
+                            @RequiresOptIn fun newExperimentalFunction() {}
+                            fun regularFunction() {}
+                        }
+                    """
                 )
             )
 
@@ -662,7 +646,7 @@ class ApiGeneratorTest : DriverTest() {
             extraArguments =
                 arrayOf(
                     ARG_GENERATE_API_VERSION_HISTORY,
-                    outputPath,
+                    output.path,
                     ARG_API_VERSION_SIGNATURE_FILES,
                     pastVersions.joinToString(":") { it.absolutePath },
                     ARG_API_VERSION_NAMES,
@@ -709,10 +693,6 @@ class ApiGeneratorTest : DriverTest() {
         )
     }
 
-    private fun createTextFile(name: String, contents: String): File {
-        val file = File.createTempFile(name, ".txt")
-        file.deleteOnExit()
-        file.writeText(contents)
-        return file
-    }
+    private fun createTextFile(name: String, contents: String) =
+        signature(name, contents).createFile(temporaryFolder.newFolder())
 }

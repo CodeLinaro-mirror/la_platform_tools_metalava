@@ -492,7 +492,7 @@ class SignatureInputOutputTest : Assertions {
         runInputOutputTest(api, format) { codebase ->
             val method = codebase.assertClass("test.pkg.MyTest").methods().single()
             // Return type has platform nullability
-            assertThat(method.hasNullnessInfo()).isFalse()
+            assertThat(method.returnType().modifiers.isPlatformNullability).isTrue()
 
             val annotationArrayArray = method.returnType()
             assertThat(annotationArrayArray).isInstanceOf(ArrayTypeItem::class.java)
@@ -510,8 +510,6 @@ class SignatureInputOutputTest : Assertions {
                 .isEqualTo("java.lang.annotation.Annotation")
             assertThat(annotation.modifiers.annotations().map { it.qualifiedName })
                 .containsExactly("androidx.annotation.C")
-
-            // TODO (b/300081840): test nullability of types
         }
     }
 

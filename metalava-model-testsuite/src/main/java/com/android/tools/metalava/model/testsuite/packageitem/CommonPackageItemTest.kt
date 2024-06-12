@@ -56,7 +56,7 @@ class CommonPackageItemTest : BaseModelTest() {
     }
 
     @Test
-    fun `Test @hide in package info`() {
+    fun `Test @hide in package info processed first`() {
         runSourceCodebaseTest(
             inputSet(
                 java(
@@ -73,6 +73,34 @@ class CommonPackageItemTest : BaseModelTest() {
                         package test.pkg;
 
                         public class Foo {}
+                    """
+                        .trimIndent()
+                ),
+            ),
+        ) {
+            val packageItem = codebase.assertPackage("test.pkg")
+            assertEquals(true, packageItem.originallyHidden)
+        }
+    }
+
+    @Test
+    fun `Test @hide in package info processed last`() {
+        runSourceCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+
+                        public class Foo {}
+                    """
+                        .trimIndent()
+                ),
+                java(
+                    """
+                        /**
+                         * @hide
+                         */
+                        package test.pkg;
                     """
                         .trimIndent()
                 ),

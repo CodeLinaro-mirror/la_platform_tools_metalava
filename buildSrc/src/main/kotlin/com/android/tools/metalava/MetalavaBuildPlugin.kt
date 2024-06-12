@@ -44,6 +44,8 @@ import org.gradle.api.tasks.testing.logging.TestLogEvent
 import org.gradle.kotlin.dsl.create
 import org.gradle.kotlin.dsl.get
 import org.gradle.kotlin.dsl.getByType
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import org.jetbrains.kotlin.gradle.dsl.KotlinVersion
 import org.jetbrains.kotlin.gradle.plugin.KotlinBasePluginWrapper
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
@@ -59,11 +61,11 @@ class MetalavaBuildPlugin : Plugin<Project> {
                 }
                 is KotlinBasePluginWrapper -> {
                     project.tasks.withType(KotlinCompile::class.java).configureEach { task ->
-                        task.kotlinOptions.apply {
-                            jvmTarget = "17"
-                            apiVersion = "1.7"
-                            languageVersion = "1.7"
-                            allWarningsAsErrors = true
+                        task.compilerOptions.apply {
+                            jvmTarget.set(JvmTarget.JVM_17)
+                            apiVersion.set(KotlinVersion.KOTLIN_1_7)
+                            languageVersion.set(KotlinVersion.KOTLIN_1_7)
+                            allWarningsAsErrors.set(true)
                         }
                     }
                 }

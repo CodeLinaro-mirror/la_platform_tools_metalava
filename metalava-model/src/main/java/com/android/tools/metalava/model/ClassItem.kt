@@ -202,8 +202,11 @@ interface ClassItem : Item, TypeParameterListOwner {
     /** Gets the type for this class */
     override fun type(): ClassTypeItem
 
-    override fun findCorrespondingItemIn(codebase: Codebase, superMethods: Boolean) =
-        codebase.findClass(qualifiedName())
+    override fun findCorrespondingItemIn(
+        codebase: Codebase,
+        superMethods: Boolean,
+        duplicate: Boolean,
+    ) = codebase.findClass(qualifiedName())
 
     /** Returns true if this class has type parameters */
     fun hasTypeVariables(): Boolean

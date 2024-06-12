@@ -22,8 +22,11 @@ interface ConstructorItem : MethodItem {
     /** Returns the internal name of the class, as seen in bytecode */
     override fun internalName(): String = "<init>"
 
-    override fun findCorrespondingItemIn(codebase: Codebase, superMethods: Boolean) =
-        containingClass().findCorrespondingItemIn(codebase)?.findConstructor(this)
+    override fun findCorrespondingItemIn(
+        codebase: Codebase,
+        superMethods: Boolean,
+        duplicate: Boolean,
+    ) = containingClass().findCorrespondingItemIn(codebase)?.findConstructor(this)
 
     /**
      * The constructor that the stub version of this constructor must delegate to in its `super`

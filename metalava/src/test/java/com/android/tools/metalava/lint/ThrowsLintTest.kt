@@ -170,6 +170,32 @@ class ThrowsLintTest : DriverTest() {
     }
 
     @Test
+    fun `Hidden Unchecked exceptions allowed`() {
+        check(
+            apiLint = "",
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                        package test.pkg;
+                        public class Foo {
+                           public void a() throws NullPointerException;
+                        }
+                    """
+                    ),
+                    java(
+                        """
+                        /**
+                        * @hide
+                        */
+                        package test.pkg;
+                    """
+                    )
+                )
+        )
+    }
+
+    @Test
     fun `Test throws type parameter`() {
         check(
             apiLint = "", // enabled
