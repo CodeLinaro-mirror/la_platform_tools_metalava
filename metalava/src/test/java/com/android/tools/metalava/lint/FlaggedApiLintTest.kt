@@ -59,10 +59,10 @@ class FlaggedApiLintTest : DriverTest() {
                     java(
                         """
                             package android.foobar;
-    
+
                             import android.annotation.SystemApi;
                             import android.annotation.FlaggedApi;
-    
+
                             /** @hide */
                             @SystemApi
                             public class ExistingSystemApi extends Existing {
@@ -83,10 +83,10 @@ class FlaggedApiLintTest : DriverTest() {
                     java(
                         """
                             package android.foobar;
-    
+
                             import android.annotation.SystemApi;
                             import android.annotation.FlaggedApi;
-    
+
                             public class Existing {
                                 public int existingPublicApi() { return 0; }
                                 /** @hide */
@@ -124,13 +124,13 @@ class FlaggedApiLintTest : DriverTest() {
                 """
                     package android.foobar {
                       public class ExistingClass {
-                          ctor ExistingClass();
+                          ctor public ExistingClass();
                           field public static final String EXISTING_FIELD = "foo";
                           method public void existingMethod();
                       }
                       public interface ExistingInterface {
                           field public static final String EXISTING_INTERFACE_FIELD = "foo";
-                          method public void existingInterfaceMethod();
+                          method public default void existingInterfaceMethod();
                       }
                       public class ExistingSuperClass {
                           ctor public ExistingSuperClass();
@@ -144,9 +144,9 @@ class FlaggedApiLintTest : DriverTest() {
                     java(
                         """
                             package android.foobar;
-    
+
                             import android.annotation.FlaggedApi;
-    
+
                             public interface ExistingInterface {
                                 public static final String EXISTING_INTERFACE_FIELD = "foo";
                                 public default void existingInterfaceMethod() {}
@@ -156,9 +156,9 @@ class FlaggedApiLintTest : DriverTest() {
                     java(
                         """
                             package android.foobar;
-    
+
                             import android.annotation.FlaggedApi;
-    
+
                             public class ExistingSuperClass {
                                 public static final String EXISTING_SUPER_FIELD = "foo";
                                 public void existingSuperMethod() {}
@@ -168,19 +168,19 @@ class FlaggedApiLintTest : DriverTest() {
                     java(
                         """
                             package android.foobar;
-    
+
                             import android.annotation.FlaggedApi;
-    
+
                             public class ExistingClass extends BadHiddenSuperClass implements BadHiddenSuperInterface {
                                 public static final String EXISTING_FIELD = "foo";
                                 public void existingMethod() {}
-    
+
                                 public static final String BAD = "bar";
                                 public void bad() {}
-    
+
                                 @FlaggedApi(Flags.FLAG_MY_FEATURE)
                                 public static final String OK = "baz";
-    
+
                                 @FlaggedApi(Flags.FLAG_MY_FEATURE)
                                 public void ok() {}
                             }
@@ -189,7 +189,7 @@ class FlaggedApiLintTest : DriverTest() {
                     java(
                         """
                             package android.foobar;
-    
+
                             class BadHiddenSuperClass {
                                 public static final String INHERITED_BAD = "bar";
                                 public void inheritedBad() {}
@@ -199,7 +199,7 @@ class FlaggedApiLintTest : DriverTest() {
                     java(
                         """
                             package android.foobar;
-    
+
                             interface BadHiddenSuperInterface {
                                 public static final String INHERITED_BAD = "bar";
                                 public void inheritedBad() {}
@@ -209,7 +209,7 @@ class FlaggedApiLintTest : DriverTest() {
                     java(
                         """
                             package android.foobar;
-    
+
                             public class Bad extends BadHiddenSuperClass implements BadHiddenSuperInterface {
                                 public static final String BAD = "bar";
                                 public void bad() {}
@@ -221,9 +221,9 @@ class FlaggedApiLintTest : DriverTest() {
                     java(
                         """
                             package android.foobar;
-    
+
                             import android.annotation.FlaggedApi;
-    
+
                             @FlaggedApi(Flags.FLAG_MY_FEATURE)
                             public class Ok extends ExistingSuperClass implements ExistingInterface {
                                 public static final String OK = "bar";
@@ -249,7 +249,7 @@ class FlaggedApiLintTest : DriverTest() {
                 """
                     package android.foobar {
                       public class Existing.Inner {
-                          method int existing();
+                          method public int existing();
                       }
                     }
                 """,
@@ -258,9 +258,9 @@ class FlaggedApiLintTest : DriverTest() {
                     java(
                         """
                             package android.foobar;
-    
+
                             import android.annotation.SystemApi;
-    
+
                             public class Existing {
                                 public class Inner {
                                     /** @hide */
@@ -291,7 +291,7 @@ class FlaggedApiLintTest : DriverTest() {
                     package android.foobar {
                       public interface ExistingSystemInterface {
                           field public static final String EXISTING_SYSTEM_INTERFACE_FIELD = "foo";
-                          method public void existingSystemInterfaceMethod();
+                          method public default void existingSystemInterfaceMethod();
                       }
                       public class ExistingSystemSuperClass {
                           ctor public ExistingSystemSuperClass();
@@ -307,10 +307,10 @@ class FlaggedApiLintTest : DriverTest() {
                     java(
                         """
                             package android.foobar;
-    
+
                             import android.annotation.FlaggedApi;
                             import android.annotation.SystemApi;
-    
+
                             /** @hide */
                             @SystemApi
                             public interface ExistingSystemInterface {
@@ -322,10 +322,10 @@ class FlaggedApiLintTest : DriverTest() {
                     java(
                         """
                             package android.foobar;
-    
+
                             import android.annotation.FlaggedApi;
                             import android.annotation.SystemApi;
-    
+
                             /** @hide */
                             @SystemApi
                             public class ExistingSystemSuperClass {
@@ -337,7 +337,7 @@ class FlaggedApiLintTest : DriverTest() {
                     java(
                         """
                             package android.foobar;
-    
+
                             public interface ExistingPublicInterface {
                                 public static final String EXISTING_PUBLIC_INTERFACE_FIELD = "foo";
                                 public default void existingPublicInterfaceMethod() {}
@@ -347,7 +347,7 @@ class FlaggedApiLintTest : DriverTest() {
                     java(
                         """
                             package android.foobar;
-    
+
                             class BadHiddenSuperClass {
                                 public static final String BAD_INHERITED = "foo";
                                 public default void badInherited() {}
@@ -357,7 +357,7 @@ class FlaggedApiLintTest : DriverTest() {
                     java(
                         """
                             package android.foobar;
-    
+
                             public class ExistingPublicSuperClass {
                                 public static final String EXISTING_PUBLIC_SUPER_FIELD = "foo";
                                 public void existingPublicSuperMethod() {}
@@ -367,9 +367,9 @@ class FlaggedApiLintTest : DriverTest() {
                     java(
                         """
                             package android.foobar;
-    
+
                             import android.annotation.SystemApi;
-    
+
                             /** @hide */
                             @SystemApi
                             @SuppressWarnings("UnflaggedApi")  // Ignore the class itself for this test.
@@ -381,9 +381,9 @@ class FlaggedApiLintTest : DriverTest() {
                     java(
                         """
                             package android.foobar;
-    
+
                             import android.annotation.SystemApi;
-    
+
                             /** @hide */
                             @SystemApi
                             @SuppressWarnings("UnflaggedApi")  // Ignore the class itself for this test.
@@ -395,9 +395,9 @@ class FlaggedApiLintTest : DriverTest() {
                     java(
                         """
                             package android.foobar;
-    
+
                             import android.annotation.SystemApi;
-    
+
                             /** @hide */
                             @SystemApi
                             @SuppressWarnings("UnflaggedApi")  // Ignore the class itself for this test.
@@ -409,9 +409,9 @@ class FlaggedApiLintTest : DriverTest() {
                     java(
                         """
                             package android.foobar;
-    
+
                             import android.annotation.SystemApi;
-    
+
                             /** @hide */
                             @SystemApi
                             public class Existing extends ExistingPublicSuperClass implements ExistingPublicInterface {
@@ -447,9 +447,9 @@ class FlaggedApiLintTest : DriverTest() {
                     java(
                         """
                             package android.foobar;
-    
+
                             import android.annotation.FlaggedApi;
-    
+
                             @FlaggedApi("android.foobar.my_feature")
                             public class Bad {
                                 @FlaggedApi("android.foobar.my_feature")
@@ -460,7 +460,7 @@ class FlaggedApiLintTest : DriverTest() {
                                 public interface BadInterface {}
                                 @FlaggedApi("android.foobar.my_feature")
                                 public @interface BadAnnotation {}
-    
+
                                 @FlaggedApi("malformed/flag")
                                 public void malformed() {}
                                 @FlaggedApi("android.foobar.nonexistent_flag")
@@ -473,9 +473,9 @@ class FlaggedApiLintTest : DriverTest() {
                     java(
                         """
                             package android.foobar;
-    
+
                             import android.annotation.FlaggedApi;
-    
+
                             @FlaggedApi(android.foobar.Flags.FLAG_MY_FEATURE)
                             public class Ok {
                                 @FlaggedApi(android.foobar.Flags.FLAG_MY_FEATURE)
@@ -492,6 +492,157 @@ class FlaggedApiLintTest : DriverTest() {
                     flagsFile,
                     flaggedApiSource
                 ),
+        )
+    }
+
+    @Test
+    fun `Require @FlaggedApi on APIs whose modifiers have changed`() {
+        check(
+            expectedIssues =
+                """
+                    src/test/pkg/Foo.java:3: warning: Changes to modifiers, from 'public abstract' to 'public' must be flagged with @FlaggedApi: class test.pkg.Foo [UnflaggedApi]
+                    src/test/pkg/Foo.java:4: warning: Changes to modifiers, from 'protected' to 'public' must be flagged with @FlaggedApi: constructor test.pkg.Foo() [UnflaggedApi]
+                    src/test/pkg/Foo.java:5: warning: Changes to modifiers, from 'public final' to 'public' must be flagged with @FlaggedApi: method test.pkg.Foo.method() [UnflaggedApi]
+                """,
+            apiLint =
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public abstract class Foo {
+                        ctor protected Foo();
+                        method public final void method();
+                      }
+                    }
+                """,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+
+                            public class Foo {
+                                public Foo() {}
+                                public void method() {}
+                            }
+                        """
+                    ),
+                    flagsFile,
+                    flaggedApiSource,
+                ),
+            extraArguments = arrayOf(ARG_WARNING, "UnflaggedApi"),
+        )
+    }
+
+    @Test
+    fun `Do not require @FlaggedApi on concrete class methods that override a default interface method`() {
+        check(
+            expectedIssues = "",
+            apiLint =
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public interface Base {
+                        method public default void method();
+                      }
+                      public class Foo implements test.pkg.Base {
+                      }
+                    }
+                """,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+
+                            public interface Base {
+                                default void method() {}
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+
+                            public class Foo implements Base {
+                                private Foo() {}
+                                public void method() {}
+                            }
+                        """
+                    ),
+                    flagsFile,
+                    flaggedApiSource,
+                ),
+            extraArguments = arrayOf(ARG_WARNING, "UnflaggedApi"),
+        )
+    }
+
+    @Test
+    fun `Require @FlaggedApi on APIs whose deprecated status has changed to deprecated`() {
+        check(
+            expectedIssues =
+                """
+                    src/test/pkg/Foo.java:7: warning: Changes from not deprecated to deprecated must be flagged with @FlaggedApi: class test.pkg.Foo [UnflaggedApi]
+                """,
+            apiLint =
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public class Foo {
+                        ctor public Foo();
+                      }
+                    }
+                """,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+
+                            /**
+                             * @deprecated
+                             */
+                            @Deprecated
+                            public class Foo {
+                            }
+                        """
+                    ),
+                    flagsFile,
+                    flaggedApiSource,
+                ),
+            extraArguments = arrayOf(ARG_WARNING, "UnflaggedApi"),
+        )
+    }
+
+    @Test
+    fun `Require @FlaggedApi on APIs whose deprecated status has changed to not deprecated`() {
+        check(
+            expectedIssues =
+                """
+                    src/test/pkg/Foo.java:3: warning: Changes from deprecated to not deprecated must be flagged with @FlaggedApi: class test.pkg.Foo [UnflaggedApi]
+                """,
+            apiLint =
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      @Deprecated public class Foo {
+                        ctor public Foo();
+                      }
+                    }
+                """,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+
+                            public class Foo {
+                            }
+                        """
+                    ),
+                    flagsFile,
+                    flaggedApiSource,
+                ),
+            extraArguments = arrayOf(ARG_WARNING, "UnflaggedApi"),
         )
     }
 }

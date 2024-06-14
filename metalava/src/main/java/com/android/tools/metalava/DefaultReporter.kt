@@ -32,7 +32,6 @@ import com.android.tools.metalava.reporter.Severity.ERROR
 import com.android.tools.metalava.reporter.Severity.HIDDEN
 import com.android.tools.metalava.reporter.Severity.INFO
 import com.android.tools.metalava.reporter.Severity.INHERIT
-import com.android.tools.metalava.reporter.Severity.LINT
 import com.android.tools.metalava.reporter.Severity.WARNING
 import com.android.tools.metalava.reporter.Severity.WARNING_ERROR_WHEN_NEW
 import java.io.File
@@ -69,9 +68,6 @@ internal class DefaultReporter(
      * for the bootstrapping reporter. That receives a default instance of this.
      */
     class Config(
-        /** If true, treat all API lint warnings as errors */
-        val lintsAsErrors: Boolean = false,
-
         /** If true, treat all warnings as errors */
         val warningsAsErrors: Boolean = false,
 
@@ -101,8 +97,7 @@ internal class DefaultReporter(
     ): Boolean {
         val severity = issueConfiguration.getSeverity(id)
         val upgradedSeverity =
-            if (severity == LINT && config.lintsAsErrors) ERROR
-            else if (severity == WARNING && config.warningsAsErrors) {
+            if (severity == WARNING && config.warningsAsErrors) {
                 ERROR
             } else {
                 severity
@@ -261,7 +256,6 @@ internal class DefaultReporter(
         sb.append(terminal.attributes(bold = true))
         location?.let { sb.append(it).append(": ") }
         when (severity) {
-            LINT -> sb.append(terminal.attributes(foreground = TerminalColor.CYAN)).append("lint: ")
             INFO -> sb.append(terminal.attributes(foreground = TerminalColor.CYAN)).append("info: ")
             WARNING,
             WARNING_ERROR_WHEN_NEW ->

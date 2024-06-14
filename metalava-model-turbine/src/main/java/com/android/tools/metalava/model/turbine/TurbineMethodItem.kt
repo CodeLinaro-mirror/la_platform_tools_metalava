@@ -24,6 +24,7 @@ import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.computeSuperMethods
+import com.android.tools.metalava.model.updateCopiedMethodState
 import com.android.tools.metalava.reporter.FileLocation
 import com.google.turbine.binder.sym.MethodSymbol
 
@@ -97,8 +98,6 @@ internal open class TurbineMethodItem(
     override var _requiresOverride: Boolean? = null
 
     override fun duplicate(targetContainingClass: ClassItem): TurbineMethodItem {
-        // Duplicate the parameters
-        val params = parameters.map { TurbineParameterItem.duplicate(codebase, it, emptyMap()) }
         val retType = returnType.duplicate()
         val mods = modifiers.duplicate()
         val duplicateMethod =
@@ -113,6 +112,11 @@ internal open class TurbineMethodItem(
                 documentation,
                 defaultValue,
             )
+        // Duplicate the parameters
+        val params =
+            parameters.map {
+                TurbineParameterItem.duplicate(codebase, duplicateMethod, it, emptyMap())
+            }
         duplicateMethod.parameters = params
         duplicateMethod.inheritedFrom = containingClass
         duplicateMethod.throwableTypes = throwableTypes
@@ -130,6 +134,8 @@ internal open class TurbineMethodItem(
         if (targetContainingClass.deprecated) {
             duplicateMethod.deprecated = true
         }
+
+        duplicateMethod.updateCopiedMethodState()
 
         return duplicateMethod
     }

@@ -35,15 +35,12 @@ import java.io.File
 const val ARG_ERROR = "--error"
 const val ARG_ERROR_WHEN_NEW = "--error-when-new"
 const val ARG_WARNING = "--warning"
-const val ARG_LINT = "--lint"
 const val ARG_HIDE = "--hide"
 const val ARG_ERROR_CATEGORY = "--error-category"
 const val ARG_ERROR_WHEN_NEW_CATEGORY = "--error-when-new-category"
 const val ARG_WARNING_CATEGORY = "--warning-category"
-const val ARG_LINT_CATEGORY = "--lint-category"
 const val ARG_HIDE_CATEGORY = "--hide-category"
 
-const val ARG_LINTS_AS_ERRORS = "--lints-as-errors"
 const val ARG_WARNINGS_AS_ERRORS = "--warnings-as-errors"
 
 const val ARG_REPORT_EVEN_IF_SUPPRESSED = "--report-even-if-suppressed"
@@ -134,17 +131,6 @@ class IssueReportingOptions(
         registerOption(issueOption)
     }
 
-    private val lintsAsErrors: Boolean by
-        option(
-                ARG_LINTS_AS_ERRORS,
-                help =
-                    """
-                        Promote all API lint issues to errors.
-                    """
-                        .trimIndent()
-            )
-            .flag()
-
     private val warningsAsErrors: Boolean by
         option(
                 ARG_WARNINGS_AS_ERRORS,
@@ -185,7 +171,6 @@ class IssueReportingOptions(
             val reportEvenIfSuppressedWriter = reportEvenIfSuppressedFile?.printWriter()
 
             DefaultReporter.Config(
-                lintsAsErrors = lintsAsErrors,
                 warningsAsErrors = warningsAsErrors,
                 terminal = commonOptions.terminal,
                 reportEvenIfSuppressedWriter = reportEvenIfSuppressedWriter,
@@ -277,12 +262,6 @@ private enum class ConfigLabel(
         ConfigurableAspect.ISSUE,
         "Report issues of the given id as warnings.",
     ),
-    LINT(
-        ARG_LINT,
-        Severity.LINT,
-        ConfigurableAspect.ISSUE,
-        "Report issues of the given id as having lint-severity.",
-    ),
     HIDE(
         ARG_HIDE,
         Severity.HIDDEN,
@@ -306,12 +285,6 @@ private enum class ConfigLabel(
         Severity.WARNING,
         ConfigurableAspect.CATEGORY,
         "Report all issues in the given category as warnings.",
-    ),
-    LINT_CATEGORY(
-        ARG_LINT_CATEGORY,
-        Severity.LINT,
-        ConfigurableAspect.CATEGORY,
-        "Report all issues in the given category as having lint-severity.",
     ),
     HIDE_CATEGORY(
         ARG_HIDE_CATEGORY,

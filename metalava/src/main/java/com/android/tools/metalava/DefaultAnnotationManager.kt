@@ -235,6 +235,7 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
 
             // These aren't support annotations, but could/should be:
             "android.annotation.CurrentTimeMillisLong",
+            "android.annotation.DurationMicrosLong",
             "android.annotation.DurationMillisLong",
             "android.annotation.ElapsedRealtimeLong",
             "android.annotation.UserIdInt",

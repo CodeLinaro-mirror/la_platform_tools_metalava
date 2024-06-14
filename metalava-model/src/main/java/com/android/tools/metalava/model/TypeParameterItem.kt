@@ -85,6 +85,9 @@ interface TypeParameterItem : Item {
 
     override fun containingClass() = error("Not needed for TypeParameterItem")
 
-    override fun findCorrespondingItemIn(codebase: Codebase, superMethods: Boolean) =
-        error("Not needed for TypeParameterItem")
+    override fun findCorrespondingItemIn(
+        codebase: Codebase,
+        superMethods: Boolean,
+        duplicate: Boolean,
+    ) = error("Not needed for TypeParameterItem")
 }

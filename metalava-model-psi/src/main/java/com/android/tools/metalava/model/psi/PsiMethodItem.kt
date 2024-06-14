@@ -24,6 +24,7 @@ import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.computeSuperMethods
 import com.android.tools.metalava.model.type.MethodFingerprint
+import com.android.tools.metalava.model.updateCopiedMethodState
 import com.android.tools.metalava.reporter.FileLocation
 import com.intellij.psi.PsiAnnotationMethod
 import com.intellij.psi.PsiMethod
@@ -249,6 +250,9 @@ open class PsiMethodItem(
         if (targetContainingClass.deprecated) {
             duplicated.deprecated = true
         }
+
+        duplicated.updateCopiedMethodState()
+
         return duplicated
     }
 

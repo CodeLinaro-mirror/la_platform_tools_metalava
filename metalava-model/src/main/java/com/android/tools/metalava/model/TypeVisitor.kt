@@ -74,3 +74,80 @@ open class BaseTypeVisitor : TypeVisitor {
 
     open fun visitWildcardType(wildcardType: WildcardTypeItem) = Unit
 }
+
+/**
+ * Visitor that recurs through both a main type and a list of other types, assumed to have the same
+ * structure. When visiting an inner type of the main type, it also takes the corresponding inner
+ * type of each of the other types. For instance, when visiting an [ArrayTypeItem], the visitor will
+ * recur to the main type component type along with a list of component types from the other types.
+ * If the types do not have the same structure, the list of other types will shrink when there is no
+ * corresponding inner type relative to the main type.
+ */
+open class MultipleTypeVisitor {
+    fun visit(primitiveType: PrimitiveTypeItem, other: List<TypeItem>) {
+        visitType(primitiveType, other)
+        visitPrimitiveType(primitiveType, other)
+    }
+
+    fun visit(arrayType: ArrayTypeItem, other: List<TypeItem>) {
+        visitType(arrayType, other)
+        visitArrayType(arrayType, other)
+
+        arrayType.componentType.accept(
+            this,
+            other.mapNotNull { (it as? ArrayTypeItem)?.componentType }
+        )
+    }
+
+    fun visit(classType: ClassTypeItem, other: List<TypeItem>) {
+        visitType(classType, other)
+        visitClassType(classType, other)
+
+        classType.outerClassType?.accept(
+            this,
+            other.mapNotNull { (it as? ClassTypeItem)?.outerClassType }
+        )
+        classType.arguments.forEachIndexed { index, arg ->
+            arg.accept(
+                this,
+                other.mapNotNull { (it as? ClassTypeItem)?.arguments?.getOrNull(index) }
+            )
+        }
+    }
+
+    fun visit(variableType: VariableTypeItem, other: List<TypeItem>) {
+        visitType(variableType, other)
+        visitVariableType(variableType, other)
+    }
+
+    fun visit(wildcardType: WildcardTypeItem, other: List<TypeItem>) {
+        visitType(wildcardType, other)
+        visitWildcardType(wildcardType, other)
+
+        if (wildcardType.superBound != null) {
+            wildcardType.superBound?.accept(
+                this,
+                other.mapNotNull { (it as? WildcardTypeItem)?.superBound }
+            )
+        } else {
+            // Only visit the extends bound if the super bound doesn't exist (don't visit implicit
+            // object bounds)
+            wildcardType.extendsBound?.accept(
+                this,
+                other.mapNotNull { (it as? WildcardTypeItem)?.extendsBound }
+            )
+        }
+    }
+
+    open fun visitType(type: TypeItem, other: List<TypeItem>) = Unit
+
+    open fun visitPrimitiveType(primitiveType: PrimitiveTypeItem, other: List<TypeItem>) = Unit
+
+    open fun visitArrayType(arrayType: ArrayTypeItem, other: List<TypeItem>) = Unit
+
+    open fun visitClassType(classType: ClassTypeItem, other: List<TypeItem>) = Unit
+
+    open fun visitVariableType(variableType: VariableTypeItem, other: List<TypeItem>) = Unit
+
+    open fun visitWildcardType(wildcardType: WildcardTypeItem, other: List<TypeItem>) = Unit
+}

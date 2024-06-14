@@ -42,6 +42,18 @@ interface TypeModifiers {
 
     /** Create a copy of this to which modifications can be made. */
     fun duplicate(withNullability: TypeNullability? = null): TypeModifiers
+
+    /** Whether the [nullability] is [TypeNullability.NULLABLE]. */
+    val isNullable
+        get() = nullability() == TypeNullability.NULLABLE
+
+    /** Whether the [nullability] is [TypeNullability.NONNULL]. */
+    val isNonNull
+        get() = nullability() == TypeNullability.NONNULL
+
+    /** Whether the [nullability] is [TypeNullability.PLATFORM]. */
+    val isPlatformNullability
+        get() = nullability() == TypeNullability.PLATFORM
 }
 
 /** An enum representing the possible nullness values of a type. */
