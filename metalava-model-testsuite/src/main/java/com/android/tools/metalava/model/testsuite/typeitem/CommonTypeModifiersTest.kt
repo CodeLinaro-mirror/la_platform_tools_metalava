@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.testsuite.typeitem
 
+import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.TypeModifiers
 import com.android.tools.metalava.model.TypeNullability.NONNULL
@@ -2251,6 +2252,58 @@ class CommonTypeModifiersTest : BaseModelTest() {
             // The super interface types must be non-null.
             val superInterfaceType = fooClass.interfaceTypes().single()
             superInterfaceType.assertHasNonNullNullability(expectAnnotation = false)
+        }
+    }
+
+    @Test
+    fun `Test nullability of class type parameter from constructor`() {
+        runCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+                    public class Foo<F> {
+                        public class Bar<B> {}
+                    }
+                """
+                    .trimIndent()
+            ),
+            kotlin(
+                """
+                    package test.pkg
+                    class Foo<F> {
+                        inner class Bar<B>
+                    }
+                """
+                    .trimIndent()
+            ),
+            signature(
+                """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public class Foo<F> {
+                        ctor public Foo();
+                      }
+                      public class Foo.Bar<B> {
+                        ctor public Foo.Bar();
+                      }
+                    }
+                """
+                    .trimIndent()
+            ),
+        ) {
+            val foo = codebase.assertClass("test.pkg.Foo").constructors().single().returnType()
+            foo.assertHasNonNullNullability()
+            val f = (foo as ClassTypeItem).arguments.single()
+            f.assertHasUndefinedNullability()
+
+            val bar = codebase.assertClass("test.pkg.Foo.Bar").constructors().single().returnType()
+            bar.assertHasNonNullNullability()
+            val b = (bar as ClassTypeItem).arguments.single()
+            b.assertHasUndefinedNullability()
+            val outerFoo = bar.outerClassType!!
+            outerFoo.assertHasNonNullNullability()
+            val outerF = outerFoo.arguments.single()
+            outerF.assertHasUndefinedNullability()
         }
     }
 }

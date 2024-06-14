@@ -59,6 +59,7 @@ import com.android.tools.metalava.model.ModifierList
 import com.android.tools.metalava.model.TraversingVisitor
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeNullability
+import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.model.source.SourceCodebase
 import com.android.tools.metalava.model.source.SourceParser
 import com.android.tools.metalava.model.source.SourceSet
@@ -301,7 +302,7 @@ class AnnotationsMerger(
                 ) {
                     var addAnnotation = false
                     if (annotation.isNullnessAnnotation()) {
-                        if (!newModifiers.hasNullnessInfo()) {
+                        if (!newModifiers.hasAnnotation(AnnotationItem::isNullnessAnnotation)) {
                             addAnnotation = true
                         }
                     } else {

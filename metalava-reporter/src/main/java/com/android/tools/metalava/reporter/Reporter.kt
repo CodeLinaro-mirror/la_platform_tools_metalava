@@ -37,7 +37,7 @@ interface Reporter {
         id: Issues.Issue,
         file: File?,
         message: String,
-        maximumSeverity: Severity = Severity.ERROR,
+        maximumSeverity: Severity = Severity.UNLIMITED,
     ): Boolean {
         val location = IssueLocation.forFile(file)
         return report(id, null, message, location, maximumSeverity)
@@ -84,7 +84,7 @@ interface Reporter {
         reportable: Reportable?,
         message: String,
         location: IssueLocation = IssueLocation.unknownLocationAndBaselineKey,
-        maximumSeverity: Severity = Severity.ERROR,
+        maximumSeverity: Severity = Severity.UNLIMITED,
     ): Boolean
 
     /**

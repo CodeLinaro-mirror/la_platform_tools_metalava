@@ -96,8 +96,16 @@ open class ApiElement : Comparable<ApiElement> {
             mLastPresentIn = version
         }
         if (deprecated) {
+            // If it was not previously deprecated or was deprecated in a later version than this
+            // one then deprecate it in this version.
             if (deprecatedIn == 0 || deprecatedIn > version) {
                 deprecatedIn = version
+            }
+        } else {
+            // If it was previously deprecated and was deprecated in an earlier version than this
+            // one then treat it as being undeprecated.
+            if (deprecatedIn != 0 && deprecatedIn < version) {
+                deprecatedIn = 0
             }
         }
     }

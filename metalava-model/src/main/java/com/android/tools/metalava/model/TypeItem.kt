@@ -37,6 +37,8 @@ interface TypeItem {
 
     fun accept(visitor: TypeVisitor)
 
+    fun accept(visitor: MultipleTypeVisitor, other: List<TypeItem>)
+
     /**
      * Whether this type is equal to [other], not considering modifiers.
      *
@@ -812,6 +814,10 @@ interface PrimitiveTypeItem : TypeItem {
         visitor.visit(this)
     }
 
+    override fun accept(visitor: MultipleTypeVisitor, other: List<TypeItem>) {
+        visitor.visit(this, other)
+    }
+
     override fun duplicate(): PrimitiveTypeItem
 
     override fun convertType(typeParameterBindings: TypeParameterBindings): PrimitiveTypeItem {
@@ -837,6 +843,10 @@ interface ArrayTypeItem : TypeItem, ReferenceTypeItem {
 
     override fun accept(visitor: TypeVisitor) {
         visitor.visit(this)
+    }
+
+    override fun accept(visitor: MultipleTypeVisitor, other: List<TypeItem>) {
+        visitor.visit(this, other)
     }
 
     override fun duplicate(): ArrayTypeItem = duplicate(componentType.duplicate())
@@ -888,6 +898,10 @@ interface ClassTypeItem : TypeItem, BoundsTypeItem, ReferenceTypeItem, Exception
 
     override fun accept(visitor: TypeVisitor) {
         visitor.visit(this)
+    }
+
+    override fun accept(visitor: MultipleTypeVisitor, other: List<TypeItem>) {
+        visitor.visit(this, other)
     }
 
     /**
@@ -989,6 +1003,10 @@ interface VariableTypeItem : TypeItem, BoundsTypeItem, ReferenceTypeItem, Except
         visitor.visit(this)
     }
 
+    override fun accept(visitor: MultipleTypeVisitor, other: List<TypeItem>) {
+        visitor.visit(this, other)
+    }
+
     override fun convertType(typeParameterBindings: TypeParameterBindings): ReferenceTypeItem {
         val nullability = modifiers.nullability()
         return (typeParameterBindings[asTypeParameter] ?: this).duplicate().apply {
@@ -1036,6 +1054,10 @@ interface WildcardTypeItem : TypeItem, TypeArgumentTypeItem {
         visitor.visit(this)
     }
 
+    override fun accept(visitor: MultipleTypeVisitor, other: List<TypeItem>) {
+        visitor.visit(this, other)
+    }
+
     override fun duplicate(): WildcardTypeItem =
         duplicate(extendsBound?.duplicate(), superBound?.duplicate())
 
@@ -1064,9 +1086,7 @@ interface WildcardTypeItem : TypeItem, TypeArgumentTypeItem {
 
     override fun hashCodeForType(): Int = Objects.hash(extendsBound, superBound)
 
-    override fun asClass(): ClassItem? {
-        TODO("Not yet implemented")
-    }
+    override fun asClass(): ClassItem? = null
 }
 
 /**

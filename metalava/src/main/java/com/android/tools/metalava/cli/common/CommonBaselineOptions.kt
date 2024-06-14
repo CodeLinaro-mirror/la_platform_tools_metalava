@@ -67,7 +67,7 @@ class CommonBaselineOptions(
                     """
                         Normally, encountering errors will fail the build, even when updating
                         baselines. This flag will record issues in baseline files but otherwise
-                        ignore them so that all the baselines in the source tree can be updated in 
+                        ignore them so that all the baselines in the source tree can be updated in
                         one go.
                     """
                         .trimIndent()

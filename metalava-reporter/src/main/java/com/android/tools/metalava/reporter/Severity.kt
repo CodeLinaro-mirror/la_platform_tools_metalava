@@ -36,12 +36,6 @@ enum class Severity(
     INFO("info"),
 
     /**
-     * Lint level means that we encountered inconsistent or broken documentation. These should be
-     * resolved, but don't impact API compatibility.
-     */
-    LINT("lint"),
-
-    /**
      * Warning level means that we encountered some incompatible or inconsistent API change. These
      * must be resolved to preserve API compatibility.
      */
@@ -61,6 +55,14 @@ enum class Severity(
      * documentation.
      */
     ERROR("error");
+
+    companion object {
+        /**
+         * The default value for the `maximumSeverity` parameter in [Reporter.report] methods which
+         * is the highest [Severity], i.e. last defined.
+         */
+        val UNLIMITED = values().last()
+    }
 
     override fun toString(): String = displayName
 }

@@ -125,6 +125,7 @@ internal class PsiTypeItemFactory(
             psiTypeWithTypeParametersIfAny,
             KotlinTypeInfo.fromContext(psiClassItem.psiClass),
             contextNullability = ContextNullability.forceNonNull,
+            creatingClassTypeForClass = true,
         ) as PsiClassTypeItem
     }
 
@@ -138,7 +139,7 @@ internal class PsiTypeItemFactory(
             psiType,
             null,
             psiTypeParameterItem,
-            ContextNullability.none,
+            ContextNullability.forceUndefined,
         )
     }
 
@@ -162,6 +163,7 @@ internal class PsiTypeItemFactory(
         psiType: PsiType,
         kotlinType: KotlinTypeInfo?,
         contextNullability: ContextNullability = ContextNullability.none,
+        creatingClassTypeForClass: Boolean = false,
     ): PsiTypeItem {
         return when (psiType) {
             is PsiPrimitiveType ->
@@ -195,11 +197,19 @@ internal class PsiTypeItemFactory(
                     }
 
                 if (typeParameterItem != null) {
+                    // The type parameters of a class type for the class definition don't have
+                    // defined nullability (their bounds might).
+                    val correctedContextNullability =
+                        if (creatingClassTypeForClass) {
+                            ContextNullability.forceUndefined
+                        } else {
+                            contextNullability
+                        }
                     createVariableTypeItem(
                         psiType = psiType,
                         kotlinType = kotlinType,
                         typeParameterItem = typeParameterItem,
-                        contextNullability = contextNullability,
+                        contextNullability = correctedContextNullability,
                     )
                 } else {
                     if (kotlinType?.ktType is KtFunctionalType) {
@@ -213,6 +223,7 @@ internal class PsiTypeItemFactory(
                             psiType = psiType,
                             kotlinType = kotlinType,
                             contextNullability = contextNullability,
+                            creatingClassTypeForClass = creatingClassTypeForClass,
                         )
                     }
                 }
@@ -290,6 +301,7 @@ internal class PsiTypeItemFactory(
         psiType: PsiClassType,
         kotlinType: KotlinTypeInfo?,
         contextNullability: ContextNullability,
+        creatingClassTypeForClass: Boolean = false,
     ): PsiClassTypeItem {
         val qualifiedName = psiType.computeQualifiedName()
         return PsiClassTypeItem(
@@ -300,11 +312,13 @@ internal class PsiTypeItemFactory(
                 computeTypeArguments(
                     psiType,
                     kotlinType,
+                    creatingClassTypeForClass,
                 ),
             outerClassType =
                 computeOuterClass(
                     psiType,
                     kotlinType,
+                    creatingClassTypeForClass = true,
                 ),
             // This should be able to use `psiType.name`, but that sometimes returns null.
             className = ClassTypeItem.computeClassName(qualifiedName),
@@ -315,7 +329,8 @@ internal class PsiTypeItemFactory(
     /** Compute the [PsiClassTypeItem.arguments]. */
     private fun computeTypeArguments(
         psiType: PsiClassType,
-        kotlinType: KotlinTypeInfo?
+        kotlinType: KotlinTypeInfo?,
+        creatingClassTypeForClass: Boolean = false,
     ): List<TypeArgumentTypeItem> {
         val psiParameters =
             psiType.parameters.toList().ifEmpty {
@@ -333,7 +348,12 @@ internal class PsiTypeItemFactory(
 
         return psiParameters.mapIndexed { i, param ->
             val forTypeArgument = kotlinType?.forTypeArgument(i)
-            createTypeItem(param, forTypeArgument) as TypeArgumentTypeItem
+            createTypeItem(
+                param,
+                forTypeArgument,
+                creatingClassTypeForClass = creatingClassTypeForClass
+            )
+                as TypeArgumentTypeItem
         }
     }
 
@@ -441,7 +461,8 @@ internal class PsiTypeItemFactory(
     /** Compute the [PsiClassTypeItem.outerClassType]. */
     private fun computeOuterClass(
         psiType: PsiClassType,
-        kotlinType: KotlinTypeInfo?
+        kotlinType: KotlinTypeInfo?,
+        creatingClassTypeForClass: Boolean = false,
     ): PsiClassTypeItem? {
         // TODO(b/300081840): this drops annotations on the outer class
         return PsiNameHelper.getOuterClassReference(psiType.canonicalText).let { outerClassName ->
@@ -463,6 +484,7 @@ internal class PsiTypeItemFactory(
                 (createTypeItem(
                         psiOuterClassType,
                         kotlinType?.forOuterClass(),
+                        creatingClassTypeForClass = creatingClassTypeForClass,
                     )
                         as PsiClassTypeItem)
                     .apply {

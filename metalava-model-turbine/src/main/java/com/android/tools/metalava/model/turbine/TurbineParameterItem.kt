@@ -75,6 +75,7 @@ internal class TurbineParameterItem(
     companion object {
         internal fun duplicate(
             codebase: TurbineBasedCodebase,
+            containingMethod: MethodItem,
             parameter: ParameterItem,
             typeParameterBindings: TypeParameterBindings,
         ): TurbineParameterItem {
@@ -84,7 +85,7 @@ internal class TurbineParameterItem(
                 codebase,
                 FileLocation.UNKNOWN,
                 parameter.name(),
-                parameter.containingMethod(),
+                containingMethod,
                 parameter.parameterIndex,
                 type,
                 mods

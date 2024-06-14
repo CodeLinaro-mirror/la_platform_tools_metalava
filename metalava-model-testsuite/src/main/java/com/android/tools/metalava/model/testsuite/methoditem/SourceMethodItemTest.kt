@@ -16,13 +16,26 @@
 
 package com.android.tools.metalava.model.testsuite.methoditem
 
+import com.android.tools.metalava.model.MethodItem
+import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.java
 import kotlin.test.assertEquals
+import kotlin.test.assertSame
 import org.junit.Test
 
 /** Common tests for implementations of [MethodItem] for source based models. */
 class SourceMethodItemTest : BaseModelTest() {
+
+    /** Check the state of a [ParameterItem]. */
+    private fun checkMethodParameterState(duplicatedMethod: MethodItem) {
+        duplicatedMethod.parameters().forEach {
+            // Make sure that the duplicated parameters consider themselves to be part of
+            // the duplicated method.
+            assertSame(duplicatedMethod, it.containingMethod())
+        }
+    }
+
     @Test
     fun `test duplicate() for methoditem`() {
         runSourceCodebaseTest(
@@ -67,6 +80,7 @@ class SourceMethodItemTest : BaseModelTest() {
             assertEquals(methodItem.typeParameterList, duplicateMethod.typeParameterList)
             assertEquals(methodItem.throwsTypes(), duplicateMethod.throwsTypes())
             assertEquals(classItem, duplicateMethod.inheritedFrom)
+            checkMethodParameterState(duplicateMethod)
 
             assertEquals(
                 methodItem1.modifiers.getVisibilityLevel(),
@@ -83,6 +97,7 @@ class SourceMethodItemTest : BaseModelTest() {
             assertEquals(methodItem1.typeParameterList, duplicateMethod1.typeParameterList)
             assertEquals(methodItem1.throwsTypes(), duplicateMethod1.throwsTypes())
             assertEquals(classItem, duplicateMethod1.inheritedFrom)
+            checkMethodParameterState(duplicateMethod1)
         }
     }
 
@@ -130,6 +145,7 @@ class SourceMethodItemTest : BaseModelTest() {
             assertEquals(methodItem.typeParameterList, inheritedMethod.typeParameterList)
             assertEquals(methodItem.throwsTypes(), inheritedMethod.throwsTypes())
             assertEquals(classItem, inheritedMethod.inheritedFrom)
+            checkMethodParameterState(inheritedMethod)
 
             assertEquals(
                 methodItem1.modifiers.getVisibilityLevel(),
@@ -147,6 +163,7 @@ class SourceMethodItemTest : BaseModelTest() {
             assertEquals(methodItem1.typeParameterList, inheritedMethod1.typeParameterList)
             assertEquals(methodItem1.throwsTypes(), inheritedMethod1.throwsTypes())
             assertEquals(classItem, inheritedMethod1.inheritedFrom)
+            checkMethodParameterState(inheritedMethod1)
         }
     }
 }

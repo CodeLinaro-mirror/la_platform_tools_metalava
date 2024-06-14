@@ -57,6 +57,12 @@ class KotlinOperatorTest : DriverTest() {
                     }
                     """
                     ),
+                    java(
+                        """
+                            package android.pkg;
+                            public class JavaClass {}
+                        """
+                    ),
                     androidxNullableSource
                 )
         )
