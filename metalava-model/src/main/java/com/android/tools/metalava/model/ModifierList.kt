@@ -49,6 +49,8 @@ interface ModifierList {
 
     fun isDefault(): Boolean
 
+    fun isDeprecated(): Boolean
+
     // Modifier in Kotlin, separate syntax (...) in Java but modeled as modifier here
     fun isVarArg(): Boolean = false
 

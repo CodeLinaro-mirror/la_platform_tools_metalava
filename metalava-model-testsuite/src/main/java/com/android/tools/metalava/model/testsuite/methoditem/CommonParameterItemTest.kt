@@ -71,6 +71,7 @@ class CommonParameterItemTest : BaseModelTest() {
             }
             assertEquals("deprecated", true, parameterItem.deprecated)
             assertEquals("originallyDeprecated", true, parameterItem.originallyDeprecated)
+            assertEquals("effectivelyDeprecated", true, parameterItem.effectivelyDeprecated)
         }
     }
 
@@ -110,6 +111,7 @@ class CommonParameterItemTest : BaseModelTest() {
                 codebase.assertClass("test.pkg.Bar").methods().single().parameters().single()
             assertEquals("deprecated", false, parameterItem.deprecated)
             assertEquals("originallyDeprecated", false, parameterItem.originallyDeprecated)
+            assertEquals("effectivelyDeprecated", false, parameterItem.effectivelyDeprecated)
         }
     }
 

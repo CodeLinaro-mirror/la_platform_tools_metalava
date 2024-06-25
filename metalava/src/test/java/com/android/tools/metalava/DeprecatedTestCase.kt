@@ -92,4 +92,57 @@ class DeprecatedTestCase : DriverTest() {
                 """,
         )
     }
+
+    @Test
+    fun `Test deprecated not written out for contents of a removed class`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+
+                            /**
+                             * @deprecated
+                             * @removed
+                             */
+                            @Deprecated
+                            public class Foo {
+                                public Foo() {}
+                                public static final int CONSTANT = 1;
+                                public void method(int p1) {}
+                                @Deprecated public void deprecatedMethod() {}
+                                public static class Nested {
+                                    public Nested() {}
+                                    public static final int NESTED_CONSTANT = 1;
+                                    public void nestedMethod(int p1) {}
+                                    @Deprecated public void deprecatedNestedMethod() {}
+                                }
+                            }
+                        """
+                    ),
+                ),
+            removedApi =
+                """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      @Deprecated public class Foo {
+                        ctor public Foo();
+                        method @Deprecated public void deprecatedMethod();
+                        method public void method(int);
+                        field public static final int CONSTANT = 1; // 0x1
+                      }
+                      public static class Foo.Nested {
+                        ctor public Foo.Nested();
+                        method @Deprecated public void deprecatedNestedMethod();
+                        method public void nestedMethod(int);
+                        field public static final int NESTED_CONSTANT = 1; // 0x1
+                      }
+                    }
+                """,
+            api = """
+                    // Signature format: 5.0
+                """,
+        )
+    }
 }

@@ -437,7 +437,10 @@ abstract class DefaultItem(
 
     final override val sortingRank: Int = nextRank.getAndIncrement()
 
-    final override var originallyDeprecated = modifiers.isDeprecated()
+    final override val originallyDeprecated
+        // Delegate to the [ModifierList.isDeprecated] method so that changes to that will affect
+        // the value of this and [Item.effectivelyDeprecated] which delegates to this.
+        get() = modifiers.isDeprecated()
 
     final override var deprecated = originallyDeprecated
 

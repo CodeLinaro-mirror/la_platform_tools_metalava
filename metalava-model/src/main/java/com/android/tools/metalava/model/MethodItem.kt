@@ -280,7 +280,10 @@ interface MethodItem : MemberItem, TypeParameterListOwner {
                 return false
             }
 
-            if (method.deprecated != superMethod.deprecated && !method.deprecated) {
+            if (
+                method.effectivelyDeprecated != superMethod.effectivelyDeprecated &&
+                    !method.effectivelyDeprecated
+            ) {
                 return false
             }
 

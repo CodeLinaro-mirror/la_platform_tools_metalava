@@ -687,6 +687,7 @@ class StubsAnnotationTest : AbstractStubsTest() {
                     @Deprecated
                     @test.pkg.MyRuntimeRetentionAnnotation
                     public class Foo {
+                    @Deprecated
                     Foo() { throw new RuntimeException("Stub!"); }
                     }
                     """
@@ -758,6 +759,7 @@ class StubsAnnotationTest : AbstractStubsTest() {
                     @test.pkg.MyClassRetentionAnnotation
                     @test.pkg.MyRuntimeRetentionAnnotation
                     public class Foo {
+                    @Deprecated
                     Foo() { throw new RuntimeException("Stub!"); }
                     @Deprecated
                     public void bar() { throw new RuntimeException("Stub!"); }
