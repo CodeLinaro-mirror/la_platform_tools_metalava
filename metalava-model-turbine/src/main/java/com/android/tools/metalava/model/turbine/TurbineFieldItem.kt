@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 The Android Open Source Project
+ * Copyright (C) 2023 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,39 +26,39 @@ internal class TurbineFieldItem(
     codebase: TurbineBasedCodebase,
     fileLocation: FileLocation,
     private val name: String,
-    private val containingClass: ClassItem,
+    containingClass: ClassItem,
     private val type: TypeItem,
     modifiers: DefaultModifierList,
     documentation: String,
     private val isEnumConstant: Boolean,
     private val fieldValue: TurbineFieldValue?,
-) : TurbineItem(codebase, fileLocation, modifiers, documentation), FieldItem {
+) :
+    TurbineMemberItem(codebase, fileLocation, modifiers, documentation, containingClass),
+    FieldItem {
 
     override var inheritedFrom: ClassItem? = null
 
     override fun name(): String = name
-
-    override fun containingClass(): ClassItem = containingClass
 
     override fun equals(other: Any?): Boolean {
         if (this === other) {
             return true
         }
         return other is FieldItem &&
-            name == other.name() &&
-            containingClass == other.containingClass()
+            name() == other.name() &&
+            containingClass() == other.containingClass()
     }
 
-    override fun hashCode(): Int = name.hashCode()
+    override fun hashCode(): Int = name().hashCode()
 
     override fun type(): TypeItem = type
 
     override fun duplicate(targetContainingClass: ClassItem): FieldItem {
-        val duplicateField =
+        val duplicated =
             TurbineFieldItem(
                 codebase,
                 fileLocation,
-                name,
+                name(),
                 targetContainingClass,
                 type.duplicate(),
                 modifiers.duplicate(),
@@ -66,20 +66,23 @@ internal class TurbineFieldItem(
                 isEnumConstant,
                 fieldValue,
             )
-        duplicateField.inheritedFrom = containingClass
+        duplicated.inheritedFrom = containingClass()
 
         // Preserve flags that may have been inherited (propagated) from surrounding packages
         if (targetContainingClass.hidden) {
-            duplicateField.hidden = true
+            duplicated.hidden = true
         }
         if (targetContainingClass.removed) {
-            duplicateField.removed = true
+            duplicated.removed = true
         }
         if (targetContainingClass.docOnly) {
-            duplicateField.docOnly = true
+            duplicated.docOnly = true
+        }
+        if (targetContainingClass.deprecated) {
+            duplicated.deprecated = true
         }
 
-        return duplicateField
+        return duplicated
     }
 
     override fun initialValue(requireConstant: Boolean) = fieldValue?.initialValue(requireConstant)

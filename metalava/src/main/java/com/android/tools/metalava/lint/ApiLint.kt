@@ -139,6 +139,7 @@ import com.android.tools.metalava.reporter.Issues.NO_BYTE_OR_SHORT
 import com.android.tools.metalava.reporter.Issues.NO_CLONE
 import com.android.tools.metalava.reporter.Issues.NO_SETTINGS_PROVIDER
 import com.android.tools.metalava.reporter.Issues.NULLABLE_COLLECTION
+import com.android.tools.metalava.reporter.Issues.NULLABLE_COLLECTION_ELEMENT
 import com.android.tools.metalava.reporter.Issues.ON_NAME_EXPECTED
 import com.android.tools.metalava.reporter.Issues.OPTIONAL_BUILDER_CONSTRUCTOR_ARGUMENT
 import com.android.tools.metalava.reporter.Issues.OVERLAPPING_CONSTANTS
@@ -1723,15 +1724,24 @@ private constructor(
             }
         val superType = superItem?.type()
 
-        checkNullableCollections(type, item, superType)
+        // Visit all subtypes of the type (paired with the types from the super method) to check for
+        // nullable collections.
+        type.accept(
+            object : MultipleTypeVisitor() {
+                override fun visitType(type: TypeItem, other: List<TypeItem>) {
+                    // type is from the main type, other is from the supertype
+                    checkNullableCollections(type, item, other.singleOrNull())
+                }
+            },
+            listOfNotNull(superType)
+        )
     }
 
     private fun checkNullableCollections(type: TypeItem, item: Item, superType: TypeItem?) {
-        if (!type.modifiers.isNullable) return
-        // Allow a nullable collection when it is present in the super type
-        if (superType?.modifiers?.isNullable == true) return
+        if (!type.isCollection()) return
 
-        if (type.isCollection()) {
+        // Allow a nullable collection when it is present in the super type
+        if (type.modifiers.isNullable && superType?.modifiers?.isNullable != true) {
             val where =
                 when (item) {
                     is MethodItem -> "Return type of ${item.describe()}"
@@ -1744,6 +1754,30 @@ private constructor(
                 item,
                 "$where uses a nullable collection (`$erased`); must be non-null"
             )
+        }
+
+        // Check the collection element type for nullness.
+        val elementType = type.elementType() ?: return
+        // Allow a nullable collection element when it is present in the super type
+        val superElementType = superType?.elementType()
+        if (elementType.modifiers.isNullable && superElementType?.modifiers?.isNullable != true) {
+            report(
+                NULLABLE_COLLECTION_ELEMENT,
+                item,
+                "Collection $type should not have a nullable element type ($elementType) in ${item.describe()}"
+            )
+        }
+    }
+
+    /**
+     * For collection types (see [isCollection]), returns the element type. For maps and other
+     * collections with multiple argument types, this returns the first argument type.
+     */
+    private fun TypeItem.elementType(): TypeItem? {
+        return when (this) {
+            is ArrayTypeItem -> componentType
+            is ClassTypeItem -> arguments.firstOrNull()
+            else -> null
         }
     }
 
@@ -1914,6 +1948,9 @@ private constructor(
     }
 
     private fun checkHasFlaggedApi(item: Item) {
+        // Cannot flag an implicit constructor.
+        if (item is MethodItem && item.isImplicitConstructor()) return
+
         fun itemOrAnyContainingClasses(predicate: Predicate<Item>): Boolean {
             var it: Item? = item
             while (it != null) {
@@ -1991,8 +2028,8 @@ private constructor(
         }
 
         // Check the deprecated status, if it has changed
-        val previousDeprecated = previousItem.deprecated
-        val currentDeprecated = currentItem.deprecated
+        val previousDeprecated = previousItem.effectivelyDeprecated
+        val currentDeprecated = currentItem.effectivelyDeprecated
         if (currentDeprecated != previousDeprecated) {
             fun deprecatedStatus(b: Boolean): String {
                 return if (b) "deprecated" else "not deprecated"

@@ -234,6 +234,7 @@ com.android.tools.metalava.lint.CheckBuilderTest
 
 com.android.tools.metalava.lint.FlaggedApiLintTest
   Dont require @FlaggedApi on existing items inherited into new SystemApi classes[turbine]
+  Require @FlaggedApi on APIs whose modifiers have changed[turbine]
   Require @FlaggedApi on new APIs[turbine]
   Require @FlaggedApi to reference generated fields[turbine]
 

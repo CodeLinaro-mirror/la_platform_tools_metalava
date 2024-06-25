@@ -86,7 +86,7 @@ interface Item : Reportable {
      * True if this item has been marked as deprecated or is a descendant of a non-package item that
      * has been marked as deprecated.
      */
-    var effectivelyDeprecated: Boolean
+    val effectivelyDeprecated: Boolean
 
     /**
      * True if this item has been marked deprecated.
@@ -438,8 +438,6 @@ abstract class DefaultItem(
     final override val sortingRank: Int = nextRank.getAndIncrement()
 
     final override var originallyDeprecated = modifiers.isDeprecated()
-
-    final override var effectivelyDeprecated = originallyDeprecated
 
     final override var deprecated = originallyDeprecated
 

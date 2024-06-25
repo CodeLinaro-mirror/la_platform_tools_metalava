@@ -20,7 +20,6 @@ import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.DefaultTypeParameterList
-import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.reporter.FileLocation
 import com.google.turbine.binder.sym.MethodSymbol
@@ -55,10 +54,6 @@ internal class TurbineConstructorItem(
     override var superConstructor: ConstructorItem? = null
 
     override fun isConstructor(): Boolean = true
-
-    internal fun setReturnType(type: TypeItem) {
-        returnType = type
-    }
 
     companion object {
         fun createDefaultConstructor(

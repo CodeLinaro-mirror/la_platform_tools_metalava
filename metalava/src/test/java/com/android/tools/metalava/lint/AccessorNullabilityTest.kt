@@ -205,7 +205,9 @@ class AccessorNullabilityTest : DriverTest() {
                     ARG_HIDE,
                     "NullableCollection",
                     ARG_HIDE,
-                    "ArrayReturn"
+                    "ArrayReturn",
+                    ARG_HIDE,
+                    "NullableCollectionElement",
                 ),
             expectedFail = params.expectedFail,
             expectedIssues = params.expectedIssues,

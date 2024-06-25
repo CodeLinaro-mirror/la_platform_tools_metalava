@@ -84,6 +84,9 @@ class PsiFieldItem(
         if (targetContainingClass.docOnly) {
             duplicated.docOnly = true
         }
+        if (targetContainingClass.deprecated) {
+            duplicated.deprecated = true
+        }
 
         return duplicated
     }

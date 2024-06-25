@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model
 
 import com.google.common.truth.Truth.assertThat
+import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertNotNull
 
@@ -76,6 +77,51 @@ interface Assertions {
         val annoItem = modifiers.findAnnotation(qualifiedName)
         assertNotNull(annoItem, message = "Expected item to be annotated with ($qualifiedName)")
         return assertIs(annoItem)
+    }
+
+    /**
+     * Check the [Item.originallyDeprecated] and [Item.deprecated] are [explicitlyDeprecated] and
+     * [implicitlyDeprecated] respectively.
+     *
+     * This will also check that the [Item.deprecated] is the same as [Item.effectivelyDeprecated]
+     * to ensure consistency while replacing the former with the latter.
+     */
+    private fun Item.assertDeprecatedStatus(
+        explicitlyDeprecated: Boolean,
+        implicitlyDeprecated: Boolean = explicitlyDeprecated,
+    ) {
+        assertEquals(
+            explicitlyDeprecated,
+            originallyDeprecated,
+            message = "$this: originallyDeprecated"
+        )
+        assertEquals(implicitlyDeprecated, deprecated, message = "$this: deprecated")
+        assertEquals(
+            implicitlyDeprecated,
+            effectivelyDeprecated,
+            message = "$this: effectivelyDeprecated"
+        )
+    }
+
+    /** Make sure that the item is not deprecated explicitly, or implicitly. */
+    fun Item.assertNotDeprecated() {
+        assertDeprecatedStatus(explicitlyDeprecated = false)
+    }
+
+    /** Make sure that the item is explicitly deprecated. */
+    fun Item.assertExplicitlyDeprecated() {
+        assertDeprecatedStatus(explicitlyDeprecated = true)
+    }
+
+    /**
+     * Make sure that the item is implicitly deprecated, this will fail if the item is explicitly
+     * deprecated.
+     */
+    fun Item.assertImplicitlyDeprecated() {
+        assertDeprecatedStatus(
+            explicitlyDeprecated = false,
+            implicitlyDeprecated = true,
+        )
     }
 
     /**
