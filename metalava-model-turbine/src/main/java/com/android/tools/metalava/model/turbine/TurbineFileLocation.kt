@@ -63,14 +63,7 @@ internal class TurbineFileLocation(
          * [TurbineSourceFile].
          */
         fun forTree(classItem: ClassItem, tree: Tree?): FileLocation {
-            // Can only access the [TurbineSourceFile] from the outermost [ClassItem].
-            var outermost = classItem
-            while (true) {
-                val containingClass = outermost.containingClass() ?: break
-                outermost = containingClass
-            }
-
-            val sourceFile = outermost.sourceFile() as? TurbineSourceFile ?: return UNKNOWN
+            val sourceFile = classItem.sourceFile() as? TurbineSourceFile ?: return UNKNOWN
             return forTree(sourceFile, tree)
         }
     }

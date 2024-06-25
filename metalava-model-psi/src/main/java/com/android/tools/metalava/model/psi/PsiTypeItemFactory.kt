@@ -481,16 +481,14 @@ internal class PsiTypeItemFactory(
                         // class declaration, so the resolved [psiType] provides context then.
                         psiType.psiContext ?: psiType.resolve()
                     )
-                (createTypeItem(
-                        psiOuterClassType,
-                        kotlinType?.forOuterClass(),
-                        creatingClassTypeForClass = creatingClassTypeForClass,
-                    )
-                        as PsiClassTypeItem)
-                    .apply {
-                        // An outer class reference can't be null.
-                        modifiers.setNullability(TypeNullability.NONNULL)
-                    }
+                createTypeItem(
+                    psiOuterClassType,
+                    kotlinType?.forOuterClass(),
+                    // An outer class reference can't be null.
+                    contextNullability = ContextNullability.forceNonNull,
+                    creatingClassTypeForClass = creatingClassTypeForClass,
+                )
+                    as PsiClassTypeItem
             }
         }
     }
