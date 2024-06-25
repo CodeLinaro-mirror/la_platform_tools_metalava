@@ -37,6 +37,8 @@ interface MutableModifierList : ModifierList {
 
     fun setDefault(default: Boolean)
 
+    fun setDeprecated(deprecated: Boolean)
+
     fun setSealed(sealed: Boolean)
 
     fun setFunctional(functional: Boolean)

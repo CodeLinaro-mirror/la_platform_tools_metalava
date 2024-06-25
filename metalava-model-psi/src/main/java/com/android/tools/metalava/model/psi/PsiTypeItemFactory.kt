@@ -481,16 +481,14 @@ internal class PsiTypeItemFactory(
                         // class declaration, so the resolved [psiType] provides context then.
                         psiType.psiContext ?: psiType.resolve()
                     )
-                (createTypeItem(
-                        psiOuterClassType,
-                        kotlinType?.forOuterClass(),
-                        creatingClassTypeForClass = creatingClassTypeForClass,
-                    )
-                        as PsiClassTypeItem)
-                    .apply {
-                        // An outer class reference can't be null.
-                        modifiers.setNullability(TypeNullability.NONNULL)
-                    }
+                createTypeItem(
+                    psiOuterClassType,
+                    kotlinType?.forOuterClass(),
+                    // An outer class reference can't be null.
+                    contextNullability = ContextNullability.forceNonNull,
+                    creatingClassTypeForClass = creatingClassTypeForClass,
+                )
+                    as PsiClassTypeItem
             }
         }
     }
@@ -649,6 +647,14 @@ internal class PsiTypeItemFactory(
                     // The kotlinType only applies to an explicit bound, not an implicit bound, so
                     // only pass it through if this has an explicit `extends` bound.
                     kotlinType.takeIf { psiType.isExtends },
+                    // If this is a Kotlin wildcard type with an implicit Object extends bound, the
+                    // Object bound should be nullable, not platform nullness like in Java.
+                    contextNullability =
+                        if (kotlinType != null && !psiType.isExtends) {
+                            ContextNullability(TypeNullability.NULLABLE)
+                        } else {
+                            ContextNullability.none
+                        }
                 ),
             superBound =
                 createBound(
@@ -669,12 +675,13 @@ internal class PsiTypeItemFactory(
     private fun createBound(
         bound: PsiType,
         kotlinType: KotlinTypeInfo?,
+        contextNullability: ContextNullability = ContextNullability.none
     ): ReferenceTypeItem? {
         return if (bound == PsiTypes.nullType()) {
             null
         } else {
             // Use the same Kotlin type, because the wildcard isn't its own level in the KtType.
-            createTypeItem(bound, kotlinType) as ReferenceTypeItem
+            createTypeItem(bound, kotlinType, contextNullability) as ReferenceTypeItem
         }
     }
 }

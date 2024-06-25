@@ -60,19 +60,14 @@ interface TypeModifiers {
 enum class TypeNullability(
     /** Kotlin nullability suffix. */
     val suffix: String,
-    /**
-     * Whether this represents a known nullability, `true` for [NULLABLE] and [NONNULL], `false`
-     * otherwise.
-     */
-    val isKnown: Boolean = false,
 ) {
     /**
      * Nullability for a type that is annotated non-null, is primitive, or defined as non-null in
      * Kotlin.
      */
-    NONNULL("", true),
+    NONNULL(""),
     /** Nullability for a type that is annotated nullable or defined as nullable in Kotlin. */
-    NULLABLE("?", true),
+    NULLABLE("?"),
     /** Nullability for a Java type without a specified nullability. */
     PLATFORM("!"),
     /**

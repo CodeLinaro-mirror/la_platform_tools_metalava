@@ -82,9 +82,6 @@ interface Codebase {
     /** Discards this model */
     fun dispose()
 
-    /** If this codebase was filtered from another codebase, this points to the original */
-    val original: Codebase?
-
     /** If true, this codebase has already been filtered */
     val preFiltered: Boolean
 
@@ -107,7 +104,6 @@ abstract class DefaultCodebase(
     final override val preFiltered: Boolean,
     final override val annotationManager: AnnotationManager,
 ) : Codebase {
-    final override var original: Codebase? = null
 
     override fun unsupported(desc: String?): Nothing {
         error(

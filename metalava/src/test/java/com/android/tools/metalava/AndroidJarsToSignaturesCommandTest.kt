@@ -156,6 +156,15 @@ Arguments:
 // Signature format: 2.0
 package android.test {
 
+  @Deprecated public class ClassAddedAndDeprecatedInApi30 {
+    ctor @Deprecated public ClassAddedAndDeprecatedInApi30(float);
+    ctor @Deprecated public ClassAddedAndDeprecatedInApi30(int);
+    method @Deprecated public void methodExplicitlyDeprecated();
+    method @Deprecated public void methodImplicitlyDeprecated();
+    field @Deprecated public static final int FIELD_EXPLICITLY_DEPRECATED = 1; // 0x1
+    field @Deprecated public static final int FIELD_IMPLICITLY_DEPRECATED = 2; // 0x2
+  }
+
   public class ClassAddedInApi30 {
     method public void methodAddedInApi30();
   }
