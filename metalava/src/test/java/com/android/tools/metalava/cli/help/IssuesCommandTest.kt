@@ -156,6 +156,7 @@ Available Issues                             |  Category                |   Defa
   NotCloseable                               |  api_lint                |   warning
   Nullable                                   |  documentation           |   hidden
   NullableCollection                         |  api_lint                |   warning
+  NullableCollectionElement                  |  api_lint                |   warning
   OnNameExpected                             |  api_lint                |   warning
   OperatorRemoval                            |  compatibility           |   error
   OptionalBuilderConstructorArgument         |  api_lint                |   warning

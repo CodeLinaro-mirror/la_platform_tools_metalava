@@ -56,11 +56,11 @@ fun addApisFromCodebase(
             }
 
             /**
-             * Get the value of [Item.deprecated] from the [Item.actualItem], i.e. the item that
-             * would actually be written out.
+             * Get the value of [Item.originallyDeprecated] from the [Item.actualItem], i.e. the
+             * item that would actually be written out.
              */
             private val Item.actualDeprecated
-                get() = actualItem.deprecated
+                get() = actualItem.effectivelyDeprecated
 
             override fun visitClass(cls: ClassItem) {
                 val newClass = api.addClass(cls.nameInApi(), apiLevel, cls.actualDeprecated)

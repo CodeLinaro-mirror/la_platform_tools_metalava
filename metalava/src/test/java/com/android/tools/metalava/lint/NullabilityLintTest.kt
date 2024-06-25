@@ -710,6 +710,7 @@ class NullabilityLintTest : DriverTest() {
     fun `Test inner type nullness overrides of defined nullness`() {
         check(
             apiLint = "",
+            extraArguments = arrayOf(ARG_HIDE, "NullableCollectionElement"),
             expectedFail = DefaultLintErrorMessage,
             expectedIssues =
                 """
@@ -752,6 +753,7 @@ class NullabilityLintTest : DriverTest() {
         // TODO (b/344859664): this case is ignored for now
         check(
             apiLint = "",
+            extraArguments = arrayOf(ARG_HIDE, "NullableCollectionElement"),
             sourceFiles =
                 arrayOf(
                     java(

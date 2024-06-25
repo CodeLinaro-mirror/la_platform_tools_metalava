@@ -14,76 +14,27 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava.model.testsuite.methoditem
+package com.android.tools.metalava.model.testsuite.fielditem
 
 import com.android.tools.metalava.model.ClassItem
-import com.android.tools.metalava.model.MethodItem
+import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.VisibilityLevel
-import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.testsuite.memberitem.CommonCopyMemberItemTest
 import com.android.tools.metalava.testing.java
 import kotlin.test.assertEquals
-import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import org.junit.Test
-import org.junit.runners.Parameterized
 
-/**
- * Common tests for [MethodItem.duplicate] and [ClassItem.inheritMethodFromNonApiAncestor].
- *
- * These methods do very similar jobs, i.e. take a [MethodItem] from one [ClassItem], create a copy
- * of it in some way, and then add it to another [ClassItem].
- */
-class CommonCopyMethodItemTest : CommonCopyMemberItemTest<MethodItem>() {
+/** Common tests for [FieldItem.duplicate]. */
+class CommonCopyFieldItemTest : CommonCopyMemberItemTest<FieldItem>() {
 
-    enum class CopyMethod(
-        val supportedInputFormats: Set<InputFormat> = setOf(InputFormat.JAVA, InputFormat.SIGNATURE)
-    ) {
-        DUPLICATE {
-            override fun copy(
-                sourceMethodItem: MethodItem,
-                targetClassItem: ClassItem
-            ): MethodItem {
-                return sourceMethodItem.duplicate(targetClassItem)
-            }
-        },
-        INHERIT(supportedInputFormats = setOf(InputFormat.JAVA)) {
-            override fun copy(
-                sourceMethodItem: MethodItem,
-                targetClassItem: ClassItem
-            ): MethodItem {
-                return targetClassItem.inheritMethodFromNonApiAncestor(sourceMethodItem)
-            }
-        };
+    override fun getMember(sourceClassItem: ClassItem) = sourceClassItem.assertField("field")
 
-        abstract fun copy(sourceMethodItem: MethodItem, targetClassItem: ClassItem): MethodItem
-    }
-
-    companion object {
-        @JvmStatic @Parameterized.Parameters fun comparisons() = CopyMethod.values()
-    }
-
-    /**
-     * Set by injection by [Parameterized] after class initializers are called.
-     *
-     * Anything that accesses this, either directly or indirectly must do it after initialization,
-     * e.g. from lazy fields or in methods called from test methods.
-     *
-     * See [codebaseCreatorConfig] for more info.
-     */
-    @Parameterized.Parameter(0) lateinit var copyMethod: CopyMethod
-
-    override fun supportsInputFormat(): Boolean {
-        return (inputFormat in copyMethod.supportedInputFormats)
-    }
-
-    override fun getMember(sourceClassItem: ClassItem) = sourceClassItem.assertMethod("method", "")
-
-    override fun copyMember(sourceMemberItem: MethodItem, targetClassItem: ClassItem) =
-        copyMethod.copy(sourceMemberItem, targetClassItem)
+    override fun copyMember(sourceMemberItem: FieldItem, targetClassItem: ClassItem) =
+        sourceMemberItem.duplicate(targetClassItem)
 
     @Test
-    fun `test copy method from interface to class uses public visibility`() {
+    fun `test copy field from interface to class uses public visibility`() {
         runCopyTest(
             inputSet(
                 signature(
@@ -91,7 +42,7 @@ class CommonCopyMethodItemTest : CommonCopyMemberItemTest<MethodItem>() {
                         // Signature format: 2.0
                         package test.pkg {
                           public interface Source {
-                            method public void method();
+                            field public int field;
                           }
                           public class Target implements Source {
                           }
@@ -107,7 +58,7 @@ class CommonCopyMethodItemTest : CommonCopyMemberItemTest<MethodItem>() {
                         import java.io.IOException;
 
                         public interface Source  {
-                            void method();
+                            int field;
                         }
                     """
                 ),
@@ -127,7 +78,7 @@ class CommonCopyMethodItemTest : CommonCopyMemberItemTest<MethodItem>() {
     }
 
     @Test
-    fun `test copy method from interface to class does not copy default modifier`() {
+    fun `test copy field from interface to class does copy static modifier`() {
         runCopyTest(
             inputSet(
                 signature(
@@ -135,7 +86,7 @@ class CommonCopyMethodItemTest : CommonCopyMemberItemTest<MethodItem>() {
                         // Signature format: 2.0
                         package test.pkg {
                           public interface Source {
-                            method public default void method();
+                            field public static int field;
                           }
                           public class Target implements Source {
                           }
@@ -151,7 +102,7 @@ class CommonCopyMethodItemTest : CommonCopyMemberItemTest<MethodItem>() {
                         import java.io.IOException;
 
                         interface Source  {
-                            default void method() {}
+                            static int field;
                         }
                     """
                 ),
@@ -164,74 +115,15 @@ class CommonCopyMethodItemTest : CommonCopyMemberItemTest<MethodItem>() {
                 ),
             ),
         ) {
-            // Make sure that the default modifier is not copied from an interface method to a
-            // class.
-            assertTrue(sourceMemberItem.modifiers.isDefault())
-            assertFalse(copiedMemberItem.modifiers.isDefault())
-        }
-    }
-
-    @Test
-    fun `test copy method from interface to class does copy static modifier`() {
-        runCopyTest(
-            inputSet(
-                signature(
-                    """
-                        // Signature format: 2.0
-                        package test.pkg {
-                          public interface Source {
-                            method public static void method();
-                          }
-                          public class Target implements Source {
-                          }
-                        }
-                    """
-                ),
-            ),
-            inputSet(
-                java(
-                    """
-                        package test.pkg;
-
-                        import java.io.IOException;
-
-                        interface Source  {
-                            static void method() {}
-                        }
-                    """
-                ),
-                java(
-                    """
-                        package test.pkg;
-
-                        public class Target implements Source {}
-                    """
-                ),
-            ),
-        ) {
-            // Make sure that the static modifier is copied from an interface method to a class.
+            // Make sure that the static modifier is copied from an interface field to a class.
             assertTrue(sourceMemberItem.modifiers.isStatic())
             assertTrue(copiedMemberItem.modifiers.isStatic())
         }
     }
 
     @Test
-    fun `test copy non-final method from non-final class to final class does not change final`() {
+    fun `test copy field from interface to class does set implicit static modifier`() {
         runCopyTest(
-            inputSet(
-                signature(
-                    """
-                        // Signature format: 2.0
-                        package test.pkg {
-                          public class Source {
-                            method public void method();
-                          }
-                          public final class Target implements Source {
-                          }
-                        }
-                    """
-                ),
-            ),
             inputSet(
                 java(
                     """
@@ -239,8 +131,8 @@ class CommonCopyMethodItemTest : CommonCopyMemberItemTest<MethodItem>() {
 
                         import java.io.IOException;
 
-                        public class Source  {
-                            public void method() {}
+                        interface Source  {
+                            int field;
                         }
                     """
                 ),
@@ -248,22 +140,19 @@ class CommonCopyMethodItemTest : CommonCopyMemberItemTest<MethodItem>() {
                     """
                         package test.pkg;
 
-                        public final class Target implements Source {}
+                        public class Target implements Source {}
                     """
                 ),
             ),
         ) {
-            // Make sure that the final modifier is not added to a non-final method copied from a
-            // non-final class to a final class.
-            assertFalse(sourceClassItem.modifiers.isFinal())
-            assertFalse(sourceMemberItem.modifiers.isFinal())
-            assertTrue(targetClassItem.modifiers.isFinal())
-            assertFalse(copiedMemberItem.modifiers.isFinal())
+            // Make sure that the static modifier is copied from an interface field to a class.
+            assertTrue(sourceMemberItem.modifiers.isStatic())
+            assertTrue(copiedMemberItem.modifiers.isStatic())
         }
     }
 
     @Test
-    fun `test copy non deprecated method from non deprecated class to deprecated class treats method as deprecated`() {
+    fun `test copy non deprecated field from non deprecated class to deprecated class treats field as deprecated`() {
         runCopyTest(
             inputSet(
                 signature(
@@ -271,7 +160,7 @@ class CommonCopyMethodItemTest : CommonCopyMemberItemTest<MethodItem>() {
                         // Signature format: 2.0
                         package test.pkg {
                           public class Source {
-                            method public void method();
+                            field public int field;
                           }
                           @Deprecated public class Target implements Source {
                           }
@@ -287,7 +176,7 @@ class CommonCopyMethodItemTest : CommonCopyMemberItemTest<MethodItem>() {
                         import java.io.IOException;
 
                         public class Source  {
-                            public void method() {}
+                            public int field;
                         }
                     """
                 ),
@@ -315,7 +204,7 @@ class CommonCopyMethodItemTest : CommonCopyMemberItemTest<MethodItem>() {
     }
 
     @Test
-    fun `test copy non deprecated method from deprecated class to non deprecated class treats method as deprecated`() {
+    fun `test copy non deprecated field from deprecated class to non deprecated class treats field as not deprecated`() {
         runCopyTest(
             inputSet(
                 signature(
@@ -323,7 +212,7 @@ class CommonCopyMethodItemTest : CommonCopyMemberItemTest<MethodItem>() {
                         // Signature format: 2.0
                         package test.pkg {
                           @Deprecated public class Source {
-                            method public void method();
+                            field public int field;
                           }
                           public class Target implements Source {
                           }
@@ -341,7 +230,7 @@ class CommonCopyMethodItemTest : CommonCopyMemberItemTest<MethodItem>() {
                         /** @deprecated */
                         @Deprecated
                         public class Source  {
-                            public void method() {}
+                            public int field;
                         }
                     """
                 ),
@@ -367,7 +256,7 @@ class CommonCopyMethodItemTest : CommonCopyMemberItemTest<MethodItem>() {
     }
 
     @Test
-    fun `test copy deprecated method from one class to another keeps method as deprecated`() {
+    fun `test copy deprecated field from one class to another keeps field as deprecated`() {
         runCopyTest(
             inputSet(
                 signature(
@@ -375,7 +264,7 @@ class CommonCopyMethodItemTest : CommonCopyMemberItemTest<MethodItem>() {
                         // Signature format: 2.0
                         package test.pkg {
                           public class Source {
-                            method @Deprecated public void method();
+                            field @Deprecated public int field;
                           }
                           public class Target implements Source {
                           }
@@ -392,7 +281,7 @@ class CommonCopyMethodItemTest : CommonCopyMemberItemTest<MethodItem>() {
 
                         public class Source  {
                             /** @deprecated */
-                            @Deprecated public void method() {}
+                            @Deprecated public int field;
                         }
                     """
                 ),

@@ -192,7 +192,7 @@ open class ApiElement : Comparable<ApiElement> {
             stream.print("\" sdks=\"")
             stream.print(mSdks)
         }
-        if (deprecatedIn != 0) {
+        if (deprecatedIn != 0 && deprecatedIn != parentElement.deprecatedIn) {
             stream.print("\" deprecated=\"")
             stream.print(deprecatedIn)
         }

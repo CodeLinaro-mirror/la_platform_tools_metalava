@@ -2306,4 +2306,27 @@ class CommonTypeModifiersTest : BaseModelTest() {
             outerF.assertHasUndefinedNullability()
         }
     }
+
+    @Test
+    fun `Test nullness of unbounded kotlin wildcard`() {
+        runCodebaseTest(
+            kotlin(
+                """
+                    package test.pkg
+                    class Foo {
+                        fun foo(): List<*>
+                    }
+                """
+                    .trimIndent()
+            )
+        ) {
+            val fooMethod = codebase.assertClass("test.pkg.Foo").methods().single()
+            val wildcardType = (fooMethod.returnType() as ClassTypeItem).arguments.single()
+
+            wildcardType.assertHasUndefinedNullability()
+            wildcardType.assertWildcardItem {
+                extendsBound.assertNotNullTypeItem { assertHasNullableNullability() }
+            }
+        }
+    }
 }

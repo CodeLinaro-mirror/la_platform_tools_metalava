@@ -59,6 +59,9 @@ interface PackageItem : Item {
         }
     }
 
+    override val effectivelyDeprecated: Boolean
+        get() = originallyDeprecated
+
     /** Whether this package is empty */
     fun empty() = topLevelClasses().none()
 

@@ -129,11 +129,8 @@ class ConvertJarsToSignatureFiles(
                     val visitor =
                         object : ComparisonVisitor() {
                             override fun compare(old: Item, new: Item) {
-                                if (old.deprecated && !new.deprecated && old !is PackageItem) {
-                                    new.deprecated = true
-                                    progressTracker.progress(
-                                        "Recorded deprecation from previous signature file for $old"
-                                    )
+                                if (old.originallyDeprecated && old !is PackageItem) {
+                                    new.deprecateIfRequired("previous signature file for $old")
                                 }
                             }
                         }
@@ -218,10 +215,7 @@ class ConvertJarsToSignatureFiles(
 
         if ((classNode.access and Opcodes.ACC_DEPRECATED) != 0) {
             val item = codebase.findClass(classNode, MATCH_ALL)
-            if (item != null && !item.deprecated) {
-                item.deprecated = true
-                progressTracker.progress("Turned deprecation on for $item")
-            }
+            item.deprecateIfRequired("byte code for ${classNode.name}")
         }
 
         val methodList = classNode.methods
@@ -231,10 +225,7 @@ class ConvertJarsToSignatureFiles(
                 continue
             }
             val item = codebase.findMethod(classNode, methodNode, MATCH_ALL)
-            if (item != null && !item.deprecated) {
-                item.deprecated = true
-                progressTracker.progress("Turned deprecation on for $item")
-            }
+            item.deprecateIfRequired("byte code for ${methodNode.name}")
         }
 
         val fieldList = classNode.fields
@@ -244,10 +235,17 @@ class ConvertJarsToSignatureFiles(
                 continue
             }
             val item = codebase.findField(classNode, fieldNode, MATCH_ALL)
-            if (item != null && !item.deprecated) {
-                item.deprecated = true
-                progressTracker.progress("Turned deprecation on for $item")
-            }
+            item.deprecateIfRequired("byte code for ${fieldNode.name}")
+        }
+    }
+
+    /** Mark the [Item] as deprecated if required. */
+    private fun Item?.deprecateIfRequired(source: String) {
+        this ?: return
+        if (!originallyDeprecated) {
+            // Set the deprecated flag in the modifiers which underpins [originallyDeprecated].
+            mutableModifiers().setDeprecated(true)
+            progressTracker.progress("Turned deprecation on for $this from $source")
         }
     }
 

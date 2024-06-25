@@ -225,6 +225,7 @@ object Issues {
     val OPTIONAL_BUILDER_CONSTRUCTOR_ARGUMENT by Issue(Severity.WARNING, Category.API_LINT)
     val NO_SETTINGS_PROVIDER by Issue(Severity.HIDDEN, Category.API_LINT)
     val NULLABLE_COLLECTION by Issue(Severity.WARNING, Category.API_LINT)
+    val NULLABLE_COLLECTION_ELEMENT by Issue(Severity.WARNING, Category.API_LINT)
     val ASYNC_SUFFIX_FUTURE by Issue(Severity.ERROR, Category.API_LINT)
     val GENERIC_CALLBACKS by Issue(Severity.ERROR, Category.API_LINT)
     val KOTLIN_DEFAULT_PARAMETER_ORDER by Issue(Severity.ERROR, Category.API_LINT)

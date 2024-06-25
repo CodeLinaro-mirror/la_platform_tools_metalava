@@ -315,15 +315,13 @@ internal fun processFlags(
     }
 
     options.removedApiFile?.let { apiFile ->
-        val unfiltered = codebase.original ?: codebase
-
         val apiType = ApiType.REMOVED
         val removedEmit = apiType.getEmitFilter(options.apiPredicateConfig)
         val removedReference = apiType.getReferenceFilter(options.apiPredicateConfig)
 
         createReportFile(
             progressTracker,
-            unfiltered,
+            codebase,
             apiFile,
             "removed API",
             options.deleteEmptyRemovedSignatures
@@ -332,7 +330,7 @@ internal fun processFlags(
                 printWriter,
                 removedEmit,
                 removedReference,
-                codebase.original != null,
+                false,
                 options.includeSignatureFormatVersionRemoved,
                 options.signatureFileFormat,
                 options.showUnannotated,

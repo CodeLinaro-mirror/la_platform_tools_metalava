@@ -88,6 +88,9 @@ interface ParameterItem : Item {
 
     override fun parent(): MethodItem? = containingMethod()
 
+    override val effectivelyDeprecated: Boolean
+        get() = originallyDeprecated || containingMethod().effectivelyDeprecated
+
     override fun baselineElementId() =
         containingMethod().baselineElementId() + " parameter #" + parameterIndex
 
