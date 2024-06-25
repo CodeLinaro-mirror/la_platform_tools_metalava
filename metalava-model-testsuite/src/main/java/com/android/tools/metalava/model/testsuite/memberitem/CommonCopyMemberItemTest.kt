@@ -57,9 +57,6 @@ abstract class CommonCopyMemberItemTest<M : MemberItem> : BaseModelTest() {
             val targetClassItem = codebase.assertClass("test.pkg.Target")
 
             val sourceMemberItem = getMember(sourceClassItem)
-
-            // Inherit deprecated status from source class to source member.
-            sourceMemberItem.inheritDeprecated()
             val targetMemberItem = copyMember(sourceMemberItem, targetClassItem)
 
             val context =
@@ -72,13 +69,6 @@ abstract class CommonCopyMemberItemTest<M : MemberItem> : BaseModelTest() {
                 )
 
             context.test()
-        }
-    }
-
-    private fun MemberItem.inheritDeprecated() {
-        val containingClass = containingClass()
-        if (containingClass.deprecated) {
-            deprecated = true
         }
     }
 }

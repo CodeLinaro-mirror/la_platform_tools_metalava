@@ -48,11 +48,12 @@ fun Api.readJar(apiLevel: Int, jar: File, extensionVersion: Int? = null, module:
             val classNode = ClassNode(Opcodes.ASM5)
             reader.accept(classNode, 0)
 
+            val classDeprecated = isDeprecated(classNode.access)
             val theClass =
                 addClass(
                     classNode.name,
                     apiLevel,
-                    (classNode.access and Opcodes.ACC_DEPRECATED) != 0
+                    classDeprecated,
                 )
             extensionVersion?.let { theClass.updateExtension(extensionVersion) }
             module?.let { theClass.updateMainlineModule(module) }
@@ -80,7 +81,7 @@ fun Api.readJar(apiLevel: Int, jar: File, extensionVersion: Int? = null, module:
                         theClass.addField(
                             fieldNode.name,
                             apiLevel,
-                            (fieldNode.access and Opcodes.ACC_DEPRECATED) != 0
+                            classDeprecated || isDeprecated(fieldNode.access),
                         )
                     extensionVersion?.let { apiField.updateExtension(extensionVersion) }
                 }
@@ -97,7 +98,7 @@ fun Api.readJar(apiLevel: Int, jar: File, extensionVersion: Int? = null, module:
                         theClass.addMethod(
                             methodNode.name + methodNode.desc,
                             apiLevel,
-                            (methodNode.access and Opcodes.ACC_DEPRECATED) != 0
+                            classDeprecated || isDeprecated(methodNode.access),
                         )
                     extensionVersion?.let { apiMethod.updateExtension(extensionVersion) }
                 }
@@ -107,3 +108,5 @@ fun Api.readJar(apiLevel: Int, jar: File, extensionVersion: Int? = null, module:
         }
     }
 }
+
+private fun isDeprecated(access: Int) = (access and Opcodes.ACC_DEPRECATED) != 0

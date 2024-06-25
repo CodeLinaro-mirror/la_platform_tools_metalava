@@ -690,9 +690,4 @@ fun MethodItem.updateCopiedMethodState() {
     if (mutableModifiers.isDefault() && !containingClass().isInterface()) {
         mutableModifiers.setDefault(false)
     }
-
-    val containingClass = containingClass()
-    if (containingClass.deprecated) {
-        deprecated = true
-    }
 }

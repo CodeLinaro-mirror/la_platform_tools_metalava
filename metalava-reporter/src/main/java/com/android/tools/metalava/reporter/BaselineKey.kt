@@ -16,48 +16,7 @@
 
 package com.android.tools.metalava.reporter
 
-import java.io.File
 import java.nio.file.Path
-
-/**
- * Encapsulates location information in a source file.
- *
- * There are two forms of location encapsulated here. The location in the source file, represented
- * by the [path] and [line] properties and the baseline key used to track known issues.
- *
- * The source location is optional as it is not always available. An unavailable source location is
- * indicated by a null [path]. Even when the [path] is available the [line] may be unknown, which is
- * indicated by a non-positive value.
- *
- * The baseline key identifies an API element, for the purposes of tracking known issues. It does
- * not use the source location as that can vary too much and the baseline key needs to identify the
- * same API component over a long period of time. It makes sense for it to be part of this as it is
- * always used together with the source location. The baseline key allows known issues to be
- * identified and filtered out and the source location is used when reporting new issues.
- */
-class IssueLocation(
-    val fileLocation: FileLocation?,
-    /** The baseline key that identifies the API element. */
-    val baselineKey: BaselineKey,
-) {
-    /** The absolute path to the location, is null when no source location is available. */
-    val path: Path?
-        get() = fileLocation?.path
-
-    /** The line number, may be non-positive indicating that it could not be found. */
-    val line: Int
-        get() = fileLocation?.line ?: 0
-
-    companion object {
-        val unknownLocationAndBaselineKey = IssueLocation(null, BaselineKey.UNKNOWN)
-
-        fun forFile(file: File?): IssueLocation {
-            file ?: return unknownLocationAndBaselineKey
-            val fileLocation = FileLocation.createLocation(file.toPath(), 0)
-            return IssueLocation(fileLocation, BaselineKey.forFile(file))
-        }
-    }
-}
 
 /** Key that can be used to identify an API component for use in the baseline. */
 sealed interface BaselineKey {
@@ -82,9 +41,9 @@ sealed interface BaselineKey {
             return ElementIdBaselineKey(elementId)
         }
 
-        /** Get a [BaselineKey] for the supplied file. */
-        fun forFile(file: File): BaselineKey {
-            return PathBaselineKey(file.toPath())
+        /** Get a [BaselineKey] for the supplied path. */
+        fun forPath(path: Path): BaselineKey {
+            return PathBaselineKey(path)
         }
     }
 

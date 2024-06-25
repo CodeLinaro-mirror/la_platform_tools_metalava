@@ -18,7 +18,6 @@ package com.android.tools.metalava.model
 
 import com.android.tools.metalava.reporter.BaselineKey
 import com.android.tools.metalava.reporter.FileLocation
-import com.android.tools.metalava.reporter.IssueLocation
 import com.android.tools.metalava.reporter.Reportable
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -87,16 +86,6 @@ interface Item : Reportable {
      * has been marked as deprecated.
      */
     val effectivelyDeprecated: Boolean
-
-    /**
-     * True if this item has been marked deprecated.
-     *
-     * The meaning of this property changes over time. Initially, when reading sources it indicates
-     * whether the item has been marked as deprecated (either using `@deprecated` javadoc tag or
-     * `@Deprecated` annotation). However, during processing it is updated to `true` if any of its
-     * non-package ancestors have set this to `true`.
-     */
-    var deprecated: Boolean
 
     /** True if this element is only intended for documentation */
     var docOnly: Boolean
@@ -211,10 +200,6 @@ interface Item : Reportable {
     override val fileLocation: FileLocation
         get() = FileLocation.UNKNOWN
 
-    /** Returns the [IssueLocation] for this item, if any. */
-    override val issueLocation
-        get() = IssueLocation(fileLocation, baselineKey)
-
     /**
      * Returns the [documentation], but with fully qualified links (except for the same package, and
      * when turning a relative reference into a fully qualified reference, use the javadoc syntax
@@ -298,7 +283,7 @@ interface Item : Reportable {
     override fun suppressedIssues(): Set<String>
 
     /** The [BaselineKey] for this. */
-    val baselineKey
+    override val baselineKey
         get() = BaselineKey.forElementId(baselineElementId())
 
     /**
@@ -441,8 +426,6 @@ abstract class DefaultItem(
         // Delegate to the [ModifierList.isDeprecated] method so that changes to that will affect
         // the value of this and [Item.effectivelyDeprecated] which delegates to this.
         get() = modifiers.isDeprecated()
-
-    final override var deprecated = originallyDeprecated
 
     final override fun mutableModifiers(): MutableModifierList = modifiers
 

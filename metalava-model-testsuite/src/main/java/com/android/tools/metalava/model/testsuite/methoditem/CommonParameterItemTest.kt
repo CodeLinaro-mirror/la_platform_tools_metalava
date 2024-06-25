@@ -69,7 +69,6 @@ class CommonParameterItemTest : BaseModelTest() {
             } else {
                 assertEquals("java.lang.Deprecated", annotation.qualifiedName)
             }
-            assertEquals("deprecated", true, parameterItem.deprecated)
             assertEquals("originallyDeprecated", true, parameterItem.originallyDeprecated)
             assertEquals("effectivelyDeprecated", true, parameterItem.effectivelyDeprecated)
         }
@@ -109,7 +108,6 @@ class CommonParameterItemTest : BaseModelTest() {
         ) {
             val parameterItem =
                 codebase.assertClass("test.pkg.Bar").methods().single().parameters().single()
-            assertEquals("deprecated", false, parameterItem.deprecated)
             assertEquals("originallyDeprecated", false, parameterItem.originallyDeprecated)
             assertEquals("effectivelyDeprecated", false, parameterItem.effectivelyDeprecated)
         }

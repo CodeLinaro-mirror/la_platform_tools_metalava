@@ -941,16 +941,6 @@ class ApiAnalyzer(
                 }
 
                 override fun visitClass(cls: ClassItem) {
-                    // Propagate @Deprecated flags down from classes into inner classes, if
-                    // configured.
-                    // Done here rather than in the analyzer which propagates visibility, since we
-                    // want to do it
-                    // after warning
-                    val containingClass = cls.containingClass()
-                    if (containingClass != null && containingClass.deprecated) {
-                        cls.deprecated = true
-                    }
-
                     if (checkSystemApi) {
                         // Look for Android @SystemApi exposed outside the normal SDK; we require
                         // that they're protected with a system permission.
@@ -971,20 +961,10 @@ class ApiAnalyzer(
                 }
 
                 override fun visitField(field: FieldItem) {
-                    val containingClass = field.containingClass()
-                    if (containingClass.deprecated) {
-                        field.deprecated = true
-                    }
-
                     checkTypeReferencesHidden(field, field.type())
                 }
 
                 override fun visitProperty(property: PropertyItem) {
-                    val containingClass = property.containingClass()
-                    if (containingClass.deprecated) {
-                        property.deprecated = true
-                    }
-
                     checkTypeReferencesHidden(property, property.type())
                 }
 
@@ -994,11 +974,6 @@ class ApiAnalyzer(
                             method,
                             method.returnType()
                         ) // returnType is nullable only for constructors
-                    }
-
-                    val containingClass = method.containingClass()
-                    if (containingClass.deprecated) {
-                        method.deprecated = true
                     }
 
                     // Make sure we don't annotate findViewById & getSystemService as @Nullable.

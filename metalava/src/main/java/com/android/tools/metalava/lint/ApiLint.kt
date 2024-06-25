@@ -73,11 +73,11 @@ import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.findAnnotation
 import com.android.tools.metalava.model.hasAnnotation
-import com.android.tools.metalava.model.psi.PsiLocationProvider
+import com.android.tools.metalava.model.psi.PsiFileLocation
 import com.android.tools.metalava.model.psi.PsiMethodItem
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.options
-import com.android.tools.metalava.reporter.IssueLocation
+import com.android.tools.metalava.reporter.FileLocation
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Issues.ABSTRACT_INNER
 import com.android.tools.metalava.reporter.Issues.ACRONYM_NAME
@@ -226,7 +226,7 @@ private constructor(
             id: Issue,
             reportable: Reportable?,
             message: String,
-            location: IssueLocation,
+            location: FileLocation,
             maximumSeverity: Severity,
         ): Boolean {
             // The [Severity] used may be limited by the [Item] on which it is reported.
@@ -348,7 +348,7 @@ private constructor(
         id: Issue,
         item: Item,
         message: String,
-        location: IssueLocation = IssueLocation.unknownLocationAndBaselineKey,
+        location: FileLocation = FileLocation.UNKNOWN,
         maximumSeverity: Severity = Severity.UNLIMITED,
     ) {
         reporter.report(id, item, message, location, maximumSeverity)
@@ -1082,7 +1082,7 @@ private constructor(
             }
             message.append(": ")
             message.append(method.describe())
-            val location = PsiLocationProvider.elementToIssueLocation(psi)
+            val location = PsiFileLocation.fromPsiElement(psi)
             report(VISIBLY_SYNCHRONIZED, method, message.toString(), location)
         }
 
