@@ -235,6 +235,7 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
 
             // These aren't support annotations, but could/should be:
             "android.annotation.CurrentTimeMillisLong",
+            "android.annotation.DurationMicrosLong",
             "android.annotation.DurationMillisLong",
             "android.annotation.ElapsedRealtimeLong",
             "android.annotation.UserIdInt",
@@ -772,6 +773,12 @@ private class LazyAnnotationInfo(
         }
 }
 
-/** Get the actual item to use, this takes into account whether the item has been reverted. */
-val Item.actualItem
-    get() = showability.revertItem ?: this
+/**
+ * Get the actual item to use, this takes into account whether the item has been reverted.
+ *
+ * This casts the [Showability.revertItem] to the same type as this is called upon. That is safe as,
+ * if set to a non-null value the [Showability.revertItem] will always point to an [Item] of the
+ * same type.
+ */
+val <reified T : Item> T.actualItem: T
+    inline get() = (showability.revertItem ?: this) as T

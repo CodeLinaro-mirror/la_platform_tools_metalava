@@ -578,7 +578,7 @@ abstract class DriverTest : CodebaseCreatorConfigAware<SourceModelProvider>, Tem
             when {
                 expectedFail != null -> expectedFail
                 (releasedApiCheck.required() || releasedRemovedApiCheck.required()) &&
-                    !expectedIssues.isNullOrBlank() -> {
+                    expectedIssues?.contains(": error:") == true -> {
                     "Aborting: Found compatibility problems"
                 }
                 else -> ""

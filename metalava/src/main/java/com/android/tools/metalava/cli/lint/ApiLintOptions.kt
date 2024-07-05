@@ -19,14 +19,15 @@ package com.android.tools.metalava.cli.lint
 import com.android.tools.metalava.cli.common.BaselineOptionsMixin
 import com.android.tools.metalava.cli.common.CommonBaselineOptions
 import com.android.tools.metalava.cli.common.ExecutionEnvironment
+import com.android.tools.metalava.cli.common.PreviouslyReleasedApi
 import com.android.tools.metalava.cli.common.allowStructuredOptionName
 import com.android.tools.metalava.cli.common.existingFile
 import com.android.tools.metalava.lint.DefaultLintErrorMessage
 import com.github.ajalt.clikt.parameters.groups.OptionGroup
 import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.flag
+import com.github.ajalt.clikt.parameters.options.multiple
 import com.github.ajalt.clikt.parameters.options.option
-import java.io.File
 
 const val ARG_API_LINT = "--api-lint"
 const val ARG_API_LINT_PREVIOUS_API = "--api-lint-previous-api"
@@ -62,17 +63,37 @@ class ApiLintOptions(
             )
             .flag()
 
-    internal val apiLintPreviousApi: File? by
+    internal val apiLintPreviousApis by
         option(
                 ARG_API_LINT_PREVIOUS_API,
                 help =
                     """
-                        An API signature file that defines a previously released API. API Lint 
-                        issues found in that API will be ignored.
+                        An API signature file that defines, albeit maybe only partially, a
+                        previously released API.
+
+                        If the API surface extends another API surface then this must include all
+                        the corresponding signature files in order from the outermost API surface
+                        that does not extend any API surface to the innermost one that represents
+                        the API surface being generated.
+
+                        API Lint issues found in the previously released API will be ignored.
                      """
                         .trimIndent(),
             )
             .existingFile()
+            .multiple()
+
+    /**
+     * The optional [PreviouslyReleasedApi]. If provided then only API lint issues which are new
+     * since that API was released will be reported.
+     */
+    internal val previouslyReleasedApi by
+        lazy(LazyThreadSafetyMode.NONE) {
+            PreviouslyReleasedApi.optionalPreviouslyReleasedApi(
+                ARG_API_LINT_PREVIOUS_API,
+                apiLintPreviousApis
+            )
+        }
 
     /**
      * If set, metalava will show this error message when "API lint" (i.e. [ARG_API_LINT]) fails.

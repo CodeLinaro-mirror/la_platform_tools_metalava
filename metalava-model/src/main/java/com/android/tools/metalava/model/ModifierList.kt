@@ -49,6 +49,8 @@ interface ModifierList {
 
     fun isDefault(): Boolean
 
+    fun isDeprecated(): Boolean
+
     // Modifier in Kotlin, separate syntax (...) in Java but modeled as modifier here
     fun isVarArg(): Boolean = false
 
@@ -102,15 +104,6 @@ interface ModifierList {
 
         return true
     }
-
-    /** Returns true if this modifier list contains any nullness information */
-    fun hasNullnessInfo(): Boolean = hasAnnotation(AnnotationItem::isNullnessAnnotation)
-
-    /** Returns true if this modifier list contains any a Nullable annotation */
-    fun isNullable(): Boolean = hasAnnotation(AnnotationItem::isNullable)
-
-    /** Returns true if this modifier list contains any a NonNull annotation */
-    fun isNonNull(): Boolean = hasAnnotation(AnnotationItem::isNonNull)
 
     /** Returns true if this modifier list contains the `@JvmSynthetic` annotation */
     fun hasJvmSyntheticAnnotation(): Boolean = hasAnnotation(AnnotationItem::isJvmSynthetic)

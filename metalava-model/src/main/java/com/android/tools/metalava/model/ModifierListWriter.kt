@@ -96,7 +96,11 @@ private constructor(
     /** Write the modifier list (possibly including annotations) to the supplied [writer]. */
     fun write(item: Item) {
         writeAnnotations(item)
+        writeKeywords(item)
+    }
 
+    /** Write the modifier keywords. */
+    fun writeKeywords(item: Item, normalize: Boolean = false) {
         if (
             item is PackageItem ||
                 (target != AnnotationTarget.SIGNATURE_FILE &&
@@ -128,10 +132,7 @@ private constructor(
         }
 
         val isInterface =
-            classItem?.isInterface() == true ||
-                (methodItem?.containingClass()?.isInterface() == true &&
-                    !list.isDefault() &&
-                    !list.isStatic())
+            classItem?.isInterface() == true || methodItem?.containingClass()?.isInterface() == true
 
         val isAbstract = list.isAbstract()
         val ignoreAbstract =
@@ -157,16 +158,26 @@ private constructor(
             writer.write("static ")
         }
 
-        if (
-            list.isFinal() &&
-                language == Language.JAVA &&
-                // Don't show final on parameters: that's an implementation side detail
-                item !is ParameterItem &&
-                classItem?.isEnum() != true
-        ) {
-            writer.write("final ")
-        } else if (!list.isFinal() && language == Language.KOTLIN) {
-            writer.write("open ")
+        when (language) {
+            Language.JAVA -> {
+                if (
+                    list.isFinal() &&
+                        // Don't show final on parameters: that's an implementation detail
+                        item !is ParameterItem &&
+                        // Don't add final on enum or enum members as they are implicitly final.
+                        classItem?.isEnum() != true &&
+                        // If normalizing and the current item is a method and its containing class
+                        // is final then do not write out the final keyword.
+                        (!normalize || methodItem?.containingClass()?.modifiers?.isFinal() != true)
+                ) {
+                    writer.write("final ")
+                }
+            }
+            Language.KOTLIN -> {
+                if (!list.isFinal()) {
+                    writer.write("open ")
+                }
+            }
         }
 
         if (list.isSealed()) {
@@ -235,13 +246,24 @@ private constructor(
 
         // Do not write deprecate or suppress compatibility annotations on a package.
         if (item !is PackageItem) {
-            if (item.deprecated) {
-                // Do not write @Deprecated for a parameter unless it was explicitly marked as
-                // deprecated.
-                if (item !is ParameterItem || item.originallyDeprecated) {
-                    writer.write("@Deprecated")
-                    writer.write(if (separateLines) "\n" else " ")
+            val writeDeprecated =
+                when {
+                    // Do not write @Deprecated for a removed item unless it was explicitly marked
+                    // as deprecated.
+                    item.removed -> item.originallyDeprecated
+                    // Do not write @Deprecated for a parameter unless it was explicitly marked
+                    // as deprecated.
+                    item is ParameterItem -> item.originallyDeprecated
+                    // Do not write @Deprecated for a field if it was inherited from another class
+                    // and was not explicitly qualified.
+                    item is FieldItem ->
+                        if (item.inheritedFromAncestor) item.originallyDeprecated
+                        else item.effectivelyDeprecated
+                    else -> item.effectivelyDeprecated
                 }
+            if (writeDeprecated) {
+                writer.write("@Deprecated")
+                writer.write(if (separateLines) "\n" else " ")
             }
 
             if (item.hasSuppressCompatibilityMetaAnnotation()) {

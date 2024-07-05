@@ -18,6 +18,7 @@
 
 package com.android.tools.metalava
 
+import com.android.tools.metalava.lint.DefaultLintErrorMessage
 import com.android.tools.metalava.testing.java
 import org.junit.Test
 
@@ -25,9 +26,10 @@ class SdkFileWriterTest : DriverTest() {
     @Test
     fun `Test generating broadcast actions`() {
         check(
+            expectedFail = DefaultLintErrorMessage,
             expectedIssues =
                 """
-                src/android/telephony/SubscriptionManager.java:11: lint: Field 'ACTION_DEFAULT_SUBSCRIPTION_CHANGED' is missing @BroadcastBehavior [BroadcastBehavior]
+                src/android/telephony/SubscriptionManager.java:11: error: Field 'ACTION_DEFAULT_SUBSCRIPTION_CHANGED' is missing @BroadcastBehavior [BroadcastBehavior]
                 """,
             sourceFiles =
                 arrayOf(

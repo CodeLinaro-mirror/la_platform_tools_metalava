@@ -203,7 +203,13 @@ internal open class TurbineCodebaseInitialiser(
     ): TurbinePackageItem {
         val pkgItem = codebase.findPackage(name)
         if (pkgItem != null) {
-            return pkgItem as TurbinePackageItem
+            val turbinePkgItem = pkgItem as TurbinePackageItem
+            // Update originallyHidden status based on the documentation.
+            if (document.isNotEmpty()) {
+                turbinePkgItem.updateOriginallyHiddenStatus(document)
+            }
+            // The hidden status will be updated automatically based on originallyHidden
+            return turbinePkgItem
         } else {
             val modifiers = TurbineModifierItem.create(codebase, 0, null, false)
             val fileLocation = TurbineFileLocation.forTree(sourceFile)

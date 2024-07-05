@@ -67,7 +67,7 @@ object Issues {
     val REMOVED_JVM_DEFAULT_WITH_COMPATIBILITY by Issue(Severity.ERROR, Category.COMPATIBILITY)
 
     // Issues in javadoc generation
-    val UNRESOLVED_LINK by Issue(Severity.LINT, Category.DOCUMENTATION)
+    val UNRESOLVED_LINK by Issue(Severity.ERROR, Category.DOCUMENTATION)
     val UNAVAILABLE_SYMBOL by Issue(Severity.WARNING, Category.DOCUMENTATION)
     val HIDDEN_SUPERCLASS by Issue(Severity.WARNING, Category.DOCUMENTATION)
     val DEPRECATED by Issue(Severity.HIDDEN, Category.DOCUMENTATION)
@@ -77,20 +77,20 @@ object Issues {
     val PRIVATE_SUPERCLASS by Issue(Severity.WARNING, Category.DOCUMENTATION)
     val NULLABLE by Issue(Severity.HIDDEN, Category.DOCUMENTATION)
     val INT_DEF by Issue(Severity.HIDDEN, Category.DOCUMENTATION)
-    val REQUIRES_PERMISSION by Issue(Severity.LINT, Category.DOCUMENTATION)
-    val BROADCAST_BEHAVIOR by Issue(Severity.LINT, Category.DOCUMENTATION)
-    val SDK_CONSTANT by Issue(Severity.LINT, Category.DOCUMENTATION)
-    val TODO by Issue(Severity.LINT, Category.DOCUMENTATION)
+    val REQUIRES_PERMISSION by Issue(Severity.ERROR, Category.DOCUMENTATION)
+    val BROADCAST_BEHAVIOR by Issue(Severity.ERROR, Category.DOCUMENTATION)
+    val SDK_CONSTANT by Issue(Severity.ERROR, Category.DOCUMENTATION)
+    val TODO by Issue(Severity.ERROR, Category.DOCUMENTATION)
     val NO_ARTIFACT_DATA by Issue(Severity.HIDDEN, Category.DOCUMENTATION)
     val BROKEN_ARTIFACT_FILE by Issue(Severity.ERROR, Category.DOCUMENTATION)
 
     // Metalava warnings (not from doclava)
 
-    val INVALID_FEATURE_ENFORCEMENT by Issue(Severity.LINT, Category.DOCUMENTATION)
+    val INVALID_FEATURE_ENFORCEMENT by Issue(Severity.ERROR, Category.DOCUMENTATION)
 
-    val MISSING_PERMISSION by Issue(Severity.LINT, Category.DOCUMENTATION)
-    val MULTIPLE_THREAD_ANNOTATIONS by Issue(Severity.LINT, Category.DOCUMENTATION)
-    val UNRESOLVED_CLASS by Issue(Severity.LINT, Category.DOCUMENTATION)
+    val MISSING_PERMISSION by Issue(Severity.ERROR, Category.DOCUMENTATION)
+    val MULTIPLE_THREAD_ANNOTATIONS by Issue(Severity.ERROR, Category.DOCUMENTATION)
+    val UNRESOLVED_CLASS by Issue(Severity.ERROR, Category.DOCUMENTATION)
     val INVALID_NULL_CONVERSION by Issue(Severity.ERROR, Category.COMPATIBILITY)
     val PARAMETER_NAME_CHANGE by Issue(Severity.ERROR, Category.COMPATIBILITY)
     val OPERATOR_REMOVAL by Issue(Severity.ERROR, Category.COMPATIBILITY)
@@ -211,6 +211,8 @@ object Issues {
     val DOCUMENT_EXCEPTIONS by Issue(Severity.ERROR, Category.API_LINT)
     val FORBIDDEN_SUPER_CLASS by Issue(Severity.ERROR, Category.API_LINT)
     val MISSING_NULLABILITY by Issue(Severity.ERROR, Category.API_LINT)
+    // This issue must be manually enabled
+    val MISSING_INNER_NULLABILITY by Issue(Severity.HIDDEN, Category.API_LINT)
     val INVALID_NULLABILITY_OVERRIDE by Issue(Severity.ERROR, Category.API_LINT)
     val MUTABLE_BARE_FIELD by Issue(Severity.ERROR, Category.API_LINT)
     val INTERNAL_FIELD by Issue(Severity.ERROR, Category.API_LINT)
@@ -223,11 +225,13 @@ object Issues {
     val OPTIONAL_BUILDER_CONSTRUCTOR_ARGUMENT by Issue(Severity.WARNING, Category.API_LINT)
     val NO_SETTINGS_PROVIDER by Issue(Severity.HIDDEN, Category.API_LINT)
     val NULLABLE_COLLECTION by Issue(Severity.WARNING, Category.API_LINT)
+    val NULLABLE_COLLECTION_ELEMENT by Issue(Severity.WARNING, Category.API_LINT)
     val ASYNC_SUFFIX_FUTURE by Issue(Severity.ERROR, Category.API_LINT)
     val GENERIC_CALLBACKS by Issue(Severity.ERROR, Category.API_LINT)
     val KOTLIN_DEFAULT_PARAMETER_ORDER by Issue(Severity.ERROR, Category.API_LINT)
     val UNFLAGGED_API by Issue(Severity.HIDDEN, Category.API_LINT)
     val FLAGGED_API_LITERAL by Issue(Severity.WARNING_ERROR_WHEN_NEW, Category.API_LINT)
+    val GETTER_SETTER_NULLABILITY by Issue(Severity.WARNING_ERROR_WHEN_NEW, Category.API_LINT)
 
     fun findIssueById(id: String?): Issue? {
         return nameToIssue[id]

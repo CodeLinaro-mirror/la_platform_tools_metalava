@@ -28,8 +28,15 @@ Api Lint:
   Options controlling API linting.
 
   --api-lint                                 Check API for Android API best practices.
-  --api-lint-previous-api <file>             An API signature file that defines a previously released API. API Lint
-                                             issues found in that API will be ignored.
+  --api-lint-previous-api <file>             An API signature file that defines, albeit maybe only partially, a
+                                             previously released API.
+
+                                             If the API surface extends another API surface then this must include all
+                                             the corresponding signature files in order from the outermost API surface
+                                             that does not extend any API surface to the innermost one that represents
+                                             the API surface being generated.
+
+                                             API Lint issues found in the previously released API will be ignored.
   --error-message:api-lint <message>         If set, this is output when errors are detected in --api-lint.
   --baseline:api-lint <file>                 An optional baseline file that contains a list of known API lint issues
                                              which should be ignored. If this does not exist and
@@ -56,7 +63,7 @@ class ApiLintOptionsTest :
         val file =
             signature("released.txt", "// Signature format: 2.0\n").createFile(temporaryFolder.root)
         runTest(ARG_API_LINT_PREVIOUS_API, file.path) {
-            assertThat(options.apiLintPreviousApi).isEqualTo(file)
+            assertThat(options.apiLintPreviousApis).isEqualTo(listOf(file))
         }
     }
 }

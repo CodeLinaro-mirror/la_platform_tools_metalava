@@ -32,6 +32,9 @@ com.android.tools.metalava.CoreApiTest
   Hidden with --hide-annotation[turbine]
   Hidden with package javadoc and hiding default constructor explicitly[turbine]
 
+com.android.tools.metalava.DeprecatedTestCase
+  Test deprecated not written out for contents of a removed class[turbine]
+
 com.android.tools.metalava.ExtractAnnotationsTest
   Check java typedef extraction and warning about non-source retention of typedefs[turbine]
   Check warning about unexpected returns from typedef method[turbine]
@@ -226,9 +229,7 @@ com.android.tools.metalava.lint.ApiLintTest
   Check package layering[turbine]
   Check suppress works on inherited methods[turbine]
   CompletableFuture and plain Future not allowed[turbine]
-  Constructors return types don't require nullability[turbine]
   Listener replaceable with OutcomeReceiver or ListenableFuture[turbine]
-  Test listeners[turbine]
   Typedef must be hidden[turbine]
 
 com.android.tools.metalava.lint.CheckBuilderTest
@@ -236,6 +237,7 @@ com.android.tools.metalava.lint.CheckBuilderTest
 
 com.android.tools.metalava.lint.FlaggedApiLintTest
   Dont require @FlaggedApi on existing items inherited into new SystemApi classes[turbine]
+  Require @FlaggedApi on APIs whose modifiers have changed[turbine]
   Require @FlaggedApi on new APIs[turbine]
   Require @FlaggedApi to reference generated fields[turbine]
 

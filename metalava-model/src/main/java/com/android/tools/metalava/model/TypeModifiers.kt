@@ -42,25 +42,32 @@ interface TypeModifiers {
 
     /** Create a copy of this to which modifications can be made. */
     fun duplicate(withNullability: TypeNullability? = null): TypeModifiers
+
+    /** Whether the [nullability] is [TypeNullability.NULLABLE]. */
+    val isNullable
+        get() = nullability() == TypeNullability.NULLABLE
+
+    /** Whether the [nullability] is [TypeNullability.NONNULL]. */
+    val isNonNull
+        get() = nullability() == TypeNullability.NONNULL
+
+    /** Whether the [nullability] is [TypeNullability.PLATFORM]. */
+    val isPlatformNullability
+        get() = nullability() == TypeNullability.PLATFORM
 }
 
 /** An enum representing the possible nullness values of a type. */
 enum class TypeNullability(
     /** Kotlin nullability suffix. */
     val suffix: String,
-    /**
-     * Whether this represents a known nullability, `true` for [NULLABLE] and [NONNULL], `false`
-     * otherwise.
-     */
-    val isKnown: Boolean = false,
 ) {
     /**
      * Nullability for a type that is annotated non-null, is primitive, or defined as non-null in
      * Kotlin.
      */
-    NONNULL("", true),
+    NONNULL(""),
     /** Nullability for a type that is annotated nullable or defined as nullable in Kotlin. */
-    NULLABLE("?", true),
+    NULLABLE("?"),
     /** Nullability for a Java type without a specified nullability. */
     PLATFORM("!"),
     /**

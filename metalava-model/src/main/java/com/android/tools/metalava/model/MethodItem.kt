@@ -44,14 +44,26 @@ interface MethodItem : MemberItem, TypeParameterListOwner {
 
     override fun type() = returnType()
 
-    override fun findCorrespondingItemIn(codebase: Codebase, superMethods: Boolean) =
-        containingClass()
-            .findCorrespondingItemIn(codebase)
-            ?.findMethod(
+    override fun findCorrespondingItemIn(
+        codebase: Codebase,
+        superMethods: Boolean,
+        duplicate: Boolean,
+    ): MethodItem? {
+        val correspondingClassItem = containingClass().findCorrespondingItemIn(codebase)
+        val correspondingMethodItem =
+            correspondingClassItem?.findMethod(
                 this,
                 includeSuperClasses = superMethods,
                 includeInterfaces = superMethods,
             )
+        return if (
+            correspondingMethodItem != null &&
+                duplicate &&
+                correspondingMethodItem.containingClass() !== correspondingClassItem
+        )
+            correspondingMethodItem.duplicate(correspondingClassItem)
+        else correspondingMethodItem
+    }
 
     /** Returns the main documentation for the method (the documentation before any tags). */
     fun findMainDocumentation(): String
@@ -268,7 +280,10 @@ interface MethodItem : MemberItem, TypeParameterListOwner {
                 return false
             }
 
-            if (method.deprecated != superMethod.deprecated && !method.deprecated) {
+            if (
+                method.effectivelyDeprecated != superMethod.effectivelyDeprecated &&
+                    !method.effectivelyDeprecated
+            ) {
                 return false
             }
 
@@ -336,37 +351,6 @@ interface MethodItem : MemberItem, TypeParameterListOwner {
         }
 
         return sb.toString()
-    }
-
-    override fun requiresNullnessInfo(): Boolean {
-        return when {
-            modifiers.hasJvmSyntheticAnnotation() -> false
-            isConstructor() -> false
-            (returnType() !is PrimitiveTypeItem) -> true
-            parameters().any { it.type() !is PrimitiveTypeItem } -> true
-            else -> false
-        }
-    }
-
-    override fun hasNullnessInfo(): Boolean {
-        if (!requiresNullnessInfo()) {
-            return true
-        }
-
-        if (!isConstructor() && returnType() !is PrimitiveTypeItem) {
-            if (!modifiers.hasNullnessInfo()) {
-                return false
-            }
-        }
-
-        @Suppress("LoopToCallChain") // The quickfix is wrong! (covered by AnnotationStatisticsTest)
-        for (parameter in parameters()) {
-            if (!parameter.hasNullnessInfo()) {
-                return false
-            }
-        }
-
-        return true
     }
 
     fun isImplicitConstructor(): Boolean {
@@ -691,5 +675,19 @@ private fun MethodItem.appendSuperMethodsFromInterfaces(
         }
         // A method could not be found in this interface so search its interfaces.
         ?: appendSuperMethodsFromInterfaces(methods, itfClass)
+    }
+}
+
+/**
+ * Update the state of a [MethodItem] that has been copied from one [ClassItem] to another.
+ *
+ * This will update the [MethodItem] on which it is called to ensure that it is consistent with the
+ * [ClassItem] to which it now belongs. Called from the implementations of [MethodItem.duplicate]
+ * and [ClassItem.inheritMethodFromNonApiAncestor].
+ */
+fun MethodItem.updateCopiedMethodState() {
+    val mutableModifiers = mutableModifiers()
+    if (mutableModifiers.isDefault() && !containingClass().isInterface()) {
+        mutableModifiers.setDefault(false)
     }
 }

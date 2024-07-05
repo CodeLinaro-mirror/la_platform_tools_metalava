@@ -1,5 +1,5 @@
 [versions]
-kotlin = "1.9.23"
+kotlin = "2.0.0"
 androidLint = "31.5.0-alpha05"
 
 [libraries]

@@ -18,7 +18,6 @@ package com.android.tools.metalava.model
 
 import com.android.tools.metalava.reporter.BaselineKey
 import com.android.tools.metalava.reporter.FileLocation
-import com.android.tools.metalava.reporter.IssueLocation
 import com.android.tools.metalava.reporter.Reportable
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -86,17 +85,7 @@ interface Item : Reportable {
      * True if this item has been marked as deprecated or is a descendant of a non-package item that
      * has been marked as deprecated.
      */
-    var effectivelyDeprecated: Boolean
-
-    /**
-     * True if this item has been marked deprecated.
-     *
-     * The meaning of this property changes over time. Initially, when reading sources it indicates
-     * whether the item has been marked as deprecated (either using `@deprecated` javadoc tag or
-     * `@Deprecated` annotation). However, during processing it is updated to `true` if any of its
-     * non-package ancestors have set this to `true`.
-     */
-    var deprecated: Boolean
+    val effectivelyDeprecated: Boolean
 
     /** True if this element is only intended for documentation */
     var docOnly: Boolean
@@ -161,28 +150,6 @@ interface Item : Reportable {
     fun toStringForItem(): String
 
     /**
-     * Returns true if this item requires nullness information (e.g. for a method where either the
-     * return value or any of the parameters are non-primitives. Note that it doesn't consider
-     * whether it already has nullness annotations; for that see [hasNullnessInfo].
-     */
-    fun requiresNullnessInfo(): Boolean = false
-
-    /**
-     * Returns true if this item requires nullness information and supplies it (for all items, e.g.
-     * if a method is partially annotated this method would still return false)
-     */
-    fun hasNullnessInfo(): Boolean = false
-
-    /**
-     * Get this element's *implicit* nullness, if any.
-     *
-     * This returns [TypeNullability.NULLABLE] for implicitly nullable elements, such as the
-     * parameter to the [Object.equals] method, [TypeNullability.NONNULL] for implicitly non-null
-     * elements (such as annotation type members), and `null` if there is no implicit nullness.
-     */
-    fun implicitNullness(): TypeNullability? = null
-
-    /**
      * Whether this item was loaded from the classpath (e.g. jar dependencies) rather than be
      * declared as source
      */
@@ -233,10 +200,6 @@ interface Item : Reportable {
     override val fileLocation: FileLocation
         get() = FileLocation.UNKNOWN
 
-    /** Returns the [IssueLocation] for this item, if any. */
-    override val issueLocation
-        get() = IssueLocation(fileLocation, baselineKey)
-
     /**
      * Returns the [documentation], but with fully qualified links (except for the same package, and
      * when turning a relative reference into a fully qualified reference, use the javadoc syntax
@@ -277,12 +240,39 @@ interface Item : Reportable {
      * Find the [Item] in [codebase] that corresponds to this item, or `null` if there is no such
      * item.
      *
+     * If [superMethods] is true and this is a [MethodItem] then the returned [MethodItem], if any,
+     * could be in a [ClassItem] that does not correspond to the [MethodItem.containingClass], it
+     * could be from a super class or super interface. e.g. if the [codebase] contains something
+     * like:
+     * ```
+     *     public class Super {
+     *         public void method() {...}
+     *     }
+     *     public class Foo extends Super {}
+     * ```
+     *
+     * And this is called on `Foo.method()` then:
+     * * if [superMethods] is false this will return `null`.
+     * * if [superMethods] is true and [duplicate] is false, then this will return `Super.method()`.
+     * * if both [superMethods] and [duplicate] are true then this will return a duplicate of
+     *   `Super.method()` that has been added to `Foo` so it will be essentially `Foo.method()`.
+     *
+     * @param codebase the [Codebase] to search for a corresponding item.
      * @param superMethods if true and this is a [MethodItem] then this method will search for super
      *   methods. If this is a [ParameterItem] then the value of this parameter will be passed to
      *   the [findCorrespondingItemIn] call which is used to find the [MethodItem] corresponding to
      *   the [ParameterItem.containingMethod].
+     * @param duplicate if true, and this is a [MemberItem] (or [ParameterItem]) then the returned
+     *   [Item], if any, will be in the [ClassItem] that corresponds to the [Item.containingClass].
+     *   This should be `true` if the returned [Item] is going to be compared to the original [Item]
+     *   as the [Item.containingClass] can affect that comparison, e.g. the meaning of certain
+     *   modifiers.
      */
-    fun findCorrespondingItemIn(codebase: Codebase, superMethods: Boolean = false): Item?
+    fun findCorrespondingItemIn(
+        codebase: Codebase,
+        superMethods: Boolean = false,
+        duplicate: Boolean = false,
+    ): Item?
 
     /**
      * Get the set of suppressed issues for this [Item].
@@ -293,7 +283,7 @@ interface Item : Reportable {
     override fun suppressedIssues(): Set<String>
 
     /** The [BaselineKey] for this. */
-    val baselineKey
+    override val baselineKey
         get() = BaselineKey.forElementId(baselineElementId())
 
     /**
@@ -432,11 +422,10 @@ abstract class DefaultItem(
 
     final override val sortingRank: Int = nextRank.getAndIncrement()
 
-    final override var originallyDeprecated = modifiers.isDeprecated()
-
-    final override var effectivelyDeprecated = originallyDeprecated
-
-    final override var deprecated = originallyDeprecated
+    final override val originallyDeprecated
+        // Delegate to the [ModifierList.isDeprecated] method so that changes to that will affect
+        // the value of this and [Item.effectivelyDeprecated] which delegates to this.
+        get() = modifiers.isDeprecated()
 
     final override fun mutableModifiers(): MutableModifierList = modifiers
 

@@ -39,7 +39,11 @@ interface PropertyItem : MemberItem {
     /** The type of this property */
     override fun type(): TypeItem
 
-    override fun findCorrespondingItemIn(codebase: Codebase, superMethods: Boolean) =
+    override fun findCorrespondingItemIn(
+        codebase: Codebase,
+        superMethods: Boolean,
+        duplicate: Boolean,
+    ) =
         containingClass().findCorrespondingItemIn(codebase)?.properties()?.find {
             it.name() == name()
         }
@@ -63,18 +67,6 @@ interface PropertyItem : MemberItem {
     }
 
     override fun toStringForItem(): String = "property ${containingClass().fullName()}.${name()}"
-
-    override fun hasNullnessInfo(): Boolean {
-        if (!requiresNullnessInfo()) {
-            return true
-        }
-
-        return modifiers.hasNullnessInfo()
-    }
-
-    override fun requiresNullnessInfo(): Boolean {
-        return type() !is PrimitiveTypeItem
-    }
 
     companion object {
         val comparator: java.util.Comparator<PropertyItem> = Comparator { a, b ->

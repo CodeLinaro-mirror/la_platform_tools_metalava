@@ -123,7 +123,7 @@ class JDiffXmlWriter(
     }
 
     fun deprecation(item: Item): String {
-        return if (item.deprecated) {
+        return if (item.originallyDeprecated) {
             "deprecated"
         } else {
             "not deprecated"

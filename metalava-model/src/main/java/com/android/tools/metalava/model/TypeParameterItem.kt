@@ -77,6 +77,9 @@ interface TypeParameterItem : Item {
     // Methods from [Item] that are not needed. They will be removed in a follow-up change.
     override fun parent() = error("Not needed for TypeParameterItem")
 
+    override val effectivelyDeprecated: Boolean
+        get() = error("Not needed for TypeParameterItem")
+
     override fun baselineElementId() = error("Not needed for TypeParameterItem")
 
     override fun accept(visitor: ItemVisitor) = error("Not needed for TypeParameterItem")
@@ -85,6 +88,9 @@ interface TypeParameterItem : Item {
 
     override fun containingClass() = error("Not needed for TypeParameterItem")
 
-    override fun findCorrespondingItemIn(codebase: Codebase, superMethods: Boolean) =
-        error("Not needed for TypeParameterItem")
+    override fun findCorrespondingItemIn(
+        codebase: Codebase,
+        superMethods: Boolean,
+        duplicate: Boolean,
+    ) = error("Not needed for TypeParameterItem")
 }

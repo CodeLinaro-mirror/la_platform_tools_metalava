@@ -37,9 +37,9 @@ interface Reporter {
         id: Issues.Issue,
         file: File?,
         message: String,
-        maximumSeverity: Severity = Severity.ERROR,
+        maximumSeverity: Severity = Severity.UNLIMITED,
     ): Boolean {
-        val location = IssueLocation.forFile(file)
+        val location = FileLocation.forFile(file)
         return report(id, null, message, location, maximumSeverity)
     }
 
@@ -83,8 +83,8 @@ interface Reporter {
         id: Issues.Issue,
         reportable: Reportable?,
         message: String,
-        location: IssueLocation = IssueLocation.unknownLocationAndBaselineKey,
-        maximumSeverity: Severity = Severity.ERROR,
+        location: FileLocation = FileLocation.UNKNOWN,
+        maximumSeverity: Severity = Severity.UNLIMITED,
     ): Boolean
 
     /**
@@ -111,12 +111,12 @@ class BasicReporter(private val stderr: PrintWriter) : Reporter {
         id: Issues.Issue,
         reportable: Reportable?,
         message: String,
-        location: IssueLocation,
+        location: FileLocation,
         maximumSeverity: Severity,
     ): Boolean {
         stderr.println(
             buildString {
-                val usableLocation = reportable?.issueLocation ?: location
+                val usableLocation = reportable?.fileLocation ?: location
                 append(usableLocation.path)
                 if (usableLocation.line > 0) {
                     append(":")

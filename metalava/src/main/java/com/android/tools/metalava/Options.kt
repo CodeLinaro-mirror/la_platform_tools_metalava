@@ -197,7 +197,7 @@ class Options(
         IssueReportingOptions(commonOptions = commonOptions),
     private val generalReportingOptions: GeneralReportingOptions = GeneralReportingOptions(),
     private val apiSelectionOptions: ApiSelectionOptions = ApiSelectionOptions(),
-    private val apiLintOptions: ApiLintOptions = ApiLintOptions(),
+    val apiLintOptions: ApiLintOptions = ApiLintOptions(),
     private val compatibilityCheckOptions: CompatibilityCheckOptions = CompatibilityCheckOptions(),
     signatureFileOptions: SignatureFileOptions = SignatureFileOptions(),
     signatureFormatOptions: SignatureFormatOptions = SignatureFormatOptions(),
@@ -335,13 +335,6 @@ class Options(
      * applies to signature files, not stub files.
      */
     var showUnannotated = false
-
-    /** Whether to validate the API for best practices */
-    val apiLintEnabled by apiLintOptions::apiLintEnabled
-
-    /** If non-null, an API file to use to hide for controlling what parts of the API are new */
-    val apiLintPreviousApi: File?
-        get() = apiLintOptions.apiLintPreviousApi
 
     /** Packages to include (if null, include all) */
     private var stubPackages: PackageFilter? = null
@@ -693,13 +686,6 @@ class Options(
                     .trimIndent()
             )
 
-    val encoding by
-        option("-encoding", hidden = true)
-            .deprecated(
-                "WARNING: option `-encoding` is deprecated; it has no effect please remove",
-                tagValue = "please remove"
-            )
-
     fun parse(
         executionEnvironment: ExecutionEnvironment,
         args: Array<String>,
@@ -775,8 +761,7 @@ class Options(
                 }
                 ARG_PROGUARD -> proguard = stringToNewFile(getValue(args, ++index))
                 ARG_HIDE_PACKAGE -> mutableHidePackages.add(getValue(args, ++index))
-                ARG_STUB_PACKAGES,
-                "-stubpackages" -> {
+                ARG_STUB_PACKAGES -> {
                     val packages = getValue(args, ++index)
                     val filter =
                         stubPackages
@@ -859,8 +844,7 @@ class Options(
                 ARG_API_VERSION_NAMES -> {
                     apiVersionNames = getValue(args, ++index).split(' ')
                 }
-                ARG_JAVA_SOURCE,
-                "-source" -> {
+                ARG_JAVA_SOURCE -> {
                     val value = getValue(args, ++index)
                     javaLanguageLevelAsString = value
                 }

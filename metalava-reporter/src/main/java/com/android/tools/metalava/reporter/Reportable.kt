@@ -19,14 +19,24 @@ package com.android.tools.metalava.reporter
 /**
  * An object for which issues can be reported.
  *
+ * There are two forms of location provided here. The location in the source file, i.e.
+ * [fileLocation], and the baseline key used to track known issues, i.e. [baselineKey].
+ *
+ * The source location is optional as it is not always available, see [FileLocation] for more
+ * information.
+ *
+ * The baseline key identifies an API element, for the purposes of tracking known issues. The source
+ * location is not used for that as it will change quite frequently as the code is modified and the
+ * baseline key needs to identify the same API component over a long period of time.
+ *
  * See [Reporter] for more details.
  */
 interface Reportable {
     /** The file location for this object. */
     val fileLocation: FileLocation
 
-    /** The location for this object that should be used for reporting issues about this object. */
-    val issueLocation: IssueLocation
+    /** The [BaselineKey] that is used to suppress issues on this. */
+    val baselineKey: BaselineKey
 
     /**
      * Get the set of suppressed issues for this.

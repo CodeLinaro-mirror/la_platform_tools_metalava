@@ -22,8 +22,8 @@ import com.android.tools.metalava.cli.common.plainTerminal
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.reporter.Baseline
+import com.android.tools.metalava.reporter.FileLocation
 import com.android.tools.metalava.reporter.IssueConfiguration
-import com.android.tools.metalava.reporter.IssueLocation
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reportable
 import com.android.tools.metalava.reporter.Reporter
@@ -32,7 +32,6 @@ import com.android.tools.metalava.reporter.Severity.ERROR
 import com.android.tools.metalava.reporter.Severity.HIDDEN
 import com.android.tools.metalava.reporter.Severity.INFO
 import com.android.tools.metalava.reporter.Severity.INHERIT
-import com.android.tools.metalava.reporter.Severity.LINT
 import com.android.tools.metalava.reporter.Severity.WARNING
 import com.android.tools.metalava.reporter.Severity.WARNING_ERROR_WHEN_NEW
 import java.io.File
@@ -69,9 +68,6 @@ internal class DefaultReporter(
      * for the bootstrapping reporter. That receives a default instance of this.
      */
     class Config(
-        /** If true, treat all API lint warnings as errors */
-        val lintsAsErrors: Boolean = false,
-
         /** If true, treat all warnings as errors */
         val warningsAsErrors: Boolean = false,
 
@@ -96,13 +92,12 @@ internal class DefaultReporter(
         id: Issues.Issue,
         reportable: Reportable?,
         message: String,
-        location: IssueLocation,
+        location: FileLocation,
         maximumSeverity: Severity,
     ): Boolean {
         val severity = issueConfiguration.getSeverity(id)
         val upgradedSeverity =
-            if (severity == LINT && config.lintsAsErrors) ERROR
-            else if (severity == WARNING && config.warningsAsErrors) {
+            if (severity == WARNING && config.warningsAsErrors) {
                 ERROR
             } else {
                 severity
@@ -125,12 +120,11 @@ internal class DefaultReporter(
             // method then the location may be a line within the body of the method.
             val reportLocation =
                 when {
-                    location.path != null -> location.forReport()
-                    reportable != null -> reportable.issueLocation.forReport()
-                    else -> null
+                    location.path != null -> location
+                    else -> reportable?.fileLocation
                 }
 
-            return which(effectiveSeverity, reportLocation, message, id)
+            return which(effectiveSeverity, reportLocation?.forReport(), message, id)
         }
 
         // Optionally write to the --report-even-if-suppressed file.
@@ -157,15 +151,15 @@ internal class DefaultReporter(
             // preference to the location because the item is more stable. e.g. the location may be
             // for a specific line within a method which would change over time while the method
             // signature would stay the same.
-            val baselineLocation =
+            val baselineKey =
                 when {
-                    reportable != null -> reportable.issueLocation
-                    location.path != null -> location
-                    else -> null
+                    // When available use the baseline key from the reportable.
+                    reportable != null -> reportable.baselineKey
+                    // Otherwise, use the baseline key from the file location.
+                    else -> location.baselineKey
                 }
 
-            if (baselineLocation != null && baseline.mark(baselineLocation, message, id))
-                return false
+            if (baselineKey != null && baseline.mark(baselineKey, message, id)) return false
         }
 
         return dispatch(this::doReport)
@@ -220,12 +214,11 @@ internal class DefaultReporter(
     }
 
     /**
-     * Convert the [IssueLocation] to an optional string representation suitable for use in a
-     * report.
+     * Convert the [FileLocation] to an optional string representation suitable for use in a report.
      *
      * See [relativizeLocationPath].
      */
-    private fun IssueLocation.forReport(): String? {
+    private fun FileLocation.forReport(): String? {
         val pathString = path?.let { relativizeLocationPath(it) } ?: return null
         return if (line > 0) "$pathString:$line" else pathString
     }
@@ -261,7 +254,6 @@ internal class DefaultReporter(
         sb.append(terminal.attributes(bold = true))
         location?.let { sb.append(it).append(": ") }
         when (severity) {
-            LINT -> sb.append(terminal.attributes(foreground = TerminalColor.CYAN)).append("lint: ")
             INFO -> sb.append(terminal.attributes(foreground = TerminalColor.CYAN)).append("info: ")
             WARNING,
             WARNING_ERROR_WHEN_NEW ->

@@ -108,10 +108,25 @@ internal class TurbineTypeItemFactory(
                 // A ClassTy is represented by list of SimpleClassTY each representing an inner
                 // class. e.g. , Outer.Inner.Inner1 will be represented by three simple classes
                 // Outer, Outer.Inner and Outer.Inner.Inner1
-                for (simpleClass in type.classes()) {
-                    // For all outer class types, set the nullability to non-null.
-                    outerClass?.modifiers?.setNullability(TypeNullability.NONNULL)
-                    outerClass = createInnerClassType(simpleClass, outerClass, contextNullability)
+                val iterator = type.classes().iterator()
+                while (iterator.hasNext()) {
+                    val simpleClass = iterator.next()
+
+                    // Select the ContextNullability. If there is another SimpleClassTy after this
+                    // then this is an outer class which can never be null, so force it to be
+                    // non-null. Otherwise, this is the inner class so use the supplied
+                    // ContextNullability.
+                    val actualContextNullability =
+                        if (iterator.hasNext()) {
+                            // For all outer class types, set the nullability to non-null.
+                            ContextNullability.forceNonNull
+                        } else {
+                            // Use the supplied ContextNullability.
+                            contextNullability
+                        }
+
+                    outerClass =
+                        createInnerClassType(simpleClass, outerClass, actualContextNullability)
                 }
                 outerClass!!
             }

@@ -17,10 +17,14 @@
 package com.android.tools.metalava.compatibility
 
 import com.android.tools.metalava.DriverTest
+import com.android.tools.metalava.androidxNonNullSource
+import com.android.tools.metalava.androidxNullableSource
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.model.text.FileFormat
+import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
+import com.android.tools.metalava.testing.signature
 import org.junit.Test
 
 class NullnessCompatibilityTest : DriverTest() {
@@ -29,8 +33,8 @@ class NullnessCompatibilityTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                    load-api.txt:5: error: Attempted to remove @NonNull annotation from parameter str in test.pkg.Foo.method1(int p, Integer int2, int p1, String str, java.lang.String... args) [InvalidNullConversion]
-                    load-api.txt:7: error: Attempted to change parameter from @Nullable to @NonNull: incompatible change for parameter str in test.pkg.Foo.method3(String str, int p, int int2) [InvalidNullConversion]
+                    load-api.txt:5: error: Attempted to remove nullability from java.lang.String (was NONNULL) in parameter str in test.pkg.Foo.method1(int p, Integer int2, int p1, String str, java.lang.String... args) [InvalidNullConversion]
+                    load-api.txt:7: error: Attempted to change nullability of java.lang.String (from NULLABLE to NONNULL) in parameter str in test.pkg.Foo.method3(String str, int p, int int2) [InvalidNullConversion]
                 """,
             format = FileFormat.V3,
             checkCompatibilityApiReleased =
@@ -68,7 +72,7 @@ class NullnessCompatibilityTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                    src/test/pkg/test.kt:2: error: Attempted to change parameter from @Nullable to @NonNull: incompatible change for parameter str1 in test.pkg.TestKt.fun1(String str1, String str2, java.util.List<java.lang.String> list) [InvalidNullConversion]
+                    src/test/pkg/test.kt:2: error: Attempted to change nullability of java.lang.String (from NULLABLE to NONNULL) in parameter str1 in test.pkg.TestKt.fun1(String str1, String str2, java.util.List<java.lang.String> list) [InvalidNullConversion]
                 """,
             format = FileFormat.V3,
             checkCompatibilityApiReleased =
@@ -93,22 +97,22 @@ class NullnessCompatibilityTest : DriverTest() {
     }
 
     @Test
-    fun `Flag invalid nullness changes`() {
+    fun `Flag invalid nullness changes in final class`() {
         check(
             expectedIssues =
                 """
-                    load-api.txt:6: error: Attempted to remove @Nullable annotation from method test.pkg.MyTest.convert3(Float) [InvalidNullConversion]
-                    load-api.txt:6: error: Attempted to remove @Nullable annotation from parameter arg1 in test.pkg.MyTest.convert3(Float arg1) [InvalidNullConversion]
-                    load-api.txt:7: error: Attempted to remove @NonNull annotation from method test.pkg.MyTest.convert4(Float) [InvalidNullConversion]
-                    load-api.txt:7: error: Attempted to remove @NonNull annotation from parameter arg1 in test.pkg.MyTest.convert4(Float arg1) [InvalidNullConversion]
-                    load-api.txt:8: error: Attempted to change parameter from @Nullable to @NonNull: incompatible change for parameter arg1 in test.pkg.MyTest.convert5(Float arg1) [InvalidNullConversion]
-                    load-api.txt:9: error: Attempted to change method return from @NonNull to @Nullable: incompatible change for method test.pkg.MyTest.convert6(Float) [InvalidNullConversion]
+                    load-api.txt:6: error: Attempted to remove nullability from java.lang.Double (was NULLABLE) in method test.pkg.MyTest.convert3(Float) [InvalidNullConversion]
+                    load-api.txt:6: error: Attempted to remove nullability from java.lang.Float (was NULLABLE) in parameter arg1 in test.pkg.MyTest.convert3(Float arg1) [InvalidNullConversion]
+                    load-api.txt:7: error: Attempted to remove nullability from java.lang.Double (was NONNULL) in method test.pkg.MyTest.convert4(Float) [InvalidNullConversion]
+                    load-api.txt:7: error: Attempted to remove nullability from java.lang.Float (was NONNULL) in parameter arg1 in test.pkg.MyTest.convert4(Float arg1) [InvalidNullConversion]
+                    load-api.txt:8: error: Attempted to change nullability of java.lang.Float (from NULLABLE to NONNULL) in parameter arg1 in test.pkg.MyTest.convert5(Float arg1) [InvalidNullConversion]
+                    load-api.txt:9: error: Attempted to change nullability of java.lang.Double (from NONNULL to NULLABLE) in method test.pkg.MyTest.convert6(Float) [InvalidNullConversion]
                 """,
             format = FileFormat.V2,
             checkCompatibilityApiReleased =
                 """
                     package test.pkg {
-                      public class MyTest {
+                      public final class MyTest {
                         method public Double convert1(Float);
                         method public Double convert2(Float);
                         method @Nullable public Double convert3(@Nullable Float);
@@ -127,7 +131,7 @@ class NullnessCompatibilityTest : DriverTest() {
             signatureSource =
                 """
                     package test.pkg {
-                      public class MyTest {
+                      public final class MyTest {
                         method @Nullable public Double convert1(@Nullable Float);
                         method @NonNull public Double convert2(@NonNull Float);
                         method public Double convert3(Float);
@@ -147,12 +151,12 @@ class NullnessCompatibilityTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                    src/test/pkg/Outer.kt:5: error: Attempted to change method return from @NonNull to @Nullable: incompatible change for method test.pkg.Outer.method2(String,String) [InvalidNullConversion]
-                    src/test/pkg/Outer.kt:5: error: Attempted to change parameter from @Nullable to @NonNull: incompatible change for parameter string in test.pkg.Outer.method2(String string, String maybeString) [InvalidNullConversion]
-                    src/test/pkg/Outer.kt:6: error: Attempted to change parameter from @Nullable to @NonNull: incompatible change for parameter string in test.pkg.Outer.method3(String maybeString, String string) [InvalidNullConversion]
-                    src/test/pkg/Outer.kt:8: error: Attempted to change method return from @NonNull to @Nullable: incompatible change for method test.pkg.Outer.Inner.method2(String,String) [InvalidNullConversion]
-                    src/test/pkg/Outer.kt:8: error: Attempted to change parameter from @Nullable to @NonNull: incompatible change for parameter string in test.pkg.Outer.Inner.method2(String string, String maybeString) [InvalidNullConversion]
-                    src/test/pkg/Outer.kt:9: error: Attempted to change parameter from @Nullable to @NonNull: incompatible change for parameter string in test.pkg.Outer.Inner.method3(String maybeString, String string) [InvalidNullConversion]
+                    src/test/pkg/Outer.kt:5: error: Attempted to change nullability of java.lang.String (from NONNULL to NULLABLE) in method test.pkg.Outer.method2(String,String) [InvalidNullConversion]
+                    src/test/pkg/Outer.kt:5: error: Attempted to change nullability of java.lang.String (from NULLABLE to NONNULL) in parameter string in test.pkg.Outer.method2(String string, String maybeString) [InvalidNullConversion]
+                    src/test/pkg/Outer.kt:6: error: Attempted to change nullability of java.lang.String (from NULLABLE to NONNULL) in parameter string in test.pkg.Outer.method3(String maybeString, String string) [InvalidNullConversion]
+                    src/test/pkg/Outer.kt:8: error: Attempted to change nullability of java.lang.String (from NONNULL to NULLABLE) in method test.pkg.Outer.Inner.method2(String,String) [InvalidNullConversion]
+                    src/test/pkg/Outer.kt:8: error: Attempted to change nullability of java.lang.String (from NULLABLE to NONNULL) in parameter string in test.pkg.Outer.Inner.method2(String string, String maybeString) [InvalidNullConversion]
+                    src/test/pkg/Outer.kt:9: error: Attempted to change nullability of java.lang.String (from NULLABLE to NONNULL) in parameter string in test.pkg.Outer.Inner.method3(String maybeString, String string) [InvalidNullConversion]
                 """,
             format = FileFormat.V2,
             checkCompatibilityApiReleased =
@@ -190,6 +194,170 @@ class NullnessCompatibilityTest : DriverTest() {
                         """
                     )
                 )
+        )
+    }
+
+    @Test
+    fun `Field nullness changes are not allowed`() {
+        check(
+            checkCompatibilityApiReleased =
+                """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public class Foo {
+                        ctor public Foo();
+                        field public String changeNonNullToNullable;
+                        field public String changeNonNullToPlatform;
+                        field public String? changeNullableToNonNull;
+                        field public String? changeNullableToPlatform;
+                        field public String! changePlatformToNonNull;
+                        field public String! changePlatformToNullable;
+                      }
+                    }
+                """,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            import androidx.annotation.NonNull;
+                            import androidx.annotation.Nullable;
+                            public class Foo {
+                                public @Nullable String changeNonNullToNullable;
+                                public String changeNonNullToPlatform;
+                                public @NonNull String changeNullableToNonNull;
+                                public String changeNullableToPlatform;
+                                public @NonNull String changePlatformToNonNull;
+                                public @Nullable String changePlatformToNullable;
+                            }
+                        """,
+                    ),
+                    androidxNonNullSource,
+                    androidxNullableSource,
+                ),
+            expectedIssues =
+                """
+                    src/test/pkg/Foo.java:5: error: Attempted to change nullability of java.lang.String (from NONNULL to NULLABLE) in field test.pkg.Foo.changeNonNullToNullable [InvalidNullConversion]
+                    src/test/pkg/Foo.java:6: error: Attempted to remove nullability from java.lang.String (was NONNULL) in field test.pkg.Foo.changeNonNullToPlatform [InvalidNullConversion]
+                    src/test/pkg/Foo.java:7: error: Attempted to change nullability of java.lang.String (from NULLABLE to NONNULL) in field test.pkg.Foo.changeNullableToNonNull [InvalidNullConversion]
+                    src/test/pkg/Foo.java:8: error: Attempted to remove nullability from java.lang.String (was NULLABLE) in field test.pkg.Foo.changeNullableToPlatform [InvalidNullConversion]
+                """,
+        )
+    }
+
+    @Test
+    fun `Nullable to non-null method return in non-final method is not allowed`() {
+        check(
+            checkCompatibilityApiReleased =
+                """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public final class FinalClass {
+                        ctor public FinalClass();
+                        method public String? methodInFinalClass();
+                      }
+                      public class NonFinalClass {
+                        ctor public NonFinalClass();
+                        method public final String? finalMethod();
+                        method public String? nonFinalMethod();
+                      }
+                      public final class NoPublicCtorClass {
+                        method public String? methodInNoPublicCtorClass();
+                      }
+                      public abstract sealed class SealedClass {
+                        ctor public SealedClass();
+                        method public final String? methodInSealedClass();
+                      }
+                    }
+                """,
+            sourceFiles =
+                arrayOf(
+                    signature(
+                        """
+                            // Signature format: 5.0
+                            package test.pkg {
+                              public final class FinalClass {
+                                ctor public FinalClass();
+                                method public String methodInFinalClass();
+                              }
+                              public class NonFinalClass {
+                                ctor public NonFinalClass();
+                                method public final String finalMethod();
+                                method public String nonFinalMethod();
+                              }
+                              public final class NoPublicCtorClass {
+                                method public String methodInNoPublicCtorClass();
+                              }
+                              public abstract sealed class SealedClass {
+                                ctor public SealedClass();
+                                method public final String methodInSealedClass();
+                              }
+                            }
+                        """,
+                    )
+                ),
+            expectedIssues =
+                """
+                    api.txt:10: warning: Attempted to change nullability of java.lang.String (from NULLABLE to NONNULL) in method test.pkg.NonFinalClass.nonFinalMethod() (ErrorWhenNew) [InvalidNullConversion]
+                """
+        )
+    }
+
+    @Test
+    fun `Non-null to nullable parameter in non-final method is not allowed`() {
+        check(
+            checkCompatibilityApiReleased =
+                """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public final class FinalClass {
+                        ctor public FinalClass();
+                        method public void methodInFinalClass(String);
+                      }
+                      public class NonFinalClass {
+                        ctor public NonFinalClass();
+                        method public final void finalMethod(String);
+                        method public void nonFinalMethod(String);
+                      }
+                      public final class NoPublicCtorClass {
+                        method public void methodInNoPublicCtorClass(String);
+                      }
+                      public abstract sealed class SealedClass {
+                        ctor public SealedClass();
+                        method public final void methodInSealedClass(String);
+                      }
+                    }
+                """,
+            sourceFiles =
+                arrayOf(
+                    signature(
+                        """
+                            // Signature format: 5.0
+                            package test.pkg {
+                              public final class FinalClass {
+                                ctor public FinalClass();
+                                method public void methodInFinalClass(String?);
+                              }
+                              public class NonFinalClass {
+                                ctor public NonFinalClass();
+                                method public final void finalMethod(String?);
+                                method public void nonFinalMethod(String?);
+                              }
+                              public final class NoPublicCtorClass {
+                                method public void methodInNoPublicCtorClass(String?);
+                              }
+                              public abstract sealed class SealedClass {
+                                ctor public SealedClass();
+                                method public final void methodInSealedClass(String?);
+                              }
+                            }
+                        """,
+                    )
+                ),
+            expectedIssues =
+                """
+                    api.txt:10: warning: Attempted to change nullability of java.lang.String (from NONNULL to NULLABLE) in parameter arg1 in test.pkg.NonFinalClass.nonFinalMethod(String arg1) (ErrorWhenNew) [InvalidNullConversion]
+                """
         )
     }
 }

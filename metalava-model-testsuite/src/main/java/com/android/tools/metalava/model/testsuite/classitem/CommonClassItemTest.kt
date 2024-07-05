@@ -763,8 +763,8 @@ class CommonClassItemTest : BaseModelTest() {
             ),
         ) {
             val barClass = codebase.assertClass("test.pkg.Bar")
-            assertEquals(true, barClass.deprecated)
             assertEquals(true, barClass.originallyDeprecated)
+            assertEquals(true, barClass.effectivelyDeprecated)
         }
     }
 
@@ -798,8 +798,8 @@ class CommonClassItemTest : BaseModelTest() {
             ),
         ) {
             val barClass = codebase.assertClass("test.pkg.Bar")
-            assertEquals(true, barClass.deprecated)
             assertEquals(true, barClass.originallyDeprecated)
+            assertEquals(true, barClass.effectivelyDeprecated)
         }
     }
 
@@ -831,8 +831,8 @@ class CommonClassItemTest : BaseModelTest() {
             ),
         ) {
             val barClass = codebase.assertClass("test.pkg.Bar")
-            assertEquals(false, barClass.deprecated)
             assertEquals(false, barClass.originallyDeprecated)
+            assertEquals(false, barClass.effectivelyDeprecated)
         }
     }
 

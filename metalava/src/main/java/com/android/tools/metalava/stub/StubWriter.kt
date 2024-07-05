@@ -332,10 +332,10 @@ fun revertDocumentationDeprecationChange(currentItem: Item, docs: String): Strin
         currentItem === actualItem
         // or if the current item and the actual item have the same deprecation setting
         ||
-            currentItem.deprecated == actualItem.deprecated
+            currentItem.effectivelyDeprecated == actualItem.effectivelyDeprecated
             // or if the actual item is deprecated
             ||
-            actualItem.deprecated
+            actualItem.effectivelyDeprecated
     )
         return docs
 

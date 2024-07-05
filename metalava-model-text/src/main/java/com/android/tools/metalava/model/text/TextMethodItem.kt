@@ -25,6 +25,7 @@ import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.computeSuperMethods
+import com.android.tools.metalava.model.updateCopiedMethodState
 import com.android.tools.metalava.reporter.FileLocation
 import java.util.function.Predicate
 
@@ -131,10 +132,11 @@ internal open class TextMethodItem(
             duplicated.docOnly = true
         }
 
-        duplicated.deprecated = deprecated
         duplicated.annotationDefault = annotationDefault
         duplicated.throwsTypes = this.throwsTypes
         duplicated.typeParameterList = typeParameterList
+
+        duplicated.updateCopiedMethodState()
 
         return duplicated
     }
