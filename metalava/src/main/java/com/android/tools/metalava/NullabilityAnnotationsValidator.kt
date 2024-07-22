@@ -151,7 +151,7 @@ class NullabilityAnnotationsValidator(
     }
 
     private fun isNullFromTypeParam(it: AnnotationItem) =
-        it.qualifiedName?.endsWith("NullFromTypeParam") == true
+        it.qualifiedName.endsWith("NullFromTypeParam")
 
     private fun isAnyNullabilityAnnotation(it: AnnotationItem) =
         it.isNullnessAnnotation() || isNullFromTypeParam(it)

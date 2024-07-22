@@ -315,9 +315,7 @@ private constructor(
                     ) {
                         // For annotation references, only include the simple name
                         writer.write("@")
-                        writer.write(
-                            annotation.resolve()?.simpleName() ?: annotation.qualifiedName!!
-                        )
+                        writer.write(annotation.resolve()?.simpleName() ?: annotation.qualifiedName)
                         if (separateLines) {
                             writer.write("\n")
                         } else {

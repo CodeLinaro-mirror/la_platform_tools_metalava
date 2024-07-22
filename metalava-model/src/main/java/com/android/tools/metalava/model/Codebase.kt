@@ -70,11 +70,15 @@ interface Codebase {
         getPackages().accept(visitor)
     }
 
-    /** Creates an annotation item for the given (fully qualified) Java source */
+    /**
+     * Creates an annotation item for the given (fully qualified) Java source.
+     *
+     * Returns `null` if the source contains an annotation that is not recognized by Metalava.
+     */
     fun createAnnotation(
         source: String,
         context: Item? = null,
-    ): AnnotationItem
+    ): AnnotationItem?
 
     /** Reports that the given operation is unsupported for this codebase type */
     fun unsupported(desc: String? = null): Nothing

@@ -23,12 +23,15 @@ import com.android.tools.metalava.cli.common.CommonOptions
 import com.android.tools.metalava.cli.common.ExecutionEnvironment
 import com.android.tools.metalava.cli.common.IssueReportingOptions
 import com.android.tools.metalava.cli.common.MetalavaCliException
+import com.android.tools.metalava.cli.common.PreviouslyReleasedApi
 import com.android.tools.metalava.cli.common.SourceOptions
 import com.android.tools.metalava.cli.common.Terminal
 import com.android.tools.metalava.cli.common.TerminalColor
 import com.android.tools.metalava.cli.common.Verbosity
 import com.android.tools.metalava.cli.common.enumOption
+import com.android.tools.metalava.cli.common.existingFile
 import com.android.tools.metalava.cli.common.fileForPathInner
+import com.android.tools.metalava.cli.common.map
 import com.android.tools.metalava.cli.common.stringToExistingDir
 import com.android.tools.metalava.cli.common.stringToExistingFile
 import com.android.tools.metalava.cli.common.stringToNewDir
@@ -519,7 +522,20 @@ class Options(
     private var excludeAnnotations = mutableExcludeAnnotations
 
     /** A signature file to migrate nullness data from */
-    var migrateNullsFrom: File? = null
+    val migrateNullsFrom by
+        option(
+                ARG_MIGRATE_NULLNESS,
+                metavar = "<api file>",
+                help =
+                    """
+                        Compare nullness information with the previous stable API
+                        and mark newly annotated APIs as under migration.
+                    """
+                        .trimIndent()
+            )
+            .existingFile()
+            .multiple()
+            .map { PreviouslyReleasedApi.optionalPreviouslyReleasedApi(ARG_MIGRATE_NULLNESS, it) }
 
     /** The list of compatibility checks to run */
     val compatibilityChecks: List<CheckRequest> by compatibilityCheckOptions::compatibilityChecks
@@ -785,9 +801,6 @@ class Options(
                 ARG_DELETE_EMPTY_REMOVED_SIGNATURES -> deleteEmptyRemovedSignatures = true
                 ARG_EXTRACT_ANNOTATIONS ->
                     externalAnnotations = stringToNewFile(getValue(args, ++index))
-                ARG_MIGRATE_NULLNESS -> {
-                    migrateNullsFrom = stringToExistingFile(getValue(args, ++index))
-                }
 
                 // Extracting API levels
                 ARG_ANDROID_JAR_PATTERN -> {
@@ -1273,11 +1286,6 @@ object OptionsHelp {
                 "Exclude element documentation (javadoc and kdoc) " +
                     "from the generated stubs. (Copyright notices are not affected by this, they are always included. " +
                     "Documentation stubs (--doc-stubs) are not affected.)",
-                "",
-                "Diffs and Checks:",
-                "$ARG_MIGRATE_NULLNESS <api file>",
-                "Compare nullness information with the previous stable API " +
-                    "and mark newly annotated APIs as under migration.",
                 "",
                 "Extracting Annotations:",
                 "$ARG_EXTRACT_ANNOTATIONS <zipfile>",

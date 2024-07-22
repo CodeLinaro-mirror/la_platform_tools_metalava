@@ -142,6 +142,22 @@ internal open class TextClassItem(
         methods += method
     }
 
+    /**
+     * Replace an existing method with [method], if no such method exists then just add [method] to
+     * the list of methods.
+     */
+    fun replaceOrAddMethod(method: TextMethodItem) {
+        val iterator = methods.listIterator()
+        while (iterator.hasNext()) {
+            val existing = iterator.next()
+            if (existing == method) {
+                iterator.set(method)
+                return
+            }
+        }
+        methods += method
+    }
+
     fun addField(field: TextFieldItem) {
         fields += field
     }

@@ -540,9 +540,12 @@ class ApiFileTest : BaseTextCodebaseTest() {
 
         assertEquals(
             """
+                package test.pkg
                 class test.pkg.Foo
                 constructor test.pkg.Foo.Foo(int)
                 parameter currentCtorParameter
+                method test.pkg.Foo.extensibleMethod(int)
+                parameter parameter
                 method test.pkg.Foo.currentMethod(int)
                 parameter currentMethodParameter
                 field Foo.currentField

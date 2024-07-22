@@ -458,7 +458,7 @@ abstract class DefaultItem(
         return buildSet {
             for (annotation in modifiers.annotations()) {
                 val annotationName = annotation.qualifiedName
-                if (annotationName != null && annotationName in SUPPRESS_ANNOTATIONS) {
+                if (annotationName in SUPPRESS_ANNOTATIONS) {
                     for (attribute in annotation.attributes) {
                         // Assumption that all annotations in SUPPRESS_ANNOTATIONS only have
                         // one attribute such as value/names that is varargs of String

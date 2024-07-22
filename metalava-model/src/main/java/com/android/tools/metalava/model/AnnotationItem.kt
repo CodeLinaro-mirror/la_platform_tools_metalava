@@ -44,7 +44,7 @@ interface AnnotationItem {
     val codebase: Codebase
 
     /** Fully qualified name of the annotation */
-    val qualifiedName: String?
+    val qualifiedName: String
 
     /**
      * Determines the effect that this will have on whether an item annotated with this annotation
@@ -83,12 +83,12 @@ interface AnnotationItem {
 
     /** True if this annotation represents @JvmSynthetic */
     fun isJvmSynthetic(): Boolean {
-        return isJvmSyntheticAnnotation(qualifiedName ?: return false)
+        return isJvmSyntheticAnnotation(qualifiedName)
     }
 
     /** True if this annotation represents @IntDef, @LongDef or @StringDef */
     fun isTypeDefAnnotation(): Boolean {
-        val name = qualifiedName ?: return false
+        val name = qualifiedName
         if (!(name.endsWith("Def"))) {
             return false
         }
@@ -105,7 +105,7 @@ interface AnnotationItem {
      * annotation). The parameter name should be the default attribute or "value".
      */
     fun isParameterName(): Boolean {
-        return qualifiedName?.endsWith(".ParameterName") ?: return false
+        return qualifiedName.endsWith(".ParameterName")
     }
 
     /**
@@ -113,7 +113,7 @@ interface AnnotationItem {
      * annotation). The default value should be the default attribute or "value".
      */
     fun isDefaultValue(): Boolean {
-        return qualifiedName?.endsWith(".DefaultValue") ?: return false
+        return qualifiedName.endsWith(".DefaultValue")
     }
 
     /** Returns the given named attribute if specified */
@@ -194,7 +194,7 @@ interface AnnotationItem {
          * prefixed by @
          */
         fun simpleName(item: AnnotationItem): String {
-            return item.qualifiedName?.let { "@${it.substringAfterLast('.')}" }.orEmpty()
+            return item.qualifiedName.let { "@${it.substringAfterLast('.')}" }
         }
 
         /**
@@ -323,7 +323,7 @@ internal fun <T : Any> AnnotationItem.nonInlineGetAttributeValues(
             else -> listOfNotNull(attributeValue.value())
         }
 
-    return values.map { caster(convertValue(codebase, kClass, it)) }
+    return values.mapNotNull { convertValue(codebase, kClass, it) }.map { caster(it) }
 }
 
 /**
@@ -333,7 +333,7 @@ internal fun <T : Any> AnnotationItem.nonInlineGetAttributeValues(
  * simply returns the value it is given. It is the caller's responsibility to actually cast the
  * returned value to the correct type.
  */
-private fun convertValue(codebase: Codebase, kClass: KClass<*>, value: Any): Any {
+private fun convertValue(codebase: Codebase, kClass: KClass<*>, value: Any): Any? {
     // The value stored for number types is not always the same as the type of the annotation
     // attributes. This is for a number of reasons, e.g.
     // * In a .class file annotation values are stored in the constant pool and some number types do
@@ -368,34 +368,18 @@ private fun convertValue(codebase: Codebase, kClass: KClass<*>, value: Any): Any
 /** Default implementation of an annotation item */
 open class DefaultAnnotationItem
 /** The primary constructor is private to force sub-classes to use the secondary constructor. */
-private constructor(
+protected constructor(
     override val codebase: Codebase,
 
     /** Fully qualified name of the annotation (prior to name mapping) */
-    protected val originalName: String?,
+    protected val originalName: String,
 
     /** Fully qualified name of the annotation (after name mapping) */
-    final override val qualifiedName: String?,
+    final override val qualifiedName: String,
 
     /** Possibly empty list of attributes. */
     attributesGetter: () -> List<AnnotationAttribute>,
 ) : AnnotationItem {
-
-    /**
-     * This constructor is needed to initialize [qualifiedName] using the [codebase] parameter
-     * instead of the [DefaultAnnotationItem.codebase] property which is overridden by subclasses
-     * and will not be initialized at the time it is used.
-     */
-    constructor(
-        codebase: Codebase,
-        originalName: String?,
-        attributesGetter: () -> List<AnnotationAttribute>,
-    ) : this(
-        codebase,
-        originalName,
-        qualifiedName = codebase.annotationManager.normalizeInputName(originalName),
-        attributesGetter,
-    )
 
     override val targets: Set<AnnotationTarget> by lazy {
         codebase.annotationManager.computeTargets(this, codebase::findClass)
@@ -425,16 +409,12 @@ private constructor(
         get() = info.showability
 
     override fun resolve(): ClassItem? {
-        return codebase.findClass(originalName ?: return null)
+        return codebase.findClass(originalName)
     }
 
     /** If this annotation has a typedef annotation associated with it, return it */
     override fun findTypedefAnnotation(): AnnotationItem? {
-        val className = originalName ?: return null
-        return codebase
-            .findClass(className)
-            ?.modifiers
-            ?.findAnnotation(AnnotationItem::isTypeDefAnnotation)
+        return resolve()?.modifiers?.findAnnotation(AnnotationItem::isTypeDefAnnotation)
     }
 
     override fun isShowAnnotation(): Boolean = info.showability.show()
@@ -453,7 +433,7 @@ private constructor(
     }
 
     override fun hashCode(): Int {
-        var result = qualifiedName?.hashCode() ?: 0
+        var result = qualifiedName.hashCode()
         result = 31 * result + attributes.hashCode()
         return result
     }
@@ -496,7 +476,7 @@ private constructor(
             }
         }
 
-        fun create(codebase: Codebase, source: String): AnnotationItem {
+        fun create(codebase: Codebase, source: String): AnnotationItem? {
             val index = source.indexOf("(")
             val originalName =
                 if (index == -1) source.substring(1) // Strip @
@@ -511,7 +491,7 @@ private constructor(
                     )
                 }
 
-            return DefaultAnnotationItem(codebase, originalName, ::attributes)
+            return create(codebase, originalName, ::attributes)
         }
 
         fun create(
@@ -519,9 +499,28 @@ private constructor(
             originalName: String,
             attributes: List<AnnotationAttribute> = emptyList(),
             context: Item? = null
-        ): AnnotationItem {
+        ): AnnotationItem? {
             val source = formatAnnotationItem(originalName, attributes)
             return codebase.createAnnotation(source, context)
+        }
+
+        /**
+         * Create a [DefaultAnnotationItem] by mapping the [originalName] to a [qualifiedName] by
+         * using the [codebase]'s [AnnotationManager.normalizeInputName].
+         */
+        fun create(
+            codebase: Codebase,
+            originalName: String,
+            attributesGetter: () -> List<AnnotationAttribute>,
+        ): AnnotationItem? {
+            val qualifiedName =
+                codebase.annotationManager.normalizeInputName(originalName) ?: return null
+            return DefaultAnnotationItem(
+                codebase = codebase,
+                originalName = originalName,
+                qualifiedName = qualifiedName,
+                attributesGetter = attributesGetter,
+            )
         }
     }
 }

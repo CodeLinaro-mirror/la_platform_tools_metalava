@@ -234,7 +234,7 @@ internal class TextCodebase(
     override fun createAnnotation(
         source: String,
         context: Item?,
-    ): AnnotationItem {
+    ): AnnotationItem? {
         return DefaultAnnotationItem.create(this, source)
     }
 

@@ -365,14 +365,13 @@ internal fun processFlags(
         actionContext.checkCompatibility(signatureFileCache, classResolverProvider, codebase, check)
     }
 
-    val previousApiFile = options.migrateNullsFrom
-    if (previousApiFile != null) {
+    val previouslyReleasedApi = options.migrateNullsFrom
+    if (previouslyReleasedApi != null) {
         val previous =
-            if (previousApiFile.path.endsWith(DOT_JAR)) {
-                actionContext.loadFromJarFile(previousApiFile)
-            } else {
-                signatureFileCache.load(signatureFile = SignatureFile.fromFile(previousApiFile))
-            }
+            previouslyReleasedApi.load(
+                jarLoader = { jarFile -> actionContext.loadFromJarFile(jarFile) },
+                signatureFileLoader = { signatureFiles -> signatureFileCache.load(signatureFiles) }
+            )
 
         // If configured, checks for newly added nullness information compared
         // to the previous stable API and marks the newly annotated elements

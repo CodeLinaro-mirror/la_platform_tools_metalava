@@ -307,20 +307,19 @@ class AnnotationsMerger(
                         }
                     } else {
                         // TODO: Check for other incompatibilities than nullness?
-                        val qualifiedName = annotation.qualifiedName ?: return
+                        val qualifiedName = annotation.qualifiedName
                         if (newModifiers.findAnnotation(qualifiedName) == null) {
                             addAnnotation = true
                         }
                     }
 
                     if (addAnnotation) {
-                        mergeAnnotation(
-                            new,
-                            new.codebase.createAnnotation(
+                        new.codebase
+                            .createAnnotation(
                                 annotation.toSource(showDefaultAttrs = false),
                                 new,
                             )
-                        )
+                            ?.let { mergeAnnotation(new, it) }
                     }
                 }
 
@@ -374,7 +373,7 @@ class AnnotationsMerger(
                     // Copy the annotations to the main item.
                     val modifiers = mainItem.mutableModifiers()
                     for (annotation in annotationsToCopy) {
-                        if (modifiers.findAnnotation(annotation.qualifiedName!!) == null) {
+                        if (modifiers.findAnnotation(annotation.qualifiedName) == null) {
                             mergeAnnotation(mainItem, annotation)
                         }
                     }
@@ -568,7 +567,7 @@ class AnnotationsMerger(
         assert(tagName == "annotation") { tagName }
 
         val qualifiedName = element.getAttribute(ATTR_NAME)
-        assert(qualifiedName != null && qualifiedName.isNotEmpty())
+        assert(qualifiedName.isNotEmpty())
         return qualifiedName
     }
 
@@ -590,7 +589,7 @@ class AnnotationsMerger(
         var haveNullable = false
         var haveNotNull = false
         for (existing in item.modifiers.annotations()) {
-            val name = existing.qualifiedName ?: continue
+            val name = existing.qualifiedName
             if (isNonNull(name)) {
                 haveNotNull = true
             }
@@ -620,7 +619,7 @@ class AnnotationsMerger(
         val tagName = annotationElement.tagName
         assert(tagName == "annotation") { tagName }
         val name = annotationElement.getAttribute(ATTR_NAME)
-        assert(name != null && name.isNotEmpty())
+        assert(name.isNotEmpty())
         when {
             name == "org.jetbrains.annotations.Range" -> {
                 val children = getChildren(annotationElement)

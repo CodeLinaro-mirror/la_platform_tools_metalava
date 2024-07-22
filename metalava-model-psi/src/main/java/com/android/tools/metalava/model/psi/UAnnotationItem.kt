@@ -51,12 +51,14 @@ class UAnnotationItem
 private constructor(
     override val codebase: PsiBasedCodebase,
     val uAnnotation: UAnnotation,
-    originalName: String?
+    originalName: String,
+    qualifiedName: String,
 ) :
     DefaultAnnotationItem(
-        codebase,
-        originalName,
-        { getAnnotationAttributes(codebase, uAnnotation) }
+        codebase = codebase,
+        originalName = originalName,
+        qualifiedName = qualifiedName,
+        attributesGetter = { getAnnotationAttributes(codebase, uAnnotation) },
     ) {
 
     override fun toSource(target: AnnotationTarget, showDefaultAttrs: Boolean): String {
@@ -66,7 +68,7 @@ private constructor(
     }
 
     override fun resolve(): ClassItem? {
-        return codebase.findOrCreateClass(originalName ?: return null)
+        return codebase.findOrCreateClass(originalName)
     }
 
     override fun isNonNull(): Boolean {
@@ -98,9 +100,16 @@ private constructor(
         fun create(
             codebase: PsiBasedCodebase,
             uAnnotation: UAnnotation,
-            qualifiedName: String? = uAnnotation.qualifiedName
-        ): AnnotationItem {
-            return UAnnotationItem(codebase, uAnnotation, qualifiedName)
+        ): AnnotationItem? {
+            val originalName = uAnnotation.qualifiedName ?: return null
+            val qualifiedName =
+                codebase.annotationManager.normalizeInputName(originalName) ?: return null
+            return UAnnotationItem(
+                codebase = codebase,
+                uAnnotation = uAnnotation,
+                originalName = originalName,
+                qualifiedName = qualifiedName,
+            )
         }
 
         private fun getAttributes(
@@ -222,7 +231,7 @@ private constructor(
                         sb,
                         value,
                         // Normalize the input name of the annotation.
-                        codebase.annotationManager.normalizeInputName(value.qualifiedName),
+                        codebase.annotationManager.normalizeInputName(value.qualifiedName!!),
                         target,
                         showDefaultAttrs
                     )
