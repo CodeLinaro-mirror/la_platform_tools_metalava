@@ -95,7 +95,7 @@ interface ClassItem : Item, TypeParameterListOwner {
      *
      * Interfaces always return `null` for this.
      */
-    @MetalavaApi fun superClass(): ClassItem?
+    @MetalavaApi fun superClass() = superClassType()?.asClass()
 
     /** All super classes, if any */
     fun allSuperClasses(): Sequence<ClassItem> {

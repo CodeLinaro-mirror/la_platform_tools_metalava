@@ -96,8 +96,6 @@ internal constructor(
 
     override fun hasImplicitDefaultConstructor(): Boolean = hasImplicitDefaultConstructor
 
-    override fun superClass(): ClassItem? = superClassType?.asClass()
-
     override fun superClassType(): ClassTypeItem? = superClassType
 
     override var stubConstructor: ConstructorItem? = null

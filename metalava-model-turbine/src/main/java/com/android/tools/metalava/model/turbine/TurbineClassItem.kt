@@ -162,8 +162,6 @@ internal open class TurbineClassItem(
         this.superClassType = superClassType
     }
 
-    override fun superClass(): ClassItem? = superClassType?.asClass()
-
     override fun superClassType(): ClassTypeItem? = superClassType
 
     /** Must only be used by [type] to cache its result. */

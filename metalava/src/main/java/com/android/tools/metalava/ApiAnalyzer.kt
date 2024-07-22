@@ -976,11 +976,11 @@ class ApiAnalyzer(
                         ) // returnType is nullable only for constructors
                     }
 
-                    // Make sure we don't annotate findViewById & getSystemService as @Nullable.
+                    // Make sure we don't annotate getSystemService as @Nullable.
                     // See for example b/68914170.
                     val name = method.name()
                     if (
-                        (name == "findViewById" || name == "getSystemService") &&
+                        name == "getSystemService" &&
                             method.parameters().size == 1 &&
                             method.returnType().modifiers.isNullable
                     ) {

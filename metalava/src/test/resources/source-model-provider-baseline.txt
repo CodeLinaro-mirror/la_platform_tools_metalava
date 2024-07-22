@@ -23,7 +23,6 @@ com.android.tools.metalava.ApiFileTest
   Check skipping implicit final or deprecated override[turbine]
   Check various generics signature subtleties[turbine]
   Kotlin expect-actual with JvmOverloads[psi,k2]
-  Remove findViewById type nullness annotation[turbine]
   Subclass definition is not included in removed api file[turbine]
   Test KDoc suppress[turbine]
   Type-use annotations can be included in signature files[turbine]
