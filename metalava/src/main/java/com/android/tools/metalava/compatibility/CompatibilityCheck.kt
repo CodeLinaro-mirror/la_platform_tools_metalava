@@ -31,6 +31,7 @@ import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.Item.Companion.describe
 import com.android.tools.metalava.model.MergedCodebase
 import com.android.tools.metalava.model.MethodItem
+import com.android.tools.metalava.model.MultipleTypeVisitor
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.TypeItem
@@ -87,13 +88,37 @@ class CompatibilityCheck(
             }
         }
 
-        compareTypeNullability(old.type(), new.type(), new)
+        // In a final method, you can change a parameter from nonnull to nullable
+        val allowNonNullToNullable =
+            new is ParameterItem && !newMethod!!.canBeExternallyOverridden()
+        // In a final method, you can change a method return from nullable to nonnull
+        val allowNullableToNonNull = new is MethodItem && !new.canBeExternallyOverridden()
+
+        old.type()
+            ?.accept(
+                object : MultipleTypeVisitor() {
+                    override fun visitType(type: TypeItem, other: List<TypeItem>) {
+                        val newType = other.singleOrNull() ?: return
+                        compareTypeNullability(
+                            type,
+                            newType,
+                            new,
+                            allowNonNullToNullable,
+                            allowNullableToNonNull,
+                        )
+                    }
+                },
+                listOfNotNull(new.type())
+            )
     }
 
-    private fun compareTypeNullability(old: TypeItem?, new: TypeItem?, context: Item) {
-        old ?: return
-        new ?: return
-
+    private fun compareTypeNullability(
+        old: TypeItem,
+        new: TypeItem,
+        context: Item,
+        allowNonNullToNullable: Boolean,
+        allowNullableToNonNull: Boolean,
+    ) {
         // Should not remove nullness information
         // Can't change information incompatibly
         val oldNullability = old.modifiers.nullability()
@@ -109,12 +134,6 @@ class CompatibilityCheck(
                 "Attempted to remove nullability from ${new.toTypeString()} (was $oldNullability) in ${describe(context)}"
             )
         } else if (oldNullability != newNullability) {
-            // In a final method, you can change a parameter from nonnull to nullable
-            val allowNonNullToNullable =
-                context is ParameterItem && !context.containingMethod().canBeExternallyOverridden()
-            // In a final method, you can change a method return from nullable to nonnull
-            val allowNullableToNonNull =
-                context is MethodItem && !context.canBeExternallyOverridden()
             if (
                 (oldNullability == TypeNullability.NULLABLE &&
                     newNullability == TypeNullability.NONNULL &&
@@ -940,13 +959,24 @@ class CompatibilityCheck(
                     includeInterfaces = from.isInterface()
                 )
             }
-        if (inherited == null || inherited != old && inherited.isHiddenOrRemoved()) {
+        if (inherited == null || inherited != old && inherited.treatAsRemoved()) {
             val error =
                 if (old.effectivelyDeprecated) Issues.REMOVED_DEPRECATED_METHOD
                 else Issues.REMOVED_METHOD
             handleRemoved(error, old)
         }
     }
+
+    /**
+     * Check the [Item] to see whether it should be treated as if it was removed.
+     *
+     * An [Item] is treated as it if it was removed if it is hidden/removed and is not an unstable
+     * API that will be reverted. If it is an unstable API then reverting it will replace it with
+     * the old item against which it is being compared in this compatibility check. So, while this
+     * specific item will not appear in the API the old item will and so the old item will not be
+     * removed.
+     */
+    private fun Item.treatAsRemoved() = isHiddenOrRemoved() && !showability.revertUnstableApi()
 
     override fun removed(old: FieldItem, from: ClassItem?) {
         val inherited =

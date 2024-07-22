@@ -702,10 +702,26 @@ class NullnessMigrationTest : DriverTest() {
                             import androidx.annotation.NonNull;
                             import androidx.annotation.Nullable;
 
+                            public class PublicClass {
+                                public PublicClass(@Nullable String s) {}
+                                @Nullable public String method(@NonNull Integer i) {}
+                                @Nullable public String field;
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+
+                            import androidx.annotation.NonNull;
+                            import androidx.annotation.Nullable;
+
                             /** @hide */
                             @android.annotation.SystemApi
-                            public interface ForSystemUse {
-                                @NonNull Object foo(@Nullable String foo);
+                            public class ForSystemUse {
+                                public ForSystemUse(@NonNull String s) {}
+                                @NonNull public Object foo(@Nullable String foo) {return "";}
+                                @Nullable public String bar;
                             }
                         """
                     ),
@@ -719,12 +735,19 @@ class NullnessMigrationTest : DriverTest() {
                           public interface Appendable {
                             method public Appendable append(java.lang.CharSequence csq) throws IOException;
                           }
+                          public class PublicClass {
+                            ctor public PublicClass(String);
+                            method public String method(Integer);
+                            field public String field;
+                          }
                         }
                     """,
                     """
                         package test.pkg {
                           public class ForSystemUse {
+                            ctor public ForSystemUse(String);
                             method public Object foo(String foo);
+                            field public String bar;
                           }
                         }
                     """,
@@ -742,22 +765,40 @@ class NullnessMigrationTest : DriverTest() {
                         """
                     ),
                     java(
+                        // TODO(b/347885819): The `field` should be `@RecentlyNullable`.
+                        """
+                            package test.pkg;
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public class PublicClass {
+                            public PublicClass(@androidx.annotation.RecentlyNullable java.lang.String s) { throw new RuntimeException("Stub!"); }
+                            @androidx.annotation.RecentlyNullable
+                            public java.lang.String method(@androidx.annotation.RecentlyNonNull java.lang.Integer i) { throw new RuntimeException("Stub!"); }
+                            @androidx.annotation.RecentlyNullable public java.lang.String field;
+                            }
+                        """
+                    ),
+                    java(
                         """
                             package test.pkg;
                             /** @hide */
                             @SuppressWarnings({"unchecked", "deprecation", "all"})
-                            public interface ForSystemUse {
+                            public class ForSystemUse {
+                            public ForSystemUse(@androidx.annotation.RecentlyNonNull java.lang.String s) { throw new RuntimeException("Stub!"); }
                             @androidx.annotation.RecentlyNonNull
-                            public java.lang.Object foo(@androidx.annotation.RecentlyNullable java.lang.String foo);
+                            public java.lang.Object foo(@androidx.annotation.RecentlyNullable java.lang.String foo) { throw new RuntimeException("Stub!"); }
+                            @androidx.annotation.RecentlyNullable public java.lang.String bar;
                             }
                         """
                     ),
                 ),
             api =
                 """
+                    // Signature format: 2.0
                     package test.pkg {
-                      public interface ForSystemUse {
+                      public class ForSystemUse {
+                        ctor public ForSystemUse(@NonNull String);
                         method @NonNull public Object foo(@Nullable String);
+                        field @Nullable public String bar;
                       }
                     }
                 """,

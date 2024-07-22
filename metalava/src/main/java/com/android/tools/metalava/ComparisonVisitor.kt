@@ -41,12 +41,6 @@ open class ComparisonVisitor(
      * two cases. Defaults to true.
      */
     val visitConstructorsAsMethods: Boolean = true,
-    /**
-     * Normally if a new item is found, the visitor will only visit the top level newly added item,
-     * not all of its children. This flags enables you to request all individual items to also be
-     * visited.
-     */
-    val visitAddedItemsRecursively: Boolean = false
 ) {
     open fun compare(old: Item, new: Item) {}
 
@@ -275,24 +269,10 @@ class CodebaseComparator(
         }
     }
 
-    private fun visitAdded(visitor: ComparisonVisitor, new: Item) {
-        if (visitor.visitAddedItemsRecursively) {
-            new.accept(
-                object : ApiVisitor(config = apiVisitorConfig) {
-                    override fun visitItem(item: Item) {
-                        doVisitAdded(visitor, item)
-                    }
-                }
-            )
-        } else {
-            doVisitAdded(visitor, new)
-        }
-    }
-
     @Suppress(
         "USELESS_CAST"
     ) // Overloaded visitor methods: be explicit about which one is being invoked
-    private fun doVisitAdded(visitor: ComparisonVisitor, item: Item) {
+    private fun visitAdded(visitor: ComparisonVisitor, item: Item) {
         visitor.added(item)
 
         when (item) {

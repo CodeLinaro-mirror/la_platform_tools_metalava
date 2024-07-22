@@ -535,7 +535,13 @@ class Options(
             )
             .existingFile()
             .multiple()
-            .map { PreviouslyReleasedApi.optionalPreviouslyReleasedApi(ARG_MIGRATE_NULLNESS, it) }
+            .map {
+                PreviouslyReleasedApi.optionalPreviouslyReleasedApi(
+                    ARG_MIGRATE_NULLNESS,
+                    it,
+                    onlyUseLastForCurrentApiSurface = false
+                )
+            }
 
     /** The list of compatibility checks to run */
     val compatibilityChecks: List<CheckRequest> by compatibilityCheckOptions::compatibilityChecks

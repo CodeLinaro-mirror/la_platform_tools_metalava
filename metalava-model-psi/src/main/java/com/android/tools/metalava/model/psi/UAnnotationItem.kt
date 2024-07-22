@@ -56,6 +56,7 @@ private constructor(
 ) :
     DefaultAnnotationItem(
         codebase = codebase,
+        fileLocation = PsiFileLocation.fromPsiElement(uAnnotation.sourcePsi),
         originalName = originalName,
         qualifiedName = qualifiedName,
         attributesGetter = { getAnnotationAttributes(codebase, uAnnotation) },

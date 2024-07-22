@@ -580,7 +580,7 @@ class FlaggedApiLintTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                    src/test/pkg/Foo.java:7: warning: Changes from not deprecated to deprecated must be flagged with @FlaggedApi: class test.pkg.Foo [UnflaggedApi]
+                    src/test/pkg/Foo.java:6: warning: Changes from not deprecated to deprecated must be flagged with @FlaggedApi: class test.pkg.Foo [UnflaggedApi]
                 """,
             apiLint =
                 """

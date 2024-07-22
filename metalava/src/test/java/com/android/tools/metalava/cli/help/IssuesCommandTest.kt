@@ -94,7 +94,6 @@ Available Issues                             |  Category                |   Defa
   EqualsAndHashCode                          |  api_lint                |   error
   ExceptionName                              |  api_lint                |   error
   ExecutorRegistration                       |  api_lint                |   warning
-  ExpectedPlatformType                       |  unknown                 |   hidden
   ExtendsDeprecated                          |  unknown                 |   hidden
   ExtendsError                               |  api_lint                |   error
   FlaggedApiLiteral                          |  api_lint                |   warning_error_when_new

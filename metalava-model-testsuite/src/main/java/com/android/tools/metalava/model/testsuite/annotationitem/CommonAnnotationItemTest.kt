@@ -17,16 +17,172 @@
 package com.android.tools.metalava.model.testsuite.annotationitem
 
 import com.android.tools.metalava.model.AnnotationItem
+import com.android.tools.metalava.model.BaseItemVisitor
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.getAttributeValue
 import com.android.tools.metalava.model.getAttributeValues
+import com.android.tools.metalava.model.provider.Capability
+import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.model.testsuite.BaseModelTest
+import com.android.tools.metalava.reporter.FileLocation
 import com.android.tools.metalava.testing.java
+import com.android.tools.metalava.testing.kotlin
 import kotlin.test.assertEquals
 import org.junit.Test
 
+/** Annotation that is added on a line before the item being annotated. */
+val lineBefore =
+    java(
+        """
+            package test.pkg;
+
+            public @interface LineBefore {
+                String value();
+            }
+        """
+    )
+
+/** Annotation that is added on the same line as the item being annotated. */
+val sameLine =
+    java(
+        """
+            package test.pkg;
+
+            public @interface SameLine {
+                String value();
+            }
+        """
+    )
+
 /** Common tests for implementations of [ClassItem]. */
 class CommonAnnotationItemTest : BaseModelTest() {
+
+    /** Check the location information of the various parts of [item]. */
+    private fun checkLocationInformation(item: Item, expectedLocations: String) {
+        val details = mutableListOf<Pair<Int, String>>()
+        val foo = item
+
+        fun addDetails(fileLocation: FileLocation, description: String) {
+            val line = fileLocation.line
+            if (line == 0) return
+            details.add(line to description)
+        }
+
+        foo.accept(
+            object : BaseItemVisitor() {
+                override fun visitItem(item: Item) {
+                    item.modifiers.annotations().forEach {
+                        addDetails(it.fileLocation, it.toSource())
+                    }
+                    addDetails(item.fileLocation, item.describe())
+                }
+            }
+        )
+        val sorted = details.sortedWith(compareBy({ it.first }, { it.second }))
+        val actualLocations = sorted.map { (line, details) -> "$line:$details" }.joinToString("\n")
+        assertEquals(expectedLocations.trimIndent(), actualLocations)
+    }
+
+    @RequiresCapabilities(Capability.JAVA)
+    @Test
+    fun `annotation location (java)`() {
+        runCodebaseTest(
+            inputSet(
+                lineBefore,
+                sameLine,
+                java(
+                    """
+                        package test.pkg;
+
+                        @LineBefore("Foo")
+                        @SameLine("Foo") public class Foo {
+                            @LineBefore("constructor")
+                            @SameLine("constructor") public Foo() {}
+                            @LineBefore("field")
+                            @SameLine("field") public int field;
+                            @LineBefore("method")
+                            @SameLine("method") public void method(
+                                @LineBefore("parameter")
+                                @SameLine("parameter") int p) {}
+                        }
+                    """
+                ),
+            ),
+        ) {
+            checkLocationInformation(
+                codebase.assertClass("test.pkg.Foo"),
+                """
+                    3:@test.pkg.LineBefore("Foo")
+                    4:@test.pkg.SameLine("Foo")
+                    4:class test.pkg.Foo
+                    5:@test.pkg.LineBefore("constructor")
+                    6:@test.pkg.SameLine("constructor")
+                    6:constructor test.pkg.Foo()
+                    7:@test.pkg.LineBefore("field")
+                    8:@test.pkg.SameLine("field")
+                    8:field test.pkg.Foo.field
+                    9:@test.pkg.LineBefore("method")
+                    10:@test.pkg.SameLine("method")
+                    10:method test.pkg.Foo.method(int)
+                    11:@test.pkg.LineBefore("parameter")
+                    12:@test.pkg.SameLine("parameter")
+                    12:parameter p in test.pkg.Foo.method(int p)
+                """
+            )
+        }
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `annotation location (kotlin)`() {
+        runCodebaseTest(
+            inputSet(
+                lineBefore,
+                sameLine,
+                kotlin(
+                    """
+                        package test.pkg
+
+                        @LineBefore("Foo")
+                        @SameLine("Foo") class Foo {
+                            @LineBefore("constructor")
+                            @SameLine("constructor") constructor() {}
+                            @LineBefore("field")
+                            @SameLine("field") val field: Int
+                            @LineBefore("method")
+                            @SameLine("method") fun method(
+                                @LineBefore("parameter")
+                                @SameLine("parameter") p: Int) {}
+                        }
+                    """
+                ),
+            ),
+        ) {
+            checkLocationInformation(
+                codebase.assertClass("test.pkg.Foo"),
+                """
+                    3:@test.pkg.LineBefore("Foo")
+                    4:@test.pkg.SameLine("Foo")
+                    4:class test.pkg.Foo
+                    5:@test.pkg.LineBefore("constructor")
+                    5:constructor test.pkg.Foo()
+                    6:@test.pkg.SameLine("constructor")
+                    7:@test.pkg.LineBefore("field")
+                    8:@test.pkg.SameLine("field")
+                    8:field test.pkg.Foo.field
+                    8:method test.pkg.Foo.getField()
+                    8:property Foo.field
+                    9:@test.pkg.LineBefore("method")
+                    10:@test.pkg.SameLine("method")
+                    10:method test.pkg.Foo.method(int)
+                    11:@test.pkg.LineBefore("parameter")
+                    12:@test.pkg.SameLine("parameter")
+                    12:parameter p in test.pkg.Foo.method(int p)
+                """
+            )
+        }
+    }
 
     @Test
     fun `annotation with annotation values`() {
