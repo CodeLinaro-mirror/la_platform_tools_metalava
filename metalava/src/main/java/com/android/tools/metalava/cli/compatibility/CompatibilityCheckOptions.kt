@@ -34,7 +34,6 @@ import java.io.File
 
 const val ARG_CHECK_COMPATIBILITY_API_RELEASED = "--check-compatibility:api:released"
 const val ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED = "--check-compatibility:removed:released"
-const val ARG_CHECK_COMPATIBILITY_BASE_API = "--check-compatibility:base"
 const val ARG_ERROR_MESSAGE_CHECK_COMPATIBILITY_RELEASED = "--error-message:compatibility:released"
 
 const val ARG_BASELINE_CHECK_COMPATIBILITY_RELEASED = "--baseline:compatibility:released"
@@ -57,22 +56,6 @@ class CompatibilityCheckOptions(
             """
                 .trimIndent(),
     ) {
-
-    internal val baseApiForCompatCheck: File? by
-        option(
-                ARG_CHECK_COMPATIBILITY_BASE_API,
-                help =
-                    """
-                        When performing a compat check, use the provided signature file as a base
-                        api, which is treated as part of the API being checked. This allows us to
-                        compute the full API surface from a partial API surface (e.g. the current
-                         @SystemApi txt file), which allows us to recognize when an API is moved
-                         from the partial API to the base API and avoid incorrectly flagging this
-                     """
-                        .trimIndent(),
-            )
-            .existingFile()
-            .allowStructuredOptionName()
 
     private val checkReleasedApi: CheckRequest? by
         option(

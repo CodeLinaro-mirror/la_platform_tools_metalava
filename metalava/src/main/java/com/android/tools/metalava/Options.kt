@@ -546,9 +546,6 @@ class Options(
     /** The list of compatibility checks to run */
     val compatibilityChecks: List<CheckRequest> by compatibilityCheckOptions::compatibilityChecks
 
-    /** The API to use a base for the otherwise checked API during compat checks. */
-    val baseApiForCompatCheck by compatibilityCheckOptions::baseApiForCompatCheck
-
     /** Existing external annotation files to merge in */
     private var mergeQualifierAnnotations: List<File> = mutableMergeQualifierAnnotations
     private var mergeInclusionAnnotations: List<File> = mutableMergeInclusionAnnotations

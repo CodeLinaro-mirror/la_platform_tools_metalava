@@ -175,25 +175,49 @@ class CodebaseComparator(
                         compare > 0 -> {
                             index2++
                             if (new.emit) {
-                                visitAdded(new, oldParent, visitor, newTree, filter)
+                                dispatchToAddedOrCompareIfItemWasMoved(
+                                    new,
+                                    oldParent,
+                                    visitor,
+                                    newTree,
+                                    filter
+                                )
                             }
                         }
                         compare < 0 -> {
                             index1++
                             if (old.emit) {
-                                visitRemoved(old, oldTree, visitor, newParent, filter)
+                                dispatchToRemovedOrCompareIfItemWasMoved(
+                                    old,
+                                    oldTree,
+                                    visitor,
+                                    newParent,
+                                    filter
+                                )
                             }
                         }
                         else -> {
                             if (new.emit) {
                                 if (old.emit) {
-                                    visitCompare(visitor, old, new)
+                                    dispatchToCompare(visitor, old, new)
                                 } else {
-                                    visitAdded(new, oldParent, visitor, newTree, filter)
+                                    dispatchToAddedOrCompareIfItemWasMoved(
+                                        new,
+                                        oldParent,
+                                        visitor,
+                                        newTree,
+                                        filter
+                                    )
                                 }
                             } else {
                                 if (old.emit) {
-                                    visitRemoved(old, oldTree, visitor, newParent, filter)
+                                    dispatchToRemovedOrCompareIfItemWasMoved(
+                                        old,
+                                        oldTree,
+                                        visitor,
+                                        newParent,
+                                        filter
+                                    )
                                 }
                             }
 
@@ -216,7 +240,13 @@ class CodebaseComparator(
                     while (index1 < length1) {
                         val oldTree = oldList[index1++]
                         val old = oldTree.item()
-                        visitRemoved(old, oldTree, visitor, newParent, filter)
+                        dispatchToRemovedOrCompareIfItemWasMoved(
+                            old,
+                            oldTree,
+                            visitor,
+                            newParent,
+                            filter
+                        )
                     }
                 }
             } else if (index2 < length2) {
@@ -225,7 +255,7 @@ class CodebaseComparator(
                     val newTree = newList[index2++]
                     val new = newTree.item()
 
-                    visitAdded(new, oldParent, visitor, newTree, filter)
+                    dispatchToAddedOrCompareIfItemWasMoved(new, oldParent, visitor, newTree, filter)
                 }
             } else {
                 break
@@ -233,7 +263,11 @@ class CodebaseComparator(
         }
     }
 
-    private fun visitAdded(
+    /**
+     * Checks to see whether [new] has actually been added or if it was just moved from elsewhere
+     * and dispatch to the appropriate method.
+     */
+    private fun dispatchToAddedOrCompareIfItemWasMoved(
         new: Item,
         oldParent: Item?,
         visitor: ComparisonVisitor,
@@ -258,21 +292,19 @@ class CodebaseComparator(
             }
 
         if (inherited != null) {
-            visitCompare(visitor, inherited, new)
+            dispatchToCompare(visitor, inherited, new)
             // Compare the children (recurse)
             if (inherited.parameters().isNotEmpty()) {
                 val parameters = inherited.parameters().map { ItemTree(it) }.toList()
                 compare(visitor, parameters, newTree.children, newTree.item(), inherited, filter)
             }
         } else {
-            visitAdded(visitor, new)
+            dispatchToAdded(visitor, new)
         }
     }
 
-    @Suppress(
-        "USELESS_CAST"
-    ) // Overloaded visitor methods: be explicit about which one is being invoked
-    private fun visitAdded(visitor: ComparisonVisitor, item: Item) {
+    /** Dispatch to the [Item] specific `added(...)` method. */
+    private fun dispatchToAdded(visitor: ComparisonVisitor, item: Item) {
         visitor.added(item)
 
         when (item) {
@@ -282,6 +314,8 @@ class CodebaseComparator(
                 if (visitor.visitConstructorsAsMethods) {
                     visitor.added(item)
                 } else {
+                    // Overloaded visitor methods: be explicit about which one is being invoked
+                    @Suppress("USELESS_CAST")
                     if (item is ConstructorItem) {
                         visitor.added(item as ConstructorItem)
                     } else {
@@ -295,7 +329,11 @@ class CodebaseComparator(
         }
     }
 
-    private fun visitRemoved(
+    /**
+     * Checks to see whether [new] has actually been removed or if it was just moved from elsewhere
+     * and dispatch to the appropriate method.
+     */
+    private fun dispatchToRemovedOrCompareIfItemWasMoved(
         old: Item,
         oldTree: ItemTree,
         visitor: ComparisonVisitor,
@@ -321,7 +359,7 @@ class CodebaseComparator(
             }
 
         if (inheritedMethod != null) {
-            visitCompare(visitor, old, inheritedMethod)
+            dispatchToCompare(visitor, old, inheritedMethod)
             // Compare the children (recurse)
             if (inheritedMethod.parameters().isNotEmpty()) {
                 val parameters = inheritedMethod.parameters().map { ItemTree(it) }.toList()
@@ -357,16 +395,14 @@ class CodebaseComparator(
             }
 
         if (inheritedField != null) {
-            visitCompare(visitor, old, inheritedField)
+            dispatchToCompare(visitor, old, inheritedField)
             return
         }
-        visitRemoved(visitor, old, newParent)
+        dispatchToRemoved(visitor, old, newParent)
     }
 
-    @Suppress(
-        "USELESS_CAST"
-    ) // Overloaded visitor methods: be explicit about which one is being invoked
-    private fun visitRemoved(visitor: ComparisonVisitor, item: Item, from: Item?) {
+    /** Dispatch to the [Item] specific `removed(...)` method. */
+    private fun dispatchToRemoved(visitor: ComparisonVisitor, item: Item, from: Item?) {
         visitor.removed(item, from)
 
         when (item) {
@@ -376,6 +412,8 @@ class CodebaseComparator(
                 if (visitor.visitConstructorsAsMethods) {
                     visitor.removed(item, from as ClassItem?)
                 } else {
+                    // Overloaded visitor methods: be explicit about which one is being invoked
+                    @Suppress("USELESS_CAST")
                     if (item is ConstructorItem) {
                         visitor.removed(item as ConstructorItem, from as ClassItem?)
                     } else {
@@ -389,10 +427,8 @@ class CodebaseComparator(
         }
     }
 
-    @Suppress(
-        "USELESS_CAST"
-    ) // Overloaded visitor methods: be explicit about which one is being invoked
-    private fun visitCompare(visitor: ComparisonVisitor, old: Item, new: Item) {
+    /** Dispatch to the [Item] specific `compare(...)` method. */
+    private fun dispatchToCompare(visitor: ComparisonVisitor, old: Item, new: Item) {
         visitor.compare(old, new)
 
         when (old) {
@@ -402,6 +438,8 @@ class CodebaseComparator(
                 if (visitor.visitConstructorsAsMethods) {
                     visitor.compare(old, new as MethodItem)
                 } else {
+                    // Overloaded visitor methods: be explicit about which one is being invoked
+                    @Suppress("USELESS_CAST")
                     if (old is ConstructorItem) {
                         visitor.compare(old as ConstructorItem, new as MethodItem)
                     } else {
