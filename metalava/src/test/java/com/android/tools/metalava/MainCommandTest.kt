@@ -62,6 +62,8 @@ Options:
                                              annotation which is itself annotated with the given meta-annotation.
   --manifest <file>                          A manifest file, used to check permissions to cross check APIs and retrieve
                                              min_sdk_version. (default: no manifest)
+  --migrate-nullness <api file>              Compare nullness information with the previous stable API and mark newly
+                                             annotated APIs as under migration.
   --hide-sdk-extensions-newer-than INT       Ignore SDK extensions version INT and above. Used to exclude finalized but
                                              not yet released SDK extensions.
   --typedefs-in-signatures [none|ref|inline]
@@ -209,12 +211,6 @@ Generating Stubs:
                                              Exclude element documentation (javadoc and kdoc) from the generated stubs.
                                              (Copyright notices are not affected by this, they are always included.
                                              Documentation stubs (--doc-stubs) are not affected.)
-
-
-Diffs and Checks:
---migrate-nullness <api file>
-                                             Compare nullness information with the previous stable API and mark newly
-                                             annotated APIs as under migration.
 
 
 Extracting Annotations:

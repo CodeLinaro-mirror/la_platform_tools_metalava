@@ -58,6 +58,7 @@ import com.google.turbine.binder.lookup.LookupKey
 import com.google.turbine.binder.lookup.TopLevelIndex
 import com.google.turbine.binder.sym.ClassSymbol
 import com.google.turbine.binder.sym.TyVarSymbol
+import com.google.turbine.diag.SourceFile
 import com.google.turbine.diag.TurbineLog
 import com.google.turbine.model.Const
 import com.google.turbine.model.Const.ArrayInitValue
@@ -174,6 +175,33 @@ internal open class TurbineCodebaseInitialiser(
         createAllClasses()
     }
 
+    /** Map from file path to the [TurbineSourceFile]. */
+    private val turbineSourceFiles = mutableMapOf<String, TurbineSourceFile>()
+
+    /**
+     * Create a [TurbineSourceFile] for the specified [compUnit].
+     *
+     * This may be called multiple times for the same [compUnit] in which case it will return the
+     * same [TurbineSourceFile]. It will throw an exception if two [CompUnit]s have the same path.
+     */
+    private fun createTurbineSourceFile(compUnit: CompUnit): TurbineSourceFile {
+        val path = compUnit.source().path()
+        val existing = turbineSourceFiles[path]
+        if (existing != null && existing.compUnit != compUnit) {
+            error("duplicate source file found for $path")
+        }
+        return TurbineSourceFile(codebase, compUnit).also { turbineSourceFiles[path] = it }
+    }
+
+    /**
+     * Get the [TurbineSourceFile] for a [SourceFile], failing if it could not be found.
+     *
+     * A [TurbineSourceFile] must be created by [createTurbineSourceFile] before calling this.
+     */
+    private fun turbineSourceFile(sourceFile: SourceFile): TurbineSourceFile =
+        turbineSourceFiles[sourceFile.path()]
+            ?: error("unrecognized source file: ${sourceFile.path()}")
+
     private fun createAllPackages() {
         // Root package
         findOrCreatePackage("", null, "")
@@ -184,7 +212,7 @@ internal open class TurbineCodebaseInitialiser(
             // No class declarations. Will be a case of package-info file
             if (unit.decls().isEmpty()) {
                 val source = unit.source().source()
-                sourceFile = TurbineSourceFile(codebase, unit)
+                sourceFile = createTurbineSourceFile(unit)
                 doc = getHeaderComments(source)
             }
             findOrCreatePackage(getPackageName(unit), sourceFile, doc)
@@ -302,6 +330,21 @@ internal open class TurbineCodebaseInitialiser(
         val pkgName = sym.packageName().replace('/', '.')
         val pkgItem = findOrCreatePackage(pkgName, null, "")
 
+        // Create the sourcefile
+        val sourceFile =
+            if (isTopClass && !isFromClassPath) {
+                classSourceMap[(cls as SourceTypeBoundClass).decl()]?.let {
+                    createTurbineSourceFile(it)
+                }
+            } else null
+        val fileLocation =
+            when {
+                sourceFile != null -> TurbineFileLocation.forTree(sourceFile, decl)
+                containingClassItem != null ->
+                    TurbineFileLocation.forTree(containingClassItem, decl)
+                else -> FileLocation.UNKNOWN
+            }
+
         // Create class
         val qualifiedName = getQualifiedName(sym.binaryName())
         val simpleName = qualifiedName.substring(qualifiedName.lastIndexOf('.') + 1)
@@ -321,20 +364,6 @@ internal open class TurbineCodebaseInitialiser(
                 enclosingClassTypeItemFactory,
                 "class $qualifiedName",
             )
-        // Create the sourcefile
-        val sourceFile =
-            if (isTopClass && !isFromClassPath) {
-                classSourceMap[(cls as SourceTypeBoundClass).decl()]?.let {
-                    TurbineSourceFile(codebase, it)
-                }
-            } else null
-        val fileLocation =
-            when {
-                sourceFile != null -> TurbineFileLocation.forTree(sourceFile, decl)
-                containingClassItem != null ->
-                    TurbineFileLocation.forTree(containingClassItem, decl)
-                else -> FileLocation.UNKNOWN
-            }
         val classItem =
             TurbineClassItem(
                 codebase,
@@ -408,17 +437,25 @@ internal open class TurbineCodebaseInitialiser(
 
     /** Creates a list of AnnotationItems from given list of Turbine Annotations */
     internal fun createAnnotations(annotations: List<AnnoInfo>): List<AnnotationItem> {
-        return annotations.map { createAnnotation(it) }
+        return annotations.mapNotNull { createAnnotation(it) }
     }
 
-    private fun createAnnotation(annotation: AnnoInfo): AnnotationItem {
-        val simpleName = annotation.tree()?.let { extractNameFromIdent(it.name()) }
+    private fun createAnnotation(annotation: AnnoInfo): AnnotationItem? {
+        val tree = annotation.tree()
+        val simpleName = tree?.let { extractNameFromIdent(it.name()) }
         val clsSym = annotation.sym()
         val qualifiedName =
             if (clsSym == null) simpleName!! else getQualifiedName(clsSym.binaryName())
 
-        return DefaultAnnotationItem(codebase, qualifiedName) {
-            getAnnotationAttributes(annotation.values(), annotation.tree()?.args())
+        val fileLocation =
+            annotation
+                .source()
+                ?.let { sourceFile -> turbineSourceFile(sourceFile) }
+                ?.let { sourceFile -> TurbineFileLocation.forTree(sourceFile, tree) }
+                ?: FileLocation.UNKNOWN
+
+        return DefaultAnnotationItem.create(codebase, fileLocation, qualifiedName) {
+            getAnnotationAttributes(annotation.values(), tree?.args())
         }
     }
 

@@ -29,13 +29,13 @@ import com.android.tools.metalava.model.hasAnnotation
 
 /**
  * Performs null migration analysis, looking at previous API signature files and new signature
- * files, and replacing new @Nullable and @NonNull annotations with @RecentlyNullable
- * and @RecentlyNonNull.
+ * files, and replacing @Nullable and @NonNull annotations added to APIs that have previously been
+ * released with @RecentlyNullable and @RecentlyNonNull.
  *
  * TODO: Enforce compatibility across type use annotations, e.g. changing parameter value from
  *   {@code @NonNull List<@Nullable String>} to {@code @NonNull List<@NonNull String>} is forbidden.
  */
-class NullnessMigration : ComparisonVisitor(visitAddedItemsRecursively = true) {
+class NullnessMigration : ComparisonVisitor() {
     override fun compare(old: Item, new: Item) {
         if (hasNullnessInformation(new) && !hasNullnessInformation(old)) {
             new.markRecent()

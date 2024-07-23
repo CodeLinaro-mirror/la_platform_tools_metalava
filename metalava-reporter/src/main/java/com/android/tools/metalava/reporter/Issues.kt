@@ -102,7 +102,6 @@ object Issues {
     val ANNOTATION_EXTRACTION by Issue(Severity.ERROR)
     val SUPERFLUOUS_PREFIX by Issue(Severity.WARNING)
     val HIDDEN_TYPEDEF_CONSTANT by Issue(Severity.ERROR)
-    val EXPECTED_PLATFORM_TYPE by Issue(Severity.HIDDEN)
     val INTERNAL_ERROR by Issue(Severity.ERROR)
     val RETURNING_UNEXPECTED_CONSTANT by Issue(Severity.WARNING)
     val DEPRECATED_OPTION by Issue(Severity.WARNING)

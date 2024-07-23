@@ -360,4 +360,145 @@ class NullnessCompatibilityTest : DriverTest() {
                 """
         )
     }
+
+    @Test
+    fun `Array type component nullness changes`() {
+        check(
+            checkCompatibilityApiReleased =
+                """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public class Foo {
+                        ctor public Foo();
+                        method public String[] foo(String![], String?[], String?[]?[]);
+                      }
+                    }
+                """,
+            sourceFiles =
+                arrayOf(
+                    signature(
+                        """
+                            // Signature format: 5.0
+                            package test.pkg {
+                              public class Foo {
+                                ctor public Foo();
+                                method public String?[] foo(String[], String[], String![][]);
+                              }
+                            }
+                        """
+                    )
+                ),
+            expectedIssues =
+                """
+                    api.txt:5: error: Attempted to change nullability of java.lang.String (from NONNULL to NULLABLE) in method test.pkg.Foo.foo(String[],String[],String[][]) [InvalidNullConversion]
+                    api.txt:5: error: Attempted to change nullability of java.lang.String (from NULLABLE to NONNULL) in parameter arg2 in test.pkg.Foo.foo(String[] arg1, String[] arg2, String[][] arg3) [InvalidNullConversion]
+                    api.txt:5: error: Attempted to change nullability of java.lang.String[] (from NULLABLE to NONNULL) in parameter arg3 in test.pkg.Foo.foo(String[] arg1, String[] arg2, String[][] arg3) [InvalidNullConversion]
+                    api.txt:5: error: Attempted to remove nullability from java.lang.String (was NULLABLE) in parameter arg3 in test.pkg.Foo.foo(String[] arg1, String[] arg2, String[][] arg3) [InvalidNullConversion]
+                """,
+        )
+    }
+
+    @Test
+    fun `Class type argument nullness changes`() {
+        check(
+            checkCompatibilityApiReleased =
+                """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public class Foo {
+                        ctor public Foo();
+                        method public java.util.Map<java.lang.Number?, java.util.List<java.lang.String>!> foo();
+                      }
+                    }
+                """,
+            sourceFiles =
+                arrayOf(
+                    signature(
+                        """
+                            // Signature format: 5.0
+                            package test.pkg {
+                              public class Foo {
+                                ctor public Foo();
+                                method public java.util.Map<java.lang.Number!, java.util.List<java.lang.String?>> foo();
+                              }
+                            }
+                        """
+                    )
+                ),
+            expectedIssues =
+                """
+                    api.txt:5: error: Attempted to remove nullability from java.lang.Number (was NULLABLE) in method test.pkg.Foo.foo() [InvalidNullConversion]
+                    api.txt:5: error: Attempted to change nullability of java.lang.String (from NONNULL to NULLABLE) in method test.pkg.Foo.foo() [InvalidNullConversion]
+                """,
+        )
+    }
+
+    @Test
+    fun `Outer class type arguments nullness changes`() {
+        check(
+            checkCompatibilityApiReleased =
+                """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public class Foo {
+                        ctor public Foo();
+                        method public test.pkg.Outer<java.lang.String>.Inner foo();
+                      }
+                    }
+                """,
+            sourceFiles =
+                arrayOf(
+                    signature(
+                        """
+                            // Signature format: 5.0
+                            package test.pkg {
+                              public class Foo {
+                                ctor public Foo();
+                                method public test.pkg.Outer<java.lang.String?>.Inner foo();
+                              }
+                            }
+                        """
+                    )
+                ),
+            expectedIssues =
+                """
+                    api.txt:5: error: Attempted to change nullability of java.lang.String (from NONNULL to NULLABLE) in method test.pkg.Foo.foo() [InvalidNullConversion]
+                """,
+        )
+    }
+
+    @Test
+    fun `Wildcard bounds nullness changes`() {
+        check(
+            checkCompatibilityApiReleased =
+                """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public class Foo {
+                        ctor public Foo();
+                        method public java.util.Map<? extends java.lang.Number?, ? super java.lang.String> foo();
+                      }
+                    }
+                """,
+            sourceFiles =
+                arrayOf(
+                    signature(
+                        """
+                            // Signature format: 5.0
+                            package test.pkg {
+                              public class Foo {
+                                ctor public Foo();
+                                method public java.util.Map<? extends java.lang.Number, ? super java.lang.String!> foo();
+                              }
+                            }
+                        """
+                    )
+                ),
+            expectedIssues =
+                """
+                    api.txt:5: warning: Attempted to change nullability of java.lang.Number (from NULLABLE to NONNULL) in method test.pkg.Foo.foo() (ErrorWhenNew) [InvalidNullConversion]
+                    api.txt:5: error: Attempted to remove nullability from java.lang.String (was NONNULL) in method test.pkg.Foo.foo() [InvalidNullConversion]
+                """,
+        )
+    }
 }

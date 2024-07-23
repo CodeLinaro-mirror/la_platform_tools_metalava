@@ -100,8 +100,6 @@ internal open class TextClassItem(
 
     private var superClassType: ClassTypeItem? = null
 
-    override fun superClass(): ClassItem? = superClassType?.asClass()
-
     override fun superClassType(): ClassTypeItem? = superClassType
 
     internal fun setSuperClassType(superClassType: ClassTypeItem?) {
@@ -141,6 +139,22 @@ internal open class TextClassItem(
     }
 
     fun addMethod(method: TextMethodItem) {
+        methods += method
+    }
+
+    /**
+     * Replace an existing method with [method], if no such method exists then just add [method] to
+     * the list of methods.
+     */
+    fun replaceOrAddMethod(method: TextMethodItem) {
+        val iterator = methods.listIterator()
+        while (iterator.hasNext()) {
+            val existing = iterator.next()
+            if (existing == method) {
+                iterator.set(method)
+                return
+            }
+        }
         methods += method
     }
 

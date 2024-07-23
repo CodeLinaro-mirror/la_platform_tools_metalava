@@ -121,7 +121,8 @@ private constructor(
                         } else null
                     }
                 annotations?.forEach { uAnnotation ->
-                    val annotationItem = UAnnotationItem.create(codebase, uAnnotation)
+                    val annotationItem =
+                        UAnnotationItem.create(codebase, uAnnotation) ?: return@forEach
                     if (annotationItem !in modifiers.annotations()) {
                         modifiers.addAnnotation(annotationItem)
                     }

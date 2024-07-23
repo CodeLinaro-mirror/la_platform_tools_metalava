@@ -151,7 +151,7 @@ internal class PsiTypeItemFactory(
         kotlinType: KotlinTypeInfo?,
         contextNullability: ContextNullability,
     ): TypeModifiers {
-        val typeAnnotations = type.annotations.map { PsiAnnotationItem.create(codebase, it) }
+        val typeAnnotations = type.annotations.mapNotNull { PsiAnnotationItem.create(codebase, it) }
         // Compute the nullability, factoring in any context nullability, kotlin types and
         // type annotations.
         val nullability = contextNullability.compute(kotlinType?.nullability(), typeAnnotations)

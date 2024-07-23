@@ -23,7 +23,6 @@ com.android.tools.metalava.ApiFileTest
   Check skipping implicit final or deprecated override[turbine]
   Check various generics signature subtleties[turbine]
   Kotlin expect-actual with JvmOverloads[psi,k2]
-  Remove findViewById type nullness annotation[turbine]
   Subclass definition is not included in removed api file[turbine]
   Test KDoc suppress[turbine]
   Type-use annotations can be included in signature files[turbine]
@@ -78,6 +77,8 @@ com.android.tools.metalava.FlaggedApiTest
   Test that previously released APIs which are now system and flagged are not removed[turbine,system with flagged api]
   Test that previously released APIs which are now system and flagged are not removed[turbine,system without  flagged api]
   Test that previously released APIs which are now system and flagged are not removed[turbine,system without flagged api, with foo_bar]
+  Test that pulling method up into super class can be reverted[turbine,public with flagged api]
+  Test that pulling method up into super class can be reverted[turbine,public without flagged api, with foo_bar]
 
 com.android.tools.metalava.HideAnnotationTest
   Using hide annotation interface order[turbine]

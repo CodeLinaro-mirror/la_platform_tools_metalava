@@ -59,6 +59,7 @@ import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.model.JAVA_LANG_DEPRECATED
 import com.android.tools.metalava.model.JAVA_LANG_THROWABLE
 import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.MethodItem
@@ -2030,7 +2031,14 @@ private constructor(
         // Check the deprecated status, if it has changed
         val previousDeprecated = previousItem.effectivelyDeprecated
         val currentDeprecated = currentItem.effectivelyDeprecated
-        if (currentDeprecated != previousDeprecated) {
+        if (
+            currentDeprecated != previousDeprecated &&
+                currentItem.originallyDeprecated != previousItem.originallyDeprecated
+        ) {
+            val location =
+                if (currentItem.originallyDeprecated)
+                    currentItem.modifiers.findAnnotation(JAVA_LANG_DEPRECATED)?.fileLocation
+                else null
             fun deprecatedStatus(b: Boolean): String {
                 return if (b) "deprecated" else "not deprecated"
             }
@@ -2040,7 +2048,8 @@ private constructor(
                 UNFLAGGED_API,
                 currentItem,
                 "Changes from $previous to $current must be flagged with @FlaggedApi: ${currentItem.describe()}",
-                maximumSeverity = Severity.WARNING_ERROR_WHEN_NEW
+                location = location ?: FileLocation.UNKNOWN,
+                maximumSeverity = Severity.WARNING_ERROR_WHEN_NEW,
             )
             // Reporting the same issue on the same Item is pointless as the first report will
             // update the baseline and so suppress the second report so return immediately.

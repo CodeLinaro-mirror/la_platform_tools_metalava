@@ -134,9 +134,7 @@ class DocAnalyzer(
                     for (annotation in annotations) {
                         val name = annotation.qualifiedName
                         if (
-                            name != null &&
-                                name.endsWith("Thread") &&
-                                name.startsWith(ANDROIDX_ANNOTATION_PREFIX)
+                            name.endsWith("Thread") && name.startsWith(ANDROIDX_ANNOTATION_PREFIX)
                         ) {
                             if (result == null) {
                                 result = mutableListOf()
@@ -176,7 +174,7 @@ class DocAnalyzer(
                     visitedClasses: MutableSet<String> = mutableSetOf()
                 ) {
                     val name = annotation.qualifiedName
-                    if (name == null || name.startsWith(JAVA_LANG_PREFIX)) {
+                    if (name.startsWith(JAVA_LANG_PREFIX)) {
                         // Ignore java.lang.Retention etc.
                         return
                     }

@@ -255,7 +255,8 @@ class DefaultModifierList(
         set(ACTUAL, actual)
     }
 
-    override fun addAnnotation(annotation: AnnotationItem) {
+    override fun addAnnotation(annotation: AnnotationItem?) {
+        annotation ?: return
         if (annotations == null) {
             annotations = mutableListOf()
         }

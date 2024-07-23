@@ -48,7 +48,11 @@ sealed interface PreviouslyReleasedApi {
          * return a [JarBasedApi] or [SignatureBasedApi] for a list of jar files and a list of
          * signature files respectively.
          */
-        internal fun optionalPreviouslyReleasedApi(optionName: String, files: List<File>) =
+        internal fun optionalPreviouslyReleasedApi(
+            optionName: String,
+            files: List<File>,
+            onlyUseLastForCurrentApiSurface: Boolean = true
+        ) =
             if (files.isEmpty()) null
             else {
                 // Partition the files into jar and non-jar files, the latter are assumed to be
@@ -56,7 +60,8 @@ sealed interface PreviouslyReleasedApi {
                 val (jarFiles, signatureFiles) =
                     files.partition { it.path.endsWith(SdkConstants.DOT_JAR) }
                 when {
-                    jarFiles.isEmpty() -> SignatureBasedApi.fromFiles(signatureFiles)
+                    jarFiles.isEmpty() ->
+                        SignatureBasedApi.fromFiles(signatureFiles, onlyUseLastForCurrentApiSurface)
                     signatureFiles.isEmpty() ->
                         if (jarFiles.size > 1)
                             throw IllegalStateException(
@@ -113,14 +118,18 @@ data class SignatureBasedApi(val signatureFiles: List<SignatureFile>) : Previous
     }
 
     companion object {
-        fun fromFiles(files: List<File>): SignatureBasedApi {
+        fun fromFiles(
+            files: List<File>,
+            onlyUseLastForCurrentApiSurface: Boolean = true
+        ): SignatureBasedApi {
             val lastIndex = files.size - 1
             return SignatureBasedApi(
                 files.mapIndexed { index, file ->
                     SignatureFile(
                         file,
                         // The last file is assumed to be for the current API surface.
-                        forCurrentApiSurface = index == lastIndex,
+                        forCurrentApiSurface =
+                            !onlyUseLastForCurrentApiSurface || index == lastIndex,
                     )
                 }
             )

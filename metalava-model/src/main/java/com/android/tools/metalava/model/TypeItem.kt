@@ -602,7 +602,7 @@ abstract class DefaultTypeItem(
                     }
 
                     val filter = configuration.filter ?: return@filter true
-                    val qualifiedName = annotation.qualifiedName ?: return@filter true
+                    val qualifiedName = annotation.qualifiedName
                     val annotationClass =
                         annotation.codebase.findClass(qualifiedName) ?: return@filter true
                     filter.test(annotationClass)

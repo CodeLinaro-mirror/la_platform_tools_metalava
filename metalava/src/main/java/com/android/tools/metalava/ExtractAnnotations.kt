@@ -198,7 +198,7 @@ class ExtractAnnotations(
     /** For a given item, extract the relevant annotations for that item */
     private fun checkItem(item: Item) {
         for (annotation in item.modifiers.annotations()) {
-            val qualifiedName = annotation.qualifiedName ?: continue
+            val qualifiedName = annotation.qualifiedName
             if (
                 qualifiedName.startsWith(JAVA_LANG_PREFIX) ||
                     qualifiedName.startsWith(ANDROIDX_ANNOTATION_PREFIX) ||

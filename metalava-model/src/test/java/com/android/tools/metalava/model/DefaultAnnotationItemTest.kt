@@ -46,10 +46,13 @@ class DefaultAnnotationItemTest {
             ): AnnotationItem = unsupported()
         }
 
+    private fun createDefaultAnnotationItem(source: String) =
+        DefaultAnnotationItem.create(placeholderCodebase, source)
+            ?: error("Could not create annotation from: '$source'")
+
     @Test
     fun testSimple() {
-        val annotation =
-            DefaultAnnotationItem.create(placeholderCodebase, "@androidx.annotation.Nullable")
+        val annotation = createDefaultAnnotationItem("@androidx.annotation.Nullable")
         assertEquals("@androidx.annotation.Nullable", annotation.toSource())
         assertEquals("androidx.annotation.Nullable", annotation.qualifiedName)
         assertTrue(annotation.attributes.isEmpty())
@@ -58,10 +61,7 @@ class DefaultAnnotationItemTest {
     @Test
     fun testIntRange() {
         val annotation =
-            DefaultAnnotationItem.create(
-                placeholderCodebase,
-                "@androidx.annotation.IntRange(from = 20, to = 40)"
-            )
+            createDefaultAnnotationItem("@androidx.annotation.IntRange(from = 20, to = 40)")
         assertEquals("@androidx.annotation.IntRange(from=20, to=40)", annotation.toSource())
         assertEquals("androidx.annotation.IntRange", annotation.qualifiedName)
         assertEquals(2, annotation.attributes.size)
@@ -74,8 +74,7 @@ class DefaultAnnotationItemTest {
     @Test
     fun testIntDef() {
         val annotation =
-            DefaultAnnotationItem.create(
-                placeholderCodebase,
+            createDefaultAnnotationItem(
                 "@androidx.annotation.IntDef({STYLE_NORMAL, STYLE_NO_TITLE, STYLE_NO_FRAME, STYLE_NO_INPUT})"
             )
         assertEquals(

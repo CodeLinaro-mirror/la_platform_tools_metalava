@@ -37,7 +37,7 @@ class SignatureWriterTest {
                             writer = it,
                             filterEmit = { true },
                             filterReference = { true },
-                            preFiltered = false,
+                            preFiltered = true,
                             emitHeader = EmitFileHeader.IF_NONEMPTY_FILE,
                             fileFormat = fileFormat,
                             showUnannotated = false,

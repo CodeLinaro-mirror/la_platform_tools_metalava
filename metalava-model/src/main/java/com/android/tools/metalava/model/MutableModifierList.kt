@@ -63,7 +63,7 @@ interface MutableModifierList : ModifierList {
 
     fun setActual(actual: Boolean)
 
-    fun addAnnotation(annotation: AnnotationItem)
+    fun addAnnotation(annotation: AnnotationItem?)
 
     fun removeAnnotation(annotation: AnnotationItem)
 

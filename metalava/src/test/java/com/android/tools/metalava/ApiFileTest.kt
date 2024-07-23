@@ -21,7 +21,6 @@ package com.android.tools.metalava
 import com.android.tools.lint.checks.infrastructure.TestFiles.base64gzip
 import com.android.tools.metalava.cli.common.ARG_ERROR
 import com.android.tools.metalava.cli.common.ARG_HIDE
-import com.android.tools.metalava.cli.common.ARG_WARNING
 import com.android.tools.metalava.lint.DefaultLintErrorMessage
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.testing.RequiresCapabilities
@@ -2076,91 +2075,6 @@ class ApiFileTest : DriverTest() {
                         method @Deprecated public static void method4(int);
                       }
                     }
-                """
-        )
-    }
-
-    @Test
-    fun `Warn about findViewById`() {
-        // Include as many modifiers as possible to see which ones are included
-        // in the signature files, and the expected sorting order.
-        // Note that the signature files treat "deprecated" as a fake modifier.
-        // Note also how the "protected" modifier on the interface method gets
-        // promoted to public.
-        check(
-            format = FileFormat.V2,
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
-                    package test.pkg;
-                    import android.annotation.Nullable;
-
-                    @SuppressWarnings("ALL")
-                    public abstract class Foo {
-                        @Nullable public String findViewById(int id) { return ""; }
-                    }
-                    """
-                    ),
-                    nullableSource
-                ),
-            expectedIssues =
-                """
-                src/test/pkg/Foo.java:6: warning: method test.pkg.Foo.findViewById(int) should not be annotated @Nullable; it should be left unspecified to make it a platform type [ExpectedPlatformType]
-                """,
-            extraArguments = arrayOf(ARG_WARNING, "ExpectedPlatformType"),
-            api =
-                """
-                package test.pkg {
-                  public abstract class Foo {
-                    ctor public Foo();
-                    method public String findViewById(int);
-                  }
-                }
-                """
-        )
-    }
-
-    @Test
-    fun `Remove findViewById type nullness annotation`() {
-        check(
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
-                    package test.pkg;
-                    import libcore.util.Nullable;
-
-                    @SuppressWarnings("ALL")
-                    public abstract class Foo {
-                        public @Nullable String findViewById(int id) { return ""; }
-                        public @Nullable String notFindViewById(int id) { return ""; }
-                    }
-                    """
-                    ),
-                    libcoreNullableSource
-                ),
-            expectedIssues =
-                """
-                src/test/pkg/Foo.java:6: warning: method test.pkg.Foo.findViewById(int) should not be annotated @Nullable; it should be left unspecified to make it a platform type [ExpectedPlatformType]
-                """,
-            extraArguments = arrayOf(ARG_WARNING, "ExpectedPlatformType"),
-            skipEmitPackages = listOf("libcore.util"),
-            format =
-                FileFormat.V5.copy(
-                    kotlinNameTypeOrder = true,
-                    includeTypeUseAnnotations = true,
-                    kotlinStyleNulls = false
-                ),
-            api =
-                """
-                package test.pkg {
-                  public abstract class Foo {
-                    ctor public Foo();
-                    method public findViewById(_: int): String;
-                    method @Nullable public notFindViewById(_: int): @Nullable String;
-                  }
-                }
                 """
         )
     }

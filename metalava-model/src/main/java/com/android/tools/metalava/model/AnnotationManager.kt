@@ -88,12 +88,6 @@ interface AnnotationManager {
     val typedefMode: TypedefMode
 }
 
-/**
- * The default empty [AnnotationInfo] used when a more applicable one cannot be created, e.g. when
- * the [AnnotationItem.qualifiedName] is `null`.
- */
-private val noInfoAvailable = AnnotationInfo(qualifiedName = "")
-
 /** Base class for [AnnotationManager] instances. */
 abstract class BaseAnnotationManager : AnnotationManager {
 
@@ -104,7 +98,6 @@ abstract class BaseAnnotationManager : AnnotationManager {
     private val annotationKeyToInfo = mutableMapOf<String, AnnotationInfo>()
 
     override fun getAnnotationInfo(annotation: AnnotationItem): AnnotationInfo {
-        annotation.qualifiedName ?: return noInfoAvailable
         val key = getKeyForAnnotationItem(annotation)
         val existing = annotationKeyToInfo[key]
         if (existing != null) {
@@ -156,11 +149,11 @@ internal class NoOpAnnotationManager : BaseAnnotationManager() {
     override fun getKeyForAnnotationItem(annotationItem: AnnotationItem): String {
         // Just use the qualified name as the key as [computeAnnotationInfo] does not use anything
         // else.
-        return annotationItem.qualifiedName!!
+        return annotationItem.qualifiedName
     }
 
     override fun computeAnnotationInfo(annotationItem: AnnotationItem): AnnotationInfo {
-        return AnnotationInfo(annotationItem.qualifiedName!!)
+        return AnnotationInfo(annotationItem.qualifiedName)
     }
 
     override fun normalizeInputName(qualifiedName: String?): String? {

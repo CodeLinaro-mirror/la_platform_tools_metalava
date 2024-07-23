@@ -41,7 +41,6 @@ import com.android.tools.metalava.cli.common.ExecutionEnvironment
 import com.android.tools.metalava.cli.common.TestEnvironment
 import com.android.tools.metalava.cli.compatibility.ARG_BASELINE_CHECK_COMPATIBILITY_RELEASED
 import com.android.tools.metalava.cli.compatibility.ARG_CHECK_COMPATIBILITY_API_RELEASED
-import com.android.tools.metalava.cli.compatibility.ARG_CHECK_COMPATIBILITY_BASE_API
 import com.android.tools.metalava.cli.compatibility.ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED
 import com.android.tools.metalava.cli.compatibility.ARG_ERROR_MESSAGE_CHECK_COMPATIBILITY_RELEASED
 import com.android.tools.metalava.cli.compatibility.ARG_UPDATE_BASELINE_CHECK_COMPATIBILITY_RELEASED
@@ -447,9 +446,8 @@ abstract class DriverTest : CodebaseCreatorConfigAware<SourceModelProvider>, Tem
          * In order from narrowest to widest API.
          */
         checkCompatibilityRemovedApiReleasedList: List<String> = emptyList(),
-        /** An optional API signature to use as the base API codebase during compat checks */
-        @Language("TEXT") checkCompatibilityBaseApi: String? = null,
         @Language("TEXT") migrateNullsApi: String? = null,
+        migrateNullsApiList: List<String> = listOfNotNull(migrateNullsApi),
         /** An optional Proguard keep file to generate */
         @Language("Proguard") proguard: String? = null,
         /** Show annotations (--show-annotation arguments) */
@@ -742,16 +740,6 @@ abstract class DriverTest : CodebaseCreatorConfigAware<SourceModelProvider>, Tem
                 emptyArray()
             }
 
-        val checkCompatibilityBaseApiFile =
-            useExistingSignatureFileOrCreateNewFile(
-                project,
-                checkCompatibilityBaseApi,
-                "compatibility-base-api.txt"
-            )
-
-        val migrateNullsApiFile =
-            useExistingSignatureFileOrCreateNewFile(project, migrateNullsApi, "stable-api.txt")
-
         val manifestFileArgs =
             if (manifest != null) {
                 val file = File(project, "manifest.xml")
@@ -762,18 +750,11 @@ abstract class DriverTest : CodebaseCreatorConfigAware<SourceModelProvider>, Tem
             }
 
         val migrateNullsArguments =
-            if (migrateNullsApiFile != null) {
-                arrayOf(ARG_MIGRATE_NULLNESS, migrateNullsApiFile.path)
-            } else {
-                emptyArray()
-            }
-
-        val checkCompatibilityBaseApiArguments =
-            if (checkCompatibilityBaseApiFile != null) {
-                arrayOf(ARG_CHECK_COMPATIBILITY_BASE_API, checkCompatibilityBaseApiFile.path)
-            } else {
-                emptyArray()
-            }
+            migrateNullsApiList.contentOrPathListToArgsArray(
+                project,
+                "stable-api.txt",
+                ARG_MIGRATE_NULLNESS
+            )
 
         val quiet =
             if (expectedOutput != null && !extraArguments.contains(ARG_VERBOSE)) {
@@ -1050,7 +1031,6 @@ abstract class DriverTest : CodebaseCreatorConfigAware<SourceModelProvider>, Tem
                 *inclusionAnnotationsArgs,
                 *migrateNullsArguments,
                 *releasedApiCheck.arguments(project),
-                *checkCompatibilityBaseApiArguments,
                 *releasedRemovedApiCheck.arguments(project),
                 *proguardKeepArguments,
                 *manifestFileArgs,
@@ -1320,15 +1300,11 @@ abstract class DriverTest : CodebaseCreatorConfigAware<SourceModelProvider>, Tem
 
         /** The arguments to pass to Metalava. */
         fun arguments(project: File): Array<out String> {
-            if (fileOrSignatureContentsList.isEmpty()) return emptyArray()
-
-            val paths =
-                fileOrSignatureContentsList.mapNotNull {
-                    useExistingSignatureFileOrCreateNewFile(project, it, newBasename)?.path
-                }
-
-            // For each path in the list generate an option with the path as the value.
-            return paths.flatMap { listOf(optionName, it) }.toTypedArray()
+            return fileOrSignatureContentsList.contentOrPathListToArgsArray(
+                project,
+                newBasename,
+                optionName
+            )
         }
     }
 
@@ -1407,6 +1383,33 @@ abstract class DriverTest : CodebaseCreatorConfigAware<SourceModelProvider>, Tem
                     file
                 }
             }
+
+        /**
+         * Converts the contents of the list, which may be either the name of a file or the contents
+         * of a file into an array of arguments.
+         *
+         * This will use files supplied and create new files from the contents of the file and then
+         * precede each file by the [optionName].
+         *
+         * @param project the project directory for the test.
+         * @param baseName the base name of the files, including extension. Any created files will
+         *   have a unique name based on this name.
+         * @param optionName the name of the option to use in the arguments.
+         */
+        private fun List<String>.contentOrPathListToArgsArray(
+            project: File,
+            baseName: String,
+            optionName: String
+        ): Array<String> {
+            if (isEmpty()) return emptyArray()
+
+            val paths = mapNotNull {
+                useExistingSignatureFileOrCreateNewFile(project, it, baseName)?.path
+            }
+
+            // For each path in the list generate an option with the path as the value.
+            return paths.flatMap { listOf(optionName, it) }.toTypedArray()
+        }
 
         private fun findNonExistentFile(project: File, basename: String): File {
             // Split the basename into the name without any extension an optional extension.

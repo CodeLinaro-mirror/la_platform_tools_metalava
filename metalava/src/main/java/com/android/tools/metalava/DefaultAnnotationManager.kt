@@ -83,7 +83,7 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
     init {
         /** Use the complete source representation of the item as the key. */
         fun useSourceAsKey(annotationItem: AnnotationItem): String {
-            val qualifiedName = annotationItem.qualifiedName!!
+            val qualifiedName = annotationItem.qualifiedName
             val attributes = annotationItem.attributes
             if (attributes.isEmpty()) {
                 return qualifiedName
@@ -121,7 +121,7 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
     }
 
     override fun getKeyForAnnotationItem(annotationItem: AnnotationItem): String {
-        val qualifiedName = annotationItem.qualifiedName!!
+        val qualifiedName = annotationItem.qualifiedName
 
         // Check to see if this requires a special [KeyFactory] and use it if it does.
         val keyFactory = annotationNameToKeyFactory.get(qualifiedName)
@@ -334,7 +334,7 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
         annotation: AnnotationItem,
         classFinder: (String) -> ClassItem?
     ): Set<AnnotationTarget> {
-        val qualifiedName = annotation.qualifiedName ?: return NO_ANNOTATION_TARGETS
+        val qualifiedName = annotation.qualifiedName
         if (config.passThroughAnnotations.contains(qualifiedName)) {
             return ANNOTATION_IN_ALL_STUBS
         }
@@ -640,7 +640,7 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
 private class LazyAnnotationInfo(
     private val config: Config,
     private val annotationItem: AnnotationItem,
-) : AnnotationInfo(annotationItem.qualifiedName!!) {
+) : AnnotationInfo(annotationItem.qualifiedName) {
 
     /** Compute lazily to avoid doing any more work than strictly necessary. */
     override val showability: Showability by

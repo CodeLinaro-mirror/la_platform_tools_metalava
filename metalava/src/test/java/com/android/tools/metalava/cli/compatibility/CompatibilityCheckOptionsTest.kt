@@ -34,11 +34,6 @@ Compatibility Checks:
 
   Options controlling which, if any, compatibility checks are performed against a previously released API.
 
-  --check-compatibility:base <file>          When performing a compat check, use the provided signature file as a base
-                                             api, which is treated as part of the API being checked. This allows us to
-                                             compute the full API surface from a partial API surface (e.g. the current
-                                             @SystemApi txt file), which allows us to recognize when an API is moved
-                                             from the partial API to the base API and avoid incorrectly flagging this
   --check-compatibility:api:released <file>  Check compatibility of the previously released API.
 
                                              When multiple files are provided any files that are a delta on another file
