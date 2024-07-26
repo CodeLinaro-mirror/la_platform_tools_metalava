@@ -110,7 +110,7 @@ internal open class TextClassItem(
         this.interfaceTypes = interfaceTypes
     }
 
-    /** Must only be used by [type] to cache its result. */
+    /** Must only be used by [type] to cache its result, and [setType] to update it. */
     private lateinit var cachedType: ClassTypeItem
 
     override fun type(): ClassTypeItem {
@@ -118,6 +118,10 @@ internal open class TextClassItem(
             cachedType = DefaultResolvedClassTypeItem.createForClass(this)
         }
         return cachedType
+    }
+
+    override fun setType(type: TypeItem) {
+        cachedType = type as ClassTypeItem
     }
 
     private var interfaceTypes = emptyList<ClassTypeItem>()

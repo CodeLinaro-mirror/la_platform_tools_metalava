@@ -25,6 +25,9 @@ interface TypeParameterItem : Item {
     /** The [VariableTypeItem] representing the type of this type parameter. */
     override fun type(): VariableTypeItem
 
+    override fun setType(type: TypeItem) =
+        error("Cannot call setType(TypeItem) on TypeParameterItem: $this")
+
     fun typeBounds(): List<BoundsTypeItem>
 
     /**

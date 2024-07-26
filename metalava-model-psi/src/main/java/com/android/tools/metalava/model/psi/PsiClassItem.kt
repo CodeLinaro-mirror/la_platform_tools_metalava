@@ -28,6 +28,7 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.SourceFile
+import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.hasAnnotation
@@ -177,14 +178,18 @@ internal constructor(
     final override var primaryConstructor: PsiConstructorItem? = null
         private set
 
-    /** Must only be used by [type] to cache its result. */
-    private lateinit var classTypeItem: PsiClassTypeItem
+    /** Must only be used by [type] to cache its result, and [setType] to update it. */
+    private lateinit var classTypeItem: ClassTypeItem
 
     override fun type(): ClassTypeItem {
         if (!::classTypeItem.isInitialized) {
             classTypeItem = codebase.globalTypeItemFactory.getClassTypeForClass(this)
         }
         return classTypeItem
+    }
+
+    override fun setType(type: TypeItem) {
+        this.classTypeItem = type as ClassTypeItem
     }
 
     override fun hasTypeVariables(): Boolean = psiClass.hasTypeParameters()

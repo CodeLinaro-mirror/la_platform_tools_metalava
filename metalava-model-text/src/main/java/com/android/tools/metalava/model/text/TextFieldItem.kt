@@ -27,7 +27,7 @@ internal class TextFieldItem(
     name: String,
     containingClass: TextClassItem,
     modifiers: DefaultModifierList,
-    private val type: TypeItem,
+    private var type: TypeItem,
     private val constantValue: Any?,
     fileLocation: FileLocation
 ) : TextMemberItem(codebase, name, containingClass, fileLocation, modifiers), FieldItem {
@@ -46,6 +46,10 @@ internal class TextFieldItem(
     override fun hashCode(): Int = name().hashCode()
 
     override fun type(): TypeItem = type
+
+    override fun setType(type: TypeItem) {
+        this.type = type
+    }
 
     override fun initialValue(requireConstant: Boolean): Any? = constantValue
 

@@ -819,41 +819,6 @@ class CommonTypeModifiersTest : BaseModelTest() {
     }
 
     @Test
-    fun `Test adding and removing annotations`() {
-        // Not supported for text codebases due to caching
-        runCodebaseTest(
-            java(
-                """
-                    package test.pkg;
-                    import java.lang.annotation.ElementType;
-                    import java.lang.annotation.Target;
-                    public class Foo {
-                        public @A @B String foo() {}
-                    }
-                    @Target(ElementType.TYPE_USE)
-                    public @interface A {}
-                    @Target(ElementType.TYPE_USE)
-                    public @interface B {}
-                """
-                    .trimIndent()
-            ),
-        ) {
-            val stringType = codebase.assertClass("test.pkg.Foo").methods().single().returnType()
-            assertThat(stringType.annotationNames()).containsExactly("test.pkg.A", "test.pkg.B")
-
-            // Remove annotation
-            val annotationA = stringType.modifiers.annotations().first()
-            assertThat(annotationA.qualifiedName).isEqualTo("test.pkg.A")
-            stringType.modifiers.removeAnnotation(annotationA)
-            assertThat(stringType.annotationNames()).containsExactly("test.pkg.B")
-
-            // Add annotation
-            stringType.modifiers.addAnnotation(annotationA)
-            assertThat(stringType.annotationNames()).containsExactly("test.pkg.B", "test.pkg.A")
-        }
-    }
-
-    @Test
     fun `Test nullability of primitives`() {
         runNullabilityTest(
             java(
@@ -1590,19 +1555,19 @@ class CommonTypeModifiersTest : BaseModelTest() {
             stringType.assertHasNullableNullability(annotations)
 
             // Set to platform
-            stringType.modifiers.setNullability(PLATFORM)
-            stringType.assertHasPlatformNullability()
+            val platformStringType = stringType.substitute(PLATFORM)
+            platformStringType.assertHasPlatformNullability()
             // The annotation was not removed
             if (annotations) {
-                assertThat(stringType.annotationNames().single()).endsWith("Nullable")
+                assertThat(platformStringType.annotationNames().single()).endsWith("Nullable")
             }
 
             // Set to non-null
-            stringType.modifiers.setNullability(NONNULL)
-            assertThat(stringType.modifiers.nullability()).isEqualTo(NONNULL)
+            val nonNullStringType = stringType.substitute(NONNULL)
+            assertThat(nonNullStringType.modifiers.nullability()).isEqualTo(NONNULL)
             // The nullable annotation was not removed, a nonnull annotation was not added
             if (annotations) {
-                assertThat(stringType.annotationNames().single()).endsWith("Nullable")
+                assertThat(nonNullStringType.annotationNames().single()).endsWith("Nullable")
             }
         }
 

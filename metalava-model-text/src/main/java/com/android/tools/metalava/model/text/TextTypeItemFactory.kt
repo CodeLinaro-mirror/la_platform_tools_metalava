@@ -70,7 +70,9 @@ internal class TextTypeItemFactory(
                 forcedComponentNullability != typeItem.componentType.modifiers.nullability()
         ) {
             typeItem =
-                typeItem.duplicate(typeItem.componentType.duplicate(forcedComponentNullability))
+                typeItem.substitute(
+                    componentType = typeItem.componentType.substitute(forcedComponentNullability),
+                )
         }
 
         // Check if the type's nullability needs to be updated based on the context.
@@ -78,7 +80,7 @@ internal class TextTypeItemFactory(
         val actualTypeNullability =
             contextNullability.compute(typeNullability, typeItem.modifiers.annotations())
         return if (actualTypeNullability != typeNullability) {
-            typeItem.duplicate(actualTypeNullability)
+            typeItem.substitute(actualTypeNullability)
         } else typeItem
     }
 

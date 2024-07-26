@@ -54,7 +54,7 @@ internal constructor(
     private val name: String,
     override val parameterIndex: Int,
     modifiers: DefaultModifierList,
-    private val type: PsiTypeItem,
+    private var type: PsiTypeItem,
 ) :
     PsiItem(
         codebase = codebase,
@@ -233,6 +233,10 @@ internal constructor(
     }
 
     override fun type(): TypeItem = type
+
+    override fun setType(type: TypeItem) {
+        this.type = type as PsiTypeItem
+    }
 
     override fun containingMethod(): MethodItem = containingMethod
 

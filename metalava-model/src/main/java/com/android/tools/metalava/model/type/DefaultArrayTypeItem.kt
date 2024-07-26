@@ -26,7 +26,11 @@ class DefaultArrayTypeItem(
     override val componentType: TypeItem,
     override val isVarargs: Boolean,
 ) : ArrayTypeItem, DefaultTypeItem(modifiers) {
-    override fun duplicate(componentType: TypeItem): ArrayTypeItem {
-        return DefaultArrayTypeItem(modifiers.duplicate(), componentType, isVarargs)
+    @Deprecated(
+        "implementation detail of this class",
+        replaceWith = ReplaceWith("substitute(modifiers, componentType)"),
+    )
+    override fun duplicate(modifiers: TypeModifiers, componentType: TypeItem): ArrayTypeItem {
+        return DefaultArrayTypeItem(modifiers, componentType, isVarargs)
     }
 }

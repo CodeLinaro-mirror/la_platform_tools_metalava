@@ -36,11 +36,16 @@ class DefaultResolvedClassTypeItem(
 
     override fun asClass() = classItem
 
+    @Deprecated(
+        "implementation detail of this class",
+        replaceWith = ReplaceWith("substitute(modifiers, outerClassType, arguments)"),
+    )
     override fun duplicate(
-        outerClass: ClassTypeItem?,
+        modifiers: TypeModifiers,
+        outerClassType: ClassTypeItem?,
         arguments: List<TypeArgumentTypeItem>
     ): ClassTypeItem {
-        return DefaultResolvedClassTypeItem(modifiers.duplicate(), classItem, arguments)
+        return DefaultResolvedClassTypeItem(modifiers, classItem, arguments)
     }
 
     companion object {

@@ -36,16 +36,15 @@ class DefaultClassTypeItem(
 
     override fun asClass() = asClassCache
 
+    @Deprecated(
+        "implementation detail of this class",
+        replaceWith = ReplaceWith("substitute(modifiers, outerClassType, arguments)"),
+    )
     override fun duplicate(
-        outerClass: ClassTypeItem?,
+        modifiers: TypeModifiers,
+        outerClassType: ClassTypeItem?,
         arguments: List<TypeArgumentTypeItem>
     ): ClassTypeItem {
-        return DefaultClassTypeItem(
-            codebase,
-            modifiers.duplicate(),
-            qualifiedName,
-            arguments,
-            outerClass
-        )
+        return DefaultClassTypeItem(codebase, modifiers, qualifiedName, arguments, outerClassType)
     }
 }

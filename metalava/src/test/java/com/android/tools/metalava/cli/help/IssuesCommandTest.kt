@@ -39,6 +39,7 @@ Available Issues                             |  Category                |   Defa
   ActionValue                                |  api_lint                |   error
   AddSealed                                  |  compatibility           |   error
   AddedAbstractMethod                        |  compatibility           |   error
+  AddedAnnotation                            |  compatibility           |   error
   AddedClass                                 |  compatibility           |   hidden
   AddedField                                 |  compatibility           |   hidden
   AddedFinal                                 |  compatibility           |   error
@@ -176,6 +177,7 @@ Available Issues                             |  Category                |   Defa
   ReferencesDeprecated                       |  unknown                 |   hidden
   ReferencesHidden                           |  unknown                 |   error
   RegistrationName                           |  api_lint                |   error
+  RemovedAnnotation                          |  compatibility           |   error
   RemovedClass                               |  compatibility           |   error
   RemovedDeprecatedClass                     |  compatibility           |   inherit
   RemovedDeprecatedField                     |  compatibility           |   inherit

@@ -435,7 +435,6 @@ internal class TextTypeParser(val codebase: Codebase, val kotlinStyleNulls: Bool
         return DefaultTypeModifiers.create(
             annotations,
             nullability,
-            "Type modifiers created by the text model are immutable because they are cached",
         )
     }
 

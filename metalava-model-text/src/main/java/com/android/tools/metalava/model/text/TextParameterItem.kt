@@ -48,6 +48,10 @@ internal class TextParameterItem(
 
     override fun type(): TypeItem = type
 
+    override fun setType(type: TypeItem) {
+        this.type = type
+    }
+
     override fun name(): String = name
 
     override fun publicName(): String? = publicName

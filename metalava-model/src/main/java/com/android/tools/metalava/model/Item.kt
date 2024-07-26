@@ -237,6 +237,13 @@ interface Item : Reportable {
     fun type(): TypeItem?
 
     /**
+     * Set the type of this.
+     *
+     * The [type] parameter must be of the same concrete type as returned by the [Item.type] method.
+     */
+    fun setType(type: TypeItem)
+
+    /**
      * Find the [Item] in [codebase] that corresponds to this item, or `null` if there is no such
      * item.
      *

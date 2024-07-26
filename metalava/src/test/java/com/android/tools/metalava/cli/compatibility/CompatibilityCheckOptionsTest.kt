@@ -47,6 +47,10 @@ Compatibility Checks:
                                              must come after the other file, e.g. if `system` is a delta on `public`
                                              then `public` must come first, then `system`. Or, in other words, they must
                                              be provided in order from the narrowest API to the widest API.
+  --api-compat-annotation <annotation>       Specify an annotation important for API compatibility.
+
+                                             Adding/removing this annotation will be considered an incompatible change.
+                                             The fully qualified name of the annotation should be passed.
   --error-message:compatibility:released <message>
                                              If set, this is output when errors are detected in
                                              --check-compatibility:api:released or
@@ -218,6 +222,19 @@ class CompatibilityCheckOptionsTest :
                 .isEqualTo(
                     "Unexpected file $jarFile: jar files do not work with --revert-annotation"
                 )
+        }
+    }
+
+    @Test
+    fun `api compat annotations multiple values`() {
+        runTest(
+            ARG_API_COMPAT_ANNOTATION,
+            "com.example.MyAnnotation",
+            ARG_API_COMPAT_ANNOTATION,
+            "com.example.MyOtherAnnotation",
+        ) {
+            assertThat(options.apiCompatAnnotations)
+                .containsExactly("com.example.MyAnnotation", "com.example.MyOtherAnnotation")
         }
     }
 }

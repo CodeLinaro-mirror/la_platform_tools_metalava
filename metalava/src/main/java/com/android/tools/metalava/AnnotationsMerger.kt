@@ -58,7 +58,6 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ModifierList
 import com.android.tools.metalava.model.TraversingVisitor
 import com.android.tools.metalava.model.TypeItem
-import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.model.source.SourceCodebase
 import com.android.tools.metalava.model.source.SourceParser
@@ -832,10 +831,17 @@ class AnnotationsMerger(
 
     private fun mergeAnnotation(item: Item, annotation: AnnotationItem) {
         item.mutableModifiers().addAnnotation(annotation)
-        if (annotation.isNullable()) {
-            item.type()?.modifiers?.setNullability(TypeNullability.NULLABLE)
-        } else if (annotation.isNonNull()) {
-            item.type()?.modifiers?.setNullability(TypeNullability.NONNULL)
+
+        // Update the type nullability from the annotation, if necessary.
+        // First, check to make sure that the annotation is a nullability annotation.
+        val annotationNullability = annotation.typeNullability ?: return
+        // Second, check to make sure that the item has a type.
+        val typeItem = item.type() ?: return
+        // Thirdly, check to make sure that the type nullability is different to the annotation's
+        // nullability.
+        if (typeItem.modifiers.nullability() != annotationNullability) {
+            // Finally, duplicate the type with the new nullability.
+            item.setType(typeItem.substitute(annotationNullability))
         }
     }
 

@@ -37,6 +37,9 @@ interface PackageItem : Item {
 
     override fun type(): TypeItem? = null
 
+    override fun setType(type: TypeItem) =
+        error("Cannot call setType(TypeItem) on PackageItem: $this")
+
     override fun findCorrespondingItemIn(
         codebase: Codebase,
         superMethods: Boolean,

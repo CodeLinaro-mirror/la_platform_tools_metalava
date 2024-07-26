@@ -23,48 +23,23 @@ import com.android.tools.metalava.model.TypeNullability
 
 /** Modifiers for a [TypeItem]. */
 class DefaultTypeModifiers(
-    private val annotations: MutableList<AnnotationItem>,
-    private var nullability: TypeNullability,
-    /**
-     * If non-null then this causes this instance to be treated as immutable and any attempt to
-     * mutate it will throw an exception with this as the reason.
-     */
-    private val immutableReason: String? = null,
+    private val annotations: List<AnnotationItem>,
+    private val nullability: TypeNullability,
 ) : TypeModifiers {
 
-    private fun ensureMutable() {
-        immutableReason?.let { reason -> error(reason) }
-    }
-
     override fun annotations(): List<AnnotationItem> = annotations
-
-    override fun addAnnotation(annotation: AnnotationItem) {
-        ensureMutable()
-        annotations.add(annotation)
-    }
-
-    override fun removeAnnotation(annotation: AnnotationItem) {
-        ensureMutable()
-        annotations.remove(annotation)
-    }
 
     override fun nullability(): TypeNullability {
         return nullability
     }
 
-    override fun setNullability(newNullability: TypeNullability) {
-        if (newNullability == nullability) return
-        ensureMutable()
-        nullability = newNullability
-    }
-
-    override fun duplicate(withNullability: TypeNullability?) =
-        DefaultTypeModifiers(annotations.toMutableList(), withNullability ?: nullability)
+    override fun substitute(nullability: TypeNullability) =
+        if (nullability == this.nullability) this
+        else DefaultTypeModifiers(annotations, nullability)
 
     companion object {
         /** A set of empty, non-null [TypeModifiers] for sharing. */
-        val emptyNonNullModifiers =
-            create(emptyList(), TypeNullability.NONNULL, "emptyNonNullModifiers is shared")
+        val emptyNonNullModifiers = create(emptyList(), TypeNullability.NONNULL)
 
         /**
          * Create a [DefaultTypeModifiers].
@@ -75,7 +50,6 @@ class DefaultTypeModifiers(
         fun create(
             annotations: List<AnnotationItem>,
             knownNullability: TypeNullability? = null,
-            immutableReason: String? = null,
         ): TypeModifiers {
             // Use the known nullability, or find if there is a nullness annotation on the type,
             // defaulting to platform nullness if not.
@@ -85,7 +59,7 @@ class DefaultTypeModifiers(
                         .firstOrNull { it.isNullnessAnnotation() }
                         ?.let { TypeNullability.ofAnnotation(it) }
                         ?: TypeNullability.PLATFORM
-            return DefaultTypeModifiers(annotations.toMutableList(), nullability, immutableReason)
+            return DefaultTypeModifiers(annotations.toMutableList(), nullability)
         }
     }
 }

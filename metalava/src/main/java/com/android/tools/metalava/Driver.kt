@@ -509,6 +509,7 @@ private fun ActionContext.checkCompatibility(
         apiType,
         options.reporterCompatibilityReleased,
         options.issueConfiguration,
+        options.apiCompatAnnotations,
     )
 }
 

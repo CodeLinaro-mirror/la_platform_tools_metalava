@@ -754,7 +754,7 @@ interface ClassItem : Item, TypeParameterListOwner {
         val classTypeArguments =
             classTypeItem.arguments.map {
                 if (it is ClassTypeItem && it.arguments.isNotEmpty()) {
-                    it.duplicate(it.outerClassType, arguments = emptyList())
+                    it.substitute(arguments = emptyList())
                 } else {
                     it
                 }
