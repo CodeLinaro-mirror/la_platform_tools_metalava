@@ -149,6 +149,9 @@ com.android.tools.metalava.SystemServiceCheckTest
   SystemService OK, loaded from source[turbine]
   Warning suppressed via annotation[turbine]
 
+com.android.tools.metalava.TypeUseAnnotationFilteringTest
+  Keep type use annotations[turbine]
+
 com.android.tools.metalava.UnhideApisTest
   Including private interfaces from types[turbine]
 

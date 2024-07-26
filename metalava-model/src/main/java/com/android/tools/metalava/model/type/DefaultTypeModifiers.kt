@@ -23,23 +23,34 @@ import com.android.tools.metalava.model.TypeNullability
 
 /** Modifiers for a [TypeItem]. */
 class DefaultTypeModifiers(
-    private val annotations: List<AnnotationItem>,
-    private val nullability: TypeNullability,
+    override val annotations: List<AnnotationItem>,
+    override val nullability: TypeNullability,
 ) : TypeModifiers {
 
-    override fun annotations(): List<AnnotationItem> = annotations
-
-    override fun nullability(): TypeNullability {
-        return nullability
-    }
-
-    override fun substitute(nullability: TypeNullability) =
-        if (nullability == this.nullability) this
-        else DefaultTypeModifiers(annotations, nullability)
+    override fun substitute(
+        nullability: TypeNullability,
+        annotations: List<AnnotationItem>,
+    ): TypeModifiers =
+        if (nullability != this.nullability || annotations != this.annotations)
+            DefaultTypeModifiers(annotations, nullability)
+        else this
 
     companion object {
         /** A set of empty, non-null [TypeModifiers] for sharing. */
-        val emptyNonNullModifiers = create(emptyList(), TypeNullability.NONNULL)
+        val emptyNonNullModifiers: TypeModifiers =
+            DefaultTypeModifiers(emptyList(), TypeNullability.NONNULL)
+
+        /** A set of empty, nullable [TypeModifiers] for sharing. */
+        val emptyNullableModifiers: TypeModifiers =
+            DefaultTypeModifiers(emptyList(), TypeNullability.NULLABLE)
+
+        /** A set of empty, platform [TypeModifiers] for sharing. */
+        val emptyPlatformModifiers: TypeModifiers =
+            DefaultTypeModifiers(emptyList(), TypeNullability.PLATFORM)
+
+        /** A set of empty, undefined [TypeModifiers] for sharing. */
+        val emptyUndefinedModifiers: TypeModifiers =
+            DefaultTypeModifiers(emptyList(), TypeNullability.UNDEFINED)
 
         /**
          * Create a [DefaultTypeModifiers].
@@ -59,7 +70,18 @@ class DefaultTypeModifiers(
                         .firstOrNull { it.isNullnessAnnotation() }
                         ?.let { TypeNullability.ofAnnotation(it) }
                         ?: TypeNullability.PLATFORM
-            return DefaultTypeModifiers(annotations.toMutableList(), nullability)
+
+            // If the annotations are empty then use one of the predefined instances.
+            if (annotations.isEmpty()) {
+                return when (nullability) {
+                    TypeNullability.NONNULL -> emptyNonNullModifiers
+                    TypeNullability.NULLABLE -> emptyNullableModifiers
+                    TypeNullability.PLATFORM -> emptyPlatformModifiers
+                    TypeNullability.UNDEFINED -> emptyUndefinedModifiers
+                }
+            }
+
+            return DefaultTypeModifiers(annotations, nullability)
         }
     }
 }

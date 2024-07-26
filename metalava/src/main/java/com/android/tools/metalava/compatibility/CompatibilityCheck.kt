@@ -123,8 +123,8 @@ class CompatibilityCheck(
     ) {
         // Should not remove nullness information
         // Can't change information incompatibly
-        val oldNullability = old.modifiers.nullability()
-        val newNullability = new.modifiers.nullability()
+        val oldNullability = old.modifiers.nullability
+        val newNullability = new.modifiers.nullability
         if (
             (oldNullability == TypeNullability.NONNULL ||
                 oldNullability == TypeNullability.NULLABLE) &&

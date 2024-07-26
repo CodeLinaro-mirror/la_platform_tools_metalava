@@ -1457,7 +1457,7 @@ class CommonClassItemTest : BaseModelTest() {
                     .isEqualTo(expectedType)
 
                 assertWithMessage("testing type nullability of $name")
-                    .that(returnType.modifiers.nullability())
+                    .that(returnType.modifiers.nullability)
                     .isEqualTo(expectedNullability)
             }
         }
@@ -1622,10 +1622,10 @@ class CommonClassItemTest : BaseModelTest() {
             val modifiers = classType.modifiers
 
             // Class types are always non-null without needing an annotation
-            assertThat(modifiers.nullability()).isEqualTo(TypeNullability.NONNULL)
+            assertThat(modifiers.nullability).isEqualTo(TypeNullability.NONNULL)
 
             // Class types do not have any annotations.
-            assertThat(modifiers.annotations()).isEmpty()
+            assertThat(modifiers.annotations).isEmpty()
         }
     }
 }

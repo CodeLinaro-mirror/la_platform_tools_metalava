@@ -141,7 +141,7 @@ interface Assertions {
 
     /** Get the list of fully qualified annotation names associated with the [TypeItem]. */
     fun TypeItem.annotationNames(): List<String?> {
-        return modifiers.annotations().map { it.qualifiedName }
+        return modifiers.annotations.map { it.qualifiedName }
     }
 
     /** Get the list of fully qualified annotation names associated with the [Item]. */

@@ -24,12 +24,14 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.model.ItemVisitor
 import com.android.tools.metalava.model.Language
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ModifierListWriter
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.psi.trimDocIndent
 import com.android.tools.metalava.model.visitors.ApiVisitor
+import com.android.tools.metalava.model.visitors.FilteringApiVisitor
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
 import java.io.BufferedWriter
@@ -43,22 +45,13 @@ import java.util.regex.Pattern
 internal class StubWriter(
     private val stubsDir: File,
     private val generateAnnotations: Boolean = false,
-    private val preFiltered: Boolean = true,
     private val docStubs: Boolean,
     private val reporter: Reporter,
     private val config: StubWriterConfig,
 ) :
-    ApiVisitor(
+    BaseItemVisitor(
         visitConstructorsAsMethods = false,
         nestInnerClasses = true,
-        inlineInheritedFields = true,
-        // Methods are by default sorted in source order in stubs, to encourage methods
-        // that are near each other in the source to show up near each other in the documentation
-        methodComparator = MethodItem.sourceOrderComparator,
-        filterEmit = FilterPredicate(apiPredicate(docStubs, config)),
-        filterReference = apiPredicate(docStubs, config),
-        includeEmptyOuterClasses = true,
-        config = config.apiVisitorConfig,
     ) {
 
     override fun visitPackage(pkg: PackageItem) {
@@ -211,22 +204,9 @@ internal class StubWriter(
 
             stubWriter =
                 if (kotlin) {
-                    KotlinStubWriter(
-                        textWriter,
-                        modifierListWriter,
-                        filterReference,
-                        preFiltered,
-                        config,
-                    )
+                    error("Generating Kotlin stubs is not supported")
                 } else {
-                    JavaStubWriter(
-                        textWriter,
-                        modifierListWriter,
-                        filterEmit,
-                        filterReference,
-                        preFiltered,
-                        config,
-                    )
+                    JavaStubWriter(textWriter, modifierListWriter, config)
                 }
 
             // Copyright statements from the original file?
@@ -269,13 +249,43 @@ internal class StubWriter(
     override fun afterVisitField(field: FieldItem) {
         stubWriter?.afterVisitField(field)
     }
-}
 
-private fun apiPredicate(docStubs: Boolean, config: StubWriterConfig) =
-    ApiPredicate(
-        includeDocOnly = docStubs,
-        config = config.apiVisitorConfig.apiPredicateConfig.copy(ignoreShown = true),
-    )
+    /**
+     * Create an [ApiVisitor] that will filter the [Item] to which is applied according to the
+     * supplied parameters and in a manner appropriate for writing signatures, e.g. not nesting
+     * inner classes. It will delegate any visitor calls that pass through its filter to this
+     * [StubWriter] instance.
+     */
+    fun createFilteringVisitor(
+        preFiltered: Boolean,
+        apiVisitorConfig: ApiVisitor.Config,
+    ): ItemVisitor {
+        val filterReference =
+            ApiPredicate(
+                includeDocOnly = docStubs,
+                config = config.apiVisitorConfig.apiPredicateConfig.copy(ignoreShown = true),
+            )
+        val filterEmit = FilterPredicate(filterReference)
+        return FilteringApiVisitor(
+            delegate = this,
+            visitConstructorsAsMethods = false,
+            nestInnerClasses = true,
+            inlineInheritedFields = true,
+            // Methods are by default sorted in source order in stubs, to encourage methods
+            // that are near each other in the source to show up near each other in the
+            // documentation
+            methodComparator = MethodItem.sourceOrderComparator,
+            filterEmit = filterEmit,
+            filterReference = filterReference,
+            preFiltered = preFiltered,
+            includeEmptyOuterClasses = true,
+            // Make sure that package private constructors that are needed to compile safely are
+            // visited, so they will appear in the stubs.
+            visitStubsConstructorIfNeeded = true,
+            config = apiVisitorConfig,
+        )
+    }
+}
 
 internal fun appendDocumentation(item: Item, writer: PrintWriter, config: StubWriterConfig) {
     if (config.includeDocumentationInStubs) {

@@ -614,7 +614,7 @@ class CommonTypeModifiersTest : BaseModelTest() {
 
             val bar = interfaces[0]
             assertThat(bar.qualifiedName).isEqualTo("test.pkg.Bar")
-            val annotations = bar.modifiers.annotations()
+            val annotations = bar.modifiers.annotations
             assertThat(annotations).hasSize(1)
             assertThat(annotations.single().qualifiedName).isEqualTo("test.pkg.A")
 
@@ -775,8 +775,8 @@ class CommonTypeModifiersTest : BaseModelTest() {
         ) {
             // Check the modifiers contain one annotation, `@test.pkg.A(a=1, b=2, c=3)`
             val testModifiers = { modifiers: TypeModifiers ->
-                assertThat(modifiers.annotations()).hasSize(1)
-                val annotation = modifiers.annotations().single()
+                assertThat(modifiers.annotations).hasSize(1)
+                val annotation = modifiers.annotations.single()
                 assertThat(annotation.qualifiedName).isEqualTo("test.pkg.A")
                 val attributes = annotation.attributes
                 assertThat(attributes.toString()).isEqualTo("[a=1, b=2, c=3]")
@@ -936,7 +936,7 @@ class CommonTypeModifiersTest : BaseModelTest() {
             // Platform nullability isn't possible from Kotlin
             if (inputFormat != InputFormat.KOTLIN) {
                 val platformString = fooClass.assertMethod("platformString", "").returnType()
-                assertThat(platformString.modifiers.nullability()).isEqualTo(PLATFORM)
+                assertThat(platformString.modifiers.nullability).isEqualTo(PLATFORM)
             }
 
             val nullableString = fooClass.assertMethod("nullableString", "").returnType()
@@ -1564,7 +1564,7 @@ class CommonTypeModifiersTest : BaseModelTest() {
 
             // Set to non-null
             val nonNullStringType = stringType.substitute(NONNULL)
-            assertThat(nonNullStringType.modifiers.nullability()).isEqualTo(NONNULL)
+            assertThat(nonNullStringType.modifiers.nullability).isEqualTo(NONNULL)
             // The nullable annotation was not removed, a nonnull annotation was not added
             if (annotations) {
                 assertThat(nonNullStringType.annotationNames().single()).endsWith("Nullable")

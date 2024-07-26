@@ -1788,7 +1788,7 @@ private constructor(
                 if (typeItem is ArrayTypeItem && typeItem.isVarargs) {
                     ANDROIDX_NONNULL
                 } else {
-                    val nullability = typeItem.modifiers.nullability()
+                    val nullability = typeItem.modifiers.nullability
                     if (typeItem !is PrimitiveTypeItem && nullability == TypeNullability.NONNULL) {
                         ANDROIDX_NONNULL
                     } else if (nullability == TypeNullability.NULLABLE) {

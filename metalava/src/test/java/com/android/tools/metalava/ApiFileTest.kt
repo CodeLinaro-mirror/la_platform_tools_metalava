@@ -3028,15 +3028,6 @@ class ApiFileTest : DriverTest() {
                       }
                     }
                     """,
-            dexApi =
-                """
-                Ltest/pkg/Child;
-                Ltest/pkg/Child;-><init>()V
-                Ltest/pkg/Child;->toString()Ljava/lang/String;
-                Ltest/pkg/Parent;
-                Ltest/pkg/Parent;-><init>()V
-                Ltest/pkg/Parent;->toString()Ljava/lang/String;
-            """
         )
     }
 
@@ -4783,31 +4774,6 @@ class ApiFileTest : DriverTest() {
                     ARG_HIDE_PACKAGE,
                     "androidx.collection"
                 ),
-        )
-    }
-
-    @Test
-    fun `Test type erasure and dexApi from signature`() {
-        check(
-            signatureSources =
-                arrayOf(
-                    """
-                package android.widget {
-
-                  @android.widget.RemoteViews.RemoteView public class ListView extends android.widget.AbsListView {
-                    method protected <T extends android.view.View> T findViewTraversal(@IdRes int);
-                    method protected long tryAcquireShared(long);
-                  }
-
-                }
-                """
-                ),
-            dexApi =
-                """
-            Landroid/widget/ListView;
-            Landroid/widget/ListView;->findViewTraversal(I)Landroid/view/View;
-            Landroid/widget/ListView;->tryAcquireShared(J)J
-            """
         )
     }
 

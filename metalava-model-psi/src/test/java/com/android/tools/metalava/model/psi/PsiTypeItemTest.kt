@@ -51,7 +51,7 @@ class PsiTypeItemTest : BaseModelTest() {
         ) {
             val platformFromKotlin =
                 codebase.assertClass("test.pkg.Foo").methods().single().returnType()
-            assertEquals(platformFromKotlin.modifiers.nullability(), TypeNullability.PLATFORM)
+            assertEquals(platformFromKotlin.modifiers.nullability, TypeNullability.PLATFORM)
         }
     }
 }

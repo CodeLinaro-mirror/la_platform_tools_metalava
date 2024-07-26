@@ -22,6 +22,7 @@ import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.isNullnessAnnotation
 import com.android.tools.metalava.model.testsuite.BaseModelTest
+import com.android.tools.metalava.model.typeUseAnnotationFilter
 import com.android.tools.metalava.testing.KnownSourceFiles.intRangeTypeUseSource
 import com.android.tools.metalava.testing.KnownSourceFiles.libcoreNonNullSource
 import com.android.tools.metalava.testing.KnownSourceFiles.libcoreNullableSource
@@ -162,12 +163,16 @@ class CommonTypeStringTest : BaseModelTest() {
         runCodebaseTest(javaTestFiles(), signatureTestFile()) {
             val method = codebase.assertClass("test.pkg.Foo").methods().single()
             val param = method.parameters().single()
-            val type = param.type()
+            val type =
+                param.type().let { unfilteredType ->
+                    val filter =
+                        parameters.typeStringConfiguration.filter ?: return@let unfilteredType
+                    unfilteredType.transform(typeUseAnnotationFilter(filter))
+                }
             val typeString =
                 type.toTypeString(
                     annotations = parameters.typeStringConfiguration.annotations,
                     kotlinStyleNulls = parameters.typeStringConfiguration.kotlinStyleNulls,
-                    filter = parameters.typeStringConfiguration.filter,
                     spaceBetweenParameters =
                         parameters.typeStringConfiguration.spaceBetweenParameters,
                 )

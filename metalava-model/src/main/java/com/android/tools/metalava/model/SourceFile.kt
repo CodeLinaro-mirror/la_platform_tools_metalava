@@ -26,6 +26,10 @@ interface SourceFile {
 
     fun getHeaderComments(): String? = null
 
+    /** Get all the imports. */
+    fun getImports() = getImports { true }
+
+    /** Get only those imports that reference [Item]s for which [predicate] returns `true`. */
     fun getImports(predicate: Predicate<Item>): Collection<Import> = emptyList()
 
     /**

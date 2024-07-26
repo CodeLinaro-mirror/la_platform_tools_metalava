@@ -18,7 +18,6 @@ package com.android.tools.metalava.stub
 
 import com.android.tools.metalava.ARG_API_CLASS_RESOLUTION
 import com.android.tools.metalava.ARG_EXCLUDE_DOCUMENTATION_FROM_STUBS
-import com.android.tools.metalava.ARG_KOTLIN_STUBS
 import com.android.tools.metalava.deprecatedForSdkSource
 import com.android.tools.metalava.lint.DefaultLintErrorMessage
 import com.android.tools.metalava.model.provider.Capability
@@ -1131,85 +1130,6 @@ class StubsTest : AbstractStubsTest() {
                     public class Alpha extends test.pkg.Charlie<test.pkg.Orange> {
                     Alpha() { throw new RuntimeException("Stub!"); }
                     }
-                    """
-                    )
-                )
-        )
-    }
-
-    @RequiresCapabilities(Capability.KOTLIN)
-    @Test
-    fun `Basic Kotlin stubs`() {
-        check(
-            extraArguments = arrayOf(ARG_KOTLIN_STUBS),
-            sourceFiles =
-                arrayOf(
-                    kotlin(
-                        """
-                    /* My file header */
-                    // Another comment
-                    @file:JvmName("Driver")
-                    package test.pkg
-                    /** My class doc */
-                    class Kotlin(
-                        val property1: String = "Default Value",
-                        arg2: Int
-                    ) : Parent() {
-                        override fun method() = "Hello World"
-                        /** My method doc */
-                        fun otherMethod(ok: Boolean, times: Int) {
-                        }
-
-                        /** property doc */
-                        var property2: String? = null
-
-                        /** @hide */
-                        var hiddenProperty: String? = "hidden"
-
-                        private var someField = 42
-                        @JvmField
-                        var someField2 = 42
-                    }
-
-                    /** Parent class doc */
-                    open class Parent {
-                        open fun method(): String? = null
-                        open fun method2(value1: Boolean, value2: Boolean?): String? = null
-                        open fun method3(value1: Int?, value2: Int): Int = null
-                    }
-                    """
-                    ),
-                    kotlin(
-                        """
-                    package test.pkg
-                    open class ExtendableClass<T>
-                """
-                    )
-                ),
-            stubFiles =
-                arrayOf(
-                    kotlin(
-                        """
-                        /* My file header */
-                        // Another comment
-                        package test.pkg
-                        /** My class doc */
-                        @file:Suppress("ALL")
-                        class Kotlin : test.pkg.Parent() {
-                        open fun Kotlin(open property1: java.lang.String, open arg2: int): test.pkg.Kotlin = error("Stub!")
-                        open fun method(): java.lang.String = error("Stub!")
-                        /** My method doc */
-                        open fun otherMethod(open ok: boolean, open times: int): void = error("Stub!")
-                        }
-                    """
-                    ),
-                    kotlin(
-                        """
-                        package test.pkg
-                        @file:Suppress("ALL")
-                        open class ExtendableClass<T> {
-                        open fun ExtendableClass(): test.pkg.ExtendableClass<T> = error("Stub!")
-                        }
                     """
                     )
                 )

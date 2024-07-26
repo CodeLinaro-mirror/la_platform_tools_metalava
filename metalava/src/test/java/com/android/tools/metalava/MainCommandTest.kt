@@ -177,8 +177,6 @@ API sources:
 
 
 Extracting Signature Files:
---dex-api <file>
-                                             Generate a DEX signature descriptor file listing the APIs
 --proguard <file>
                                              Write a ProGuard keep file for the API
 --sdk-values <dir>
