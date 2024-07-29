@@ -29,14 +29,10 @@ import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VariableTypeItem
 import java.io.PrintWriter
-import java.util.function.Predicate
 
 internal class JavaStubWriter(
     private val writer: PrintWriter,
     private val modifierListWriter: ModifierListWriter,
-    private val filterEmit: Predicate<Item>,
-    private val filterReference: Predicate<Item>,
-    private val preFiltered: Boolean = true,
     private val config: StubWriterConfig,
 ) : BaseItemVisitor() {
 
@@ -51,7 +47,7 @@ internal class JavaStubWriter(
                 // All the classes referenced in the stubs are fully qualified, so no imports are
                 // needed. However, in some cases for javadoc, replacement with fully qualified name
                 // fails, and thus we need to include imports for the stubs to compile.
-                cls.getSourceFile()?.getImports(filterReference)?.let {
+                cls.getSourceFile()?.getImports()?.let {
                     for (item in it) {
                         if (item.isMember) {
                             writer.println("import static ${item.pattern};")
@@ -89,7 +85,7 @@ internal class JavaStubWriter(
         if (cls.isEnum()) {
             var first = true
             // Enums should preserve the original source order, not alphabetical etc. sort
-            for (field in cls.filteredFields(filterReference, true).sortedBy { it.sortingRank }) {
+            for (field in cls.fields().sortedBy { it.sortingRank }) {
                 if (field.isEnumConstant()) {
                     if (first) {
                         first = false
@@ -108,8 +104,6 @@ internal class JavaStubWriter(
             }
             writer.println(";")
         }
-
-        generateMissingConstructors(cls)
     }
 
     override fun afterVisitClass(cls: ClassItem) {
@@ -128,9 +122,7 @@ internal class JavaStubWriter(
             return
         }
 
-        val superClass =
-            if (preFiltered) cls.superClassType() else cls.filteredSuperClassType(filterReference)
-
+        val superClass = cls.superClassType()
         if (superClass != null && !superClass.isJavaLangObject()) {
             writer.print(" extends ")
             writer.print(superClass.toTypeString())
@@ -143,10 +135,8 @@ internal class JavaStubWriter(
             return
         }
 
-        val interfaces =
-            if (preFiltered) cls.interfaceTypes() else cls.filteredInterfaceTypes(filterReference)
-
-        if (interfaces.any()) {
+        val interfaces = cls.interfaceTypes()
+        if (interfaces.isNotEmpty()) {
             val label = if (cls.isInterface()) " extends" else " implements"
             writer.print(label)
             interfaces.forEachIndexed { index, type ->
@@ -171,10 +161,6 @@ internal class JavaStubWriter(
     }
 
     override fun visitConstructor(constructor: ConstructorItem) {
-        writeConstructor(constructor, constructor.superConstructor)
-    }
-
-    private fun writeConstructor(constructor: MethodItem, superConstructor: MethodItem?) {
         writer.println()
         appendDocumentation(constructor, writer, config)
         appendModifiers(constructor)
@@ -186,17 +172,20 @@ internal class JavaStubWriter(
 
         writer.print(" { ")
 
-        writeConstructorBody(constructor, superConstructor)
+        writeConstructorBody(constructor)
         writer.println(" }")
     }
 
-    private fun writeConstructorBody(constructor: MethodItem, superConstructor: MethodItem?) {
+    private fun writeConstructorBody(constructor: ConstructorItem) {
         // Find any constructor in parent that we can compile against
-        superConstructor?.let { it ->
-            val parameters = it.parameters()
+        constructor.superConstructor?.let { superConstructor ->
+            val parameters = superConstructor.parameters()
             if (parameters.isNotEmpty()) {
-                val includeCasts =
-                    it.containingClass().constructors().filter { filterReference.test(it) }.size > 1
+                // If the super constructor is in a class that has more than one constructor then
+                // it will be necessary to include casts in the super call for any non-primitive
+                // as they are passed `null` and without the casts it is possible that the compiler
+                // will not be able to tell which constructor to use.
+                val includeCasts = superConstructor.containingClass().constructors().size > 1
                 writer.print("super(")
                 parameters.forEachIndexed { index, parameter ->
                     if (index > 0) {
@@ -240,7 +229,7 @@ internal class JavaStubWriter(
                                 val map =
                                     constructor
                                         .containingClass()
-                                        .mapTypeVariables(it.containingClass())
+                                        .mapTypeVariables(superConstructor.containingClass())
                                 val cast = map[type.asTypeParameter]?.toTypeString() ?: typeString
                                 writer.write(cast)
                             } else {
@@ -269,18 +258,6 @@ internal class JavaStubWriter(
         writeThrowStub()
     }
 
-    private fun generateMissingConstructors(cls: ClassItem) {
-        val clsStubConstructor = cls.stubConstructor
-        val constructors = cls.filteredConstructors(filterEmit)
-        // If the default stub constructor is not publicly visible then it won't be output during
-        // the normal visiting
-        // so visit it specially to ensure that it is output.
-        if (clsStubConstructor != null && !constructors.contains(clsStubConstructor)) {
-            visitConstructor(clsStubConstructor)
-            return
-        }
-    }
-
     override fun visitMethod(method: MethodItem) {
         writeMethod(method.containingClass(), method)
     }
@@ -293,7 +270,7 @@ internal class JavaStubWriter(
         generateTypeParameterList(typeList = method.typeParameterList, addSpace = true)
 
         val returnType = method.returnType()
-        writer.print(returnType.toTypeString(annotations = false, filter = filterReference))
+        writer.print(returnType.toTypeString(annotations = false))
 
         writer.print(' ')
         writer.print(method.name())
@@ -327,7 +304,7 @@ internal class JavaStubWriter(
 
         appendDocumentation(field, writer, config)
         appendModifiers(field)
-        writer.print(field.type().toTypeString(annotations = false, filter = filterReference))
+        writer.print(field.type().toTypeString(annotations = false))
         writer.print(' ')
         writer.print(field.name())
         val needsInitialization =
@@ -360,9 +337,7 @@ internal class JavaStubWriter(
                 writer.print(", ")
             }
             appendModifiers(parameter)
-            writer.print(
-                parameter.type().toTypeString(annotations = false, filter = filterReference)
-            )
+            writer.print(parameter.type().toTypeString(annotations = false))
             writer.print(' ')
             val name = parameter.publicName() ?: parameter.name()
             writer.print(name)
@@ -371,14 +346,8 @@ internal class JavaStubWriter(
     }
 
     private fun generateThrowsList(method: MethodItem) {
-        // Note that throws types are already sorted internally to help comparison matching
-        val throws =
-            if (preFiltered) {
-                method.throwsTypes().asSequence()
-            } else {
-                method.filteredThrowsTypes(filterReference).asSequence()
-            }
-        if (throws.any()) {
+        val throws = method.throwsTypes()
+        if (throws.isNotEmpty()) {
             writer.print(" throws ")
             throws.sortedWith(ExceptionTypeItem.fullNameComparator).forEachIndexed { i, type ->
                 if (i > 0) {

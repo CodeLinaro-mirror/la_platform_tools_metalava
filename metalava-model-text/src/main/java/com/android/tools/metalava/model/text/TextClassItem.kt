@@ -28,7 +28,6 @@ import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PropertyItem
-import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.type.DefaultResolvedClassTypeItem
 import com.android.tools.metalava.reporter.FileLocation
@@ -179,7 +178,7 @@ internal open class TextClassItem(
         modifiers.addAnnotation(annotation)
     }
 
-    override fun filteredSuperClassType(predicate: Predicate<Item>): TypeItem? {
+    override fun filteredSuperClassType(predicate: Predicate<Item>): ClassTypeItem? {
         // No filtering in signature files: we assume signature APIs
         // have already been filtered and all items should match.
         // This lets us load signature files and rewrite them using updated

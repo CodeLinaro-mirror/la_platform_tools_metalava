@@ -34,7 +34,7 @@ private constructor(
     name: String,
     modifiers: DefaultModifierList,
     documentation: String,
-    private val fieldType: PsiTypeItem,
+    private var fieldType: PsiTypeItem,
     override val getter: PsiMethodItem,
     override val setter: PsiMethodItem?,
     override val constructorParameter: PsiParameterItem?,
@@ -51,6 +51,10 @@ private constructor(
     PropertyItem {
 
     override fun type(): TypeItem = fieldType
+
+    override fun setType(type: TypeItem) {
+        fieldType = type as PsiTypeItem
+    }
 
     override fun psi() = psiMethod
 

@@ -2206,7 +2206,7 @@ private constructor(
         return any { type ->
             // Variable types have been excluded from the check because of previous inconsistency
             // in modeling their nullability.
-            type !is VariableTypeItem && type.modifiers.nullability() == nullability
+            type !is VariableTypeItem && type.modifiers.nullability == nullability
         }
     }
 
@@ -3311,7 +3311,7 @@ private constructor(
         getter: MethodItem,
         setter: MethodItem
     ) {
-        if (getterType.modifiers.nullability() != setterType.modifiers.nullability()) {
+        if (getterType.modifiers.nullability != setterType.modifiers.nullability) {
             val getterTypeString = getterType.toTypeString(kotlinStyleNulls = true)
             val setterTypeString = setterType.toTypeString(kotlinStyleNulls = true)
             report(

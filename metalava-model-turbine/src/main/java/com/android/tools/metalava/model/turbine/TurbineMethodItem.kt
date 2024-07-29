@@ -33,7 +33,7 @@ internal open class TurbineMethodItem(
     fileLocation: FileLocation,
     private val methodSymbol: MethodSymbol,
     containingClass: ClassItem,
-    private val returnType: TypeItem,
+    private var returnType: TypeItem,
     modifiers: DefaultModifierList,
     override val typeParameterList: TypeParameterList,
     documentation: String,
@@ -53,6 +53,10 @@ internal open class TurbineMethodItem(
     override fun parameters(): List<ParameterItem> = parameters
 
     override fun returnType(): TypeItem = returnType
+
+    override fun setType(type: TypeItem) {
+        returnType = type
+    }
 
     override fun throwsTypes(): List<ExceptionTypeItem> = throwableTypes
 
@@ -98,7 +102,6 @@ internal open class TurbineMethodItem(
     override var _requiresOverride: Boolean? = null
 
     override fun duplicate(targetContainingClass: ClassItem): TurbineMethodItem {
-        val retType = returnType.duplicate()
         val mods = modifiers.duplicate()
         val duplicated =
             TurbineMethodItem(
@@ -106,7 +109,7 @@ internal open class TurbineMethodItem(
                 fileLocation,
                 methodSymbol,
                 targetContainingClass,
-                retType,
+                returnType,
                 mods,
                 typeParameterList,
                 documentation,

@@ -32,7 +32,7 @@ internal class TurbineParameterItem(
     private val name: String,
     private val containingMethod: MethodItem,
     override val parameterIndex: Int,
-    private val type: TypeItem,
+    private var type: TypeItem,
     modifiers: DefaultModifierList,
 ) : TurbineItem(codebase, fileLocation, modifiers, ""), ParameterItem {
 
@@ -69,6 +69,10 @@ internal class TurbineParameterItem(
     override fun hashCode(): Int = parameterIndex
 
     override fun type(): TypeItem = type
+
+    override fun setType(type: TypeItem) {
+        this.type = type
+    }
 
     override fun isVarArgs(): Boolean = modifiers.isVarArg()
 

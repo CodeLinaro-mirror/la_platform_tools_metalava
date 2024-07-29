@@ -27,7 +27,7 @@ internal class TurbineFieldItem(
     fileLocation: FileLocation,
     private val name: String,
     containingClass: ClassItem,
-    private val type: TypeItem,
+    private var type: TypeItem,
     modifiers: DefaultModifierList,
     documentation: String,
     private val isEnumConstant: Boolean,
@@ -53,6 +53,10 @@ internal class TurbineFieldItem(
 
     override fun type(): TypeItem = type
 
+    override fun setType(type: TypeItem) {
+        this.type = type
+    }
+
     override fun duplicate(targetContainingClass: ClassItem): FieldItem {
         val duplicated =
             TurbineFieldItem(
@@ -60,7 +64,7 @@ internal class TurbineFieldItem(
                 fileLocation,
                 name(),
                 targetContainingClass,
-                type.duplicate(),
+                type,
                 modifiers.duplicate(),
                 documentation,
                 isEnumConstant,

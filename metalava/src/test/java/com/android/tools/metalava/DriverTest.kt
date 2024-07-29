@@ -39,6 +39,7 @@ import com.android.tools.metalava.cli.common.ARG_SOURCE_PATH
 import com.android.tools.metalava.cli.common.ARG_VERBOSE
 import com.android.tools.metalava.cli.common.ExecutionEnvironment
 import com.android.tools.metalava.cli.common.TestEnvironment
+import com.android.tools.metalava.cli.compatibility.ARG_API_COMPAT_ANNOTATION
 import com.android.tools.metalava.cli.compatibility.ARG_BASELINE_CHECK_COMPATIBILITY_RELEASED
 import com.android.tools.metalava.cli.compatibility.ARG_CHECK_COMPATIBILITY_API_RELEASED
 import com.android.tools.metalava.cli.compatibility.ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED
@@ -379,8 +380,6 @@ abstract class DriverTest : CodebaseCreatorConfigAware<SourceModelProvider>, Tem
         classpath: Array<TestFile>? = null,
         /** The API signature content (corresponds to --api) */
         @Language("TEXT") api: String? = null,
-        /** The DEX API (corresponds to --dex-api) */
-        dexApi: String? = null,
         /** The removed API (corresponds to --removed-api) */
         removedApi: String? = null,
         /** The subtract api signature content (corresponds to --subtract-api) */
@@ -456,6 +455,8 @@ abstract class DriverTest : CodebaseCreatorConfigAware<SourceModelProvider>, Tem
         showForStubPurposesAnnotations: Array<String> = emptyArray(),
         /** Hide annotations (--hide-annotation arguments) */
         hideAnnotations: Array<String> = emptyArray(),
+        /** API Compatibility important annotations (--api-compat-annotation) */
+        apiCompatAnnotations: Set<String> = emptySet(),
         /** No compat check meta-annotations (--no-compat-check-meta-annotation arguments) */
         suppressCompatibilityMetaAnnotations: Array<String> = emptyArray(),
         /** If using [showAnnotations], whether to include unannotated */
@@ -756,6 +757,18 @@ abstract class DriverTest : CodebaseCreatorConfigAware<SourceModelProvider>, Tem
                 ARG_MIGRATE_NULLNESS
             )
 
+        val apiCompatAnnotationArguments =
+            if (apiCompatAnnotations.isNotEmpty()) {
+                val args = mutableListOf<String>()
+                for (annotation in apiCompatAnnotations) {
+                    args.add(ARG_API_COMPAT_ANNOTATION)
+                    args.add(annotation)
+                }
+                args.toTypedArray()
+            } else {
+                emptyArray()
+            }
+
         val quiet =
             if (expectedOutput != null && !extraArguments.contains(ARG_VERBOSE)) {
                 // If comparing output, avoid noisy output such as the banner etc
@@ -848,15 +861,6 @@ abstract class DriverTest : CodebaseCreatorConfigAware<SourceModelProvider>, Tem
         // Always pass apiArgs and generate API text file in runDriver
         val apiFile: File = newFile("public-api.txt")
         val apiArgs = arrayOf(ARG_API, apiFile.path)
-
-        var dexApiFile: File? = null
-        val dexApiArgs =
-            if (dexApi != null) {
-                dexApiFile = temporaryFolder.newFile("public-dex.txt")
-                arrayOf(ARG_DEX_API, dexApiFile.path)
-            } else {
-                emptyArray()
-            }
 
         val subtractApiFile: File?
         val subtractApiArgs =
@@ -1021,7 +1025,6 @@ abstract class DriverTest : CodebaseCreatorConfigAware<SourceModelProvider>, Tem
                 *kotlinPathArgs,
                 *removedArgs,
                 *apiArgs,
-                *dexApiArgs,
                 *subtractApiArgs,
                 *stubsArgs,
                 *quiet,
@@ -1038,6 +1041,7 @@ abstract class DriverTest : CodebaseCreatorConfigAware<SourceModelProvider>, Tem
                 *baselineCheck.args,
                 *baselineApiLintCheck.args,
                 *baselineCheckCompatibilityReleasedCheck.args,
+                *apiCompatAnnotationArguments,
                 *showAnnotationArguments,
                 *hideAnnotationArguments,
                 *suppressCompatMetaAnnotationArguments,
@@ -1117,18 +1121,6 @@ abstract class DriverTest : CodebaseCreatorConfigAware<SourceModelProvider>, Tem
         baselineCheck.apply()
         baselineApiLintCheck.apply()
         baselineCheckCompatibilityReleasedCheck.apply()
-
-        if (dexApi != null && dexApiFile != null) {
-            assertTrue(
-                "${dexApiFile.path} does not exist even though --dex-api was used",
-                dexApiFile.exists()
-            )
-            val actualText = readFile(dexApiFile)
-            assertEquals(
-                stripComments(dexApi, DOT_TXT, stripLineComments = false).trimIndent(),
-                actualText
-            )
-        }
 
         if (removedApi != null && removedApiFile != null) {
             assertTrue(

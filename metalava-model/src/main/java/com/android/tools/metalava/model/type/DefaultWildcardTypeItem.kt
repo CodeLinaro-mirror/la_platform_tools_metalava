@@ -26,12 +26,17 @@ class DefaultWildcardTypeItem(
     override val extendsBound: ReferenceTypeItem?,
     override val superBound: ReferenceTypeItem?,
 ) : WildcardTypeItem, DefaultTypeItem(modifiers) {
+    @Deprecated(
+        "implementation detail of this class",
+        replaceWith = ReplaceWith("substitute(modifiers, extendsBound, superBound)"),
+    )
     override fun duplicate(
+        modifiers: TypeModifiers,
         extendsBound: ReferenceTypeItem?,
         superBound: ReferenceTypeItem?
     ): WildcardTypeItem {
         return DefaultWildcardTypeItem(
-            modifiers.duplicate(),
+            modifiers,
             extendsBound,
             superBound,
         )

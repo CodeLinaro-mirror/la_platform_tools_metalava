@@ -55,15 +55,18 @@ class SignatureInputOutputTest : Assertions {
                     val signatureWriter =
                         SignatureWriter(
                             writer = printWriter,
+                            emitHeader = EmitFileHeader.IF_NONEMPTY_FILE,
+                            fileFormat = format,
+                        )
+                    codebase.accept(
+                        signatureWriter.createFilteringVisitor(
                             filterEmit = { true },
                             filterReference = { true },
                             preFiltered = true,
-                            emitHeader = EmitFileHeader.IF_NONEMPTY_FILE,
-                            fileFormat = format,
                             showUnannotated = false,
                             apiVisitorConfig = ApiVisitor.Config(),
                         )
-                    codebase.accept(signatureWriter)
+                    )
                 }
                 stringWriter.toString()
             }
@@ -496,19 +499,19 @@ class SignatureInputOutputTest : Assertions {
 
             val annotationArrayArray = method.returnType()
             assertThat(annotationArrayArray).isInstanceOf(ArrayTypeItem::class.java)
-            assertThat(annotationArrayArray.modifiers.annotations().map { it.qualifiedName })
+            assertThat(annotationArrayArray.modifiers.annotations.map { it.qualifiedName })
                 .containsExactly("androidx.annotation.A")
 
             val annotationArray = (annotationArrayArray as ArrayTypeItem).componentType
             assertThat(annotationArray).isInstanceOf(ArrayTypeItem::class.java)
-            assertThat(annotationArray.modifiers.annotations().map { it.qualifiedName })
+            assertThat(annotationArray.modifiers.annotations.map { it.qualifiedName })
                 .containsExactly("androidx.annotation.B")
 
             val annotation = (annotationArray as ArrayTypeItem).componentType
             assertThat(annotation).isInstanceOf(ClassTypeItem::class.java)
             assertThat((annotation as ClassTypeItem).qualifiedName)
                 .isEqualTo("java.lang.annotation.Annotation")
-            assertThat(annotation.modifiers.annotations().map { it.qualifiedName })
+            assertThat(annotation.modifiers.annotations.map { it.qualifiedName })
                 .containsExactly("androidx.annotation.C")
         }
     }
@@ -527,10 +530,10 @@ class SignatureInputOutputTest : Assertions {
         runInputOutputTest(api, format) { codebase ->
             val fooClass = codebase.assertClass("test.pkg.Foo")
             val superClassType = fooClass.superClassType()
-            assertThat(superClassType!!.modifiers.annotations().map { it.qualifiedName })
+            assertThat(superClassType!!.modifiers.annotations.map { it.qualifiedName })
                 .containsExactly("test.pkg.A")
             val interfaceType = fooClass.interfaceTypes().single()
-            assertThat(interfaceType.modifiers.annotations().map { it.qualifiedName })
+            assertThat(interfaceType.modifiers.annotations.map { it.qualifiedName })
                 .containsExactly("test.pkg.B")
         }
     }

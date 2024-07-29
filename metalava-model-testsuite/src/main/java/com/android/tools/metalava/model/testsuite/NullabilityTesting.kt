@@ -82,10 +82,8 @@ internal fun TypeItem.assertHasNonNullNullability(
     expectAnnotation: Boolean? = null,
     message: String? = null,
 ) {
-    assertWithMessage(message ?: "")
-        .that(modifiers.nullability())
-        .isEqualTo(TypeNullability.NONNULL)
-    val nullabilityAnnotations = modifiers.annotations().filter { it.isNullnessAnnotation() }
+    assertWithMessage(message ?: "").that(modifiers.nullability).isEqualTo(TypeNullability.NONNULL)
+    val nullabilityAnnotations = modifiers.annotations.filter { it.isNullnessAnnotation() }
     when (expectAnnotation) {
         true -> assertThat(nullabilityAnnotations.single().isNonNull()).isTrue()
         false -> assertThat(nullabilityAnnotations).isEmpty()
@@ -101,8 +99,8 @@ internal fun TypeItem.assertHasNonNullNullability(
  *     * `null` disables the annotation check.
  */
 internal fun TypeItem.assertHasNullableNullability(expectAnnotation: Boolean? = null) {
-    assertThat(modifiers.nullability()).isEqualTo(TypeNullability.NULLABLE)
-    val nullabilityAnnotations = modifiers.annotations().filter { it.isNullnessAnnotation() }
+    assertThat(modifiers.nullability).isEqualTo(TypeNullability.NULLABLE)
+    val nullabilityAnnotations = modifiers.annotations.filter { it.isNullnessAnnotation() }
     when (expectAnnotation) {
         true -> assertThat(nullabilityAnnotations.single().isNullable()).isTrue()
         false -> assertThat(nullabilityAnnotations).isEmpty()
@@ -112,10 +110,10 @@ internal fun TypeItem.assertHasNullableNullability(expectAnnotation: Boolean? = 
 
 /** Make sure that this [TypeItem] has [TypeNullability.PLATFORM]. */
 internal fun TypeItem.assertHasPlatformNullability() {
-    assertThat(modifiers.nullability()).isEqualTo(TypeNullability.PLATFORM)
+    assertThat(modifiers.nullability).isEqualTo(TypeNullability.PLATFORM)
 }
 
 /** Make sure that this [TypeItem] has [TypeNullability.UNDEFINED]. */
 internal fun TypeItem.assertHasUndefinedNullability() {
-    assertThat(modifiers.nullability()).isEqualTo(TypeNullability.UNDEFINED)
+    assertThat(modifiers.nullability).isEqualTo(TypeNullability.UNDEFINED)
 }

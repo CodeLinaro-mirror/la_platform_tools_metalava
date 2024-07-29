@@ -85,14 +85,16 @@ class MergeSignaturesCommand :
             val codebase = ApiFile.parseApi(SignatureFile.fromFiles(files))
             createReportFile(progressTracker, codebase, out, description = "Merged file") {
                 SignatureWriter(
-                    writer = it,
-                    filterEmit = { true },
-                    filterReference = { true },
-                    preFiltered = true,
-                    fileFormat = signatureFormat.fileFormat,
-                    showUnannotated = false,
-                    apiVisitorConfig = ApiVisitor.Config(),
-                )
+                        writer = it,
+                        fileFormat = signatureFormat.fileFormat,
+                    )
+                    .createFilteringVisitor(
+                        filterEmit = { true },
+                        filterReference = { true },
+                        preFiltered = true,
+                        showUnannotated = false,
+                        apiVisitorConfig = ApiVisitor.Config(),
+                    )
             }
         } catch (e: ApiParseException) {
             throw MetalavaCliException(stderr = e.message)

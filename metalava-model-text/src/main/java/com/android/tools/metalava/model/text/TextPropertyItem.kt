@@ -27,7 +27,7 @@ internal class TextPropertyItem(
     name: String,
     containingClass: TextClassItem,
     modifiers: DefaultModifierList,
-    private val type: TypeItem,
+    private var type: TypeItem,
     fileLocation: FileLocation
 ) : TextMemberItem(codebase, name, containingClass, fileLocation, modifiers), PropertyItem {
 
@@ -45,4 +45,8 @@ internal class TextPropertyItem(
     override fun hashCode(): Int = name().hashCode()
 
     override fun type(): TypeItem = type
+
+    override fun setType(type: TypeItem) {
+        this.type = type
+    }
 }

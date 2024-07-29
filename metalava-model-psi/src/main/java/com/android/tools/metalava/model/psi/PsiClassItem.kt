@@ -178,7 +178,7 @@ internal constructor(
         private set
 
     /** Must only be used by [type] to cache its result. */
-    private lateinit var classTypeItem: PsiClassTypeItem
+    private lateinit var classTypeItem: ClassTypeItem
 
     override fun type(): ClassTypeItem {
         if (!::classTypeItem.isInitialized) {

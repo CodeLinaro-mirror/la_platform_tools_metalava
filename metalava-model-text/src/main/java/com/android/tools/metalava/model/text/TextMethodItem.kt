@@ -34,7 +34,7 @@ internal open class TextMethodItem(
     name: String,
     containingClass: ClassItem,
     modifiers: DefaultModifierList,
-    private val returnType: TypeItem,
+    private var returnType: TypeItem,
     private val parameters: List<TextParameterItem>,
     fileLocation: FileLocation,
 ) :
@@ -95,6 +95,10 @@ internal open class TextMethodItem(
     override fun isConstructor(): Boolean = false
 
     override fun returnType(): TypeItem = returnType
+
+    override fun setType(type: TypeItem) {
+        returnType = type
+    }
 
     override fun superMethods(): List<MethodItem> {
         return computeSuperMethods()

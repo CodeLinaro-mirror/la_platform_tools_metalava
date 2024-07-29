@@ -16,13 +16,9 @@
 
 package com.android.tools.metalava.stub
 
-import com.android.tools.metalava.ARG_KOTLIN_STUBS
 import com.android.tools.metalava.model.SUPPORT_TYPE_USE_ANNOTATIONS
-import com.android.tools.metalava.model.provider.Capability
-import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.testing.java
-import com.android.tools.metalava.testing.kotlin
 import org.junit.Test
 
 @SuppressWarnings("ALL")
@@ -495,39 +491,6 @@ class StubsInterfaceTest : AbstractStubsTest() {
                 }
                 """,
             checkTextStubEquivalence = true
-        )
-    }
-
-    @RequiresCapabilities(Capability.KOTLIN)
-    @Test
-    fun `Extends and implements multiple interfaces in Kotlin Stubs`() {
-        check(
-            extraArguments = arrayOf(ARG_KOTLIN_STUBS),
-            sourceFiles =
-                arrayOf(
-                    kotlin(
-                        """
-                    package test.pkg
-                    class MainClass: MyParentClass(), MyInterface1, MyInterface2
-
-                    open class MyParentClass
-                    interface MyInterface1
-                    interface MyInterface2
-                """
-                    )
-                ),
-            stubFiles =
-                arrayOf(
-                    kotlin(
-                        """
-                        package test.pkg
-                        @file:Suppress("ALL")
-                        class MainClass : test.pkg.MyParentClass(), test.pkg.MyInterface1, test.pkg.MyInterface2 {
-                        open fun MainClass(): test.pkg.MainClass = error("Stub!")
-                        }
-                    """
-                    )
-                )
         )
     }
 

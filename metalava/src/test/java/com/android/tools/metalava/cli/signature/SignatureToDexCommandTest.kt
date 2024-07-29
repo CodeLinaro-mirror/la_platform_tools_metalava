@@ -22,16 +22,16 @@ import org.junit.Test
 
 private val signatureToDexHelp =
     """
-Usage: metalava signature-to-dex [options] <api-file> <dex-file>
+Usage: metalava signature-to-dex [options] <api-file>...
 
-  Convert an API signature file into a file containing a list of DEX signatures.
+  Convert API signature files into a file containing a list of DEX signatures.
 
 Options:
+  --out <file>                               Output DEX signatures file. (required)
   -h, -?, --help                             Show this message and exit
 
 Arguments:
-  <api-file>                                 API signature file to convert to DEX signatures.
-  <dex-file>                                 Output DEX signatures file.
+  <api-file>                                 API signature files to convert to DEX signatures.
     """
         .trimIndent()
 
@@ -47,37 +47,69 @@ class SignatureToDexCommandTest :
         }
     }
 
-    private fun checkDexSignatures(signature: String, expectedDex: String) {
+    private fun checkDexSignatures(vararg signatures: String, expectedDex: String) {
         commandTest {
             args += listOf("signature-to-dex")
 
-            val apiFile = inputFile("api.txt", signature.trimIndent())
+            for ((index, signature) in signatures.withIndex()) {
+                val apiFile = inputFile("api$index.txt", signature.trimIndent())
+                args += apiFile.path
+            }
 
-            args += apiFile.path
+            val outFile = outputFile("out.dex")
+            args += ARG_OUT
+            args += outFile.path
 
-            val dexFile = outputFile("out.dex")
-            args += dexFile.path
-
-            verify { assertEquals(expectedDex.trimIndent(), dexFile.readText().trim()) }
+            verify { assertEquals(expectedDex.trimIndent(), outFile.readText().trim()) }
         }
     }
 
     @Test
     fun `Test generate dex signatures`() {
         checkDexSignatures(
-            signature =
+            """
+                // Signature format: 2.0
+                package test.pkg {
+                  public class Child extends test.pkg.Parent {
+                    ctor public Child();
+                    method public String toString();
+                  }
+                  public class Parent {
+                    ctor public Parent();
+                  }
+                }
+            """,
+            expectedDex =
                 """
-                    // Signature format: 2.0
-                    package test.pkg {
-                      public class Child extends test.pkg.Parent {
-                        ctor public Child();
-                        method public String toString();
-                      }
-                      public class Parent {
-                        ctor public Parent();
-                      }
-                    }
+                    Ltest/pkg/Child;
+                    Ltest/pkg/Child;-><init>()V
+                    Ltest/pkg/Child;->toString()Ljava/lang/String;
+                    Ltest/pkg/Parent;
+                    Ltest/pkg/Parent;-><init>()V
                 """,
+        )
+    }
+
+    @Test
+    fun `Test generate dex signatures - split across multiple files`() {
+        checkDexSignatures(
+            """
+                // Signature format: 2.0
+                package test.pkg {
+                  public class Parent {
+                    ctor public Parent();
+                  }
+                }
+            """,
+            """
+                // Signature format: 2.0
+                package test.pkg {
+                  public class Child extends test.pkg.Parent {
+                    ctor public Child();
+                    method public String toString();
+                  }
+                }
+            """,
             expectedDex =
                 """
                     Ltest/pkg/Child;
@@ -92,21 +124,20 @@ class SignatureToDexCommandTest :
     @Test
     fun `Test generate dex signatures erased types`() {
         checkDexSignatures(
-            signature =
-                """
-                    // Signature format: 2.0
-                    package test.pkg {
-                      public class Child {
-                        ctor public Child();
-                      }
-                      public class Parent {
-                        ctor public Parent();
-                        method protected <T extends test.pkg.Child> T findChild(String);
-                        method protected <T> T findObject(String);
-                        method protected java.util.List<String> getNames();
-                      }
-                    }
-                """,
+            """
+                // Signature format: 2.0
+                package test.pkg {
+                  public class Child {
+                    ctor public Child();
+                  }
+                  public class Parent {
+                    ctor public Parent();
+                    method protected <T extends test.pkg.Child> T findChild(String);
+                    method protected <T> T findObject(String);
+                    method protected java.util.List<String> getNames();
+                  }
+                }
+            """,
             expectedDex =
                 """
                     Ltest/pkg/Child;

@@ -56,7 +56,7 @@ open class PsiMethodItem(
     name: String,
     modifiers: DefaultModifierList,
     documentation: String,
-    private val returnType: TypeItem,
+    private var returnType: TypeItem,
     private val parameters: List<PsiParameterItem>,
     override val typeParameterList: TypeParameterList,
     private val throwsTypes: List<ExceptionTypeItem>
@@ -114,6 +114,10 @@ open class PsiMethodItem(
     override fun isImplicitConstructor(): Boolean = false
 
     override fun returnType(): TypeItem = returnType
+
+    override fun setType(type: TypeItem) {
+        returnType = type
+    }
 
     override fun parameters(): List<PsiParameterItem> = parameters
 
