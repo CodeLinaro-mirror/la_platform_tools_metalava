@@ -674,12 +674,6 @@ class CodebaseComparator(
                     override fun include(cls: ClassItem): Boolean =
                         if (acceptAll) true else super.include(cls)
 
-                    /**
-                     * Include all classes in the tree, even implicitly defined classes (such as
-                     * containing classes)
-                     */
-                    override fun shouldEmitClass(vc: VisitCandidate): Boolean = true
-
                     override fun afterVisitItem(item: Item) {
                         stack.pop()
                     }

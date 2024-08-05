@@ -39,10 +39,8 @@ internal class DexApiWriter(
         config = config,
     ) {
     override fun visitClass(cls: ClassItem) {
-        if (filterEmit.test(cls)) {
-            writer.print(cls.type().internalName())
-            writer.print("\n")
-        }
+        writer.print(cls.type().internalName())
+        writer.print("\n")
     }
 
     override fun visitMethod(method: MethodItem) {

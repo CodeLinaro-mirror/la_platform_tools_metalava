@@ -91,8 +91,6 @@ open class BaseItemVisitor(
 
         visitItem(field)
         visitField(field)
-
-        afterVisitField(field)
         afterVisitItem(field)
     }
 
@@ -112,11 +110,6 @@ open class BaseItemVisitor(
             parameter.accept(this)
         }
 
-        if (method.isConstructor()) {
-            afterVisitConstructor(method as ConstructorItem)
-        } else {
-            afterVisitMethod(method)
-        }
         afterVisitItem(method)
     }
 
@@ -149,8 +142,6 @@ open class BaseItemVisitor(
 
         visitItem(parameter)
         visitParameter(parameter)
-
-        afterVisitParameter(parameter)
         afterVisitItem(parameter)
     }
 
@@ -161,8 +152,6 @@ open class BaseItemVisitor(
 
         visitItem(property)
         visitProperty(property)
-
-        afterVisitProperty(property)
         afterVisitItem(property)
     }
 
@@ -201,18 +190,4 @@ open class BaseItemVisitor(
     open fun afterVisitPackage(pkg: PackageItem) {}
 
     open fun afterVisitClass(cls: ClassItem) {}
-
-    open fun afterVisitConstructor(constructor: ConstructorItem) {
-        if (visitConstructorsAsMethods) {
-            afterVisitMethod(constructor)
-        }
-    }
-
-    open fun afterVisitField(field: FieldItem) {}
-
-    open fun afterVisitMethod(method: MethodItem) {}
-
-    open fun afterVisitParameter(parameter: ParameterItem) {}
-
-    open fun afterVisitProperty(property: PropertyItem) {}
 }

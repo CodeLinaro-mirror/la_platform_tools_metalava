@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava
 
+import com.android.tools.metalava.model.BaseItemVisitor
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ConstructorItem
@@ -30,6 +31,7 @@ import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.psi.CodePrinter
 import com.android.tools.metalava.model.visitors.ApiVisitor
+import com.android.tools.metalava.model.visitors.FilteringApiVisitor
 import com.android.utils.XmlUtils
 import java.io.PrintWriter
 import java.util.function.Predicate
@@ -45,21 +47,11 @@ import java.util.function.Predicate
  */
 class JDiffXmlWriter(
     private val writer: PrintWriter,
-    filterEmit: Predicate<Item>,
-    filterReference: Predicate<Item>,
-    private val preFiltered: Boolean,
     private val apiName: String? = null,
-    showUnannotated: Boolean,
-    config: Config,
 ) :
-    ApiVisitor(
+    BaseItemVisitor(
         visitConstructorsAsMethods = false,
         nestInnerClasses = false,
-        inlineInheritedFields = true,
-        filterEmit = filterEmit,
-        filterReference = filterReference,
-        showUnannotated = showUnannotated,
-        config = config,
     ) {
     override fun visitCodebase(codebase: Codebase) {
         writer.print("<api")
@@ -239,9 +231,7 @@ class JDiffXmlWriter(
     }
 
     private fun writeSuperClassAttribute(cls: ClassItem) {
-        val superClass =
-            if (preFiltered) cls.superClassType() else cls.filteredSuperClassType(filterReference)
-
+        val superClass = cls.superClassType()
         val superClassString =
             when {
                 cls.isAnnotationType() -> JAVA_LANG_ANNOTATION
@@ -261,12 +251,9 @@ class JDiffXmlWriter(
     }
 
     private fun writeInterfaceList(cls: ClassItem) {
-        val interfaces =
-            if (preFiltered) cls.interfaceTypes().asSequence()
-            else cls.filteredInterfaceTypes(filterReference).asSequence()
-
-        if (interfaces.any()) {
-            interfaces.sortedWith(TypeItem.totalComparator).forEach { item ->
+        val interfaces = cls.interfaceTypes()
+        if (interfaces.isNotEmpty()) {
+            interfaces.forEach { item ->
                 writer.print("<implements name=\"")
                 val type = item.toTypeString()
                 writer.print(XmlUtils.toXmlAttributeValue(formatType(type)))
@@ -295,12 +282,8 @@ class JDiffXmlWriter(
     }
 
     private fun writeThrowsList(method: MethodItem) {
-        val throws =
-            when {
-                preFiltered -> method.throwsTypes().asSequence()
-                else -> method.filteredThrowsTypes(filterReference).asSequence()
-            }
-        if (throws.any()) {
+        val throws = method.throwsTypes()
+        if (throws.isNotEmpty()) {
             throws.sortedWith(ExceptionTypeItem.fullNameComparator).forEach { type ->
                 writer.print("<exception name=\"")
                 @Suppress("DEPRECATION") writer.print(type.fullName())
@@ -311,4 +294,29 @@ class JDiffXmlWriter(
             }
         }
     }
+
+    /**
+     * Create an [ApiVisitor] that will filter the [Item] to which is applied according to the
+     * supplied parameters and in a manner appropriate for writing signatures, e.g. not nesting
+     * inner classes. It will delegate any visitor calls that pass through its filter to this
+     * [JDiffXmlWriter] instance.
+     */
+    fun createFilteringVisitor(
+        filterEmit: Predicate<Item>,
+        filterReference: Predicate<Item>,
+        preFiltered: Boolean,
+        showUnannotated: Boolean,
+    ): ApiVisitor =
+        FilteringApiVisitor(
+            this,
+            visitConstructorsAsMethods = false,
+            nestInnerClasses = false,
+            inlineInheritedFields = true,
+            interfaceListComparator = TypeItem.totalComparator,
+            filterEmit = filterEmit,
+            filterReference = filterReference,
+            preFiltered = preFiltered,
+            showUnannotated = showUnannotated,
+            config = ApiVisitor.Config(),
+        )
 }

@@ -230,24 +230,12 @@ internal class StubWriter(
         stubWriter?.visitConstructor(constructor)
     }
 
-    override fun afterVisitConstructor(constructor: ConstructorItem) {
-        stubWriter?.afterVisitConstructor(constructor)
-    }
-
     override fun visitMethod(method: MethodItem) {
         stubWriter?.visitMethod(method)
     }
 
-    override fun afterVisitMethod(method: MethodItem) {
-        stubWriter?.afterVisitMethod(method)
-    }
-
     override fun visitField(field: FieldItem) {
         stubWriter?.visitField(field)
-    }
-
-    override fun afterVisitField(field: FieldItem) {
-        stubWriter?.afterVisitField(field)
     }
 
     /**
@@ -278,7 +266,6 @@ internal class StubWriter(
             filterEmit = filterEmit,
             filterReference = filterReference,
             preFiltered = preFiltered,
-            includeEmptyOuterClasses = true,
             // Make sure that package private constructors that are needed to compile safely are
             // visited, so they will appear in the stubs.
             visitStubsConstructorIfNeeded = true,

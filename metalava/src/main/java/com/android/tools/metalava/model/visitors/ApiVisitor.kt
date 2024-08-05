@@ -22,6 +22,7 @@ import com.android.tools.metalava.model.BaseItemVisitor
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PropertyItem
@@ -52,13 +53,6 @@ open class ApiVisitor(
 
     /** The filter to use to determine if we should emit a reference to an item */
     val filterReference: Predicate<Item>,
-
-    /**
-     * Whether the visitor should include visiting top-level classes that have nothing other than
-     * non-empty inner classes within. Typically these are not included in signature files, but when
-     * generating stubs we need to include them.
-     */
-    val includeEmptyOuterClasses: Boolean = false,
 
     /**
      * Whether this visitor should visit elements that have not been annotated with one of the
@@ -149,41 +143,54 @@ open class ApiVisitor(
         config = config,
     )
 
-    // The API visitor lazily visits packages only when there's a match within at least one class;
-    // this property keeps track of whether we've already visited the current package
-    var visitingPackage = false
+    /**
+     * Visit a [List] of [VisitCandidate]s after sorting it into order using
+     * [ClassItem.classNameSorter] on [VisitCandidate.cls].
+     */
+    private fun visitClassList(classes: List<VisitCandidate>) {
+        classes.sortedWith(Comparator.comparing({ it.cls }, ClassItem.classNameSorter())).forEach {
+            vc ->
+            vc.accept()
+        }
+    }
 
     override fun visit(cls: ClassItem) {
-        if (!include(cls)) {
-            return
-        }
-
-        // We build up a separate data structure such that we can compute the
-        // sets of fields, methods, etc even for inner classes (recursively); that way
-        // we can easily and up front determine whether we have any matches for
-        // inner classes (which is vital for computing the removed-api for example, where
-        // only something like the appearance of a removed method inside an inner class
-        // results in the outer class being described in the signature file.
-        val candidate = VisitCandidate(cls)
-        candidate.accept()
+        // Get a VisitCandidate and visit it, if needed.
+        getVisitCandidateIfNeeded(cls)?.accept()
     }
+
+    /** Recursively flatten the class nesting. */
+    private fun flattenClassNesting(cls: ClassItem): Sequence<ClassItem> =
+        sequenceOf(cls) + cls.innerClasses().asSequence().flatMap { flattenClassNesting(it) }
 
     override fun visit(pkg: PackageItem) {
         if (!pkg.emit) {
             return
         }
 
-        // For the API visitor packages are visited lazily; only when we encounter
-        // an unfiltered item within the class
-        pkg.topLevelClasses().asSequence().sortedWith(ClassItem.classNameSorter()).forEach {
-            it.accept(this)
-        }
+        // Get the list of classes to visit directly. If nested classes are to appear as nested
+        // then just visit the top level classes directly and then the inner classes will be visited
+        // by their containing classes. Otherwise, flatten the nested classes and treat them all as
+        // top level classes.
+        val classesToVisitDirectly =
+            pkg.topLevelClasses()
+                .let { topLevelClasses ->
+                    if (nestInnerClasses) topLevelClasses
+                    else topLevelClasses.flatMap { flattenClassNesting(it) }
+                }
+                .mapNotNull { getVisitCandidateIfNeeded(it) }
+                .toList()
 
-        if (visitingPackage) {
-            visitingPackage = false
-            afterVisitPackage(pkg)
-            afterVisitItem(pkg)
-        }
+        // If none of the classes in this package will be visited them ignore the package entirely.
+        if (classesToVisitDirectly.isEmpty()) return
+
+        visitItem(pkg)
+        visitPackage(pkg)
+
+        visitClassList(classesToVisitDirectly)
+
+        afterVisitPackage(pkg)
+        afterVisitItem(pkg)
     }
 
     /** @return Whether this class is generally one that we want to recurse into */
@@ -195,102 +202,85 @@ open class ApiVisitor(
             return false
         }
 
-        return cls.emit || cls.codebase.preFiltered
+        return cls.emit
     }
 
     /**
-     * @return Whether the given VisitCandidate's visitor should recurse into the given
-     *   VisitCandidate's class
+     * Returns a [VisitCandidate] if the [cls] needs to be visited, otherwise return `null`.
+     *
+     * The [cls] needs to be visited if it passes the various checks that determine whether it
+     * should be emitted as part of an API surface as determined by [filterEmit] and
+     * [filterReference].
      */
-    fun include(vc: VisitCandidate): Boolean {
-        if (!include(vc.cls)) {
-            return false
-        }
-        return shouldEmitClassBody(vc) || shouldEmitInnerClasses(vc)
+    private fun getVisitCandidateIfNeeded(cls: ClassItem): VisitCandidate? {
+        if (!include(cls)) return null
+
+        // Check to see whether this class should be emitted in its entirety. If not then it may
+        // still be emitted if it contains emittable members.
+        val emit = filterEmit.test(cls)
+
+        // If the class is emitted then create a VisitCandidate immediately.
+        if (emit) return VisitCandidate(cls)
+
+        // Check to see if the class could be emitted if it contains emittable members. If not then
+        // return `null` to ignore this class. This will happen for a hidden class, e.g. package
+        // private, that implements/overrides methods from the API.
+        if (!filterReference.test(cls)) return null
+
+        // Create a VisitCandidate to encapsulate the emittable members, if any.
+        val vc = VisitCandidate(cls)
+
+        // Check to see if the class has any emittable members, if not return `null` to ignore this
+        // class.
+        if (vc.containsNoEmittableMembers()) return null
+
+        // The class is emittable so return it.
+        return vc
     }
 
     /**
-     * @return Whether this class should be visited Note that if [include] returns true then we will
-     *   still visit classes that are contained by this one
+     * Encapsulates a [ClassItem] that is being visited and its members, filtered by [filterEmit],
+     * and sorted by various members specific comparators.
+     *
+     * The purpose of this is to store the lists of filtered and sorted members that were created
+     * during filtering of the classes in the [PackageItem] visit method. They need to be stored as
+     * they can take a long time to generate and will be needed again when visiting the class
+     * contents.
      */
-    open fun shouldEmitClass(vc: VisitCandidate): Boolean {
-        return vc.cls.emit && (includeEmptyOuterClasses || shouldEmitClassBody(vc))
-    }
-
-    /**
-     * @return Whether the body of this class (everything other than the inner classes) emits
-     *   anything
-     */
-    private fun shouldEmitClassBody(vc: VisitCandidate): Boolean {
-        return when {
-            filterEmit.test(vc.cls) -> true
-            vc.nonEmpty() -> filterReference.test(vc.cls)
-            else -> false
-        }
-    }
-
-    /** @return Whether the inner classes of this class will emit anything */
-    fun shouldEmitInnerClasses(vc: VisitCandidate): Boolean {
-        return vc.innerClasses.any { shouldEmitAnyClass(it) }
-    }
-
-    /** @return Whether this class will emit anything */
-    private fun shouldEmitAnyClass(vc: VisitCandidate): Boolean {
-        return shouldEmitClassBody(vc) || shouldEmitInnerClasses(vc)
-    }
-
-    companion object {
-        /**
-         * Comparator that will order [FieldItem]s such that those for which
-         * [FieldItem.isEnumConstant] returns `true` will come before those for which it is `false`.
-         */
-        private val fieldComparatorEnumConstantFirst =
-            Comparator.comparing(FieldItem::isEnumConstant)
-                .reversed()
-                .thenComparing(FieldItem.comparator)
-    }
-
     inner class VisitCandidate(val cls: ClassItem) {
-        val innerClasses by
-            lazy(LazyThreadSafetyMode.NONE) {
-                val clsInnerClasses = cls.innerClasses()
-                if (clsInnerClasses.isEmpty()) {
-                    emptyList()
-                } else {
-                    clsInnerClasses
-                        .asSequence()
-                        .sortedWith(ClassItem.classNameSorter())
-                        .map { VisitCandidate(it) }
-                        .toList()
+
+        /**
+         * If the list this is called upon is empty then just return [emptyList], else apply the
+         * [transform] to the list and return that.
+         */
+        private inline fun <T> List<T>.mapIfNotEmpty(transform: List<T>.() -> List<T>) =
+            if (isEmpty()) emptyList() else transform(this)
+
+        /**
+         * Sort the sequence into a [List].
+         *
+         * The standard [Sequence.sortedWith] will sort it into a list and then return a sequence
+         * wrapper which would then have to be converted back into a list. Instead, this just sorts
+         * it into a [List] and returns that.
+         */
+        private fun <T> Sequence<T>.sortToList(comparator: Comparator<in T>) =
+            if (none()) emptyList()
+            else
+                toMutableList().let {
+                    // Sort the list in place.
+                    it.sortWith(comparator)
+                    // Return the sorter list.
+                    it
                 }
+
+        private val constructors =
+            cls.constructors().mapIfNotEmpty {
+                asSequence().filter { filterEmit.test(it) }.sortToList(methodComparator)
             }
 
-        private val constructors by
-            lazy(LazyThreadSafetyMode.NONE) {
-                val clsConstructors = cls.constructors()
-                if (clsConstructors.isEmpty()) {
-                    emptyList()
-                } else {
-                    clsConstructors
-                        .asSequence()
-                        .filter { filterEmit.test(it) }
-                        .sortedWith(methodComparator)
-                        .toList()
-                }
-            }
-
-        private val methods by
-            lazy(LazyThreadSafetyMode.NONE) {
-                val clsMethods = cls.methods()
-                if (clsMethods.isEmpty()) {
-                    emptyList()
-                } else {
-                    clsMethods
-                        .asSequence()
-                        .filter { filterEmit.test(it) }
-                        .sortedWith(methodComparator)
-                        .toList()
-                }
+        private val methods =
+            cls.methods().mapIfNotEmpty {
+                asSequence().filter { filterEmit.test(it) }.sortToList(methodComparator)
             }
 
         private val fields by
@@ -303,73 +293,43 @@ open class ApiVisitor(
                     }
 
                 // Sort the fields so that enum constants come first.
-                fieldSequence.sortedWith(fieldComparatorEnumConstantFirst)
+                fieldSequence.sortToList(FieldItem.comparatorEnumConstantFirst)
             }
 
-        private val properties by
-            lazy(LazyThreadSafetyMode.NONE) {
-                val clsProperties = cls.properties()
-                if (clsProperties.isEmpty()) {
-                    emptyList()
-                } else {
-                    clsProperties
-                        .asSequence()
-                        .filter { filterEmit.test(it) }
-                        .sortedWith(PropertyItem.comparator)
-                        .toList()
-                }
+        private val properties =
+            cls.properties().mapIfNotEmpty {
+                asSequence().filter { filterEmit.test(it) }.sortToList(PropertyItem.comparator)
             }
 
-        /** Whether the class body contains any Item's (other than inner Classes) */
-        fun nonEmpty(): Boolean {
-            return !(constructors.none() && methods.none() && fields.none() && properties.none())
-        }
+        /** Whether the class body contains any emmittable [MemberItem]s. */
+        fun containsNoEmittableMembers() =
+            constructors.isEmpty() && methods.isEmpty() && fields.isEmpty() && properties.isEmpty()
 
         fun accept() {
-            if (!include(this)) {
-                return
+            visitItem(cls)
+            visitClass(cls)
+
+            for (constructor in constructors) {
+                constructor.accept(this@ApiVisitor)
             }
 
-            val emitThis = shouldEmitClass(this)
-            if (emitThis) {
-                if (!visitingPackage) {
-                    visitingPackage = true
-                    val pkg = cls.containingPackage()
-                    visitItem(pkg)
-                    visitPackage(pkg)
-                }
-
-                visitItem(cls)
-                visitClass(cls)
-
-                for (constructor in constructors) {
-                    constructor.accept(this@ApiVisitor)
-                }
-
-                for (method in methods) {
-                    method.accept(this@ApiVisitor)
-                }
-
-                for (property in properties) {
-                    property.accept(this@ApiVisitor)
-                }
-                for (field in fields) {
-                    field.accept(this@ApiVisitor)
-                }
+            for (method in methods) {
+                method.accept(this@ApiVisitor)
             }
 
-            if (nestInnerClasses) { // otherwise done below
-                innerClasses.forEach { it.accept() }
+            for (property in properties) {
+                property.accept(this@ApiVisitor)
+            }
+            for (field in fields) {
+                field.accept(this@ApiVisitor)
             }
 
-            if (emitThis) {
-                afterVisitClass(cls)
-                afterVisitItem(cls)
+            if (nestInnerClasses) { // otherwise done in visit(PackageItem)
+                visitClassList(cls.innerClasses().mapNotNull { getVisitCandidateIfNeeded(it) })
             }
 
-            if (!nestInnerClasses) {
-                innerClasses.forEach { it.accept() }
-            }
+            afterVisitClass(cls)
+            afterVisitItem(cls)
         }
     }
 }

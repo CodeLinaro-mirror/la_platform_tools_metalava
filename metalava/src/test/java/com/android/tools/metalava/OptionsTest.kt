@@ -111,7 +111,7 @@ Sub-commands:
         assertEquals(
             """
 
-                metalava version: 1.0.0-alpha10
+                metalava version: 1.0.0-alpha11
 
             """
                 .trimIndent(),
