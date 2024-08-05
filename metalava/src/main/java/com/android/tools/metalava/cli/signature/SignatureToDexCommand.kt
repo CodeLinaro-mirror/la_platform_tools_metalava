@@ -27,6 +27,7 @@ import com.android.tools.metalava.createReportFile
 import com.android.tools.metalava.model.noOpAnnotationManager
 import com.android.tools.metalava.model.text.SignatureFile
 import com.android.tools.metalava.model.visitors.ApiVisitor
+import com.android.tools.metalava.model.visitors.FilteringApiVisitor
 import com.github.ajalt.clikt.parameters.arguments.argument
 import com.github.ajalt.clikt.parameters.arguments.multiple
 import com.github.ajalt.clikt.parameters.options.option
@@ -71,11 +72,19 @@ class SignatureToDexCommand :
 
         createReportFile(progressTracker, signatureApi, outFile, "DEX API") { printWriter ->
             DexApiWriter(
-                printWriter,
-                apiEmit,
-                apiReference,
-                apiVisitorConfig,
-            )
+                    printWriter,
+                )
+                .let { dexApiWriter ->
+                    FilteringApiVisitor(
+                        dexApiWriter,
+                        preserveClassNesting = false,
+                        inlineInheritedFields = true,
+                        filterEmit = apiEmit,
+                        filterReference = apiReference,
+                        preFiltered = signatureApi.preFiltered,
+                        config = apiVisitorConfig,
+                    )
+                }
         }
     }
 }

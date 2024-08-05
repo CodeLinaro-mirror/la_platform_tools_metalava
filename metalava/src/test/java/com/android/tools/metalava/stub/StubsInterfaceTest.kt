@@ -454,7 +454,7 @@ class StubsInterfaceTest : AbstractStubsTest() {
                         """
                     package android.content.res;
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
-                    public interface XmlResourceParser extends org.xmlpull.v1.XmlPullParser, android.util.AttributeSet, java.lang.AutoCloseable {
+                    public interface XmlResourceParser extends android.util.AttributeSet, java.lang.AutoCloseable, org.xmlpull.v1.XmlPullParser {
                     public void close();
                     }
                     """

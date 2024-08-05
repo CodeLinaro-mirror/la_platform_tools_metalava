@@ -44,8 +44,9 @@ internal constructor(
     // Note - top level classes only
     private val classes: MutableList<ClassItem> = mutableListOf()
 
-    override fun topLevelClasses(): Sequence<ClassItem> =
-        classes.toList().asSequence().filter { it.isTopLevelClass() }
+    override fun topLevelClasses(): List<ClassItem> =
+        // Return a copy to avoid a ConcurrentModificationException.
+        classes.toList()
 
     lateinit var containingPackageField: PsiPackageItem
 

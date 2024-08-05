@@ -386,7 +386,7 @@ internal class TextTypeParser(val codebase: Codebase, val kotlinStyleNulls: Bool
 
         val qualifiedName =
             if (outerClassType != null) {
-                // This is an inner type, add the prefix of the outer name
+                // This is a nested type, add the prefix of the outer name
                 "${outerClassType.qualifiedName}.$name"
             } else if (!name.contains('.')) {
                 // Reverse the effect of [TypeItem.stripJavaLangPrefix].
@@ -399,7 +399,7 @@ internal class TextTypeParser(val codebase: Codebase, val kotlinStyleNulls: Bool
         val arguments =
             argumentStrings.map { cachedParseType(it, typeParameterScope) as TypeArgumentTypeItem }
         // If this is an outer class type (there's a remainder), call it non-null and don't apply
-        // the leading annotations (they belong to the inner class type).
+        // the leading annotations (they belong to the nested class type).
         val classModifiers =
             if (remainder != null) {
                 modifiers(classAnnotations, TypeNullability.NONNULL)
@@ -415,7 +415,7 @@ internal class TextTypeParser(val codebase: Codebase, val kotlinStyleNulls: Bool
                     "Could not parse type `$type`. Found unexpected string after type parameters: $remainder"
                 )
             }
-            // This is an inner class type, recur with the new outer class
+            // This is a nested class type, recur with the new outer class
             return createClassType(
                 remainder.substring(1),
                 classType,
@@ -503,7 +503,7 @@ internal class TextTypeParser(val codebase: Codebase, val kotlinStyleNulls: Bool
     /**
      * Given [type] which represents a class, splits the string into the qualified name of the
      * class, the remainder of the type string, and a list of type-use annotations. The remainder of
-     * the type string might be the type parameter list, inner class names, or a combination
+     * the type string might be the type parameter list, nested class names, or a combination
      *
      * For `java.util.@A @B List<java.lang.@C String>`, returns the triple ("java.util.List",
      * "<java.lang.@C String", listOf("@A", "@B")).

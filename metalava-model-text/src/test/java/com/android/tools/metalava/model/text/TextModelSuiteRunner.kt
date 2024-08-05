@@ -85,7 +85,7 @@ internal class ClassLoaderBasedClassResolver(jar: File) : ClassResolver {
             try {
                 return classLoader.loadClass(binaryName)
             } catch (e: ClassNotFoundException) {
-                // If the class could not be found then maybe it was an inner class so replace the
+                // If the class could not be found then maybe it was a nested class so replace the
                 // last '.' in the name with a $ and try again. If there is no '.' then return.
                 val lastDot = binaryName.lastIndexOf('.')
                 if (lastDot == -1) {

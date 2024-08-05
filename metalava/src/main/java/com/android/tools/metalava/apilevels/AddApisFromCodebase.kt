@@ -43,7 +43,7 @@ fun addApisFromCodebase(
         object :
             ApiVisitor(
                 visitConstructorsAsMethods = true,
-                nestInnerClasses = false,
+                preserveClassNesting = false,
                 filterEmit = providedFilterEmit,
                 filterReference = providedFilterReference,
                 config = @Suppress("DEPRECATION") options.apiVisitorConfig,
@@ -235,7 +235,7 @@ fun MethodItem.internalDesc(voidConstructorTypes: Boolean = false): String {
     val sb = StringBuilder()
     sb.append("(")
 
-    // Non-static inner classes get an implicit constructor parameter for the
+    // Inner, i.e. non-static nested, classes get an implicit constructor parameter for the
     // outer type
     if (
         isConstructor() &&

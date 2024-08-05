@@ -350,7 +350,7 @@ class CompatibilityCheck(
 
             if (oldModifiers.isStatic() != newModifiers.isStatic()) {
                 val hasPublicConstructor = old.constructors().any { it.isPublic }
-                if (!old.isInnerClass() || hasPublicConstructor) {
+                if (!old.isNestedClass() || hasPublicConstructor) {
                     report(
                         Issues.CHANGED_STATIC,
                         new,

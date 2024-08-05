@@ -28,8 +28,7 @@ internal class TurbinePackageItem(
     private val qualifiedName: String,
     modifiers: DefaultModifierList,
     documentation: String,
-    isInitiallyHidden: Boolean,
-) : TurbineItem(codebase, fileLocation, modifiers, documentation, isInitiallyHidden), PackageItem {
+) : TurbineItem(codebase, fileLocation, modifiers, documentation), PackageItem {
 
     private var topClasses = mutableListOf<TurbineClassItem>()
 
@@ -43,7 +42,6 @@ internal class TurbinePackageItem(
             modifiers: DefaultModifierList,
             documentation: String,
         ): TurbinePackageItem {
-            val isHidden = codebase.isPackageHidden(qualifiedName)
             if (modifiers.isPackagePrivate()) {
                 modifiers.setVisibilityLevel(VisibilityLevel.PUBLIC)
             }
@@ -53,20 +51,11 @@ internal class TurbinePackageItem(
                 qualifiedName,
                 modifiers,
                 documentation,
-                isHidden,
             )
         }
     }
     // N.A. a package cannot be contained in a class
     override fun containingClass(): ClassItem? = null
-
-    fun updateOriginallyHiddenStatus(documentation: String) {
-        this.originallyHidden =
-            this.originallyHidden ||
-                documentation.contains("@hide") ||
-                documentation.contains("@pending") ||
-                hasHideAnnotation()
-    }
 
     override fun equals(other: Any?): Boolean {
         if (this === other) {
@@ -79,7 +68,7 @@ internal class TurbinePackageItem(
 
     override fun qualifiedName(): String = qualifiedName
 
-    override fun topLevelClasses(): Sequence<ClassItem> = topClasses.asSequence()
+    override fun topLevelClasses(): List<ClassItem> = topClasses.toList()
 
     internal fun addTopClass(classItem: TurbineClassItem) {
         topClasses.add(classItem)

@@ -643,7 +643,7 @@ class CodebaseComparator(
             codebase.accept(
                 object :
                     ApiVisitor(
-                        nestInnerClasses = true,
+                        preserveClassNesting = true,
                         inlineInheritedFields = true,
                         filterEmit = predicate,
                         filterReference = predicate,

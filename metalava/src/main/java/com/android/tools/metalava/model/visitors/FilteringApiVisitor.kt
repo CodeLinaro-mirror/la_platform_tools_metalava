@@ -21,6 +21,7 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ConstructorItem
+import com.android.tools.metalava.model.DelegatedVisitor
 import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
@@ -45,9 +46,8 @@ import java.util.function.Predicate
  * writers which will allow access to unfiltered `Item`s.
  */
 class FilteringApiVisitor(
-    val delegate: BaseItemVisitor,
-    visitConstructorsAsMethods: Boolean = true,
-    nestInnerClasses: Boolean = false,
+    val delegate: DelegatedVisitor,
+    preserveClassNesting: Boolean = false,
     inlineInheritedFields: Boolean = true,
     methodComparator: Comparator<MethodItem> = MethodItem.comparator,
     /**
@@ -85,14 +85,17 @@ class FilteringApiVisitor(
     config: Config,
 ) :
     ApiVisitor(
-        visitConstructorsAsMethods,
-        nestInnerClasses,
-        inlineInheritedFields,
-        methodComparator,
-        filterEmit,
-        filterReference,
-        showUnannotated,
-        config,
+        // The setting of this is irrelevant as that is done in the visitConstructor(...) and
+        // afterVisitConstructor(...) methods and FilteringApiVisitor overrides them. Set it to
+        // false anyway as that is the behavior that this provides.
+        visitConstructorsAsMethods = false,
+        preserveClassNesting = preserveClassNesting,
+        inlineInheritedFields = inlineInheritedFields,
+        methodComparator = methodComparator,
+        filterEmit = filterEmit,
+        filterReference = filterReference,
+        showUnannotated = showUnannotated,
+        config = config,
     ),
     ItemVisitor {
 

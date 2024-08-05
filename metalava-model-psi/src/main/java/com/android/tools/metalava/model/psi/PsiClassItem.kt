@@ -151,7 +151,7 @@ internal constructor(
         }
     }
 
-    private lateinit var innerClasses: List<PsiClassItem>
+    private lateinit var nestedClasses: List<PsiClassItem>
     private lateinit var constructors: List<PsiConstructorItem>
     private lateinit var methods: MutableList<PsiMethodItem>
     private lateinit var properties: List<PsiPropertyItem>
@@ -164,7 +164,7 @@ internal constructor(
      */
     internal var source: PsiClassItem? = null
 
-    override fun innerClasses(): List<PsiClassItem> = innerClasses
+    override fun nestedClasses(): List<PsiClassItem> = nestedClasses
 
     override fun constructors(): List<ConstructorItem> = constructors
 
@@ -190,7 +190,7 @@ internal constructor(
     override fun hasTypeVariables(): Boolean = psiClass.hasTypeParameters()
 
     override fun getSourceFile(): SourceFile? {
-        if (isInnerClass()) {
+        if (isNestedClass()) {
             return null
         }
 
@@ -511,13 +511,15 @@ internal constructor(
                 item.properties = properties
             }
 
-            val psiInnerClasses = psiClass.innerClasses
-            item.innerClasses =
-                if (psiInnerClasses.isEmpty()) {
+            // This actually gets all nested classes not just inner, i.e. non-static nested,
+            // classes.
+            val psiNestedClasses = psiClass.innerClasses
+            item.nestedClasses =
+                if (psiNestedClasses.isEmpty()) {
                     emptyList()
                 } else {
                     val result =
-                        psiInnerClasses
+                        psiNestedClasses
                             .asSequence()
                             .map {
                                 codebase.createClass(
@@ -613,7 +615,7 @@ internal constructor(
 
         /**
          * Computes the "full" class name; this is not the qualified class name (e.g. with package)
-         * but for an inner class it includes all the outer classes
+         * but for a nested class it includes all the outer classes
          */
         fun computeFullClassName(cls: PsiClass): String {
             if (cls.containingClass == null) {

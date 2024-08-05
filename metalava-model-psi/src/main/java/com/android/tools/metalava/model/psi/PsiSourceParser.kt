@@ -31,6 +31,7 @@ import com.android.tools.metalava.model.source.SourceSet
 import com.android.tools.metalava.model.source.utils.OVERVIEW_HTML
 import com.android.tools.metalava.model.source.utils.PACKAGE_HTML
 import com.android.tools.metalava.model.source.utils.findPackage
+import com.android.tools.metalava.model.source.utils.packageHtmlToJavadoc
 import com.android.tools.metalava.reporter.Reporter
 import com.intellij.pom.java.LanguageLevel
 import java.io.File

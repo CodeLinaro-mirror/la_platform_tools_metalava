@@ -16,10 +16,10 @@
 
 package com.android.tools.metalava
 
-import com.android.tools.metalava.model.BaseItemVisitor
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.ConstructorItem
+import com.android.tools.metalava.model.DelegatedVisitor
 import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
@@ -40,11 +40,8 @@ class SignatureWriter(
     private val writer: PrintWriter,
     private var emitHeader: EmitFileHeader = EmitFileHeader.ALWAYS,
     private val fileFormat: FileFormat,
-) :
-    BaseItemVisitor(
-        visitConstructorsAsMethods = false,
-        nestInnerClasses = false,
-    ) {
+) : DelegatedVisitor {
+
     init {
         // If a header must always be written out (even if the file is empty) then write it here.
         if (emitHeader == EmitFileHeader.ALWAYS) {
@@ -55,7 +52,7 @@ class SignatureWriter(
     /**
      * Create an [ApiVisitor] that will filter the [Item] to which is applied according to the
      * supplied parameters and in a manner appropriate for writing signatures, e.g. not nesting
-     * inner classes. It will delegate any visitor calls that pass through its filter to this
+     * nested classes. It will delegate any visitor calls that pass through its filter to this
      * [SignatureWriter] instance.
      */
     fun createFilteringVisitor(
@@ -70,8 +67,7 @@ class SignatureWriter(
             else Pair(::getInterfacesInOrder, null)
         return FilteringApiVisitor(
             delegate = this,
-            visitConstructorsAsMethods = false,
-            nestInnerClasses = false,
+            preserveClassNesting = false,
             inlineInheritedFields = true,
             methodComparator = fileFormat.overloadedMethodOrder.comparator,
             interfaceListSorter = interfaceListSorter,

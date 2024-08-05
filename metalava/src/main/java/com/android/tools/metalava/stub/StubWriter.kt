@@ -19,9 +19,9 @@ package com.android.tools.metalava.stub
 import com.android.tools.metalava.ApiPredicate
 import com.android.tools.metalava.FilterPredicate
 import com.android.tools.metalava.actualItem
-import com.android.tools.metalava.model.BaseItemVisitor
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ConstructorItem
+import com.android.tools.metalava.model.DelegatedVisitor
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.ItemVisitor
@@ -48,11 +48,7 @@ internal class StubWriter(
     private val docStubs: Boolean,
     private val reporter: Reporter,
     private val config: StubWriterConfig,
-) :
-    BaseItemVisitor(
-        visitConstructorsAsMethods = false,
-        nestInnerClasses = true,
-    ) {
+) : DelegatedVisitor {
 
     override fun visitPackage(pkg: PackageItem) {
         getPackageDir(pkg, create = true)
@@ -178,7 +174,7 @@ internal class StubWriter(
     /** The writer to write the stubs file to */
     private var textWriter: PrintWriter = errorTextWriter
 
-    private var stubWriter: BaseItemVisitor? = null
+    private var stubWriter: DelegatedVisitor? = null
 
     override fun visitClass(cls: ClassItem) {
         if (cls.isTopLevelClass()) {
@@ -241,8 +237,8 @@ internal class StubWriter(
     /**
      * Create an [ApiVisitor] that will filter the [Item] to which is applied according to the
      * supplied parameters and in a manner appropriate for writing signatures, e.g. not nesting
-     * inner classes. It will delegate any visitor calls that pass through its filter to this
-     * [StubWriter] instance.
+     * classes. It will delegate any visitor calls that pass through its filter to this [StubWriter]
+     * instance.
      */
     fun createFilteringVisitor(
         preFiltered: Boolean,
@@ -256,8 +252,7 @@ internal class StubWriter(
         val filterEmit = FilterPredicate(filterReference)
         return FilteringApiVisitor(
             delegate = this,
-            visitConstructorsAsMethods = false,
-            nestInnerClasses = true,
+            preserveClassNesting = true,
             inlineInheritedFields = true,
             // Methods are by default sorted in source order in stubs, to encourage methods
             // that are near each other in the source to show up near each other in the

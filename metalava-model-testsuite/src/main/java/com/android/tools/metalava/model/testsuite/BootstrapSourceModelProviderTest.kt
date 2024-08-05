@@ -78,7 +78,7 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
         ) {
             val packageItem = codebase.assertPackage("test.pkg")
             assertEquals("test.pkg", packageItem.qualifiedName())
-            assertEquals(1, packageItem.topLevelClasses().count(), message = "")
+            assertEquals(1, packageItem.topLevelClasses().size, message = "")
         }
     }
 
@@ -159,7 +159,7 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
             assertEquals("Test.InnerTestClass", innerClassItem.fullName())
             assertEquals("InnerTestClass", innerClassItem.simpleName())
             assertEquals(classItem, innerClassItem.containingClass())
-            assertEquals(1, classItem.innerClasses().count(), message = "")
+            assertEquals(1, classItem.nestedClasses().count(), message = "")
         }
     }
 
@@ -252,8 +252,8 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
             val rootPackageItem = codebase.assertPackage("")
             val classItem = codebase.assertClass("test.pkg.Test")
             val innerClassItem = codebase.assertClass("test.pkg.Test.Inner")
-            assertEquals(1, packageItem.topLevelClasses().count())
-            assertEquals(0, parentPackageItem.topLevelClasses().count())
+            assertEquals(1, packageItem.topLevelClasses().size)
+            assertEquals(0, parentPackageItem.topLevelClasses().size)
             assertEquals(parentPackageItem, packageItem.containingPackage())
             assertEquals(rootPackageItem, parentPackageItem.containingPackage())
             assertEquals(null, rootPackageItem.containingPackage())

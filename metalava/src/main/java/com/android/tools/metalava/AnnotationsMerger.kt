@@ -378,16 +378,6 @@ class AnnotationsMerger(
                         }
                     }
 
-                    // The hidden field in the main codebase is already initialized. So if the
-                    // element is hidden in the external codebase, hide it in the main codebase
-                    // too.
-                    if (item.hidden) {
-                        mainItem.hidden = true
-                    }
-                    if (item.originallyHidden) {
-                        mainItem.originallyHidden = true
-                    }
-
                     return TraversalAction.CONTINUE
                 }
             }

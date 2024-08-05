@@ -22,6 +22,7 @@ import com.android.tools.metalava.model.BaseItemVisitor
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.model.ItemVisitor
 import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
@@ -36,11 +37,11 @@ open class ApiVisitor(
      */
     visitConstructorsAsMethods: Boolean = true,
     /**
-     * Whether inner classes should be visited "inside" a class; when this property is true, inner
+     * Whether nested classes should be visited "inside" a class; when this property is true, nested
      * classes are visited before the [#afterVisitClass] method is called; when false, it's done
      * afterwards. Defaults to false.
      */
-    nestInnerClasses: Boolean = false,
+    preserveClassNesting: Boolean = false,
 
     /** Whether to include inherited fields too */
     val inlineInheritedFields: Boolean = true,
@@ -64,7 +65,7 @@ open class ApiVisitor(
 
     /** Configuration that may come from the command line. */
     config: Config,
-) : BaseItemVisitor(visitConstructorsAsMethods, nestInnerClasses) {
+) : BaseItemVisitor(visitConstructorsAsMethods, preserveClassNesting) {
 
     private val packageFilter: PackageFilter? = config.packageFilter
 
@@ -87,11 +88,11 @@ open class ApiVisitor(
          */
         visitConstructorsAsMethods: Boolean = true,
         /**
-         * Whether inner classes should be visited "inside" a class; when this property is true,
-         * inner classes are visited before the [#afterVisitClass] method is called; when false,
+         * Whether nested classes should be visited "inside" a class; when this property is true,
+         * nested classes are visited before the [#afterVisitClass] method is called; when false,
          * it's done afterwards. Defaults to false.
          */
-        nestInnerClasses: Boolean = false,
+        preserveClassNesting: Boolean = false,
 
         /** Whether to ignore APIs with annotations in the --show-annotations list */
         ignoreShown: Boolean = true,
@@ -126,7 +127,7 @@ open class ApiVisitor(
         config: Config,
     ) : this(
         visitConstructorsAsMethods = visitConstructorsAsMethods,
-        nestInnerClasses = nestInnerClasses,
+        preserveClassNesting = preserveClassNesting,
         inlineInheritedFields = true,
         methodComparator = methodComparator,
         filterEmit = filterEmit
@@ -144,24 +145,26 @@ open class ApiVisitor(
     )
 
     /**
-     * Visit a [List] of [VisitCandidate]s after sorting it into order using
-     * [ClassItem.classNameSorter] on [VisitCandidate.cls].
+     * Visit a [List] of [ClassItem]s after sorting it into order defined by
+     * [ClassItem.classNameSorter].
      */
-    private fun visitClassList(classes: List<VisitCandidate>) {
-        classes.sortedWith(Comparator.comparing({ it.cls }, ClassItem.classNameSorter())).forEach {
-            vc ->
-            vc.accept()
-        }
+    private fun visitClassList(classes: List<ClassItem>) {
+        classes.sortedWith(ClassItem.classNameSorter()).forEach { it.accept(this) }
     }
 
+    /**
+     * Implement to redirect to [VisitCandidate.accept] if necessary,
+     *
+     * This is not called by this [ApiVisitor]. Instead, it calls [VisitCandidate.accept] which does
+     * not delegate to this method but visits the class and its members itself so that it can access
+     * the filtered and sorted members. However, this may be called by some other code calling
+     * [ClassItem.accept] directly on this [ApiVisitor]. In that case this creates and then
+     * delegates through to the [VisitCandidate.visitWrappedClassAndFilteredMembers]
+     */
     override fun visit(cls: ClassItem) {
         // Get a VisitCandidate and visit it, if needed.
-        getVisitCandidateIfNeeded(cls)?.accept()
+        getVisitCandidateIfNeeded(cls)?.visitWrappedClassAndFilteredMembers()
     }
-
-    /** Recursively flatten the class nesting. */
-    private fun flattenClassNesting(cls: ClassItem): Sequence<ClassItem> =
-        sequenceOf(cls) + cls.innerClasses().asSequence().flatMap { flattenClassNesting(it) }
 
     override fun visit(pkg: PackageItem) {
         if (!pkg.emit) {
@@ -169,17 +172,12 @@ open class ApiVisitor(
         }
 
         // Get the list of classes to visit directly. If nested classes are to appear as nested
-        // then just visit the top level classes directly and then the inner classes will be visited
+        // then just visit the top level classes directly and then the nested classes will be
+        // visited
         // by their containing classes. Otherwise, flatten the nested classes and treat them all as
         // top level classes.
-        val classesToVisitDirectly =
-            pkg.topLevelClasses()
-                .let { topLevelClasses ->
-                    if (nestInnerClasses) topLevelClasses
-                    else topLevelClasses.flatMap { flattenClassNesting(it) }
-                }
-                .mapNotNull { getVisitCandidateIfNeeded(it) }
-                .toList()
+        val classesToVisitDirectly: List<ClassItem> =
+            packageClassesAsSequence(pkg).mapNotNull { getVisitCandidateIfNeeded(it) }.toList()
 
         // If none of the classes in this package will be visited them ignore the package entirely.
         if (classesToVisitDirectly.isEmpty()) return
@@ -246,8 +244,12 @@ open class ApiVisitor(
      * during filtering of the classes in the [PackageItem] visit method. They need to be stored as
      * they can take a long time to generate and will be needed again when visiting the class
      * contents.
+     *
+     * Note: This implements [ClassItem] to allow visiting code to be more easily shared between
+     * this and [BaseItemVisitor]. It must not escape out of this class, e.g. be passed to
+     * `visitClass(...)`.
      */
-    inner class VisitCandidate(val cls: ClassItem) {
+    private inner class VisitCandidate(val cls: ClassItem) : ClassItem by cls {
 
         /**
          * If the list this is called upon is empty then just return [emptyList], else apply the
@@ -305,7 +307,19 @@ open class ApiVisitor(
         fun containsNoEmittableMembers() =
             constructors.isEmpty() && methods.isEmpty() && fields.isEmpty() && properties.isEmpty()
 
-        fun accept() {
+        /**
+         * Intercepts the call to visit this class and instead of using the default implementation
+         * which delegate to the appropriate method in [visitor] calls
+         */
+        override fun accept(visitor: ItemVisitor) {
+            if (visitor !== this@ApiVisitor)
+                error(
+                    "VisitCandidate instance must only be visited by its creating ApiVisitor, not $visitor"
+                )
+            visitWrappedClassAndFilteredMembers()
+        }
+
+        internal fun visitWrappedClassAndFilteredMembers() {
             visitItem(cls)
             visitClass(cls)
 
@@ -324,8 +338,8 @@ open class ApiVisitor(
                 field.accept(this@ApiVisitor)
             }
 
-            if (nestInnerClasses) { // otherwise done in visit(PackageItem)
-                visitClassList(cls.innerClasses().mapNotNull { getVisitCandidateIfNeeded(it) })
+            if (preserveClassNesting) { // otherwise done in visit(PackageItem)
+                visitClassList(cls.nestedClasses().mapNotNull { getVisitCandidateIfNeeded(it) })
             }
 
             afterVisitClass(cls)

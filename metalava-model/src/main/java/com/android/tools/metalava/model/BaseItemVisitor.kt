@@ -24,11 +24,11 @@ open class BaseItemVisitor(
      */
     val visitConstructorsAsMethods: Boolean = true,
     /**
-     * Whether inner classes should be visited "inside" a class; when this property is true, inner
+     * Whether nested classes should be visited "inside" a class; when this property is true, nested
      * classes are visited before the [#afterVisitClass] method is called; when false, it's done
      * afterwards. Defaults to false.
      */
-    val nestInnerClasses: Boolean = false,
+    val preserveClassNesting: Boolean = false,
 ) : ItemVisitor {
     override fun visit(cls: ClassItem) {
         if (skip(cls)) {
@@ -68,20 +68,14 @@ open class BaseItemVisitor(
             }
         }
 
-        if (nestInnerClasses) {
-            for (innerCls in cls.innerClasses()) {
-                innerCls.accept(this)
+        if (preserveClassNesting) {
+            for (nestedCls in cls.nestedClasses()) {
+                nestedCls.accept(this)
             }
-        } // otherwise done below
+        } // otherwise done in visit(PackageItem)
 
         afterVisitClass(cls)
         afterVisitItem(cls)
-
-        if (!nestInnerClasses) {
-            for (innerCls in cls.innerClasses()) {
-                innerCls.accept(this)
-            }
-        }
     }
 
     override fun visit(field: FieldItem) {
@@ -113,6 +107,17 @@ open class BaseItemVisitor(
         afterVisitItem(method)
     }
 
+    /**
+     * Get the package's classes to visit directly.
+     *
+     * If nested classes are to appear as nested within their containing classes then this will just
+     * return the package's top level classes. It will then be the responsibility of
+     * `visit(ClassItem)` to visit the nested classes. Otherwise, this will return a flattened
+     * sequence of each class followed by its nested classes.
+     */
+    protected fun packageClassesAsSequence(pkg: PackageItem) =
+        if (preserveClassNesting) pkg.topLevelClasses().asSequence() else pkg.allClasses()
+
     override fun visit(pkg: PackageItem) {
         if (skip(pkg)) {
             return
@@ -121,7 +126,7 @@ open class BaseItemVisitor(
         visitItem(pkg)
         visitPackage(pkg)
 
-        for (cls in pkg.topLevelClasses()) {
+        for (cls in packageClassesAsSequence(pkg)) {
             cls.accept(this)
         }
 
