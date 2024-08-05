@@ -32,70 +32,70 @@ class ApiAnalyzerTest : DriverTest() {
             showAnnotations = arrayOf("android.annotation.SystemApi"),
             expectedIssues =
                 """
-                src/test/pkg/SystemApiClass.java:7: error: badAbstractHiddenMethod cannot be hidden and abstract when SystemApiClass has a visible constructor, in case a third-party attempts to subclass it. [HiddenAbstractMethod]
-                src/test/pkg/PublicClass.java:5: error: badAbstractHiddenMethod cannot be hidden and abstract when PublicClass has a visible constructor, in case a third-party attempts to subclass it. [HiddenAbstractMethod]
-                src/test/pkg/PublicClass.java:6: error: badPackagePrivateMethod cannot be hidden and abstract when PublicClass has a visible constructor, in case a third-party attempts to subclass it. [HiddenAbstractMethod]
-            """,
+                    src/test/pkg/SystemApiClass.java:7: error: badAbstractHiddenMethod cannot be hidden and abstract when SystemApiClass has a visible constructor, in case a third-party attempts to subclass it. [HiddenAbstractMethod]
+                    src/test/pkg/PublicClass.java:5: error: badAbstractHiddenMethod cannot be hidden and abstract when PublicClass has a visible constructor, in case a third-party attempts to subclass it. [HiddenAbstractMethod]
+                    src/test/pkg/PublicClass.java:6: error: badPackagePrivateMethod cannot be hidden and abstract when PublicClass has a visible constructor, in case a third-party attempts to subclass it. [HiddenAbstractMethod]
+                """,
             expectedFail = DefaultLintErrorMessage,
             sourceFiles =
                 arrayOf(
                     java(
                         """
-                    package test.pkg;
-                    import android.annotation.SystemApi;
-                    public abstract class PublicClass {
-                        /** @hide */
-                        public abstract boolean badAbstractHiddenMethod() { return true; }
-                        abstract void badPackagePrivateMethod() { }
-                        /**
-                         * This method does not fail because it is visible due to showAnnotations,
-                         * instead it will fail when running analysis on public API. See test below.
-                         * @hide
-                         */
-                        @SystemApi
-                        public abstract boolean goodAbstractSystemHiddenMethod() { return true; }
-                    }
-                """
+                            package test.pkg;
+                            import android.annotation.SystemApi;
+                            public abstract class PublicClass {
+                                /** @hide */
+                                public abstract boolean badAbstractHiddenMethod() { return true; }
+                                abstract void badPackagePrivateMethod() { }
+                                /**
+                                 * This method does not fail because it is visible due to showAnnotations,
+                                 * instead it will fail when running analysis on public API. See test below.
+                                 * @hide
+                                 */
+                                @SystemApi
+                                public abstract boolean goodAbstractSystemHiddenMethod() { return true; }
+                            }
+                        """
                     ),
                     java(
                         """
-                    package test.pkg;
-                    import android.annotation.SystemApi;
-                    public abstract class PublicClassWithHiddenConstructor {
-                        private PublicClassWithHiddenConstructor() { }
-                        /** @hide */
-                        public abstract boolean goodAbstractHiddenMethod() { return true; }
-                    }
-                """
+                            package test.pkg;
+                            import android.annotation.SystemApi;
+                            public abstract class PublicClassWithHiddenConstructor {
+                                private PublicClassWithHiddenConstructor() { }
+                                /** @hide */
+                                public abstract boolean goodAbstractHiddenMethod() { return true; }
+                            }
+                        """
                     ),
                     java(
                         """
-                   package test.pkg;
-                   import android.annotation.SystemApi;
-                   /** @hide */
-                   @SystemApi
-                   public abstract class SystemApiClass {
-                        /** @hide */
-                        public abstract boolean badAbstractHiddenMethod() { return true; }
-                        /**
-                         * This method is OK, because it matches visibility of the class
-                         * @hide
-                         */
-                        @SystemApi
-                        public abstract boolean goodAbstractSystemHiddenMethod() { return true; }
-                        public abstract boolean goodAbstractPublicMethod() { return true; }
-                   }
-               """
+                           package test.pkg;
+                           import android.annotation.SystemApi;
+                           /** @hide */
+                           @SystemApi
+                           public abstract class SystemApiClass {
+                                /** @hide */
+                                public abstract boolean badAbstractHiddenMethod() { return true; }
+                                /**
+                                 * This method is OK, because it matches visibility of the class
+                                 * @hide
+                                 */
+                                @SystemApi
+                                public abstract boolean goodAbstractSystemHiddenMethod() { return true; }
+                                public abstract boolean goodAbstractPublicMethod() { return true; }
+                           }
+                       """
                     ),
                     java(
                         """
-                    package test.pkg;
-                    import android.annotation.SystemApi;
-                    /** This class is OK because it is all hidden @hide */
-                    public abstract class HiddenClass {
-                        public abstract boolean goodAbstractHiddenMethod() { return true; }
-                    }
-                """
+                            package test.pkg;
+                            import android.annotation.SystemApi;
+                            /** This class is OK because it is all hidden @hide */
+                            public abstract class HiddenClass {
+                                public abstract boolean goodAbstractHiddenMethod() { return true; }
+                            }
+                        """
                     ),
                     systemApiSource
                 )
@@ -107,26 +107,26 @@ class ApiAnalyzerTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                src/test/pkg/PublicClass.java:5: error: badAbstractHiddenMethod cannot be hidden and abstract when PublicClass has a visible constructor, in case a third-party attempts to subclass it. [HiddenAbstractMethod]
-                src/test/pkg/PublicClass.java:6: error: badPackagePrivateMethod cannot be hidden and abstract when PublicClass has a visible constructor, in case a third-party attempts to subclass it. [HiddenAbstractMethod]
-                src/test/pkg/PublicClass.java:9: error: badAbstractSystemHiddenMethod cannot be hidden and abstract when PublicClass has a visible constructor, in case a third-party attempts to subclass it. [HiddenAbstractMethod]
-            """,
+                    src/test/pkg/PublicClass.java:5: error: badAbstractHiddenMethod cannot be hidden and abstract when PublicClass has a visible constructor, in case a third-party attempts to subclass it. [HiddenAbstractMethod]
+                    src/test/pkg/PublicClass.java:6: error: badPackagePrivateMethod cannot be hidden and abstract when PublicClass has a visible constructor, in case a third-party attempts to subclass it. [HiddenAbstractMethod]
+                    src/test/pkg/PublicClass.java:9: error: badAbstractSystemHiddenMethod cannot be hidden and abstract when PublicClass has a visible constructor, in case a third-party attempts to subclass it. [HiddenAbstractMethod]
+                """,
             expectedFail = DefaultLintErrorMessage,
             sourceFiles =
                 arrayOf(
                     java(
                         """
-                    package test.pkg;
-                    import android.annotation.SystemApi;
-                    public abstract class PublicClass {
-                        /** @hide */
-                        public abstract boolean badAbstractHiddenMethod() { return true; }
-                        abstract void badPackagePrivateMethod() { }
-                        /** @hide */
-                        @SystemApi
-                        public abstract boolean badAbstractSystemHiddenMethod() { return true; }
-                    }
-                """
+                            package test.pkg;
+                            import android.annotation.SystemApi;
+                            public abstract class PublicClass {
+                                /** @hide */
+                                public abstract boolean badAbstractHiddenMethod() { return true; }
+                                abstract void badPackagePrivateMethod() { }
+                                /** @hide */
+                                @SystemApi
+                                public abstract boolean badAbstractSystemHiddenMethod() { return true; }
+                            }
+                        """
                     ),
                     systemApiSource
                 )
@@ -138,10 +138,10 @@ class ApiAnalyzerTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                src/test/pkg/MyClass.java:20: error: Method test.pkg.MyClass.inheritedNoCommentInParent(): @Deprecated annotation (present) and @deprecated doc tag (not present) do not match [DeprecationMismatch]
-                src/test/pkg/MyClass.java:23: error: Method test.pkg.MyClass.notInheritedNoComment(): @Deprecated annotation (present) and @deprecated doc tag (not present) do not match [DeprecationMismatch]
-                src/test/pkg/MyInterface.java:17: error: Method test.pkg.MyInterface.inheritedNoCommentInParent(): @Deprecated annotation (present) and @deprecated doc tag (not present) do not match [DeprecationMismatch]
-            """,
+                    src/test/pkg/MyClass.java:20: error: Method test.pkg.MyClass.inheritedNoCommentInParent(): @Deprecated annotation (present) and @deprecated doc tag (not present) do not match [DeprecationMismatch]
+                    src/test/pkg/MyClass.java:23: error: Method test.pkg.MyClass.notInheritedNoComment(): @Deprecated annotation (present) and @deprecated doc tag (not present) do not match [DeprecationMismatch]
+                    src/test/pkg/MyInterface.java:17: error: Method test.pkg.MyInterface.inheritedNoCommentInParent(): @Deprecated annotation (present) and @deprecated doc tag (not present) do not match [DeprecationMismatch]
+                """,
             expectedFail = DefaultLintErrorMessage,
             sourceFiles =
                 arrayOf(
@@ -204,47 +204,43 @@ class ApiAnalyzerTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                src/test/pkg/Foo.java:3: error: Class test.pkg.Hidden is hidden but was referenced (in field type) from public field test.pkg.Foo.fieldReferencesHidden1 [ReferencesHidden]
-                src/test/pkg/Foo.java:4: error: Class test.pkg.Hidden is hidden but was referenced (in field type) from public field test.pkg.Foo.fieldReferencesHidden2 [ReferencesHidden]
-                src/test/pkg/Foo.java:5: error: Class test.pkg.Hidden is hidden but was referenced (in field type) from public field test.pkg.Foo.fieldReferencesHidden3 [ReferencesHidden]
-                src/test/pkg/Foo.java:6: error: Class test.pkg.Hidden is hidden but was referenced (in field type) from public field test.pkg.Foo.fieldReferencesHidden4 [ReferencesHidden]
-                src/test/pkg/Foo.java:3: warning: Field Foo.fieldReferencesHidden1 references hidden type test.pkg.Hidden. [HiddenTypeParameter]
-                src/test/pkg/Foo.java:4: warning: Field Foo.fieldReferencesHidden2 references hidden type test.pkg.Hidden. [HiddenTypeParameter]
-                src/test/pkg/Foo.java:5: warning: Field Foo.fieldReferencesHidden3 references hidden type test.pkg.Hidden. [HiddenTypeParameter]
-                src/test/pkg/Foo.java:6: warning: Field Foo.fieldReferencesHidden4 references hidden type test.pkg.Hidden. [HiddenTypeParameter]
-            """
-                    .trimIndent(),
+                    src/test/pkg/Foo.java:3: error: Class test.pkg.Hidden is hidden but was referenced (in field type) from public field test.pkg.Foo.fieldReferencesHidden1 [ReferencesHidden]
+                    src/test/pkg/Foo.java:4: error: Class test.pkg.Hidden is hidden but was referenced (in field type) from public field test.pkg.Foo.fieldReferencesHidden2 [ReferencesHidden]
+                    src/test/pkg/Foo.java:5: error: Class test.pkg.Hidden is hidden but was referenced (in field type) from public field test.pkg.Foo.fieldReferencesHidden3 [ReferencesHidden]
+                    src/test/pkg/Foo.java:6: error: Class test.pkg.Hidden is hidden but was referenced (in field type) from public field test.pkg.Foo.fieldReferencesHidden4 [ReferencesHidden]
+                    src/test/pkg/Foo.java:3: warning: Field Foo.fieldReferencesHidden1 references hidden type test.pkg.Hidden. [HiddenTypeParameter]
+                    src/test/pkg/Foo.java:4: warning: Field Foo.fieldReferencesHidden2 references hidden type test.pkg.Hidden. [HiddenTypeParameter]
+                    src/test/pkg/Foo.java:5: warning: Field Foo.fieldReferencesHidden3 references hidden type test.pkg.Hidden. [HiddenTypeParameter]
+                    src/test/pkg/Foo.java:6: warning: Field Foo.fieldReferencesHidden4 references hidden type test.pkg.Hidden. [HiddenTypeParameter]
+                """,
             expectedFail = DefaultLintErrorMessage,
             sourceFiles =
                 arrayOf(
                     java(
                         """
-                        package test.pkg;
-                        /** @hide */
-                        public class Hidden {}
-                    """
-                            .trimIndent()
+                            package test.pkg;
+                            /** @hide */
+                            public class Hidden {}
+                        """
                     ),
                     java(
                         """
-                        package test.pkg;
-                        public class Outer<P1> {
-                            public class Inner<P2> {}
-                        }
-                    """
-                            .trimIndent()
+                            package test.pkg;
+                            public class Outer<P1> {
+                                public class Inner<P2> {}
+                            }
+                        """
                     ),
                     java(
                         """
-                        package test.pkg;
-                        public class Foo {
-                            public Hidden fieldReferencesHidden1;
-                            public Outer<Hidden> fieldReferencesHidden2;
-                            public Outer<Foo>.Inner<Hidden> fieldReferencesHidden3;
-                            public Outer<Hidden>.Inner<Foo> fieldReferencesHidden4;
-                        }
-                    """
-                            .trimIndent()
+                            package test.pkg;
+                            public class Foo {
+                                public Hidden fieldReferencesHidden1;
+                                public Outer<Hidden> fieldReferencesHidden2;
+                                public Outer<Foo>.Inner<Hidden> fieldReferencesHidden3;
+                                public Outer<Hidden>.Inner<Foo> fieldReferencesHidden4;
+                            }
+                        """
                     )
                 )
         )
@@ -453,7 +449,7 @@ class ApiAnalyzerTest : DriverTest() {
             expectedFail = DefaultLintErrorMessage,
             expectedIssues =
                 """
-                src/test/pkg/TestClass.kt:20: error: Parameter references deprecated type test.pkg.TestClass in test.pkg.TestClassKt.getCommentDeprecated(): this method should also be deprecated [ReferencesDeprecated]
+                    src/test/pkg/TestClass.kt:20: error: Parameter references deprecated type test.pkg.TestClass in test.pkg.TestClassKt.getCommentDeprecated(): this method should also be deprecated [ReferencesDeprecated]
                 """,
         )
     }
@@ -593,27 +589,25 @@ class ApiAnalyzerTest : DriverTest() {
                 arrayOf(
                     java(
                         """
-                        package test.pkg;
-                        public class Container {
-                            private class PrivateInnerClass {}
-                            public class PublicInnerClass extends PrivateInnerClass {}
-                        }
-                    """
-                            .trimIndent()
+                            package test.pkg;
+                            public class Container {
+                                private class PrivateInnerClass {}
+                                public class PublicInnerClass extends PrivateInnerClass {}
+                            }
+                        """
                     )
                 ),
             api =
                 """
-                package test.pkg {
-                  public class Container {
-                    ctor public Container();
-                  }
-                  public class Container.PublicInnerClass {
-                    ctor public Container.PublicInnerClass();
-                  }
-                }
-            """
-                    .trimIndent(),
+                    package test.pkg {
+                      public class Container {
+                        ctor public Container();
+                      }
+                      public class Container.PublicInnerClass {
+                        ctor public Container.PublicInnerClass();
+                      }
+                    }
+                """,
             expectedIssues =
                 "src/test/pkg/Container.java:4: warning: Public class test.pkg.Container.PublicInnerClass extends private class test.pkg.Container.PrivateInnerClass [PrivateSuperclass]"
         )
@@ -626,23 +620,23 @@ class ApiAnalyzerTest : DriverTest() {
                 arrayOf(
                     java(
                         """
-                        package test.pkg;
-                        /** @deprecated */
-                        @Deprecated
-                        public class DeprecatedOuterClass {
-                            public class EffectivelyDeprecatedInnerClass extends DeprecatedOuterClass {
-                                public void usesDeprecatedOuterClass(DeprecatedOuterClass doc) {}
+                            package test.pkg;
+                            /** @deprecated */
+                            @Deprecated
+                            public class DeprecatedOuterClass {
+                                public class EffectivelyDeprecatedInnerClass extends DeprecatedOuterClass {
+                                    public void usesDeprecatedOuterClass(DeprecatedOuterClass doc) {}
+                                }
                             }
-                        }
-                    """
+                        """
                     ),
                     java(
                         """
-                        package test.pkg;
-                        public class NotDeprecatedClass extends DeprecatedOuterClass {
-                            public void usesDeprecatedOuterClass(DeprecatedOuterClass doc) {}
-                        }
-                    """
+                            package test.pkg;
+                            public class NotDeprecatedClass extends DeprecatedOuterClass {
+                                public void usesDeprecatedOuterClass(DeprecatedOuterClass doc) {}
+                            }
+                        """
                     )
                 ),
             api =
@@ -679,47 +673,47 @@ class ApiAnalyzerTest : DriverTest() {
                 arrayOf(
                     java(
                         """
-                        package test.pkg;
-                        /** @deprecated */
-                        @Deprecated
-                        public class DeprecatedOuterClass {
-                            public class EffectivelyDeprecatedInnerClass {}
-                        }
-                    """
+                            package test.pkg;
+                            /** @deprecated */
+                            @Deprecated
+                            public class DeprecatedOuterClass {
+                                public class EffectivelyDeprecatedInnerClass {}
+                            }
+                        """
                     ),
                     java(
                         """
-                        package test.pkg;
-                        public class NotDeprecatedClass extends DeprecatedOuterClass.EffectivelyDeprecatedInnerClass {
-                            public void usesEffectivelyDeprecatedInnerClass(DeprecatedOuterClass.EffectivelyDeprecatedInnerClass edic) {}
-                        }
-                    """
+                            package test.pkg;
+                            public class NotDeprecatedClass extends DeprecatedOuterClass.EffectivelyDeprecatedInnerClass {
+                                public void usesEffectivelyDeprecatedInnerClass(DeprecatedOuterClass.EffectivelyDeprecatedInnerClass edic) {}
+                            }
+                        """
                     )
                 ),
             api =
                 """
-                package test.pkg {
-                  @Deprecated public class DeprecatedOuterClass {
-                    ctor @Deprecated public DeprecatedOuterClass();
-                  }
-                  @Deprecated public class DeprecatedOuterClass.EffectivelyDeprecatedInnerClass {
-                    ctor @Deprecated public DeprecatedOuterClass.EffectivelyDeprecatedInnerClass();
-                  }
-                  public class NotDeprecatedClass extends test.pkg.DeprecatedOuterClass.EffectivelyDeprecatedInnerClass {
-                    ctor public NotDeprecatedClass();
-                    method public void usesEffectivelyDeprecatedInnerClass(test.pkg.DeprecatedOuterClass.EffectivelyDeprecatedInnerClass!);
-                  }
-                }
-            """,
+                    package test.pkg {
+                      @Deprecated public class DeprecatedOuterClass {
+                        ctor @Deprecated public DeprecatedOuterClass();
+                      }
+                      @Deprecated public class DeprecatedOuterClass.EffectivelyDeprecatedInnerClass {
+                        ctor @Deprecated public DeprecatedOuterClass.EffectivelyDeprecatedInnerClass();
+                      }
+                      public class NotDeprecatedClass extends test.pkg.DeprecatedOuterClass.EffectivelyDeprecatedInnerClass {
+                        ctor public NotDeprecatedClass();
+                        method public void usesEffectivelyDeprecatedInnerClass(test.pkg.DeprecatedOuterClass.EffectivelyDeprecatedInnerClass!);
+                      }
+                    }
+                """,
             extraArguments =
                 arrayOf(ARG_ERROR, "ReferencesDeprecated", ARG_ERROR, "ExtendsDeprecated"),
             expectedFail = DefaultLintErrorMessage,
             expectedIssues =
                 """
-                src/test/pkg/NotDeprecatedClass.java:3: error: Parameter references deprecated type test.pkg.DeprecatedOuterClass.EffectivelyDeprecatedInnerClass in test.pkg.NotDeprecatedClass.usesEffectivelyDeprecatedInnerClass(): this method should also be deprecated [ReferencesDeprecated]
-                src/test/pkg/NotDeprecatedClass.java:3: error: Parameter references deprecated type test.pkg.DeprecatedOuterClass in test.pkg.NotDeprecatedClass.usesEffectivelyDeprecatedInnerClass(): this method should also be deprecated [ReferencesDeprecated]
-                src/test/pkg/NotDeprecatedClass.java:2: error: Extending deprecated super class class test.pkg.DeprecatedOuterClass.EffectivelyDeprecatedInnerClass from test.pkg.NotDeprecatedClass: this class should also be deprecated [ExtendsDeprecated]
-            """,
+                    src/test/pkg/NotDeprecatedClass.java:3: error: Parameter references deprecated type test.pkg.DeprecatedOuterClass.EffectivelyDeprecatedInnerClass in test.pkg.NotDeprecatedClass.usesEffectivelyDeprecatedInnerClass(): this method should also be deprecated [ReferencesDeprecated]
+                    src/test/pkg/NotDeprecatedClass.java:3: error: Parameter references deprecated type test.pkg.DeprecatedOuterClass in test.pkg.NotDeprecatedClass.usesEffectivelyDeprecatedInnerClass(): this method should also be deprecated [ReferencesDeprecated]
+                    src/test/pkg/NotDeprecatedClass.java:2: error: Extending deprecated super class class test.pkg.DeprecatedOuterClass.EffectivelyDeprecatedInnerClass from test.pkg.NotDeprecatedClass: this class should also be deprecated [ExtendsDeprecated]
+                """,
         )
     }
 
@@ -750,25 +744,106 @@ class ApiAnalyzerTest : DriverTest() {
                 ),
             api =
                 """
-                package test.pkg {
-                  @Deprecated public class DeprecatedClass {
-                    ctor @Deprecated public DeprecatedClass();
-                  }
-                  public class NotDeprecatedClass {
-                    ctor public NotDeprecatedClass();
-                    method public java.util.List<test.pkg.DeprecatedClass!>! usesDeprecated(java.util.List<test.pkg.DeprecatedClass!>!);
-                  }
-                }
-            """
-                    .trimIndent(),
+                    package test.pkg {
+                      @Deprecated public class DeprecatedClass {
+                        ctor @Deprecated public DeprecatedClass();
+                      }
+                      public class NotDeprecatedClass {
+                        ctor public NotDeprecatedClass();
+                        method public java.util.List<test.pkg.DeprecatedClass!>! usesDeprecated(java.util.List<test.pkg.DeprecatedClass!>!);
+                      }
+                    }
+                """,
             extraArguments = arrayOf(ARG_ERROR, "ReferencesDeprecated"),
             expectedFail = DefaultLintErrorMessage,
             expectedIssues =
                 """
-                src/test/pkg/NotDeprecatedClass.java:4: error: Return type references deprecated type test.pkg.DeprecatedClass in test.pkg.NotDeprecatedClass.usesDeprecated(): this method should also be deprecated [ReferencesDeprecated]
-                src/test/pkg/NotDeprecatedClass.java:4: error: Parameter references deprecated type test.pkg.DeprecatedClass in test.pkg.NotDeprecatedClass.usesDeprecated(): this method should also be deprecated [ReferencesDeprecated]
-            """
-                    .trimIndent()
+                    src/test/pkg/NotDeprecatedClass.java:4: error: Return type references deprecated type test.pkg.DeprecatedClass in test.pkg.NotDeprecatedClass.usesDeprecated(): this method should also be deprecated [ReferencesDeprecated]
+                    src/test/pkg/NotDeprecatedClass.java:4: error: Parameter references deprecated type test.pkg.DeprecatedClass in test.pkg.NotDeprecatedClass.usesDeprecated(): this method should also be deprecated [ReferencesDeprecated]
+                """,
+        )
+    }
+
+    @Test
+    fun `Test propagation of @hide through package and class nesting`() {
+        //
+        check(
+            // Include system API annotations as a show annotation overrides hidden on a class that
+            // is in a hidden package.
+            includeSystemApiAnnotations = true,
+            // This is set to true so any class that is incorrectly unhidden will be included in the
+            // generated API and fail the test.
+            showUnannotated = true,
+            sourceFiles =
+                arrayOf(
+                    // Package "test.a" is hidden but "test.a.B" os marked with a show annotation so
+                    // that should cause "test.a" to be unhidden. However, "test.a.C" should still
+                    // be hidden as it inherits that from "test.a".
+                    java(
+                        """
+                            /** @hide */
+                            package test.a;
+                        """
+                    ),
+                    java(
+                        """
+                            package test.a;
+                            public class A {}
+                        """
+                    ),
+                    java(
+                        """
+                            package test.a;
+                            /** @hide */
+                            @android.annotation.SystemApi
+                            public class B {}
+                        """
+                    ),
+                    java(
+                        """
+                            package test.a;
+                            public class C {}
+                        """
+                    ),
+                    // Package "test.a.b" is not hidden itself but should inherit the hidden status
+                    // of the containing package "test.a" even though test.a has been unhidden
+                    // because of "test.a.B" having a show annotation. This should then be unhidden
+                    // because "test.a.b.B" has a show annotation but "test.a.b.C" should still be
+                    // hidden as it inherits it from "test.a".
+                    java(
+                        """
+                            package test.a.b;
+                            public class A {}
+                        """
+                    ),
+                    java(
+                        """
+                            package test.a.b;
+                            /** @hide */
+                            @android.annotation.SystemApi
+                            public class B {}
+                        """
+                    ),
+                    java(
+                        """
+                            package test.a.b;
+                            public class C {}
+                        """
+                    ),
+                ),
+            api =
+                """
+                    package test.a {
+                      public class B {
+                        ctor public B();
+                      }
+                    }
+                    package test.a.b {
+                      public class B {
+                        ctor public B();
+                      }
+                    }
+                """,
         )
     }
 }

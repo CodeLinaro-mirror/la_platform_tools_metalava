@@ -331,7 +331,6 @@ internal class PsiSourceParser(
 private fun gatherPackageJavadoc(sourceSet: SourceSet): PackageDocs {
     val packageComments = HashMap<String, String>(100)
     val overviewHtml = HashMap<String, String>(10)
-    val hiddenPackages = HashSet<String>(100)
     val sortedSourceRoots = sourceSet.sourcePath.sortedBy { -it.name.length }
     for (file in sourceSet.sources) {
         var javadoc = false
@@ -367,10 +366,7 @@ private fun gatherPackageJavadoc(sourceSet: SourceSet): PackageDocs {
             pkg = file.parentFile.path.substring(prefix.length).trim('/').replace("/", ".")
         }
         map[pkg] = contents
-        if (contents.contains("@hide")) {
-            hiddenPackages.add(pkg)
-        }
     }
 
-    return PackageDocs(packageComments, overviewHtml, hiddenPackages)
+    return PackageDocs(packageComments, overviewHtml)
 }

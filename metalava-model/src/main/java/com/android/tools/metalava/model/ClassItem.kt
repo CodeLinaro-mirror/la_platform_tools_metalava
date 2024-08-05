@@ -42,17 +42,6 @@ interface ClassItem : Item, TypeParameterListOwner {
     /** Is this a nested class? */
     @MetalavaApi fun isNestedClass() = containingClass() != null
 
-    /** Is this an inner class? */
-    @Deprecated(
-        """
-            This does not check if this is an inner class, i.e. a non-static nested class, it just
-            checks if this is a nested class.
-        """,
-        ReplaceWith("isNestedClass()")
-    )
-    @MetalavaApi
-    fun isInnerClass() = isNestedClass()
-
     /** Is this a top level class? */
     fun isTopLevelClass(): Boolean = containingClass() == null
 
