@@ -17,32 +17,24 @@
 package com.android.tools.metalava.cli.signature
 
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.ConstructorItem
+import com.android.tools.metalava.model.DelegatedVisitor
 import com.android.tools.metalava.model.FieldItem
-import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MethodItem
-import com.android.tools.metalava.model.visitors.ApiVisitor
 import java.io.PrintWriter
-import java.util.function.Predicate
 
 internal class DexApiWriter(
     private val writer: PrintWriter,
-    filterEmit: Predicate<Item>,
-    filterReference: Predicate<Item>,
-    config: Config,
-) :
-    ApiVisitor(
-        visitConstructorsAsMethods = true,
-        nestInnerClasses = false,
-        inlineInheritedFields = true,
-        filterEmit = filterEmit,
-        filterReference = filterReference,
-        config = config,
-    ) {
+) : DelegatedVisitor {
+
     override fun visitClass(cls: ClassItem) {
-        if (filterEmit.test(cls)) {
-            writer.print(cls.type().internalName())
-            writer.print("\n")
-        }
+        writer.print(cls.type().internalName())
+        writer.print("\n")
+    }
+
+    override fun visitConstructor(constructor: ConstructorItem) {
+        // Treat constructor as a method.
+        visitMethod(constructor)
     }
 
     override fun visitMethod(method: MethodItem) {

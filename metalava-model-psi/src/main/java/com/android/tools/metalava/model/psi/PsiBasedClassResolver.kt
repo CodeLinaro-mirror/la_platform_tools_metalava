@@ -50,7 +50,7 @@ internal class PsiBasedClassResolver(
                 fromClasspath = true,
                 allowReadingComments = allowReadingComments,
             )
-        val emptyPackageDocs = PackageDocs(mutableMapOf(), mutableMapOf(), mutableSetOf())
+        val emptyPackageDocs = PackageDocs(mutableMapOf(), mutableMapOf())
         classpathCodebase.initializeFromSources(uastEnvironment, emptyList(), emptyPackageDocs)
     }
 

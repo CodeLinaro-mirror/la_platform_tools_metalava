@@ -25,26 +25,22 @@ internal abstract class TurbineItem(
     override val codebase: TurbineBasedCodebase,
     fileLocation: FileLocation,
     modifiers: DefaultModifierList,
-    final override var documentation: String,
-    initialHiddenStatus: Boolean = false,
+    documentation: String,
 ) :
     DefaultItem(
         fileLocation = fileLocation,
         modifiers = modifiers,
+        documentation = documentation,
     ) {
-
-    override var docOnly: Boolean = documentation.contains("@doconly")
 
     override var hidden: Boolean by LazyDelegate { originallyHidden && !hasShowAnnotation() }
 
-    override var originallyHidden: Boolean by LazyDelegate {
-        documentation.contains("@hide") ||
-            documentation.contains("@pending") ||
-            hasHideAnnotation() ||
-            initialHiddenStatus
-    }
-
-    override var removed: Boolean = false
+    override val originallyHidden by
+        lazy(LazyThreadSafetyMode.NONE) {
+            documentation.contains("@hide") ||
+                documentation.contains("@pending") ||
+                hasHideAnnotation()
+        }
 
     override fun appendDocumentation(comment: String, tagSection: String?, append: Boolean) {
         TODO("b/295800205")

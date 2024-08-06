@@ -467,7 +467,7 @@ internal class PsiTypeItemFactory(
         // TODO(b/300081840): this drops annotations on the outer class
         return PsiNameHelper.getOuterClassReference(psiType.canonicalText).let { outerClassName ->
             // [PsiNameHelper.getOuterClassReference] returns an empty string if there is no
-            // outer class reference. If the type is not an inner type, it returns the package
+            // outer class reference. If the type is not a nested type, it returns the package
             // name (e.g. for "java.lang.String" it returns "java.lang").
             if (outerClassName == "" || codebase.findPsiPackage(outerClassName) != null) {
                 null

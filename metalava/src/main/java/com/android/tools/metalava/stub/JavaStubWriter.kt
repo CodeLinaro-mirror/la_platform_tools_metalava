@@ -17,15 +17,16 @@
 package com.android.tools.metalava.stub
 
 import com.android.tools.metalava.actualItem
-import com.android.tools.metalava.model.BaseItemVisitor
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ConstructorItem
+import com.android.tools.metalava.model.DelegatedVisitor
 import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ModifierListWriter
 import com.android.tools.metalava.model.PrimitiveTypeItem
+import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VariableTypeItem
 import java.io.PrintWriter
@@ -34,7 +35,7 @@ internal class JavaStubWriter(
     private val writer: PrintWriter,
     private val modifierListWriter: ModifierListWriter,
     private val config: StubWriterConfig,
-) : BaseItemVisitor() {
+) : DelegatedVisitor {
 
     override fun visitClass(cls: ClassItem) {
         if (cls.isTopLevelClass()) {
@@ -139,7 +140,7 @@ internal class JavaStubWriter(
         if (interfaces.isNotEmpty()) {
             val label = if (cls.isInterface()) " extends" else " implements"
             writer.print(label)
-            interfaces.forEachIndexed { index, type ->
+            interfaces.sortedWith(TypeItem.totalComparator).forEachIndexed { index, type ->
                 if (index > 0) {
                     writer.print(",")
                 }

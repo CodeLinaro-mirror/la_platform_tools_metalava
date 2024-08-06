@@ -70,8 +70,8 @@ abstract class TraversingVisitor : ItemVisitor {
                     if (traversalFinished) return
                 }
 
-                for (innerCls in cls.innerClasses()) {
-                    innerCls.accept(this)
+                for (nestedCls in cls.nestedClasses()) {
+                    nestedCls.accept(this)
                     if (traversalFinished) return
                 }
             }

@@ -618,7 +618,7 @@ private constructor(
             // package body has been parsed.
             pkg.addClass(cl)
         } else {
-            outerClass.addInnerClass(cl)
+            outerClass.addNestedClass(cl)
         }
         codebase.registerClass(cl)
 
@@ -756,7 +756,7 @@ private constructor(
         /** The fully qualified name, including package and full name. */
         val qualifiedName: String,
         /** The optional, resolved outer [ClassItem]. */
-        val outerClass: ClassItem?,
+        val outerClass: TextClassItem?,
         /** The set of type parameters. */
         val typeParameterList: TypeParameterList,
         /**
@@ -807,9 +807,10 @@ private constructor(
                 // always precedes its nested classes.
                 val outerClass =
                     codebase.getOrCreateClass(qualifiedOuterClassName, isOuterClass = true)
+                        as TextClassItem
 
-                val innerClassName = fullName.substring(nestedClassIndex + 1)
-                Pair(outerClass, innerClassName)
+                val nestedClassName = fullName.substring(nestedClassIndex + 1)
+                Pair(outerClass, nestedClassName)
             }
 
         // Get the [TextTypeItemFactory] for the outer class, if any, from a previously stored one,
@@ -976,7 +977,7 @@ private constructor(
         val name: String =
             token.substring(
                 token.lastIndexOf('.') + 1
-            ) // For inner classes, strip outer classes from name
+            ) // For nested classes, strip outer classes from name
         val parameters = parseParameterList(tokenizer, typeItemFactory, name)
         token = tokenizer.requireToken()
         var throwsList = emptyList<ExceptionTypeItem>()

@@ -104,7 +104,7 @@ internal class TurbineTypeItemFactory(
             Type.TyKind.CLASS_TY -> {
                 type as Type.ClassTy
                 var outerClass: ClassTypeItem? = null
-                // A ClassTy is represented by list of SimpleClassTY each representing an inner
+                // A ClassTy is represented by list of SimpleClassTY each representing a nested
                 // class. e.g. , Outer.Inner.Inner1 will be represented by three simple classes
                 // Outer, Outer.Inner and Outer.Inner.Inner1
                 val iterator = type.classes().iterator()
@@ -113,7 +113,7 @@ internal class TurbineTypeItemFactory(
 
                     // Select the ContextNullability. If there is another SimpleClassTy after this
                     // then this is an outer class which can never be null, so force it to be
-                    // non-null. Otherwise, this is the inner class so use the supplied
+                    // non-null. Otherwise, this is the nested class so use the supplied
                     // ContextNullability.
                     val actualContextNullability =
                         if (iterator.hasNext()) {
@@ -125,7 +125,7 @@ internal class TurbineTypeItemFactory(
                         }
 
                     outerClass =
-                        createInnerClassType(simpleClass, outerClass, actualContextNullability)
+                        createNestedClassType(simpleClass, outerClass, actualContextNullability)
                 }
                 outerClass!!
             }
@@ -276,7 +276,7 @@ internal class TurbineTypeItemFactory(
         return classTypeItem
     }
 
-    private fun createInnerClassType(
+    private fun createNestedClassType(
         type: Type.ClassTy.SimpleClassTy,
         outerClass: ClassTypeItem?,
         contextNullability: ContextNullability,

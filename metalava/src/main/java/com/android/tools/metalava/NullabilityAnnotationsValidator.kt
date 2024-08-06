@@ -92,7 +92,7 @@ class NullabilityAnnotationsValidator(
                     )
             // Visit methods to check their return type, and parameters to check them. Don't visit
             // constructors as we don't want to check their return types. This visits members of
-            // inner classes as well.
+            // nested classes as well.
             topLevelClass.accept(
                 object :
                     ApiVisitor(

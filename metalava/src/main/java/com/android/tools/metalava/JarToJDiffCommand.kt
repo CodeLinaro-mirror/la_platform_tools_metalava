@@ -22,7 +22,6 @@ import com.android.tools.metalava.cli.common.existingFile
 import com.android.tools.metalava.cli.common.newFile
 import com.android.tools.metalava.cli.common.progressTracker
 import com.android.tools.metalava.cli.common.stderr
-import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.reporter.BasicReporter
 import com.github.ajalt.clikt.parameters.arguments.argument
 
@@ -82,13 +81,14 @@ class JarToJDiffCommand :
 
                 createReportFile(progressTracker, codebase, xmlFile, "JDiff File") { printWriter ->
                     JDiffXmlWriter(
-                        writer = printWriter,
-                        filterEmit = apiEmit,
-                        filterReference = apiReference,
-                        preFiltered = false,
-                        showUnannotated = false,
-                        config = ApiVisitor.Config(),
-                    )
+                            writer = printWriter,
+                        )
+                        .createFilteringVisitor(
+                            filterEmit = apiEmit,
+                            filterReference = apiReference,
+                            preFiltered = false,
+                            showUnannotated = false,
+                        )
                 }
             }
     }

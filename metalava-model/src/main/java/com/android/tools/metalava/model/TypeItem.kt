@@ -194,7 +194,7 @@ interface TypeItem {
 
         /**
          * Removes java.lang. prefixes from types, unless it's in a subpackage such as
-         * java.lang.reflect. For simplicity we may also leave inner classes in the java.lang
+         * java.lang.reflect. For simplicity we may also leave nested classes in the java.lang
          * package untouched.
          *
          * NOTE: We only remove this from the front of the type; e.g. we'll replace
@@ -679,7 +679,7 @@ abstract class DefaultTypeItem(
                 return qualifiedName
             }
 
-            // If class name contains $, it's not an ambiguous inner class name.
+            // If class name contains $, it's not an ambiguous nested class name.
             if (qualifiedName.indexOf('$') != -1) {
                 return qualifiedName.replace('.', '/')
             }
@@ -931,7 +931,7 @@ interface ClassTypeItem : TypeItem, BoundsTypeItem, ReferenceTypeItem, Exception
      */
     val arguments: List<TypeArgumentTypeItem>
 
-    /** The outer class type of this class, if it is an inner type. */
+    /** The outer class type of this class, if it is a nested type. */
     val outerClassType: ClassTypeItem?
 
     /**

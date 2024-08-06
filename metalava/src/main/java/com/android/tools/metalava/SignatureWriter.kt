@@ -16,10 +16,10 @@
 
 package com.android.tools.metalava
 
-import com.android.tools.metalava.model.BaseItemVisitor
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.ConstructorItem
+import com.android.tools.metalava.model.DelegatedVisitor
 import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
@@ -40,11 +40,8 @@ class SignatureWriter(
     private val writer: PrintWriter,
     private var emitHeader: EmitFileHeader = EmitFileHeader.ALWAYS,
     private val fileFormat: FileFormat,
-) :
-    BaseItemVisitor(
-        visitConstructorsAsMethods = false,
-        nestInnerClasses = false,
-    ) {
+) : DelegatedVisitor {
+
     init {
         // If a header must always be written out (even if the file is empty) then write it here.
         if (emitHeader == EmitFileHeader.ALWAYS) {
@@ -55,7 +52,7 @@ class SignatureWriter(
     /**
      * Create an [ApiVisitor] that will filter the [Item] to which is applied according to the
      * supplied parameters and in a manner appropriate for writing signatures, e.g. not nesting
-     * inner classes. It will delegate any visitor calls that pass through its filter to this
+     * nested classes. It will delegate any visitor calls that pass through its filter to this
      * [SignatureWriter] instance.
      */
     fun createFilteringVisitor(
@@ -64,20 +61,24 @@ class SignatureWriter(
         preFiltered: Boolean,
         showUnannotated: Boolean,
         apiVisitorConfig: ApiVisitor.Config,
-    ): ApiVisitor =
-        FilteringApiVisitor(
+    ): ApiVisitor {
+        val (interfaceListSorter, interfaceListComparator) =
+            if (fileFormat.sortWholeExtendsList) Pair(null, TypeItem.totalComparator)
+            else Pair(::getInterfacesInOrder, null)
+        return FilteringApiVisitor(
             delegate = this,
-            visitConstructorsAsMethods = false,
-            nestInnerClasses = false,
+            preserveClassNesting = false,
             inlineInheritedFields = true,
             methodComparator = fileFormat.overloadedMethodOrder.comparator,
-            interfaceListAccessor = ::interfaceListAccessor,
+            interfaceListSorter = interfaceListSorter,
+            interfaceListComparator = interfaceListComparator,
             filterEmit = filterEmit,
             filterReference = filterReference,
             preFiltered = preFiltered,
             showUnannotated = showUnannotated,
             config = apiVisitorConfig,
         )
+    }
 
     private val modifierListWriter =
         ModifierListWriter.forSignature(
@@ -266,22 +267,6 @@ class SignatureWriter(
         write(superClassString)
     }
 
-    /**
-     * Provides the interface list in an order suitable for use in the signature file that this is
-     * writing.
-     */
-    private fun interfaceListAccessor(
-        classItem: ClassItem,
-        filterReference: Predicate<Item>,
-        preFiltered: Boolean,
-    ) =
-        getInterfacesInOrder(
-            classItem = classItem,
-            sortWholeExtendsList = fileFormat.sortWholeExtendsList,
-            preFiltered = preFiltered,
-            filterReference = filterReference,
-        )
-
     private fun writeInterfaceList(cls: ClassItem) {
         if (cls.isAnnotationType()) {
             return
@@ -392,66 +377,45 @@ enum class EmitFileHeader {
 }
 
 /**
- * Get the filtered list of [ClassItem.interfaceTypes], in the correct order.
+ * Get the filtered list of [ClassItem.interfaceTypes], in the correct legacy order.
  *
  * Historically, on interface classes its first implemented interface type was stored in the
  * [ClassItem.superClassType] and if it was not filtered out it was always written out first in the
  * signature files, while the rest of the interface types were sorted by their [ClassItem.fullName].
- * That behavior is required when [sortWholeExtendsList] is `false`.
- *
- * If [sortWholeExtendsList] is `true` then the interface types are sorted by their full name first
- * and then if there are any collisions by their qualified name.
+ * This implements that behavior.
  */
 private fun getInterfacesInOrder(
     classItem: ClassItem,
-    sortWholeExtendsList: Boolean,
-    preFiltered: Boolean,
-    filterReference: Predicate<Item>,
+    filteredInterfaceTypes: List<ClassTypeItem>,
+    unfilteredInterfaceTypes: List<ClassTypeItem>,
 ): List<ClassTypeItem> {
-
-    val unfilteredInterfaceTypes = classItem.interfaceTypes()
-    val interfaces =
-        if (preFiltered) unfilteredInterfaceTypes
-        else classItem.filteredInterfaceTypes(filterReference)
-    if (interfaces.isEmpty()) {
-        return emptyList()
-    }
-
     // Sort before prepending the super class (if this is an interface) as the super class
     // always comes first because it was previously written out by writeSuperClassStatement.
     @Suppress("DEPRECATION")
-    val comparator =
-        if (sortWholeExtendsList) TypeItem.totalComparator else TypeItem.partialComparator
-    val sortedInterfaces = interfaces.sortedWith(comparator)
+    val sortedInterfaces = filteredInterfaceTypes.sortedWith(TypeItem.partialComparator)
 
     // Combine the super class and interfaces into a full list of them.
-    val fullInterfaces =
-        if (classItem.isInterface() && !sortWholeExtendsList) {
-            // Previously, when the first interface in the extends list was stored in
-            // superClass, if that interface was visible in the signature then it would always
-            // be first even though the other interfaces are sorted in alphabetical order. This
-            // implements similar logic.
-            val firstUnfilteredInterfaceType = unfilteredInterfaceTypes.first()
-            val firstFilteredInterfaceType = interfaces.first()
-            if (firstFilteredInterfaceType == firstUnfilteredInterfaceType) {
-                buildList {
-                    // The first interface in the interfaces list is also the first interface in
-                    // the filtered interfaces list so add it first.
-                    add(firstFilteredInterfaceType)
+    if (classItem.isInterface()) {
+        // Previously, when the first interface in the extends list was stored in
+        // superClass, if that interface was visible in the signature then it would always
+        // be first even though the other interfaces are sorted in alphabetical order. This
+        // implements similar logic.
+        val firstUnfilteredInterfaceType = unfilteredInterfaceTypes.first()
 
-                    // Add the remaining interfaces in sorted order.
-                    if (sortedInterfaces.size > 1) {
-                        for (interfaceType in sortedInterfaces) {
-                            if (interfaceType != firstFilteredInterfaceType) {
-                                add(interfaceType)
-                            }
-                        }
-                    }
-                }
-            } else {
-                sortedInterfaces
+        // Check to see whether the first unfiltered interface type is in the sorted set of
+        // interfaces. If it is, and it is not the first then it needs moving to the beginning.
+        val index = sortedInterfaces.indexOf(firstUnfilteredInterfaceType)
+        if (index > 0) {
+            // Create a mutable list and move the first unfiltered interface type to the beginning.
+            return sortedInterfaces.toMutableList().also { mutable ->
+                // Remove it from its existing position.
+                mutable.removeAt(index)
+
+                // Add it at the beginning.
+                mutable.add(0, firstUnfilteredInterfaceType)
             }
-        } else sortedInterfaces
+        }
+    }
 
-    return fullInterfaces
+    return sortedInterfaces
 }

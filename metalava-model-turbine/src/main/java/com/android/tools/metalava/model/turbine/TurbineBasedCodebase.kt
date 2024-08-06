@@ -46,7 +46,6 @@ internal open class TurbineBasedCodebase(
 
     /** Map from package name to the corresponding package item */
     private lateinit var packageMap: MutableMap<String, PackageItem>
-    private val hiddenPackages = mutableSetOf<String>()
 
     /**
      * A list of the top-level classes declared in the codebase's source (rather than on its
@@ -110,26 +109,19 @@ internal open class TurbineBasedCodebase(
         addClass(classItem)
     }
 
-    /**
-     * Determines if a given package name is marked as hidden.
-     *
-     * @param packageName the name of the package to check.
-     * @return true if the package is hidden, false otherwise.
-     */
-    fun isPackageHidden(packageName: String): Boolean {
-        return hiddenPackages.contains(packageName)
-    }
-
     fun addPackage(packageItem: TurbinePackageItem) {
         packageMap.put(packageItem.qualifiedName(), packageItem)
     }
 
-    fun initialize(units: List<CompUnit>, classpath: List<File>, hiddenPackages: Set<String>) {
-        this.hiddenPackages.addAll(hiddenPackages)
+    fun initialize(
+        units: List<CompUnit>,
+        classpath: List<File>,
+        packageHtmlByPackageName: Map<String, File>,
+    ) {
         topLevelClassesFromSource = ArrayList(CLASS_ESTIMATE)
         classMap = HashMap(CLASS_ESTIMATE)
         packageMap = HashMap(PACKAGE_ESTIMATE)
         initializer = TurbineCodebaseInitialiser(units, this, classpath)
-        initializer.initialize()
+        initializer.initialize(packageHtmlByPackageName)
     }
 }

@@ -643,7 +643,7 @@ class CodebaseComparator(
             codebase.accept(
                 object :
                     ApiVisitor(
-                        nestInnerClasses = true,
+                        preserveClassNesting = true,
                         inlineInheritedFields = true,
                         filterEmit = predicate,
                         filterReference = predicate,
@@ -673,12 +673,6 @@ class CodebaseComparator(
 
                     override fun include(cls: ClassItem): Boolean =
                         if (acceptAll) true else super.include(cls)
-
-                    /**
-                     * Include all classes in the tree, even implicitly defined classes (such as
-                     * containing classes)
-                     */
-                    override fun shouldEmitClass(vc: VisitCandidate): Boolean = true
 
                     override fun afterVisitItem(item: Item) {
                         stack.pop()

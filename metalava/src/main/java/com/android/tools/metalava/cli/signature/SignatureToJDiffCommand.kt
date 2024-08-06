@@ -160,14 +160,15 @@ class SignatureToJDiffCommand :
         val apiName = xmlFile.nameWithoutExtension.replace(' ', '_')
         createReportFile(progressTracker, outputApi, xmlFile, "JDiff File") { printWriter ->
             JDiffXmlWriter(
-                printWriter,
-                apiEmit,
-                apiReference,
-                signatureApi.preFiltered && !strip,
-                apiName,
-                showUnannotated = false,
-                ApiVisitor.Config(),
-            )
+                    writer = printWriter,
+                    apiName = apiName,
+                )
+                .createFilteringVisitor(
+                    filterEmit = apiEmit,
+                    filterReference = apiReference,
+                    preFiltered = signatureApi.preFiltered && !strip,
+                    showUnannotated = false,
+                )
         }
     }
 }

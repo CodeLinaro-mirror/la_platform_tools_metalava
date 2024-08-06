@@ -43,7 +43,7 @@ internal class TextPackageItem(
         classesNames.add(classFullName)
     }
 
-    override fun topLevelClasses(): Sequence<ClassItem> = classes.asSequence()
+    override fun topLevelClasses(): List<ClassItem> = classes
 
     override fun qualifiedName(): String = name
 

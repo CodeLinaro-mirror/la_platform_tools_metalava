@@ -54,7 +54,7 @@ internal open class TurbineClassItem(
 
     override var stubConstructor: ConstructorItem? = null
 
-    internal lateinit var innerClasses: List<TurbineClassItem>
+    internal lateinit var nestedClasses: List<TurbineClassItem>
 
     private var superClassType: ClassTypeItem? = null
 
@@ -133,7 +133,7 @@ internal open class TurbineClassItem(
 
     override fun hasTypeVariables(): Boolean = typeParameterList.isNotEmpty()
 
-    override fun innerClasses(): List<ClassItem> = innerClasses
+    override fun nestedClasses(): List<ClassItem> = nestedClasses
 
     override fun interfaceTypes(): List<ClassTypeItem> = interfaceTypesList
 
