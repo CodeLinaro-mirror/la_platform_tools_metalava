@@ -95,10 +95,6 @@ class PsiFieldItem(
 
     override var inheritedFrom: ClassItem? = null
 
-    override fun equals(other: Any?) = equalsToItem(other)
-
-    override fun hashCode() = hashCodeForItem()
-
     companion object {
         internal fun create(
             codebase: PsiBasedCodebase,

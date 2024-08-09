@@ -16,6 +16,10 @@
 
 package com.android.tools.metalava.model
 
+import com.android.tools.metalava.model.MethodItem.Companion.equals
+import com.android.tools.metalava.model.MethodItem.Companion.hashCode
+import com.android.tools.metalava.model.TypeItem.Companion.equals
+import com.android.tools.metalava.model.TypeItem.Companion.hashCode
 import com.android.tools.metalava.reporter.BaselineKey
 import com.android.tools.metalava.reporter.FileLocation
 import com.android.tools.metalava.reporter.Reportable
@@ -140,13 +144,30 @@ interface Item : Reportable {
     val isPackagePrivate: Boolean
     val isPrivate: Boolean
 
-    // make sure these are implemented so we can place in maps:
+    /** Calls [equalsToItem]. */
     override fun equals(other: Any?): Boolean
 
+    /** Calls [hashCodeForItem]. */
     override fun hashCode(): Int
 
     /** Calls [toStringForItem]. */
     override fun toString(): String
+
+    /**
+     * Whether this [Item] is equal to [other].
+     *
+     * This is implemented instead of [equals] because interfaces are not allowed to implement
+     * [equals]. Implementations of this will implement [equals] by calling this.
+     */
+    fun equalsToItem(other: Any?): Boolean
+
+    /**
+     * Hashcode for this [Item].
+     *
+     * This is implemented instead of [hashCode] because interfaces are not allowed to implement
+     * [hashCode]. Implementations of this will implement [hashCode] by calling this.
+     */
+    fun hashCodeForItem(): Int
 
     /** Provides a string representation of the item, suitable for use while debugging. */
     fun toStringForItem(): String
@@ -542,6 +563,10 @@ abstract class AbstractItem(
 
         documentation.appendDocumentation(comment, tagSection)
     }
+
+    final override fun equals(other: Any?) = equalsToItem(other)
+
+    final override fun hashCode() = hashCodeForItem()
 
     final override fun toString() = toStringForItem()
 }

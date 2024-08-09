@@ -209,10 +209,6 @@ internal constructor(
         return PsiSourceFile(codebase, containingFile, uFile)
     }
 
-    override fun equals(other: Any?) = equalsToItem(other)
-
-    override fun hashCode() = hashCodeForItem()
-
     /** Creates a constructor in this class */
     override fun createDefaultConstructor(): ConstructorItem {
         return PsiConstructorItem.createDefaultConstructor(codebase, this, psiClass)

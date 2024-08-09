@@ -35,6 +35,8 @@ import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.JAVA_LANG_DEPRECATED
 import com.android.tools.metalava.model.MetalavaApi
+import com.android.tools.metalava.model.MethodItem
+import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
 import com.android.tools.metalava.model.TypeItem
@@ -44,6 +46,7 @@ import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.item.DefaultPackageItem
 import com.android.tools.metalava.model.item.DefaultTypeParameterItem
+import com.android.tools.metalava.model.item.DefaultValue
 import com.android.tools.metalava.model.javaUnescapeString
 import com.android.tools.metalava.model.noOpAnnotationManager
 import com.android.tools.metalava.model.type.MethodFingerprint
@@ -960,18 +963,18 @@ private constructor(
     }
 
     /**
-     * Create [TextParameterItem]s for the [containingMethod] from the [parameters] using the
+     * Create [ParameterItem]s for the [containingMethod] from the [parameters] using the
      * [typeItemFactory] to create types.
      *
      * This is called from within the constructor of the [containingMethod] so must only access its
-     * `name` and its reference. In particularly it must not access its [TextMethodItem.parameters]
+     * `name` and its reference. In particularly it must not access its [MethodItem.parameters]
      * property as this is called during its initialization.
      */
     private fun createParameterItems(
-        containingMethod: TextMethodItem,
+        containingMethod: MethodItem,
         parameters: List<ParameterInfo>,
         typeItemFactory: TextTypeItemFactory
-    ): List<TextParameterItem> {
+    ): List<ParameterItem> {
         val methodFingerprint = MethodFingerprint(containingMethod.name(), parameters.size)
         return parameters.map { it.create(containingMethod, typeItemFactory, methodFingerprint) }
     }
@@ -1590,8 +1593,8 @@ private constructor(
 
             // Used to represent the presence of a default value, instead of showing the entire
             // default value
-            var hasDefaultValue = token == "optional"
-            if (hasDefaultValue) {
+            val hasOptionalKeyword = token == "optional"
+            if (hasOptionalKeyword) {
                 token = tokenizer.requireToken()
             }
 
@@ -1632,11 +1635,17 @@ private constructor(
                 }
             }
 
-            var defaultValue = UNKNOWN_DEFAULT_VALUE
+            var defaultValueString: String? = null
             if ("=" == token) {
-                defaultValue = tokenizer.requireToken(true)
-                val sb = StringBuilder(defaultValue)
-                if (defaultValue == "{") {
+                if (hasOptionalKeyword) {
+                    throw ApiParseException(
+                        "cannot have both optional keyword and default value",
+                        tokenizer
+                    )
+                }
+                defaultValueString = tokenizer.requireToken(true)
+                val sb = StringBuilder(defaultValueString)
+                if (defaultValueString == "{") {
                     var balance = 1
                     while (balance > 0) {
                         token = tokenizer.requireToken(parenIsSep = false, eatWhitespace = false)
@@ -1652,7 +1661,7 @@ private constructor(
                     }
                     token = tokenizer.requireToken()
                 } else {
-                    var balance = if (defaultValue == "(") 1 else 0
+                    var balance = if (defaultValueString == "(") 1 else 0
                     while (true) {
                         token = tokenizer.requireToken(parenIsSep = true, eatWhitespace = false)
                         if ((token.endsWith(",") || token.endsWith(")")) && balance <= 0) {
@@ -1670,10 +1679,7 @@ private constructor(
                         }
                     }
                 }
-                defaultValue = sb.toString()
-            }
-            if (defaultValue != UNKNOWN_DEFAULT_VALUE) {
-                hasDefaultValue = true
+                defaultValueString = sb.toString()
             }
             when (token) {
                 "," -> {
@@ -1686,11 +1692,26 @@ private constructor(
                     throw ApiParseException("expected , or ), found $token", tokenizer)
                 }
             }
+
+            // Select the DefaultValue for the parameter.
+            val defaultValue =
+                when {
+                    hasOptionalKeyword ->
+                        // It has an optional keyword, so it has a default value but the actual
+                        // value is
+                        // not known.
+                        DefaultValue.UNKNOWN
+                    defaultValueString == null ->
+                        // It has neither an optional keyword or an actual default value.
+                        DefaultValue.NONE
+                    else ->
+                        // It has an actual default value.
+                        TextDefaultValue(defaultValueString)
+                }
             parameters.add(
                 ParameterInfo(
                     name,
                     publicName,
-                    hasDefaultValue,
                     defaultValue,
                     typeString,
                     modifiers,
@@ -1704,26 +1725,25 @@ private constructor(
 
     /**
      * Container for parsed information on a parameter. This is an intermediate step before a
-     * [TextParameterItem] is created, which is needed because
+     * [ParameterItem] is created, which is needed because
      * [TextTypeItemFactory.getMethodParameterType] requires a [MethodFingerprint] with the total
      * number of method parameters.
      */
     private inner class ParameterInfo(
         val name: String,
         val publicName: String?,
-        val hasDefaultValue: Boolean,
-        val defaultValue: String?,
+        val defaultValue: DefaultValue,
         val typeString: String,
         val modifiers: DefaultModifierList,
         val location: FileLocation,
         val index: Int
     ) {
-        /** Turn this [ParameterInfo] into a [TextParameterItem] by parsing the [typeString]. */
+        /** Turn this [ParameterInfo] into a [ParameterItem] by parsing the [typeString]. */
         fun create(
-            containingMethod: TextMethodItem,
+            containingMethod: MethodItem,
             typeItemFactory: TextTypeItemFactory,
             methodFingerprint: MethodFingerprint
-        ): TextParameterItem {
+        ): ParameterItem {
             val type =
                 typeItemFactory.getMethodParameterType(
                     typeString,
@@ -1735,16 +1755,14 @@ private constructor(
             synchronizeNullability(type, modifiers)
 
             val parameter =
-                TextParameterItem(
-                    codebase,
+                itemFactory.createParameterItem(
                     location,
                     modifiers,
                     name,
-                    publicName,
+                    { publicName },
                     containingMethod,
                     index,
                     type,
-                    hasDefaultValue,
                     defaultValue,
                 )
 

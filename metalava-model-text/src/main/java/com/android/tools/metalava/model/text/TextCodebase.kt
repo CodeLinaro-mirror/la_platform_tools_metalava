@@ -98,7 +98,7 @@ internal class TextCodebase(
     }
 
     fun registerClass(classItem: TextClassItem) {
-        val qualifiedName = classItem.qualifiedName
+        val qualifiedName = classItem.qualifiedName()
         val existing = allClassesByName.put(qualifiedName, classItem)
         if (existing != null) {
             error(

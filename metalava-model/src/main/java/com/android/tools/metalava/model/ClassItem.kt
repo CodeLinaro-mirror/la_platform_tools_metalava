@@ -250,26 +250,14 @@ interface ClassItem : Item, TypeParameterListOwner {
         visitor.visit(this)
     }
 
-    /**
-     * Whether this [Item] is equal to [other].
-     *
-     * This is implemented instead of [equals] because interfaces are not allowed to implement
-     * [equals]. Implementations of this will implement [equals] by calling this.
-     */
-    fun equalsToItem(other: Any?): Boolean {
+    override fun equalsToItem(other: Any?): Boolean {
         if (this === other) return true
         if (other !is ClassItem) return false
 
         return qualifiedName() == other.qualifiedName()
     }
 
-    /**
-     * Hashcode for the [Item].
-     *
-     * This is implemented instead of [hashCode] because interfaces are not allowed to implement
-     * [hashCode]. Implementations of this will implement [hashCode] by calling this.
-     */
-    fun hashCodeForItem(): Int {
+    override fun hashCodeForItem(): Int {
         return qualifiedName().hashCode()
     }
 

@@ -70,8 +70,4 @@ class DefaultPackageItem(
     fun addTopClass(classItem: ClassItem) {
         topClasses.add(classItem)
     }
-
-    override fun equals(other: Any?) = equalsToItem(other)
-
-    override fun hashCode() = hashCodeForItem()
 }

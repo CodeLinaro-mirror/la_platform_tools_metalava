@@ -34,9 +34,12 @@ import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ItemDocumentation.Companion.toItemDocumentation
 import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.JAVA_PACKAGE_INFO
+import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
+import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.TypeParameterScope
+import com.android.tools.metalava.model.findAnnotation
 import com.android.tools.metalava.model.item.DefaultItemFactory
 import com.android.tools.metalava.model.item.DefaultPackageItem
 import com.android.tools.metalava.model.item.DefaultTypeParameterItem
@@ -414,7 +417,6 @@ internal open class TurbineCodebaseInitialiser(
                 simpleName,
                 fullName,
                 qualifiedName,
-                sym,
                 modifierItem,
                 getClassKind(cls.kind()),
                 typeParameters,
@@ -826,11 +828,11 @@ internal open class TurbineCodebaseInitialiser(
     }
 
     private fun createParameters(
-        methodItem: TurbineMethodItem,
+        methodItem: MethodItem,
         parameterDecls: List<Tree.VarDecl>?,
         parameters: List<ParamInfo>,
         typeItemFactory: TurbineTypeItemFactory,
-    ): List<TurbineParameterItem> {
+    ): List<ParameterItem> {
         val fingerprint = MethodFingerprint(methodItem.name(), parameters.size)
         // Some parameters in [parameters] are implicit parameters that do not have a corresponding
         // entry in the [parameterDecls] list. The number of implicit parameters is the total
@@ -858,14 +860,20 @@ internal open class TurbineCodebaseInitialiser(
                 else null
 
             val parameterItem =
-                TurbineParameterItem(
-                    codebase,
+                itemFactory.createParameterItem(
                     TurbineFileLocation.forTree(methodItem.containingClass(), decl),
                     parameterModifierItem,
                     parameter.name(),
+                    { item ->
+                        // Java: Look for @ParameterName annotation
+                        val modifiers = item.modifiers
+                        val annotation = modifiers.findAnnotation(AnnotationItem::isParameterName)
+                        annotation?.attributes?.firstOrNull()?.value?.value()?.toString()
+                    },
                     methodItem,
                     idx,
                     type,
+                    TurbineDefaultValue(parameterModifierItem),
                 )
             parameterItem
         }
@@ -911,7 +919,7 @@ internal open class TurbineCodebaseInitialiser(
                             // containing [ClassItem]'s type as the constructor return type.
                             name = name,
                             containingClass = classItem,
-                            typeParameters = typeParams,
+                            typeParameterList = typeParams,
                             returnType = classItem.type(),
                             parameterItemsFactory = { constructorItem ->
                                 createParameters(

@@ -40,7 +40,7 @@ import com.android.tools.metalava.reporter.FileLocation
  * a reference to it in [ParameterItem.containingMethod]. In particularly, it must not access
  * [MethodItem.parameters] as that will not yet have been initialized when this is called.
  */
-internal typealias ParameterItemsFactory = (TurbineMethodItem) -> List<TurbineParameterItem>
+internal typealias ParameterItemsFactory = (MethodItem) -> List<ParameterItem>
 
 internal open class TurbineMethodItem(
     codebase: DefaultCodebase,
@@ -76,11 +76,7 @@ internal open class TurbineMethodItem(
      */
     @Suppress("LeakingThis") private val parameters = parameterItemsFactory(this)
 
-    private lateinit var superMethodList: List<MethodItem>
-
-    override var inheritedFrom: ClassItem? = null
-
-    override fun parameters(): List<ParameterItem> = parameters
+    override fun isConstructor(): Boolean = false
 
     override fun returnType(): TypeItem = returnType
 
@@ -88,11 +84,17 @@ internal open class TurbineMethodItem(
         returnType = type
     }
 
+    override var inheritedFrom: ClassItem? = null
+
+    override fun parameters(): List<ParameterItem> = parameters
+
     override fun throwsTypes(): List<ExceptionTypeItem> = throwsTypes
 
     override fun isExtensionMethod(): Boolean = false // java does not support extension methods
 
-    override fun isConstructor(): Boolean = false
+    override fun defaultValue() = annotationDefault
+
+    private lateinit var superMethodList: List<MethodItem>
 
     /**
      * Super methods for a given method M with containing class C are calculated as follows:
@@ -113,20 +115,15 @@ internal open class TurbineMethodItem(
         return superMethodList
     }
 
-    override fun equals(other: Any?) = equalsToItem(other)
-
-    override fun hashCode() = hashCodeForItem()
-
     @Deprecated("This property should not be accessed directly.")
     override var _requiresOverride: Boolean? = null
 
     override fun duplicate(targetContainingClass: ClassItem): TurbineMethodItem {
-        val mods = modifiers.duplicate()
         val duplicated =
             TurbineMethodItem(
                 codebase = codebase,
                 fileLocation = fileLocation,
-                modifiers = mods,
+                modifiers = modifiers.duplicate(),
                 documentation = documentation.duplicate(),
                 name = name(),
                 containingClass = targetContainingClass,
@@ -134,9 +131,7 @@ internal open class TurbineMethodItem(
                 returnType = returnType,
                 parameterItemsFactory = { methodItem ->
                     // Duplicate the parameters
-                    parameters.map {
-                        TurbineParameterItem.duplicate(codebase, methodItem, it, emptyMap())
-                    }
+                    parameters.map { it.duplicate(methodItem, emptyMap()) }
                 },
                 throwsTypes = throwsTypes,
                 annotationDefault = annotationDefault,
@@ -158,8 +153,4 @@ internal open class TurbineMethodItem(
 
         return duplicated
     }
-
-    override fun findMainDocumentation(): String = TODO("b/295800205")
-
-    override fun defaultValue(): String = annotationDefault
 }

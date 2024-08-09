@@ -24,11 +24,18 @@ import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ItemLanguage
+import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
+import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.reporter.FileLocation
+
+/**
+ * A lambda that when passed the [Item] will return the public name, or null if there is not one.
+ */
+typealias PublicNameProvider = (Item) -> String?
 
 /** A factory for creating [Item] instances suitable for use by many models. */
 class DefaultItemFactory(
@@ -83,6 +90,31 @@ class DefaultItemFactory(
             type,
             isEnumConstant,
             fieldValue,
+        )
+
+    /** Create a [ParameterItem]. */
+    fun createParameterItem(
+        fileLocation: FileLocation,
+        modifiers: DefaultModifierList,
+        name: String,
+        publicNameProvider: PublicNameProvider,
+        containingMethod: MethodItem,
+        parameterIndex: Int,
+        type: TypeItem,
+        defaultValue: DefaultValue,
+    ): ParameterItem =
+        DefaultParameterItem(
+            codebase,
+            fileLocation,
+            defaultItemLanguage,
+            modifiers,
+            defaultVariantSelectorsFactory,
+            name,
+            publicNameProvider,
+            containingMethod,
+            parameterIndex,
+            type,
+            defaultValue,
         )
 
     /** Create a [PropertyItem]. */

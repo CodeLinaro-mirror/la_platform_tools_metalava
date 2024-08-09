@@ -98,6 +98,13 @@ internal class PsiItemDocumentation(
         text = mergeDocumentation(text, psi, comment, tagSection, append = true)
     }
 
+    override fun findMainDocumentation(): String {
+        if (text == "") return text
+        val comment = codebase.getComment(text)
+        val end = findFirstTag(comment)?.textRange?.startOffset ?: text.length
+        return comment.text.substring(0, end)
+    }
+
     companion object {
         // Gets the javadoc of the current element, unless reading comments is
         // disabled via allowReadingComments

@@ -63,17 +63,6 @@ internal class PsiTypeParameterItem(
 
     internal lateinit var bounds: List<BoundsTypeItem>
 
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (other !is TypeParameterItem) return false
-
-        return name == other.name()
-    }
-
-    override fun hashCode(): Int {
-        return name.hashCode()
-    }
-
     companion object {
         fun create(codebase: PsiBasedCodebase, psiClass: PsiTypeParameter): PsiTypeParameterItem {
             val simpleName = psiClass.name!!

@@ -95,10 +95,6 @@ internal constructor(
 
     override fun qualifiedName(): String = qualifiedName
 
-    override fun equals(other: Any?) = equalsToItem(other)
-
-    override fun hashCode() = hashCodeForItem()
-
     override fun isFromClassPath(): Boolean = fromClassPath
 
     companion object {

@@ -53,10 +53,6 @@ class DefaultFieldItem(
 
     override var inheritedFrom: ClassItem? = null
 
-    override fun equals(other: Any?) = equalsToItem(other)
-
-    override fun hashCode() = hashCodeForItem()
-
     override fun type(): TypeItem = type
 
     override fun setType(type: TypeItem) {

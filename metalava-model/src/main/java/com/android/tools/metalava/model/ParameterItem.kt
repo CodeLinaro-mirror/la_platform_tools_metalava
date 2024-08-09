@@ -99,12 +99,21 @@ interface ParameterItem : Item {
     }
 
     /**
-     * Whether this [Item] is equal to [other].
+     * Create a duplicate of this for [containingMethod].
      *
-     * This is implemented instead of [equals] because interfaces are not allowed to implement
-     * [equals]. Implementations of this will implement [equals] by calling this.
+     * The duplicate's [type] must have applied the [typeVariableMap] substitutions by using
+     * [TypeItem.convertType].
+     *
+     * This is called from within the constructor of the [containingMethod] so must only access its
+     * `name` and its reference. In particularly it must not access its [MethodItem.parameters]
+     * property as this is called during its initialization.
      */
-    fun equalsToItem(other: Any?): Boolean {
+    fun duplicate(
+        containingMethod: MethodItem,
+        typeVariableMap: TypeParameterBindings,
+    ): ParameterItem
+
+    override fun equalsToItem(other: Any?): Boolean {
         if (this === other) return true
         if (other !is ParameterItem) return false
 
@@ -112,13 +121,7 @@ interface ParameterItem : Item {
             containingMethod() == other.containingMethod()
     }
 
-    /**
-     * Hashcode for the [Item].
-     *
-     * This is implemented instead of [hashCode] because interfaces are not allowed to implement
-     * [hashCode]. Implementations of this will implement [hashCode] by calling this.
-     */
-    fun hashCodeForItem(): Int {
+    override fun hashCodeForItem(): Int {
         return name().hashCode()
     }
 

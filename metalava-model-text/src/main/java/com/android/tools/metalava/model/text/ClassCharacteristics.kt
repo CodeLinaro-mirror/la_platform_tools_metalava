@@ -73,7 +73,7 @@ internal data class ClassCharacteristics(
         fun of(classItem: TextClassItem): ClassCharacteristics =
             ClassCharacteristics(
                 fileLocation = classItem.fileLocation,
-                qualifiedName = classItem.qualifiedName,
+                qualifiedName = classItem.qualifiedName(),
                 fullName = classItem.fullName(),
                 classKind = classItem.classKind,
                 modifiers = classItem.modifiers,

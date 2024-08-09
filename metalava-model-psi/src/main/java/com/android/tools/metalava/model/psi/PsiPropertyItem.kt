@@ -17,7 +17,6 @@
 package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.model.DefaultModifierList
-import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.TypeItem
@@ -58,19 +57,6 @@ private constructor(
     }
 
     override fun psi() = psiMethod
-
-    override fun equals(other: Any?): Boolean {
-        if (this === other) {
-            return true
-        }
-        return other is FieldItem &&
-            name == other.name() &&
-            containingClass == other.containingClass()
-    }
-
-    override fun hashCode(): Int {
-        return name.hashCode()
-    }
 
     companion object {
         /**

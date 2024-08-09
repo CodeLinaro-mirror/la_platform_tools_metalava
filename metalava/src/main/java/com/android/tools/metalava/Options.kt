@@ -182,7 +182,6 @@ const val ARG_INCLUDE_SOURCE_RETENTION = "--include-source-retention"
 const val ARG_PASS_THROUGH_ANNOTATION = "--pass-through-annotation"
 const val ARG_EXCLUDE_ANNOTATION = "--exclude-annotation"
 const val ARG_STUB_PACKAGES = "--stub-packages"
-const val ARG_STUB_IMPORT_PACKAGES = "--stub-import-packages"
 const val ARG_DELETE_EMPTY_REMOVED_SIGNATURES = "--delete-empty-removed-signatures"
 const val ARG_SUBTRACT_API = "--subtract-api"
 const val ARG_TYPEDEFS_IN_SIGNATURES = "--typedefs-in-signatures"
@@ -223,8 +222,6 @@ class Options(
     private val hideAnnotationsBuilder = AnnotationFilterBuilder()
     /** Internal builder backing [revertAnnotations] */
     private val revertAnnotationsBuilder = AnnotationFilterBuilder()
-    /** Internal list backing [stubImportPackages] */
-    private val mutableStubImportPackages: MutableSet<String> = mutableSetOf()
     /** Internal list backing [mergeQualifierAnnotations] */
     private val mutableMergeQualifierAnnotations: MutableList<File> = mutableListOf()
     /** Internal list backing [mergeInclusionAnnotations] */
@@ -341,9 +338,6 @@ class Options(
     /** Packages to include (if null, include all) */
     private var stubPackages: PackageFilter? = null
 
-    /** Packages to import (if empty, include all) */
-    private var stubImportPackages: Set<String> = mutableStubImportPackages
-
     /** Packages to exclude/hide */
     var hidePackages: List<String> = mutableHidePackages
 
@@ -422,7 +416,6 @@ class Options(
             skipEmitPackages = skipEmitPackages,
             mergeQualifierAnnotations = mergeQualifierAnnotations,
             mergeInclusionAnnotations = mergeInclusionAnnotations,
-            stubImportPackages = stubImportPackages,
             allShowAnnotations = allShowAnnotations,
             apiPredicateConfig = apiPredicateConfig,
         )
@@ -788,13 +781,6 @@ class Options(
                                 newFilter
                             }
                     filter.addPackages(packages)
-                }
-                ARG_STUB_IMPORT_PACKAGES -> {
-                    val packages = getValue(args, ++index)
-                    for (pkg in packages.split(File.pathSeparatorChar)) {
-                        mutableStubImportPackages.add(pkg)
-                        mutableHidePackages.add(pkg)
-                    }
                 }
                 ARG_IGNORE_CLASSES_ON_CLASSPATH -> {
                     allowClassesFromClasspath = false

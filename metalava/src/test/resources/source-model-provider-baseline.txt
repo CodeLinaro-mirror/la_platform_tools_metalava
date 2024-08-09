@@ -208,7 +208,6 @@ com.android.tools.metalava.doc.DocAnalyzerTest
 
 com.android.tools.metalava.lint.ApiLintTest
   Check package layering[turbine]
-  Check suppress works on inherited methods[turbine]
   CompletableFuture and plain Future not allowed[turbine]
   Listener replaceable with OutcomeReceiver or ListenableFuture[turbine]
   Typedef must be hidden[turbine]
@@ -217,7 +216,6 @@ com.android.tools.metalava.lint.CheckBuilderTest
   Check builders[turbine]
 
 com.android.tools.metalava.lint.FlaggedApiLintTest
-  Dont require @FlaggedApi on existing items inherited into new SystemApi classes[turbine]
   Require @FlaggedApi on APIs whose modifiers have changed[turbine]
   Require @FlaggedApi on new APIs[turbine]
   Require @FlaggedApi to reference generated fields[turbine]

@@ -36,15 +36,15 @@ internal class TextConstructorItem(
     throwsTypes: List<ExceptionTypeItem>,
 ) :
     TextMethodItem(
-        codebase,
-        fileLocation,
-        modifiers,
-        name,
-        containingClass,
-        typeParameterList,
-        returnType,
-        parameterItemsFactory,
-        throwsTypes,
+        codebase = codebase,
+        fileLocation = fileLocation,
+        modifiers = modifiers,
+        name = name,
+        containingClass = containingClass,
+        typeParameterList = typeParameterList,
+        returnType = returnType,
+        parameterItemsFactory = parameterItemsFactory,
+        throwsTypes = throwsTypes,
     ),
     ConstructorItem {
 
@@ -56,18 +56,17 @@ internal class TextConstructorItem(
         fun createDefaultConstructor(
             codebase: DefaultCodebase,
             containingClass: TextClassItem,
-            fileLocation: FileLocation,
         ): TextConstructorItem {
-            val name = containingClass.simpleName
-            // The default constructor is package private because while in Java a class without
-            // a constructor has a default public constructor in a signature file a class
-            // without a constructor has no public constructors.
+            val name = containingClass.simpleName()
             val modifiers = DefaultModifierList(codebase, DefaultModifierList.PACKAGE_PRIVATE, null)
+            modifiers.setVisibilityLevel(containingClass.modifiers.getVisibilityLevel())
 
-            val item =
+            val ctorItem =
                 TextConstructorItem(
                     codebase = codebase,
-                    fileLocation = fileLocation,
+                    // Use the location of the containing class for the implicit default
+                    // constructor.
+                    fileLocation = containingClass.fileLocation,
                     modifiers = modifiers,
                     name = name,
                     containingClass = containingClass,
@@ -76,7 +75,7 @@ internal class TextConstructorItem(
                     parameterItemsFactory = { emptyList() },
                     throwsTypes = emptyList(),
                 )
-            return item
+            return ctorItem
         }
     }
 }

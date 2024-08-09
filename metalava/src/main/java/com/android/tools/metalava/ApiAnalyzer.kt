@@ -94,9 +94,6 @@ class ApiAnalyzer(
          */
         val mergeInclusionAnnotations: List<File> = emptyList(),
 
-        /** Packages to import (if empty, include all) */
-        val stubImportPackages: Set<String> = emptySet(),
-
         /** The filter for all the show annotations. */
         val allShowAnnotations: AnnotationFilter = AnnotationFilter.emptyFilter(),
 
@@ -1107,11 +1104,6 @@ class ApiAnalyzer(
         from: Item,
         usage: String
     ) {
-        if (config.stubImportPackages.contains(cl.containingPackage().qualifiedName())) {
-            // if the package is imported then it does not need stubbing.
-            return
-        }
-
         if (cl.isFromClassPath()) {
             return
         }
@@ -1325,13 +1317,6 @@ class ApiAnalyzer(
             object : BaseTypeVisitor() {
                 override fun visitClassType(classType: ClassTypeItem) {
                     val asClass = classType.asClass() ?: return
-                    if (
-                        config.stubImportPackages.contains(
-                            asClass.containingPackage().qualifiedName()
-                        )
-                    ) {
-                        return
-                    }
                     if (asClass.isHiddenOrRemoved()) {
                         hiddenClasses.add(asClass)
                     }

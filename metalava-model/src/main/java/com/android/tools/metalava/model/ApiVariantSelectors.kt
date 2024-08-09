@@ -16,9 +16,6 @@
 
 package com.android.tools.metalava.model
 
-import kotlin.properties.ReadWriteProperty
-import kotlin.reflect.KProperty
-
 /** A factory that will create an [ApiVariantSelectors] for a specific [Item]. */
 typealias ApiVariantSelectorsFactory = (Item) -> ApiVariantSelectors
 
@@ -120,41 +117,114 @@ sealed interface ApiVariantSelectors {
      */
     private class Mutable(private val item: Item) : ApiVariantSelectors {
 
-        override val originallyHidden by
-            lazy(LazyThreadSafetyMode.NONE) {
-                val documentation = item.documentation
-                documentation.contains('@') &&
-                    (documentation.contains("@hide") ||
-                        documentation.contains("@pending") ||
-                        // KDoc:
-                        documentation.contains("@suppress")) || item.hasHideAnnotation()
+        /**
+         * The status of the properties, i.e. whether they have been set/initialized and their value
+         * if they have.
+         */
+        private var flags: Int = 0
+
+        /**
+         * Get the value of a property from [flags], initializing it if it has not yet been set.
+         *
+         * The property is determined by the [setFlag] and [valueFlag] parameters
+         *
+         * @param setFlag the bit mask in [flags] which indicates whether the associated property's
+         *   value has been set.
+         * @param valueFlag the bit mask in [flags] containing the value of the associated property
+         *   if and only if it has been set, i.e. [setFlag] is set.
+         */
+        inline fun lazyGet(setFlag: Int, valueFlag: Int, initializer: () -> Boolean): Boolean =
+            if ((flags and setFlag) == 0) {
+                val result = initializer()
+                flags = flags or setFlag
+                if (result) flags = flags or valueFlag
+                result
+            } else (flags and valueFlag) != 0
+
+        /**
+         * Set the value of a property in [flags], skipping initializing it that has not already
+         * been done.
+         *
+         * The property is determined by the [setFlag] and [valueFlag] parameters
+         *
+         * @param setFlag the bit mask in [flags] which indicates whether the associated property's
+         *   value has been set.
+         * @param valueFlag the bit mask in [flags] in which the value of the associated property
+         *   will be stored.
+         * @param value the value of the property.
+         */
+        fun lazySet(setFlag: Int, valueFlag: Int, value: Boolean) {
+            flags =
+                (flags or setFlag).let { intermediate ->
+                    if (value) {
+                        intermediate or valueFlag
+                    } else {
+                        intermediate and valueFlag.inv()
+                    }
+                }
+        }
+
+        override val originallyHidden: Boolean
+            get() =
+                lazyGet(ORIGINALLY_HIDDEN_HAS_BEEN_SET, ORIGINALLY_HIDDEN_VALUE) {
+                    item.documentation.isHidden || item.hasHideAnnotation()
+                }
+
+        override var hidden: Boolean
+            get() =
+                lazyGet(HIDDEN_HAS_BEEN_SET, HIDDEN_VALUE) {
+                    originallyHidden && !item.hasShowAnnotation()
+                }
+            set(value) {
+                lazySet(HIDDEN_HAS_BEEN_SET, HIDDEN_VALUE, value)
             }
 
-        override var hidden: Boolean by LazyDelegate {
-            originallyHidden && !item.hasShowAnnotation()
-        }
+        override var docOnly: Boolean
+            get() = lazyGet(DOCONLY_HAS_BEEN_SET, DOCONLY_VALUE) { item.documentation.isDocOnly }
+            set(value) {
+                lazySet(DOCONLY_HAS_BEEN_SET, DOCONLY_VALUE, value)
+            }
 
-        override var docOnly = item.documentation.contains("@doconly")
-
-        override var removed = item.documentation.contains("@removed")
+        override var removed: Boolean
+            get() = lazyGet(REMOVED_HAS_BEEN_SET, REMOVED_VALUE) { item.documentation.isRemoved }
+            set(value) {
+                lazySet(REMOVED_HAS_BEEN_SET, REMOVED_VALUE, value)
+            }
 
         override fun duplicate(item: Item): ApiVariantSelectors = Mutable(item)
-    }
-}
 
-// a property with a lazily calculated default value
-internal class LazyDelegate<T>(val defaultValueProvider: () -> T) : ReadWriteProperty<Any, T> {
-    private var currentValue: T? = null
+        companion object {
+            /**
+             * The number of bits in [flags] that is needed for each property.
+             *
+             * The bits are as follows:
+             * 1. If set then the value of the property has been set, either by the initializer when
+             *    first read, or explicitly by the setter, if there is one. If unset then the value
+             *    of the property has not yet been set.
+             * 2. This is only valid if the preceding bit has been set in which case this is the
+             *    value of the property.
+             */
+            private const val BITS_PER_PROPERTY = 2
 
-    override operator fun setValue(thisRef: Any, property: KProperty<*>, value: T) {
-        currentValue = value
-    }
+            // `originallyHidden` related constants
+            private const val ORIGINALLY_HIDDEN_OFFSET: Int = 0
+            private const val ORIGINALLY_HIDDEN_HAS_BEEN_SET: Int = 1 shl ORIGINALLY_HIDDEN_OFFSET
+            private const val ORIGINALLY_HIDDEN_VALUE: Int = 1 shl (ORIGINALLY_HIDDEN_OFFSET + 1)
 
-    override operator fun getValue(thisRef: Any, property: KProperty<*>): T {
-        if (currentValue == null) {
-            currentValue = defaultValueProvider()
+            // `hidden` related constants
+            private const val HIDDEN_OFFSET: Int = ORIGINALLY_HIDDEN_OFFSET + BITS_PER_PROPERTY
+            private const val HIDDEN_HAS_BEEN_SET: Int = 1 shl HIDDEN_OFFSET
+            private const val HIDDEN_VALUE: Int = 1 shl (HIDDEN_OFFSET + 1)
+
+            // `docOnly` related constants
+            private const val DOCONLY_OFFSET: Int = HIDDEN_OFFSET + BITS_PER_PROPERTY
+            private const val DOCONLY_HAS_BEEN_SET: Int = 1 shl DOCONLY_OFFSET
+            private const val DOCONLY_VALUE: Int = 1 shl (DOCONLY_OFFSET + 1)
+
+            // `removed` related constants
+            private const val REMOVED_OFFSET: Int = DOCONLY_OFFSET + BITS_PER_PROPERTY
+            private const val REMOVED_HAS_BEEN_SET: Int = 1 shl REMOVED_OFFSET
+            private const val REMOVED_VALUE: Int = 1 shl (REMOVED_OFFSET + 1)
         }
-
-        return currentValue!!
     }
 }

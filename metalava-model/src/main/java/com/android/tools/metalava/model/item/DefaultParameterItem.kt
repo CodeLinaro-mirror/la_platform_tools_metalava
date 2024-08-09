@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 The Android Open Source Project
+ * Copyright (C) 2023 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava.model.text
+package com.android.tools.metalava.model.item
 
-import com.android.tools.metalava.model.ApiVariantSelectors
+import com.android.tools.metalava.model.ApiVariantSelectorsFactory
 import com.android.tools.metalava.model.DefaultCodebase
 import com.android.tools.metalava.model.DefaultItem
 import com.android.tools.metalava.model.DefaultModifierList
@@ -28,33 +28,32 @@ import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterBindings
 import com.android.tools.metalava.reporter.FileLocation
 
-const val UNKNOWN_DEFAULT_VALUE = "__unknown_default_value__"
-
-internal class TextParameterItem(
+internal class DefaultParameterItem(
     codebase: DefaultCodebase,
     fileLocation: FileLocation,
+    itemLanguage: ItemLanguage,
     modifiers: DefaultModifierList,
+    variantSelectorsFactory: ApiVariantSelectorsFactory,
     private val name: String,
-    private val publicName: String?,
+    private val publicNameProvider: PublicNameProvider,
     private val containingMethod: MethodItem,
     override val parameterIndex: Int,
     private var type: TypeItem,
-    private val hasDefaultValue: Boolean,
-    private var defaultValueBody: String? = UNKNOWN_DEFAULT_VALUE,
+    private val defaultValue: DefaultValue,
 ) :
     DefaultItem(
         codebase = codebase,
         fileLocation = fileLocation,
-        itemLanguage = ItemLanguage.UNKNOWN,
+        itemLanguage = itemLanguage,
         modifiers = modifiers,
         documentation = ItemDocumentation.NONE,
-        variantSelectorsFactory = ApiVariantSelectors.IMMUTABLE_FACTORY,
+        variantSelectorsFactory = variantSelectorsFactory,
     ),
     ParameterItem {
 
     override fun name(): String = name
 
-    override fun publicName(): String? = publicName
+    override fun publicName(): String? = publicNameProvider(this)
 
     override fun containingMethod(): MethodItem = containingMethod
 
@@ -66,31 +65,27 @@ internal class TextParameterItem(
         this.type = type
     }
 
-    override fun hasDefaultValue(): Boolean = hasDefaultValue
+    override fun hasDefaultValue(): Boolean = defaultValue.hasDefaultValue()
 
-    override fun isDefaultValueKnown(): Boolean = defaultValueBody != UNKNOWN_DEFAULT_VALUE
+    override fun isDefaultValueKnown(): Boolean = defaultValue.isDefaultValueKnown()
 
-    override fun defaultValue(): String? = defaultValueBody
+    override fun defaultValue(): String? = defaultValue.value()
 
-    override fun equals(other: Any?) = equalsToItem(other)
-
-    override fun hashCode() = hashCodeForItem()
-
-    internal fun duplicate(
+    override fun duplicate(
         containingMethod: MethodItem,
         typeVariableMap: TypeParameterBindings,
-    ): TextParameterItem {
-        return TextParameterItem(
+    ) =
+        DefaultParameterItem(
             codebase,
             fileLocation,
+            itemLanguage,
             modifiers.duplicate(),
-            name,
-            publicName,
+            variantSelectors::duplicate,
+            name(),
+            publicNameProvider,
             containingMethod,
             parameterIndex,
-            type.convertType(typeVariableMap),
-            hasDefaultValue,
-            defaultValueBody,
+            type().convertType(typeVariableMap),
+            defaultValue,
         )
-    }
 }

@@ -20,7 +20,6 @@ import com.android.tools.metalava.model.ApiVariantSelectorsFactory
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.DefaultCodebase
 import com.android.tools.metalava.model.DefaultModifierList
-import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.PropertyItem
@@ -48,19 +47,6 @@ internal class DefaultPropertyItem(
         containingClass,
     ),
     PropertyItem {
-
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (other !is FieldItem) return false
-
-        if (name() != other.name()) {
-            return false
-        }
-
-        return containingClass() == other.containingClass()
-    }
-
-    override fun hashCode(): Int = name().hashCode()
 
     override fun type(): TypeItem = type
 

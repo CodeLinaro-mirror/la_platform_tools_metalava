@@ -20,7 +20,6 @@ import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.DefaultCodebase
 import com.android.tools.metalava.model.DefaultModifierList
-import com.android.tools.metalava.model.DefaultTypeParameterList
 import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.TypeParameterList
@@ -33,7 +32,7 @@ internal class TurbineConstructorItem(
     documentation: ItemDocumentation,
     name: String,
     containingClass: TurbineClassItem,
-    typeParameters: TypeParameterList,
+    typeParameterList: TypeParameterList,
     returnType: ClassTypeItem,
     parameterItemsFactory: ParameterItemsFactory,
     throwsTypes: List<ExceptionTypeItem>,
@@ -45,7 +44,7 @@ internal class TurbineConstructorItem(
         documentation = documentation,
         name = name,
         containingClass = containingClass,
-        typeParameterList = typeParameters,
+        typeParameterList = typeParameterList,
         returnType = returnType,
         parameterItemsFactory = parameterItemsFactory,
         throwsTypes = throwsTypes,
@@ -64,7 +63,6 @@ internal class TurbineConstructorItem(
             val name = containingClass.simpleName()
             val modifiers = DefaultModifierList(codebase, DefaultModifierList.PACKAGE_PRIVATE, null)
             modifiers.setVisibilityLevel(containingClass.modifiers.getVisibilityLevel())
-            val typeParameterList = DefaultTypeParameterList(emptyList())
 
             val ctorItem =
                 TurbineConstructorItem(
@@ -76,7 +74,7 @@ internal class TurbineConstructorItem(
                     documentation = ItemDocumentation.NONE,
                     name = name,
                     containingClass = containingClass,
-                    typeParameters = typeParameterList,
+                    typeParameterList = TypeParameterList.NONE,
                     returnType = containingClass.type(),
                     parameterItemsFactory = { emptyList() },
                     throwsTypes = emptyList(),

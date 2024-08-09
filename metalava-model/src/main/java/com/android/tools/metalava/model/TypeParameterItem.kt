@@ -65,6 +65,17 @@ interface TypeParameterItem : Item {
         }
     }
 
+    override fun equalsToItem(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is TypeParameterItem) return false
+
+        return name() == other.name()
+    }
+
+    override fun hashCodeForItem(): Int {
+        return name().hashCode()
+    }
+
     override fun toStringForItem(): String =
         if (typeBounds().isEmpty() && !isReified()) name()
         else

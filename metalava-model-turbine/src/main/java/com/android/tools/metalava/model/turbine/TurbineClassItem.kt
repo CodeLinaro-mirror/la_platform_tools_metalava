@@ -36,7 +36,6 @@ import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.type.DefaultResolvedClassTypeItem
 import com.android.tools.metalava.model.updateCopiedMethodState
 import com.android.tools.metalava.reporter.FileLocation
-import com.google.turbine.binder.sym.ClassSymbol
 
 internal open class TurbineClassItem(
     codebase: DefaultCodebase,
@@ -44,7 +43,6 @@ internal open class TurbineClassItem(
     private val name: String,
     private val fullName: String,
     private val qualifiedName: String,
-    private val classSymbol: ClassSymbol,
     modifiers: DefaultModifierList,
     override val classKind: ClassKind,
     override val typeParameterList: TypeParameterList,
@@ -183,10 +181,6 @@ internal open class TurbineClassItem(
         return cachedType
     }
 
-    override fun equals(other: Any?) = equalsToItem(other)
-
-    override fun hashCode() = hashCodeForItem()
-
     override fun getSourceFile(): SourceFile? = source
 
     override fun inheritMethodFromNonApiAncestor(template: MethodItem): MethodItem {
@@ -199,7 +193,7 @@ internal open class TurbineClassItem(
         val duplicateMethod =
             TurbineMethodItem(
                 codebase = codebase,
-                fileLocation = FileLocation.UNKNOWN,
+                fileLocation = method.fileLocation,
                 modifiers = mods,
                 documentation = method.documentation.duplicate(),
                 name = method.name(),
@@ -207,9 +201,7 @@ internal open class TurbineClassItem(
                 typeParameterList = method.typeParameterList,
                 returnType = retType,
                 parameterItemsFactory = { methodItem ->
-                    parameters.map {
-                        TurbineParameterItem.duplicate(codebase, methodItem, it, replacementMap)
-                    }
+                    parameters.map { it.duplicate(methodItem, replacementMap) }
                 },
                 annotationDefault = method.defaultValue(),
                 throwsTypes = method.throwsTypes(),

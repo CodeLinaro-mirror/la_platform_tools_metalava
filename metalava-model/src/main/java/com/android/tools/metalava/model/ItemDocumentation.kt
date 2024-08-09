@@ -33,6 +33,29 @@ interface ItemDocumentation : CharSequence {
         text.subSequence(startIndex, endIndex)
 
     /**
+     * True if the documentation contains one of the following tags that indicates that it should
+     * not be part of an API, unless overridden by a show annotation:
+     * * `@hide`
+     * * `@pending`
+     * * `@suppress`
+     */
+    val isHidden: Boolean
+
+    /**
+     * True if the documentation contains `@doconly` which indicates that it should only be included
+     * in stubs that are generated for documentation purposes.
+     */
+    val isDocOnly: Boolean
+
+    /**
+     * True if the documentation contains `@removed` which indicates that the [Item] must not be
+     * included in stubs or the main signature file but will be included in the `removed` signature
+     * file as it is still considered part of the API available at runtime and so cannot be removed
+     * altogether.
+     */
+    val isRemoved: Boolean
+
+    /**
      * Return a duplicate of this instance.
      *
      * [ItemDocumentation] instances can be mutable, and if they are then they must not be shared.
@@ -58,6 +81,9 @@ interface ItemDocumentation : CharSequence {
      */
     fun findTagDocumentation(tag: String, value: String? = null): String?
 
+    /** Returns the main documentation for the method (the documentation before any tags). */
+    fun findMainDocumentation(): String
+
     companion object {
         /**
          * A special [ItemDocumentation] that contains no documentation.
@@ -76,6 +102,15 @@ interface ItemDocumentation : CharSequence {
         override val text
             get() = ""
 
+        override val isHidden
+            get() = false
+
+        override val isDocOnly
+            get() = false
+
+        override val isRemoved
+            get() = false
+
         // This is ok to share as it is immutable.
         override fun duplicate() = this
 
@@ -84,6 +119,8 @@ interface ItemDocumentation : CharSequence {
         override fun appendDocumentation(comment: String, tagSection: String?) {
             error("cannot modify documentation on an item that does not support documentation")
         }
+
+        override fun findMainDocumentation() = ""
     }
 }
 
@@ -97,6 +134,20 @@ abstract class AbstractItemDocumentation : ItemDocumentation {
      * of this to optimize how it is accessed, e.g. initialize it lazily.
      */
     abstract override var text: String
+
+    override val isHidden
+        get() =
+            text.contains('@') &&
+                (text.contains("@hide") ||
+                    text.contains("@pending") ||
+                    // KDoc:
+                    text.contains("@suppress"))
+
+    override val isDocOnly
+        get() = text.contains("@doconly")
+
+    override val isRemoved
+        get() = text.contains("@removed")
 
     override fun workAroundJavaDocSummaryTruncationIssue() {
         // Work around javadoc cutting off the summary line after the first ". ".
@@ -211,6 +262,10 @@ internal class DefaultItemDocumentation(override var text: String) : AbstractIte
     override fun duplicate() = DefaultItemDocumentation(text)
 
     override fun mergeDocumentation(comment: String, tagSection: String?) {
+        TODO("Not yet implemented")
+    }
+
+    override fun findMainDocumentation(): String {
         TODO("Not yet implemented")
     }
 }

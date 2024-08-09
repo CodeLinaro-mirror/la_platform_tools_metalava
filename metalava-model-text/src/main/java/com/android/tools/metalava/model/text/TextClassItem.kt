@@ -43,9 +43,9 @@ internal open class TextClassItem(
     fileLocation: FileLocation = FileLocation.UNKNOWN,
     modifiers: DefaultModifierList,
     override val classKind: ClassKind = ClassKind.CLASS,
-    val qualifiedName: String = "",
-    var simpleName: String = qualifiedName.substring(qualifiedName.lastIndexOf('.') + 1),
-    val fullName: String = simpleName,
+    private val qualifiedName: String = "",
+    private val simpleName: String = qualifiedName.substring(qualifiedName.lastIndexOf('.') + 1),
+    private val fullName: String = simpleName,
     override val typeParameterList: TypeParameterList = TypeParameterList.NONE
 ) :
     DefaultItem(
@@ -59,10 +59,6 @@ internal open class TextClassItem(
     ClassItem {
 
     override var artifact: String? = null
-
-    override fun equals(other: Any?) = equalsToItem(other)
-
-    override fun hashCode() = hashCodeForItem()
 
     override fun interfaceTypes(): List<ClassTypeItem> = interfaceTypes
 
@@ -208,6 +204,6 @@ internal open class TextClassItem(
     override fun qualifiedName(): String = qualifiedName
 
     override fun createDefaultConstructor(): ConstructorItem {
-        return TextConstructorItem.createDefaultConstructor(codebase, this, fileLocation)
+        return TextConstructorItem.createDefaultConstructor(codebase, this)
     }
 }

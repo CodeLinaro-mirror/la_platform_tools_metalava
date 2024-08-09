@@ -241,10 +241,6 @@ internal constructor(
 
     override fun containingMethod(): MethodItem = containingMethod
 
-    override fun equals(other: Any?) = equalsToItem(other)
-
-    override fun hashCode() = hashCodeForItem()
-
     override fun isVarArgs(): Boolean {
         return psiParameter.isVarArgs || modifiers.isVarArg()
     }
@@ -298,6 +294,11 @@ internal constructor(
             }
         }
     }
+
+    override fun duplicate(containingMethod: MethodItem, typeVariableMap: TypeParameterBindings) =
+        error(
+            "not needed at the moment as duplicating a PsiMethodItem reconstructs it from the underlying objects"
+        )
 
     companion object {
         internal fun create(

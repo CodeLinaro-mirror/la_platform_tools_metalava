@@ -26,6 +26,7 @@ import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.model.text.FileFormat.OverloadedMethodOrder
+import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import org.junit.Test
@@ -153,7 +154,9 @@ class ApiFileTest : DriverTest() {
                     }
                     """
                     ),
-                    supportParameterName
+                    supportParameterName,
+                    // Hide androidx.annotation classes.
+                    KnownSourceFiles.androidxAnnotationHide,
                 ),
             api =
                 """
@@ -164,7 +167,6 @@ class ApiFileTest : DriverTest() {
                       }
                     }
                  """,
-            extraArguments = arrayOf(ARG_HIDE_PACKAGE, "androidx.annotation")
         )
     }
 
@@ -189,7 +191,9 @@ class ApiFileTest : DriverTest() {
                     }
                     """
                     ),
-                    supportDefaultValue
+                    supportDefaultValue,
+                    // Hide androidx.annotation classes.
+                    KnownSourceFiles.androidxAnnotationHide,
                 ),
             api =
                 """
@@ -201,7 +205,6 @@ class ApiFileTest : DriverTest() {
                   }
                 }
                  """,
-            extraArguments = arrayOf(ARG_HIDE_PACKAGE, "androidx.annotation")
         )
     }
 
@@ -245,13 +248,16 @@ class ApiFileTest : DriverTest() {
                     java(
                         """
                     package some.other.pkg;
+                    /** @hide */
                     public class Constants {
                         public static class Misc {
                             public static final int SIZE = 5;
                         }
                     }
                     """
-                    )
+                    ),
+                    // Hide androidx.annotation classes.
+                    KnownSourceFiles.androidxAnnotationHide,
                 ),
             api =
                 """
@@ -272,13 +278,6 @@ class ApiFileTest : DriverTest() {
                   }
                 }
                 """,
-            extraArguments =
-                arrayOf(
-                    ARG_HIDE_PACKAGE,
-                    "androidx.annotation",
-                    ARG_HIDE_PACKAGE,
-                    "some.other.pkg"
-                ),
         )
     }
 
@@ -326,6 +325,7 @@ class ApiFileTest : DriverTest() {
                     import java.util.Locale;
                     import java.util.Map;
 
+                    /** @hide */
                     public class LruCache<K, V> {
                         @Nullable
                         protected V create(@NonNull K key) {
@@ -343,7 +343,9 @@ class ApiFileTest : DriverTest() {
                     """
                     ),
                     androidxNullableSource,
-                    androidxNonNullSource
+                    androidxNonNullSource,
+                    // Hide androidx.annotation classes.
+                    KnownSourceFiles.androidxAnnotationHide,
                 ),
             api =
                 """
@@ -354,13 +356,6 @@ class ApiFileTest : DriverTest() {
                   }
                 }
                 """,
-            extraArguments =
-                arrayOf(
-                    ARG_HIDE_PACKAGE,
-                    "androidx.annotation",
-                    ARG_HIDE_PACKAGE,
-                    "androidx.collection"
-                ),
         )
     }
 
@@ -606,6 +601,12 @@ class ApiFileTest : DriverTest() {
                     }
                     """
                     ),
+                    java(
+                        """
+                            /** @hide */
+                            package test.pkg2;
+                        """
+                    ),
                     kotlin(
                         """
                     package test.pkg2
@@ -621,7 +622,9 @@ class ApiFileTest : DriverTest() {
                     )
                     """
                     ),
-                    uiThreadSource
+                    uiThreadSource,
+                    // Hide androidx.annotation classes.
+                    KnownSourceFiles.androidxAnnotationHide,
                 ),
             api =
                 """
@@ -635,10 +638,6 @@ class ApiFileTest : DriverTest() {
             format = FileFormat.V3,
             extraArguments =
                 arrayOf(
-                    ARG_HIDE_PACKAGE,
-                    "androidx.annotation",
-                    ARG_HIDE_PACKAGE,
-                    "test.pkg2",
                     ARG_HIDE,
                     "ReferencesHidden",
                     ARG_HIDE,
@@ -750,7 +749,9 @@ class ApiFileTest : DriverTest() {
                     """
                     ),
                     androidxNonNullSource,
-                    androidxNullableSource
+                    androidxNullableSource,
+                    // Hide androidx.annotation classes.
+                    KnownSourceFiles.androidxAnnotationHide,
                 ),
             api =
                 """
@@ -783,8 +784,6 @@ class ApiFileTest : DriverTest() {
             format = FileFormat.V3,
             extraArguments =
                 arrayOf(
-                    ARG_HIDE_PACKAGE,
-                    "androidx.annotation",
                     ARG_HIDE,
                     "ReferencesHidden",
                     ARG_HIDE,
@@ -1023,7 +1022,9 @@ class ApiFileTest : DriverTest() {
                     """
                     ),
                     androidxNonNullSource,
-                    androidxNullableSource
+                    androidxNullableSource,
+                    // Hide androidx.annotation classes.
+                    KnownSourceFiles.androidxAnnotationHide,
                 ),
             api =
                 """
@@ -1063,7 +1064,6 @@ class ApiFileTest : DriverTest() {
                   }
                 }
                 """,
-            extraArguments = arrayOf(ARG_HIDE_PACKAGE, "androidx.annotation")
         )
     }
 
@@ -1179,7 +1179,9 @@ class ApiFileTest : DriverTest() {
                         )
                         .indented(),
                     androidxNonNullSource,
-                    androidxNullableSource
+                    androidxNullableSource,
+                    // Hide androidx.annotation classes.
+                    KnownSourceFiles.androidxAnnotationHide,
                 ),
             api =
                 """
@@ -1224,8 +1226,7 @@ class ApiFileTest : DriverTest() {
                   }
                 }
                 """,
-            extraArguments =
-                arrayOf(ARG_HIDE_PACKAGE, "androidx.annotation", ARG_KOTLIN_SOURCE, "1.8")
+            extraArguments = arrayOf(ARG_KOTLIN_SOURCE, "1.8")
         )
     }
 
@@ -1263,7 +1264,9 @@ class ApiFileTest : DriverTest() {
                         fun String.blahblahblah(firstArg: String = "hello", secondArg: Int = 42, thirdArg: String = "world") {
                         }
                     """
-                    )
+                    ),
+                    // Hide androidx.annotation classes.
+                    KnownSourceFiles.androidxAnnotationHide,
                 ),
             api =
                 """
@@ -1279,7 +1282,6 @@ class ApiFileTest : DriverTest() {
                   }
                 }
                 """,
-            extraArguments = arrayOf(ARG_HIDE_PACKAGE, "androidx.annotation")
         )
     }
 
@@ -3124,7 +3126,6 @@ class ApiFileTest : DriverTest() {
         // Real-world example: HttpResponseCache implements OkCacheContainer but hides the only
         // inherited method
         check(
-            extraArguments = arrayOf(ARG_HIDE_PACKAGE, "com.squareup.okhttp"),
             sourceFiles =
                 arrayOf(
                     java(
@@ -3147,6 +3148,7 @@ class ApiFileTest : DriverTest() {
                     java(
                         """
                     package com.squareup.okhttp;
+                    /** @hide */
                     public interface OkCacheContainer {
                       Cache getCache();
                     }
@@ -3155,6 +3157,7 @@ class ApiFileTest : DriverTest() {
                     java(
                         """
                     package com.squareup.okhttp;
+                    /** @hide */
                     public class Cache {
                     }
                     """
@@ -3754,7 +3757,9 @@ class ApiFileTest : DriverTest() {
                     """
                         )
                         .indented(),
-                    visibleForTestingSource
+                    visibleForTestingSource,
+                    // Hide androidx.annotation classes.
+                    KnownSourceFiles.androidxAnnotationHide,
                 ),
             api =
                 """
@@ -3767,7 +3772,6 @@ class ApiFileTest : DriverTest() {
                   }
                 }
                 """,
-            extraArguments = arrayOf(ARG_HIDE_PACKAGE, "androidx.annotation")
         )
     }
 
@@ -4047,9 +4051,10 @@ class ApiFileTest : DriverTest() {
                     }
                     """
                     ),
-                    androidxNonNullSource
+                    androidxNonNullSource,
+                    // Hide androidx.annotation classes.
+                    KnownSourceFiles.androidxAnnotationHide,
                 ),
-            extraArguments = arrayOf(ARG_HIDE_PACKAGE, "androidx.annotation"),
             expectedIssues = "",
             api =
                 """
@@ -4437,9 +4442,10 @@ class ApiFileTest : DriverTest() {
                     }
                 """
                     ),
-                    androidxIntRangeSource
+                    androidxIntRangeSource,
+                    // Hide androidx.annotation classes.
+                    KnownSourceFiles.androidxAnnotationHide,
                 ),
-            extraArguments = arrayOf(ARG_HIDE_PACKAGE, "androidx.annotation"),
             api =
                 """
                 // Signature format: 3.0
@@ -4475,9 +4481,10 @@ class ApiFileTest : DriverTest() {
                     }
                 """
                     ),
-                    androidxIntRangeSource
+                    androidxIntRangeSource,
+                    // Hide androidx.annotation classes.
+                    KnownSourceFiles.androidxAnnotationHide,
                 ),
-            extraArguments = arrayOf(ARG_HIDE_PACKAGE, "androidx.annotation"),
             api =
                 """
                 // Signature format: 2.0
@@ -4510,9 +4517,10 @@ class ApiFileTest : DriverTest() {
                     }
                 """
                     ),
-                    androidxIntRangeSource
+                    androidxIntRangeSource,
+                    // Hide androidx.annotation classes.
+                    KnownSourceFiles.androidxAnnotationHide,
                 ),
-            extraArguments = arrayOf(ARG_HIDE_PACKAGE, "androidx.annotation"),
             api =
                 """
                 // Signature format: 3.0
@@ -4602,7 +4610,9 @@ class ApiFileTest : DriverTest() {
                     }
                     """
                     ),
-                    supportDefaultValue
+                    supportDefaultValue,
+                    // Hide androidx.annotation classes.
+                    KnownSourceFiles.androidxAnnotationHide,
                 ),
             api =
                 """
@@ -4614,7 +4624,6 @@ class ApiFileTest : DriverTest() {
                   }
                 }
                  """,
-            extraArguments = arrayOf(ARG_HIDE_PACKAGE, "androidx.annotation")
         )
     }
 
@@ -4658,13 +4667,16 @@ class ApiFileTest : DriverTest() {
                     java(
                         """
                     package some.other.pkg;
+                    /** @hide */
                     public class Constants {
                         public static class Misc {
                             public static final int SIZE = 5;
                         }
                     }
                     """
-                    )
+                    ),
+                    // Hide androidx.annotation classes.
+                    KnownSourceFiles.androidxAnnotationHide,
                 ),
             api =
                 """
@@ -4685,13 +4697,6 @@ class ApiFileTest : DriverTest() {
                   }
                 }
                 """,
-            extraArguments =
-                arrayOf(
-                    ARG_HIDE_PACKAGE,
-                    "androidx.annotation",
-                    ARG_HIDE_PACKAGE,
-                    "some.other.pkg"
-                ),
         )
     }
 
@@ -4739,6 +4744,7 @@ class ApiFileTest : DriverTest() {
                     import java.util.Locale;
                     import java.util.Map;
 
+                    /** @hide */
                     public class LruCache<K, V> {
                         @Nullable
                         protected V create(@NonNull K key) {
@@ -4756,7 +4762,9 @@ class ApiFileTest : DriverTest() {
                     """
                     ),
                     androidxNullableSource,
-                    androidxNonNullSource
+                    androidxNonNullSource,
+                    // Hide androidx.annotation classes.
+                    KnownSourceFiles.androidxAnnotationHide,
                 ),
             api =
                 """
@@ -4767,13 +4775,6 @@ class ApiFileTest : DriverTest() {
                   }
                 }
                 """,
-            extraArguments =
-                arrayOf(
-                    ARG_HIDE_PACKAGE,
-                    "androidx.annotation",
-                    ARG_HIDE_PACKAGE,
-                    "androidx.collection"
-                ),
         )
     }
 
@@ -5145,9 +5146,10 @@ class ApiFileTest : DriverTest() {
                         fun returnsNonNullImplicitly() = "42"
                     """
                     ),
-                    androidxIntRangeSource
+                    androidxIntRangeSource,
+                    // Hide androidx.annotation classes.
+                    KnownSourceFiles.androidxAnnotationHide,
                 ),
-            extraArguments = arrayOf(ARG_HIDE_PACKAGE, "androidx.annotation"),
             api =
                 """
                 // Signature format: 2.0
@@ -5178,9 +5180,10 @@ class ApiFileTest : DriverTest() {
                     fun bar()
                 """
                     ),
-                    restrictToSource
+                    restrictToSource,
+                    // Hide androidx.annotation classes.
+                    KnownSourceFiles.androidxAnnotationHide,
                 ),
-            extraArguments = arrayOf(ARG_HIDE_PACKAGE, "androidx.annotation"),
             format = FileFormat.V4,
             api =
                 """
@@ -5210,9 +5213,11 @@ class ApiFileTest : DriverTest() {
                     private fun veryFun(): Boolean = true
                 """
                     ),
-                    restrictToSource
+                    restrictToSource,
+                    // Hide androidx.annotation classes.
+                    KnownSourceFiles.androidxAnnotationHide,
                 ),
-            extraArguments = arrayOf(ARG_HIDE_PACKAGE, "androidx.annotation", "--show-unannotated"),
+            extraArguments = arrayOf("--show-unannotated"),
             hideAnnotations =
                 arrayOf(
                     "androidx.annotation.RestrictTo(androidx.annotation.RestrictTo.Scope.LIBRARY)"
@@ -5513,9 +5518,10 @@ class ApiFileTest : DriverTest() {
                     )
                     """
                     ),
-                    androidxIntRangeSource
+                    androidxIntRangeSource,
+                    // Hide androidx.annotation classes.
+                    KnownSourceFiles.androidxAnnotationHide,
                 ),
-            extraArguments = arrayOf(ARG_HIDE_PACKAGE, "androidx.annotation"),
             api =
                 """
                 package test.pkg {
@@ -5650,6 +5656,8 @@ class ApiFileTest : DriverTest() {
                     ),
                     restrictToSource,
                     visibleForTestingSource,
+                    // Hide androidx.annotation classes.
+                    KnownSourceFiles.androidxAnnotationHide,
                 ),
             extraArguments =
                 arrayOf(
@@ -5658,8 +5666,6 @@ class ApiFileTest : DriverTest() {
                     "kotlin.PublishedApi",
                     ARG_HIDE_ANNOTATION,
                     "androidx.annotation.RestrictTo(androidx.annotation.RestrictTo.Scope.LIBRARY_GROUP)",
-                    ARG_HIDE_PACKAGE,
-                    "androidx.annotation"
                 ),
             format = FileFormat.V4,
             api =
@@ -5855,7 +5861,9 @@ class ApiFileTest : DriverTest() {
                         }
                     """
                     ),
-                    systemApiSource
+                    systemApiSource,
+                    // Hide android.annotation classes.
+                    KnownSourceFiles.androidAnnotationHide,
                 ),
             api =
                 """
@@ -5872,8 +5880,6 @@ class ApiFileTest : DriverTest() {
                 arrayOf(
                     ARG_SHOW_ANNOTATION,
                     "android.annotation.SystemApi",
-                    ARG_HIDE_PACKAGE,
-                    "android.annotation",
                 )
         )
     }
@@ -5950,6 +5956,8 @@ class ApiFileTest : DriverTest() {
                     ),
                     systemApiSource,
                     testApiSource,
+                    // Hide android.annotation classes.
+                    KnownSourceFiles.androidAnnotationHide,
                 ),
             api =
                 """
@@ -5969,8 +5977,6 @@ class ApiFileTest : DriverTest() {
                 arrayOf(
                     ARG_SHOW_ANNOTATION,
                     "android.annotation.TestApi",
-                    ARG_HIDE_PACKAGE,
-                    "android.annotation",
                     ARG_SHOW_FOR_STUB_PURPOSES_ANNOTATION,
                     "android.annotation.SystemApi",
                 )
@@ -6018,7 +6024,9 @@ class ApiFileTest : DriverTest() {
                         }
                     """
                     ),
-                    systemApiSource
+                    systemApiSource,
+                    // Hide android.annotation classes.
+                    KnownSourceFiles.androidAnnotationHide,
                 ),
             removedApi =
                 """
@@ -6033,8 +6041,6 @@ class ApiFileTest : DriverTest() {
                 arrayOf(
                     ARG_SHOW_ANNOTATION,
                     "android.annotation.SystemApi",
-                    ARG_HIDE_PACKAGE,
-                    "android.annotation",
                 )
         )
     }
