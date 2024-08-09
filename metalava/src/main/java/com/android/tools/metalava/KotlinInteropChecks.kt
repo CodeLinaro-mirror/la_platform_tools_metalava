@@ -104,7 +104,8 @@ class KotlinInteropChecks(val reporter: Reporter) {
         if (exceptions.isEmpty()) {
             return
         }
-        val doc = method.documentation.ifEmpty { method.property?.documentation.orEmpty() }
+        val doc =
+            method.documentation.text.ifEmpty { method.property?.documentation?.text.orEmpty() }
         for (exception in exceptions.sortedBy { it.qualifiedName() }) {
             val checked =
                 !(exception.extends("java.lang.RuntimeException") ||

@@ -19,6 +19,7 @@ package com.android.tools.metalava.model.turbine
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.FieldItem
+import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.reporter.FileLocation
 
@@ -29,7 +30,7 @@ internal class TurbineFieldItem(
     containingClass: ClassItem,
     private var type: TypeItem,
     modifiers: DefaultModifierList,
-    documentation: String,
+    documentation: ItemDocumentation,
     private val isEnumConstant: Boolean,
     private val fieldValue: TurbineFieldValue?,
 ) :

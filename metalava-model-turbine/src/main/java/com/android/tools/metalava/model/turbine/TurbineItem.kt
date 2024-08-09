@@ -16,37 +16,30 @@
 
 package com.android.tools.metalava.model.turbine
 
+import com.android.tools.metalava.model.ApiVariantSelectors
 import com.android.tools.metalava.model.DefaultItem
 import com.android.tools.metalava.model.DefaultModifierList
-import com.android.tools.metalava.model.source.utils.LazyDelegate
+import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.reporter.FileLocation
 
 internal abstract class TurbineItem(
-    override val codebase: TurbineBasedCodebase,
+    final override val codebase: TurbineBasedCodebase,
     fileLocation: FileLocation,
     modifiers: DefaultModifierList,
-    documentation: String,
+    documentation: ItemDocumentation,
 ) :
     DefaultItem(
         fileLocation = fileLocation,
         modifiers = modifiers,
         documentation = documentation,
+        variantSelectorsFactory = ApiVariantSelectors.MUTABLE_FACTORY,
     ) {
 
-    override var hidden: Boolean by LazyDelegate { originallyHidden && !hasShowAnnotation() }
-
-    override val originallyHidden by
-        lazy(LazyThreadSafetyMode.NONE) {
-            documentation.contains("@hide") ||
-                documentation.contains("@pending") ||
-                hasHideAnnotation()
-        }
-
-    override fun appendDocumentation(comment: String, tagSection: String?, append: Boolean) {
+    final override fun appendDocumentation(comment: String, tagSection: String?, append: Boolean) {
         TODO("b/295800205")
     }
 
-    override fun findTagDocumentation(tag: String, value: String?): String? {
+    final override fun findTagDocumentation(tag: String, value: String?): String? {
         TODO("b/295800205")
     }
 }

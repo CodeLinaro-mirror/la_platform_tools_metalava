@@ -18,6 +18,7 @@ package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.DefaultModifierList
+import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.VisibilityLevel
 import com.intellij.psi.PsiPackage
@@ -28,7 +29,7 @@ internal constructor(
     private val psiPackage: PsiPackage,
     private val qualifiedName: String,
     modifiers: DefaultModifierList,
-    documentation: String,
+    documentation: ItemDocumentation,
     override val overviewDocumentation: String?,
     /** True if this package is from the classpath (dependencies). Exposed in [isFromClassPath]. */
     private val fromClassPath: Boolean
@@ -128,9 +129,7 @@ internal constructor(
             overviewHtml: String?,
             fromClassPath: Boolean,
         ): PsiPackageItem {
-            val commentText =
-                javadoc(psiPackage, codebase.allowReadingComments) +
-                    if (extraDocs != null) "\n$extraDocs" else ""
+            val commentText = javadocAsItemDocumentation(psiPackage, codebase, extraDocs)
             val modifiers = modifiers(codebase, psiPackage, commentText)
             if (modifiers.isPackagePrivate()) {
                 // packages are always public (if not hidden explicitly with private)

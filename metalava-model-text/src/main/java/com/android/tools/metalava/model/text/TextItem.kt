@@ -16,34 +16,32 @@
 
 package com.android.tools.metalava.model.text
 
+import com.android.tools.metalava.model.ApiVariantSelectors
 import com.android.tools.metalava.model.DefaultItem
 import com.android.tools.metalava.model.DefaultModifierList
+import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.reporter.FileLocation
 
 internal abstract class TextItem(
-    override val codebase: TextCodebase,
+    final override val codebase: TextCodebase,
     fileLocation: FileLocation,
     modifiers: DefaultModifierList,
 ) :
     DefaultItem(
         fileLocation = fileLocation,
         modifiers = modifiers,
-        documentation = "",
+        documentation = ItemDocumentation.NONE,
+        variantSelectorsFactory = ApiVariantSelectors.IMMUTABLE_FACTORY,
     ) {
 
-    override val originallyHidden
-        get() = false
+    final override fun findTagDocumentation(tag: String, value: String?): String? = null
 
-    override var hidden = false
-
-    override fun findTagDocumentation(tag: String, value: String?): String? = null
-
-    override fun appendDocumentation(comment: String, tagSection: String?, append: Boolean) =
+    final override fun appendDocumentation(comment: String, tagSection: String?, append: Boolean) =
         codebase.unsupported()
 
-    override fun isJava(): Boolean =
+    final override fun isJava(): Boolean =
         codebase.unsupported() // source language not recorded in signature files
 
-    override fun isKotlin(): Boolean =
+    final override fun isKotlin(): Boolean =
         codebase.unsupported() // source language not recorded in signature files
 }

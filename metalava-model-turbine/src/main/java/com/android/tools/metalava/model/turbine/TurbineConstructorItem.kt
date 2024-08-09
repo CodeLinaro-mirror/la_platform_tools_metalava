@@ -20,6 +20,7 @@ import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.DefaultTypeParameterList
+import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.reporter.FileLocation
 import com.google.turbine.binder.sym.MethodSymbol
@@ -33,7 +34,7 @@ internal class TurbineConstructorItem(
     returnType: ClassTypeItem,
     modifiers: DefaultModifierList,
     typeParameters: TypeParameterList,
-    documentation: String,
+    documentation: ItemDocumentation,
     private val defaultValue: String,
 ) :
     TurbineMethodItem(
@@ -78,7 +79,7 @@ internal class TurbineConstructorItem(
                     containingClass.type(),
                     modifiers,
                     typeParameterList,
-                    "",
+                    ItemDocumentation.NONE,
                     "",
                 )
             ctorItem.parameters = emptyList()

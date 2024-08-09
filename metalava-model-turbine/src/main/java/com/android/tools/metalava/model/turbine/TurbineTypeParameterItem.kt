@@ -18,6 +18,7 @@ package com.android.tools.metalava.model.turbine
 
 import com.android.tools.metalava.model.BoundsTypeItem
 import com.android.tools.metalava.model.DefaultModifierList
+import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.type.DefaultTypeModifiers
@@ -33,7 +34,7 @@ internal class TurbineTypeParameterItem(
         codebase,
         FileLocation.UNKNOWN,
         modifiers,
-        "",
+        ItemDocumentation.NONE,
     ),
     TypeParameterItem {
 

@@ -47,6 +47,7 @@ import com.android.tools.metalava.model.DefaultModifierList.Companion.VALUE
 import com.android.tools.metalava.model.DefaultModifierList.Companion.VARARG
 import com.android.tools.metalava.model.DefaultModifierList.Companion.VISIBILITY_MASK
 import com.android.tools.metalava.model.DefaultModifierList.Companion.VOLATILE
+import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.JAVA_LANG_ANNOTATION_TARGET
 import com.android.tools.metalava.model.JAVA_LANG_TYPE_USE_TARGET
 import com.android.tools.metalava.model.hasAnnotation
@@ -96,7 +97,7 @@ internal object PsiModifierItem {
     fun create(
         codebase: PsiBasedCodebase,
         element: PsiModifierListOwner,
-        documentation: String? = null,
+        documentation: ItemDocumentation? = null,
     ): DefaultModifierList {
         val modifiers =
             if (element is UAnnotated) {

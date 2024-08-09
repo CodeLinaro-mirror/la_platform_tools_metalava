@@ -18,6 +18,7 @@ package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.DefaultModifierList
+import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.TypeItem
@@ -60,7 +61,7 @@ internal constructor(
         codebase = codebase,
         element = psiParameter,
         modifiers = modifiers,
-        documentation = "",
+        documentation = ItemDocumentation.NONE,
     ),
     ParameterItem {
     lateinit var containingMethod: PsiMethodItem

@@ -24,6 +24,7 @@ import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.FieldItem
+import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PropertyItem
@@ -63,7 +64,7 @@ internal constructor(
     private val superClassType: ClassTypeItem?,
     private var interfaceTypes: List<ClassTypeItem>,
     modifiers: DefaultModifierList,
-    documentation: String,
+    documentation: ItemDocumentation,
     /** True if this class is from the class path (dependencies). Exposed in [isFromClassPath]. */
     private val fromClassPath: Boolean
 ) :
@@ -299,7 +300,7 @@ internal constructor(
             val hasImplicitDefaultConstructor = hasImplicitDefaultConstructor(psiClass)
             val classKind = getClassKind(psiClass)
 
-            val commentText = javadoc(psiClass, codebase.allowReadingComments)
+            val commentText = javadocAsItemDocumentation(psiClass, codebase)
             val modifiers = PsiModifierItem.create(codebase, psiClass, commentText)
 
             // Create the TypeParameterList for this before wrapping any of the other types used by

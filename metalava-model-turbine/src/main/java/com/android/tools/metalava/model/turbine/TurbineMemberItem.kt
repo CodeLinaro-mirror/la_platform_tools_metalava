@@ -18,6 +18,7 @@ package com.android.tools.metalava.model.turbine
 
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.DefaultModifierList
+import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.reporter.FileLocation
 
@@ -25,7 +26,7 @@ internal abstract class TurbineMemberItem(
     codebase: TurbineBasedCodebase,
     fileLocation: FileLocation,
     modifiers: DefaultModifierList,
-    documentation: String,
+    documentation: ItemDocumentation,
     private val containingClass: ClassItem,
 ) : TurbineItem(codebase, fileLocation, modifiers, documentation), MemberItem {
 

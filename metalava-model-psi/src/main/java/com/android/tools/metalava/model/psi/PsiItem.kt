@@ -16,10 +16,12 @@
 
 package com.android.tools.metalava.model.psi
 
+import com.android.tools.metalava.model.ApiVariantSelectors
 import com.android.tools.metalava.model.DefaultItem
 import com.android.tools.metalava.model.DefaultModifierList
+import com.android.tools.metalava.model.ItemDocumentation
+import com.android.tools.metalava.model.ItemDocumentation.Companion.toItemDocumentation
 import com.android.tools.metalava.model.ParameterItem
-import com.android.tools.metalava.model.source.utils.LazyDelegate
 import com.android.tools.metalava.reporter.FileLocation
 import com.intellij.psi.PsiCompiledElement
 import com.intellij.psi.PsiDocCommentOwner
@@ -33,31 +35,21 @@ import org.jetbrains.uast.sourcePsiElement
 
 abstract class PsiItem
 internal constructor(
-    override val codebase: PsiBasedCodebase,
+    final override val codebase: PsiBasedCodebase,
     element: PsiElement,
     fileLocation: FileLocation = PsiFileLocation(element),
     modifiers: DefaultModifierList,
-    documentation: String,
+    documentation: ItemDocumentation,
 ) :
     DefaultItem(
         fileLocation = fileLocation,
         modifiers = modifiers,
         documentation = documentation,
+        variantSelectorsFactory = ApiVariantSelectors.MUTABLE_FACTORY,
     ) {
 
     /** The source PSI provided by UAST */
     internal val sourcePsi: PsiElement? = (element as? UElement)?.sourcePsi
-
-    override val originallyHidden by
-        lazy(LazyThreadSafetyMode.NONE) {
-            documentation.contains('@') &&
-                (documentation.contains("@hide") ||
-                    documentation.contains("@pending") ||
-                    // KDoc:
-                    documentation.contains("@suppress")) || hasHideAnnotation()
-        }
-
-    override var hidden: Boolean by LazyDelegate { originallyHidden && !hasShowAnnotation() }
 
     /** Returns the PSI element for this item */
     abstract fun psi(): PsiElement
@@ -66,7 +58,7 @@ internal constructor(
         return codebase.fromClasspath || containingClass()?.isFromClassPath() ?: false
     }
 
-    override fun findTagDocumentation(tag: String, value: String?): String? {
+    final override fun findTagDocumentation(tag: String, value: String?): String? {
         if (psi() is PsiCompiledElement) {
             return null
         }
@@ -77,7 +69,7 @@ internal constructor(
         // We can't just use element.docComment here because we may have modified
         // the comment and then the comment snapshot in PSI isn't up to date with our
         // latest changes
-        val docComment = codebase.getComment(documentation)
+        val docComment = codebase.getComment(documentation.text)
         val tagComment =
             if (value == null) {
                 docComment.findTagByName(tag)
@@ -107,7 +99,7 @@ internal constructor(
         }
     }
 
-    override fun appendDocumentation(comment: String, tagSection: String?, append: Boolean) {
+    final override fun appendDocumentation(comment: String, tagSection: String?, append: Boolean) {
         if (comment.isBlank()) {
             return
         }
@@ -146,11 +138,14 @@ internal constructor(
                 tagSection == "@deprecatedSince" ||
                 tagSection == "@sdkExtSince"
         ) {
-            documentation = addUniqueTag(documentation, tagSection, comment)
+            documentation =
+                addUniqueTag(documentation.text, tagSection, comment).toItemDocumentation()
             return
         }
 
-        documentation = mergeDocumentation(documentation, psi(), comment.trim(), tagSection, append)
+        documentation =
+            mergeDocumentation(documentation.text, psi(), comment.trim(), tagSection, append)
+                .toItemDocumentation()
     }
 
     private fun addUniqueTag(
@@ -213,27 +208,42 @@ internal constructor(
             " */"
     }
 
-    override fun fullyQualifiedDocumentation(): String {
-        return fullyQualifiedDocumentation(documentation)
+    final override fun fullyQualifiedDocumentation(): String {
+        return fullyQualifiedDocumentation(documentation.text)
     }
 
-    override fun fullyQualifiedDocumentation(documentation: String): String {
+    final override fun fullyQualifiedDocumentation(documentation: String): String {
         return codebase.docQualifier.toFullyQualifiedDocumentation(this, documentation)
     }
 
-    override fun isJava(): Boolean {
+    final override fun isJava(): Boolean {
         return !isKotlin()
     }
 
-    override fun isKotlin(): Boolean {
+    final override fun isKotlin(): Boolean {
         return psi().isKotlin()
     }
 
     companion object {
 
+        /**
+         * Get the javadoc for the [element] as an [ItemDocumentation] instance.
+         *
+         * If [allowReadingComments] is `false` then this will return [ItemDocumentation.NONE].
+         */
+        internal fun javadocAsItemDocumentation(
+            element: PsiElement,
+            codebase: PsiBasedCodebase,
+            extraDocs: String? = null,
+        ): ItemDocumentation {
+            return javadoc(element, codebase.allowReadingComments)
+                .let { if (extraDocs != null) it + "\n$extraDocs" else it }
+                .toItemDocumentation()
+        }
+
         // Gets the javadoc of the current element, unless reading comments is
         // disabled via allowReadingComments
-        internal fun javadoc(element: PsiElement, allowReadingComments: Boolean): String {
+        private fun javadoc(element: PsiElement, allowReadingComments: Boolean): String {
             if (!allowReadingComments) {
                 return ""
             }
@@ -271,7 +281,7 @@ internal constructor(
         internal fun modifiers(
             codebase: PsiBasedCodebase,
             element: PsiModifierListOwner,
-            documentation: String? = null,
+            documentation: ItemDocumentation? = null,
         ): DefaultModifierList {
             return PsiModifierItem.create(codebase, element, documentation)
         }

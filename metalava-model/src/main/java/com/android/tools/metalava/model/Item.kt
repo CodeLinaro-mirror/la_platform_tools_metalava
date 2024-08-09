@@ -105,7 +105,7 @@ interface Item : Reportable {
      * See [fullyQualifiedDocumentation] to look up the documentation with fully qualified
      * references to classes.
      */
-    var documentation: String
+    var documentation: ItemDocumentation
 
     /**
      * Looks up docs for the first instance of a specific javadoc tag having the (optionally)
@@ -171,13 +171,6 @@ interface Item : Reportable {
      */
     fun hasShowAnnotation(): Boolean = showability.show()
 
-    /**
-     * Returns true if this has any show single annotations.
-     *
-     * See [Showability.recursive]
-     */
-    fun hasShowSingleAnnotation(): Boolean = showability.showNonRecursive()
-
     /** Returns true if this modifier list contains any hide annotations */
     fun hasHideAnnotation(): Boolean =
         modifiers.codebase.annotationManager.hasHideAnnotations(modifiers)
@@ -206,7 +199,7 @@ interface Item : Reportable {
      * for continuing to display the relative text, e.g. instead of {@link java.util.List}, use
      * {@link java.util.List List}.
      */
-    fun fullyQualifiedDocumentation(): String = documentation
+    fun fullyQualifiedDocumentation(): String = documentation.text
 
     /** Expands the given documentation comment in the current name context */
     fun fullyQualifiedDocumentation(documentation: String): String = documentation
@@ -420,7 +413,8 @@ interface Item : Reportable {
 abstract class DefaultItem(
     final override val fileLocation: FileLocation,
     final override val modifiers: DefaultModifierList,
-    final override var documentation: String,
+    final override var documentation: ItemDocumentation,
+    variantSelectorsFactory: ApiVariantSelectorsFactory,
 ) : Item {
 
     init {
@@ -428,8 +422,41 @@ abstract class DefaultItem(
         modifiers.owner = this
     }
 
-    final override var docOnly = documentation.contains("@doconly")
-    final override var removed = documentation.contains("@removed")
+    /**
+     * Create a [ApiVariantSelectors] appropriate for this [Item].
+     *
+     * The leaking of `this` is safe as the implementations do not do access anything that has not
+     * been initialized.
+     */
+    private val variantSelectors = @Suppress("LeakingThis") variantSelectorsFactory(this)
+
+    /**
+     * Manually delegate to [ApiVariantSelectors.originallyHidden] as property delegates are
+     * expensive.
+     */
+    final override val originallyHidden
+        get() = variantSelectors.originallyHidden
+
+    /** Manually delegate to [ApiVariantSelectors.hidden] as property delegates are expensive. */
+    final override var hidden
+        get() = variantSelectors.hidden
+        set(value) {
+            variantSelectors.hidden = value
+        }
+
+    /** Manually delegate to [ApiVariantSelectors.docOnly] as property delegates are expensive. */
+    final override var docOnly: Boolean
+        get() = variantSelectors.docOnly
+        set(value) {
+            variantSelectors.docOnly = value
+        }
+
+    /** Manually delegate to [ApiVariantSelectors.removed] as property delegates are expensive. */
+    final override var removed: Boolean
+        get() = variantSelectors.removed
+        set(value) {
+            variantSelectors.removed = value
+        }
 
     final override val sortingRank: Int = nextRank.getAndIncrement()
 
@@ -440,19 +467,19 @@ abstract class DefaultItem(
 
     final override fun mutableModifiers(): MutableModifierList = modifiers
 
-    override val isPublic: Boolean
+    final override val isPublic: Boolean
         get() = modifiers.isPublic()
 
-    override val isProtected: Boolean
+    final override val isProtected: Boolean
         get() = modifiers.isProtected()
 
-    override val isInternal: Boolean
+    final override val isInternal: Boolean
         get() = modifiers.getVisibilityLevel() == VisibilityLevel.INTERNAL
 
-    override val isPackagePrivate: Boolean
+    final override val isPackagePrivate: Boolean
         get() = modifiers.isPackagePrivate()
 
-    override val isPrivate: Boolean
+    final override val isPrivate: Boolean
         get() = modifiers.isPrivate()
 
     final override var emit = true
@@ -461,11 +488,11 @@ abstract class DefaultItem(
         private var nextRank = AtomicInteger()
     }
 
-    override val showability: Showability by lazy {
+    final override val showability: Showability by lazy {
         codebase.annotationManager.getShowabilityForItem(this)
     }
 
-    override fun suppressedIssues(): Set<String> {
+    final override fun suppressedIssues(): Set<String> {
         return buildSet {
             for (annotation in modifiers.annotations()) {
                 val annotationName = annotation.qualifiedName

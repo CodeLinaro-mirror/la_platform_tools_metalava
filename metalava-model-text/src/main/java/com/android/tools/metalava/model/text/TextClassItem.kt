@@ -34,7 +34,7 @@ import com.android.tools.metalava.reporter.FileLocation
 import java.util.function.Predicate
 
 internal open class TextClassItem(
-    override val codebase: TextCodebase,
+    codebase: TextCodebase,
     fileLocation: FileLocation = FileLocation.UNKNOWN,
     modifiers: DefaultModifierList,
     override val classKind: ClassKind = ClassKind.CLASS,

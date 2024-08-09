@@ -18,6 +18,7 @@ package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.FieldItem
+import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.TypeItem
 import com.intellij.psi.PsiMethod
@@ -33,7 +34,7 @@ private constructor(
     containingClass: PsiClassItem,
     name: String,
     modifiers: DefaultModifierList,
-    documentation: String,
+    documentation: ItemDocumentation,
     private var fieldType: PsiTypeItem,
     override val getter: PsiMethodItem,
     override val setter: PsiMethodItem?,
@@ -102,12 +103,13 @@ private constructor(
             backingField: PsiFieldItem? = null
         ): PsiPropertyItem {
             val psiMethod = getter.psiMethod
-            val documentation =
+            // Get the appropriate element from which to retrieve the documentation.
+            val psiElement =
                 when (val sourcePsi = getter.sourcePsi) {
-                    is KtPropertyAccessor ->
-                        javadoc(sourcePsi.property, codebase.allowReadingComments)
-                    else -> javadoc(sourcePsi ?: psiMethod, codebase.allowReadingComments)
+                    is KtPropertyAccessor -> sourcePsi.property
+                    else -> sourcePsi ?: psiMethod
                 }
+            val documentation = javadocAsItemDocumentation(psiElement, codebase)
             val modifiers = modifiers(codebase, psiMethod, documentation)
             // Alas, annotations whose target is property won't be bound to anywhere in LC/UAST,
             // if the property doesn't need a backing field. Same for unspecified use-site target.

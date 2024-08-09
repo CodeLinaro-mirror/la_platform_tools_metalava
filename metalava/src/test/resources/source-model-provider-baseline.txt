@@ -22,7 +22,6 @@ com.android.tools.metalava.ApiFileTest
   Check skipping implicit final or deprecated override[turbine]
   Check various generics signature subtleties[turbine]
   Kotlin expect-actual with JvmOverloads[psi,k2]
-  Test KDoc suppress[turbine]
   Type-use annotations can be included in signature files[turbine]
 
 com.android.tools.metalava.CoreApiTest

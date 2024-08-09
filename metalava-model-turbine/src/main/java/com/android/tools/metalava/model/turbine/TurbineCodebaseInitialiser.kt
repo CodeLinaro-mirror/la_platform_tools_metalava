@@ -31,12 +31,14 @@ import com.android.tools.metalava.model.DefaultAnnotationItem
 import com.android.tools.metalava.model.DefaultAnnotationSingleAttributeValue
 import com.android.tools.metalava.model.DefaultTypeParameterList
 import com.android.tools.metalava.model.ExceptionTypeItem
+import com.android.tools.metalava.model.ItemDocumentation
+import com.android.tools.metalava.model.ItemDocumentation.Companion.toItemDocumentation
 import com.android.tools.metalava.model.JAVA_PACKAGE_INFO
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.TypeParameterScope
-import com.android.tools.metalava.model.source.utils.packageHtmlToJavadoc
+import com.android.tools.metalava.model.source.SourceItemDocumentation
 import com.android.tools.metalava.model.type.MethodFingerprint
 import com.android.tools.metalava.reporter.FileLocation
 import com.google.common.collect.ImmutableList
@@ -217,13 +219,13 @@ internal open class TurbineCodebaseInitialiser(
             val source = unit.source().source()
             val sourceFile = createTurbineSourceFile(unit)
             val doc = getHeaderComments(source)
-            createPackage(getPackageName(unit), sourceFile, doc)
+            createPackage(getPackageName(unit), sourceFile, doc.toItemDocumentation())
         }
 
         // Secondly, create package items for package.html files.
         for ((name, file) in packageHtmlByPackageName.entries) {
             codebase.findPackage(name)
-                ?: createPackage(name, null, packageHtmlToJavadoc(file.readText()))
+                ?: createPackage(name, null, SourceItemDocumentation.fromHTML(file.readText()))
         }
 
         // Thirdly, find all classes and create or find a package for them.
@@ -248,7 +250,7 @@ internal open class TurbineCodebaseInitialiser(
     private fun createPackage(
         name: String,
         sourceFile: TurbineSourceFile?,
-        document: String
+        documentation: ItemDocumentation,
     ): TurbinePackageItem {
         codebase.findPackage(name)?.let {
             error("Duplicate package-info.java files found for $name")
@@ -257,7 +259,7 @@ internal open class TurbineCodebaseInitialiser(
         val modifiers = TurbineModifierItem.create(codebase, 0, null, false)
         val fileLocation = TurbineFileLocation.forTree(sourceFile)
         val turbinePkgItem =
-            TurbinePackageItem.create(codebase, fileLocation, name, modifiers, document)
+            TurbinePackageItem.create(codebase, fileLocation, name, modifiers, documentation)
         codebase.addPackage(turbinePkgItem)
         return turbinePkgItem
     }
@@ -273,7 +275,14 @@ internal open class TurbineCodebaseInitialiser(
 
         val modifiers = TurbineModifierItem.create(codebase, 0, null, false)
         val fileLocation = TurbineFileLocation.forTree(null)
-        val turbinePkgItem = TurbinePackageItem.create(codebase, fileLocation, name, modifiers, "")
+        val turbinePkgItem =
+            TurbinePackageItem.create(
+                codebase,
+                fileLocation,
+                name,
+                modifiers,
+                ItemDocumentation.NONE
+            )
         codebase.addPackage(turbinePkgItem)
         return turbinePkgItem
     }
@@ -959,7 +968,7 @@ internal open class TurbineCodebaseInitialiser(
         return throwsTypes.map { type -> enclosingTypeItemFactory.getExceptionType(type) }
     }
 
-    private fun getCommentedDoc(doc: String): String {
+    private fun getCommentedDoc(doc: String): ItemDocumentation {
         return buildString {
                 if (doc != "") {
                     append("/**")
@@ -967,7 +976,7 @@ internal open class TurbineCodebaseInitialiser(
                     append("*/")
                 }
             }
-            .toString()
+            .toItemDocumentation()
     }
 
     private fun createInitialValue(field: FieldInfo): TurbineFieldValue {

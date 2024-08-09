@@ -322,8 +322,8 @@ class PsiPropertyItemTest : BaseModelTest() {
             assertContains(parameter.documentation, "parameter doc")
             assertContains(body.documentation, "body doc")
             assertContains(accessors.documentation, "accessors property doc")
-            assertContains(accessors.getter?.documentation.orEmpty(), "getter doc")
-            assertContains(accessors.setter?.documentation.orEmpty(), "setter doc")
+            assertContains(accessors.getter?.documentation?.text.orEmpty(), "getter doc")
+            assertContains(accessors.setter?.documentation?.text.orEmpty(), "setter doc")
         }
     }
 }
