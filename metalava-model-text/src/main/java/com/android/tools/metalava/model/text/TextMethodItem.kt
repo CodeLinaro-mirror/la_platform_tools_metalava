@@ -16,81 +16,70 @@
 
 package com.android.tools.metalava.model.text
 
+import com.android.tools.metalava.model.ApiVariantSelectors
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.DefaultCodebase
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.model.ItemDocumentation
+import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.computeSuperMethods
+import com.android.tools.metalava.model.item.DefaultMemberItem
 import com.android.tools.metalava.model.updateCopiedMethodState
 import com.android.tools.metalava.reporter.FileLocation
 import java.util.function.Predicate
 
+/**
+ * A lamda that given a [MethodItem] will create a list of [ParameterItem]s for it.
+ *
+ * This is called from within the constructor of the [ParameterItem.containingMethod] and can only
+ * access the [MethodItem.name] (to identify methods that have special nullability rules) and store
+ * a reference to it in [ParameterItem.containingMethod]. In particularly, it must not access
+ * [MethodItem.parameters] as that will not yet have been initialized when this is called.
+ */
+internal typealias ParameterItemsFactory = (TextMethodItem) -> List<TextParameterItem>
+
 internal open class TextMethodItem(
-    codebase: TextCodebase,
+    codebase: DefaultCodebase,
+    fileLocation: FileLocation,
+    modifiers: DefaultModifierList,
     name: String,
     containingClass: ClassItem,
-    modifiers: DefaultModifierList,
+    override val typeParameterList: TypeParameterList,
     private var returnType: TypeItem,
-    private val parameters: List<TextParameterItem>,
-    fileLocation: FileLocation,
+    parameterItemsFactory: ParameterItemsFactory,
+    private val throwsTypes: List<ExceptionTypeItem>,
+    private val annotationDefault: String = "",
 ) :
-    TextMemberItem(codebase, name, containingClass, fileLocation, modifiers = modifiers),
+    DefaultMemberItem(
+        codebase,
+        fileLocation,
+        ItemLanguage.UNKNOWN,
+        modifiers,
+        ItemDocumentation.NONE,
+        ApiVariantSelectors.IMMUTABLE_FACTORY,
+        name,
+        containingClass,
+    ),
     MethodItem {
-    init {
-        parameters.forEach { it.containingMethod = this }
-    }
 
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (other !is MethodItem) return false
+    /**
+     * Create the [ParameterItem] list during initialization of this method to allow them to contain
+     * an immutable reference to this object.
+     *
+     * The leaking of `this` to `parameterItemsFactory` is ok as implementations follow the rules
+     * explained in the documentation of [ParameterItemsFactory].
+     */
+    @Suppress("LeakingThis") private val parameters = parameterItemsFactory(this)
 
-        if (name() != other.name()) {
-            return false
-        }
+    override fun equals(other: Any?) = equalsToItem(other)
 
-        if (containingClass() != other.containingClass()) {
-            return false
-        }
-
-        val parameters1 = parameters()
-        val parameters2 = other.parameters()
-
-        if (parameters1.size != parameters2.size) {
-            return false
-        }
-
-        for (i in parameters1.indices) {
-            val parameter1 = parameters1[i]
-            val parameter2 = parameters2[i]
-            if (parameter1.type() != parameter2.type()) {
-                return false
-            }
-        }
-
-        val typeParameters1 = typeParameterList
-        val typeParameters2 = other.typeParameterList
-
-        if (typeParameters1.size != typeParameters2.size) {
-            return false
-        }
-
-        for (i in typeParameters1.indices) {
-            val typeParameter1 = typeParameters1[i]
-            val typeParameter2 = typeParameters2[i]
-            if (typeParameter1.typeBounds() != typeParameter2.typeBounds()) {
-                return false
-            }
-        }
-        return true
-    }
-
-    override fun hashCode(): Int {
-        return name().hashCode()
-    }
+    override fun hashCode() = hashCodeForItem()
 
     override fun isConstructor(): Boolean = false
 
@@ -108,20 +97,23 @@ internal open class TextMethodItem(
 
     override fun findPredicateSuperMethod(predicate: Predicate<Item>): MethodItem? = null
 
-    override var typeParameterList: TypeParameterList = TypeParameterList.NONE
-        internal set
-
     override fun duplicate(targetContainingClass: ClassItem): MethodItem {
         val typeVariableMap = targetContainingClass.mapTypeVariables(containingClass())
         val duplicated =
             TextMethodItem(
-                codebase,
-                name(),
-                targetContainingClass,
-                modifiers.duplicate(),
-                returnType.convertType(typeVariableMap),
-                parameters.map { it.duplicate(typeVariableMap) },
-                fileLocation
+                codebase = codebase,
+                fileLocation = fileLocation,
+                modifiers = modifiers.duplicate(),
+                name = name(),
+                containingClass = targetContainingClass,
+                typeParameterList = typeParameterList,
+                returnType = returnType.convertType(typeVariableMap),
+                parameterItemsFactory = { methodItem ->
+                    // Duplicate the parameters
+                    parameters.map { it.duplicate(methodItem, typeVariableMap) }
+                },
+                throwsTypes = throwsTypes,
+                annotationDefault = annotationDefault,
             )
         duplicated.inheritedFrom = containingClass()
 
@@ -136,22 +128,12 @@ internal open class TextMethodItem(
             duplicated.docOnly = true
         }
 
-        duplicated.annotationDefault = annotationDefault
-        duplicated.throwsTypes = this.throwsTypes
-        duplicated.typeParameterList = typeParameterList
-
         duplicated.updateCopiedMethodState()
 
         return duplicated
     }
 
-    private var throwsTypes: List<ExceptionTypeItem> = emptyList()
-
     override fun throwsTypes(): List<ExceptionTypeItem> = this.throwsTypes
-
-    fun setThrowsTypes(throwsClasses: List<ExceptionTypeItem>) {
-        this.throwsTypes = throwsClasses
-    }
 
     override fun parameters(): List<ParameterItem> = parameters
 
@@ -161,12 +143,6 @@ internal open class TextMethodItem(
 
     @Deprecated("This property should not be accessed directly.")
     override var _requiresOverride: Boolean? = null
-
-    private var annotationDefault = ""
-
-    fun setAnnotationDefault(default: String) {
-        annotationDefault = default
-    }
 
     override fun defaultValue(): String {
         return annotationDefault

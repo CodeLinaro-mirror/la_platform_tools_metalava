@@ -18,16 +18,18 @@ package com.android.tools.metalava.model.text
 
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.AnnotationManager
+import com.android.tools.metalava.model.ApiVariantSelectors
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.DefaultAnnotationItem
 import com.android.tools.metalava.model.DefaultCodebase
-import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PackageList
-import com.android.tools.metalava.reporter.FileLocation
+import com.android.tools.metalava.model.item.DefaultItemFactory
+import com.android.tools.metalava.model.item.DefaultPackageItem
 import java.io.File
 import java.util.ArrayList
 import java.util.HashMap
@@ -40,10 +42,28 @@ internal class TextCodebase(
     annotationManager: AnnotationManager,
     private val classResolver: ClassResolver?,
 ) : DefaultCodebase(location, "Codebase", true, annotationManager) {
-    private val packagesByName = HashMap<String, TextPackageItem>(300)
+    private val packagesByName = HashMap<String, DefaultPackageItem>(300)
     private val allClassesByName = HashMap<String, TextClassItem>(30000)
 
     private val externalClassesByName = HashMap<String, ClassItem>()
+
+    /** Creates [Item] instances for this. */
+    internal val itemFactory =
+        DefaultItemFactory(
+            codebase = this,
+            // Signature files do not contain information about whether an item was originally
+            // created from Java or Kotlin.
+            defaultItemLanguage = ItemLanguage.UNKNOWN,
+            // Signature files have already been separated by API surface variants, so they can use
+            // the same immutable ApiVariantSelectors.
+            defaultVariantSelectorsFactory = ApiVariantSelectors.IMMUTABLE_FACTORY,
+        )
+
+    init {
+        // Make sure that it has a root package.
+        val rootPackage = itemFactory.createPackageItem(qualifiedName = "")
+        addPackage(rootPackage)
+    }
 
     override fun trustedApi(): Boolean = true
 
@@ -67,9 +87,9 @@ internal class TextCodebase(
 
     override fun supportsDocumentation(): Boolean = false
 
-    fun addPackage(pInfo: TextPackageItem) {
+    fun addPackage(pInfo: DefaultPackageItem) {
         // track the set of organized packages in the API
-        packagesByName[pInfo.name()] = pInfo
+        packagesByName[pInfo.qualifiedName()] = pInfo
 
         // accumulate a direct map of all the classes in the API
         for (cl in pInfo.allClasses()) {
@@ -214,24 +234,18 @@ internal class TextCodebase(
             val pkg =
                 findPackage(pkgPath)
                     ?: run {
-                        val newPkg =
-                            TextPackageItem(
-                                this,
-                                pkgPath,
-                                DefaultModifierList(this, DefaultModifierList.PUBLIC),
-                                FileLocation.UNKNOWN
-                            )
+                        val newPkg = itemFactory.createPackageItem(qualifiedName = pkgPath)
                         addPackage(newPkg)
                         newPkg.emit = false
                         newPkg
                     }
             stubClass.setContainingPackage(pkg)
-            pkg.addClass(stubClass)
+            pkg.addTopClass(stubClass)
         }
         return stubClass
     }
 
-    override fun findPackage(pkgName: String): TextPackageItem? {
+    override fun findPackage(pkgName: String): DefaultPackageItem? {
         return packagesByName[pkgName]
     }
 

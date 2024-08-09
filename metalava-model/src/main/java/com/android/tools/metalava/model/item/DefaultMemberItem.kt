@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2023 The Android Open Source Project
+ * Copyright (C) 2017 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,32 +14,39 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava.model.turbine
+package com.android.tools.metalava.model.item
 
-import com.android.tools.metalava.model.ApiVariantSelectors
+import com.android.tools.metalava.model.ApiVariantSelectorsFactory
+import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.DefaultCodebase
 import com.android.tools.metalava.model.DefaultItem
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.ItemDocumentation
+import com.android.tools.metalava.model.ItemLanguage
+import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.reporter.FileLocation
 
-internal abstract class TurbineItem(
-    final override val codebase: TurbineBasedCodebase,
+abstract class DefaultMemberItem(
+    codebase: DefaultCodebase,
     fileLocation: FileLocation,
+    itemLanguage: ItemLanguage,
     modifiers: DefaultModifierList,
     documentation: ItemDocumentation,
+    variantSelectorsFactory: ApiVariantSelectorsFactory,
+    private val name: String,
+    private val containingClass: ClassItem,
 ) :
     DefaultItem(
+        codebase = codebase,
         fileLocation = fileLocation,
+        itemLanguage = itemLanguage,
         modifiers = modifiers,
         documentation = documentation,
-        variantSelectorsFactory = ApiVariantSelectors.MUTABLE_FACTORY,
-    ) {
+        variantSelectorsFactory = variantSelectorsFactory,
+    ),
+    MemberItem {
 
-    final override fun appendDocumentation(comment: String, tagSection: String?, append: Boolean) {
-        TODO("b/295800205")
-    }
+    final override fun name() = name
 
-    final override fun findTagDocumentation(tag: String, value: String?): String? {
-        TODO("b/295800205")
-    }
+    final override fun containingClass() = containingClass
 }

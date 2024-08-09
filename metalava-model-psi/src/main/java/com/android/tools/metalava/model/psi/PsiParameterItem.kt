@@ -241,18 +241,9 @@ internal constructor(
 
     override fun containingMethod(): MethodItem = containingMethod
 
-    override fun equals(other: Any?): Boolean {
-        if (this === other) {
-            return true
-        }
-        return other is ParameterItem &&
-            parameterIndex == other.parameterIndex &&
-            containingMethod == other.containingMethod()
-    }
+    override fun equals(other: Any?) = equalsToItem(other)
 
-    override fun hashCode(): Int {
-        return parameterIndex
-    }
+    override fun hashCode() = hashCodeForItem()
 
     override fun isVarArgs(): Boolean {
         return psiParameter.isVarArgs || modifiers.isVarArg()

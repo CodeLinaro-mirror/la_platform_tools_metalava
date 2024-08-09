@@ -54,6 +54,9 @@ sealed interface ApiVariantSelectors {
      */
     var removed: Boolean
 
+    /** Create a duplicate of this for the specified [Item]. */
+    fun duplicate(item: Item): ApiVariantSelectors
+
     companion object {
         /**
          * An [ApiVariantSelectors] factory that will always return an immutable
@@ -97,6 +100,8 @@ sealed interface ApiVariantSelectors {
                 error("Cannot set `removed` to $value")
             }
 
+        override fun duplicate(item: Item): ApiVariantSelectors = this
+
         override fun toString() = "Immutable"
     }
 
@@ -132,6 +137,8 @@ sealed interface ApiVariantSelectors {
         override var docOnly = item.documentation.contains("@doconly")
 
         override var removed = item.documentation.contains("@removed")
+
+        override fun duplicate(item: Item): ApiVariantSelectors = Mutable(item)
     }
 }
 

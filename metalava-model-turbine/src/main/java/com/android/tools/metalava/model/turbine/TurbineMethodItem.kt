@@ -16,40 +16,69 @@
 
 package com.android.tools.metalava.model.turbine
 
+import com.android.tools.metalava.model.ApiVariantSelectors
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.DefaultCodebase
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.ItemDocumentation
+import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.computeSuperMethods
+import com.android.tools.metalava.model.item.DefaultMemberItem
 import com.android.tools.metalava.model.updateCopiedMethodState
 import com.android.tools.metalava.reporter.FileLocation
-import com.google.turbine.binder.sym.MethodSymbol
+
+/**
+ * A lamda that given a [MethodItem] will create a list of [ParameterItem]s for it.
+ *
+ * This is called from within the constructor of the [ParameterItem.containingMethod] and can only
+ * access the [MethodItem.name] (to identify methods that have special nullability rules) and store
+ * a reference to it in [ParameterItem.containingMethod]. In particularly, it must not access
+ * [MethodItem.parameters] as that will not yet have been initialized when this is called.
+ */
+internal typealias ParameterItemsFactory = (TurbineMethodItem) -> List<TurbineParameterItem>
 
 internal open class TurbineMethodItem(
-    codebase: TurbineBasedCodebase,
+    codebase: DefaultCodebase,
     fileLocation: FileLocation,
-    private val methodSymbol: MethodSymbol,
-    containingClass: ClassItem,
-    private var returnType: TypeItem,
     modifiers: DefaultModifierList,
-    override val typeParameterList: TypeParameterList,
     documentation: ItemDocumentation,
-    private val defaultValue: String,
+    name: String,
+    containingClass: ClassItem,
+    override val typeParameterList: TypeParameterList,
+    private var returnType: TypeItem,
+    parameterItemsFactory: ParameterItemsFactory,
+    private val throwsTypes: List<ExceptionTypeItem>,
+    private val annotationDefault: String = "",
 ) :
-    TurbineMemberItem(codebase, fileLocation, modifiers, documentation, containingClass),
+    DefaultMemberItem(
+        codebase,
+        fileLocation,
+        ItemLanguage.JAVA,
+        modifiers,
+        documentation,
+        ApiVariantSelectors.MUTABLE_FACTORY,
+        name,
+        containingClass,
+    ),
     MethodItem {
 
+    /**
+     * Create the [ParameterItem] list during initialization of this method to allow them to contain
+     * an immutable reference to this object.
+     *
+     * The leaking of `this` to `parameterItemsFactory` is ok as implementations follow the rules
+     * explained in the documentation of [ParameterItemsFactory].
+     */
+    @Suppress("LeakingThis") private val parameters = parameterItemsFactory(this)
+
     private lateinit var superMethodList: List<MethodItem>
-    internal lateinit var throwableTypes: List<ExceptionTypeItem>
-    internal lateinit var parameters: List<ParameterItem>
 
     override var inheritedFrom: ClassItem? = null
-
-    override fun name(): String = methodSymbol.name()
 
     override fun parameters(): List<ParameterItem> = parameters
 
@@ -59,7 +88,7 @@ internal open class TurbineMethodItem(
         returnType = type
     }
 
-    override fun throwsTypes(): List<ExceptionTypeItem> = throwableTypes
+    override fun throwsTypes(): List<ExceptionTypeItem> = throwsTypes
 
     override fun isExtensionMethod(): Boolean = false // java does not support extension methods
 
@@ -84,20 +113,9 @@ internal open class TurbineMethodItem(
         return superMethodList
     }
 
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (javaClass != other?.javaClass) return false
+    override fun equals(other: Any?) = equalsToItem(other)
 
-        other as TurbineMethodItem
-
-        if (methodSymbol != other.methodSymbol) return false
-
-        return true
-    }
-
-    override fun hashCode(): Int {
-        return methodSymbol.hashCode()
-    }
+    override fun hashCode() = hashCodeForItem()
 
     @Deprecated("This property should not be accessed directly.")
     override var _requiresOverride: Boolean? = null
@@ -106,22 +124,24 @@ internal open class TurbineMethodItem(
         val mods = modifiers.duplicate()
         val duplicated =
             TurbineMethodItem(
-                codebase,
-                fileLocation,
-                methodSymbol,
-                targetContainingClass,
-                returnType,
-                mods,
-                typeParameterList,
-                documentation,
-                defaultValue,
+                codebase = codebase,
+                fileLocation = fileLocation,
+                modifiers = mods,
+                documentation = documentation.duplicate(),
+                name = name(),
+                containingClass = targetContainingClass,
+                typeParameterList = typeParameterList,
+                returnType = returnType,
+                parameterItemsFactory = { methodItem ->
+                    // Duplicate the parameters
+                    parameters.map {
+                        TurbineParameterItem.duplicate(codebase, methodItem, it, emptyMap())
+                    }
+                },
+                throwsTypes = throwsTypes,
+                annotationDefault = annotationDefault,
             )
-        // Duplicate the parameters
-        val params =
-            parameters.map { TurbineParameterItem.duplicate(codebase, duplicated, it, emptyMap()) }
-        duplicated.parameters = params
         duplicated.inheritedFrom = containingClass()
-        duplicated.throwableTypes = throwableTypes
 
         // Preserve flags that may have been inherited (propagated) from surrounding packages
         if (targetContainingClass.hidden) {
@@ -141,11 +161,5 @@ internal open class TurbineMethodItem(
 
     override fun findMainDocumentation(): String = TODO("b/295800205")
 
-    internal fun setThrowsTypes(throwsList: List<ExceptionTypeItem>) {
-        throwableTypes = throwsList
-    }
-
-    internal fun getSymbol(): MethodSymbol = methodSymbol
-
-    override fun defaultValue(): String = defaultValue
+    override fun defaultValue(): String = annotationDefault
 }

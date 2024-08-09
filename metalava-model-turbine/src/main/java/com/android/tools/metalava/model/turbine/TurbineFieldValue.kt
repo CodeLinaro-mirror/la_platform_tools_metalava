@@ -16,19 +16,15 @@
 
 package com.android.tools.metalava.model.turbine
 
-import com.android.tools.metalava.model.ClassItem
-import com.android.tools.metalava.model.DefaultModifierList
-import com.android.tools.metalava.model.ItemDocumentation
-import com.android.tools.metalava.model.MemberItem
-import com.android.tools.metalava.reporter.FileLocation
+import com.android.tools.metalava.model.item.FieldValue
 
-internal abstract class TurbineMemberItem(
-    codebase: TurbineBasedCodebase,
-    fileLocation: FileLocation,
-    modifiers: DefaultModifierList,
-    documentation: ItemDocumentation,
-    private val containingClass: ClassItem,
-) : TurbineItem(codebase, fileLocation, modifiers, documentation), MemberItem {
+/** Provides access to the initial values of a field. */
+class TurbineFieldValue(
+    private var initialValueWithRequiredConstant: Any?,
+    private var initialValueWithoutRequiredConstant: Any?,
+) : FieldValue {
 
-    final override fun containingClass(): ClassItem = containingClass
+    override fun initialValue(requireConstant: Boolean) =
+        if (requireConstant) initialValueWithRequiredConstant
+        else initialValueWithoutRequiredConstant
 }

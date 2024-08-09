@@ -16,7 +16,22 @@
 
 package com.android.tools.metalava.model
 
-enum class Language {
+/** The language of an item. */
+enum class ItemLanguage {
     KOTLIN,
     JAVA,
+    UNKNOWN {
+        override fun isJava(): Boolean {
+            error("unknown language type")
+        }
+
+        override fun isKotlin(): Boolean {
+            error("unknown language type")
+        }
+    },
+    ;
+
+    open fun isJava() = this == JAVA
+
+    open fun isKotlin() = this == KOTLIN
 }

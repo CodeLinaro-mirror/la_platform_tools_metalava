@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2023 The Android Open Source Project
+ * Copyright (C) 2017 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,43 +14,48 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava.model.turbine
+package com.android.tools.metalava.model.item
 
+import com.android.tools.metalava.model.ApiVariantSelectorsFactory
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.DefaultCodebase
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.ItemDocumentation
+import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.reporter.FileLocation
 
-internal class TurbineFieldItem(
-    codebase: TurbineBasedCodebase,
+class DefaultFieldItem(
+    codebase: DefaultCodebase,
     fileLocation: FileLocation,
-    private val name: String,
-    containingClass: ClassItem,
-    private var type: TypeItem,
+    itemLanguage: ItemLanguage,
+    variantSelectorsFactory: ApiVariantSelectorsFactory,
     modifiers: DefaultModifierList,
     documentation: ItemDocumentation,
+    name: String,
+    containingClass: ClassItem,
+    private var type: TypeItem,
     private val isEnumConstant: Boolean,
-    private val fieldValue: TurbineFieldValue?,
+    private val fieldValue: FieldValue?,
 ) :
-    TurbineMemberItem(codebase, fileLocation, modifiers, documentation, containingClass),
+    DefaultMemberItem(
+        codebase = codebase,
+        fileLocation = fileLocation,
+        itemLanguage = itemLanguage,
+        modifiers = modifiers,
+        documentation = documentation,
+        variantSelectorsFactory = variantSelectorsFactory,
+        name = name,
+        containingClass = containingClass,
+    ),
     FieldItem {
 
     override var inheritedFrom: ClassItem? = null
 
-    override fun name(): String = name
+    override fun equals(other: Any?) = equalsToItem(other)
 
-    override fun equals(other: Any?): Boolean {
-        if (this === other) {
-            return true
-        }
-        return other is FieldItem &&
-            name() == other.name() &&
-            containingClass() == other.containingClass()
-    }
-
-    override fun hashCode(): Int = name().hashCode()
+    override fun hashCode() = hashCodeForItem()
 
     override fun type(): TypeItem = type
 
@@ -60,16 +65,18 @@ internal class TurbineFieldItem(
 
     override fun duplicate(targetContainingClass: ClassItem): FieldItem {
         val duplicated =
-            TurbineFieldItem(
-                codebase,
-                fileLocation,
-                name(),
-                targetContainingClass,
-                type,
-                modifiers.duplicate(),
-                documentation,
-                isEnumConstant,
-                fieldValue,
+            DefaultFieldItem(
+                codebase = codebase,
+                fileLocation = fileLocation,
+                itemLanguage = itemLanguage,
+                variantSelectorsFactory = variantSelectors::duplicate,
+                modifiers = modifiers.duplicate(),
+                documentation = documentation.duplicate(),
+                name = name(),
+                containingClass = targetContainingClass,
+                type = type,
+                isEnumConstant = isEnumConstant,
+                fieldValue = fieldValue,
             )
         duplicated.inheritedFrom = containingClass()
 
@@ -90,15 +97,4 @@ internal class TurbineFieldItem(
     override fun initialValue(requireConstant: Boolean) = fieldValue?.initialValue(requireConstant)
 
     override fun isEnumConstant(): Boolean = isEnumConstant
-}
-
-/** Provides access to the initial values of a field. */
-class TurbineFieldValue(
-    private var initialValueWithRequiredConstant: Any?,
-    private var initialValueWithoutRequiredConstant: Any?,
-) {
-
-    fun initialValue(requireConstant: Boolean) =
-        if (requireConstant) initialValueWithRequiredConstant
-        else initialValueWithoutRequiredConstant
 }

@@ -17,8 +17,12 @@
 package com.android.tools.metalava.model.turbine
 
 import com.android.tools.metalava.model.AnnotationItem
+import com.android.tools.metalava.model.ApiVariantSelectors
+import com.android.tools.metalava.model.DefaultCodebase
+import com.android.tools.metalava.model.DefaultItem
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.ItemDocumentation
+import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.TypeItem
@@ -28,14 +32,23 @@ import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.reporter.FileLocation
 
 internal class TurbineParameterItem(
-    codebase: TurbineBasedCodebase,
+    codebase: DefaultCodebase,
     fileLocation: FileLocation,
+    modifiers: DefaultModifierList,
     private val name: String,
     private val containingMethod: MethodItem,
     override val parameterIndex: Int,
     private var type: TypeItem,
-    modifiers: DefaultModifierList,
-) : TurbineItem(codebase, fileLocation, modifiers, ItemDocumentation.NONE), ParameterItem {
+) :
+    DefaultItem(
+        codebase = codebase,
+        fileLocation = fileLocation,
+        itemLanguage = ItemLanguage.JAVA,
+        modifiers = modifiers,
+        documentation = ItemDocumentation.NONE,
+        variantSelectorsFactory = ApiVariantSelectors.MUTABLE_FACTORY,
+    ),
+    ParameterItem {
 
     override fun name(): String = name
 
@@ -46,6 +59,14 @@ internal class TurbineParameterItem(
     }
 
     override fun containingMethod(): MethodItem = containingMethod
+
+    override fun isVarArgs(): Boolean = modifiers.isVarArg()
+
+    override fun type(): TypeItem = type
+
+    override fun setType(type: TypeItem) {
+        this.type = type
+    }
 
     override fun hasDefaultValue(): Boolean = isDefaultValueKnown()
 
@@ -58,28 +79,13 @@ internal class TurbineParameterItem(
         return annotation?.attributes?.firstOrNull()?.value?.value()?.toString()
     }
 
-    override fun equals(other: Any?): Boolean {
-        if (this === other) {
-            return true
-        }
-        return other is ParameterItem &&
-            parameterIndex == other.parameterIndex &&
-            containingMethod == other.containingMethod()
-    }
+    override fun equals(other: Any?) = equalsToItem(other)
 
-    override fun hashCode(): Int = parameterIndex
-
-    override fun type(): TypeItem = type
-
-    override fun setType(type: TypeItem) {
-        this.type = type
-    }
-
-    override fun isVarArgs(): Boolean = modifiers.isVarArg()
+    override fun hashCode() = hashCodeForItem()
 
     companion object {
         internal fun duplicate(
-            codebase: TurbineBasedCodebase,
+            codebase: DefaultCodebase,
             containingMethod: MethodItem,
             parameter: ParameterItem,
             typeParameterBindings: TypeParameterBindings,
@@ -89,11 +95,11 @@ internal class TurbineParameterItem(
             return TurbineParameterItem(
                 codebase,
                 FileLocation.UNKNOWN,
+                mods,
                 parameter.name(),
                 containingMethod,
                 parameter.parameterIndex,
-                type,
-                mods
+                type
             )
         }
     }

@@ -87,21 +87,9 @@ open class PsiMethodItem(
     @Deprecated("This property should not be accessed directly.")
     override var _requiresOverride: Boolean? = null
 
-    override fun equals(other: Any?): Boolean {
-        // TODO: Allow mix and matching with other MethodItems?
-        if (this === other) return true
-        if (javaClass != other?.javaClass) return false
+    override fun equals(other: Any?) = equalsToItem(other)
 
-        other as PsiMethodItem
-
-        if (psiMethod != other.psiMethod) return false
-
-        return true
-    }
-
-    override fun hashCode(): Int {
-        return psiMethod.hashCode()
-    }
+    override fun hashCode() = hashCodeForItem()
 
     override fun findMainDocumentation(): String {
         val text = documentation.text
@@ -397,7 +385,7 @@ open class PsiMethodItem(
                     psiMethod = original.psiMethod,
                     containingClass = containingClass,
                     name = original.name(),
-                    documentation = original.documentation,
+                    documentation = original.documentation.duplicate(),
                     modifiers = original.modifiers.duplicate(),
                     returnType = returnType,
                     parameters =

@@ -95,18 +95,9 @@ class PsiFieldItem(
 
     override var inheritedFrom: ClassItem? = null
 
-    override fun equals(other: Any?): Boolean {
-        if (this === other) {
-            return true
-        }
-        return other is FieldItem &&
-            name == other.name() &&
-            containingClass == other.containingClass()
-    }
+    override fun equals(other: Any?) = equalsToItem(other)
 
-    override fun hashCode(): Int {
-        return name.hashCode()
-    }
+    override fun hashCode() = hashCodeForItem()
 
     companion object {
         internal fun create(

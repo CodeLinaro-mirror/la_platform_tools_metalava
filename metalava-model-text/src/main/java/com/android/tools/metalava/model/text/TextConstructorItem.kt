@@ -18,26 +18,33 @@ package com.android.tools.metalava.model.text
 
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.ConstructorItem
+import com.android.tools.metalava.model.DefaultCodebase
 import com.android.tools.metalava.model.DefaultModifierList
+import com.android.tools.metalava.model.ExceptionTypeItem
+import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.reporter.FileLocation
 
 internal class TextConstructorItem(
-    codebase: TextCodebase,
+    codebase: DefaultCodebase,
+    fileLocation: FileLocation,
+    modifiers: DefaultModifierList,
     name: String,
     containingClass: TextClassItem,
-    modifiers: DefaultModifierList,
+    typeParameterList: TypeParameterList,
     returnType: ClassTypeItem,
-    parameters: List<TextParameterItem>,
-    fileLocation: FileLocation
+    parameterItemsFactory: ParameterItemsFactory,
+    throwsTypes: List<ExceptionTypeItem>,
 ) :
     TextMethodItem(
         codebase,
+        fileLocation,
+        modifiers,
         name,
         containingClass,
-        modifiers,
+        typeParameterList,
         returnType,
-        parameters,
-        fileLocation
+        parameterItemsFactory,
+        throwsTypes,
     ),
     ConstructorItem {
 
@@ -47,7 +54,7 @@ internal class TextConstructorItem(
 
     companion object {
         fun createDefaultConstructor(
-            codebase: TextCodebase,
+            codebase: DefaultCodebase,
             containingClass: TextClassItem,
             fileLocation: FileLocation,
         ): TextConstructorItem {
@@ -60,12 +67,14 @@ internal class TextConstructorItem(
             val item =
                 TextConstructorItem(
                     codebase = codebase,
+                    fileLocation = fileLocation,
+                    modifiers = modifiers,
                     name = name,
                     containingClass = containingClass,
-                    modifiers = modifiers,
+                    typeParameterList = TypeParameterList.NONE,
                     returnType = containingClass.type(),
-                    parameters = emptyList(),
-                    fileLocation = fileLocation,
+                    parameterItemsFactory = { emptyList() },
+                    throwsTypes = emptyList(),
                 )
             return item
         }

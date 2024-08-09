@@ -14,33 +14,43 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava.model.text
+package com.android.tools.metalava.model.item
 
+import com.android.tools.metalava.model.ApiVariantSelectorsFactory
 import com.android.tools.metalava.model.BoundsTypeItem
+import com.android.tools.metalava.model.DefaultCodebase
+import com.android.tools.metalava.model.DefaultItem
 import com.android.tools.metalava.model.DefaultModifierList
+import com.android.tools.metalava.model.ItemDocumentation
+import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.type.DefaultTypeModifiers
 import com.android.tools.metalava.model.type.DefaultVariableTypeItem
 import com.android.tools.metalava.reporter.FileLocation
 
-internal class TextTypeParameterItem(
-    codebase: TextCodebase,
+/** A [TypeParameterItem] implementation suitable for use by multiple models. */
+class DefaultTypeParameterItem(
+    codebase: DefaultCodebase,
+    itemLanguage: ItemLanguage,
+    modifiers: DefaultModifierList,
+    variantSelectorsFactory: ApiVariantSelectorsFactory,
     private val name: String,
     private val isReified: Boolean,
 ) :
-    TextItem(
+    DefaultItem(
         codebase = codebase,
         fileLocation = FileLocation.UNKNOWN,
-        modifiers = DefaultModifierList(codebase, DefaultModifierList.PUBLIC),
+        itemLanguage = itemLanguage,
+        modifiers = modifiers,
+        documentation = ItemDocumentation.NONE,
+        variantSelectorsFactory = variantSelectorsFactory,
     ),
     TypeParameterItem {
 
     lateinit var bounds: List<BoundsTypeItem>
 
-    override fun name(): String {
-        return name
-    }
+    override fun name() = name
 
     override fun type(): VariableTypeItem {
         return DefaultVariableTypeItem(DefaultTypeModifiers.emptyUndefinedModifiers, this)
@@ -59,48 +69,5 @@ internal class TextTypeParameterItem(
 
     override fun hashCode(): Int {
         return name.hashCode()
-    }
-
-    companion object {
-
-        /**
-         * Create a partially initialized [TextTypeParameterItem].
-         *
-         * This extracts the [isReified] and [name] from the [typeParameterString] and creates a
-         * [TextTypeParameterItem] with those properties initialized but the [bounds] is not.
-         *
-         * This must ONLY be used by [ApiFile.createTypeParameterList] as that will complete the
-         * initialization of the [bounds] property.
-         */
-        fun create(
-            codebase: TextCodebase,
-            typeParameterString: String,
-        ): TextTypeParameterItem {
-            val length = typeParameterString.length
-            var nameEnd = length
-
-            val isReified = typeParameterString.startsWith("reified ")
-            val nameStart =
-                if (isReified) {
-                    8 // "reified ".length
-                } else {
-                    0
-                }
-
-            for (i in nameStart until length) {
-                val c = typeParameterString[i]
-                if (!Character.isJavaIdentifierPart(c)) {
-                    nameEnd = i
-                    break
-                }
-            }
-            val name = typeParameterString.substring(nameStart, nameEnd)
-
-            return TextTypeParameterItem(
-                codebase = codebase,
-                name = name,
-                isReified = isReified,
-            )
-        }
     }
 }

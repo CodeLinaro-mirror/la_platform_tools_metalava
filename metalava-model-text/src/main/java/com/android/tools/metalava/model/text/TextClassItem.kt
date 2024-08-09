@@ -18,13 +18,18 @@ package com.android.tools.metalava.model.text
 
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.AnnotationRetention
+import com.android.tools.metalava.model.ApiVariantSelectors
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.ConstructorItem
+import com.android.tools.metalava.model.DefaultCodebase
+import com.android.tools.metalava.model.DefaultItem
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.model.ItemDocumentation
+import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PropertyItem
@@ -34,7 +39,7 @@ import com.android.tools.metalava.reporter.FileLocation
 import java.util.function.Predicate
 
 internal open class TextClassItem(
-    codebase: TextCodebase,
+    codebase: DefaultCodebase,
     fileLocation: FileLocation = FileLocation.UNKNOWN,
     modifiers: DefaultModifierList,
     override val classKind: ClassKind = ClassKind.CLASS,
@@ -42,22 +47,22 @@ internal open class TextClassItem(
     var simpleName: String = qualifiedName.substring(qualifiedName.lastIndexOf('.') + 1),
     val fullName: String = simpleName,
     override val typeParameterList: TypeParameterList = TypeParameterList.NONE
-) : TextItem(codebase = codebase, fileLocation = fileLocation, modifiers = modifiers), ClassItem {
+) :
+    DefaultItem(
+        codebase = codebase,
+        fileLocation = fileLocation,
+        itemLanguage = ItemLanguage.UNKNOWN,
+        modifiers = modifiers,
+        documentation = ItemDocumentation.NONE,
+        variantSelectorsFactory = ApiVariantSelectors.IMMUTABLE_FACTORY,
+    ),
+    ClassItem {
 
     override var artifact: String? = null
 
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (javaClass != other?.javaClass) return false
+    override fun equals(other: Any?) = equalsToItem(other)
 
-        other as TextClassItem
-
-        return qualifiedName == other.qualifiedName()
-    }
-
-    override fun hashCode(): Int {
-        return qualifiedName.hashCode()
-    }
+    override fun hashCode() = hashCodeForItem()
 
     override fun interfaceTypes(): List<ClassTypeItem> = interfaceTypes
 
@@ -88,7 +93,7 @@ internal open class TextClassItem(
 
     private var containingPackage: PackageItem? = null
 
-    fun setContainingPackage(containingPackage: TextPackageItem) {
+    fun setContainingPackage(containingPackage: PackageItem) {
         this.containingPackage = containingPackage
     }
 
@@ -157,17 +162,12 @@ internal open class TextClassItem(
         methods += method
     }
 
-    fun addField(field: TextFieldItem) {
+    fun addField(field: FieldItem) {
         fields += field
     }
 
-    fun addProperty(property: TextPropertyItem) {
+    fun addProperty(property: PropertyItem) {
         properties += property
-    }
-
-    fun addEnumConstant(field: TextFieldItem) {
-        field.setEnumConstant(true)
-        fields += field
     }
 
     fun addNestedClass(cls: ClassItem) {

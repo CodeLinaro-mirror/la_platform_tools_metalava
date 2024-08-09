@@ -33,7 +33,6 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
-import com.android.tools.metalava.model.ItemDocumentation.Companion.toItemDocumentation
 import com.android.tools.metalava.model.JAVA_LANG_PREFIX
 import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.MethodItem
@@ -675,17 +674,7 @@ class DocAnalyzer(
         codebase.accept(
             object : ApiVisitor(config = apiVisitorConfig) {
                 override fun visitItem(item: Item) {
-                    var doc = item.documentation.text
-                    if (doc.isBlank()) {
-                        return
-                    }
-
-                    // Work around javadoc cutting off the summary line after the first ". ".
-                    val firstDot = doc.indexOf(".")
-                    if (firstDot > 0 && doc.regionMatches(firstDot - 1, "e.g. ", 0, 5, false)) {
-                        doc = doc.substring(0, firstDot) + ".g.&nbsp;" + doc.substring(firstDot + 4)
-                        item.documentation = doc.toItemDocumentation()
-                    }
+                    item.documentation.workAroundJavaDocSummaryTruncationIssue()
                 }
             }
         )

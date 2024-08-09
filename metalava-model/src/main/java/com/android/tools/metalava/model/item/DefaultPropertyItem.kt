@@ -14,22 +14,40 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava.model.text
+package com.android.tools.metalava.model.item
 
+import com.android.tools.metalava.model.ApiVariantSelectorsFactory
+import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.DefaultCodebase
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.FieldItem
+import com.android.tools.metalava.model.ItemDocumentation
+import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.reporter.FileLocation
 
-internal class TextPropertyItem(
-    codebase: TextCodebase,
-    name: String,
-    containingClass: TextClassItem,
+internal class DefaultPropertyItem(
+    codebase: DefaultCodebase,
+    fileLocation: FileLocation,
+    itemLanguage: ItemLanguage,
+    apiVariantSelectorsFactory: ApiVariantSelectorsFactory,
     modifiers: DefaultModifierList,
+    name: String,
+    containingClass: ClassItem,
     private var type: TypeItem,
-    fileLocation: FileLocation
-) : TextMemberItem(codebase, name, containingClass, fileLocation, modifiers), PropertyItem {
+) :
+    DefaultMemberItem(
+        codebase,
+        fileLocation,
+        itemLanguage,
+        modifiers,
+        ItemDocumentation.NONE,
+        apiVariantSelectorsFactory,
+        name,
+        containingClass,
+    ),
+    PropertyItem {
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true

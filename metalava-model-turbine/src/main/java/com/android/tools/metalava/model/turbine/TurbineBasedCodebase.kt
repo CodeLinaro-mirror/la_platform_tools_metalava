@@ -109,7 +109,7 @@ internal open class TurbineBasedCodebase(
         addClass(classItem)
     }
 
-    fun addPackage(packageItem: TurbinePackageItem) {
+    fun addPackage(packageItem: PackageItem) {
         packageMap.put(packageItem.qualifiedName(), packageItem)
     }
 
