@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 The Android Open Source Project
+ * Copyright (C) 2023 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,21 +14,27 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava.model.text
+package com.android.tools.metalava.model.item
 
+import com.android.tools.metalava.model.ApiVariantSelectorsFactory
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.DefaultCodebase
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.ExceptionTypeItem
+import com.android.tools.metalava.model.ItemDocumentation
+import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.reporter.FileLocation
 
-internal class TextConstructorItem(
+class DefaultConstructorItem(
     codebase: DefaultCodebase,
     fileLocation: FileLocation,
+    itemLanguage: ItemLanguage,
     modifiers: DefaultModifierList,
+    documentation: ItemDocumentation,
+    variantSelectorsFactory: ApiVariantSelectorsFactory,
     name: String,
     containingClass: ClassItem,
     typeParameterList: TypeParameterList,
@@ -36,10 +42,13 @@ internal class TextConstructorItem(
     parameterItemsFactory: ParameterItemsFactory,
     throwsTypes: List<ExceptionTypeItem>,
 ) :
-    TextMethodItem(
+    DefaultMethodItem(
         codebase = codebase,
         fileLocation = fileLocation,
+        itemLanguage = itemLanguage,
         modifiers = modifiers,
+        documentation = documentation,
+        variantSelectorsFactory = variantSelectorsFactory,
         name = name,
         containingClass = containingClass,
         typeParameterList = typeParameterList,
@@ -56,6 +65,8 @@ internal class TextConstructorItem(
     companion object {
         fun createDefaultConstructor(
             codebase: DefaultCodebase,
+            itemLanguage: ItemLanguage,
+            variantSelectorsFactory: ApiVariantSelectorsFactory,
             containingClass: ClassItem,
         ): ConstructorItem {
             val name = containingClass.simpleName()
@@ -63,12 +74,15 @@ internal class TextConstructorItem(
             modifiers.setVisibilityLevel(containingClass.modifiers.getVisibilityLevel())
 
             val ctorItem =
-                TextConstructorItem(
+                DefaultConstructorItem(
                     codebase = codebase,
                     // Use the location of the containing class for the implicit default
                     // constructor.
                     fileLocation = containingClass.fileLocation,
+                    itemLanguage = itemLanguage,
                     modifiers = modifiers,
+                    documentation = ItemDocumentation.NONE,
+                    variantSelectorsFactory = variantSelectorsFactory,
                     name = name,
                     containingClass = containingClass,
                     typeParameterList = TypeParameterList.NONE,

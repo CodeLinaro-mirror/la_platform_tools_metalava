@@ -228,8 +228,6 @@ interface ClassItem : Item, TypeParameterListOwner {
     // This replaces the interface types implemented by this class
     fun setInterfaceTypes(interfaceTypes: List<ClassTypeItem>)
 
-    var hasPrivateConstructor: Boolean
-
     /** The primary constructor for this class in Kotlin, if present. */
     val primaryConstructor: ConstructorItem?
         get() = constructors().singleOrNull { it.isPrimary }

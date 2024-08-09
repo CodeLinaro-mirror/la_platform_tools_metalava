@@ -609,14 +609,10 @@ class ApiAnalyzer(
         // status of the containing package which would preventing it being propagated correctly
         // onto its contained packages.
         for (pkg in packages.packages) {
-            when {
-                config.hidePackages.contains(pkg.qualifiedName()) -> pkg.hidden = true
-                else -> {
-                    val showability = pkg.showability
-                    when {
-                        showability.show() -> pkg.hidden = false
-                        showability.hide() -> pkg.hidden = true
-                    }
+            pkg.showability.let { showability ->
+                when {
+                    showability.show() -> pkg.hidden = false
+                    showability.hide() -> pkg.hidden = true
                 }
             }
             val containingPackage = pkg.containingPackage()

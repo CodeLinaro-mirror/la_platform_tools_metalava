@@ -16,22 +16,18 @@
 
 package com.android.tools.metalava.model.turbine
 
-import com.android.tools.metalava.model.AnnotationRetention
 import com.android.tools.metalava.model.ApiVariantSelectors
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.DefaultCodebase
 import com.android.tools.metalava.model.DefaultModifierList
-import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ItemLanguage
-import com.android.tools.metalava.model.MethodItem
-import com.android.tools.metalava.model.PackageItem
-import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.SourceFile
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.item.DefaultClassItem
+import com.android.tools.metalava.model.item.DefaultConstructorItem
 import com.android.tools.metalava.reporter.FileLocation
 
 internal open class TurbineClassItem(
@@ -63,57 +59,12 @@ internal open class TurbineClassItem(
         typeParameterList = typeParameterList,
     ) {
 
-    override var hasPrivateConstructor: Boolean = false
-
-    override var stubConstructor: ConstructorItem? = null
-
-    internal lateinit var containingPackage: PackageItem
-
-    internal lateinit var fields: List<FieldItem>
-
-    internal lateinit var methods: MutableList<MethodItem>
-
-    internal lateinit var constructors: List<ConstructorItem>
-
-    internal var hasImplicitDefaultConstructor = false
-
-    private var retention: AnnotationRetention? = null
-
-    override fun constructors(): List<ConstructorItem> = constructors
-
-    override fun containingPackage(): PackageItem =
-        containingClass()?.containingPackage() ?: containingPackage
-
-    override fun fields(): List<FieldItem> = fields
-
-    override fun getRetention(): AnnotationRetention {
-        retention?.let {
-            return it
-        }
-
-        if (!isAnnotationType()) {
-            error("getRetention() should only be called on annotation classes")
-        }
-
-        retention = ClassItem.findRetention(this)
-        return retention!!
-    }
-
-    override fun hasImplicitDefaultConstructor(): Boolean = hasImplicitDefaultConstructor
-
     override fun createDefaultConstructor(): ConstructorItem {
-        return TurbineConstructorItem.createDefaultConstructor(codebase, this)
-    }
-
-    override fun methods(): List<MethodItem> = methods
-
-    /**
-     * [PropertyItem]s are kotlin specific and it is unlikely that Turbine will ever support Kotlin
-     * so just return an empty list.
-     */
-    override fun properties(): List<PropertyItem> = emptyList()
-
-    override fun addMethod(method: MethodItem) {
-        methods.add(method)
+        return DefaultConstructorItem.createDefaultConstructor(
+            codebase = codebase,
+            itemLanguage = ItemLanguage.JAVA,
+            variantSelectorsFactory = ApiVariantSelectors.MUTABLE_FACTORY,
+            containingClass = this,
+        )
     }
 }

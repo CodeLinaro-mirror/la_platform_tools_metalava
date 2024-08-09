@@ -104,8 +104,6 @@ internal constructor(
 
     override fun containingClass(): PsiClassItem? = containingClass
 
-    override var hasPrivateConstructor: Boolean = false
-
     override fun interfaceTypes(): List<ClassTypeItem> = interfaceTypes
 
     override fun setInterfaceTypes(interfaceTypes: List<ClassTypeItem>) {

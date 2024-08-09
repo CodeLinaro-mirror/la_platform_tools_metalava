@@ -16,15 +16,21 @@
 
 package com.android.tools.metalava.model.item
 
+import com.android.tools.metalava.model.AnnotationRetention
 import com.android.tools.metalava.model.ApiVariantSelectorsFactory
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassTypeItem
+import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.DefaultCodebase
 import com.android.tools.metalava.model.DefaultItem
 import com.android.tools.metalava.model.DefaultModifierList
+import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ItemLanguage
+import com.android.tools.metalava.model.MethodItem
+import com.android.tools.metalava.model.PackageItem
+import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.SourceFile
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.computeAllInterfaces
@@ -57,6 +63,15 @@ abstract class DefaultClassItem(
     ClassItem {
 
     final override fun getSourceFile() = source
+
+    private lateinit var containingPackage: PackageItem
+
+    fun setContainingPackage(containingPackage: PackageItem) {
+        this.containingPackage = containingPackage
+    }
+
+    final override fun containingPackage(): PackageItem =
+        containingClass()?.containingPackage() ?: containingPackage
 
     final override fun containingClass() = containingClass
 
@@ -112,6 +127,73 @@ abstract class DefaultClassItem(
         return cacheAllInterfaces!!.asSequence()
     }
 
+    /** The mutable list of [ConstructorItem] that backs [constructors]. */
+    private val mutableConstructors = mutableListOf<ConstructorItem>()
+
+    final override fun constructors(): List<ConstructorItem> = mutableConstructors
+
+    /** Add a constructor to this class. */
+    fun addConstructor(constructor: ConstructorItem) {
+        mutableConstructors += constructor
+    }
+
+    final override var stubConstructor: ConstructorItem? = null
+
+    /**
+     * Tracks whether the class has an implicit default constructor.
+     *
+     * TODO(b/345775012): Stop it from being public.
+     */
+    var hasImplicitDefaultConstructor = false
+
+    final override fun hasImplicitDefaultConstructor(): Boolean = hasImplicitDefaultConstructor
+
+    /** The mutable list of [MethodItem] that backs [methods]. */
+    private val mutableMethods = mutableListOf<MethodItem>()
+
+    final override fun methods(): List<MethodItem> = mutableMethods
+
+    /** Add a method to this class. */
+    override fun addMethod(method: MethodItem) {
+        mutableMethods += method
+    }
+
+    /**
+     * Replace an existing method with [method], if no such method exists then just add [method] to
+     * the list of methods.
+     */
+    fun replaceOrAddMethod(method: MethodItem) {
+        val iterator = mutableMethods.listIterator()
+        while (iterator.hasNext()) {
+            val existing = iterator.next()
+            if (existing == method) {
+                iterator.set(method)
+                return
+            }
+        }
+        mutableMethods += method
+    }
+
+    /** The mutable list of [FieldItem] that backs [fields]. */
+    private val mutableFields = mutableListOf<FieldItem>()
+
+    /** Add a field to this class. */
+    fun addField(field: FieldItem) {
+        mutableFields += field
+    }
+
+    final override fun fields(): List<FieldItem> = mutableFields
+
+    /** The mutable list of [PropertyItem] that backs [properties]. */
+    private val mutableProperties = mutableListOf<PropertyItem>()
+
+    final override fun properties(): List<PropertyItem> = mutableProperties
+
+    /** Add a property to this class. */
+    fun addProperty(property: PropertyItem) {
+        mutableProperties += property
+    }
+
     /** The mutable list of nested [ClassItem] that backs [nestedClasses]. */
     private val mutableNestedClasses = mutableListOf<ClassItem>()
 
@@ -120,5 +202,21 @@ abstract class DefaultClassItem(
     /** Add a nested class to this class. */
     fun addNestedClass(classItem: ClassItem) {
         mutableNestedClasses.add(classItem)
+    }
+
+    /** Cache result of [getRetention]. */
+    private var cacheRetention: AnnotationRetention? = null
+
+    final override fun getRetention(): AnnotationRetention {
+        cacheRetention?.let {
+            return it
+        }
+
+        if (!isAnnotationType()) {
+            error("getRetention() should only be called on annotation classes")
+        }
+
+        cacheRetention = ClassItem.findRetention(this)
+        return cacheRetention!!
     }
 }

@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava.model.turbine
+package com.android.tools.metalava.model.item
 
-import com.android.tools.metalava.model.ApiVariantSelectors
+import com.android.tools.metalava.model.ApiVariantSelectorsFactory
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.DefaultCodebase
 import com.android.tools.metalava.model.DefaultModifierList
@@ -28,7 +28,6 @@ import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.computeSuperMethods
-import com.android.tools.metalava.model.item.DefaultMemberItem
 import com.android.tools.metalava.model.updateCopiedMethodState
 import com.android.tools.metalava.reporter.FileLocation
 
@@ -40,13 +39,15 @@ import com.android.tools.metalava.reporter.FileLocation
  * a reference to it in [ParameterItem.containingMethod]. In particularly, it must not access
  * [MethodItem.parameters] as that will not yet have been initialized when this is called.
  */
-internal typealias ParameterItemsFactory = (MethodItem) -> List<ParameterItem>
+typealias ParameterItemsFactory = (MethodItem) -> List<ParameterItem>
 
-internal open class TurbineMethodItem(
+open class DefaultMethodItem(
     codebase: DefaultCodebase,
     fileLocation: FileLocation,
+    itemLanguage: ItemLanguage,
     modifiers: DefaultModifierList,
     documentation: ItemDocumentation,
+    variantSelectorsFactory: ApiVariantSelectorsFactory,
     name: String,
     containingClass: ClassItem,
     override val typeParameterList: TypeParameterList,
@@ -58,10 +59,10 @@ internal open class TurbineMethodItem(
     DefaultMemberItem(
         codebase,
         fileLocation,
-        ItemLanguage.JAVA,
+        itemLanguage,
         modifiers,
         documentation,
-        ApiVariantSelectors.MUTABLE_FACTORY,
+        variantSelectorsFactory,
         name,
         containingClass,
     ),
@@ -121,11 +122,13 @@ internal open class TurbineMethodItem(
     override fun duplicate(targetContainingClass: ClassItem): MethodItem {
         val typeVariableMap = targetContainingClass.mapTypeVariables(containingClass())
         val duplicated =
-            TurbineMethodItem(
+            DefaultMethodItem(
                 codebase = codebase,
                 fileLocation = fileLocation,
+                itemLanguage = itemLanguage,
                 modifiers = modifiers.duplicate(),
                 documentation = documentation.duplicate(),
+                variantSelectorsFactory = variantSelectors::duplicate,
                 name = name(),
                 containingClass = targetContainingClass,
                 typeParameterList = typeParameterList,

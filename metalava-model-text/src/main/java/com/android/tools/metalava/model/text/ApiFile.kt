@@ -673,7 +673,7 @@ private constructor(
         val newClassAnnotations = newClassCharacteristics.modifiers.annotations().toSet()
         val existingClassAnnotations = existingCharacteristics.modifiers.annotations().toSet()
         for (annotation in newClassAnnotations.subtract(existingClassAnnotations)) {
-            existingClass.addAnnotation(annotation)
+            existingClass.modifiers.addAnnotation(annotation)
         }
 
         // Use the latest super class.
@@ -1022,10 +1022,10 @@ private constructor(
         }
 
         method =
-            TextConstructorItem(
-                codebase = codebase,
+            itemFactory.createConstructorItem(
                 fileLocation = tokenizer.fileLocation(),
                 modifiers = modifiers,
+                documentation = ItemDocumentation.NONE,
                 name = name,
                 containingClass = containingClass,
                 typeParameterList = typeParameterList,
@@ -1128,10 +1128,10 @@ private constructor(
         }
 
         method =
-            TextMethodItem(
-                codebase = codebase,
+            itemFactory.createMethodItem(
                 fileLocation = tokenizer.fileLocation(),
                 modifiers = modifiers,
+                documentation = ItemDocumentation.NONE,
                 name = name,
                 containingClass = cl,
                 typeParameterList = typeParameterList,

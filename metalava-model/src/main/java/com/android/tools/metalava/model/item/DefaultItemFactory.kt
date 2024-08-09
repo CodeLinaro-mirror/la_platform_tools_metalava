@@ -18,8 +18,11 @@ package com.android.tools.metalava.model.item
 
 import com.android.tools.metalava.model.ApiVariantSelectorsFactory
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.ClassTypeItem
+import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.DefaultCodebase
 import com.android.tools.metalava.model.DefaultModifierList
+import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.ItemDocumentation
@@ -29,6 +32,7 @@ import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.reporter.FileLocation
 
@@ -67,6 +71,33 @@ class DefaultItemFactory(
         )
     }
 
+    /** Create a [ConstructorItem]. */
+    fun createConstructorItem(
+        fileLocation: FileLocation,
+        modifiers: DefaultModifierList,
+        documentation: ItemDocumentation,
+        name: String,
+        containingClass: ClassItem,
+        typeParameterList: TypeParameterList,
+        returnType: ClassTypeItem,
+        parameterItemsFactory: ParameterItemsFactory,
+        throwsTypes: List<ExceptionTypeItem>,
+    ): ConstructorItem =
+        DefaultConstructorItem(
+            codebase,
+            fileLocation,
+            defaultItemLanguage,
+            modifiers,
+            documentation,
+            defaultVariantSelectorsFactory,
+            name,
+            containingClass,
+            typeParameterList,
+            returnType,
+            parameterItemsFactory,
+            throwsTypes,
+        )
+
     /** Create a [FieldItem]. */
     fun createFieldItem(
         fileLocation: FileLocation,
@@ -90,6 +121,35 @@ class DefaultItemFactory(
             type,
             isEnumConstant,
             fieldValue,
+        )
+
+    /** Create a [MethodItem]. */
+    fun createMethodItem(
+        fileLocation: FileLocation,
+        modifiers: DefaultModifierList,
+        documentation: ItemDocumentation,
+        name: String,
+        containingClass: ClassItem,
+        typeParameterList: TypeParameterList,
+        returnType: TypeItem,
+        parameterItemsFactory: ParameterItemsFactory,
+        throwsTypes: List<ExceptionTypeItem>,
+        annotationDefault: String,
+    ): MethodItem =
+        DefaultMethodItem(
+            codebase,
+            fileLocation,
+            defaultItemLanguage,
+            modifiers,
+            documentation,
+            defaultVariantSelectorsFactory,
+            name,
+            containingClass,
+            typeParameterList,
+            returnType,
+            parameterItemsFactory,
+            throwsTypes,
+            annotationDefault,
         )
 
     /** Create a [ParameterItem]. */
