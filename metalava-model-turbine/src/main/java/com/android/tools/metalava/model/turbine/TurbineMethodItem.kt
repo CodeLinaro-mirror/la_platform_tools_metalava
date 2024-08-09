@@ -118,7 +118,8 @@ internal open class TurbineMethodItem(
     @Deprecated("This property should not be accessed directly.")
     override var _requiresOverride: Boolean? = null
 
-    override fun duplicate(targetContainingClass: ClassItem): TurbineMethodItem {
+    override fun duplicate(targetContainingClass: ClassItem): MethodItem {
+        val typeVariableMap = targetContainingClass.mapTypeVariables(containingClass())
         val duplicated =
             TurbineMethodItem(
                 codebase = codebase,
@@ -128,10 +129,10 @@ internal open class TurbineMethodItem(
                 name = name(),
                 containingClass = targetContainingClass,
                 typeParameterList = typeParameterList,
-                returnType = returnType,
+                returnType = returnType.convertType(typeVariableMap),
                 parameterItemsFactory = { methodItem ->
                     // Duplicate the parameters
-                    parameters.map { it.duplicate(methodItem, emptyMap()) }
+                    parameters.map { it.duplicate(methodItem, typeVariableMap) }
                 },
                 throwsTypes = throwsTypes,
                 annotationDefault = annotationDefault,

@@ -513,10 +513,11 @@ class ApiAnalyzer(
         }
 
         // We're now left with concrete methods in hidden parents that are implementing methods in
-        // public
-        // interfaces that are listed in this class. Create stubs for them:
+        // public interfaces that are listed in this class. Create stubs for them:
         map.values.flatten().forEach {
-            val method = cls.inheritMethodFromNonApiAncestor(it)
+            // Copy the method from the hidden class that is not part of the API into the class that
+            // is part of the API.
+            val method = it.duplicate(cls)
             /* Insert comment marker: This is useful for debugging purposes but doesn't
                belong in the stub
             method.documentation = "// Inlined stub from hidden parent class ${it.containingClass().qualifiedName()}\n" +

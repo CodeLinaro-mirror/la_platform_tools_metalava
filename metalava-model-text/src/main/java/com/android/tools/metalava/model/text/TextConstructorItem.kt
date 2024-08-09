@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.text
 
+import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.DefaultCodebase
@@ -29,7 +30,7 @@ internal class TextConstructorItem(
     fileLocation: FileLocation,
     modifiers: DefaultModifierList,
     name: String,
-    containingClass: TextClassItem,
+    containingClass: ClassItem,
     typeParameterList: TypeParameterList,
     returnType: ClassTypeItem,
     parameterItemsFactory: ParameterItemsFactory,
@@ -55,8 +56,8 @@ internal class TextConstructorItem(
     companion object {
         fun createDefaultConstructor(
             codebase: DefaultCodebase,
-            containingClass: TextClassItem,
-        ): TextConstructorItem {
+            containingClass: ClassItem,
+        ): ConstructorItem {
             val name = containingClass.simpleName()
             val modifiers = DefaultModifierList(codebase, DefaultModifierList.PACKAGE_PRIVATE, null)
             modifiers.setVisibilityLevel(containingClass.modifiers.getVisibilityLevel())

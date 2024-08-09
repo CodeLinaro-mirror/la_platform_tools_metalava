@@ -53,6 +53,7 @@ internal constructor(
     codebase: PsiBasedCodebase,
     private val psiParameter: PsiParameter,
     private val name: String,
+    private val containingMethod: PsiMethodItem,
     override val parameterIndex: Int,
     modifiers: DefaultModifierList,
     private var type: PsiTypeItem,
@@ -64,7 +65,6 @@ internal constructor(
         documentation = ItemDocumentation.NONE,
     ),
     ParameterItem {
-    lateinit var containingMethod: PsiMethodItem
 
     override var property: PsiPropertyItem? = null
 
@@ -296,18 +296,25 @@ internal constructor(
     }
 
     override fun duplicate(containingMethod: MethodItem, typeVariableMap: TypeParameterBindings) =
-        error(
-            "not needed at the moment as duplicating a PsiMethodItem reconstructs it from the underlying objects"
+        PsiParameterItem(
+            codebase = codebase,
+            psiParameter = psiParameter,
+            name = name,
+            containingMethod = containingMethod as PsiMethodItem,
+            parameterIndex = parameterIndex,
+            modifiers = modifiers.duplicate(),
+            type = type.convertType(typeVariableMap) as PsiTypeItem,
         )
 
     companion object {
         internal fun create(
-            codebase: PsiBasedCodebase,
+            containingMethod: PsiMethodItem,
             fingerprint: MethodFingerprint,
             psiParameter: PsiParameter,
             parameterIndex: Int,
             enclosingMethodTypeItemFactory: PsiTypeItemFactory,
         ): PsiParameterItem {
+            val codebase = containingMethod.codebase
             val name = psiParameter.name
             val modifiers = createParameterModifiers(codebase, psiParameter)
             val psiType = psiParameter.type
@@ -350,6 +357,7 @@ internal constructor(
                     codebase = codebase,
                     psiParameter = psiParameter,
                     name = name,
+                    containingMethod = containingMethod,
                     parameterIndex = parameterIndex,
                     modifiers = modifiers,
                     // Need to down cast as [isSamCompatibleOrKotlinLambda] needs access to the
@@ -357,30 +365,6 @@ internal constructor(
                     type = type as PsiTypeItem
                 )
             return parameter
-        }
-
-        fun create(
-            original: PsiParameterItem,
-            typeParameterBindings: TypeParameterBindings
-        ): PsiParameterItem {
-            val type = original.type.convertType(typeParameterBindings) as PsiTypeItem
-            val parameter =
-                PsiParameterItem(
-                    codebase = original.codebase,
-                    psiParameter = original.psiParameter,
-                    name = original.name,
-                    parameterIndex = original.parameterIndex,
-                    modifiers = original.modifiers.duplicate(),
-                    type = type
-                )
-            return parameter
-        }
-
-        fun create(
-            original: List<ParameterItem>,
-            typeParameterBindings: TypeParameterBindings
-        ): List<PsiParameterItem> {
-            return original.map { create(it as PsiParameterItem, typeParameterBindings) }
         }
 
         private fun createParameterModifiers(

@@ -26,6 +26,7 @@ import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.DefaultAnnotationItem
 import com.android.tools.metalava.model.DefaultCodebase
 import com.android.tools.metalava.model.DefaultModifierList
@@ -603,6 +604,7 @@ private constructor(
                 fileLocation = classPosition,
                 modifiers = modifiers,
                 classKind = classKind,
+                containingClass = outerClass,
                 qualifiedName = qualifiedClassName,
                 simpleName = className,
                 fullName = fullName,
@@ -626,7 +628,6 @@ private constructor(
         }
 
         cl.setContainingPackage(pkg)
-        cl.containingClass = outerClass
         if (outerClass == null) {
             // Add the class to the package, it will only be added to the TextCodebase once the
             // package body has been parsed.
@@ -986,7 +987,7 @@ private constructor(
         startingToken: String
     ) {
         var token = startingToken
-        val method: TextConstructorItem
+        val method: ConstructorItem
 
         // Metalava: including annotations in file now
         val annotations = getAnnotations(tokenizer, token)
@@ -1048,7 +1049,7 @@ private constructor(
         startingToken: String
     ) {
         var token = startingToken
-        val method: TextMethodItem
+        val method: MethodItem
 
         // Metalava: including annotations in file now
         val annotations = getAnnotations(tokenizer, token)

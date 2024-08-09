@@ -41,7 +41,7 @@ private constructor(
     name: String,
     modifiers: DefaultModifierList,
     documentation: ItemDocumentation,
-    parameters: List<PsiParameterItem>,
+    parameterItemsFactory: ParameterItemsFactory,
     returnType: ClassTypeItem,
     typeParameterList: TypeParameterList,
     throwsTypes: List<ExceptionTypeItem>,
@@ -57,7 +57,7 @@ private constructor(
         containingClass = containingClass,
         name = name,
         returnType = returnType,
-        parameters = parameters,
+        parameterItemsFactory = parameterItemsFactory,
         typeParameterList = typeParameterList,
         throwsTypes = throwsTypes,
     ),
@@ -91,7 +91,6 @@ private constructor(
                     "constructor $name",
                     psiMethod
                 )
-            val parameters = parameterList(codebase, psiMethod, constructorTypeItemFactory)
             val constructor =
                 PsiConstructorItem(
                     codebase = codebase,
@@ -100,7 +99,9 @@ private constructor(
                     name = name,
                     documentation = commentText,
                     modifiers = modifiers,
-                    parameters = parameters,
+                    parameterItemsFactory = { methodItem ->
+                        parameterList(methodItem, constructorTypeItemFactory)
+                    },
                     returnType = containingClass.type(),
                     implicitConstructor = false,
                     isPrimary = (psiMethod as? UMethod)?.isPrimaryConstructor ?: false,
@@ -133,7 +134,7 @@ private constructor(
                     name = name,
                     documentation = ItemDocumentation.NONE,
                     modifiers = modifiers,
-                    parameters = emptyList(),
+                    parameterItemsFactory = { emptyList() },
                     returnType = containingClass.type(),
                     implicitConstructor = true,
                     typeParameterList = TypeParameterList.NONE,

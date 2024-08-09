@@ -412,18 +412,18 @@ internal open class TurbineCodebaseInitialiser(
             )
         val classItem =
             TurbineClassItem(
-                codebase,
-                fileLocation,
-                simpleName,
-                fullName,
-                qualifiedName,
-                modifierItem,
-                getClassKind(cls.kind()),
-                typeParameters,
-                getCommentedDoc(documentation),
-                sourceFile,
+                codebase = codebase,
+                fileLocation = fileLocation,
+                modifiers = modifierItem,
+                documentation = getCommentedDoc(documentation),
+                source = sourceFile,
+                classKind = getClassKind(cls.kind()),
+                containingClass = containingClassItem,
+                qualifiedName = qualifiedName,
+                simpleName = simpleName,
+                fullName = fullName,
+                typeParameterList = typeParameters,
             )
-        classItem.containingClass = containingClassItem
         modifierItem.setSynchronized(false) // A class can not be synchronized in java
 
         // Setup the SuperClass
@@ -705,8 +705,11 @@ internal open class TurbineCodebaseInitialiser(
         nestedClasses: ImmutableList<ClassSymbol>,
         enclosingClassTypeItemFactory: TurbineTypeItemFactory,
     ) {
-        classItem.nestedClasses =
-            nestedClasses.map { cls -> createClass(cls, classItem, enclosingClassTypeItemFactory) }
+        for (nestedClassSymbol in nestedClasses) {
+            val nestedClassItem =
+                createClass(nestedClassSymbol, classItem, enclosingClassTypeItemFactory)
+            classItem.addNestedClass(nestedClassItem)
+        }
     }
 
     /** This methods creates and sets the fields of a class */

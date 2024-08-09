@@ -81,12 +81,12 @@ class TextCodebaseBuilder private constructor(private val codebase: TextCodebase
 
     fun addConstructor(ctor: ConstructorItem) {
         val cls = getOrAddClass(ctor.containingClass())
-        cls.addConstructor(ctor as TextConstructorItem)
+        cls.addConstructor(ctor)
     }
 
     fun addMethod(method: MethodItem) {
         val cls = getOrAddClass(method.containingClass())
-        cls.addMethod(method as TextMethodItem)
+        cls.addMethod(method)
     }
 
     fun addField(field: FieldItem) {
@@ -111,6 +111,7 @@ class TextCodebaseBuilder private constructor(private val codebase: TextCodebase
                 fileLocation = FileLocation.UNKNOWN,
                 modifiers = textClass.modifiers,
                 classKind = textClass.classKind,
+                containingClass = null,
                 qualifiedName = textClass.qualifiedName(),
                 simpleName = textClass.simpleName(),
                 fullName = textClass.fullName(),

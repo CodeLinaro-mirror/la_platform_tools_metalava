@@ -114,6 +114,7 @@ internal class ClassLoaderBasedClassResolver(jar: File) : ClassResolver {
                         codebase = codebase,
                         modifiers = DefaultModifierList(codebase),
                         qualifiedName = cls.canonicalName,
+                        containingClass = null,
                     )
                     .also { newClassItem ->
                         codebase.registerClass(newClassItem)

@@ -24,7 +24,6 @@ import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.DefaultCodebase
-import com.android.tools.metalava.model.DefaultItem
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
@@ -34,7 +33,7 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.TypeParameterList
-import com.android.tools.metalava.model.type.DefaultResolvedClassTypeItem
+import com.android.tools.metalava.model.item.DefaultClassItem
 import com.android.tools.metalava.reporter.FileLocation
 import java.util.function.Predicate
 
@@ -42,50 +41,36 @@ internal open class TextClassItem(
     codebase: DefaultCodebase,
     fileLocation: FileLocation = FileLocation.UNKNOWN,
     modifiers: DefaultModifierList,
-    override val classKind: ClassKind = ClassKind.CLASS,
-    private val qualifiedName: String = "",
-    private val simpleName: String = qualifiedName.substring(qualifiedName.lastIndexOf('.') + 1),
-    private val fullName: String = simpleName,
-    override val typeParameterList: TypeParameterList = TypeParameterList.NONE
+    classKind: ClassKind = ClassKind.CLASS,
+    containingClass: ClassItem?,
+    qualifiedName: String = "",
+    simpleName: String = qualifiedName.substring(qualifiedName.lastIndexOf('.') + 1),
+    fullName: String = simpleName,
+    typeParameterList: TypeParameterList = TypeParameterList.NONE,
 ) :
-    DefaultItem(
+    DefaultClassItem(
         codebase = codebase,
         fileLocation = fileLocation,
         itemLanguage = ItemLanguage.UNKNOWN,
         modifiers = modifiers,
         documentation = ItemDocumentation.NONE,
         variantSelectorsFactory = ApiVariantSelectors.IMMUTABLE_FACTORY,
-    ),
-    ClassItem {
-
-    override var artifact: String? = null
-
-    override fun interfaceTypes(): List<ClassTypeItem> = interfaceTypes
-
-    override fun allInterfaces(): Sequence<ClassItem> {
-        return sequenceOf(
-                // Add this if and only if it is an interface.
-                if (classKind == ClassKind.INTERFACE) sequenceOf(this) else emptySequence(),
-                interfaceTypes.asSequence().map { it.asClass() }.filterNotNull(),
-            )
-            .flatten()
-    }
-
-    private var nestedClasses: MutableList<ClassItem> = mutableListOf()
+        source = null,
+        classKind = classKind,
+        containingClass = containingClass,
+        qualifiedName = qualifiedName,
+        simpleName = simpleName,
+        fullName = fullName,
+        typeParameterList = typeParameterList,
+    ) {
 
     override var stubConstructor: ConstructorItem? = null
 
     override var hasPrivateConstructor: Boolean = false
 
-    override fun nestedClasses(): List<ClassItem> = nestedClasses
-
     override fun hasImplicitDefaultConstructor(): Boolean {
         return false
     }
-
-    var containingClass: ClassItem? = null
-
-    override fun containingClass(): ClassItem? = containingClass
 
     private var containingPackage: PackageItem? = null
 
@@ -94,33 +79,8 @@ internal open class TextClassItem(
     }
 
     override fun containingPackage(): PackageItem =
-        containingClass?.containingPackage() ?: containingPackage ?: error(this)
+        containingClass()?.containingPackage() ?: containingPackage ?: error(this)
 
-    override fun hasTypeVariables(): Boolean = typeParameterList.isNotEmpty()
-
-    private var superClassType: ClassTypeItem? = null
-
-    override fun superClassType(): ClassTypeItem? = superClassType
-
-    internal fun setSuperClassType(superClassType: ClassTypeItem?) {
-        this.superClassType = superClassType
-    }
-
-    override fun setInterfaceTypes(interfaceTypes: List<ClassTypeItem>) {
-        this.interfaceTypes = interfaceTypes
-    }
-
-    /** Must only be used by [type] to cache its result. */
-    private lateinit var cachedType: ClassTypeItem
-
-    override fun type(): ClassTypeItem {
-        if (!::cachedType.isInitialized) {
-            cachedType = DefaultResolvedClassTypeItem.createForClass(this)
-        }
-        return cachedType
-    }
-
-    private var interfaceTypes = emptyList<ClassTypeItem>()
     private val constructors = mutableListOf<ConstructorItem>()
     private val methods = mutableListOf<MethodItem>()
     private val fields = mutableListOf<FieldItem>()
@@ -134,11 +94,11 @@ internal open class TextClassItem(
 
     override fun properties(): List<PropertyItem> = properties
 
-    fun addConstructor(constructor: TextConstructorItem) {
+    fun addConstructor(constructor: ConstructorItem) {
         constructors += constructor
     }
 
-    fun addMethod(method: TextMethodItem) {
+    override fun addMethod(method: MethodItem) {
         methods += method
     }
 
@@ -146,7 +106,7 @@ internal open class TextClassItem(
      * Replace an existing method with [method], if no such method exists then just add [method] to
      * the list of methods.
      */
-    fun replaceOrAddMethod(method: TextMethodItem) {
+    fun replaceOrAddMethod(method: MethodItem) {
         val iterator = methods.listIterator()
         while (iterator.hasNext()) {
             val existing = iterator.next()
@@ -166,10 +126,6 @@ internal open class TextClassItem(
         properties += property
     }
 
-    fun addNestedClass(cls: ClassItem) {
-        nestedClasses.add(cls)
-    }
-
     fun addAnnotation(annotation: AnnotationItem) {
         modifiers.addAnnotation(annotation)
     }
@@ -179,7 +135,7 @@ internal open class TextClassItem(
         // have already been filtered and all items should match.
         // This lets us load signature files and rewrite them using updated
         // output formats etc.
-        return superClassType
+        return superClassType()
     }
 
     private var retention: AnnotationRetention? = null
@@ -196,12 +152,6 @@ internal open class TextClassItem(
         retention = ClassItem.findRetention(this)
         return retention!!
     }
-
-    override fun simpleName(): String = simpleName
-
-    override fun fullName(): String = fullName
-
-    override fun qualifiedName(): String = qualifiedName
 
     override fun createDefaultConstructor(): ConstructorItem {
         return TextConstructorItem.createDefaultConstructor(codebase, this)
