@@ -154,7 +154,6 @@ const val ARG_EXTRACT_ANNOTATIONS = "--extract-annotations"
 const val ARG_EXCLUDE_DOCUMENTATION_FROM_STUBS = "--exclude-documentation-from-stubs"
 const val ARG_ENHANCE_DOCUMENTATION = "--enhance-documentation"
 const val ARG_SKIP_READING_COMMENTS = "--ignore-comments"
-const val ARG_HIDE_PACKAGE = "--hide-package"
 const val ARG_MANIFEST = "--manifest"
 const val ARG_MIGRATE_NULLNESS = "--migrate-nullness"
 const val ARG_HIDE_ANNOTATION = "--hide-annotation"
@@ -182,7 +181,6 @@ const val ARG_INCLUDE_SOURCE_RETENTION = "--include-source-retention"
 const val ARG_PASS_THROUGH_ANNOTATION = "--pass-through-annotation"
 const val ARG_EXCLUDE_ANNOTATION = "--exclude-annotation"
 const val ARG_STUB_PACKAGES = "--stub-packages"
-const val ARG_STUB_IMPORT_PACKAGES = "--stub-import-packages"
 const val ARG_DELETE_EMPTY_REMOVED_SIGNATURES = "--delete-empty-removed-signatures"
 const val ARG_SUBTRACT_API = "--subtract-api"
 const val ARG_TYPEDEFS_IN_SIGNATURES = "--typedefs-in-signatures"
@@ -223,14 +221,10 @@ class Options(
     private val hideAnnotationsBuilder = AnnotationFilterBuilder()
     /** Internal builder backing [revertAnnotations] */
     private val revertAnnotationsBuilder = AnnotationFilterBuilder()
-    /** Internal list backing [stubImportPackages] */
-    private val mutableStubImportPackages: MutableSet<String> = mutableSetOf()
     /** Internal list backing [mergeQualifierAnnotations] */
     private val mutableMergeQualifierAnnotations: MutableList<File> = mutableListOf()
     /** Internal list backing [mergeInclusionAnnotations] */
     private val mutableMergeInclusionAnnotations: MutableList<File> = mutableListOf()
-    /** Internal list backing [hidePackages] */
-    private val mutableHidePackages: MutableList<String> = mutableListOf()
     /** Internal list backing [passThroughAnnotations] */
     private val mutablePassThroughAnnotations: MutableSet<String> = mutableSetOf()
     /** Internal list backing [excludeAnnotations] */
@@ -341,12 +335,6 @@ class Options(
     /** Packages to include (if null, include all) */
     private var stubPackages: PackageFilter? = null
 
-    /** Packages to import (if empty, include all) */
-    private var stubImportPackages: Set<String> = mutableStubImportPackages
-
-    /** Packages to exclude/hide */
-    var hidePackages: List<String> = mutableHidePackages
-
     /** Packages that we should skip generating even if not hidden; typically only used by tests */
     val skipEmitPackages
         get() = executionEnvironment.testEnvironment?.skipEmitPackages ?: emptyList()
@@ -418,11 +406,9 @@ class Options(
     val apiAnalyzerConfig by lazy {
         ApiAnalyzer.Config(
             manifest = manifest,
-            hidePackages = hidePackages,
             skipEmitPackages = skipEmitPackages,
             mergeQualifierAnnotations = mergeQualifierAnnotations,
             mergeInclusionAnnotations = mergeInclusionAnnotations,
-            stubImportPackages = stubImportPackages,
             allShowAnnotations = allShowAnnotations,
             apiPredicateConfig = apiPredicateConfig,
         )
@@ -777,7 +763,6 @@ class Options(
                     annotations.split(",").forEach { path -> mutableExcludeAnnotations.add(path) }
                 }
                 ARG_PROGUARD -> proguard = stringToNewFile(getValue(args, ++index))
-                ARG_HIDE_PACKAGE -> mutableHidePackages.add(getValue(args, ++index))
                 ARG_STUB_PACKAGES -> {
                     val packages = getValue(args, ++index)
                     val filter =
@@ -788,13 +773,6 @@ class Options(
                                 newFilter
                             }
                     filter.addPackages(packages)
-                }
-                ARG_STUB_IMPORT_PACKAGES -> {
-                    val packages = getValue(args, ++index)
-                    for (pkg in packages.split(File.pathSeparatorChar)) {
-                        mutableStubImportPackages.add(pkg)
-                        mutableHidePackages.add(pkg)
-                    }
                 }
                 ARG_IGNORE_CLASSES_ON_CLASSPATH -> {
                     allowClassesFromClasspath = false
@@ -1219,9 +1197,6 @@ object OptionsHelp {
                 "Specifies that errors encountered during validation of " +
                     "nullability annotations should not be treated as errors. They will be written out to the " +
                     "file specified in $ARG_NULLABILITY_WARNINGS_TXT instead.",
-                "$ARG_HIDE_PACKAGE <package>",
-                "Remove the given packages from the API even if they have not been " +
-                    "marked with @hide",
                 "$ARG_HIDE_ANNOTATION <annotation class>",
                 "Treat any elements annotated with the given annotation " + "as hidden",
                 ARG_SHOW_UNANNOTATED,

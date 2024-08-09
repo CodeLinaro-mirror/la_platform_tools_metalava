@@ -18,7 +18,6 @@ package com.android.tools.metalava.compatibility
 
 import com.android.tools.lint.checks.infrastructure.TestFiles.base64gzip
 import com.android.tools.metalava.ANDROID_SYSTEM_API
-import com.android.tools.metalava.ARG_HIDE_PACKAGE
 import com.android.tools.metalava.ARG_SHOW_ANNOTATION
 import com.android.tools.metalava.ARG_SHOW_UNANNOTATED
 import com.android.tools.metalava.DriverTest
@@ -36,6 +35,7 @@ import com.android.tools.metalava.restrictToSource
 import com.android.tools.metalava.suppressLintSource
 import com.android.tools.metalava.systemApiSource
 import com.android.tools.metalava.testApiSource
+import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import org.junit.Test
@@ -1049,9 +1049,10 @@ class CompatibilityCheckTest : DriverTest() {
                     }
                     """
                     ),
-                    suppressLintSource
+                    suppressLintSource,
+                    // Hide android.annotation classes.
+                    KnownSourceFiles.androidAnnotationHide,
                 ),
-            extraArguments = arrayOf(ARG_HIDE_PACKAGE, "android.annotation")
         )
     }
 
@@ -2029,14 +2030,14 @@ class CompatibilityCheckTest : DriverTest() {
                     }
                     """
                     ),
-                    systemApiSource
+                    systemApiSource,
+                    // Hide android.annotation classes.
+                    KnownSourceFiles.androidAnnotationHide,
                 ),
             extraArguments =
                 arrayOf(
                     ARG_SHOW_ANNOTATION,
                     "android.annotation.SystemApi",
-                    ARG_HIDE_PACKAGE,
-                    "android.annotation",
                 ),
             checkCompatibilityApiReleased =
                 """
@@ -2077,14 +2078,14 @@ class CompatibilityCheckTest : DriverTest() {
                     }
                     """
                     ),
-                    systemApiSource
+                    systemApiSource,
+                    // Hide android.annotation classes.
+                    KnownSourceFiles.androidAnnotationHide,
                 ),
             extraArguments =
                 arrayOf(
                     ARG_SHOW_ANNOTATION,
                     "android.annotation.TestApi",
-                    ARG_HIDE_PACKAGE,
-                    "android.annotation",
                 ),
             checkCompatibilityApiReleased =
                 """
@@ -2136,7 +2137,9 @@ class CompatibilityCheckTest : DriverTest() {
                     """
                         )
                         .indented(),
-                    testApiSource
+                    testApiSource,
+                    // Hide android.annotation classes.
+                    KnownSourceFiles.androidAnnotationHide,
                 ),
             api =
                 """
@@ -2148,11 +2151,6 @@ class CompatibilityCheckTest : DriverTest() {
                   }
                 }
             """,
-            extraArguments =
-                arrayOf(
-                    ARG_HIDE_PACKAGE,
-                    "android.annotation",
-                ),
             checkCompatibilityApiReleased =
                 """
                 package test.view {
@@ -2510,14 +2508,14 @@ class CompatibilityCheckTest : DriverTest() {
                     }
                     """
                     ),
-                    systemApiSource
+                    systemApiSource,
+                    // Hide android.annotation classes.
+                    KnownSourceFiles.androidAnnotationHide,
                 ),
             extraArguments =
                 arrayOf(
                     ARG_SHOW_ANNOTATION,
                     "android.annotation.SystemApi",
-                    ARG_HIDE_PACKAGE,
-                    "android.annotation",
                 ),
             expectedIssues = ""
         )
@@ -2567,14 +2565,14 @@ class CompatibilityCheckTest : DriverTest() {
                     }
                     """
                     ),
-                    systemApiSource
+                    systemApiSource,
+                    // Hide android.annotation classes.
+                    KnownSourceFiles.androidAnnotationHide,
                 ),
             extraArguments =
                 arrayOf(
                     ARG_SHOW_ANNOTATION,
                     "android.annotation.SystemApi",
-                    ARG_HIDE_PACKAGE,
-                    "android.annotation",
                 ),
             expectedIssues = ""
         )
@@ -2820,14 +2818,14 @@ class CompatibilityCheckTest : DriverTest() {
                     }
                     """
                     ),
-                    systemApiSource
+                    systemApiSource,
+                    // Hide android.annotation classes.
+                    KnownSourceFiles.androidAnnotationHide,
                 ),
             extraArguments =
                 arrayOf(
                     ARG_SHOW_ANNOTATION,
                     "android.annotation.SystemApi",
-                    ARG_HIDE_PACKAGE,
-                    "android.annotation",
                 ),
             expectedIssues =
                 """
@@ -2910,14 +2908,14 @@ class CompatibilityCheckTest : DriverTest() {
                     }
                     """
                     ),
-                    systemApiSource
+                    systemApiSource,
+                    // Hide android.annotation classes.
+                    KnownSourceFiles.androidAnnotationHide,
                 ),
             extraArguments =
                 arrayOf(
                     ARG_SHOW_ANNOTATION,
                     "android.annotation.SystemApi",
-                    ARG_HIDE_PACKAGE,
-                    "android.annotation",
                 ),
             expectedIssues = """
                 """
@@ -3273,9 +3271,10 @@ class CompatibilityCheckTest : DriverTest() {
                     }
                     """
                     ),
-                    androidxNonNullSource
+                    androidxNonNullSource,
+                    // Hide androidx.annotation classes.
+                    KnownSourceFiles.androidxAnnotationHide,
                 ),
-            extraArguments = arrayOf(ARG_HIDE_PACKAGE, "androidx.annotation")
         )
     }
 

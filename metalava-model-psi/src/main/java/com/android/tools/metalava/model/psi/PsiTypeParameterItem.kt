@@ -18,6 +18,7 @@ package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.model.BoundsTypeItem
 import com.android.tools.metalava.model.DefaultModifierList
+import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.VariableTypeItem
 import com.intellij.psi.PsiTypeParameter
@@ -36,7 +37,7 @@ internal class PsiTypeParameterItem(
         codebase = codebase,
         element = psiClass,
         modifiers = modifiers,
-        documentation = "",
+        documentation = ItemDocumentation.NONE,
     ),
     TypeParameterItem {
 
@@ -61,17 +62,6 @@ internal class PsiTypeParameterItem(
     }
 
     internal lateinit var bounds: List<BoundsTypeItem>
-
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (other !is TypeParameterItem) return false
-
-        return name == other.name()
-    }
-
-    override fun hashCode(): Int {
-        return name.hashCode()
-    }
 
     companion object {
         fun create(codebase: PsiBasedCodebase, psiClass: PsiTypeParameter): PsiTypeParameterItem {

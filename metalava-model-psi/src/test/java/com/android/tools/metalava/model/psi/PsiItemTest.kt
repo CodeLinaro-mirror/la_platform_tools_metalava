@@ -62,7 +62,7 @@ class PsiItemTest : BaseModelTest() {
 
             assertEquals(
                 "/**\n     * This method does foo.\n     *\n     * ",
-                method.findMainDocumentation()
+                method.documentation.findMainDocumentation()
             )
         }
     }

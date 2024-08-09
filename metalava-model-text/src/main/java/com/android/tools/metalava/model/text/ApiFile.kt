@@ -26,20 +26,28 @@ import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.DefaultAnnotationItem
+import com.android.tools.metalava.model.DefaultCodebase
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.DefaultTypeParameterList
 import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.JAVA_LANG_DEPRECATED
 import com.android.tools.metalava.model.MetalavaApi
+import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeNullability
+import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VisibilityLevel
+import com.android.tools.metalava.model.item.DefaultPackageItem
+import com.android.tools.metalava.model.item.DefaultTypeParameterItem
+import com.android.tools.metalava.model.item.DefaultValue
 import com.android.tools.metalava.model.javaUnescapeString
 import com.android.tools.metalava.model.noOpAnnotationManager
 import com.android.tools.metalava.model.type.MethodFingerprint
@@ -102,6 +110,9 @@ private constructor(
     private val globalTypeItemFactory by
         lazy(LazyThreadSafetyMode.NONE) { TextTypeItemFactory(codebase, typeParser) }
 
+    /** Creates [Item] instances for [codebase]. */
+    private val itemFactory = codebase.itemFactory
+
     /**
      * Whether types should be interpreted to be in Kotlin format (e.g. ? suffix means nullable, !
      * suffix means unknown, and absence of a suffix means not nullable.
@@ -155,8 +166,8 @@ private constructor(
          * Read API signature files into a [TextCodebase].
          *
          * Note: when reading from them multiple files, [TextCodebase.location] would refer to the
-         * first file specified. each [com.android.tools.metalava.model.text.TextItem.fileLocation]
-         * would correctly point out the source file of each item.
+         * first file specified. each [Item.fileLocation] would correctly point out the source file
+         * of each item.
          *
          * @param signatureFiles input signature files
          */
@@ -435,7 +446,11 @@ private constructor(
                 existing
             } else {
                 val newPackageItem =
-                    TextPackageItem(codebase, name, modifiers, tokenizer.fileLocation())
+                    itemFactory.createPackageItem(
+                        fileLocation = tokenizer.fileLocation(),
+                        modifiers = modifiers,
+                        qualifiedName = name,
+                    )
                 newPackageItem.markForCurrentApiSurface()
                 codebase.addPackage(newPackageItem)
                 newPackageItem
@@ -455,7 +470,7 @@ private constructor(
         }
     }
 
-    private fun parseClass(pkg: TextPackageItem, tokenizer: Tokenizer, startingToken: String) {
+    private fun parseClass(pkg: DefaultPackageItem, tokenizer: Tokenizer, startingToken: String) {
         var token = startingToken
         var classKind = ClassKind.CLASS
         var superClassType: ClassTypeItem? = null
@@ -589,6 +604,7 @@ private constructor(
                 fileLocation = classPosition,
                 modifiers = modifiers,
                 classKind = classKind,
+                containingClass = outerClass,
                 qualifiedName = qualifiedClassName,
                 simpleName = className,
                 fullName = fullName,
@@ -612,11 +628,10 @@ private constructor(
         }
 
         cl.setContainingPackage(pkg)
-        cl.containingClass = outerClass
         if (outerClass == null) {
             // Add the class to the package, it will only be added to the TextCodebase once the
             // package body has been parsed.
-            pkg.addClass(cl)
+            pkg.addTopClass(cl)
         } else {
             outerClass.addNestedClass(cl)
         }
@@ -658,7 +673,7 @@ private constructor(
         val newClassAnnotations = newClassCharacteristics.modifiers.annotations().toSet()
         val existingClassAnnotations = existingCharacteristics.modifiers.annotations().toSet()
         for (annotation in newClassAnnotations.subtract(existingClassAnnotations)) {
-            existingClass.addAnnotation(annotation)
+            existingClass.modifiers.addAnnotation(annotation)
         }
 
         // Use the latest super class.
@@ -776,7 +791,7 @@ private constructor(
      * If the qualified name matches an existing class then return its information.
      */
     private fun parseDeclaredClassType(
-        pkg: TextPackageItem,
+        pkg: DefaultPackageItem,
         declaredClassType: String,
         classFileLocation: FileLocation,
     ): DeclaredClassTypeComponents {
@@ -791,7 +806,7 @@ private constructor(
                     declaredClassType.substring(paramIndex)
                 )
             }
-        val pkgName = pkg.name()
+        val pkgName = pkg.qualifiedName()
         val qualifiedName = qualifiedName(pkgName, fullName)
 
         // Split the full name into an optional outer class and a simple name.
@@ -948,6 +963,23 @@ private constructor(
         return annotations
     }
 
+    /**
+     * Create [ParameterItem]s for the [containingMethod] from the [parameters] using the
+     * [typeItemFactory] to create types.
+     *
+     * This is called from within the constructor of the [containingMethod] so must only access its
+     * `name` and its reference. In particularly it must not access its [MethodItem.parameters]
+     * property as this is called during its initialization.
+     */
+    private fun createParameterItems(
+        containingMethod: MethodItem,
+        parameters: List<ParameterInfo>,
+        typeItemFactory: TextTypeItemFactory
+    ): List<ParameterItem> {
+        val methodFingerprint = MethodFingerprint(containingMethod.name(), parameters.size)
+        return parameters.map { it.create(containingMethod, typeItemFactory, methodFingerprint) }
+    }
+
     private fun parseConstructor(
         tokenizer: Tokenizer,
         containingClass: TextClassItem,
@@ -955,7 +987,7 @@ private constructor(
         startingToken: String
     ) {
         var token = startingToken
-        val method: TextConstructorItem
+        val method: ConstructorItem
 
         // Metalava: including annotations in file now
         val annotations = getAnnotations(tokenizer, token)
@@ -978,7 +1010,7 @@ private constructor(
             token.substring(
                 token.lastIndexOf('.') + 1
             ) // For nested classes, strip outer classes from name
-        val parameters = parseParameterList(tokenizer, typeItemFactory, name)
+        val parameters = parseParameterList(tokenizer)
         token = tokenizer.requireToken()
         var throwsList = emptyList<ExceptionTypeItem>()
         if ("throws" == token) {
@@ -990,39 +1022,24 @@ private constructor(
         }
 
         method =
-            TextConstructorItem(
-                codebase,
-                name,
-                containingClass,
-                modifiers,
-                containingClass.type(),
-                parameters,
-                tokenizer.fileLocation()
+            itemFactory.createConstructorItem(
+                fileLocation = tokenizer.fileLocation(),
+                modifiers = modifiers,
+                documentation = ItemDocumentation.NONE,
+                name = name,
+                containingClass = containingClass,
+                typeParameterList = typeParameterList,
+                returnType = containingClass.type(),
+                parameterItemsFactory = { methodItem ->
+                    createParameterItems(methodItem, parameters, typeItemFactory)
+                },
+                throwsTypes = throwsList,
             )
         method.markForCurrentApiSurface()
-        method.typeParameterList = typeParameterList
-        method.setThrowsTypes(throwsList)
 
         if (!containingClass.constructors().contains(method)) {
             containingClass.addConstructor(method)
         }
-    }
-
-    /**
-     * Check whether the method is a synthetic enum method.
-     *
-     * i.e. `getEntries()` from Kotlin and `values()` and `valueOf(String)` from both Java and
-     * Kotlin.
-     */
-    private fun isEnumSyntheticMethod(
-        containingClass: ClassItem,
-        name: String,
-        parameters: List<ParameterItem>
-    ): Boolean {
-        if (!containingClass.isEnum()) return false
-        val parameterCount = parameters.size
-        return (parameterCount == 0 && (name == "values" || name == "getEntries")) ||
-            (parameterCount == 1 && name == "valueOf" && parameters[0].type().isString())
     }
 
     private fun parseMethod(
@@ -1032,7 +1049,7 @@ private constructor(
         startingToken: String
     ) {
         var token = startingToken
-        val method: TextMethodItem
+        val method: MethodItem
 
         // Metalava: including annotations in file now
         val annotations = getAnnotations(tokenizer, token)
@@ -1053,12 +1070,12 @@ private constructor(
         tokenizer.assertIdent(token)
 
         val returnTypeString: String
-        val parameters: List<TextParameterItem>
+        val parameters: List<ParameterInfo>
         val name: String
         if (format.kotlinNameTypeOrder) {
             // Kotlin style: parse the name, the parameter list, then the return type.
             name = token
-            parameters = parseParameterList(tokenizer, typeItemFactory, name)
+            parameters = parseParameterList(tokenizer)
             token = tokenizer.requireToken()
             if (token != ":") {
                 throw ApiParseException(
@@ -1076,7 +1093,7 @@ private constructor(
             token = tokenizer.current
             tokenizer.assertIdent(token)
             name = token
-            parameters = parseParameterList(tokenizer, typeItemFactory, name)
+            parameters = parseParameterList(tokenizer)
             token = tokenizer.requireToken()
         }
 
@@ -1110,23 +1127,28 @@ private constructor(
             throw ApiParseException("expected ; found $token", tokenizer)
         }
 
-        // Ignore enum synthetic methods.
-        if (isEnumSyntheticMethod(cl, name, parameters)) return
-
         method =
-            TextMethodItem(
-                codebase,
-                name,
-                cl,
-                modifiers,
-                returnType,
-                parameters,
-                tokenizer.fileLocation()
+            itemFactory.createMethodItem(
+                fileLocation = tokenizer.fileLocation(),
+                modifiers = modifiers,
+                documentation = ItemDocumentation.NONE,
+                name = name,
+                containingClass = cl,
+                typeParameterList = typeParameterList,
+                returnType = returnType,
+                parameterItemsFactory = { methodItem ->
+                    createParameterItems(methodItem, parameters, typeItemFactory)
+                },
+                throwsTypes = throwsList,
+                annotationDefault = defaultAnnotationMethodValue,
             )
+
+        // Ignore enum synthetic methods. They are no longer included in signature files as they add
+        // no information. However, they did use to be included and so this filters them out to
+        // ensure that the resulting Codebase is consistent with the original source Codebase.
+        if (method.isEnumSyntheticMethod()) return
+
         method.markForCurrentApiSurface()
-        method.typeParameterList = typeParameterList
-        method.setThrowsTypes(throwsList)
-        method.setAnnotationDefault(defaultAnnotationMethodValue)
 
         // If the method already exists in the class item because it was defined in a previous
         // signature file then replace it with this one, otherwise just add this method.
@@ -1184,19 +1206,25 @@ private constructor(
         synchronizeNullability(type, modifiers)
 
         // Parse the value string.
-        val value = valueString?.let { parseValue(type, valueString, tokenizer) }
+        val fieldValue =
+            valueString?.let { TextFieldValue(parseValue(type, valueString, tokenizer)) }
 
         if (";" != token) {
             throw ApiParseException("expected ; found $token", tokenizer)
         }
         val field =
-            TextFieldItem(codebase, name, cl, modifiers, type, value, tokenizer.fileLocation())
+            itemFactory.createFieldItem(
+                fileLocation = tokenizer.fileLocation(),
+                modifiers = modifiers,
+                documentation = ItemDocumentation.NONE,
+                name = name,
+                containingClass = cl,
+                type = type,
+                isEnumConstant = isEnumConstant,
+                fieldValue = fieldValue,
+            )
         field.markForCurrentApiSurface()
-        if (isEnumConstant) {
-            cl.addEnumConstant(field)
-        } else {
-            cl.addField(field)
-        }
+        cl.addField(field)
     }
 
     private fun parseModifiers(
@@ -1421,7 +1449,7 @@ private constructor(
             throw ApiParseException("expected ; found $token", tokenizer)
         }
         val property =
-            TextPropertyItem(codebase, name, cl, modifiers, type, tokenizer.fileLocation())
+            itemFactory.createPropertyItem(tokenizer.fileLocation(), modifiers, name, cl, type)
         property.markForCurrentApiSurface()
         cl.addProperty(property)
     }
@@ -1483,7 +1511,7 @@ private constructor(
                 scopeDescription,
                 typeParameterStrings,
                 // Create a `TextTypeParameterItem` from the type parameter string.
-                { TextTypeParameterItem.create(codebase, it) },
+                { createTypeParameterItem(codebase, it) },
                 // Create, set and return the [BoundsTypeItem] list.
                 { typeItemFactory, item, typeParameterString ->
                     val boundsStringList = extractTypeParameterBoundsStringList(typeParameterString)
@@ -1497,6 +1525,47 @@ private constructor(
     }
 
     /**
+     * Create a partially initialized [DefaultTypeParameterItem].
+     *
+     * This extracts the [TypeParameterItem.isReified] and [TypeParameterItem.name] from the
+     * [typeParameterString] and creates a [DefaultTypeParameterItem] with those properties
+     * initialized but the [DefaultTypeParameterItem.bounds] is not.
+     */
+    private fun createTypeParameterItem(
+        codebase: DefaultCodebase,
+        typeParameterString: String,
+    ): DefaultTypeParameterItem {
+        val length = typeParameterString.length
+        var nameEnd = length
+
+        val isReified = typeParameterString.startsWith("reified ")
+        val nameStart =
+            if (isReified) {
+                8 // "reified ".length
+            } else {
+                0
+            }
+
+        for (i in nameStart until length) {
+            val c = typeParameterString[i]
+            if (!Character.isJavaIdentifierPart(c)) {
+                nameEnd = i
+                break
+            }
+        }
+        val name = typeParameterString.substring(nameStart, nameEnd)
+
+        // TODO: Type use annotations support will need to handle annotations on the parameter.
+        val modifiers = DefaultModifierList(codebase, DefaultModifierList.PUBLIC)
+
+        return itemFactory.createTypeParameterItem(
+            modifiers = modifiers,
+            name = name,
+            isReified = isReified,
+        )
+    }
+
+    /**
      * Parses a list of parameters. Before calling, [tokenizer] should point to the token *before*
      * the opening `(` of the parameter list (the method starts by calling
      * [Tokenizer.requireToken]).
@@ -1505,9 +1574,7 @@ private constructor(
      */
     private fun parseParameterList(
         tokenizer: Tokenizer,
-        typeItemFactory: TextTypeItemFactory,
-        methodName: String,
-    ): List<TextParameterItem> {
+    ): List<ParameterInfo> {
         val parameters = mutableListOf<ParameterInfo>()
         var token: String = tokenizer.requireToken()
         if ("(" != token) {
@@ -1517,9 +1584,8 @@ private constructor(
         var index = 0
         while (true) {
             if (")" == token) {
-                // All parameters are parsed, create the actual TextParameterItems
-                val methodFingerprint = MethodFingerprint(methodName, parameters.size)
-                return parameters.map { it.create(codebase, typeItemFactory, methodFingerprint) }
+                // All parameters are parsed, return them.
+                return parameters
             }
 
             // Each item can be
@@ -1528,8 +1594,8 @@ private constructor(
 
             // Used to represent the presence of a default value, instead of showing the entire
             // default value
-            var hasDefaultValue = token == "optional"
-            if (hasDefaultValue) {
+            val hasOptionalKeyword = token == "optional"
+            if (hasOptionalKeyword) {
                 token = tokenizer.requireToken()
             }
 
@@ -1570,11 +1636,17 @@ private constructor(
                 }
             }
 
-            var defaultValue = UNKNOWN_DEFAULT_VALUE
+            var defaultValueString: String? = null
             if ("=" == token) {
-                defaultValue = tokenizer.requireToken(true)
-                val sb = StringBuilder(defaultValue)
-                if (defaultValue == "{") {
+                if (hasOptionalKeyword) {
+                    throw ApiParseException(
+                        "cannot have both optional keyword and default value",
+                        tokenizer
+                    )
+                }
+                defaultValueString = tokenizer.requireToken(true)
+                val sb = StringBuilder(defaultValueString)
+                if (defaultValueString == "{") {
                     var balance = 1
                     while (balance > 0) {
                         token = tokenizer.requireToken(parenIsSep = false, eatWhitespace = false)
@@ -1590,7 +1662,7 @@ private constructor(
                     }
                     token = tokenizer.requireToken()
                 } else {
-                    var balance = if (defaultValue == "(") 1 else 0
+                    var balance = if (defaultValueString == "(") 1 else 0
                     while (true) {
                         token = tokenizer.requireToken(parenIsSep = true, eatWhitespace = false)
                         if ((token.endsWith(",") || token.endsWith(")")) && balance <= 0) {
@@ -1608,10 +1680,7 @@ private constructor(
                         }
                     }
                 }
-                defaultValue = sb.toString()
-            }
-            if (defaultValue != UNKNOWN_DEFAULT_VALUE) {
-                hasDefaultValue = true
+                defaultValueString = sb.toString()
             }
             when (token) {
                 "," -> {
@@ -1624,11 +1693,26 @@ private constructor(
                     throw ApiParseException("expected , or ), found $token", tokenizer)
                 }
             }
+
+            // Select the DefaultValue for the parameter.
+            val defaultValue =
+                when {
+                    hasOptionalKeyword ->
+                        // It has an optional keyword, so it has a default value but the actual
+                        // value is
+                        // not known.
+                        DefaultValue.UNKNOWN
+                    defaultValueString == null ->
+                        // It has neither an optional keyword or an actual default value.
+                        DefaultValue.NONE
+                    else ->
+                        // It has an actual default value.
+                        TextDefaultValue(defaultValueString)
+                }
             parameters.add(
                 ParameterInfo(
                     name,
                     publicName,
-                    hasDefaultValue,
                     defaultValue,
                     typeString,
                     modifiers,
@@ -1642,26 +1726,25 @@ private constructor(
 
     /**
      * Container for parsed information on a parameter. This is an intermediate step before a
-     * [TextParameterItem] is created, which is needed because
+     * [ParameterItem] is created, which is needed because
      * [TextTypeItemFactory.getMethodParameterType] requires a [MethodFingerprint] with the total
      * number of method parameters.
      */
     private inner class ParameterInfo(
         val name: String,
         val publicName: String?,
-        val hasDefaultValue: Boolean,
-        val defaultValue: String?,
+        val defaultValue: DefaultValue,
         val typeString: String,
         val modifiers: DefaultModifierList,
         val location: FileLocation,
         val index: Int
     ) {
-        /** Turn this [ParameterInfo] into a [TextParameterItem] by parsing the [typeString]. */
+        /** Turn this [ParameterInfo] into a [ParameterItem] by parsing the [typeString]. */
         fun create(
-            codebase: TextCodebase,
+            containingMethod: MethodItem,
             typeItemFactory: TextTypeItemFactory,
             methodFingerprint: MethodFingerprint
-        ): TextParameterItem {
+        ): ParameterItem {
             val type =
                 typeItemFactory.getMethodParameterType(
                     typeString,
@@ -1673,16 +1756,15 @@ private constructor(
             synchronizeNullability(type, modifiers)
 
             val parameter =
-                TextParameterItem(
-                    codebase,
+                itemFactory.createParameterItem(
+                    location,
+                    modifiers,
                     name,
-                    publicName,
-                    hasDefaultValue,
-                    defaultValue,
+                    { publicName },
+                    containingMethod,
                     index,
                     type,
-                    modifiers,
-                    location
+                    defaultValue,
                 )
 
             parameter.markForCurrentApiSurface()

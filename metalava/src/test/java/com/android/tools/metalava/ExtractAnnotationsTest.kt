@@ -19,6 +19,7 @@ package com.android.tools.metalava
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.model.text.FileFormat
+import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import org.junit.Test
@@ -75,7 +76,9 @@ class ExtractAnnotationsTest : DriverTest() {
                 )
                 .indented(),
             intDefAnnotationSource,
-            intRangeAnnotationSource
+            intRangeAnnotationSource,
+            // Hide android.annotation classes.
+            KnownSourceFiles.androidAnnotationHide,
         )
 
     @Test
@@ -556,8 +559,7 @@ class ExtractAnnotationsTest : DriverTest() {
     @Test
     fun `No typedef signatures in api files`() {
         check(
-            extraArguments =
-                arrayOf(ARG_HIDE_PACKAGE, "android.annotation", ARG_TYPEDEFS_IN_SIGNATURES, "none"),
+            extraArguments = arrayOf(ARG_TYPEDEFS_IN_SIGNATURES, "none"),
             format = FileFormat.V2,
             sourceFiles = sourceFiles1,
             api =
@@ -590,13 +592,7 @@ class ExtractAnnotationsTest : DriverTest() {
     @Test
     fun `Inlining typedef signatures in api files`() {
         check(
-            extraArguments =
-                arrayOf(
-                    ARG_HIDE_PACKAGE,
-                    "android.annotation",
-                    ARG_TYPEDEFS_IN_SIGNATURES,
-                    "inline"
-                ),
+            extraArguments = arrayOf(ARG_TYPEDEFS_IN_SIGNATURES, "inline"),
             format = FileFormat.V2,
             sourceFiles = sourceFiles1,
             api =
@@ -629,8 +625,7 @@ class ExtractAnnotationsTest : DriverTest() {
     @Test
     fun `Referencing typedef signatures in api files`() {
         check(
-            extraArguments =
-                arrayOf(ARG_HIDE_PACKAGE, "android.annotation", ARG_TYPEDEFS_IN_SIGNATURES, "ref"),
+            extraArguments = arrayOf(ARG_TYPEDEFS_IN_SIGNATURES, "ref"),
             format = FileFormat.V2,
             sourceFiles = sourceFiles1,
             api =

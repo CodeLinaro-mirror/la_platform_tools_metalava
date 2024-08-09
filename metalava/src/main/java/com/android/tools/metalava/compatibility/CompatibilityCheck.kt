@@ -980,7 +980,7 @@ class CompatibilityCheck(
                     includeInterfaces = from.isInterface()
                 )
             }
-        if (inherited == null || inherited != old && inherited.treatAsRemoved()) {
+        if (inherited == null || inherited.treatAsRemoved(old)) {
             val error =
                 if (old.effectivelyDeprecated) Issues.REMOVED_DEPRECATED_METHOD
                 else Issues.REMOVED_METHOD
@@ -991,13 +991,16 @@ class CompatibilityCheck(
     /**
      * Check the [Item] to see whether it should be treated as if it was removed.
      *
-     * An [Item] is treated as it if it was removed if it is hidden/removed and is not an unstable
-     * API that will be reverted. If it is an unstable API then reverting it will replace it with
-     * the old item against which it is being compared in this compatibility check. So, while this
-     * specific item will not appear in the API the old item will and so the old item will not be
-     * removed.
+     * If an [Item] is an unstable API that will be reverted then it will not be treated as if it
+     * was removed. That is because reverting it will replace it with the old item against which it
+     * is being compared in this compatibility check. So, while this specific item will not appear
+     * in the API the old item will and so it has not been removed.
+     *
+     * Otherwise, an [Item] will be treated as it was removed it if it is hidden/removed or the
+     * [possibleMatch] does not match.
      */
-    private fun Item.treatAsRemoved() = isHiddenOrRemoved() && !showability.revertUnstableApi()
+    private fun Item.treatAsRemoved(possibleMatch: MethodItem) =
+        !showability.revertUnstableApi() && (isHiddenOrRemoved() || this != possibleMatch)
 
     override fun removed(old: FieldItem, from: ClassItem?) {
         val inherited =

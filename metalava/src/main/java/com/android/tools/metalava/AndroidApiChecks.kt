@@ -109,7 +109,7 @@ class AndroidApiChecks(val reporter: Reporter) {
             return findDocumentation(item.containingMethod(), item.name())
         }
 
-        val doc = item.documentation
+        val doc = item.documentation.text
         if (doc.isBlank()) {
             return ""
         }

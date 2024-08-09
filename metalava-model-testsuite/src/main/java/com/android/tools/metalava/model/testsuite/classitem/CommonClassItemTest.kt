@@ -1271,7 +1271,7 @@ class CommonClassItemTest : BaseModelTest() {
     }
 
     @Test
-    fun `Test inheritMethodFromNonApiAncestor without type substitutions`() {
+    fun `Test duplicate without type substitutions`() {
         runSourceCodebaseTest(
             inputSet(
                 java(
@@ -1311,7 +1311,7 @@ class CommonClassItemTest : BaseModelTest() {
             val hiddenClassMethod = hiddenClass.methods().single()
             val publicClass = codebase.assertClass("test.pkg.PublicClass")
 
-            val inheritedMethod = publicClass.inheritMethodFromNonApiAncestor(hiddenClassMethod)
+            val inheritedMethod = hiddenClassMethod.duplicate(publicClass)
             assertSame(hiddenClass, inheritedMethod.inheritedFrom)
             assertTrue(inheritedMethod.inheritedFromAncestor)
 
@@ -1320,7 +1320,7 @@ class CommonClassItemTest : BaseModelTest() {
     }
 
     @Test
-    fun `Test inheritMethodFromNonApiAncestor with type substitutions`() {
+    fun `Test duplicate with type substitutions`() {
         runSourceCodebaseTest(
             inputSet(
                 typeUseOnlyNonNullSource,
@@ -1393,7 +1393,7 @@ class CommonClassItemTest : BaseModelTest() {
 
             for (method in hiddenClass.methods().sortedBy { it.name() }) {
                 val name = method.name()
-                val inheritedMethod = publicClass.inheritMethodFromNonApiAncestor(method)
+                val inheritedMethod = method.duplicate(publicClass)
                 assertSame(hiddenClass, inheritedMethod.inheritedFrom)
                 assertTrue(inheritedMethod.inheritedFromAncestor)
 
@@ -1406,10 +1406,10 @@ class CommonClassItemTest : BaseModelTest() {
     }
 
     @Test
-    fun `Test inheritMethodFromNonApiAncestor with type substitutions and not type use nullability annotations`() {
-        // Test for behavior of ClassItem.inheritMethodFromNonApiAncestor(...) in Java when the type
-        // parameter is used in the return type and is either unannotated, or annotated with a
-        // non-type use nullability annotation.
+    fun `Test duplicate with type substitutions and not type use nullability annotations`() {
+        // Test for behavior of MethodItem.duplicate(ClassItem) in Java when the type parameter is
+        // used in the return type and is either unannotated, or annotated with a non-type use
+        // nullability annotation.
         runSourceCodebaseTest(
             inputSet(
                 typeUseOnlyNonNullSource,
@@ -1446,7 +1446,7 @@ class CommonClassItemTest : BaseModelTest() {
 
             for (method in hiddenClass.methods().sortedBy { it.name() }) {
                 val name = method.name()
-                val inheritedMethod = publicClass.inheritMethodFromNonApiAncestor(method)
+                val inheritedMethod = method.duplicate(publicClass)
                 assertSame(hiddenClass, inheritedMethod.inheritedFrom)
                 assertTrue(inheritedMethod.inheritedFromAncestor)
 

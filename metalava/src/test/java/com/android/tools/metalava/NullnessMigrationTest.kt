@@ -18,6 +18,7 @@ package com.android.tools.metalava
 
 import com.android.tools.metalava.model.SUPPORT_TYPE_USE_ANNOTATIONS
 import com.android.tools.metalava.model.text.FileFormat
+import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
 import org.junit.Test
 
@@ -44,6 +45,8 @@ class NullnessMigrationTest : DriverTest() {
                     ),
                     androidxNonNullSource,
                     androidxNullableSource,
+                    // Hide androidx.annotation classes.
+                    KnownSourceFiles.androidxAnnotationHide,
                 ),
             api =
                 """
@@ -59,7 +62,6 @@ class NullnessMigrationTest : DriverTest() {
                       }
                     }
                 """,
-            extraArguments = arrayOf(ARG_HIDE_PACKAGE, "androidx.annotation"),
         )
     }
 
@@ -82,6 +84,8 @@ class NullnessMigrationTest : DriverTest() {
                     ),
                     androidxNonNullSource,
                     androidxNullableSource,
+                    // Hide androidx.annotation classes.
+                    KnownSourceFiles.androidxAnnotationHide,
                 ),
             migrateNullsApi =
                 """
@@ -113,7 +117,6 @@ class NullnessMigrationTest : DriverTest() {
                         """,
                     )
                 ),
-            extraArguments = arrayOf(ARG_HIDE_PACKAGE, "androidx.annotation"),
         )
     }
 
@@ -135,6 +138,8 @@ class NullnessMigrationTest : DriverTest() {
                     ),
                     androidxNonNullSource,
                     androidxNullableSource,
+                    // Hide androidx.annotation classes.
+                    KnownSourceFiles.androidxAnnotationHide,
                 ),
             migrateNullsApi =
                 """
@@ -165,7 +170,6 @@ class NullnessMigrationTest : DriverTest() {
                         """
                     ),
                 ),
-            extraArguments = arrayOf(ARG_HIDE_PACKAGE, "androidx.annotation"),
         )
     }
 
@@ -191,6 +195,8 @@ class NullnessMigrationTest : DriverTest() {
                     ),
                     androidxNonNullSource,
                     androidxNullableSource,
+                    // Hide androidx.annotation classes.
+                    KnownSourceFiles.androidxAnnotationHide,
                 ),
             migrateNullsApi =
                 """
@@ -239,7 +245,6 @@ class NullnessMigrationTest : DriverTest() {
                         """
                     ),
                 ),
-            extraArguments = arrayOf(ARG_HIDE_PACKAGE, "androidx.annotation"),
         )
     }
 
@@ -265,6 +270,8 @@ class NullnessMigrationTest : DriverTest() {
                     ),
                     androidxNonNullSource,
                     androidxNullableSource,
+                    // Hide androidx.annotation classes.
+                    KnownSourceFiles.androidxAnnotationHide,
                 ),
             migrateNullsApi =
                 """
@@ -293,7 +300,6 @@ class NullnessMigrationTest : DriverTest() {
                       }
                     }
                 """,
-            extraArguments = arrayOf(ARG_HIDE_PACKAGE, "androidx.annotation"),
         )
     }
 
@@ -376,8 +382,9 @@ class NullnessMigrationTest : DriverTest() {
                     ),
                     androidxNonNullSource,
                     androidxNullableSource,
+                    // Hide androidx.annotation classes.
+                    KnownSourceFiles.androidxAnnotationHide,
                 ),
-            extraArguments = arrayOf(ARG_HIDE_PACKAGE, "androidx.annotation"),
             api =
                 if (SUPPORT_TYPE_USE_ANNOTATIONS) {
                     """
@@ -431,8 +438,9 @@ class NullnessMigrationTest : DriverTest() {
                     ),
                     androidxNonNullSource,
                     androidxNullableSource,
+                    // Hide androidx.annotation classes.
+                    KnownSourceFiles.androidxAnnotationHide,
                 ),
-            extraArguments = arrayOf(ARG_HIDE_PACKAGE, "androidx.annotation"),
             api =
                 if (SUPPORT_TYPE_USE_ANNOTATIONS) {
                     """
@@ -480,8 +488,9 @@ class NullnessMigrationTest : DriverTest() {
                     ),
                     androidxNonNullSource,
                     androidxNullableSource,
+                    // Hide androidx.annotation classes.
+                    KnownSourceFiles.androidxAnnotationHide,
                 ),
-            extraArguments = arrayOf(ARG_HIDE_PACKAGE, "androidx.annotation"),
             // TODO: Handle multiple nullness annotations
             migrateNullsApi =
                 """
@@ -553,8 +562,9 @@ class NullnessMigrationTest : DriverTest() {
                     ),
                     androidxNonNullSource,
                     androidxNullableSource,
+                    // Hide androidx.annotation classes.
+                    KnownSourceFiles.androidxAnnotationHide,
                 ),
-            extraArguments = arrayOf(ARG_HIDE_PACKAGE, "androidx.annotation"),
             // TODO: Handle multiple nullness annotations
             migrateNullsApi =
                 """
@@ -627,6 +637,8 @@ class NullnessMigrationTest : DriverTest() {
                     ),
                     androidxNonNullSource,
                     androidxNullableSource,
+                    // Hide androidx.annotation classes.
+                    KnownSourceFiles.androidxAnnotationHide,
                 ),
             migrateNullsApi =
                 """
@@ -638,7 +650,6 @@ class NullnessMigrationTest : DriverTest() {
                       }
                     }
                 """,
-            extraArguments = arrayOf(ARG_HIDE_PACKAGE, "androidx.annotation"),
             stubFiles =
                 if (SUPPORT_TYPE_USE_ANNOTATIONS) {
                     arrayOf(

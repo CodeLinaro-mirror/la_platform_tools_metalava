@@ -19,6 +19,7 @@ package com.android.tools.metalava.model.psi
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.FieldItem
+import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.isNonNullAnnotation
@@ -37,7 +38,7 @@ class PsiFieldItem(
     containingClass: PsiClassItem,
     name: String,
     modifiers: DefaultModifierList,
-    documentation: String,
+    documentation: ItemDocumentation,
     private var fieldType: TypeItem,
     private val isEnumConstant: Boolean,
     private val fieldValue: PsiFieldValue?,
@@ -94,19 +95,6 @@ class PsiFieldItem(
 
     override var inheritedFrom: ClassItem? = null
 
-    override fun equals(other: Any?): Boolean {
-        if (this === other) {
-            return true
-        }
-        return other is FieldItem &&
-            name == other.name() &&
-            containingClass == other.containingClass()
-    }
-
-    override fun hashCode(): Int {
-        return name.hashCode()
-    }
-
     companion object {
         internal fun create(
             codebase: PsiBasedCodebase,
@@ -115,7 +103,7 @@ class PsiFieldItem(
             enclosingClassTypeItemFactory: PsiTypeItemFactory,
         ): PsiFieldItem {
             val name = psiField.name
-            val commentText = javadoc(psiField, codebase.allowReadingComments)
+            val commentText = javadocAsItemDocumentation(psiField, codebase)
             val modifiers = modifiers(codebase, psiField, commentText)
 
             val isEnumConstant = psiField is PsiEnumConstant

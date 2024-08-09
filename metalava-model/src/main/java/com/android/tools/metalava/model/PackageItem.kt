@@ -60,16 +60,6 @@ interface PackageItem : Item {
     override fun parent(): PackageItem? =
         if (qualifiedName().isEmpty()) null else containingPackage()
 
-    override fun containingPackage(): PackageItem? {
-        val name = qualifiedName()
-        val lastDot = name.lastIndexOf('.')
-        return if (lastDot != -1) {
-            codebase.findPackage(name.substring(0, lastDot))
-        } else {
-            null
-        }
-    }
-
     override val effectivelyDeprecated: Boolean
         get() = originallyDeprecated
 
@@ -82,11 +72,47 @@ interface PackageItem : Item {
         visitor.visit(this)
     }
 
-    override fun toStringForItem() = "package ${qualifiedName()}"
+    override fun equalsToItem(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is PackageItem) return false
+
+        return qualifiedName() == other.qualifiedName()
+    }
+
+    override fun hashCodeForItem(): Int {
+        return qualifiedName().hashCode()
+    }
+
+    override fun toStringForItem() =
+        "package ${qualifiedName().let { if (it == "") "<root>" else it}}"
 
     companion object {
         val comparator: Comparator<PackageItem> = Comparator { a, b ->
             a.qualifiedName().compareTo(b.qualifiedName())
+        }
+    }
+}
+
+/**
+ * Find the closest enclosing, non-empty, package of the package called [qualifiedName].
+ *
+ * If the package name is `A.B.C` and `A.B` is empty of classes (and so was not added in the
+ * [Codebase]) but `A` was not then this will skip `A.B` and return `A`.
+ */
+fun Codebase.findClosestEnclosingNonEmptyPackage(qualifiedName: String): PackageItem {
+    if (qualifiedName.isEmpty()) error("Must not be called on root package")
+    else {
+        var parentPackage = qualifiedName
+        while (true) {
+            val index = parentPackage.lastIndexOf('.')
+            if (index == -1) {
+                return findPackage("") ?: error("Cannot find root package")
+            }
+            parentPackage = parentPackage.substring(0, index)
+            val pkg = findPackage(parentPackage)
+            if (pkg != null) {
+                return pkg
+            }
         }
     }
 }

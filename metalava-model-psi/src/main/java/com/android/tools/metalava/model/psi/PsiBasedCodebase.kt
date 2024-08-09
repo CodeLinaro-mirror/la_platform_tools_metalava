@@ -719,8 +719,8 @@ open class PsiBasedCodebase(
     internal fun getClassType(cls: PsiClass): PsiClassType =
         getFactory().createType(cls, PsiSubstitutor.EMPTY)
 
-    internal fun getComment(string: String, parent: PsiElement? = null): PsiDocComment =
-        getFactory().createDocCommentFromText(string, parent)
+    internal fun getComment(documentation: String, parent: PsiElement? = null): PsiDocComment =
+        getFactory().createDocCommentFromText(documentation, parent)
 
     private fun getPackageName(clz: PsiClass): String {
         var top: PsiClass? = clz

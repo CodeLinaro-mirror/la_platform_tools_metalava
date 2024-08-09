@@ -16,6 +16,8 @@
 
 package com.android.tools.metalava.model
 
+import com.android.tools.metalava.model.TypeItem.Companion.equals
+import java.util.Objects
 import java.util.function.Predicate
 
 @MetalavaApi
@@ -64,9 +66,6 @@ interface MethodItem : MemberItem, TypeParameterListOwner {
             correspondingMethodItem.duplicate(correspondingClassItem)
         else correspondingMethodItem
     }
-
-    /** Returns the main documentation for the method (the documentation before any tags). */
-    fun findMainDocumentation(): String
 
     fun allSuperMethods(): Sequence<MethodItem> {
         val original = superMethods().firstOrNull() ?: return emptySequence()
@@ -358,6 +357,22 @@ interface MethodItem : MemberItem, TypeParameterListOwner {
     }
 
     /**
+     * Check whether this method is a synthetic enum method.
+     *
+     * i.e. `getEntries()` from Kotlin and `values()` and `valueOf(String)` from both Java and
+     * Kotlin.
+     */
+    fun isEnumSyntheticMethod(): Boolean {
+        if (!containingClass().isEnum()) return false
+        val parameters = parameters()
+        return when (parameters.size) {
+            0 -> name().let { name -> name == JAVA_ENUM_VALUES || name == "getEntries" }
+            1 -> name() == JAVA_ENUM_VALUE_OF && parameters[0].type().isString()
+            else -> false
+        }
+    }
+
+    /**
      * Finds uncaught exceptions actually thrown inside this method (as opposed to ones declared in
      * the signature)
      */
@@ -379,6 +394,55 @@ interface MethodItem : MemberItem, TypeParameterListOwner {
      * (https://youtrack.jetbrains.com/issue/KT-57537).
      */
     fun shouldExpandOverloads(): Boolean = false
+
+    override fun equalsToItem(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is MethodItem) return false
+
+        if (name() != other.name()) {
+            return false
+        }
+
+        if (containingClass() != other.containingClass()) {
+            return false
+        }
+
+        val parameters1 = parameters()
+        val parameters2 = other.parameters()
+
+        if (parameters1.size != parameters2.size) {
+            return false
+        }
+
+        for (i in parameters1.indices) {
+            val parameter1 = parameters1[i]
+            val parameter2 = parameters2[i]
+            if (parameter1.type() != parameter2.type()) {
+                return false
+            }
+        }
+
+        val typeParameters1 = typeParameterList
+        val typeParameters2 = other.typeParameterList
+
+        if (typeParameters1.size != typeParameters2.size) {
+            return false
+        }
+
+        for (i in typeParameters1.indices) {
+            val typeParameter1 = typeParameters1[i]
+            val typeParameter2 = typeParameters2[i]
+            if (typeParameter1.typeBounds() != typeParameter2.typeBounds()) {
+                return false
+            }
+        }
+        return true
+    }
+
+    override fun hashCodeForItem(): Int {
+        // Just use the method name, containing class and number of parameters.
+        return Objects.hash(name(), containingClass(), parameters().size)
+    }
 
     /**
      * Returns true if this method is a signature match for the given method (e.g. can be

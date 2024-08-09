@@ -74,7 +74,7 @@ class SourceMethodItemTest : BaseModelTest() {
             assertEquals(false, duplicateMethod.docOnly)
             assertEquals("void", duplicateMethod.returnType().toTypeString())
             assertEquals(
-                listOf("A", "B"),
+                listOf("M", "String"),
                 duplicateMethod.parameters().map { it.type().toTypeString() }
             )
             assertEquals(methodItem.typeParameterList, duplicateMethod.typeParameterList)
@@ -98,72 +98,6 @@ class SourceMethodItemTest : BaseModelTest() {
             assertEquals(methodItem1.throwsTypes(), duplicateMethod1.throwsTypes())
             assertEquals(classItem, duplicateMethod1.inheritedFrom)
             checkMethodParameterState(duplicateMethod1)
-        }
-    }
-
-    @Test
-    fun `test inherited methods`() {
-        runSourceCodebaseTest(
-            java(
-                """
-                    package test.pkg;
-
-                    import java.io.IOException;
-
-                    /** @doconly Some docs here */
-                    public class Test<A,B>  {
-                        public final void foo(A a, B b) throws IOException {}
-
-                        public final <C,D extends Number> void foo1(C a,D d) {}
-                    }
-
-                    /** @hide */
-                    public class Target<M,String> extends Test<M,String> {}
-                """
-            ),
-        ) {
-            val classItem = codebase.assertClass("test.pkg.Test")
-            val targetClassItem = codebase.assertClass("test.pkg.Target")
-            val methodItem = classItem.methods().first()
-            val methodItem1 = classItem.methods().last()
-
-            val inheritedMethod = targetClassItem.inheritMethodFromNonApiAncestor(methodItem)
-            val inheritedMethod1 = targetClassItem.inheritMethodFromNonApiAncestor(methodItem1)
-
-            assertEquals(
-                methodItem.modifiers.getVisibilityLevel(),
-                inheritedMethod.modifiers.getVisibilityLevel()
-            )
-            assertEquals(true, methodItem.modifiers.equivalentTo(inheritedMethod.modifiers))
-            assertEquals(false, inheritedMethod.hidden)
-            assertEquals(false, inheritedMethod.docOnly)
-            assertEquals("void", inheritedMethod.returnType().toTypeString())
-            assertEquals(
-                listOf("M", "String"),
-                inheritedMethod.parameters().map { it.type().toTypeString() }
-            )
-            assertEquals(methodItem.typeParameterList, inheritedMethod.typeParameterList)
-            assertEquals(methodItem.throwsTypes(), inheritedMethod.throwsTypes())
-            assertEquals(classItem, inheritedMethod.inheritedFrom)
-            checkMethodParameterState(inheritedMethod)
-
-            assertEquals(
-                methodItem1.modifiers.getVisibilityLevel(),
-                inheritedMethod1.modifiers.getVisibilityLevel()
-            )
-            assertEquals(true, methodItem1.modifiers.equivalentTo(inheritedMethod1.modifiers))
-            assertEquals(false, inheritedMethod1.hidden)
-            assertEquals(false, inheritedMethod1.docOnly)
-            assertEquals(methodItem1.returnType(), inheritedMethod1.returnType())
-            assertEquals("void", inheritedMethod.returnType().toTypeString())
-            assertEquals(
-                listOf("C", "D"),
-                inheritedMethod1.parameters().map { it.type().toTypeString() }
-            )
-            assertEquals(methodItem1.typeParameterList, inheritedMethod1.typeParameterList)
-            assertEquals(methodItem1.throwsTypes(), inheritedMethod1.throwsTypes())
-            assertEquals(classItem, inheritedMethod1.inheritedFrom)
-            checkMethodParameterState(inheritedMethod1)
         }
     }
 }

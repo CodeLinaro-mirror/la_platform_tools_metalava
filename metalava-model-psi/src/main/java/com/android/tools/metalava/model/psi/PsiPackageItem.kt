@@ -18,8 +18,10 @@ package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.DefaultModifierList
+import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.VisibilityLevel
+import com.android.tools.metalava.model.findClosestEnclosingNonEmptyPackage
 import com.intellij.psi.PsiPackage
 
 class PsiPackageItem
@@ -28,7 +30,7 @@ internal constructor(
     private val psiPackage: PsiPackage,
     private val qualifiedName: String,
     modifiers: DefaultModifierList,
-    documentation: String,
+    documentation: ItemDocumentation,
     override val overviewDocumentation: String?,
     /** True if this package is from the classpath (dependencies). Exposed in [isFromClassPath]. */
     private val fromClassPath: Boolean
@@ -48,35 +50,19 @@ internal constructor(
         // Return a copy to avoid a ConcurrentModificationException.
         classes.toList()
 
-    lateinit var containingPackageField: PsiPackageItem
-
     override fun containingClass(): ClassItem? = null
 
     override fun psi() = psiPackage
+
+    lateinit var containingPackageField: PackageItem
 
     override fun containingPackage(): PackageItem? {
         return if (qualifiedName.isEmpty()) null
         else {
             if (!::containingPackageField.isInitialized) {
-                var parentPackage = qualifiedName
-                while (true) {
-                    val index = parentPackage.lastIndexOf('.')
-                    if (index == -1) {
-                        containingPackageField = codebase.findPackage("")!!
-                        return containingPackageField
-                    }
-                    parentPackage = parentPackage.substring(0, index)
-                    val pkg = codebase.findPackage(parentPackage)
-                    if (pkg != null) {
-                        containingPackageField = pkg
-                        return pkg
-                    }
-                }
-
-                @Suppress("UNREACHABLE_CODE") null
-            } else {
-                containingPackageField
+                containingPackageField = codebase.findClosestEnclosingNonEmptyPackage(qualifiedName)
             }
+            containingPackageField
         }
     }
 
@@ -109,15 +95,6 @@ internal constructor(
 
     override fun qualifiedName(): String = qualifiedName
 
-    override fun equals(other: Any?): Boolean {
-        if (this === other) {
-            return true
-        }
-        return other is PackageItem && qualifiedName == other.qualifiedName()
-    }
-
-    override fun hashCode(): Int = qualifiedName.hashCode()
-
     override fun isFromClassPath(): Boolean = fromClassPath
 
     companion object {
@@ -128,9 +105,7 @@ internal constructor(
             overviewHtml: String?,
             fromClassPath: Boolean,
         ): PsiPackageItem {
-            val commentText =
-                javadoc(psiPackage, codebase.allowReadingComments) +
-                    if (extraDocs != null) "\n$extraDocs" else ""
+            val commentText = javadocAsItemDocumentation(psiPackage, codebase, extraDocs)
             val modifiers = modifiers(codebase, psiPackage, commentText)
             if (modifiers.isPackagePrivate()) {
                 // packages are always public (if not hidden explicitly with private)

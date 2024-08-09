@@ -24,7 +24,6 @@ import com.android.tools.metalava.model.noOpAnnotationManager
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.testsuite.ModelSuiteRunner
-import com.android.tools.metalava.reporter.FileLocation
 import com.android.tools.metalava.testing.getAndroidJar
 import java.io.File
 import java.net.URLClassLoader
@@ -107,22 +106,19 @@ internal class ClassLoaderBasedClassResolver(jar: File) : ClassResolver {
 
                 val packageItem =
                     codebase.findPackage(packageName)
-                        ?: TextPackageItem(
-                                codebase = codebase,
-                                name = packageName,
-                                modifiers = DefaultModifierList(codebase),
-                                fileLocation = FileLocation.UNKNOWN,
-                            )
+                        ?: codebase.itemFactory
+                            .createPackageItem(qualifiedName = packageName)
                             .also { newPackageItem -> codebase.addPackage(newPackageItem) }
 
                 TextClassItem(
                         codebase = codebase,
                         modifiers = DefaultModifierList(codebase),
                         qualifiedName = cls.canonicalName,
+                        containingClass = null,
                     )
                     .also { newClassItem ->
                         codebase.registerClass(newClassItem)
-                        packageItem.addClass(newClassItem)
+                        packageItem.addTopClass(newClassItem)
                     }
             }
     }

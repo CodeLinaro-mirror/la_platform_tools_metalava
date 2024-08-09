@@ -18,6 +18,7 @@ package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.DefaultModifierList
+import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.TypeItem
@@ -52,6 +53,7 @@ internal constructor(
     codebase: PsiBasedCodebase,
     private val psiParameter: PsiParameter,
     private val name: String,
+    private val containingMethod: PsiMethodItem,
     override val parameterIndex: Int,
     modifiers: DefaultModifierList,
     private var type: PsiTypeItem,
@@ -60,10 +62,9 @@ internal constructor(
         codebase = codebase,
         element = psiParameter,
         modifiers = modifiers,
-        documentation = "",
+        documentation = ItemDocumentation.NONE,
     ),
     ParameterItem {
-    lateinit var containingMethod: PsiMethodItem
 
     override var property: PsiPropertyItem? = null
 
@@ -240,19 +241,6 @@ internal constructor(
 
     override fun containingMethod(): MethodItem = containingMethod
 
-    override fun equals(other: Any?): Boolean {
-        if (this === other) {
-            return true
-        }
-        return other is ParameterItem &&
-            parameterIndex == other.parameterIndex &&
-            containingMethod == other.containingMethod()
-    }
-
-    override fun hashCode(): Int {
-        return parameterIndex
-    }
-
     override fun isVarArgs(): Boolean {
         return psiParameter.isVarArgs || modifiers.isVarArg()
     }
@@ -307,14 +295,26 @@ internal constructor(
         }
     }
 
+    override fun duplicate(containingMethod: MethodItem, typeVariableMap: TypeParameterBindings) =
+        PsiParameterItem(
+            codebase = codebase,
+            psiParameter = psiParameter,
+            name = name,
+            containingMethod = containingMethod as PsiMethodItem,
+            parameterIndex = parameterIndex,
+            modifiers = modifiers.duplicate(),
+            type = type.convertType(typeVariableMap) as PsiTypeItem,
+        )
+
     companion object {
         internal fun create(
-            codebase: PsiBasedCodebase,
+            containingMethod: PsiMethodItem,
             fingerprint: MethodFingerprint,
             psiParameter: PsiParameter,
             parameterIndex: Int,
             enclosingMethodTypeItemFactory: PsiTypeItemFactory,
         ): PsiParameterItem {
+            val codebase = containingMethod.codebase
             val name = psiParameter.name
             val modifiers = createParameterModifiers(codebase, psiParameter)
             val psiType = psiParameter.type
@@ -357,6 +357,7 @@ internal constructor(
                     codebase = codebase,
                     psiParameter = psiParameter,
                     name = name,
+                    containingMethod = containingMethod,
                     parameterIndex = parameterIndex,
                     modifiers = modifiers,
                     // Need to down cast as [isSamCompatibleOrKotlinLambda] needs access to the
@@ -364,30 +365,6 @@ internal constructor(
                     type = type as PsiTypeItem
                 )
             return parameter
-        }
-
-        fun create(
-            original: PsiParameterItem,
-            typeParameterBindings: TypeParameterBindings
-        ): PsiParameterItem {
-            val type = original.type.convertType(typeParameterBindings) as PsiTypeItem
-            val parameter =
-                PsiParameterItem(
-                    codebase = original.codebase,
-                    psiParameter = original.psiParameter,
-                    name = original.name,
-                    parameterIndex = original.parameterIndex,
-                    modifiers = original.modifiers.duplicate(),
-                    type = type
-                )
-            return parameter
-        }
-
-        fun create(
-            original: List<ParameterItem>,
-            typeParameterBindings: TypeParameterBindings
-        ): List<PsiParameterItem> {
-            return original.map { create(it as PsiParameterItem, typeParameterBindings) }
         }
 
         private fun createParameterModifiers(

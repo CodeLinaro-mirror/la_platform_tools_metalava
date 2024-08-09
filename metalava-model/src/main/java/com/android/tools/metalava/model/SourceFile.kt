@@ -60,7 +60,7 @@ interface SourceFile {
                             // that its child items are so make sure to visit them.
                             return TraversalAction.CONTINUE
                         }
-                        val doc = item.documentation
+                        val doc = item.documentation.text
                         if (doc.isNotBlank()) {
                             // Scan the documentation text to see if it contains any of the
                             // short names imported. It does not check whether the names

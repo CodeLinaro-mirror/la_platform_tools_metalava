@@ -970,11 +970,11 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
                     .trimIndent()
             assertEquals(null, innerClassItem.getSourceFile())
             assertEquals(headerComment, sourceFile.getHeaderComments())
-            assertEquals(methodComment, methodItem.documentation)
-            assertEquals("/** Class documentation */", classItem.documentation)
-            assertEquals("/** Field Doc */", fieldItem.documentation)
-            assertEquals("", fieldItem1.documentation)
-            assertEquals("", pkgItem.documentation)
+            assertEquals(methodComment, methodItem.documentation.text)
+            assertEquals("/** Class documentation */", classItem.documentation.text)
+            assertEquals("/** Field Doc */", fieldItem.documentation.text)
+            assertEquals("", fieldItem1.documentation.text)
+            assertEquals("", pkgItem.documentation.text)
             assertEquals(classItem.sourceFile(), classItem1.sourceFile())
         }
     }

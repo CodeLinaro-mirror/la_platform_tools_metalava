@@ -46,14 +46,6 @@ class CommonCopyMethodItemTest : CommonCopyMemberItemTest<MethodItem>() {
             ): MethodItem {
                 return sourceMethodItem.duplicate(targetClassItem)
             }
-        },
-        INHERIT(supportedInputFormats = setOf(InputFormat.JAVA)) {
-            override fun copy(
-                sourceMethodItem: MethodItem,
-                targetClassItem: ClassItem
-            ): MethodItem {
-                return targetClassItem.inheritMethodFromNonApiAncestor(sourceMethodItem)
-            }
         };
 
         abstract fun copy(sourceMethodItem: MethodItem, targetClassItem: ClassItem): MethodItem

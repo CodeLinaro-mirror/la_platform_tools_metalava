@@ -42,7 +42,7 @@ internal open class TurbineBasedCodebase(
      * Map from class name to class item. Classes are added via [registerClass] while initialising
      * the codebase
      */
-    private lateinit var classMap: MutableMap<String, TurbineClassItem>
+    private lateinit var classMap: MutableMap<String, ClassItem>
 
     /** Map from package name to the corresponding package item */
     private lateinit var packageMap: MutableMap<String, PackageItem>
@@ -62,13 +62,13 @@ internal open class TurbineBasedCodebase(
         return DefaultAnnotationItem.create(this, source)
     }
 
-    override fun findClass(className: String): TurbineClassItem? {
+    override fun findClass(className: String): ClassItem? {
         return classMap[className]
     }
 
     override fun resolveClass(className: String) = findOrCreateClass(className)
 
-    fun findOrCreateClass(className: String): TurbineClassItem? {
+    fun findOrCreateClass(className: String): ClassItem? {
         return initializer.findOrCreateClass(className)
     }
 
@@ -93,7 +93,7 @@ internal open class TurbineBasedCodebase(
         return topLevelClassesFromSource
     }
 
-    fun registerClass(classItem: TurbineClassItem, isTopClass: Boolean) {
+    fun registerClass(classItem: ClassItem, isTopClass: Boolean) {
         val qualifiedName = classItem.qualifiedName()
         val existing = classMap.put(qualifiedName, classItem)
         if (existing != null) {
@@ -109,7 +109,7 @@ internal open class TurbineBasedCodebase(
         addClass(classItem)
     }
 
-    fun addPackage(packageItem: TurbinePackageItem) {
+    fun addPackage(packageItem: PackageItem) {
         packageMap.put(packageItem.qualifiedName(), packageItem)
     }
 

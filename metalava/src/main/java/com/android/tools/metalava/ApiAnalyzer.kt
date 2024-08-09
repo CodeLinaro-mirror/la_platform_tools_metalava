@@ -94,9 +94,6 @@ class ApiAnalyzer(
          */
         val mergeInclusionAnnotations: List<File> = emptyList(),
 
-        /** Packages to import (if empty, include all) */
-        val stubImportPackages: Set<String> = emptySet(),
-
         /** The filter for all the show annotations. */
         val allShowAnnotations: AnnotationFilter = AnnotationFilter.emptyFilter(),
 
@@ -252,7 +249,6 @@ class ApiAnalyzer(
                 // supported.
                 cls.createDefaultConstructor().also {
                     it.mutableModifiers().setVisibilityLevel(VisibilityLevel.PACKAGE_PRIVATE)
-                    it.hidden = false
                     it.superConstructor = superDefaultConstructor
                 }
             } else {
@@ -517,10 +513,11 @@ class ApiAnalyzer(
         }
 
         // We're now left with concrete methods in hidden parents that are implementing methods in
-        // public
-        // interfaces that are listed in this class. Create stubs for them:
+        // public interfaces that are listed in this class. Create stubs for them:
         map.values.flatten().forEach {
-            val method = cls.inheritMethodFromNonApiAncestor(it)
+            // Copy the method from the hidden class that is not part of the API into the class that
+            // is part of the API.
+            val method = it.duplicate(cls)
             /* Insert comment marker: This is useful for debugging purposes but doesn't
                belong in the stub
             method.documentation = "// Inlined stub from hidden parent class ${it.containingClass().qualifiedName()}\n" +
@@ -612,14 +609,10 @@ class ApiAnalyzer(
         // status of the containing package which would preventing it being propagated correctly
         // onto its contained packages.
         for (pkg in packages.packages) {
-            when {
-                config.hidePackages.contains(pkg.qualifiedName()) -> pkg.hidden = true
-                else -> {
-                    val showability = pkg.showability
-                    when {
-                        showability.show() -> pkg.hidden = false
-                        showability.hide() -> pkg.hidden = true
-                    }
+            pkg.showability.let { showability ->
+                when {
+                    showability.show() -> pkg.hidden = false
+                    showability.hide() -> pkg.hidden = true
                 }
             }
             val containingPackage = pkg.containingPackage()
@@ -634,9 +627,23 @@ class ApiAnalyzer(
 
             // If this package is hidden then hide its classes. This is done here to avoid ordering
             // issues when a class with a show annotation unhides its containing package.
-            if (pkg.hidden) {
+            val hidden = pkg.hidden
+            val docOnly = pkg.docOnly
+            val removed = pkg.removed
+            if (hidden || docOnly || removed) {
                 for (topLevelClass in pkg.topLevelClasses()) {
-                    topLevelClass.hidden = true
+                    val showability = topLevelClass.showability
+                    if (!showability.show() && !showability.hide()) {
+                        if (hidden) {
+                            topLevelClass.hidden = true
+                        }
+                        if (hidden) {
+                            topLevelClass.docOnly = true
+                        }
+                        if (removed) {
+                            topLevelClass.removed = true
+                        }
+                    }
                 }
             }
         }
@@ -667,7 +674,7 @@ class ApiAnalyzer(
                             cls.hidden = true
                         } else if (
                             containingClass.originallyHidden &&
-                                containingClass.hasShowSingleAnnotation()
+                                containingClass.showability.showNonRecursive()
                         ) {
                             // See explanation in visitMethod
                             cls.hidden = true
@@ -676,14 +683,6 @@ class ApiAnalyzer(
                             cls.docOnly = true
                         }
                         if (containingClass.removed) {
-                            cls.removed = true
-                        }
-                    } else {
-                        val containingPackage = cls.containingPackage()
-                        if (containingPackage.docOnly && !containingPackage.isDefault) {
-                            cls.docOnly = true
-                        }
-                        if (containingPackage.removed && !showability.show()) {
                             cls.removed = true
                         }
                     }
@@ -702,7 +701,7 @@ class ApiAnalyzer(
                             method.hidden = true
                         } else if (
                             containingClass.originallyHidden &&
-                                containingClass.hasShowSingleAnnotation()
+                                containingClass.showability.showNonRecursive()
                         ) {
                             // This is a member in a class that was hidden but then unhidden;
                             // but it was unhidden by a non-recursive (single) show annotation, so
@@ -729,7 +728,7 @@ class ApiAnalyzer(
                         val containingClass = field.containingClass()
                         if (
                             containingClass.originallyHidden &&
-                                containingClass.hasShowSingleAnnotation()
+                                containingClass.showability.showNonRecursive()
                         ) {
                             // See explanation in visitMethod
                             field.hidden = true
@@ -932,7 +931,7 @@ class ApiAnalyzer(
                         checkHiddenShowAnnotations &&
                             item.hasShowAnnotation() &&
                             !item.originallyHidden &&
-                            !item.hasShowSingleAnnotation()
+                            !item.showability.showNonRecursive()
                     ) {
                         item.modifiers
                             .annotations()
@@ -1102,11 +1101,6 @@ class ApiAnalyzer(
         from: Item,
         usage: String
     ) {
-        if (config.stubImportPackages.contains(cl.containingPackage().qualifiedName())) {
-            // if the package is imported then it does not need stubbing.
-            return
-        }
-
         if (cl.isFromClassPath()) {
             return
         }
@@ -1320,13 +1314,6 @@ class ApiAnalyzer(
             object : BaseTypeVisitor() {
                 override fun visitClassType(classType: ClassTypeItem) {
                     val asClass = classType.asClass() ?: return
-                    if (
-                        config.stubImportPackages.contains(
-                            asClass.containingPackage().qualifiedName()
-                        )
-                    ) {
-                        return
-                    }
                     if (asClass.isHiddenOrRemoved()) {
                         hiddenClasses.add(asClass)
                     }
@@ -1357,8 +1344,9 @@ private fun Item.isApiCandidate(): Boolean {
  * also looks at any inherited documentation.
  */
 private fun Item.documentationContainsDeprecated(): Boolean {
-    if (documentation.contains("@deprecated")) return true
-    if (this is MethodItem && (documentation == "" || documentation.contains("@inheritDoc"))) {
+    val text = documentation.text
+    if (text.contains("@deprecated")) return true
+    if (this is MethodItem && (text == "" || text.contains("@inheritDoc"))) {
         return superMethods().any { it.documentationContainsDeprecated() }
     }
     return false

@@ -98,6 +98,33 @@ interface ParameterItem : Item {
         visitor.visit(this)
     }
 
+    /**
+     * Create a duplicate of this for [containingMethod].
+     *
+     * The duplicate's [type] must have applied the [typeVariableMap] substitutions by using
+     * [TypeItem.convertType].
+     *
+     * This is called from within the constructor of the [containingMethod] so must only access its
+     * `name` and its reference. In particularly it must not access its [MethodItem.parameters]
+     * property as this is called during its initialization.
+     */
+    fun duplicate(
+        containingMethod: MethodItem,
+        typeVariableMap: TypeParameterBindings,
+    ): ParameterItem
+
+    override fun equalsToItem(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is ParameterItem) return false
+
+        return parameterIndex == other.parameterIndex &&
+            containingMethod() == other.containingMethod()
+    }
+
+    override fun hashCodeForItem(): Int {
+        return name().hashCode()
+    }
+
     override fun toStringForItem() = "parameter ${name()}"
 
     override fun containingClass(): ClassItem = containingMethod().containingClass()
