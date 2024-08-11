@@ -20,9 +20,9 @@ open class BaseItemVisitor(
     /**
      * Whether constructors should be visited as part of a [#visitMethod] call instead of just a
      * [#visitConstructor] call. Helps simplify visitors that don't care to distinguish between the
-     * two cases. Defaults to true.
+     * two cases. Defaults to false.
      */
-    val visitConstructorsAsMethods: Boolean = true,
+    val visitConstructorsAsMethods: Boolean = false,
     /**
      * Whether nested classes should be visited "inside" a class; when this property is true, nested
      * classes are visited before the [#afterVisitClass] method is called; when false, it's done
@@ -88,23 +88,33 @@ open class BaseItemVisitor(
         afterVisitItem(field)
     }
 
+    override fun visit(constructor: ConstructorItem) {
+        visitMethodOrConstructor(constructor) { visitConstructor(it) }
+    }
+
     override fun visit(method: MethodItem) {
-        if (skip(method)) {
+        visitMethodOrConstructor(method) { visitMethod(it) }
+    }
+
+    private inline fun <T : CallableItem> visitMethodOrConstructor(
+        callable: T,
+        dispatch: (T) -> Unit
+    ) {
+        if (skip(callable)) {
             return
         }
 
-        visitItem(method)
-        if (method.isConstructor()) {
-            visitConstructor(method as ConstructorItem)
-        } else {
-            visitMethod(method)
-        }
+        visitItem(callable)
+        visitCallable(callable)
 
-        for (parameter in method.parameters()) {
+        // Call the specific visitX method for the CallableItem subclass.
+        dispatch(callable)
+
+        for (parameter in callable.parameters()) {
             parameter.accept(this)
         }
 
-        afterVisitItem(method)
+        afterVisitItem(callable)
     }
 
     /**
@@ -174,15 +184,17 @@ open class BaseItemVisitor(
 
     open fun visitClass(cls: ClassItem) {}
 
+    open fun visitCallable(callable: CallableItem) {}
+
     open fun visitConstructor(constructor: ConstructorItem) {
         if (visitConstructorsAsMethods) {
             visitMethod(constructor)
         }
     }
 
-    open fun visitField(field: FieldItem) {}
-
     open fun visitMethod(method: MethodItem) {}
+
+    open fun visitField(field: FieldItem) {}
 
     open fun visitParameter(parameter: ParameterItem) {}
 

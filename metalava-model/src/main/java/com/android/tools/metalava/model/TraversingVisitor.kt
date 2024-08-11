@@ -83,6 +83,11 @@ abstract class TraversingVisitor : ItemVisitor {
         traversalFinished = action == TraversalAction.SKIP_TRAVERSAL
     }
 
+    final override fun visit(constructor: ConstructorItem) {
+        val action = visitItem(constructor)
+        traversalFinished = action == TraversalAction.SKIP_TRAVERSAL
+    }
+
     final override fun visit(method: MethodItem) {
         val action = visitItem(method)
         traversalFinished = action == TraversalAction.SKIP_TRAVERSAL

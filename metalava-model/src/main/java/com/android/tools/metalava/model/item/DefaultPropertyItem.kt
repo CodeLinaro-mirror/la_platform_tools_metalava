@@ -40,7 +40,7 @@ internal class DefaultPropertyItem(
         fileLocation,
         itemLanguage,
         modifiers,
-        ItemDocumentation.NONE,
+        ItemDocumentation.NONE_FACTORY,
         apiVariantSelectorsFactory,
         name,
         containingClass,

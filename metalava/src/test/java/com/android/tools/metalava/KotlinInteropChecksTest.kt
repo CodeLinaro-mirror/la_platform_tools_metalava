@@ -207,7 +207,7 @@ class KotlinInteropChecksTest : DriverTest() {
                         fun ok(int: Int = 0, int2: Int = 0) { }
                     }
 
-                    class Foo {
+                    class Foo(string: String = "default", long: Long = 0) {
                         fun ok1() { }
                         fun ok2(int: Int) { }
                         fun ok3(int: Int, int2: Int) { }

@@ -19,7 +19,7 @@ package com.android.tools.metalava.model.item
 import com.android.tools.metalava.model.AbstractItem
 import com.android.tools.metalava.model.ApiVariantSelectorsFactory
 import com.android.tools.metalava.model.DefaultModifierList
-import com.android.tools.metalava.model.ItemDocumentation
+import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.reporter.FileLocation
 
@@ -32,13 +32,13 @@ abstract class DefaultItem(
     fileLocation: FileLocation,
     internal val itemLanguage: ItemLanguage,
     modifiers: DefaultModifierList,
-    documentation: ItemDocumentation,
+    documentationFactory: ItemDocumentationFactory,
     variantSelectorsFactory: ApiVariantSelectorsFactory,
 ) :
     AbstractItem(
         fileLocation,
         modifiers,
-        documentation,
+        documentationFactory,
         variantSelectorsFactory,
     ) {
 

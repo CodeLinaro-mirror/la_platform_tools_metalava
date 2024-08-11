@@ -41,7 +41,7 @@ class DefaultTypeParameterItem(
         fileLocation = FileLocation.UNKNOWN,
         itemLanguage = itemLanguage,
         modifiers = modifiers,
-        documentation = ItemDocumentation.NONE,
+        documentationFactory = ItemDocumentation.NONE_FACTORY,
         variantSelectorsFactory = variantSelectorsFactory,
     ),
     TypeParameterItem {

@@ -66,7 +66,7 @@ class PsiMethodItemTest : BaseModelTest() {
             """
             )
         runCodebaseTest(sourceFile) {
-            val ctorItem = codebase.assertClass("Foo").assertMethod("Foo", "")
+            val ctorItem = codebase.assertClass("Foo").assertConstructor("")
             val ctorReturnType = ctorItem.returnType()
 
             val methodItem = codebase.assertClass("Foo").assertMethod("bar", "")

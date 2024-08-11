@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model.visitors
 
 import com.android.tools.metalava.model.BaseItemVisitor
+import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Codebase
@@ -49,7 +50,7 @@ class FilteringApiVisitor(
     val delegate: DelegatedVisitor,
     preserveClassNesting: Boolean = false,
     inlineInheritedFields: Boolean = true,
-    methodComparator: Comparator<MethodItem> = MethodItem.comparator,
+    callableComparator: Comparator<CallableItem> = CallableItem.comparator,
     /**
      * Optional lambda for sorting the filtered, list of interface types from a [ClassItem].
      *
@@ -86,13 +87,9 @@ class FilteringApiVisitor(
     config: Config,
 ) :
     ApiVisitor(
-        // The setting of this is irrelevant as that is done in the visitConstructor(...) and
-        // afterVisitConstructor(...) methods and FilteringApiVisitor overrides them. Set it to
-        // false anyway as that is the behavior that this provides.
-        visitConstructorsAsMethods = false,
         preserveClassNesting = preserveClassNesting,
         inlineInheritedFields = inlineInheritedFields,
-        methodComparator = methodComparator,
+        callableComparator = callableComparator,
         filterEmit = filterEmit,
         filterReference = filterReference,
         showUnannotated = showUnannotated,

@@ -23,13 +23,13 @@ import com.android.tools.metalava.model.ANNOTATION_ATTR_VALUE
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.AnnotationRetention
 import com.android.tools.metalava.model.AnnotationTarget
+import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.JAVA_LANG_PREFIX
 import com.android.tools.metalava.model.MemberItem
-import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.findAnnotation
@@ -187,8 +187,8 @@ class ExtractAnnotations(
         checkItem(field)
     }
 
-    override fun visitMethod(method: MethodItem) {
-        checkItem(method)
+    override fun visitCallable(callable: CallableItem) {
+        checkItem(callable)
     }
 
     override fun visitParameter(parameter: ParameterItem) {
@@ -375,7 +375,7 @@ class ExtractAnnotations(
             is ClassItem -> {
                 return escapeXml(qualifiedName())
             }
-            is MethodItem -> {
+            is CallableItem -> {
                 val sb = StringBuilder(100)
                 sb.append(escapeXml(containingClass().qualifiedName()))
                 sb.append(' ')

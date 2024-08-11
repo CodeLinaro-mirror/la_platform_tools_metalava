@@ -16,6 +16,9 @@
 
 package com.android.tools.metalava.model
 
+/** A factory that will create an [ItemDocumentation] for a specific [Item]. */
+typealias ItemDocumentationFactory = (Item) -> ItemDocumentation
+
 /**
  * The documentation associated with an [Item].
  *
@@ -60,7 +63,7 @@ interface ItemDocumentation : CharSequence {
      *
      * [ItemDocumentation] instances can be mutable, and if they are then they must not be shared.
      */
-    fun duplicate(): ItemDocumentation
+    fun duplicate(item: Item): ItemDocumentation
 
     /** Work around javadoc cutting off the summary line after the first ". ". */
     fun workAroundJavaDocSummaryTruncationIssue() {}
@@ -84,6 +87,17 @@ interface ItemDocumentation : CharSequence {
     /** Returns the main documentation for the method (the documentation before any tags). */
     fun findMainDocumentation(): String
 
+    /**
+     * Returns the [text], but with fully qualified links (except for the same package, and when
+     * turning a relative reference into a fully qualified reference, use the javadoc syntax for
+     * continuing to display the relative text, e.g. instead of {@link java.util.List}, use {@link
+     * java.util.List List}.
+     */
+    fun fullyQualifiedDocumentation(): String = fullyQualifiedDocumentation(text)
+
+    /** Expands the given documentation comment in the current name context */
+    fun fullyQualifiedDocumentation(documentation: String): String = documentation
+
     companion object {
         /**
          * A special [ItemDocumentation] that contains no documentation.
@@ -93,8 +107,18 @@ interface ItemDocumentation : CharSequence {
          */
         val NONE: ItemDocumentation = EmptyItemDocumentation()
 
-        /** Wrap a [String] in an [ItemDocumentation]. */
-        fun String.toItemDocumentation(): ItemDocumentation = DefaultItemDocumentation(this)
+        /**
+         * A special [ItemDocumentationFactory] that returns [NONE] which contains no documentation.
+         *
+         * Used where there is no documentation possible, e.g. text model, type parameters,
+         * parameters.
+         */
+        val NONE_FACTORY: ItemDocumentationFactory = { NONE }
+
+        /** Wrap a [String] in an [ItemDocumentationFactory]. */
+        fun String.toItemDocumentationFactory(): ItemDocumentationFactory = {
+            DefaultItemDocumentation(this)
+        }
     }
 
     /** An empty [ItemDocumentation] that can never contain any text. */
@@ -112,7 +136,7 @@ interface ItemDocumentation : CharSequence {
             get() = false
 
         // This is ok to share as it is immutable.
-        override fun duplicate() = this
+        override fun duplicate(item: Item) = this
 
         override fun findTagDocumentation(tag: String, value: String?): String? = null
 
@@ -259,7 +283,7 @@ abstract class AbstractItemDocumentation : ItemDocumentation {
 /** A default [ItemDocumentation] containing JavaDoc/KDoc. */
 internal class DefaultItemDocumentation(override var text: String) : AbstractItemDocumentation() {
 
-    override fun duplicate() = DefaultItemDocumentation(text)
+    override fun duplicate(item: Item) = DefaultItemDocumentation(text)
 
     override fun mergeDocumentation(comment: String, tagSection: String?) {
         TODO("Not yet implemented")

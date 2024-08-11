@@ -17,19 +17,20 @@
 package com.android.tools.metalava.model.source
 
 import com.android.tools.metalava.model.ItemDocumentation
-import com.android.tools.metalava.model.ItemDocumentation.Companion.toItemDocumentation
+import com.android.tools.metalava.model.ItemDocumentation.Companion.toItemDocumentationFactory
+import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.source.utils.packageHtmlToJavadoc
 import org.intellij.lang.annotations.Language
 
 /** Provides support for creating [ItemDocumentation] from source files. */
 object SourceItemDocumentation {
     /**
-     * Create an [ItemDocumentation] from a `package.html` file by extracting the contents of the
-     * body tag.
+     * Create an [ItemDocumentationFactory] from a `package.html` file by extracting the contents of
+     * the body tag.
      */
     @Language("JAVA")
-    fun fromHTML(@Language("HTML") packageHtml: String?): ItemDocumentation {
+    fun fromHTML(@Language("HTML") packageHtml: String?): ItemDocumentationFactory {
         val text = packageHtmlToJavadoc(packageHtml)
-        return text.toItemDocumentation()
+        return text.toItemDocumentationFactory()
     }
 }

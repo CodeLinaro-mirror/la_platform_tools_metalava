@@ -626,7 +626,7 @@ class DocAnalyzer(
         val qualified =
             if (containsLinkTags(insert)) {
                 val original = "/** $insert */"
-                val qualified = cls.fullyQualifiedDocumentation(original)
+                val qualified = annotationDocumentation.fullyQualifiedDocumentation(original)
                 if (original != qualified) {
                     qualified.substring(if (qualified[3] == ' ') 4 else 3, qualified.length - 2)
                 } else {

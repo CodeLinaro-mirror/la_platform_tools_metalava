@@ -303,16 +303,19 @@ class DefaultReporterTest : DriverTest() {
             checkFileMethod(Severity.WARNING_ERROR_WHEN_NEW)
             checkFileMethod(Severity.WARNING)
             checkFileMethod(Severity.HIDDEN)
+
+            // Write any saved reports.
+            reporter.writeSavedReports()
         }
 
         assertEquals(
             """
-                error: reportable/maximum=error [MissingNullability]
-                warning: reportable/maximum=warning (ErrorWhenNew) [MissingNullability]
-                warning: reportable/maximum=warning [MissingNullability]
-                error: file/maximum=error [MissingNullability]
-                warning: file/maximum=warning (ErrorWhenNew) [MissingNullability]
                 warning: file/maximum=warning [MissingNullability]
+                warning: reportable/maximum=warning [MissingNullability]
+                warning: file/maximum=warning (ErrorWhenNew) [MissingNullability]
+                warning: reportable/maximum=warning (ErrorWhenNew) [MissingNullability]
+                error: file/maximum=error [MissingNullability]
+                error: reportable/maximum=error [MissingNullability]
             """
                 .trimIndent(),
             stringWriter.toString().trimEnd()

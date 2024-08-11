@@ -427,8 +427,8 @@ class NullnessCompatibilityTest : DriverTest() {
                 ),
             expectedIssues =
                 """
-                    api.txt:5: error: Attempted to remove nullability from java.lang.Number (was NULLABLE) in method test.pkg.Foo.foo() [InvalidNullConversion]
                     api.txt:5: error: Attempted to change nullability of java.lang.String (from NONNULL to NULLABLE) in method test.pkg.Foo.foo() [InvalidNullConversion]
+                    api.txt:5: error: Attempted to remove nullability from java.lang.Number (was NULLABLE) in method test.pkg.Foo.foo() [InvalidNullConversion]
                 """,
         )
     }

@@ -20,7 +20,7 @@ import com.android.tools.metalava.model.ApiVariantSelectorsFactory
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.ExceptionTypeItem
-import com.android.tools.metalava.model.ItemDocumentation
+import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ParameterItem
@@ -45,7 +45,7 @@ open class DefaultMethodItem(
     fileLocation: FileLocation,
     itemLanguage: ItemLanguage,
     modifiers: DefaultModifierList,
-    documentation: ItemDocumentation,
+    documentationFactory: ItemDocumentationFactory,
     variantSelectorsFactory: ApiVariantSelectorsFactory,
     name: String,
     containingClass: ClassItem,
@@ -60,7 +60,7 @@ open class DefaultMethodItem(
         fileLocation,
         itemLanguage,
         modifiers,
-        documentation,
+        documentationFactory,
         variantSelectorsFactory,
         name,
         containingClass,
@@ -126,7 +126,7 @@ open class DefaultMethodItem(
                 fileLocation = fileLocation,
                 itemLanguage = itemLanguage,
                 modifiers = modifiers.duplicate(),
-                documentation = documentation.duplicate(),
+                documentationFactory = documentation::duplicate,
                 variantSelectorsFactory = variantSelectors::duplicate,
                 name = name(),
                 containingClass = targetContainingClass,

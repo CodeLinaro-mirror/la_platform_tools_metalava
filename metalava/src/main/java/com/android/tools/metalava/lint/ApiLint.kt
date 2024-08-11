@@ -53,6 +53,7 @@ import com.android.tools.metalava.lint.ResourceType.XML
 import com.android.tools.metalava.manifest.Manifest
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ArrayTypeItem
+import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Codebase
@@ -209,6 +210,7 @@ private constructor(
     config: Config,
 ) :
     ApiVisitor(
+        visitConstructorsAsMethods = true,
         // We don't use ApiType's eliding emitFilter here, because lint checks should run
         // even when the signatures match that of a super method exactly (notably the ones checking
         // that nullability overrides are consistent).
@@ -216,7 +218,7 @@ private constructor(
         filterReference = ApiType.PUBLIC_API.getReferenceFilter(config.apiPredicateConfig),
         config = config,
         // Sort by source order such that warnings follow source line number order.
-        methodComparator = MethodItem.sourceOrderComparator,
+        callableComparator = CallableItem.sourceOrderComparator,
     ) {
 
     /** Predicate that checks if the item appears in the signature file. */
@@ -256,7 +258,7 @@ private constructor(
 
                 // With show annotations we might be flagging API that is filtered out: hide these
                 // here
-                val testItem = if (item is ParameterItem) item.containingMethod() else item
+                val testItem = if (item is ParameterItem) item.containingCallable() else item
                 if (!filterEmit.test(testItem)) {
                     return false
                 }
@@ -385,7 +387,9 @@ private constructor(
                 checkType(parameter.type(), parameter)
             }
             checkParameterOrder(method)
-            kotlinInterop.checkMethod(method)
+            if (!method.isConstructor()) {
+                kotlinInterop.checkMethod(method)
+            }
         }
     }
 
@@ -1718,8 +1722,8 @@ private constructor(
                 is MethodItem -> item.findPredicateSuperMethod(filterReference)
                 is ParameterItem ->
                     item
-                        .containingMethod()
-                        .findPredicateSuperMethod(filterReference)
+                        .possibleContainingMethod()
+                        ?.findPredicateSuperMethod(filterReference)
                         ?.parameters()
                         ?.find { it.parameterIndex == item.parameterIndex }
                 else -> null
@@ -2081,18 +2085,19 @@ private constructor(
         val itemType = item.type() ?: return
         val inherited =
             when (item) {
-                is ParameterItem -> item.containingMethod().inheritedFromAncestor
+                is ParameterItem -> item.possibleContainingMethod()?.inheritedFromAncestor == true
                 is InheritableItem -> item.inheritedFromAncestor
                 else -> false
             }
         val superItems =
             when (item) {
                 is ParameterItem ->
-                    item.containingMethod().superMethods().mapNotNull {
+                    item.possibleContainingMethod()?.superMethods()?.mapNotNull {
                         it.parameters().find { param ->
                             item.parameterIndex == param.parameterIndex
                         }
                     }
+                        ?: emptyList()
                 is MethodItem -> item.superMethods()
                 else -> emptyList()
             }
@@ -2157,7 +2162,7 @@ private constructor(
             when (item) {
                 is ParameterItem -> {
                     // We don't enforce this check on constructor params
-                    if (item.containingMethod().isConstructor()) return
+                    if (item.containingCallable().isConstructor()) return
                     if (type.modifiers.isNonNull) {
                         // TODO (b/344859664): Skip warning for inner type
                         if (supers.anyTypeHasNullability(TypeNullability.PLATFORM) && !isInner) {
@@ -3506,7 +3511,8 @@ private constructor(
         private fun isServiceDumpMethod(item: Item) =
             when (item) {
                 is MethodItem -> isServiceDumpMethod(item)
-                is ParameterItem -> isServiceDumpMethod(item.containingMethod())
+                is ParameterItem -> item.possibleContainingMethod()?.let { isServiceDumpMethod(it) }
+                        ?: false
                 else -> false
             }
 

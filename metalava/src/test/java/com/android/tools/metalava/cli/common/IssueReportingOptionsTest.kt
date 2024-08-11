@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.cli.common
 
-import com.android.tools.metalava.reporter.DefaultReporter
 import com.android.tools.metalava.reporter.IssueConfiguration
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.ReporterEnvironment
@@ -57,7 +56,7 @@ Issue Reporting:
         .trimIndent()
 
 /**
- * JUnit [TestRule] that will intercept calls to [DefaultReporter.reportPrinter], save them into a
+ * JUnit [TestRule] that will intercept calls to [ReporterEnvironment.printReport], save them into a
  * couple of buffers and then allow the test to verify them. If there are any unverified errors then
  * the test will fail. The other issues will only be verified when requested.
  */
@@ -167,6 +166,9 @@ class IssueReportingOptionsTest :
     @Test
     fun `Test issue severity options with case insensitive names`() {
         runTest("--hide", "arrayreturn") {
+            // Write any saved reports.
+            options.bootstrapReporter.writeSavedReports()
+
             reportCollector.verifyAll(
                 "warning: Case-insensitive issue matching is deprecated, use --hide ArrayReturn instead of --hide arrayreturn [DeprecatedOption]"
             )
@@ -213,6 +215,9 @@ class IssueReportingOptionsTest :
     @Test
     fun `Test issue severity options can affect issues related to processing the options`() {
         runTest("--error", "DeprecatedOption", "--hide", "arrayreturn") {
+            // Write any saved reports.
+            options.bootstrapReporter.writeSavedReports()
+
             reportCollector.verifyErrors(
                 "error: Case-insensitive issue matching is deprecated, use --hide ArrayReturn instead of --hide arrayreturn [DeprecatedOption]\n"
             )

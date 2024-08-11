@@ -26,6 +26,7 @@ import com.android.tools.metalava.cli.common.MetalavaCliException
 import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.Item.Companion.describe
@@ -474,6 +475,11 @@ class CompatibilityCheck(
         }
     }
 
+    override fun compare(old: ConstructorItem, new: ConstructorItem) {
+        // Treat ConstructorItem as MethodItem
+        compare(old as MethodItem, new as MethodItem)
+    }
+
     override fun compare(old: MethodItem, new: MethodItem) {
         val oldModifiers = old.modifiers
         val newModifiers = new.modifiers
@@ -879,6 +885,11 @@ class CompatibilityCheck(
         handleAdded(error, new)
     }
 
+    override fun added(new: ConstructorItem) {
+        // Treat ConstructorItem as MethodItem
+        added(new as MethodItem)
+    }
+
     override fun added(new: MethodItem) {
         // *Overriding* methods from super classes that are outside the
         // API is OK (e.g. overriding toString() from java.lang.Object)
@@ -965,6 +976,11 @@ class CompatibilityCheck(
             }
 
         handleRemoved(error, old)
+    }
+
+    override fun removed(old: ConstructorItem, from: ClassItem?) {
+        // Treat ConstructorItem as MethodItem
+        removed(old as MethodItem, from)
     }
 
     override fun removed(old: MethodItem, from: ClassItem?) {

@@ -39,7 +39,6 @@ internal object TurbineModifierItem {
         codebase: Codebase,
         flag: Int,
         annotations: List<AnnotationItem>?,
-        isDeprecatedViaDoc: Boolean,
     ): DefaultModifierList {
         val modifierItem =
             when (flag) {
@@ -50,7 +49,7 @@ internal object TurbineModifierItem {
                     DefaultModifierList(codebase, computeFlag(flag), annotations?.toMutableList())
                 }
             }
-        modifierItem.setDeprecated(isDeprecated(annotations) || isDeprecatedViaDoc)
+        modifierItem.setDeprecated(isDeprecated(annotations))
         return modifierItem
     }
 

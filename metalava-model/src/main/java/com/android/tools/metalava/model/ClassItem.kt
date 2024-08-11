@@ -383,12 +383,11 @@ interface ClassItem : Item, TypeParameterListOwner {
     /**
      * Find the [MethodItem] in this.
      *
-     * If [methodName] is the same as [simpleName] then this will look for [ConstructorItem]s,
-     * otherwise it will look for [MethodItem]s whose [MethodItem.name] is equal to [methodName].
+     * It will look for [MethodItem]s whose [MethodItem.name] is equal to [methodName].
      *
-     * Out of those matching items it will select the first [MethodItem] (or [ConstructorItem]
-     * subclass) whose parameters match the supplied parameters string. Parameters are matched
-     * against a candidate [MethodItem] as follows:
+     * Out of those matching items it will select the first [MethodItem] whose parameters match the
+     * supplied parameters string. Parameters are matched against a candidate [MethodItem] as
+     * follows:
      * * The [parameters] string is split on `,` and trimmed and then each item in the list is
      *   matched with the corresponding [ParameterItem] in `candidate.parameters()` as follows:
      * * Everything after `<` is removed.
@@ -401,29 +400,41 @@ interface ClassItem : Item, TypeParameterListOwner {
      * @param methodName the name of the method or [simpleName] if looking for constructors.
      * @param parameters the comma separated erased types of the parameters.
      */
-    fun findMethod(methodName: String, parameters: String): MethodItem? {
-        if (methodName == simpleName()) {
-            // Constructor
-            constructors()
-                .filter { parametersMatch(it, parameters) }
-                .forEach {
-                    return it
-                }
-        } else {
-            methods()
-                .filter { it.name() == methodName && parametersMatch(it, parameters) }
-                .forEach {
-                    return it
-                }
-        }
+    fun findMethod(methodName: String, parameters: String) =
+        methods().firstOrNull { it.name() == methodName && parametersMatch(it, parameters) }
 
-        return null
-    }
+    /**
+     * Find the [ConstructorItem] in this.
+     *
+     * Out of those matching items it will select the first [ConstructorItem] whose parameters match
+     * the supplied parameters string. Parameters are matched against a candidate [ConstructorItem]
+     * as follows:
+     * * The [parameters] string is split on `,` and trimmed and then each item in the list is
+     *   matched with the corresponding [ParameterItem] in `candidate.parameters()` as follows:
+     * * Everything after `<` is removed.
+     * * The result is compared to the result of calling [TypeItem.toErasedTypeString]`(candidate)`
+     *   on the [ParameterItem.type].
+     *
+     * If every parameter matches then the matched [ConstructorItem] is returned. If no `candidate`
+     * matches then it returns 'null`.
+     *
+     * @param parameters the comma separated erased types of the parameters.
+     */
+    fun findConstructor(parameters: String) =
+        constructors().firstOrNull { parametersMatch(it, parameters) }
 
-    private fun parametersMatch(method: MethodItem, description: String): Boolean {
+    /**
+     * Find the [CallableItem] in this.
+     *
+     * If [name] is [simpleName] then call [findConstructor] else call [findMethod].
+     */
+    fun findCallable(name: String, parameters: String) =
+        if (name == simpleName()) findConstructor(parameters) else findMethod(name, parameters)
+
+    private fun parametersMatch(callable: CallableItem, description: String): Boolean {
         val parameterStrings =
             description.splitToSequence(",").map(String::trim).filter(String::isNotEmpty).toList()
-        val parameters = method.parameters()
+        val parameters = callable.parameters()
         if (parameters.size != parameterStrings.size) {
             return false
         }

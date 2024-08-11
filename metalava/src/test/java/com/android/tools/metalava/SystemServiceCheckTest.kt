@@ -165,8 +165,8 @@ class SystemServiceCheckTest : DriverTest() {
             expectedFail = DefaultLintErrorMessage,
             expectedIssues =
                 """
-                src/test/pkg/MyTest2.java:6: error: None of the permissions foo.bar.PERMISSION1, foo.bar.PERMISSION2 are defined by manifest TESTROOT/manifest.xml. [RequiresPermission]
                 src/test/pkg/MyTest2.java:6: error: Method 'myMethod1' must be protected with a system permission. [RequiresPermission]
+                src/test/pkg/MyTest2.java:6: error: None of the permissions foo.bar.PERMISSION1, foo.bar.PERMISSION2 are defined by manifest TESTROOT/manifest.xml. [RequiresPermission]
                 """,
             includeSystemApiAnnotations = true,
             sourceFiles =
@@ -277,9 +277,9 @@ class SystemServiceCheckTest : DriverTest() {
             expectedFail = DefaultLintErrorMessage,
             expectedIssues =
                 """
+                src/test/pkg/MyTest2.java:6: error: Method 'test' must be protected with a system permission. [RequiresPermission]
                 src/test/pkg/MyTest2.java:6: error: Permission 'Manifest.permission.MY_PERMISSION' is not defined by manifest TESTROOT/manifest.xml. [RequiresPermission]
                 src/test/pkg/MyTest2.java:6: error: Permission 'Manifest.permission.MY_PERMISSION2' is not defined by manifest TESTROOT/manifest.xml. [RequiresPermission]
-                src/test/pkg/MyTest2.java:6: error: Method 'test' must be protected with a system permission. [RequiresPermission]
                 """,
             includeSystemApiAnnotations = true,
             sourceFiles =
@@ -312,8 +312,8 @@ class SystemServiceCheckTest : DriverTest() {
             expectedIssues =
                 """
                 manifest.xml: error: Failed to parse TESTROOT/manifest.xml: The markup in the document preceding the root element must be well-formed. [ParseError]
-                src/test/pkg/MyTest2.java:7: error: None of the permissions foo.bar.PERMISSION1, foo.bar.PERMISSION2 are defined by manifest TESTROOT/manifest.xml. [RequiresPermission]
                 src/test/pkg/MyTest2.java:7: error: Method 'test' must be protected with a system permission. [RequiresPermission]
+                src/test/pkg/MyTest2.java:7: error: None of the permissions foo.bar.PERMISSION1, foo.bar.PERMISSION2 are defined by manifest TESTROOT/manifest.xml. [RequiresPermission]
                 """,
             includeSystemApiAnnotations = true,
             sourceFiles =

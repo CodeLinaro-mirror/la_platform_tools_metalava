@@ -74,7 +74,7 @@ class IssueReportingOptions(
      * A slight complexity is that this [Reporter] and its [IssueConfiguration] are both modified
      * and used during the process of processing the options.
      */
-    internal val bootstrapReporter: Reporter =
+    internal val bootstrapReporter: DefaultReporter =
         DefaultReporter(
             reporterEnvironment,
             issueConfiguration,

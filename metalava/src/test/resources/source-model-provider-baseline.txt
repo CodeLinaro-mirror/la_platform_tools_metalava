@@ -63,9 +63,6 @@ com.android.tools.metalava.FlaggedApiTest
   Test that pulling method up into super class can be reverted[turbine,public with flagged api]
   Test that pulling method up into super class can be reverted[turbine,public without flagged api, with foo_bar]
 
-com.android.tools.metalava.HideAnnotationTest
-  Using hide annotation interface order[turbine]
-
 com.android.tools.metalava.Java9LanguageFeaturesTest
   Basic class signature extraction[turbine]
   Using JDK APIs[turbine]

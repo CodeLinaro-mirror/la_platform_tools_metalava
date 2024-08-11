@@ -37,7 +37,7 @@ internal class PsiTypeParameterItem(
         codebase = codebase,
         element = psiClass,
         modifiers = modifiers,
-        documentation = ItemDocumentation.NONE,
+        documentationFactory = ItemDocumentation.NONE_FACTORY,
     ),
     TypeParameterItem {
 

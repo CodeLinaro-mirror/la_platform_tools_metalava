@@ -21,6 +21,8 @@ interface ItemVisitor {
 
     fun visit(field: FieldItem)
 
+    fun visit(constructor: ConstructorItem)
+
     fun visit(method: MethodItem)
 
     fun visit(pkg: PackageItem)

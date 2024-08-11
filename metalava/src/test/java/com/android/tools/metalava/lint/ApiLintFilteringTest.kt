@@ -75,10 +75,10 @@ class ApiLintFilteringTest(private val previouslyReleasedApiUse: PreviouslyRelea
                 ),
             expectedIssuesWithoutPreviouslyReleasedApi =
                 """
-                    src/test/pkg/Foo.java:4: error: Must override both equals and hashCode; missing one in test.pkg.Foo [EqualsAndHashCode]
                     src/test/pkg/Foo.java:3: error: Missing nullability on parameter `s` in method `method` [MissingNullability]
-                    src/test/pkg/Foo.java:5: error: Bare field field must be marked final, or moved behind accessors if mutable [MutableBareField]
+                    src/test/pkg/Foo.java:4: error: Must override both equals and hashCode; missing one in test.pkg.Foo [EqualsAndHashCode]
                     src/test/pkg/Foo.java:5: error: Missing nullability on field `field` in class `class test.pkg.Foo` [MissingNullability]
+                    src/test/pkg/Foo.java:5: error: Bare field field must be marked final, or moved behind accessors if mutable [MutableBareField]
                 """,
             previouslyReleasedApi =
                 """
@@ -116,10 +116,10 @@ class ApiLintFilteringTest(private val previouslyReleasedApiUse: PreviouslyRelea
                 ),
             expectedIssuesWithoutPreviouslyReleasedApi =
                 """
-                    src/test/pkg/Foo.java:5: error: Must override both equals and hashCode; missing one in test.pkg.Foo [EqualsAndHashCode]
                     src/test/pkg/Foo.java:3: error: Missing nullability on parameter `s` in method `method` [MissingNullability]
-                    src/test/pkg/Foo.java:4: error: Bare field field must be marked final, or moved behind accessors if mutable [MutableBareField]
                     src/test/pkg/Foo.java:4: error: Missing nullability on field `field` in class `class test.pkg.Foo` [MissingNullability]
+                    src/test/pkg/Foo.java:4: error: Bare field field must be marked final, or moved behind accessors if mutable [MutableBareField]
+                    src/test/pkg/Foo.java:5: error: Must override both equals and hashCode; missing one in test.pkg.Foo [EqualsAndHashCode]
                 """,
             previouslyReleasedApi =
                 """
@@ -132,10 +132,10 @@ class ApiLintFilteringTest(private val previouslyReleasedApiUse: PreviouslyRelea
             expectedIssuesWithPreviouslyReleasedApi =
                 // Notice that the `EqualsAndHashCode` issue is reported as a warning, not an error.
                 """
-                    src/test/pkg/Foo.java:5: warning: Must override both equals and hashCode; missing one in test.pkg.Foo (ErrorWhenNew) [EqualsAndHashCode]
                     src/test/pkg/Foo.java:3: error: Missing nullability on parameter `s` in method `method` [MissingNullability]
-                    src/test/pkg/Foo.java:4: error: Bare field field must be marked final, or moved behind accessors if mutable [MutableBareField]
                     src/test/pkg/Foo.java:4: error: Missing nullability on field `field` in class `class test.pkg.Foo` [MissingNullability]
+                    src/test/pkg/Foo.java:4: error: Bare field field must be marked final, or moved behind accessors if mutable [MutableBareField]
+                    src/test/pkg/Foo.java:5: warning: Must override both equals and hashCode; missing one in test.pkg.Foo (ErrorWhenNew) [EqualsAndHashCode]
                 """,
         )
     }

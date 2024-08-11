@@ -393,8 +393,7 @@ signature or stub data:
     class SignatureWriter(
             private val writer: PrintWriter,
             private val generateDefaultConstructors: Boolean,
-            private val filter: (Item) -> Boolean) : ApiVisitor(
-            visitConstructorsAsMethods = false) {
+            private val filter: (Item) -> Boolean) : ApiVisitor() {
 
     ....
 

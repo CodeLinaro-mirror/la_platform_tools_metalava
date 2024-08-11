@@ -17,6 +17,11 @@
 package com.android.tools.metalava.model
 
 interface ConstructorItem : MethodItem {
+
+    override fun accept(visitor: ItemVisitor) {
+        visitor.visit(this)
+    }
+
     override fun isConstructor(): Boolean = true
 
     /** Returns the internal name of the class, as seen in bytecode */

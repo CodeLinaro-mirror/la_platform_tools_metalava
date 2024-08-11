@@ -19,7 +19,7 @@ package com.android.tools.metalava.model.psi
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.ExceptionTypeItem
-import com.android.tools.metalava.model.ItemDocumentation
+import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.TypeItem
@@ -67,7 +67,7 @@ open class PsiMethodItem(
     containingClass: ClassItem,
     name: String,
     modifiers: DefaultModifierList,
-    documentation: ItemDocumentation,
+    documentationFactory: ItemDocumentationFactory,
     private var returnType: TypeItem,
     parameterItemsFactory: ParameterItemsFactory,
     override val typeParameterList: TypeParameterList,
@@ -76,7 +76,7 @@ open class PsiMethodItem(
     PsiMemberItem(
         codebase = codebase,
         modifiers = modifiers,
-        documentation = documentation,
+        documentationFactory = documentationFactory,
         element = psiMethod,
         fileLocation = fileLocation,
         containingClass = containingClass,
@@ -240,7 +240,7 @@ open class PsiMethodItem(
                 targetContainingClass,
                 name,
                 modifiers.duplicate(),
-                documentation.duplicate(),
+                documentation::duplicate,
                 returnType.convertType(typeVariableMap),
                 { methodItem -> parameters.map { it.duplicate(methodItem, typeVariableMap) } },
                 typeParameterList,
@@ -324,8 +324,7 @@ open class PsiMethodItem(
                 } else {
                     psiMethod.name
                 }
-            val commentText = javadocAsItemDocumentation(psiMethod, codebase)
-            val modifiers = modifiers(codebase, psiMethod, commentText)
+            val modifiers = modifiers(codebase, psiMethod)
             // Create the TypeParameterList for this before wrapping any of the other types used by
             // it as they may reference a type parameter in the list.
             val (typeParameterList, methodTypeItemFactory) =
@@ -351,7 +350,7 @@ open class PsiMethodItem(
                     psiMethod = psiMethod,
                     containingClass = containingClass,
                     name = name,
-                    documentation = commentText,
+                    documentationFactory = PsiItemDocumentation.factory(psiMethod, codebase),
                     modifiers = modifiers,
                     returnType = returnType,
                     parameterItemsFactory = { methodItem ->

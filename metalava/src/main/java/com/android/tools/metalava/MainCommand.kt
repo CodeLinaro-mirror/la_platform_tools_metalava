@@ -186,21 +186,21 @@ class MainCommand(
             executionEnvironment.testEnvironment?.sourceModelProvider
             // Otherwise, use the one specified on the command line, or the default.
             ?: SourceModelProvider.getImplementation(optionGroup.sourceModelProvider)
-        sourceModelProvider
-            .createEnvironmentManager(executionEnvironment.disableStderrDumping())
-            .use { processFlags(executionEnvironment, it, progressTracker) }
 
-        if (
-            optionGroup.allReporters.any { it.hasErrors() } &&
-                !commonBaselineOptions.passBaselineUpdates
-        ) {
+        try {
+            sourceModelProvider
+                .createEnvironmentManager(executionEnvironment.disableStderrDumping())
+                .use { processFlags(executionEnvironment, it, progressTracker) }
+        } finally {
+            // Write all saved reports. Do this even if the previous code threw an exception.
+            optionGroup.allReporters.forEach { it.writeSavedReports() }
+        }
+
+        val allReporters = optionGroup.allReporters
+        if (allReporters.any { it.hasErrors() } && !commonBaselineOptions.passBaselineUpdates) {
             // Repeat the errors at the end to make it easy to find the actual problems.
             if (issueReportingOptions.repeatErrorsMax > 0) {
-                repeatErrors(
-                    stderr,
-                    optionGroup.allReporters,
-                    issueReportingOptions.repeatErrorsMax
-                )
+                repeatErrors(stderr, allReporters, issueReportingOptions.repeatErrorsMax)
             }
 
             // Make sure that the process exits with an error code.

@@ -62,7 +62,7 @@ internal constructor(
         codebase = codebase,
         element = psiParameter,
         modifiers = modifiers,
-        documentation = ItemDocumentation.NONE,
+        documentationFactory = ItemDocumentation.NONE_FACTORY,
     ),
     ParameterItem {
 

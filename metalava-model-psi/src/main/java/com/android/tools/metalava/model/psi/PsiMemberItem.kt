@@ -18,7 +18,7 @@ package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.DefaultModifierList
-import com.android.tools.metalava.model.ItemDocumentation
+import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.reporter.FileLocation
 import com.intellij.psi.PsiJvmMember
@@ -29,14 +29,14 @@ internal constructor(
     element: PsiJvmMember,
     fileLocation: FileLocation = PsiFileLocation(element),
     modifiers: DefaultModifierList,
-    documentation: ItemDocumentation,
+    documentationFactory: ItemDocumentationFactory,
     internal val containingClass: ClassItem,
     internal val name: String,
 ) :
     PsiItem(
         codebase = codebase,
         modifiers = modifiers,
-        documentation = documentation,
+        documentationFactory = documentationFactory,
         element = element,
         fileLocation = fileLocation,
     ),

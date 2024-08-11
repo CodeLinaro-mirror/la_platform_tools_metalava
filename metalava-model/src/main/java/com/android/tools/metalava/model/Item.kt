@@ -102,8 +102,8 @@ interface Item : Reportable {
     /**
      * The javadoc/KDoc comment for this code element, if any. This is the original content of the
      * documentation, including lexical tokens to begin, continue and end the comment (such as /+*).
-     * See [fullyQualifiedDocumentation] to look up the documentation with fully qualified
-     * references to classes.
+     * See [ItemDocumentation.fullyQualifiedDocumentation] to look up the documentation with fully
+     * qualified references to classes.
      */
     val documentation: ItemDocumentation
 
@@ -207,17 +207,6 @@ interface Item : Reportable {
         get() = FileLocation.UNKNOWN
 
     /**
-     * Returns the [documentation], but with fully qualified links (except for the same package, and
-     * when turning a relative reference into a fully qualified reference, use the javadoc syntax
-     * for continuing to display the relative text, e.g. instead of {@link java.util.List}, use
-     * {@link java.util.List List}.
-     */
-    fun fullyQualifiedDocumentation(): String = documentation.text
-
-    /** Expands the given documentation comment in the current name context */
-    fun fullyQualifiedDocumentation(documentation: String): String = documentation
-
-    /**
      * Produces a user visible description of this item, including a label such as "class" or
      * "field"
      */
@@ -312,7 +301,7 @@ interface Item : Reportable {
                 is PackageItem -> describe(item, capitalize = capitalize)
                 is ClassItem -> describe(item, capitalize = capitalize)
                 is FieldItem -> describe(item, capitalize = capitalize)
-                is MethodItem ->
+                is CallableItem ->
                     describe(
                         item,
                         includeParameterNames = false,
@@ -331,7 +320,7 @@ interface Item : Reportable {
         }
 
         fun describe(
-            item: MethodItem,
+            item: CallableItem,
             includeParameterNames: Boolean = false,
             includeParameterTypes: Boolean = false,
             includeReturnValue: Boolean = false,
@@ -348,7 +337,7 @@ interface Item : Reportable {
                 builder.append(item.returnType().toSimpleType())
                 builder.append(' ')
             }
-            appendMethodSignature(builder, item, includeParameterNames, includeParameterTypes)
+            appendCallableSignature(builder, item, includeParameterNames, includeParameterTypes)
             return builder.toString()
         }
 
@@ -363,14 +352,14 @@ interface Item : Reportable {
             builder.append(' ')
             builder.append(item.name())
             builder.append(" in ")
-            val method = item.containingMethod()
-            appendMethodSignature(builder, method, includeParameterNames, includeParameterTypes)
+            val callable = item.containingCallable()
+            appendCallableSignature(builder, callable, includeParameterNames, includeParameterTypes)
             return builder.toString()
         }
 
-        private fun appendMethodSignature(
+        private fun appendCallableSignature(
             builder: StringBuilder,
-            item: MethodItem,
+            item: CallableItem,
             includeParameterNames: Boolean,
             includeParameterTypes: Boolean
         ) {
@@ -427,13 +416,25 @@ interface Item : Reportable {
 abstract class AbstractItem(
     final override val fileLocation: FileLocation,
     final override val modifiers: DefaultModifierList,
-    final override val documentation: ItemDocumentation,
+    documentationFactory: ItemDocumentationFactory,
     variantSelectorsFactory: ApiVariantSelectorsFactory,
 ) : Item {
+
+    /**
+     * Create a [ItemDocumentation] appropriate for this [Item].
+     *
+     * The leaking of `this` is safe as the implementations do not do access anything that has not
+     * been initialized.
+     */
+    final override val documentation = @Suppress("LeakingThis") documentationFactory(this)
 
     init {
         @Suppress("LeakingThis")
         modifiers.owner = this
+
+        if (documentation.contains("@deprecated")) {
+            modifiers.setDeprecated(true)
+        }
     }
 
     /**

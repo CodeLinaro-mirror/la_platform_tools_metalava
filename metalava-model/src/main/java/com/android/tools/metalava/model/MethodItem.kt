@@ -101,66 +101,6 @@ interface MethodItem : CallableItem, InheritableItem {
     }
 
     companion object {
-        private fun compareMethods(
-            o1: MethodItem,
-            o2: MethodItem,
-            overloadsInSourceOrder: Boolean
-        ): Int {
-            val name1 = o1.name()
-            val name2 = o2.name()
-            if (name1 == name2) {
-                if (overloadsInSourceOrder) {
-                    val rankDelta = o1.sortingRank - o2.sortingRank
-                    if (rankDelta != 0) {
-                        return rankDelta
-                    }
-                }
-
-                // Compare by the rest of the signature to ensure stable output (we don't need to
-                // sort
-                // by return value or modifiers or modifiers or throws-lists since methods can't be
-                // overloaded
-                // by just those attributes
-                val p1 = o1.parameters()
-                val p2 = o2.parameters()
-                val p1n = p1.size
-                val p2n = p2.size
-                for (i in 0 until minOf(p1n, p2n)) {
-                    val compareTypes =
-                        p1[i]
-                            .type()
-                            .toTypeString()
-                            .compareTo(p2[i].type().toTypeString(), ignoreCase = true)
-                    if (compareTypes != 0) {
-                        return compareTypes
-                    }
-                    // (Don't compare names; they're not part of the signatures)
-                }
-                return p1n.compareTo(p2n)
-            }
-
-            return name1.compareTo(name2)
-        }
-
-        val comparator: Comparator<MethodItem> = Comparator { o1, o2 ->
-            compareMethods(o1, o2, false)
-        }
-        val sourceOrderComparator: Comparator<MethodItem> = Comparator { o1, o2 ->
-            val delta = o1.sortingRank - o2.sortingRank
-            if (delta == 0) {
-                // Within a source file all the items will have unique sorting ranks, but since
-                // we copy methods in from hidden super classes it's possible for ranks to clash,
-                // and in that case we'll revert to a signature based comparison
-                comparator.compare(o1, o2)
-            } else {
-                delta
-            }
-        }
-        val sourceOrderForOverloadedMethodsComparator: Comparator<MethodItem> =
-            Comparator { o1, o2 ->
-                compareMethods(o1, o2, true)
-            }
-
         /**
          * Compare two types to see if they are considered the same.
          *

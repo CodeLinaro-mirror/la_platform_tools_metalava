@@ -1025,7 +1025,7 @@ private constructor(
             itemFactory.createConstructorItem(
                 fileLocation = tokenizer.fileLocation(),
                 modifiers = modifiers,
-                documentation = ItemDocumentation.NONE,
+                documentationFactory = ItemDocumentation.NONE_FACTORY,
                 name = name,
                 containingClass = containingClass,
                 typeParameterList = typeParameterList,
@@ -1135,7 +1135,7 @@ private constructor(
             itemFactory.createMethodItem(
                 fileLocation = tokenizer.fileLocation(),
                 modifiers = modifiers,
-                documentation = ItemDocumentation.NONE,
+                documentationFactory = ItemDocumentation.NONE_FACTORY,
                 name = name,
                 containingClass = cl,
                 typeParameterList = typeParameterList,
@@ -1220,7 +1220,7 @@ private constructor(
             itemFactory.createFieldItem(
                 fileLocation = tokenizer.fileLocation(),
                 modifiers = modifiers,
-                documentation = ItemDocumentation.NONE,
+                documentationFactory = ItemDocumentation.NONE_FACTORY,
                 name = name,
                 containingClass = cl,
                 type = type,

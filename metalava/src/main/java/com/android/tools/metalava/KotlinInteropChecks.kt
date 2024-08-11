@@ -16,8 +16,6 @@
 
 package com.android.tools.metalava
 
-import com.android.tools.metalava.model.ClassItem
-import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MethodItem
@@ -26,7 +24,6 @@ import com.android.tools.metalava.model.psi.PsiEnvironmentManager
 import com.android.tools.metalava.model.psi.PsiFieldItem
 import com.android.tools.metalava.model.psi.PsiParameterItem
 import com.android.tools.metalava.model.psi.report
-import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
 import com.intellij.lang.java.lexer.JavaLexer
@@ -47,33 +44,6 @@ class KotlinInteropChecks(val reporter: Reporter) {
     private val javaLanguageLevel =
         PsiEnvironmentManager.javaLanguageLevelFromString(options.javaLanguageLevelAsString)
 
-    fun check(codebase: Codebase) {
-        codebase.accept(
-            object :
-                ApiVisitor(
-                    // Sort by source order such that warnings follow source line number order
-                    methodComparator = MethodItem.sourceOrderComparator,
-                    // No need to check "for stubs only APIs" (== "implicit" APIs)
-                    includeApisForStubPurposes = false,
-                    config = @Suppress("DEPRECATION") options.apiVisitorConfig,
-                ) {
-                private var isKotlin = false
-
-                override fun visitClass(cls: ClassItem) {
-                    isKotlin = cls.isKotlin()
-                }
-
-                override fun visitMethod(method: MethodItem) {
-                    checkMethod(method, isKotlin)
-                }
-
-                override fun visitField(field: FieldItem) {
-                    checkField(field, isKotlin)
-                }
-            }
-        )
-    }
-
     fun checkField(field: FieldItem, isKotlin: Boolean = field.isKotlin()) {
         if (isKotlin) {
             ensureCompanionFieldJvmField(field)
@@ -82,16 +52,14 @@ class KotlinInteropChecks(val reporter: Reporter) {
     }
 
     fun checkMethod(method: MethodItem, isKotlin: Boolean = method.isKotlin()) {
-        if (!method.isConstructor()) {
-            if (isKotlin) {
-                ensureDefaultParamsHaveJvmOverloads(method)
-                ensureCompanionJvmStatic(method)
-                ensureExceptionsDocumented(method)
-            } else {
-                ensureMethodNameNotKeyword(method)
-                ensureParameterNamesNotKeywords(method)
-                ensureLambdaLastParameter(method)
-            }
+        if (isKotlin) {
+            ensureDefaultParamsHaveJvmOverloads(method)
+            ensureCompanionJvmStatic(method)
+            ensureExceptionsDocumented(method)
+        } else {
+            ensureMethodNameNotKeyword(method)
+            ensureParameterNamesNotKeywords(method)
+            ensureLambdaLastParameter(method)
         }
     }
 

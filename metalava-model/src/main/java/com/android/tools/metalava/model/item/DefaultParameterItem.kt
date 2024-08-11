@@ -44,7 +44,7 @@ internal class DefaultParameterItem(
         fileLocation = fileLocation,
         itemLanguage = itemLanguage,
         modifiers = modifiers,
-        documentation = ItemDocumentation.NONE,
+        documentationFactory = ItemDocumentation.NONE_FACTORY,
         variantSelectorsFactory = variantSelectorsFactory,
     ),
     ParameterItem {

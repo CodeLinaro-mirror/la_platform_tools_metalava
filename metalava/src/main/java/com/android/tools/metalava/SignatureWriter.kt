@@ -69,7 +69,7 @@ class SignatureWriter(
             delegate = this,
             preserveClassNesting = false,
             inlineInheritedFields = true,
-            methodComparator = fileFormat.overloadedMethodOrder.comparator,
+            callableComparator = fileFormat.overloadedMethodOrder.comparator,
             interfaceListSorter = interfaceListSorter,
             interfaceListComparator = interfaceListComparator,
             filterEmit = filterEmit,
