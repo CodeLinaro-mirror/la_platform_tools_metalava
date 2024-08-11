@@ -35,7 +35,7 @@ internal class TurbineEnvironmentManager() : EnvironmentManager {
         allowReadingComments: Boolean,
         jdkHome: File?,
     ): SourceParser {
-        return TurbineSourceParser(annotationManager, allowReadingComments)
+        return TurbineSourceParser(reporter, annotationManager, allowReadingComments)
     }
 
     // TODO (b/299217550 implement it)

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2023 The Android Open Source Project
+ * Copyright (C) 2024 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,22 +14,15 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava.model
+package com.android.tools.metalava.model.snapshot
 
-interface ItemVisitor {
-    fun visit(cls: ClassItem) {}
+import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.testing.transformer.CodebaseTransformer
 
-    fun visit(field: FieldItem) {}
-
-    fun visit(constructor: ConstructorItem) {}
-
-    fun visit(method: MethodItem) {}
-
-    fun visit(pkg: PackageItem) {}
-
-    fun visit(packageList: PackageList) {}
-
-    fun visit(parameter: ParameterItem) {}
-
-    fun visit(property: PropertyItem) {}
+/** A [CodebaseTransformer] that will return a snapshot of the supplied [Codebase]. */
+// @AutoService(CodebaseTransformer.class)
+class SnapshotCodebaseTransformer : CodebaseTransformer {
+    override fun transform(codebase: Codebase): Codebase {
+        return CodebaseSnapshotTaker.takeSnapshot(codebase)
+    }
 }

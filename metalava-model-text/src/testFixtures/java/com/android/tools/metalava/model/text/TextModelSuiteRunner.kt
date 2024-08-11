@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2023 The Android Open Source Project
+ * Copyright (C) 2024 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,6 +26,7 @@ import com.android.tools.metalava.model.item.DefaultClassItem
 import com.android.tools.metalava.model.noOpAnnotationManager
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.provider.InputFormat
+import com.android.tools.metalava.model.testing.transformer.CodebaseTransformer
 import com.android.tools.metalava.model.testsuite.ModelSuiteRunner
 import com.android.tools.metalava.reporter.FileLocation
 import com.android.tools.metalava.testing.getAndroidJar
@@ -52,7 +53,11 @@ class TextModelSuiteRunner : ModelSuiteRunner {
         val signatureFiles = SignatureFile.fromFiles(inputs.mainSourceDir.createFiles())
         val resolver = ClassLoaderBasedClassResolver(getAndroidJar())
         val codebase = ApiFile.parseApi(signatureFiles, classResolver = resolver)
-        test(codebase)
+
+        // If available, transform the codebase for testing, otherwise use the one provided.
+        val transformedCodebase = CodebaseTransformer.transformIfAvailable(codebase)
+
+        test(transformedCodebase)
     }
 
     override fun toString() = providerName

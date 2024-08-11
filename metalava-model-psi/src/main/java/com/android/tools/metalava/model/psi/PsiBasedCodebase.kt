@@ -101,7 +101,7 @@ open class PsiBasedCodebase(
     location: File,
     description: String = "Unknown",
     annotationManager: AnnotationManager,
-    private val reporter: Reporter,
+    override val reporter: Reporter,
     val allowReadingComments: Boolean,
     val fromClasspath: Boolean = false,
 ) :

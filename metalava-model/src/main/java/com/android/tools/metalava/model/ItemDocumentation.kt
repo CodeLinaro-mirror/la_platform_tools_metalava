@@ -65,6 +65,12 @@ interface ItemDocumentation : CharSequence {
      */
     fun duplicate(item: Item): ItemDocumentation
 
+    /**
+     * Like [duplicate] except that it returns an instance of [ItemDocumentation] suitable for use
+     * in the snapshot.
+     */
+    fun snapshot(item: Item): ItemDocumentation = text.toItemDocumentation()
+
     /** Work around javadoc cutting off the summary line after the first ". ". */
     fun workAroundJavaDocSummaryTruncationIssue() {}
 
@@ -117,8 +123,11 @@ interface ItemDocumentation : CharSequence {
 
         /** Wrap a [String] in an [ItemDocumentationFactory]. */
         fun String.toItemDocumentationFactory(): ItemDocumentationFactory = {
-            DefaultItemDocumentation(this)
+            toItemDocumentation()
         }
+
+        /** Wrap a [String] in an [ItemDocumentation] instance. */
+        fun String.toItemDocumentation(): ItemDocumentation = DefaultItemDocumentation(this)
     }
 
     /** An empty [ItemDocumentation] that can never contain any text. */
@@ -137,6 +146,9 @@ interface ItemDocumentation : CharSequence {
 
         // This is ok to share as it is immutable.
         override fun duplicate(item: Item) = this
+
+        // This is ok to use in a snapshot as it is immutable and model independent.
+        override fun snapshot(item: Item) = this
 
         override fun findTagDocumentation(tag: String, value: String?): String? = null
 

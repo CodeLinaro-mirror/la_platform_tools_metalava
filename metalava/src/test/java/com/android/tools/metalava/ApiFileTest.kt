@@ -4683,6 +4683,7 @@ class ApiFileTest : DriverTest() {
                 // Signature format: 4.0
                 package test.pkg {
                   public final class Foo {
+                    ctor public Foo();
                     ctor public Foo(optional String a, optional String b);
                     method public android.graphics.Bitmap? drawToBitmap(android.view.View, optional android.graphics.Bitmap.Config config);
                     method public void emptyLambda(optional kotlin.jvm.functions.Function0<kotlin.Unit> sizeOf);
@@ -4943,6 +4944,9 @@ class ApiFileTest : DriverTest() {
                             private val bar: Int = 0
                         )
 
+                        // When all args are optional, the compiler generates a no-arg constructor
+                        // even when @JvmOverloads is not used:
+                        // https://kotlinlang.org/docs/java-to-kotlin-interop.html#overloads-generation
                         class AllOptionalNoJvmOverloads(
                             private val foo: Int = 0,
                             private val bar: Int = 0
@@ -4973,6 +4977,7 @@ class ApiFileTest : DriverTest() {
                     ctor public AllOptionalJvmOverloads(optional int foo, optional int bar);
                   }
                   public final class AllOptionalNoJvmOverloads {
+                    ctor public AllOptionalNoJvmOverloads();
                     ctor public AllOptionalNoJvmOverloads(optional int foo, optional int bar);
                   }
                   public final class SomeOptionalJvmOverloads {

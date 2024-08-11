@@ -27,6 +27,7 @@ import com.android.tools.metalava.model.DefaultAnnotationItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PackageList
+import com.android.tools.metalava.reporter.Reporter
 import java.io.File
 import java.util.HashMap
 
@@ -52,6 +53,9 @@ open class DefaultCodebase(
         trustedApi,
         supportsDocumentation,
     ) {
+
+    override val reporter: Reporter
+        get() = unsupported("reporter is not available")
 
     /** Map from package name to [DefaultPackageItem] of all packages in this. */
     private val packagesByName = HashMap<String, DefaultPackageItem>(PACKAGE_ESTIMATE)

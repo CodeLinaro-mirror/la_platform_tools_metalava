@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2023 The Android Open Source Project
+ * Copyright (C) 2024 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,22 +14,8 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava.model
-
-interface ItemVisitor {
-    fun visit(cls: ClassItem) {}
-
-    fun visit(field: FieldItem) {}
-
-    fun visit(constructor: ConstructorItem) {}
-
-    fun visit(method: MethodItem) {}
-
-    fun visit(pkg: PackageItem) {}
-
-    fun visit(packageList: PackageList) {}
-
-    fun visit(parameter: ParameterItem) {}
-
-    fun visit(property: PropertyItem) {}
-}
+/**
+ * Contains classes to support running tests on a [com.android.tools.metalava.model.Codebase] created from another
+ * [Codebase].
+ */
+package com.android.tools.metalava.model.testing.transformer;

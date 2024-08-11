@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model
 
+import com.android.tools.metalava.reporter.Reporter
 import java.io.File
 
 /**
@@ -31,6 +32,9 @@ interface Codebase {
      * files, or a jar file, etc.
      */
     val location: File
+
+    /** [Reporter] to which any issues found within the [Codebase] can be reported. */
+    val reporter: Reporter
 
     /** The manager of annotations within this codebase. */
     val annotationManager: AnnotationManager

@@ -19,8 +19,10 @@ package com.android.tools.metalava
 import com.android.tools.metalava.lint.DefaultLintErrorMessage
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.testing.RequiresCapabilities
+import com.android.tools.metalava.reporter.BaselineKey
 import com.android.tools.metalava.reporter.DefaultReporter
 import com.android.tools.metalava.reporter.DefaultReporterEnvironment
+import com.android.tools.metalava.reporter.FileLocation
 import com.android.tools.metalava.reporter.IssueConfiguration
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reportable
@@ -324,33 +326,63 @@ class DefaultReporterTest : DriverTest() {
 
     @Test
     fun `test suppressed writer`() {
-        val nullReportable: Reportable? = null
+        val fakeReportable: Reportable =
+            object : Reportable {
+                override val fileLocation = FileLocation.UNKNOWN
+                override val baselineKey: BaselineKey = BaselineKey.UNKNOWN
+
+                override fun suppressedIssues() = setOf(Issues.HIDDEN_SUPERCLASS.name)
+            }
         val suppressedFile = temporaryFolder.newFile("suppressed.txt")
+        val stringWriter = StringWriter()
         suppressedFile.printWriter().use { reportEvenIfSuppressedWriter ->
-            val reporter =
-                DefaultReporter(
-                    environment = DefaultReporterEnvironment(),
-                    issueConfiguration = IssueConfiguration(),
-                    config =
-                        DefaultReporter.Config(
-                            reportEvenIfSuppressedWriter = reportEvenIfSuppressedWriter,
-                        ),
+            PrintWriter(stringWriter).use { writer ->
+                val reporterEnvironment =
+                    DefaultReporterEnvironment(
+                        stdout = writer,
+                        stderr = writer,
+                    )
+                val reporter =
+                    DefaultReporter(
+                        environment = reporterEnvironment,
+                        issueConfiguration = IssueConfiguration(),
+                        config =
+                            DefaultReporter.Config(
+                                reportEvenIfSuppressedWriter = reportEvenIfSuppressedWriter,
+                            ),
+                    )
+
+                reporter.report(
+                    Issues.HIDDEN_SUPERCLASS,
+                    fakeReportable,
+                    "HIDDEN_SUPERCLASS",
                 )
 
-            reporter.report(
-                Issues.HIDDEN_SUPERCLASS,
-                nullReportable,
-                "HIDDEN_SUPERCLASS",
-            )
+                reporter.report(
+                    Issues.BROADCAST_BEHAVIOR,
+                    fakeReportable,
+                    "BROADCAST_BEHAVIOR",
+                )
 
-            // Write any saved reports.
-            reporter.writeSavedReports()
+                // Write any saved reports.
+                reporter.writeSavedReports()
+            }
         }
 
         assertEquals(
-            "warning: HIDDEN_SUPERCLASS [HiddenSuperclass]",
+            """
+                warning: HIDDEN_SUPERCLASS [HiddenSuperclass]
+                error: BROADCAST_BEHAVIOR [BroadcastBehavior]
+            """
+                .trimIndent(),
             suppressedFile.readText().trimEnd(),
             message = "suppressed file"
+        )
+
+        assertEquals(
+            "error: BROADCAST_BEHAVIOR [BroadcastBehavior]",
+            stringWriter.toString().trimEnd(),
+            message = "intercepted stdout"
         )
     }
 }

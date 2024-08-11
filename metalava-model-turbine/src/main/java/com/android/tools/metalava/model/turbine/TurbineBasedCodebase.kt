@@ -22,6 +22,7 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.item.DefaultClassItem
 import com.android.tools.metalava.model.item.DefaultCodebase
 import com.android.tools.metalava.model.source.SourceCodebase
+import com.android.tools.metalava.reporter.Reporter
 import com.google.turbine.tree.Tree.CompUnit
 import java.io.File
 
@@ -29,6 +30,7 @@ internal open class TurbineBasedCodebase(
     location: File,
     description: String = "Unknown",
     annotationManager: AnnotationManager,
+    override val reporter: Reporter,
     val allowReadingComments: Boolean,
 ) :
     DefaultCodebase(

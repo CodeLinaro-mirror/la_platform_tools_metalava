@@ -322,8 +322,6 @@ internal constructor(
 
             // create methods
             val constructors: MutableList<PsiConstructorItem> = ArrayList(5)
-            var hasConstructorWithOnlyOptionalArgs = false
-            var noArgConstructor: PsiConstructorItem? = null
             for (psiMethod in psiMethods) {
                 if (psiMethod.isConstructor) {
                     val constructor =
@@ -345,19 +343,7 @@ internal constructor(
                     if (item.modifiers.isSealed()) {
                         constructor.modifiers.setVisibilityLevel(VisibilityLevel.PRIVATE)
                     }
-                    if (constructor.areAllParametersOptional()) {
-                        if (constructor.parameters().isNotEmpty()) {
-                            constructors.add(constructor)
-                            // uast reported a constructor having only optional arguments, so if we
-                            // later find an explicit no-arg constructor, we can skip it because
-                            // its existence is implied
-                            hasConstructorWithOnlyOptionalArgs = true
-                        } else {
-                            noArgConstructor = constructor
-                        }
-                    } else {
-                        constructors.add(constructor)
-                    }
+                    constructors.add(constructor)
                 } else {
                     val method =
                         PsiMethodItem.create(codebase, item, psiMethod, classTypeItemFactory)
@@ -365,16 +351,6 @@ internal constructor(
                         methods.add(method)
                     }
                 }
-            }
-
-            // Add the no-arg constructor back in if no constructors have only optional arguments
-            // or if an all-optional constructor created it as part of @JvmOverloads
-            if (
-                noArgConstructor != null &&
-                    (!hasConstructorWithOnlyOptionalArgs ||
-                        noArgConstructor.modifiers.isAnnotatedWith("kotlin.jvm.JvmOverloads"))
-            ) {
-                constructors.add(noArgConstructor)
             }
 
             // Note that this is dependent on the constructor filtering above. UAST sometimes

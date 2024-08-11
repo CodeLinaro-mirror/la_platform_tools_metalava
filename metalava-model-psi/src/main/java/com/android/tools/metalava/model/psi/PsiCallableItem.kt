@@ -92,15 +92,6 @@ abstract class PsiCallableItem(
 
     override fun throwsTypes() = throwsTypes
 
-    internal fun areAllParametersOptional(): Boolean {
-        for (param in parameters) {
-            if (!param.hasDefaultValue()) {
-                return false
-            }
-        }
-        return true
-    }
-
     override fun shouldExpandOverloads(): Boolean {
         val ktFunction = (psiMethod as? UMethod)?.sourcePsi as? KtFunction ?: return false
         return modifiers.isActual() &&

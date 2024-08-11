@@ -4622,6 +4622,58 @@ class CompatibilityCheckTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Test removal of implicit no-args constructor is flagged`() {
+        check(
+            expectedIssues =
+                "released-api.txt:8: error: Removed constructor test.pkg.RemoveNoArgsCtor() [RemovedMethod]",
+            checkCompatibilityApiReleased =
+                """
+                    package test.pkg {
+                      public final class KeepNoArgsCtor {
+                        ctor public KeepNoArgsCtor();
+                        ctor public KeepNoArgsCtor(optional int one, optional int two);
+                      }
+                      public final class RemoveNoArgsCtor {
+                        ctor public RemoveNoArgsCtor();
+                        ctor public RemoveNoArgsCtor(optional int one, optional int two);
+                        ctor public RemoveNoArgsCtor(String str);
+                      }
+                    }
+                """,
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                            package test.pkg
+                            // The kotlin compiler generates a no-args constructor because all
+                            // parameters to the primary constructor have default values
+                            class KeepNoArgsCtor(one: Int = 1, two: Int = 2)
+                            class RemoveNoArgsCtor(str: String) {
+                                // This is a secondary constructor, so a no-args constructor isn't
+                                // generated even though all parameters have default values
+                                constructor(one: Int = 1, two: Int = 2): this("")
+                            }
+                        """
+                    )
+                ),
+            api =
+                """
+                    package test.pkg {
+                      public final class KeepNoArgsCtor {
+                        ctor public KeepNoArgsCtor();
+                        ctor public KeepNoArgsCtor(optional int one, optional int two);
+                      }
+                      public final class RemoveNoArgsCtor {
+                        ctor public RemoveNoArgsCtor(optional int one, optional int two);
+                        ctor public RemoveNoArgsCtor(String str);
+                      }
+                    }
+                """
+        )
+    }
+
     // TODO: Check method signatures changing incompatibly (look especially out for adding new
     // overloaded methods and comparator getting confused!)
     //   ..equals on the method items should actually be very useful!
