@@ -18,12 +18,6 @@ package com.android.tools.metalava.model
 
 open class BaseItemVisitor(
     /**
-     * Whether constructors should be visited as part of a [#visitMethod] call instead of just a
-     * [#visitConstructor] call. Helps simplify visitors that don't care to distinguish between the
-     * two cases. Defaults to false.
-     */
-    val visitConstructorsAsMethods: Boolean = false,
-    /**
      * Whether nested classes should be visited "inside" a class; when this property is true, nested
      * classes are visited before the [#afterVisitClass] method is called; when false, it's done
      * afterwards. Defaults to false.
@@ -186,11 +180,7 @@ open class BaseItemVisitor(
 
     open fun visitCallable(callable: CallableItem) {}
 
-    open fun visitConstructor(constructor: ConstructorItem) {
-        if (visitConstructorsAsMethods) {
-            visitMethod(constructor)
-        }
-    }
+    open fun visitConstructor(constructor: ConstructorItem) {}
 
     open fun visitMethod(method: MethodItem) {}
 

@@ -113,7 +113,7 @@ internal class PsiSourceFile(
                         }
                     } else if (resolved is PsiMethod) {
                         codebase.findClass(resolved.containingClass ?: continue) ?: continue
-                        val methodItem = codebase.findMethod(resolved)
+                        val methodItem = codebase.findCallableByPsiMethod(resolved)
                         if (predicate.test(methodItem)) {
                             imports.add(Import(methodItem))
                         }

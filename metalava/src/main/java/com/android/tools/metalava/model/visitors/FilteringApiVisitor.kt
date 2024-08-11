@@ -291,21 +291,21 @@ class FilteringApiVisitor(
     }
 
     /** Get the [MethodItem.returnType] and apply the [typeAnnotationFilter] to it. */
-    fun filteredReturnType(methodItem: MethodItem) =
-        methodItem.returnType().transform(typeAnnotationFilter)
+    fun filteredReturnType(callableItem: CallableItem) =
+        callableItem.returnType().transform(typeAnnotationFilter)
 
     /** Get the [MethodItem.parameters] and wrap each one in a [FilteringParameterItem]. */
-    fun filteredParameters(methodItem: MethodItem): List<ParameterItem> =
-        methodItem.parameters().map { FilteringParameterItem(it) }
+    fun filteredParameters(callableItem: CallableItem): List<ParameterItem> =
+        callableItem.parameters().map { FilteringParameterItem(it) }
 
     /**
      * Get the [MethodItem.filteredThrowsTypes] and apply [typeAnnotationFilter] to each
      * [ExceptionTypeItem] in the list.
      */
-    private fun filteredThrowsTypes(methodItem: MethodItem) =
-        if (preFiltered) methodItem.throwsTypes()
+    private fun filteredThrowsTypes(callableItem: CallableItem) =
+        if (preFiltered) callableItem.throwsTypes()
         else
-            methodItem.filteredThrowsTypes(filterReference).map {
+            callableItem.filteredThrowsTypes(filterReference).map {
                 it.transform(typeAnnotationFilter)
             }
 

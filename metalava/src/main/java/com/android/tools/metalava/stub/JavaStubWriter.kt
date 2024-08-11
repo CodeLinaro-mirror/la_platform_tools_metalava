@@ -17,6 +17,7 @@
 package com.android.tools.metalava.stub
 
 import com.android.tools.metalava.actualItem
+import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.DelegatedVisitor
@@ -331,9 +332,9 @@ internal class JavaStubWriter(
         writer.write("throw new RuntimeException(\"Stub!\");")
     }
 
-    private fun generateParameterList(method: MethodItem) {
+    private fun generateParameterList(callable: CallableItem) {
         writer.print("(")
-        method.parameters().asSequence().forEachIndexed { i, parameter ->
+        callable.parameters().asSequence().forEachIndexed { i, parameter ->
             if (i > 0) {
                 writer.print(", ")
             }
@@ -346,8 +347,8 @@ internal class JavaStubWriter(
         writer.print(")")
     }
 
-    private fun generateThrowsList(method: MethodItem) {
-        val throws = method.throwsTypes()
+    private fun generateThrowsList(callable: CallableItem) {
+        val throws = callable.throwsTypes()
         if (throws.isNotEmpty()) {
             writer.print(" throws ")
             throws.sortedWith(ExceptionTypeItem.fullNameComparator).forEachIndexed { i, type ->

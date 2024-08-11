@@ -900,7 +900,7 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
             val paramItem = methodItem.parameters().single()
 
             assertEquals("parameter", paramItem.name())
-            assertEquals(methodItem, paramItem.containingMethod())
+            assertEquals(methodItem, paramItem.containingCallable())
             assertEquals("TestParam", paramItem.publicName())
             assertEquals(true, paramItem.hasDefaultValue())
             assertEquals(true, paramItem.isDefaultValueKnown())

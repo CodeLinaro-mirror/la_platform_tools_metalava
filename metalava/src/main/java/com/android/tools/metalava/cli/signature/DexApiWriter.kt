@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.cli.signature
 
+import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.DelegatedVisitor
@@ -33,8 +34,7 @@ internal class DexApiWriter(
     }
 
     override fun visitConstructor(constructor: ConstructorItem) {
-        // Treat constructor as a method.
-        visitMethod(constructor)
+        writeCallable(constructor)
     }
 
     override fun visitMethod(method: MethodItem) {
@@ -42,18 +42,22 @@ internal class DexApiWriter(
             return
         }
 
-        writer.print(method.containingClass().type().internalName())
+        writeCallable(method)
+    }
+
+    private fun writeCallable(callable: CallableItem) {
+        writer.print(callable.containingClass().type().internalName())
         writer.print("->")
-        writer.print(method.internalName())
+        writer.print(callable.internalName())
         writer.print("(")
-        for (pi in method.parameters()) {
+        for (pi in callable.parameters()) {
             writer.print(pi.type().internalName())
         }
         writer.print(")")
-        if (method.isConstructor()) {
+        if (callable.isConstructor()) {
             writer.print("V")
         } else {
-            val returnType = method.returnType()
+            val returnType = callable.returnType()
             writer.print(returnType.internalName())
         }
         writer.print("\n")

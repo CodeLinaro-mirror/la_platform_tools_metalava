@@ -300,10 +300,6 @@ interface ClassItem : Item, TypeParameterListOwner {
         includeSuperClasses: Boolean = false,
         includeInterfaces: Boolean = false
     ): MethodItem? {
-        if (template.isConstructor()) {
-            return findConstructor(template as ConstructorItem)
-        }
-
         methods()
             .asSequence()
             .filter { it.matches(template) }

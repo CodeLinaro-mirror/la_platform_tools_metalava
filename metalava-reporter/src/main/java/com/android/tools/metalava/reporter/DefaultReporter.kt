@@ -214,9 +214,7 @@ class DefaultReporter(
     }
 
     private fun reportEvenIfSuppressed(report: Report): Boolean {
-        config.reportEvenIfSuppressedWriter?.let {
-            println(config.fileReportFormatter.format(report))
-        }
+        config.reportEvenIfSuppressedWriter?.println(config.fileReportFormatter.format(report))
         return true
     }
 

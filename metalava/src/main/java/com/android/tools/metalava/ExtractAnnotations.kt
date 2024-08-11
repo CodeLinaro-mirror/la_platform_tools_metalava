@@ -169,7 +169,7 @@ class ExtractAnnotations(
         val pkg =
             when (item) {
                 is MemberItem -> item.containingClass().containingPackage()
-                is ParameterItem -> item.containingMethod().containingClass().containingPackage()
+                is ParameterItem -> item.containingCallable().containingClass().containingPackage()
                 else -> return
             }
 
@@ -419,7 +419,7 @@ class ExtractAnnotations(
                 return escapeXml(containingClass().qualifiedName()) + " " + name()
             }
             is ParameterItem -> {
-                return containingMethod().getExternalAnnotationSignature() +
+                return containingCallable().getExternalAnnotationSignature() +
                     " " +
                     this.parameterIndex
             }

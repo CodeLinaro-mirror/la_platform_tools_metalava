@@ -339,7 +339,7 @@ class CodebaseComparator(
         // class was hidden then the signature file may have listed the method as being
         // declared on the subclass
         val inheritedMethod =
-            if (old is MethodItem && !old.isConstructor() && newParent is ClassItem) {
+            if (old is MethodItem && newParent is ClassItem) {
                 val superMethod = newParent.findPredicateMethodWithSuper(old, filter)
 
                 if (superMethod != null && (filter == null || filter.test(superMethod))) {
@@ -439,7 +439,8 @@ class CodebaseComparator(
         private fun typeRank(item: Item): Int {
             return when (item) {
                 is PackageItem -> 0
-                is MethodItem -> if (item.isConstructor()) 1 else 2
+                is ConstructorItem -> 1
+                is MethodItem -> 2
                 is FieldItem -> 3
                 is ClassItem -> 4
                 is ParameterItem -> 5
@@ -462,13 +463,13 @@ class CodebaseComparator(
                         is ClassItem -> {
                             item1.qualifiedName().compareTo((item2 as ClassItem).qualifiedName())
                         }
-                        is MethodItem -> {
+                        is CallableItem -> {
                             // Try to incrementally match aspects of the method until you can
                             // conclude
                             // whether they are the same or different.
                             // delta is 0 when the methods are the same, else not 0
                             // Start by comparing the names
-                            var delta = item1.name().compareTo((item2 as MethodItem).name())
+                            var delta = item1.name().compareTo((item2 as CallableItem).name())
                             if (delta == 0) {
                                 // If the names are the same then compare the number of parameters
                                 val parameters1 = item1.parameters()

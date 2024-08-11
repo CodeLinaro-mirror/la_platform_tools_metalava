@@ -31,12 +31,6 @@ import java.util.function.Predicate
 
 open class ApiVisitor(
     /**
-     * Whether constructors should be visited as part of a [#visitMethod] call instead of just a
-     * [#visitConstructor] call. Helps simplify visitors that don't care to distinguish between the
-     * two cases. Defaults to false.
-     */
-    visitConstructorsAsMethods: Boolean = false,
-    /**
      * Whether nested classes should be visited "inside" a class; when this property is true, nested
      * classes are visited before the [#afterVisitClass] method is called; when false, it's done
      * afterwards. Defaults to false.
@@ -65,7 +59,7 @@ open class ApiVisitor(
 
     /** Configuration that may come from the command line. */
     config: Config,
-) : BaseItemVisitor(visitConstructorsAsMethods, preserveClassNesting) {
+) : BaseItemVisitor(preserveClassNesting) {
 
     private val packageFilter: PackageFilter? = config.packageFilter
 
@@ -81,12 +75,6 @@ open class ApiVisitor(
     )
 
     constructor(
-        /**
-         * Whether constructors should be visited as part of a [#visitMethod] call instead of just a
-         * [#visitConstructor] call. Helps simplify visitors that don't care to distinguish between
-         * the two cases. Defaults to false.
-         */
-        visitConstructorsAsMethods: Boolean = false,
         /**
          * Whether nested classes should be visited "inside" a class; when this property is true,
          * nested classes are visited before the [#afterVisitClass] method is called; when false,
@@ -126,7 +114,6 @@ open class ApiVisitor(
         /** Configuration that may come from the command line. */
         config: Config,
     ) : this(
-        visitConstructorsAsMethods = visitConstructorsAsMethods,
         preserveClassNesting = preserveClassNesting,
         inlineInheritedFields = true,
         callableComparator = callableComparator,

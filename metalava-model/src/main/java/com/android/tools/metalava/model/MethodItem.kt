@@ -27,6 +27,13 @@ interface MethodItem : CallableItem, InheritableItem {
     val property: PropertyItem?
         get() = null
 
+    @Deprecated(
+        message =
+            "There is no point in calling this method on MethodItem as it always returns false",
+        ReplaceWith("")
+    )
+    override fun isConstructor() = false
+
     /** Returns true if this method is a Kotlin extension method */
     fun isExtensionMethod(): Boolean
 
@@ -75,10 +82,6 @@ interface MethodItem : CallableItem, InheritableItem {
     override fun duplicate(targetContainingClass: ClassItem): MethodItem
 
     fun findPredicateSuperMethod(predicate: Predicate<Item>): MethodItem? {
-        if (isConstructor()) {
-            return null
-        }
-
         val superMethods = superMethods()
         for (method in superMethods) {
             if (predicate.test(method)) {
@@ -200,12 +203,6 @@ interface MethodItem : CallableItem, InheritableItem {
             return true
         }
     }
-
-    /**
-     * True if this is a [ConstructorItem] that was created implicitly by the compiler and so does
-     * not have any corresponding source code.
-     */
-    fun isImplicitConstructor(): Boolean = false
 
     /**
      * Check whether this method is a synthetic enum method.
@@ -373,8 +370,8 @@ private fun MethodItem.isOverrideable(): Boolean = !modifiers.isPrivate() && !mo
  * this method.
  */
 fun MethodItem.computeSuperMethods(): List<MethodItem> {
-    // Constructors and methods that are not overrideable will have no super methods.
-    if (isConstructor() || !isOverrideable()) {
+    // Methods that are not overrideable will have no super methods.
+    if (!isOverrideable()) {
         return emptyList()
     }
 

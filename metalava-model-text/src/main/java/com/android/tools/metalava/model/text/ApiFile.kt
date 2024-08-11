@@ -21,6 +21,7 @@ import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.AnnotationItem.Companion.unshortenAnnotation
 import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.ArrayTypeItem
+import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassResolver
@@ -964,20 +965,20 @@ private constructor(
     }
 
     /**
-     * Create [ParameterItem]s for the [containingMethod] from the [parameters] using the
+     * Create [ParameterItem]s for the [containingCallable] from the [parameters] using the
      * [typeItemFactory] to create types.
      *
-     * This is called from within the constructor of the [containingMethod] so must only access its
-     * `name` and its reference. In particularly it must not access its [MethodItem.parameters]
-     * property as this is called during its initialization.
+     * This is called from within the constructor of the [containingCallable] so must only access
+     * its `name` and its reference. In particularly it must not access its
+     * [CallableItem.parameters] property as this is called during its initialization.
      */
     private fun createParameterItems(
-        containingMethod: MethodItem,
+        containingCallable: CallableItem,
         parameters: List<ParameterInfo>,
         typeItemFactory: TextTypeItemFactory
     ): List<ParameterItem> {
-        val methodFingerprint = MethodFingerprint(containingMethod.name(), parameters.size)
-        return parameters.map { it.create(containingMethod, typeItemFactory, methodFingerprint) }
+        val methodFingerprint = MethodFingerprint(containingCallable.name(), parameters.size)
+        return parameters.map { it.create(containingCallable, typeItemFactory, methodFingerprint) }
     }
 
     private fun parseConstructor(
@@ -1140,8 +1141,8 @@ private constructor(
                 containingClass = cl,
                 typeParameterList = typeParameterList,
                 returnType = returnType,
-                parameterItemsFactory = { methodItem ->
-                    createParameterItems(methodItem, parameters, typeItemFactory)
+                parameterItemsFactory = { containingCallable ->
+                    createParameterItems(containingCallable, parameters, typeItemFactory)
                 },
                 throwsTypes = throwsList,
                 annotationDefault = defaultAnnotationMethodValue,
@@ -1745,7 +1746,7 @@ private constructor(
     ) {
         /** Turn this [ParameterInfo] into a [ParameterItem] by parsing the [typeString]. */
         fun create(
-            containingMethod: MethodItem,
+            containingCallable: CallableItem,
             typeItemFactory: TextTypeItemFactory,
             methodFingerprint: MethodFingerprint
         ): ParameterItem {
@@ -1765,7 +1766,7 @@ private constructor(
                     modifiers,
                     name,
                     { publicName },
-                    containingMethod,
+                    containingCallable,
                     index,
                     type,
                     defaultValue,

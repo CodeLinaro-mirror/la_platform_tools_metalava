@@ -362,10 +362,8 @@ class CompatibilityCheckTest : DriverTest() {
             expectedIssues =
                 """
                 src/test/pkg/Java.java:2: error: Class test.pkg.Java added 'final' qualifier [AddedFinal]
-                src/test/pkg/Java.java:3: error: Constructor test.pkg.Java has added 'final' qualifier [AddedFinal]
                 src/test/pkg/Java.java:4: error: Method test.pkg.Java.method has added 'final' qualifier [AddedFinal]
                 src/test/pkg/Kotlin.kt:3: error: Class test.pkg.Kotlin added 'final' qualifier [AddedFinal]
-                src/test/pkg/Kotlin.kt:3: error: Constructor test.pkg.Kotlin has added 'final' qualifier [AddedFinal]
                 src/test/pkg/Kotlin.kt:4: error: Method test.pkg.Kotlin.method has added 'final' qualifier [AddedFinal]
                 """,
             checkCompatibilityApiReleased =
@@ -2869,7 +2867,6 @@ class CompatibilityCheckTest : DriverTest() {
             expectedIssues =
                 """
                 src/android/foobar/Foo.java:8: error: Class android.foobar.Foo.Nested added 'final' qualifier [AddedFinal]
-                src/android/foobar/Foo.java:8: error: Constructor android.foobar.Foo.Nested has added 'final' qualifier [AddedFinal]
                 src/android/foobar/Foo.java:9: error: Method android.foobar.Foo.Nested.existing has added 'final' qualifier [AddedFinal]
                 src/android/foobar/Foo.java:9: error: Method android.foobar.Foo.Nested.existing has changed return type from void to int [ChangedType]
                 """

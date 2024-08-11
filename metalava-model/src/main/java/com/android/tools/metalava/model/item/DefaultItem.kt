@@ -30,23 +30,15 @@ import com.android.tools.metalava.reporter.FileLocation
 abstract class DefaultItem(
     final override val codebase: DefaultCodebase,
     fileLocation: FileLocation,
-    internal val itemLanguage: ItemLanguage,
+    itemLanguage: ItemLanguage,
     modifiers: DefaultModifierList,
     documentationFactory: ItemDocumentationFactory,
     variantSelectorsFactory: ApiVariantSelectorsFactory,
 ) :
     AbstractItem(
         fileLocation,
+        itemLanguage,
         modifiers,
         documentationFactory,
         variantSelectorsFactory,
-    ) {
-
-    final override fun isJava(): Boolean {
-        return itemLanguage.isJava()
-    }
-
-    final override fun isKotlin(): Boolean {
-        return itemLanguage.isKotlin()
-    }
-}
+    ) {}

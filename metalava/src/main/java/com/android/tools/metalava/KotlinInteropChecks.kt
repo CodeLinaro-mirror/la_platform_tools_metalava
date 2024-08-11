@@ -68,7 +68,7 @@ class KotlinInteropChecks(val reporter: Reporter) {
             return
         }
 
-        val exceptions = method.findThrownExceptions()
+        val exceptions = method.body.findThrownExceptions()
         if (exceptions.isEmpty()) {
             return
         }

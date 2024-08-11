@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava
 
+import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ConstructorItem
@@ -259,8 +260,8 @@ class JDiffXmlWriter(
         }
     }
 
-    private fun writeParameterList(method: MethodItem) {
-        method.parameters().asSequence().forEach { parameter ->
+    private fun writeParameterList(callable: CallableItem) {
+        callable.parameters().asSequence().forEach { parameter ->
             // NOTE: We report parameter name as "null" rather than the real name to match
             // doclava's behavior
             writer.print("<parameter name=\"null\" type=\"")
@@ -278,8 +279,8 @@ class JDiffXmlWriter(
         return typeString.replace(",", ", ").replace(",  ", ", ")
     }
 
-    private fun writeThrowsList(method: MethodItem) {
-        val throws = method.throwsTypes()
+    private fun writeThrowsList(callable: CallableItem) {
+        val throws = callable.throwsTypes()
         if (throws.isNotEmpty()) {
             throws.sortedWith(ExceptionTypeItem.fullNameComparator).forEach { type ->
                 writer.print("<exception name=\"")

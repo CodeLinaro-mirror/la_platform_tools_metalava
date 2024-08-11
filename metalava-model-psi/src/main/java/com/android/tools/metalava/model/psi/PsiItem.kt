@@ -20,6 +20,7 @@ import com.android.tools.metalava.model.AbstractItem
 import com.android.tools.metalava.model.ApiVariantSelectors
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.ItemDocumentationFactory
+import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.reporter.FileLocation
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiModifierListOwner
@@ -36,6 +37,7 @@ internal constructor(
 ) :
     AbstractItem(
         fileLocation = fileLocation,
+        itemLanguage = element.itemLanguage,
         modifiers = modifiers,
         documentationFactory = documentationFactory,
         variantSelectorsFactory = ApiVariantSelectors.MUTABLE_FACTORY,
@@ -51,14 +53,6 @@ internal constructor(
         return codebase.fromClasspath || containingClass()?.isFromClassPath() ?: false
     }
 
-    final override fun isJava(): Boolean {
-        return !isKotlin()
-    }
-
-    final override fun isKotlin(): Boolean {
-        return psi().isKotlin()
-    }
-
     companion object {
 
         internal fun modifiers(
@@ -70,7 +64,11 @@ internal constructor(
     }
 }
 
-/** Check whether a [PsiElement] is Kotlin or not. */
+/** Get the [ItemLanguage] for this [PsiElement]. */
+val PsiElement.itemLanguage
+    get() = if (isKotlin()) ItemLanguage.KOTLIN else ItemLanguage.JAVA
+
+/** Check whether this [PsiElement] is Kotlin or not. */
 fun PsiElement.isKotlin(): Boolean {
     return language === KotlinLanguage.INSTANCE
 }

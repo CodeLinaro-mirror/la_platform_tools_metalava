@@ -32,7 +32,7 @@ class SourceMethodItemTest : BaseModelTest() {
         duplicatedMethod.parameters().forEach {
             // Make sure that the duplicated parameters consider themselves to be part of
             // the duplicated method.
-            assertSame(duplicatedMethod, it.containingMethod())
+            assertSame(duplicatedMethod, it.containingCallable())
         }
     }
 

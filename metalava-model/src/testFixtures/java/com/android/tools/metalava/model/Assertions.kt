@@ -127,7 +127,7 @@ interface Assertions {
      * Create a Kotlin like method description. It uses Kotlin structure for a method and Kotlin
      * style nulls but not Kotlin types.
      */
-    fun MethodItem.kotlinLikeDescription(): String = buildString {
+    fun CallableItem.kotlinLikeDescription(): String = buildString {
         if (isConstructor()) {
             append("constructor ")
         } else {

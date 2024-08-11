@@ -17,9 +17,9 @@
 package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.model.AnnotationItem
+import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.ItemDocumentation
-import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterBindings
@@ -53,7 +53,7 @@ internal constructor(
     codebase: PsiBasedCodebase,
     private val psiParameter: PsiParameter,
     private val name: String,
-    private val containingMethod: PsiMethodItem,
+    private val containingCallable: PsiCallableItem,
     override val parameterIndex: Int,
     modifiers: DefaultModifierList,
     private var type: PsiTypeItem,
@@ -84,14 +84,14 @@ internal constructor(
                 return null
             }
             // Property setter parameter
-            if (containingMethod.isKotlinProperty()) {
+            if (possibleContainingMethod()?.isKotlinProperty() == true) {
                 return null
             }
             // Continuation parameter of suspend function
             if (
-                containingMethod.modifiers.isSuspend() &&
+                containingCallable.modifiers.isSuspend() &&
                     "kotlin.coroutines.Continuation" == type.asClass()?.qualifiedName() &&
-                    containingMethod.parameters().size - 1 == parameterIndex
+                    containingCallable.parameters().size - 1 == parameterIndex
             ) {
                 return null
             }
@@ -187,7 +187,7 @@ internal constructor(
     private fun computeDefaultValue(): String? {
         if (psiParameter.isKotlin()) {
             val ktFunction =
-                ((containingMethod.psiMethod as? UMethod)?.sourcePsi as? KtFunction)
+                ((containingCallable.psiMethod as? UMethod)?.sourcePsi as? KtFunction)
                     ?: return INVALID_VALUE
 
             analyze(ktFunction) {
@@ -239,25 +239,13 @@ internal constructor(
         this.type = type as PsiTypeItem
     }
 
-    override fun containingMethod(): MethodItem = containingMethod
+    override fun containingCallable(): CallableItem = containingCallable
 
     override fun isVarArgs(): Boolean {
         return psiParameter.isVarArgs || modifiers.isVarArg()
     }
 
-    /**
-     * Returns whether this parameter is SAM convertible or a Kotlin lambda. If this parameter is
-     * the last parameter, it also means that it could be called in Kotlin using the trailing lambda
-     * syntax.
-     *
-     * Specifically this will attempt to handle the follow cases:
-     * - Java SAM interface = true
-     * - Kotlin SAM interface = false // Kotlin (non-fun) interfaces are not SAM convertible
-     * - Kotlin fun interface = true
-     * - Kotlin lambda = true
-     * - Any other type = false
-     */
-    fun isSamCompatibleOrKotlinLambda(): Boolean {
+    override fun isSamCompatibleOrKotlinLambda(): Boolean {
         // Method is defined in Java source
         if (isJava()) {
             // Check the parameter type to see if it is defined in Kotlin or not.
@@ -295,12 +283,15 @@ internal constructor(
         }
     }
 
-    override fun duplicate(containingMethod: MethodItem, typeVariableMap: TypeParameterBindings) =
+    override fun duplicate(
+        containingCallable: CallableItem,
+        typeVariableMap: TypeParameterBindings
+    ) =
         PsiParameterItem(
             codebase = codebase,
             psiParameter = psiParameter,
             name = name,
-            containingMethod = containingMethod as PsiMethodItem,
+            containingCallable = containingCallable as PsiCallableItem,
             parameterIndex = parameterIndex,
             modifiers = modifiers.duplicate(),
             type = type.convertType(typeVariableMap) as PsiTypeItem,
@@ -308,13 +299,13 @@ internal constructor(
 
     companion object {
         internal fun create(
-            containingMethod: PsiMethodItem,
+            containingCallable: PsiCallableItem,
             fingerprint: MethodFingerprint,
             psiParameter: PsiParameter,
             parameterIndex: Int,
             enclosingMethodTypeItemFactory: PsiTypeItemFactory,
         ): PsiParameterItem {
-            val codebase = containingMethod.codebase
+            val codebase = containingCallable.codebase
             val name = psiParameter.name
             val modifiers = createParameterModifiers(codebase, psiParameter)
             val psiType = psiParameter.type
@@ -357,7 +348,7 @@ internal constructor(
                     codebase = codebase,
                     psiParameter = psiParameter,
                     name = name,
-                    containingMethod = containingMethod,
+                    containingCallable = containingCallable,
                     parameterIndex = parameterIndex,
                     modifiers = modifiers,
                     // Need to down cast as [isSamCompatibleOrKotlinLambda] needs access to the

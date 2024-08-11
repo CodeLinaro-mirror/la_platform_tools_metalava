@@ -23,7 +23,6 @@ import com.android.tools.metalava.model.DefaultModifierList.Companion.PACKAGE_PR
 import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ItemDocumentationFactory
-import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.reporter.FileLocation
 import com.intellij.psi.JavaPsiFacade
@@ -49,7 +48,7 @@ private constructor(
     val implicitConstructor: Boolean = false,
     override val isPrimary: Boolean = false
 ) :
-    PsiMethodItem(
+    PsiCallableItem(
         codebase = codebase,
         modifiers = modifiers,
         documentationFactory = documentationFactory,
@@ -66,11 +65,7 @@ private constructor(
 
     override fun isImplicitConstructor(): Boolean = implicitConstructor
 
-    override fun isConstructor(): Boolean = true
-
     override var superConstructor: ConstructorItem? = null
-
-    override fun superMethods(): List<MethodItem> = emptyList()
 
     companion object {
         internal fun create(
@@ -99,8 +94,8 @@ private constructor(
                     name = name,
                     documentationFactory = PsiItemDocumentation.factory(psiMethod, codebase),
                     modifiers = modifiers,
-                    parameterItemsFactory = { methodItem ->
-                        parameterList(methodItem, constructorTypeItemFactory)
+                    parameterItemsFactory = { containingCallable ->
+                        parameterList(containingCallable, constructorTypeItemFactory)
                     },
                     returnType = containingClass.type(),
                     implicitConstructor = false,

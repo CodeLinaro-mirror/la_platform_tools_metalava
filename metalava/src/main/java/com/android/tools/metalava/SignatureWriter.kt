@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava
 
+import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.ConstructorItem
@@ -293,10 +294,10 @@ class SignatureWriter(
         }
     }
 
-    private fun writeParameterList(method: MethodItem, skipMask: BitSet? = null) {
+    private fun writeParameterList(callable: CallableItem, skipMask: BitSet? = null) {
         write("(")
         var writtenParams = 0
-        method.parameters().asSequence().forEachIndexed { i, parameter ->
+        callable.parameters().asSequence().forEachIndexed { i, parameter ->
             // skip over defaults when generating @JvmOverloads permutations
             if (skipMask != null && skipMask.get(i)) return@forEachIndexed
 
@@ -356,8 +357,8 @@ class SignatureWriter(
         write(typeString)
     }
 
-    private fun writeThrowsList(method: MethodItem) {
-        val throws = method.throwsTypes()
+    private fun writeThrowsList(callable: CallableItem) {
+        val throws = callable.throwsTypes()
         if (throws.isNotEmpty()) {
             write(" throws ")
             throws.sortedWith(ExceptionTypeItem.fullNameComparator).forEachIndexed { i, type ->

@@ -22,6 +22,7 @@ import com.android.tools.metalava.model.AnnotationAttributeValue
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ApiVariantSelectors
 import com.android.tools.metalava.model.BoundsTypeItem
+import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.DefaultAnnotationArrayAttributeValue
@@ -35,7 +36,6 @@ import com.android.tools.metalava.model.ItemDocumentation.Companion.toItemDocume
 import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.JAVA_PACKAGE_INFO
-import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.TypeParameterList
@@ -811,9 +811,9 @@ internal open class TurbineCodebaseInitialiser(
                     containingClass = classItem,
                     typeParameterList = typeParams,
                     returnType = returnType,
-                    parameterItemsFactory = { methodItem ->
+                    parameterItemsFactory = { containingCallable ->
                         createParameters(
-                            methodItem,
+                            containingCallable,
                             decl?.params(),
                             parameters,
                             methodTypeItemFactory,
@@ -831,12 +831,12 @@ internal open class TurbineCodebaseInitialiser(
     }
 
     private fun createParameters(
-        methodItem: MethodItem,
+        containingCallable: CallableItem,
         parameterDecls: List<Tree.VarDecl>?,
         parameters: List<ParamInfo>,
         typeItemFactory: TurbineTypeItemFactory,
     ): List<ParameterItem> {
-        val fingerprint = MethodFingerprint(methodItem.name(), parameters.size)
+        val fingerprint = MethodFingerprint(containingCallable.name(), parameters.size)
         // Some parameters in [parameters] are implicit parameters that do not have a corresponding
         // entry in the [parameterDecls] list. The number of implicit parameters is the total
         // number of [parameters] minus the number of declared parameters [parameterDecls]. The
@@ -864,7 +864,7 @@ internal open class TurbineCodebaseInitialiser(
 
             val parameterItem =
                 itemFactory.createParameterItem(
-                    TurbineFileLocation.forTree(methodItem.containingClass(), decl),
+                    TurbineFileLocation.forTree(containingCallable.containingClass(), decl),
                     parameterModifierItem,
                     parameter.name(),
                     { item ->
@@ -873,7 +873,7 @@ internal open class TurbineCodebaseInitialiser(
                         val annotation = modifiers.findAnnotation(AnnotationItem::isParameterName)
                         annotation?.attributes?.firstOrNull()?.value?.value()?.toString()
                     },
-                    methodItem,
+                    containingCallable,
                     idx,
                     type,
                     TurbineDefaultValue(parameterModifierItem),

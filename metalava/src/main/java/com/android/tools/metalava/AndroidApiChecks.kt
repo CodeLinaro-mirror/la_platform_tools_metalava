@@ -81,7 +81,7 @@ class AndroidApiChecks(val reporter: Reporter) {
                         "Parameter '" +
                             parameter.name() +
                             "' of '" +
-                            parameter.containingMethod().name() +
+                            parameter.containingCallable().name() +
                             "'",
                         parameter.type()
                     )
@@ -108,7 +108,7 @@ class AndroidApiChecks(val reporter: Reporter) {
 
     private fun findDocumentation(item: Item, tag: String?): String {
         if (item is ParameterItem) {
-            return findDocumentation(item.containingMethod(), item.name())
+            return findDocumentation(item.containingCallable(), item.name())
         }
 
         val doc = item.documentation.text

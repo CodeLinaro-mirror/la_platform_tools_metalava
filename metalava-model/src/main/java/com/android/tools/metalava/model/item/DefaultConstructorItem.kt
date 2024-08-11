@@ -43,7 +43,7 @@ class DefaultConstructorItem(
     throwsTypes: List<ExceptionTypeItem>,
     private val implicitConstructor: Boolean,
 ) :
-    DefaultMethodItem(
+    DefaultCallableItem(
         codebase = codebase,
         fileLocation = fileLocation,
         itemLanguage = itemLanguage,
@@ -60,8 +60,6 @@ class DefaultConstructorItem(
     ConstructorItem {
 
     override var superConstructor: ConstructorItem? = null
-
-    override fun isConstructor(): Boolean = true
 
     override fun isImplicitConstructor() = implicitConstructor
 

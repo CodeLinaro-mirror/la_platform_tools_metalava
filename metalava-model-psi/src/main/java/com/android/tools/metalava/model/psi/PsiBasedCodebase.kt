@@ -24,10 +24,10 @@ import com.android.tools.metalava.model.AbstractCodebase
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.CLASS_ESTIMATE
+import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
-import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PackageList
 import com.android.tools.metalava.model.TypeParameterScope
@@ -137,10 +137,10 @@ open class PsiBasedCodebase(
     private val classMap: MutableMap<String, PsiClassItem> = HashMap(CLASS_ESTIMATE)
 
     /**
-     * Map from classes to the set of methods for each (but only for classes where we've called
-     * [findMethod]
+     * Map from classes to the set of callables for each (but only for classes where we've called
+     * [findCallableByPsiMethod]
      */
-    private lateinit var methodMap: MutableMap<PsiClassItem, MutableMap<PsiMethod, PsiMethodItem>>
+    private lateinit var methodMap: MutableMap<PsiClassItem, MutableMap<PsiMethod, PsiCallableItem>>
 
     /** Map from package name to the corresponding package item */
     private lateinit var packageMap: MutableMap<String, PsiPackageItem>
@@ -748,15 +748,15 @@ open class PsiBasedCodebase(
         return fullName.substring(0, fullName.length - 1 - name!!.length)
     }
 
-    internal fun findMethod(method: PsiMethod): PsiMethodItem {
+    internal fun findCallableByPsiMethod(method: PsiMethod): PsiCallableItem {
         val containingClass = method.containingClass
         val cls = findOrCreateClass(containingClass!!)
 
         // Ensure initialized/registered via [#registerMethods]
         if (methodMap[cls] == null) {
-            val map = HashMap<PsiMethod, PsiMethodItem>(40)
-            registerMethods(cls.methods(), map)
-            registerMethods(cls.constructors(), map)
+            val map = HashMap<PsiMethod, PsiCallableItem>(40)
+            registerCallablesByPsiMethod(cls.methods(), map)
+            registerCallablesByPsiMethod(cls.constructors(), map)
             methodMap[cls] = map
         }
 
@@ -789,19 +789,19 @@ open class PsiBasedCodebase(
         return cls.findField(field.name)
     }
 
-    private fun registerMethods(
-        methods: List<MethodItem>,
-        map: MutableMap<PsiMethod, PsiMethodItem>
+    private fun registerCallablesByPsiMethod(
+        callables: List<CallableItem>,
+        map: MutableMap<PsiMethod, PsiCallableItem>
     ) {
-        for (method in methods) {
-            val psiMethod = (method as PsiMethodItem).psiMethod
-            map[psiMethod] = method
+        for (callable in callables) {
+            val psiMethod = (callable as PsiCallableItem).psiMethod
+            map[psiMethod] = callable
             if (psiMethod is UMethod) {
                 // Register LC method as a key too
-                // so that we can find the corresponding [MethodItem]
-                // Otherwise, we will end up creating a new [MethodItem]
+                // so that we can find the corresponding [CallableItem]
+                // Otherwise, we will end up creating a new [CallableItem]
                 // without source PSI, resulting in wrong modifier.
-                map[psiMethod.javaPsi] = method
+                map[psiMethod.javaPsi] = callable
             }
         }
     }
