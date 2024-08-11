@@ -20,11 +20,11 @@ import com.android.SdkConstants
 import com.android.tools.lint.UastEnvironment
 import com.android.tools.metalava.model.ANDROIDX_NONNULL
 import com.android.tools.metalava.model.ANDROIDX_NULLABLE
+import com.android.tools.metalava.model.AbstractCodebase
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.CLASS_ESTIMATE
 import com.android.tools.metalava.model.ClassItem
-import com.android.tools.metalava.model.DefaultCodebase
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MethodItem
@@ -104,7 +104,16 @@ open class PsiBasedCodebase(
     private val reporter: Reporter,
     val allowReadingComments: Boolean,
     val fromClasspath: Boolean = false,
-) : DefaultCodebase(location, description, false, annotationManager), SourceCodebase {
+) :
+    AbstractCodebase(
+        location = location,
+        description = description,
+        preFiltered = false,
+        annotationManager = annotationManager,
+        trustedApi = false,
+        supportsDocumentation = true,
+    ),
+    SourceCodebase {
     private lateinit var uastEnvironment: UastEnvironment
     internal val project: Project
         get() = uastEnvironment.ideaProject
@@ -848,10 +857,6 @@ open class PsiBasedCodebase(
         val psiAnnotation = createPsiAnnotation(source, (context as? PsiItem)?.psi())
         return PsiAnnotationItem.create(this, psiAnnotation)
     }
-
-    override fun supportsDocumentation(): Boolean = true
-
-    override fun toString(): String = description
 
     /** Add a class to the codebase. Called from [PsiClassItem.create]. */
     internal fun registerClass(classItem: PsiClassItem) {

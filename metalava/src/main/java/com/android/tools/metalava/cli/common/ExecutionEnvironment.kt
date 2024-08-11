@@ -17,10 +17,10 @@
 package com.android.tools.metalava.cli.common
 
 import com.android.tools.lint.detector.api.assertionsEnabled
-import com.android.tools.metalava.DefaultReporterEnvironment
 import com.android.tools.metalava.ENV_VAR_METALAVA_DUMP_ARGV
-import com.android.tools.metalava.ReporterEnvironment
 import com.android.tools.metalava.model.source.SourceModelProvider
+import com.android.tools.metalava.reporter.DefaultReporterEnvironment
+import com.android.tools.metalava.reporter.ReporterEnvironment
 import java.io.OutputStreamWriter
 import java.io.PrintWriter
 import java.io.StringWriter

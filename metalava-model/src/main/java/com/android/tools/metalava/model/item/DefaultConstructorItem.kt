@@ -20,7 +20,6 @@ import com.android.tools.metalava.model.ApiVariantSelectorsFactory
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.ConstructorItem
-import com.android.tools.metalava.model.DefaultCodebase
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.ItemDocumentation
@@ -41,6 +40,7 @@ class DefaultConstructorItem(
     returnType: ClassTypeItem,
     parameterItemsFactory: ParameterItemsFactory,
     throwsTypes: List<ExceptionTypeItem>,
+    private val implicitConstructor: Boolean,
 ) :
     DefaultMethodItem(
         codebase = codebase,
@@ -62,6 +62,8 @@ class DefaultConstructorItem(
 
     override fun isConstructor(): Boolean = true
 
+    override fun isImplicitConstructor() = implicitConstructor
+
     companion object {
         fun createDefaultConstructor(
             codebase: DefaultCodebase,
@@ -76,8 +78,7 @@ class DefaultConstructorItem(
             val ctorItem =
                 DefaultConstructorItem(
                     codebase = codebase,
-                    // Use the location of the containing class for the implicit default
-                    // constructor.
+                    // Use the location of the containing class for the default constructor.
                     fileLocation = containingClass.fileLocation,
                     itemLanguage = itemLanguage,
                     modifiers = modifiers,
@@ -89,6 +90,8 @@ class DefaultConstructorItem(
                     returnType = containingClass.type(),
                     parameterItemsFactory = { emptyList() },
                     throwsTypes = emptyList(),
+                    // This is not an implicit constructor as it was not created by the compiler.
+                    implicitConstructor = false,
                 )
             return ctorItem
         }

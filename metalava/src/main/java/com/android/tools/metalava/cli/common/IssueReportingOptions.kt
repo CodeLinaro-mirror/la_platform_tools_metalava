@@ -16,13 +16,13 @@
 
 package com.android.tools.metalava.cli.common
 
-import com.android.tools.metalava.DefaultReporter
-import com.android.tools.metalava.DefaultReporterEnvironment
-import com.android.tools.metalava.ReporterEnvironment
+import com.android.tools.metalava.reporter.DefaultReporter
+import com.android.tools.metalava.reporter.DefaultReporterEnvironment
 import com.android.tools.metalava.reporter.ERROR_WHEN_NEW_SUFFIX
 import com.android.tools.metalava.reporter.IssueConfiguration
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
+import com.android.tools.metalava.reporter.ReporterEnvironment
 import com.android.tools.metalava.reporter.Severity
 import com.github.ajalt.clikt.parameters.groups.OptionGroup
 import com.github.ajalt.clikt.parameters.options.default
@@ -172,7 +172,7 @@ class IssueReportingOptions(
 
             DefaultReporter.Config(
                 warningsAsErrors = warningsAsErrors,
-                terminal = commonOptions.terminal,
+                outputReportFormatter = TerminalReportFormatter.forTerminal(commonOptions.terminal),
                 reportEvenIfSuppressedWriter = reportEvenIfSuppressedWriter,
             )
         }

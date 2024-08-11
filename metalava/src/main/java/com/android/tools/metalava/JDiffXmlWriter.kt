@@ -303,6 +303,7 @@ class JDiffXmlWriter(
         filterReference: Predicate<Item>,
         preFiltered: Boolean,
         showUnannotated: Boolean,
+        filterSuperClassType: Boolean = true,
     ): ApiVisitor =
         FilteringApiVisitor(
             this,
@@ -312,6 +313,7 @@ class JDiffXmlWriter(
             filterEmit = filterEmit,
             filterReference = filterReference,
             preFiltered = preFiltered,
+            filterSuperClassType = filterSuperClassType,
             showUnannotated = showUnannotated,
             config = ApiVisitor.Config(),
         )

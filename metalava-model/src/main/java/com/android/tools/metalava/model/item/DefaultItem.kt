@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 The Android Open Source Project
+ * Copyright (C) 2024 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,35 +16,37 @@
 
 package com.android.tools.metalava.model.item
 
+import com.android.tools.metalava.model.AbstractItem
 import com.android.tools.metalava.model.ApiVariantSelectorsFactory
-import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ItemLanguage
-import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.reporter.FileLocation
 
-abstract class DefaultMemberItem(
-    codebase: DefaultCodebase,
+/**
+ * Base class that is common to models that do not incorporate their underlying model, if any, into
+ * their [Item] implementations.
+ */
+abstract class DefaultItem(
+    final override val codebase: DefaultCodebase,
     fileLocation: FileLocation,
-    itemLanguage: ItemLanguage,
+    internal val itemLanguage: ItemLanguage,
     modifiers: DefaultModifierList,
     documentation: ItemDocumentation,
     variantSelectorsFactory: ApiVariantSelectorsFactory,
-    private val name: String,
-    private val containingClass: ClassItem,
 ) :
-    DefaultItem(
-        codebase = codebase,
-        fileLocation = fileLocation,
-        itemLanguage = itemLanguage,
-        modifiers = modifiers,
-        documentation = documentation,
-        variantSelectorsFactory = variantSelectorsFactory,
-    ),
-    MemberItem {
+    AbstractItem(
+        fileLocation,
+        modifiers,
+        documentation,
+        variantSelectorsFactory,
+    ) {
 
-    final override fun name() = name
+    final override fun isJava(): Boolean {
+        return itemLanguage.isJava()
+    }
 
-    final override fun containingClass() = containingClass
+    final override fun isKotlin(): Boolean {
+        return itemLanguage.isKotlin()
+    }
 }

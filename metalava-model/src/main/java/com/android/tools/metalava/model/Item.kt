@@ -16,10 +16,6 @@
 
 package com.android.tools.metalava.model
 
-import com.android.tools.metalava.model.MethodItem.Companion.equals
-import com.android.tools.metalava.model.MethodItem.Companion.hashCode
-import com.android.tools.metalava.model.TypeItem.Companion.equals
-import com.android.tools.metalava.model.TypeItem.Companion.hashCode
 import com.android.tools.metalava.reporter.BaselineKey
 import com.android.tools.metalava.reporter.FileLocation
 import com.android.tools.metalava.reporter.Reportable
@@ -110,12 +106,6 @@ interface Item : Reportable {
      * references to classes.
      */
     val documentation: ItemDocumentation
-
-    /**
-     * Looks up docs for the first instance of a specific javadoc tag having the (optionally)
-     * provided value (e.g. parameter name).
-     */
-    fun findTagDocumentation(tag: String, value: String? = null): String?
 
     /**
      * A rank used for sorting. This allows signature files etc to sort similar items by a natural
@@ -540,9 +530,6 @@ abstract class AbstractItem(
         }
     }
 
-    final override fun findTagDocumentation(tag: String, value: String?): String? =
-        documentation.findTagDocumentation(tag, value)
-
     final override fun appendDocumentation(comment: String, tagSection: String?) {
         if (comment.isBlank()) {
             return
@@ -569,32 +556,4 @@ abstract class AbstractItem(
     final override fun hashCode() = hashCodeForItem()
 
     final override fun toString() = toStringForItem()
-}
-
-/**
- * Base class that is common to models that do not incorporate their underlying model, if any, into
- * their [Item] implementations.
- */
-abstract class DefaultItem(
-    final override val codebase: DefaultCodebase,
-    fileLocation: FileLocation,
-    internal val itemLanguage: ItemLanguage,
-    modifiers: DefaultModifierList,
-    documentation: ItemDocumentation,
-    variantSelectorsFactory: ApiVariantSelectorsFactory,
-) :
-    AbstractItem(
-        fileLocation,
-        modifiers,
-        documentation,
-        variantSelectorsFactory,
-    ) {
-
-    final override fun isJava(): Boolean {
-        return itemLanguage.isJava()
-    }
-
-    final override fun isKotlin(): Boolean {
-        return itemLanguage.isKotlin()
-    }
 }

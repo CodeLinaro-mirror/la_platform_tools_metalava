@@ -19,7 +19,7 @@ package com.android.tools.metalava.model
 import java.io.PrintWriter
 
 @MetalavaApi
-interface FieldItem : MemberItem {
+interface FieldItem : MemberItem, InheritableItem {
     /** The property this field backs; inverse of [PropertyItem.backingField] */
     val property: PropertyItem?
         get() = null

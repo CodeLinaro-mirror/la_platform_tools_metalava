@@ -245,21 +245,23 @@ class DocAnalyzer(
                         // don't include the docs (since it may conflict with more specific
                         // conditions
                         // outlined in the docs).
+                        val documentation = item.documentation
                         val doc =
                             when (item) {
                                 is ParameterItem -> {
                                     item
                                         .containingMethod()
+                                        .documentation
                                         .findTagDocumentation("param", item.name())
                                         ?: ""
                                 }
                                 is MethodItem -> {
                                     // Don't inspect param docs (and other tags) for this purpose.
-                                    item.documentation.findMainDocumentation() +
-                                        (item.findTagDocumentation("return") ?: "")
+                                    documentation.findMainDocumentation() +
+                                        (documentation.findTagDocumentation("return") ?: "")
                                 }
                                 else -> {
-                                    item.documentation
+                                    documentation
                                 }
                             }
                         if (doc.contains("null") && mentionsNull.matcher(doc).find()) {
@@ -600,40 +602,41 @@ class DocAnalyzer(
     }
 
     private fun addDoc(annotation: AnnotationItem, tag: String, item: Item) {
-        // TODO: Cache: we shouldn't have to keep looking this up over and over
-        // for example for the nullable/non-nullable annotation classes that
-        // are used everywhere!
+        // Resolve the annotation class, returning immediately if it could not be found.
         val cls = annotation.resolve() ?: return
 
-        val documentation = cls.findTagDocumentation(tag)
-        if (documentation != null) {
-            assert(documentation.startsWith("@$tag")) { documentation }
-            // TODO: Insert it in the right place (@return or @param)
-            val section =
-                when {
-                    documentation.startsWith("@returnDoc") -> "@return"
-                    documentation.startsWith("@paramDoc") -> "@param"
-                    documentation.startsWith("@memberDoc") -> null
-                    else -> null
-                }
+        // Documentation of the annotation class that is to be copied into the item where the
+        // annotation is used.
+        val annotationDocumentation = cls.documentation
 
-            val insert =
-                stripLeadingAsterisks(stripMetaTags(documentation.substring(tag.length + 2)))
-            val qualified =
-                if (containsLinkTags(insert)) {
-                    val original = "/** $insert */"
-                    val qualified = cls.fullyQualifiedDocumentation(original)
-                    if (original != qualified) {
-                        qualified.substring(if (qualified[3] == ' ') 4 else 3, qualified.length - 2)
-                    } else {
-                        insert
-                    }
+        // Get the text for the supplied tag as that is what needs to be copied into the use site.
+        // If there is no such text then return immediately.
+        val taggedText = annotationDocumentation.findTagDocumentation(tag) ?: return
+
+        assert(taggedText.startsWith("@$tag")) { taggedText }
+        val section =
+            when {
+                taggedText.startsWith("@returnDoc") -> "@return"
+                taggedText.startsWith("@paramDoc") -> "@param"
+                taggedText.startsWith("@memberDoc") -> null
+                else -> null
+            }
+
+        val insert = stripLeadingAsterisks(stripMetaTags(taggedText.substring(tag.length + 2)))
+        val qualified =
+            if (containsLinkTags(insert)) {
+                val original = "/** $insert */"
+                val qualified = cls.fullyQualifiedDocumentation(original)
+                if (original != qualified) {
+                    qualified.substring(if (qualified[3] == ' ') 4 else 3, qualified.length - 2)
                 } else {
                     insert
                 }
+            } else {
+                insert
+            }
 
-            item.appendDocumentation(qualified, section) // 2: @ and space after tag
-        }
+        item.appendDocumentation(qualified, section) // 2: @ and space after tag
     }
 
     private fun stripLeadingAsterisks(s: String): String {

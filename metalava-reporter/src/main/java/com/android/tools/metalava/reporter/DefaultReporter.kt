@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 The Android Open Source Project
+ * Copyright (C) 2024 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,32 +14,18 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava
+package com.android.tools.metalava.reporter
 
-import com.android.tools.metalava.cli.common.Terminal
-import com.android.tools.metalava.cli.common.TerminalColor
-import com.android.tools.metalava.cli.common.plainTerminal
-import com.android.tools.metalava.model.Item
-import com.android.tools.metalava.model.PackageItem
-import com.android.tools.metalava.reporter.Baseline
-import com.android.tools.metalava.reporter.FileLocation
-import com.android.tools.metalava.reporter.IssueConfiguration
-import com.android.tools.metalava.reporter.Issues
-import com.android.tools.metalava.reporter.Reportable
-import com.android.tools.metalava.reporter.Reporter
-import com.android.tools.metalava.reporter.Severity
 import com.android.tools.metalava.reporter.Severity.ERROR
 import com.android.tools.metalava.reporter.Severity.HIDDEN
-import com.android.tools.metalava.reporter.Severity.INFO
-import com.android.tools.metalava.reporter.Severity.INHERIT
 import com.android.tools.metalava.reporter.Severity.WARNING
-import com.android.tools.metalava.reporter.Severity.WARNING_ERROR_WHEN_NEW
 import java.io.File
 import java.io.OutputStreamWriter
 import java.io.PrintWriter
 import java.nio.file.Path
+import java.util.function.Predicate
 
-internal class DefaultReporter(
+class DefaultReporter(
     private val environment: ReporterEnvironment,
     private val issueConfiguration: IssueConfiguration,
 
@@ -52,13 +38,13 @@ internal class DefaultReporter(
      */
     private val errorMessage: String? = null,
 
-    /** Filter to hide issues reported in packages which are not part of the API. */
-    private val packageFilter: PackageFilter? = null,
+    /** Filter to hide issues reported on specific types of [Reportable]. */
+    private val reportableFilter: Predicate<Reportable>? = null,
 
     /** Additional config properties. */
     private val config: Config = Config(),
 ) : Reporter {
-    private var errors = mutableListOf<String>()
+    private val errors = mutableListOf<Report>()
     private var warningCount = 0
 
     /**
@@ -71,8 +57,11 @@ internal class DefaultReporter(
         /** If true, treat all warnings as errors */
         val warningsAsErrors: Boolean = false,
 
-        /** Whether output should be colorized */
-        val terminal: Terminal = plainTerminal,
+        /** Formats the report suitable for use in a file. */
+        val fileReportFormatter: ReportFormatter = DefaultReportFormatter.DEFAULT,
+
+        /** Formats the report for output, e.g. to a terminal. */
+        val outputReportFormatter: ReportFormatter = fileReportFormatter,
 
         /**
          * Optional writer to which, if present, all errors, even if they were suppressed in
@@ -109,48 +98,42 @@ internal class DefaultReporter(
             return false
         }
 
-        fun dispatch(
-            which:
-                (
-                    severity: Severity, location: String?, message: String, id: Issues.Issue
-                ) -> Boolean
-        ): Boolean {
-            // When selecting a location to use for reporting the issue the location is used in
-            // preference to the item because the location is more specific. e.g. if the item is a
-            // method then the location may be a line within the body of the method.
-            val reportLocation =
-                when {
-                    location.path != null -> location
-                    else -> reportable?.fileLocation
-                }
+        // When selecting a location to use for reporting the issue the location is used in
+        // preference to the item because the location is more specific. e.g. if the item is a
+        // method then the location may be a line within the body of the method.
+        val reportLocation =
+            when {
+                location.path != null -> location
+                else -> reportable?.fileLocation
+            }
 
-            return which(effectiveSeverity, reportLocation?.forReport(), message, id)
-        }
+        val report =
+            Report(
+                severity = effectiveSeverity,
+                // Relativize the path before storing in the Report.
+                relativePath = reportLocation?.path?.relativizeLocationPath(),
+                line = reportLocation?.line ?: 0,
+                message = message,
+                issue = id,
+            )
 
         // Optionally write to the --report-even-if-suppressed file.
-        dispatch(this::reportEvenIfSuppressed)
+        reportEvenIfSuppressed(report)
 
         if (isSuppressed(id, reportable, message)) {
             return false
         }
 
-        // If we are only emitting some packages (--stub-packages), don't report
-        // issues from other packages
-        val item = reportable as? Item
-        if (item != null) {
-            if (packageFilter != null) {
-                val pkg = (item as? PackageItem) ?: item.containingPackage()
-                if (pkg != null && !packageFilter.matches(pkg)) {
-                    return false
-                }
-            }
+        // Apply the reportable filter if one is provided.
+        if (reportable != null && reportableFilter?.test(reportable) == false) {
+            return false
         }
 
         if (baseline != null) {
-            // When selecting a location to use for in checking the baseline the item is used in
-            // preference to the location because the item is more stable. e.g. the location may be
-            // for a specific line within a method which would change over time while the method
-            // signature would stay the same.
+            // When selecting a key to use for in checking the baseline the reportable key is used
+            // in preference to the location because the reportable key is more stable. e.g. the
+            // location key may be for a specific line within a method which would change over time
+            // while a key based off a method's would stay the same.
             val baselineKey =
                 when {
                     // When available use the baseline key from the reportable.
@@ -162,7 +145,7 @@ internal class DefaultReporter(
             if (baselineKey != null && baseline.mark(baselineKey, message, id)) return false
         }
 
-        return dispatch(this::doReport)
+        return doReport(report)
     }
 
     override fun isSuppressed(
@@ -201,97 +184,50 @@ internal class DefaultReporter(
     }
 
     /**
-     * Relativize the [absolutePath] against the [ReporterEnvironment.rootFolder] if specified.
+     * Relativize this against the [ReporterEnvironment.rootFolder] if specified.
      *
-     * Tests will set [rootFolder] to the temporary directory so that this can remove that from any
-     * paths that are reported to avoid the test having to be aware of the temporary directory.
+     * Tests will set [ReporterEnvironment.rootFolder] to the temporary directory so that this can
+     * remove that from any paths that are reported to avoid the test having to be aware of the
+     * temporary directory.
      */
-    private fun relativizeLocationPath(absolutePath: Path): String {
-        // b/255575766: Note that [relativize] requires two paths to compare to have same types:
+    private fun Path.relativizeLocationPath(): String {
+        // b/255575766: Note that `relativize` requires two paths to compare to have same types:
         // either both of them are absolute paths or both of them are not absolute paths.
-        val path = environment.rootFolder.toPath().relativize(absolutePath) ?: absolutePath
+        val path = environment.rootFolder.toPath().relativize(this) ?: this
         return path.toString()
     }
 
-    /**
-     * Convert the [FileLocation] to an optional string representation suitable for use in a report.
-     *
-     * See [relativizeLocationPath].
-     */
-    private fun FileLocation.forReport(): String? {
-        val pathString = path?.let { relativizeLocationPath(it) } ?: return null
-        return if (line > 0) "$pathString:$line" else pathString
-    }
-
     /** Alias to allow method reference to `dispatch` in [report] */
-    private fun doReport(
-        severity: Severity,
-        location: String?,
-        message: String,
-        id: Issues.Issue?,
-    ): Boolean {
-        val terminal: Terminal = config.terminal
-        val formattedMessage = format(severity, location, message, id, terminal)
-        if (severity == ERROR) {
-            errors.add(formattedMessage)
-        } else if (severity == WARNING) {
-            warningCount++
+    private fun doReport(report: Report): Boolean {
+        val severity = report.severity
+        when (severity) {
+            ERROR -> errors.add(report)
+            WARNING -> warningCount++
+            else -> {}
         }
 
+        val formattedMessage = config.outputReportFormatter.format(report)
         environment.printReport(formattedMessage, severity)
         return true
     }
 
-    private fun format(
-        severity: Severity,
-        location: String?,
-        message: String,
-        id: Issues.Issue?,
-        terminal: Terminal,
-    ): String {
-        val sb = StringBuilder(100)
-
-        sb.append(terminal.attributes(bold = true))
-        location?.let { sb.append(it).append(": ") }
-        when (severity) {
-            INFO -> sb.append(terminal.attributes(foreground = TerminalColor.CYAN)).append("info: ")
-            WARNING,
-            WARNING_ERROR_WHEN_NEW ->
-                sb.append(terminal.attributes(foreground = TerminalColor.YELLOW))
-                    .append("warning: ")
-            ERROR ->
-                sb.append(terminal.attributes(foreground = TerminalColor.RED)).append("error: ")
-            INHERIT,
-            HIDDEN -> {}
+    private fun reportEvenIfSuppressed(report: Report): Boolean {
+        config.reportEvenIfSuppressedWriter?.let {
+            println(config.fileReportFormatter.format(report))
         }
-        sb.append(terminal.reset())
-        sb.append(message)
-        sb.append(severity.messageSuffix)
-        id?.let { sb.append(" [").append(it.name).append("]") }
-        return sb.toString()
-    }
-
-    private fun reportEvenIfSuppressed(
-        severity: Severity,
-        location: String?,
-        message: String,
-        id: Issues.Issue
-    ): Boolean {
-        config.reportEvenIfSuppressedWriter?.println(
-            format(severity, location, message, id, terminal = plainTerminal)
-        )
         return true
     }
 
-    /** Print all the recorded errors to the given writer. Returns the number of errors printer. */
+    /** Print all the recorded errors to the given writer. Returns the number of errors printed. */
     fun printErrors(writer: PrintWriter, maxErrors: Int): Int {
         var i = 0
-        errors.forEach loop@{
+        for (error in errors) {
             if (i >= maxErrors) {
-                return@loop
+                break
             }
             i++
-            writer.println(it)
+            val formattedMessage = config.outputReportFormatter.format(error)
+            writer.println(formattedMessage)
         }
         return i
     }

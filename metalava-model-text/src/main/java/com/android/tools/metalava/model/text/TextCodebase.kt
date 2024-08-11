@@ -16,23 +16,19 @@
 
 package com.android.tools.metalava.model.text
 
-import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.ApiVariantSelectors
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.ClassTypeItem
-import com.android.tools.metalava.model.DefaultAnnotationItem
-import com.android.tools.metalava.model.DefaultCodebase
+import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.ItemLanguage
-import com.android.tools.metalava.model.PackageItem
-import com.android.tools.metalava.model.PackageList
 import com.android.tools.metalava.model.bestGuessAtFullName
+import com.android.tools.metalava.model.item.DefaultClassItem
+import com.android.tools.metalava.model.item.DefaultCodebase
 import com.android.tools.metalava.model.item.DefaultItemFactory
-import com.android.tools.metalava.model.item.DefaultPackageItem
 import java.io.File
-import java.util.ArrayList
 import java.util.HashMap
 
 // Copy of ApiInfo in doclava1 (converted to Kotlin + some cleanup to make it work with metalava's
@@ -42,10 +38,20 @@ internal class TextCodebase(
     location: File,
     annotationManager: AnnotationManager,
     private val classResolver: ClassResolver?,
-) : DefaultCodebase(location, "Codebase", true, annotationManager) {
-    private val packagesByName = HashMap<String, DefaultPackageItem>(300)
-    private val allClassesByName = HashMap<String, TextClassItem>(30000)
+) :
+    DefaultCodebase(
+        location = location,
+        description = "Codebase",
+        preFiltered = true,
+        annotationManager = annotationManager,
+        trustedApi = true,
+        supportsDocumentation = false,
+    ) {
 
+    /**
+     * Map from fully qualified class name to a [ClassItem] that has been retrieved from a
+     * [ClassResolver], if any.
+     */
     private val externalClassesByName = HashMap<String, ClassItem>()
 
     /** Creates [Item] instances for this. */
@@ -66,51 +72,19 @@ internal class TextCodebase(
         addPackage(rootPackage)
     }
 
-    override fun trustedApi(): Boolean = true
-
-    override fun getPackages(): PackageList {
-        val list = ArrayList<PackageItem>(packagesByName.values)
-        list.sortWith(PackageItem.comparator)
-        return PackageList(this, list)
-    }
-
-    override fun size(): Int {
-        return packagesByName.size
-    }
-
-    /** Find a class in this codebase, i.e. not classes loaded from the [classResolver]. */
-    fun findClassInCodebase(className: String) = allClassesByName[className]
-
+    /**
+     * Override to first search within this [Codebase] and then look for classes that have been
+     * loaded by a [classResolver].
+     */
     override fun findClass(className: String) =
-        allClassesByName[className] ?: externalClassesByName[className]
+        super.findClass(className) ?: externalClassesByName[className]
 
     override fun resolveClass(className: String) = getOrCreateClass(className)
 
-    override fun supportsDocumentation(): Boolean = false
-
-    fun addPackage(pInfo: DefaultPackageItem) {
-        // track the set of organized packages in the API
-        packagesByName[pInfo.qualifiedName()] = pInfo
-
-        // accumulate a direct map of all the classes in the API
-        for (cl in pInfo.allClasses()) {
-            allClassesByName[cl.qualifiedName()] = cl as TextClassItem
-        }
-    }
-
-    fun registerClass(classItem: TextClassItem) {
-        val qualifiedName = classItem.qualifiedName()
-        val existing = allClassesByName.put(qualifiedName, classItem)
-        if (existing != null) {
-            error(
-                "Attempted to register $qualifiedName twice; once from ${existing.fileLocation.path} and this one from ${classItem.fileLocation.path}"
-            )
-        }
-
-        addClass(classItem)
-
-        // A real class exists so a stub will not be created.
-        requiredStubKindForClass.remove(qualifiedName)
+    override fun newClassRegistered(classItem: DefaultClassItem) {
+        // A real class exists so a stub will not be created so the hint as to the kind of class
+        // that the stubs should be is no longer needed.
+        requiredStubKindForClass.remove(classItem.qualifiedName())
     }
 
     /**
@@ -214,9 +188,9 @@ internal class TextCodebase(
                 }
 
                 // As outerClass and stubClass are from the same codebase the outerClass must be a
-                // TextClassItem so cast it to one so that the code below can use TextClassItem
-                // methods.
-                outerClass as TextClassItem
+                // DefaultClassItem so cast it to one so that the code below can use
+                // DefaultClassItem methods.
+                outerClass as DefaultClassItem
             } else {
                 null
             }
@@ -255,21 +229,6 @@ internal class TextCodebase(
             pkg.addTopClass(stubClass)
         }
         return stubClass
-    }
-
-    override fun findPackage(pkgName: String): DefaultPackageItem? {
-        return packagesByName[pkgName]
-    }
-
-    override fun createAnnotation(
-        source: String,
-        context: Item?,
-    ): AnnotationItem? {
-        return DefaultAnnotationItem.create(this, source)
-    }
-
-    override fun toString(): String {
-        return description
     }
 
     override fun unsupported(desc: String?): Nothing {

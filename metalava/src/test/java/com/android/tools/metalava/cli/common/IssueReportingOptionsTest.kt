@@ -16,10 +16,10 @@
 
 package com.android.tools.metalava.cli.common
 
-import com.android.tools.metalava.DefaultReporter
-import com.android.tools.metalava.ReporterEnvironment
+import com.android.tools.metalava.reporter.DefaultReporter
 import com.android.tools.metalava.reporter.IssueConfiguration
 import com.android.tools.metalava.reporter.Issues
+import com.android.tools.metalava.reporter.ReporterEnvironment
 import com.android.tools.metalava.reporter.Severity
 import java.io.File
 import org.junit.Assert.assertEquals

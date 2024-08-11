@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model
 
+import com.android.tools.metalava.model.item.DefaultCodebase
 import java.io.File
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
@@ -25,26 +26,14 @@ import org.junit.Test
 class DefaultAnnotationItemTest {
     // Placeholder for use in test where we don't need codebase functionality
     private val placeholderCodebase =
-        object : DefaultCodebase(File("").canonicalFile, "", false, noOpAnnotationManager) {
-            override fun supportsDocumentation() = false
-
-            override fun getPackages() = unsupported()
-
-            override fun size() = unsupported()
-
-            override fun findClass(className: String) = unsupported()
-
-            override fun resolveClass(className: String) = unsupported()
-
-            override fun findPackage(pkgName: String) = unsupported()
-
-            override fun trustedApi() = false
-
-            override fun createAnnotation(
-                source: String,
-                context: Item?,
-            ): AnnotationItem = unsupported()
-        }
+        DefaultCodebase(
+            location = File("").canonicalFile,
+            description = "",
+            preFiltered = false,
+            annotationManager = noOpAnnotationManager,
+            trustedApi = false,
+            supportsDocumentation = false,
+        )
 
     private fun createDefaultAnnotationItem(source: String) =
         DefaultAnnotationItem.create(placeholderCodebase, source)

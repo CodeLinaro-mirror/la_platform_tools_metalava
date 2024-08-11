@@ -288,7 +288,7 @@ internal open class TurbineCodebaseInitialiser(
      */
     private fun findOrCreatePackage(name: String): DefaultPackageItem {
         codebase.findPackage(name)?.let {
-            return it as DefaultPackageItem
+            return it
         }
 
         val turbinePkgItem = itemFactory.createPackageItem(qualifiedName = name)
@@ -413,8 +413,7 @@ internal open class TurbineCodebaseInitialiser(
                 "class $qualifiedName",
             )
         val classItem =
-            TurbineClassItem(
-                codebase = codebase,
+            itemFactory.createClassItem(
                 fileLocation = fileLocation,
                 modifiers = modifierItem,
                 documentation = getCommentedDoc(documentation),
@@ -452,7 +451,7 @@ internal open class TurbineCodebaseInitialiser(
         createConstructors(classItem, cls.methods(), classTypeItemFactory)
 
         // Add to the codebase
-        codebase.registerClass(classItem, isTopClass)
+        codebase.registerClass(classItem)
 
         // Add the class to corresponding PackageItem
         if (isTopClass) {
@@ -891,7 +890,6 @@ internal open class TurbineCodebaseInitialiser(
         methods: List<MethodInfo>,
         enclosingClassTypeItemFactory: TurbineTypeItemFactory,
     ) {
-        var hasImplicitDefaultConstructor = false
         for (constructor in methods) {
             // Skip real methods.
             if (constructor.sym().name() != "<init>") continue
@@ -911,7 +909,7 @@ internal open class TurbineCodebaseInitialiser(
                     enclosingClassTypeItemFactory,
                     constructor.name(),
                 )
-            hasImplicitDefaultConstructor =
+            val isImplicitDefaultConstructor =
                 (constructor.access() and TurbineFlag.ACC_SYNTH_CTOR) != 0
             val name = classItem.simpleName()
             val documentation = javadoc(decl)
@@ -937,11 +935,11 @@ internal open class TurbineCodebaseInitialiser(
                     },
                     throwsTypes =
                         getThrowsList(constructor.exceptions(), constructorTypeItemFactory),
+                    implicitConstructor = isImplicitDefaultConstructor,
                 )
 
             classItem.addConstructor(constructorItem)
         }
-        classItem.hasImplicitDefaultConstructor = hasImplicitDefaultConstructor
     }
 
     internal fun getQualifiedName(binaryName: String): String {

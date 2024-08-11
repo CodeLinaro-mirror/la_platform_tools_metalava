@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2023 The Android Open Source Project
+ * Copyright (C) 2024 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,19 +14,9 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava.model.source
+package com.android.tools.metalava.reporter
 
-import com.android.tools.metalava.model.ClassItem
-import com.android.tools.metalava.model.Codebase
-
-/**
- * Extends [Codebase] to add any additional members needed for [Codebase] implementations created
- * from source files.
- */
-interface SourceCodebase : Codebase {
-    /**
-     * Returns a list of the top-level classes declared in the codebase's source (rather than on its
-     * classpath).
-     */
-    fun getTopLevelClassesFromSource(): List<ClassItem>
+/** Formats a [Report] object suitable for outputting, e.g. to a terminal or file. */
+interface ReportFormatter {
+    fun format(report: Report): String
 }

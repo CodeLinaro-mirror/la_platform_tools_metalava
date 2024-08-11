@@ -76,6 +76,7 @@ class FilteringApiVisitor(
     filterEmit: Predicate<Item>,
     filterReference: Predicate<Item>,
     private val preFiltered: Boolean,
+    private val filterSuperClassType: Boolean = true,
     showUnannotated: Boolean = true,
     /**
      * If true then this will visit the [ClassItem.stubConstructor] if it would not otherwise be
@@ -216,7 +217,7 @@ class FilteringApiVisitor(
         override fun superClass() = superClassType()?.asClass()
 
         override fun superClassType() =
-            if (preFiltered) delegate.superClassType()
+            if (!filterSuperClassType || preFiltered) delegate.superClassType()
             else delegate.filteredSuperClassType(filterReference)?.transform(typeAnnotationFilter)
 
         override fun interfaceTypes(): List<ClassTypeItem> {

@@ -20,10 +20,13 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.DefaultModifierList
+import com.android.tools.metalava.model.TypeParameterList
+import com.android.tools.metalava.model.item.DefaultClassItem
+import com.android.tools.metalava.reporter.FileLocation
 
 /**
- * A builder for stub classes, i.e. [TextClassItem]s fabricated because [ApiFile] has no definition
- * of the class but a [TextClassItem] is still needed.
+ * A builder for stub classes, i.e. [DefaultClassItem]s fabricated because [ApiFile] has no
+ * definition of the class but a [DefaultClassItem] is still needed.
  */
 internal class StubClassBuilder(
     val codebase: TextCodebase,
@@ -39,20 +42,22 @@ internal class StubClassBuilder(
 
     var superClassType: ClassTypeItem? = null
 
-    private fun build(): TextClassItem =
-        TextClassItem(
-                codebase = codebase,
+    private fun build(): DefaultClassItem =
+        codebase.itemFactory
+            .createClassItem(
+                fileLocation = FileLocation.UNKNOWN,
                 modifiers = modifiers,
                 classKind = classKind,
                 qualifiedName = qualifiedName,
                 fullName = fullName,
                 containingClass = containingClass,
+                typeParameterList = TypeParameterList.NONE,
             )
             .also { item -> item.setSuperClassType(superClassType) }
 
     companion object {
         /**
-         * Create a [TextClassItem] in the specified [codebase] and with the specific
+         * Create a [DefaultClassItem] in the specified [codebase] and with the specific
          * [qualifiedName], after applying the specified mutator.
          */
         fun build(
@@ -61,7 +66,7 @@ internal class StubClassBuilder(
             fullName: String,
             containingClass: ClassItem?,
             mutator: StubClassBuilder.() -> Unit
-        ): TextClassItem {
+        ): DefaultClassItem {
             val builder =
                 StubClassBuilder(
                     codebase = codebase,

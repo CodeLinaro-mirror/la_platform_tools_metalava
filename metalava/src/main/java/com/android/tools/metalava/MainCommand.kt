@@ -35,6 +35,7 @@ import com.android.tools.metalava.cli.lint.ApiLintOptions
 import com.android.tools.metalava.cli.signature.SignatureFormatOptions
 import com.android.tools.metalava.model.source.SourceModelProvider
 import com.android.tools.metalava.reporter.DEFAULT_BASELINE_NAME
+import com.android.tools.metalava.reporter.DefaultReporter
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.core.context
 import com.github.ajalt.clikt.parameters.arguments.argument

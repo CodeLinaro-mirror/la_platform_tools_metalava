@@ -28,7 +28,6 @@ import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.DefaultAnnotationItem
-import com.android.tools.metalava.model.DefaultCodebase
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.DefaultTypeParameterList
 import com.android.tools.metalava.model.ExceptionTypeItem
@@ -45,6 +44,8 @@ import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VisibilityLevel
+import com.android.tools.metalava.model.item.DefaultClassItem
+import com.android.tools.metalava.model.item.DefaultCodebase
 import com.android.tools.metalava.model.item.DefaultPackageItem
 import com.android.tools.metalava.model.item.DefaultTypeParameterItem
 import com.android.tools.metalava.model.item.DefaultValue
@@ -596,11 +597,10 @@ private constructor(
             return
         }
 
-        // Create the TextClassItem and set its package but do not add it to the package or
+        // Create the DefaultClassItem and set its package but do not add it to the package or
         // register it.
         val cl =
-            TextClassItem(
-                codebase = codebase,
+            itemFactory.createClassItem(
                 fileLocation = classPosition,
                 modifiers = modifiers,
                 classKind = classKind,
@@ -703,7 +703,7 @@ private constructor(
     /** Parse the class body, adding members to [cl]. */
     private fun parseClassBody(
         tokenizer: Tokenizer,
-        cl: TextClassItem,
+        cl: DefaultClassItem,
         classTypeItemFactory: TextTypeItemFactory,
     ) {
         var token = tokenizer.requireToken()
@@ -771,7 +771,7 @@ private constructor(
         /** The fully qualified name, including package and full name. */
         val qualifiedName: String,
         /** The optional, resolved outer [ClassItem]. */
-        val outerClass: TextClassItem?,
+        val outerClass: DefaultClassItem?,
         /** The set of type parameters. */
         val typeParameterList: TypeParameterList,
         /**
@@ -822,7 +822,7 @@ private constructor(
                 // always precedes its nested classes.
                 val outerClass =
                     codebase.getOrCreateClass(qualifiedOuterClassName, isOuterClass = true)
-                        as TextClassItem
+                        as DefaultClassItem
 
                 val nestedClassName = fullName.substring(nestedClassIndex + 1)
                 Pair(outerClass, nestedClassName)
@@ -982,7 +982,7 @@ private constructor(
 
     private fun parseConstructor(
         tokenizer: Tokenizer,
-        containingClass: TextClassItem,
+        containingClass: DefaultClassItem,
         classTypeItemFactory: TextTypeItemFactory,
         startingToken: String
     ) {
@@ -1034,6 +1034,10 @@ private constructor(
                     createParameterItems(methodItem, parameters, typeItemFactory)
                 },
                 throwsTypes = throwsList,
+                // Signature files do not track implicit constructors, all constructors are treated
+                // the same as whether it was created by the compiler or in the source has no effect
+                // on the API surface.
+                implicitConstructor = false,
             )
         method.markForCurrentApiSurface()
 
@@ -1044,7 +1048,7 @@ private constructor(
 
     private fun parseMethod(
         tokenizer: Tokenizer,
-        cl: TextClassItem,
+        cl: DefaultClassItem,
         classTypeItemFactory: TextTypeItemFactory,
         startingToken: String
     ) {
@@ -1157,7 +1161,7 @@ private constructor(
 
     private fun parseField(
         tokenizer: Tokenizer,
-        cl: TextClassItem,
+        cl: DefaultClassItem,
         classTypeItemFactory: TextTypeItemFactory,
         startingToken: String,
         isEnumConstant: Boolean,
@@ -1412,7 +1416,7 @@ private constructor(
 
     private fun parseProperty(
         tokenizer: Tokenizer,
-        cl: TextClassItem,
+        cl: DefaultClassItem,
         classTypeItemFactory: TextTypeItemFactory,
         startingToken: String
     ) {

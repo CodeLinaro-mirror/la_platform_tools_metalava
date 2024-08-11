@@ -58,6 +58,7 @@ import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.FieldItem
+import com.android.tools.metalava.model.InheritableItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.JAVA_LANG_DEPRECATED
 import com.android.tools.metalava.model.JAVA_LANG_THROWABLE
@@ -2081,8 +2082,7 @@ private constructor(
         val inherited =
             when (item) {
                 is ParameterItem -> item.containingMethod().inheritedFromAncestor
-                is FieldItem -> item.inheritedFromAncestor
-                is MethodItem -> item.inheritedFromAncestor
+                is InheritableItem -> item.inheritedFromAncestor
                 else -> false
             }
         val superItems =

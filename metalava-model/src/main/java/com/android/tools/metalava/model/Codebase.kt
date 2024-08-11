@@ -102,12 +102,18 @@ object UnsetMinSdkVersion : MinSdkVersion()
 
 const val CLASS_ESTIMATE = 15000
 
-abstract class DefaultCodebase(
+abstract class AbstractCodebase(
     final override var location: File,
     final override var description: String,
     final override val preFiltered: Boolean,
     final override val annotationManager: AnnotationManager,
+    private val trustedApi: Boolean,
+    private val supportsDocumentation: Boolean,
 ) : Codebase {
+
+    final override fun trustedApi() = trustedApi
+
+    final override fun supportsDocumentation() = supportsDocumentation
 
     override fun unsupported(desc: String?): Nothing {
         error(
@@ -115,6 +121,8 @@ abstract class DefaultCodebase(
                 ?: "This operation is not available on this type of codebase (${this.javaClass.simpleName})"
         )
     }
+
+    final override fun toString() = description
 
     override fun dispose() {
         description += " [disposed]"

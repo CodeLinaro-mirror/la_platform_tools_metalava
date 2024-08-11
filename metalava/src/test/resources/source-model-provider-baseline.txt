@@ -216,7 +216,6 @@ com.android.tools.metalava.lint.CheckBuilderTest
   Check builders[turbine]
 
 com.android.tools.metalava.lint.FlaggedApiLintTest
-  Require @FlaggedApi on APIs whose modifiers have changed[turbine]
   Require @FlaggedApi on new APIs[turbine]
   Require @FlaggedApi to reference generated fields[turbine]
 
