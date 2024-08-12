@@ -146,8 +146,8 @@ class BinaryCompatibilityInterfacesTest : DriverTest() {
             expectedIssues =
                 """
                 released-api.txt:4: error: Removed method test.pkg.Foo.bar() [RemovedMethod]
-                released-api.txt:6: error: Removed method test.pkg.Foo.bax() [RemovedMethod]
                 released-api.txt:5: error: Removed method test.pkg.Foo.baz() [RemovedMethod]
+                released-api.txt:6: error: Removed method test.pkg.Foo.bax() [RemovedMethod]
             """,
             signatureSource =
                 """

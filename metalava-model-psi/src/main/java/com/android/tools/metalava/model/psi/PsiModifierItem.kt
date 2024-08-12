@@ -47,7 +47,6 @@ import com.android.tools.metalava.model.DefaultModifierList.Companion.VALUE
 import com.android.tools.metalava.model.DefaultModifierList.Companion.VARARG
 import com.android.tools.metalava.model.DefaultModifierList.Companion.VISIBILITY_MASK
 import com.android.tools.metalava.model.DefaultModifierList.Companion.VOLATILE
-import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.JAVA_LANG_ANNOTATION_TARGET
 import com.android.tools.metalava.model.JAVA_LANG_TYPE_USE_TARGET
 import com.android.tools.metalava.model.hasAnnotation
@@ -56,7 +55,6 @@ import com.android.tools.metalava.model.psi.KotlinTypeInfo.Companion.isInherited
 import com.intellij.psi.PsiAnnotation
 import com.intellij.psi.PsiAnnotationMemberValue
 import com.intellij.psi.PsiArrayInitializerMemberValue
-import com.intellij.psi.PsiDocCommentOwner
 import com.intellij.psi.PsiField
 import com.intellij.psi.PsiMethod
 import com.intellij.psi.PsiModifier
@@ -97,13 +95,12 @@ internal object PsiModifierItem {
     fun create(
         codebase: PsiBasedCodebase,
         element: PsiModifierListOwner,
-        documentation: ItemDocumentation? = null,
     ): DefaultModifierList {
         val modifiers =
             if (element is UAnnotated) {
-                create(codebase, element, element)
+                createFromUAnnotated(codebase, element, element)
             } else {
-                create(codebase, element)
+                createFromPsiElement(codebase, element)
             }
 
         // Sometimes Psi/Kotlin interoperation goes a little awry and adds nullability annotations
@@ -112,17 +109,8 @@ internal object PsiModifierItem {
             modifiers.removeAnnotations { it.isNullnessAnnotation() }
         }
 
-        val docDeprecated =
-            if (codebase.allowReadingComments) {
-                documentation?.contains("@deprecated") == true ||
-                    // Check for @Deprecated annotation
-                    ((element as? PsiDocCommentOwner)?.isDeprecated == true)
-            } else {
-                false
-            }
         if (
-            docDeprecated ||
-                hasDeprecatedAnnotation(modifiers) ||
+            hasDeprecatedAnnotation(modifiers) ||
                 // Check for @Deprecated on sourcePsi
                 isDeprecatedFromSourcePsi(element)
         ) {
@@ -407,7 +395,7 @@ internal object PsiModifierItem {
         }
     }
 
-    private fun create(
+    private fun createFromPsiElement(
         codebase: PsiBasedCodebase,
         element: PsiModifierListOwner
     ): DefaultModifierList {
@@ -450,7 +438,7 @@ internal object PsiModifierItem {
         }
     }
 
-    private fun create(
+    private fun createFromUAnnotated(
         codebase: PsiBasedCodebase,
         element: PsiModifierListOwner,
         annotated: UAnnotated

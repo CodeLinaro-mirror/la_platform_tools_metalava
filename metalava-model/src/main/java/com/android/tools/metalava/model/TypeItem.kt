@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.model
 
-import com.android.tools.metalava.model.TypeItem.Companion.equals
 import java.util.Objects
 import java.util.function.Predicate
 

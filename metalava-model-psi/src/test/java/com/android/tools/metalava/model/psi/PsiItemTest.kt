@@ -54,15 +54,16 @@ class PsiItemTest : BaseModelTest() {
             val barJavadoc = "@param bar The bar to foo with\n     *     the thing."
             val bazJavadoc = "@param baz The baz to foo\n     *     I think."
 
-            assertEquals(barJavadoc, method.findTagDocumentation("param"))
-            assertEquals("@return The result", method.findTagDocumentation("return"))
+            val documentation = method.documentation
+            assertEquals(barJavadoc, documentation.findTagDocumentation("param"))
+            assertEquals("@return The result", documentation.findTagDocumentation("return"))
 
-            assertEquals(barJavadoc, method.findTagDocumentation("param", "bar"))
-            assertEquals(bazJavadoc, method.findTagDocumentation("param", "baz"))
+            assertEquals(barJavadoc, documentation.findTagDocumentation("param", "bar"))
+            assertEquals(bazJavadoc, documentation.findTagDocumentation("param", "baz"))
 
             assertEquals(
                 "/**\n     * This method does foo.\n     *\n     * ",
-                method.documentation.findMainDocumentation()
+                documentation.findMainDocumentation()
             )
         }
     }

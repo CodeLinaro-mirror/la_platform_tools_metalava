@@ -45,12 +45,16 @@ import com.android.tools.metalava.cli.signature.SignatureFormatOptions
 import com.android.tools.metalava.manifest.Manifest
 import com.android.tools.metalava.manifest.emptyManifest
 import com.android.tools.metalava.model.AnnotationManager
+import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.TypedefMode
 import com.android.tools.metalava.model.source.DEFAULT_JAVA_LANGUAGE_LEVEL
 import com.android.tools.metalava.model.source.DEFAULT_KOTLIN_LANGUAGE_LEVEL
 import com.android.tools.metalava.model.text.ApiClassResolution
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.reporter.Baseline
+import com.android.tools.metalava.reporter.DefaultReporter
+import com.android.tools.metalava.reporter.Reportable
 import com.android.tools.metalava.reporter.Reporter
 import com.android.tools.metalava.stub.StubWriterConfig
 import com.android.utils.SdkUtils.wrap
@@ -69,6 +73,7 @@ import java.io.IOException
 import java.io.PrintWriter
 import java.io.StringWriter
 import java.util.Optional
+import java.util.function.Predicate
 import kotlin.properties.ReadWriteProperty
 import kotlin.reflect.KProperty
 import org.jetbrains.jps.model.java.impl.JavaSdkUtil
@@ -334,6 +339,26 @@ class Options(
 
     /** Packages to include (if null, include all) */
     private var stubPackages: PackageFilter? = null
+
+    /**
+     * An optional [Reportable] predicate that will ignore issues from (i.e. return false for)
+     * [Item]s that do not match the [stubPackages] filter. If no [stubPackages] filter is provided
+     * then this will be `null`.
+     */
+    private val reportableFilter: Predicate<Reportable>? by
+        lazy(LazyThreadSafetyMode.NONE) {
+            stubPackages?.let { packageFilter ->
+                Predicate { reportable ->
+                    // If we are only emitting some packages (--stub-packages), don't report
+                    // issues from other packages
+                    (reportable as? Item)?.let { item ->
+                        val pkg = (item as? PackageItem) ?: item.containingPackage()
+                        pkg == null || packageFilter.matches(pkg)
+                    }
+                        ?: true
+                }
+            }
+        }
 
     /** Packages that we should skip generating even if not hidden; typically only used by tests */
     val skipEmitPackages
@@ -935,30 +960,24 @@ class Options(
         // Initialize the reporters.
         val baseline = generalReportingOptions.baseline
         reporter =
-            DefaultReporter(
-                environment = executionEnvironment.reporterEnvironment,
-                issueConfiguration = issueConfiguration,
+            createReporter(
+                executionEnvironment = executionEnvironment,
                 baseline = baseline,
-                packageFilter = stubPackages,
-                config = issueReportingOptions.reporterConfig,
+                errorMessage = null,
             )
+
         reporterApiLint =
-            DefaultReporter(
-                environment = executionEnvironment.reporterEnvironment,
-                issueConfiguration = issueConfiguration,
+            createReporter(
+                executionEnvironment = executionEnvironment,
                 baseline = apiLintOptions.baseline ?: baseline,
                 errorMessage = apiLintOptions.errorMessage,
-                packageFilter = stubPackages,
-                config = issueReportingOptions.reporterConfig,
             )
+
         reporterCompatibilityReleased =
-            DefaultReporter(
-                environment = executionEnvironment.reporterEnvironment,
-                issueConfiguration = issueConfiguration,
+            createReporter(
+                executionEnvironment = executionEnvironment,
                 baseline = compatibilityCheckOptions.baseline ?: baseline,
                 errorMessage = compatibilityCheckOptions.errorMessage,
-                packageFilter = stubPackages,
-                config = issueReportingOptions.reporterConfig,
             )
 
         // Build "all baselines" and "all reporters"
@@ -980,6 +999,24 @@ class Options(
 
         updateClassPath()
     }
+
+    /**
+     * Create a [Reporter] that checks for known issues in [baseline] and prints [errorMessage], if
+     * provided, when errors have been reported.
+     */
+    private fun createReporter(
+        executionEnvironment: ExecutionEnvironment,
+        baseline: Baseline?,
+        errorMessage: String?,
+    ) =
+        DefaultReporter(
+            environment = executionEnvironment.reporterEnvironment,
+            issueConfiguration = issueConfiguration,
+            baseline = baseline,
+            errorMessage = errorMessage,
+            reportableFilter = reportableFilter,
+            config = issueReportingOptions.reporterConfig,
+        )
 
     fun isDeveloperPreviewBuild(): Boolean = currentCodeName != null
 

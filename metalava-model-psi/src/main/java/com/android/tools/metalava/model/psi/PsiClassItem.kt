@@ -24,7 +24,7 @@ import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.FieldItem
-import com.android.tools.metalava.model.ItemDocumentation
+import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PropertyItem
@@ -63,14 +63,14 @@ internal constructor(
     private val superClassType: ClassTypeItem?,
     private var interfaceTypes: List<ClassTypeItem>,
     modifiers: DefaultModifierList,
-    documentation: ItemDocumentation,
+    documentationFactory: ItemDocumentationFactory,
     /** True if this class is from the class path (dependencies). Exposed in [isFromClassPath]. */
     private val fromClassPath: Boolean
 ) :
     PsiItem(
         codebase = codebase,
         modifiers = modifiers,
-        documentation = documentation,
+        documentationFactory = documentationFactory,
         element = psiClass
     ),
     ClassItem {
@@ -257,8 +257,7 @@ internal constructor(
             val hasImplicitDefaultConstructor = hasImplicitDefaultConstructor(psiClass)
             val classKind = getClassKind(psiClass)
 
-            val commentText = javadocAsItemDocumentation(psiClass, codebase)
-            val modifiers = PsiModifierItem.create(codebase, psiClass, commentText)
+            val modifiers = PsiModifierItem.create(codebase, psiClass)
 
             // Create the TypeParameterList for this before wrapping any of the other types used by
             // it as they may reference a type parameter in the list.
@@ -285,7 +284,7 @@ internal constructor(
                     superClassType = superClassType,
                     interfaceTypes = interfaceTypes,
                     hasImplicitDefaultConstructor = hasImplicitDefaultConstructor,
-                    documentation = commentText,
+                    documentationFactory = PsiItemDocumentation.factory(psiClass, codebase),
                     modifiers = modifiers,
                     fromClassPath = fromClassPath,
                 )
@@ -323,8 +322,6 @@ internal constructor(
 
             // create methods
             val constructors: MutableList<PsiConstructorItem> = ArrayList(5)
-            var hasConstructorWithOnlyOptionalArgs = false
-            var noArgConstructor: PsiConstructorItem? = null
             for (psiMethod in psiMethods) {
                 if (psiMethod.isConstructor) {
                     val constructor =
@@ -346,19 +343,7 @@ internal constructor(
                     if (item.modifiers.isSealed()) {
                         constructor.modifiers.setVisibilityLevel(VisibilityLevel.PRIVATE)
                     }
-                    if (constructor.areAllParametersOptional()) {
-                        if (constructor.parameters().isNotEmpty()) {
-                            constructors.add(constructor)
-                            // uast reported a constructor having only optional arguments, so if we
-                            // later find an explicit no-arg constructor, we can skip it because
-                            // its existence is implied
-                            hasConstructorWithOnlyOptionalArgs = true
-                        } else {
-                            noArgConstructor = constructor
-                        }
-                    } else {
-                        constructors.add(constructor)
-                    }
+                    constructors.add(constructor)
                 } else {
                     val method =
                         PsiMethodItem.create(codebase, item, psiMethod, classTypeItemFactory)
@@ -366,16 +351,6 @@ internal constructor(
                         methods.add(method)
                     }
                 }
-            }
-
-            // Add the no-arg constructor back in if no constructors have only optional arguments
-            // or if an all-optional constructor created it as part of @JvmOverloads
-            if (
-                noArgConstructor != null &&
-                    (!hasConstructorWithOnlyOptionalArgs ||
-                        noArgConstructor.modifiers.isAnnotatedWith("kotlin.jvm.JvmOverloads"))
-            ) {
-                constructors.add(noArgConstructor)
             }
 
             // Note that this is dependent on the constructor filtering above. UAST sometimes

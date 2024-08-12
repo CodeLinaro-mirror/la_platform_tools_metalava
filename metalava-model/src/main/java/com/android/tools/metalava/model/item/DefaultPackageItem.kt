@@ -18,10 +18,8 @@ package com.android.tools.metalava.model.item
 
 import com.android.tools.metalava.model.ApiVariantSelectorsFactory
 import com.android.tools.metalava.model.ClassItem
-import com.android.tools.metalava.model.DefaultCodebase
-import com.android.tools.metalava.model.DefaultItem
 import com.android.tools.metalava.model.DefaultModifierList
-import com.android.tools.metalava.model.ItemDocumentation
+import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.findClosestEnclosingNonEmptyPackage
@@ -32,7 +30,7 @@ class DefaultPackageItem(
     fileLocation: FileLocation,
     itemLanguage: ItemLanguage,
     modifiers: DefaultModifierList,
-    documentation: ItemDocumentation,
+    documentationFactory: ItemDocumentationFactory,
     variantSelectorsFactory: ApiVariantSelectorsFactory,
     private val qualifiedName: String,
 ) :
@@ -41,7 +39,7 @@ class DefaultPackageItem(
         fileLocation = fileLocation,
         itemLanguage = itemLanguage,
         modifiers = modifiers,
-        documentation = documentation,
+        documentationFactory = documentationFactory,
         variantSelectorsFactory = variantSelectorsFactory,
     ),
     PackageItem {

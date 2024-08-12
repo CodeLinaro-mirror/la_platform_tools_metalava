@@ -20,10 +20,10 @@ import com.android.tools.metalava.model.ApiVariantSelectorsFactory
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.ConstructorItem
-import com.android.tools.metalava.model.DefaultCodebase
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.ItemDocumentation
+import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.reporter.FileLocation
@@ -33,7 +33,7 @@ class DefaultConstructorItem(
     fileLocation: FileLocation,
     itemLanguage: ItemLanguage,
     modifiers: DefaultModifierList,
-    documentation: ItemDocumentation,
+    documentationFactory: ItemDocumentationFactory,
     variantSelectorsFactory: ApiVariantSelectorsFactory,
     name: String,
     containingClass: ClassItem,
@@ -41,13 +41,14 @@ class DefaultConstructorItem(
     returnType: ClassTypeItem,
     parameterItemsFactory: ParameterItemsFactory,
     throwsTypes: List<ExceptionTypeItem>,
+    private val implicitConstructor: Boolean,
 ) :
-    DefaultMethodItem(
+    DefaultCallableItem(
         codebase = codebase,
         fileLocation = fileLocation,
         itemLanguage = itemLanguage,
         modifiers = modifiers,
-        documentation = documentation,
+        documentationFactory = documentationFactory,
         variantSelectorsFactory = variantSelectorsFactory,
         name = name,
         containingClass = containingClass,
@@ -60,7 +61,7 @@ class DefaultConstructorItem(
 
     override var superConstructor: ConstructorItem? = null
 
-    override fun isConstructor(): Boolean = true
+    override fun isImplicitConstructor() = implicitConstructor
 
     companion object {
         fun createDefaultConstructor(
@@ -76,12 +77,11 @@ class DefaultConstructorItem(
             val ctorItem =
                 DefaultConstructorItem(
                     codebase = codebase,
-                    // Use the location of the containing class for the implicit default
-                    // constructor.
+                    // Use the location of the containing class for the default constructor.
                     fileLocation = containingClass.fileLocation,
                     itemLanguage = itemLanguage,
                     modifiers = modifiers,
-                    documentation = ItemDocumentation.NONE,
+                    documentationFactory = ItemDocumentation.NONE_FACTORY,
                     variantSelectorsFactory = variantSelectorsFactory,
                     name = name,
                     containingClass = containingClass,
@@ -89,6 +89,8 @@ class DefaultConstructorItem(
                     returnType = containingClass.type(),
                     parameterItemsFactory = { emptyList() },
                     throwsTypes = emptyList(),
+                    // This is not an implicit constructor as it was not created by the compiler.
+                    implicitConstructor = false,
                 )
             return ctorItem
         }

@@ -18,7 +18,6 @@ package com.android.tools.metalava.model.item
 
 import com.android.tools.metalava.model.ApiVariantSelectorsFactory
 import com.android.tools.metalava.model.ClassItem
-import com.android.tools.metalava.model.DefaultCodebase
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ItemLanguage
@@ -41,7 +40,7 @@ internal class DefaultPropertyItem(
         fileLocation,
         itemLanguage,
         modifiers,
-        ItemDocumentation.NONE,
+        ItemDocumentation.NONE_FACTORY,
         apiVariantSelectorsFactory,
         name,
         containingClass,

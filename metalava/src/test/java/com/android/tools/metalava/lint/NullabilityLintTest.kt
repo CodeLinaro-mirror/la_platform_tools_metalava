@@ -37,11 +37,11 @@ class NullabilityLintTest : DriverTest() {
             apiLint = "", // enabled
             expectedIssues =
                 """
+                src/android/pkg/Foo.java:7: error: Missing nullability on field `badField` in class `class android.pkg.Foo` [MissingNullability]
                 src/android/pkg/Foo.java:11: error: Missing nullability on parameter `name` in method `Foo` [MissingNullability]
                 src/android/pkg/Foo.java:12: error: Missing nullability on parameter `value` in method `setBadValue` [MissingNullability]
                 src/android/pkg/Foo.java:13: error: Missing nullability on method `getBadValue` return [MissingNullability]
                 src/android/pkg/Foo.java:20: error: Missing nullability on parameter `duration` in method `methodMissingParamAnnotations` [MissingNullability]
-                src/android/pkg/Foo.java:7: error: Missing nullability on field `badField` in class `class android.pkg.Foo` [MissingNullability]
                 """,
             expectedFail = DefaultLintErrorMessage,
             sourceFiles =
@@ -330,12 +330,12 @@ class NullabilityLintTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                src/test/pkg/Foo.java:16: error: Invalid nullability on type java.lang.String in method `bar` return. Method override cannot use a nullable type when the corresponding type from the super method is platform-nullness. [InvalidNullabilityOverride]
-                src/test/pkg/Foo.java:16: error: Invalid nullability on type java.lang.String in parameter `baz` in method `bar`. Parameter in method override cannot use a non-null type when the corresponding type from the super method is platform-nullness. [InvalidNullabilityOverride]
-                src/test/pkg/Foo.java:19: error: Invalid nullability on type java.lang.String in parameter `y` in method `x`. Parameter in method override cannot use a non-null type when the corresponding type from the super method is platform-nullness. [InvalidNullabilityOverride]
                 src/test/pkg/Foo.java:8: error: Missing nullability on method `bar` return [MissingNullability]
                 src/test/pkg/Foo.java:8: error: Missing nullability on parameter `baz` in method `bar` [MissingNullability]
                 src/test/pkg/Foo.java:11: error: Missing nullability on parameter `y` in method `x` [MissingNullability]
+                src/test/pkg/Foo.java:16: error: Invalid nullability on type java.lang.String in method `bar` return. Method override cannot use a nullable type when the corresponding type from the super method is platform-nullness. [InvalidNullabilityOverride]
+                src/test/pkg/Foo.java:16: error: Invalid nullability on type java.lang.String in parameter `baz` in method `bar`. Parameter in method override cannot use a non-null type when the corresponding type from the super method is platform-nullness. [InvalidNullabilityOverride]
+                src/test/pkg/Foo.java:19: error: Invalid nullability on type java.lang.String in parameter `y` in method `x`. Parameter in method override cannot use a non-null type when the corresponding type from the super method is platform-nullness. [InvalidNullabilityOverride]
                 """,
             apiLint = "",
             expectedFail = DefaultLintErrorMessage,
@@ -679,14 +679,14 @@ class NullabilityLintTest : DriverTest() {
             expectedFail = DefaultLintErrorMessage,
             expectedIssues =
                 """
-                    src/test/pkg/Foo.java:5: error: Missing nullability on method `getArray` return [MissingNullability]
                     src/test/pkg/Foo.java:5: error: Missing nullability on inner type java.lang.String in method `getArray` return [MissingInnerNullability]
-                    src/test/pkg/Foo.java:6: error: Missing nullability on method `getMap` return [MissingNullability]
+                    src/test/pkg/Foo.java:5: error: Missing nullability on method `getArray` return [MissingNullability]
                     src/test/pkg/Foo.java:6: error: Missing nullability on inner type java.lang.Number in method `getMap` return [MissingInnerNullability]
                     src/test/pkg/Foo.java:6: error: Missing nullability on inner type java.lang.String in method `getMap` return [MissingInnerNullability]
-                    src/test/pkg/Foo.java:7: error: Missing nullability on method `getWildcardMap` return [MissingNullability]
+                    src/test/pkg/Foo.java:6: error: Missing nullability on method `getMap` return [MissingNullability]
                     src/test/pkg/Foo.java:7: error: Missing nullability on inner type java.lang.Number in method `getWildcardMap` return [MissingInnerNullability]
                     src/test/pkg/Foo.java:7: error: Missing nullability on inner type java.lang.String in method `getWildcardMap` return [MissingInnerNullability]
+                    src/test/pkg/Foo.java:7: error: Missing nullability on method `getWildcardMap` return [MissingNullability]
                 """,
             sourceFiles =
                 arrayOf(
@@ -714,8 +714,8 @@ class NullabilityLintTest : DriverTest() {
             expectedFail = DefaultLintErrorMessage,
             expectedIssues =
                 """
-                    src/test/pkg/Foo.java:7: error: Invalid nullability on type java.lang.String method `foo` return. Method override cannot use a nullable type when the corresponding type from the super method is non-null. [InvalidNullabilityOverride]
                     src/test/pkg/Foo.java:7: error: Invalid nullability on type java.lang.String in parameter `arg` in method `foo`. Parameter in method override cannot use a non-null type when the corresponding type from the super method is nullable. [InvalidNullabilityOverride]
+                    src/test/pkg/Foo.java:7: error: Invalid nullability on type java.lang.String method `foo` return. Method override cannot use a nullable type when the corresponding type from the super method is non-null. [InvalidNullabilityOverride]
                 """,
             sourceFiles =
                 arrayOf(

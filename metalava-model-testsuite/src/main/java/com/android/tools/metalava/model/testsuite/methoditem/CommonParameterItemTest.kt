@@ -298,7 +298,9 @@ class CommonParameterItemTest : BaseModelTest() {
                     "method4" to "T",
                     "method5" to "java.util.Map.Entry<T!,java.lang.String!>",
                 )
-            for (method in codebase.assertClass("test.pkg.Foo").methods()) {
+            val methods = codebase.assertClass("test.pkg.Foo").methods()
+            assertEquals("method count", expectedTypes.size, methods.size)
+            for (method in methods) {
                 val name = method.name()
                 val expectedType = expectedTypes[name]!!
                 // Compare the kotlin style format of the parameter to ensure that only the
@@ -358,7 +360,9 @@ class CommonParameterItemTest : BaseModelTest() {
                     "method4" to "T?",
                     "method5" to "java.util.Map.Entry<T!,java.lang.String!>?",
                 )
-            for (method in codebase.assertClass("test.pkg.Foo").methods()) {
+            val methods = codebase.assertClass("test.pkg.Foo").methods()
+            assertEquals("method count", expectedTypes.size, methods.size)
+            for (method in methods) {
                 val name = method.name()
                 val expectedType = expectedTypes[name]!!
                 // Compare the kotlin style format of the parameter to ensure that only the
@@ -457,7 +461,9 @@ class CommonParameterItemTest : BaseModelTest() {
                     "nullable" to "java.lang.String?...",
                     "nonNull" to "java.lang.String...",
                 )
-            for (method in codebase.assertClass("test.pkg.Foo").methods()) {
+            val methods = codebase.assertClass("test.pkg.Foo").methods()
+            assertEquals("method count", expectedTypes.size, methods.size)
+            for (method in methods) {
                 val name = method.name()
                 val parameterItem = method.parameters().single()
 

@@ -16,9 +16,9 @@
 
 package com.android.tools.metalava.model.psi
 
+import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassTypeItem
-import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.ReferenceTypeItem
 import com.android.tools.metalava.model.TypeArgumentTypeItem
@@ -68,9 +68,9 @@ internal class PsiTypeItemFactory(
         return if (scope.isEmpty()) this else PsiTypeItemFactory(codebase, scope)
     }
 
-    /** Construct a [PsiTypeItemFactory] suitable for creating types within [methodItem]. */
-    fun from(methodItem: MethodItem): PsiTypeItemFactory {
-        val scope = TypeParameterScope.from(methodItem)
+    /** Construct a [PsiTypeItemFactory] suitable for creating types within [callableItem]. */
+    fun from(callableItem: CallableItem): PsiTypeItemFactory {
+        val scope = TypeParameterScope.from(callableItem)
         return if (scope.isEmpty()) this else PsiTypeItemFactory(codebase, scope)
     }
 

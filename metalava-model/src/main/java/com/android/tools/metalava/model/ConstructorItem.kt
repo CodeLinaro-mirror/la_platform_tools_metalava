@@ -16,7 +16,17 @@
 
 package com.android.tools.metalava.model
 
-interface ConstructorItem : MethodItem {
+interface ConstructorItem : CallableItem {
+
+    override fun accept(visitor: ItemVisitor) {
+        visitor.visit(this)
+    }
+
+    @Deprecated(
+        message =
+            "There is no point in calling this method on ConstructorItem as it always returns true",
+        ReplaceWith("")
+    )
     override fun isConstructor(): Boolean = true
 
     /** Returns the internal name of the class, as seen in bytecode */
@@ -37,4 +47,10 @@ interface ConstructorItem : MethodItem {
     /** True if this is the primary constructor in Kotlin. */
     val isPrimary: Boolean
         get() = false
+
+    /**
+     * True if this is a [ConstructorItem] that was created implicitly by the compiler and so does
+     * not have any corresponding source code.
+     */
+    fun isImplicitConstructor(): Boolean = false
 }

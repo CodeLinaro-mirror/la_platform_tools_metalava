@@ -63,9 +63,6 @@ com.android.tools.metalava.FlaggedApiTest
   Test that pulling method up into super class can be reverted[turbine,public with flagged api]
   Test that pulling method up into super class can be reverted[turbine,public without flagged api, with foo_bar]
 
-com.android.tools.metalava.HideAnnotationTest
-  Using hide annotation interface order[turbine]
-
 com.android.tools.metalava.Java9LanguageFeaturesTest
   Basic class signature extraction[turbine]
   Using JDK APIs[turbine]
@@ -156,7 +153,6 @@ com.android.tools.metalava.compatibility.CheckAndroidApisShard3Test
   Test All Android API levels[turbine,25 to 26]
 
 com.android.tools.metalava.compatibility.CompatibilityCheckTest
-  Change item in nested SystemApi[turbine]
   Conversion from AutoCloseable to Closeable is not API-breaking[turbine]
   Conversion from MutableCollection to AbstractMutableCollection is not API-breaking[turbine]
   Empty bundle files[turbine]
@@ -216,7 +212,6 @@ com.android.tools.metalava.lint.CheckBuilderTest
   Check builders[turbine]
 
 com.android.tools.metalava.lint.FlaggedApiLintTest
-  Require @FlaggedApi on APIs whose modifiers have changed[turbine]
   Require @FlaggedApi on new APIs[turbine]
   Require @FlaggedApi to reference generated fields[turbine]
 

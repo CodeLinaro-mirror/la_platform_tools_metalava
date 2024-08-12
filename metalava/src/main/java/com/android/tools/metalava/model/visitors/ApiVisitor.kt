@@ -19,23 +19,17 @@ package com.android.tools.metalava.model.visitors
 import com.android.tools.metalava.ApiPredicate
 import com.android.tools.metalava.PackageFilter
 import com.android.tools.metalava.model.BaseItemVisitor
+import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.ItemVisitor
 import com.android.tools.metalava.model.MemberItem
-import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PropertyItem
 import java.util.function.Predicate
 
 open class ApiVisitor(
-    /**
-     * Whether constructors should be visited as part of a [#visitMethod] call instead of just a
-     * [#visitConstructor] call. Helps simplify visitors that don't care to distinguish between the
-     * two cases. Defaults to true.
-     */
-    visitConstructorsAsMethods: Boolean = true,
     /**
      * Whether nested classes should be visited "inside" a class; when this property is true, nested
      * classes are visited before the [#afterVisitClass] method is called; when false, it's done
@@ -46,8 +40,8 @@ open class ApiVisitor(
     /** Whether to include inherited fields too */
     val inlineInheritedFields: Boolean = true,
 
-    /** Comparator to sort methods with. */
-    val methodComparator: Comparator<MethodItem> = MethodItem.comparator,
+    /** Comparator to sort callables with. */
+    val callableComparator: Comparator<CallableItem> = CallableItem.comparator,
 
     /** The filter to use to determine if we should emit an item */
     val filterEmit: Predicate<Item>,
@@ -65,7 +59,7 @@ open class ApiVisitor(
 
     /** Configuration that may come from the command line. */
     config: Config,
-) : BaseItemVisitor(visitConstructorsAsMethods, preserveClassNesting) {
+) : BaseItemVisitor(preserveClassNesting) {
 
     private val packageFilter: PackageFilter? = config.packageFilter
 
@@ -82,12 +76,6 @@ open class ApiVisitor(
 
     constructor(
         /**
-         * Whether constructors should be visited as part of a [#visitMethod] call instead of just a
-         * [#visitConstructor] call. Helps simplify visitors that don't care to distinguish between
-         * the two cases. Defaults to true.
-         */
-        visitConstructorsAsMethods: Boolean = true,
-        /**
          * Whether nested classes should be visited "inside" a class; when this property is true,
          * nested classes are visited before the [#afterVisitClass] method is called; when false,
          * it's done afterwards. Defaults to false.
@@ -100,8 +88,8 @@ open class ApiVisitor(
         /** Whether to match APIs marked for removal instead of the normal API */
         remove: Boolean = false,
 
-        /** Comparator to sort methods with. */
-        methodComparator: Comparator<MethodItem> = MethodItem.comparator,
+        /** Comparator to sort callables with. */
+        callableComparator: Comparator<CallableItem> = CallableItem.comparator,
 
         /**
          * The filter to use to determine if we should emit an item. If null, the default value is
@@ -126,10 +114,9 @@ open class ApiVisitor(
         /** Configuration that may come from the command line. */
         config: Config,
     ) : this(
-        visitConstructorsAsMethods = visitConstructorsAsMethods,
         preserveClassNesting = preserveClassNesting,
         inlineInheritedFields = true,
-        methodComparator = methodComparator,
+        callableComparator = callableComparator,
         filterEmit = filterEmit
                 ?: ApiPredicate(
                     matchRemoved = remove,
@@ -277,12 +264,12 @@ open class ApiVisitor(
 
         private val constructors =
             cls.constructors().mapIfNotEmpty {
-                asSequence().filter { filterEmit.test(it) }.sortToList(methodComparator)
+                asSequence().filter { filterEmit.test(it) }.sortToList(callableComparator)
             }
 
         private val methods =
             cls.methods().mapIfNotEmpty {
-                asSequence().filter { filterEmit.test(it) }.sortToList(methodComparator)
+                asSequence().filter { filterEmit.test(it) }.sortToList(callableComparator)
             }
 
         private val fields by

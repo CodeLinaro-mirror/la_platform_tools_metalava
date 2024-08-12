@@ -19,7 +19,8 @@ package com.android.tools.metalava.model.psi
 import com.android.tools.metalava.model.AbstractItem
 import com.android.tools.metalava.model.ApiVariantSelectors
 import com.android.tools.metalava.model.DefaultModifierList
-import com.android.tools.metalava.model.ItemDocumentation
+import com.android.tools.metalava.model.ItemDocumentationFactory
+import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.reporter.FileLocation
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiModifierListOwner
@@ -32,12 +33,13 @@ internal constructor(
     element: PsiElement,
     fileLocation: FileLocation = PsiFileLocation(element),
     modifiers: DefaultModifierList,
-    documentation: ItemDocumentation,
+    documentationFactory: ItemDocumentationFactory,
 ) :
     AbstractItem(
         fileLocation = fileLocation,
+        itemLanguage = element.itemLanguage,
         modifiers = modifiers,
-        documentation = documentation,
+        documentationFactory = documentationFactory,
         variantSelectorsFactory = ApiVariantSelectors.MUTABLE_FACTORY,
     ) {
 
@@ -51,48 +53,22 @@ internal constructor(
         return codebase.fromClasspath || containingClass()?.isFromClassPath() ?: false
     }
 
-    final override fun fullyQualifiedDocumentation(): String {
-        return fullyQualifiedDocumentation(documentation.text)
-    }
-
-    final override fun fullyQualifiedDocumentation(documentation: String): String {
-        return codebase.docQualifier.toFullyQualifiedDocumentation(this, documentation)
-    }
-
-    final override fun isJava(): Boolean {
-        return !isKotlin()
-    }
-
-    final override fun isKotlin(): Boolean {
-        return psi().isKotlin()
-    }
-
     companion object {
-
-        /**
-         * Get the javadoc for the [element] as an [ItemDocumentation] instance.
-         *
-         * If [allowReadingComments] is `false` then this will return [ItemDocumentation.NONE].
-         */
-        internal fun javadocAsItemDocumentation(
-            element: PsiElement,
-            codebase: PsiBasedCodebase,
-            extraDocs: String? = null,
-        ): ItemDocumentation {
-            return PsiItemDocumentation(element, codebase, extraDocs)
-        }
 
         internal fun modifiers(
             codebase: PsiBasedCodebase,
             element: PsiModifierListOwner,
-            documentation: ItemDocumentation? = null,
         ): DefaultModifierList {
-            return PsiModifierItem.create(codebase, element, documentation)
+            return PsiModifierItem.create(codebase, element)
         }
     }
 }
 
-/** Check whether a [PsiElement] is Kotlin or not. */
+/** Get the [ItemLanguage] for this [PsiElement]. */
+val PsiElement.itemLanguage
+    get() = if (isKotlin()) ItemLanguage.KOTLIN else ItemLanguage.JAVA
+
+/** Check whether this [PsiElement] is Kotlin or not. */
 fun PsiElement.isKotlin(): Boolean {
     return language === KotlinLanguage.INSTANCE
 }

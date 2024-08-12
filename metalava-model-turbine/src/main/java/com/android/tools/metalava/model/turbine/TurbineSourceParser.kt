@@ -22,11 +22,13 @@ import com.android.tools.metalava.model.source.SourceCodebase
 import com.android.tools.metalava.model.source.SourceParser
 import com.android.tools.metalava.model.source.SourceSet
 import com.android.tools.metalava.model.source.utils.findPackage
+import com.android.tools.metalava.reporter.Reporter
 import com.google.turbine.diag.SourceFile
 import com.google.turbine.parse.Parser
 import java.io.File
 
 internal class TurbineSourceParser(
+    private val reporter: Reporter,
     private val annotationManager: AnnotationManager,
     private val allowReadingComments: Boolean
 ) : SourceParser {
@@ -46,7 +48,13 @@ internal class TurbineSourceParser(
     ): TurbineBasedCodebase {
         val rootDir = sourceSet.sourcePath.firstOrNull() ?: File("").canonicalFile
         val codebase =
-            TurbineBasedCodebase(rootDir, description, annotationManager, allowReadingComments)
+            TurbineBasedCodebase(
+                rootDir,
+                description,
+                annotationManager,
+                reporter,
+                allowReadingComments,
+            )
 
         val sources = sourceSet.sources
 

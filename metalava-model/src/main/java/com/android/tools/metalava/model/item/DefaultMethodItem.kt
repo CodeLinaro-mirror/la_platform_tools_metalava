@@ -18,78 +18,49 @@ package com.android.tools.metalava.model.item
 
 import com.android.tools.metalava.model.ApiVariantSelectorsFactory
 import com.android.tools.metalava.model.ClassItem
-import com.android.tools.metalava.model.DefaultCodebase
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.ExceptionTypeItem
-import com.android.tools.metalava.model.ItemDocumentation
+import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.MethodItem
-import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.computeSuperMethods
 import com.android.tools.metalava.model.updateCopiedMethodState
 import com.android.tools.metalava.reporter.FileLocation
 
-/**
- * A lamda that given a [MethodItem] will create a list of [ParameterItem]s for it.
- *
- * This is called from within the constructor of the [ParameterItem.containingMethod] and can only
- * access the [MethodItem.name] (to identify methods that have special nullability rules) and store
- * a reference to it in [ParameterItem.containingMethod]. In particularly, it must not access
- * [MethodItem.parameters] as that will not yet have been initialized when this is called.
- */
-typealias ParameterItemsFactory = (MethodItem) -> List<ParameterItem>
-
 open class DefaultMethodItem(
     codebase: DefaultCodebase,
     fileLocation: FileLocation,
     itemLanguage: ItemLanguage,
     modifiers: DefaultModifierList,
-    documentation: ItemDocumentation,
+    documentationFactory: ItemDocumentationFactory,
     variantSelectorsFactory: ApiVariantSelectorsFactory,
     name: String,
     containingClass: ClassItem,
-    override val typeParameterList: TypeParameterList,
-    private var returnType: TypeItem,
+    typeParameterList: TypeParameterList,
+    returnType: TypeItem,
     parameterItemsFactory: ParameterItemsFactory,
-    private val throwsTypes: List<ExceptionTypeItem>,
+    throwsTypes: List<ExceptionTypeItem>,
     private val annotationDefault: String = "",
 ) :
-    DefaultMemberItem(
+    DefaultCallableItem(
         codebase,
         fileLocation,
         itemLanguage,
         modifiers,
-        documentation,
+        documentationFactory,
         variantSelectorsFactory,
         name,
         containingClass,
+        typeParameterList,
+        returnType,
+        parameterItemsFactory,
+        throwsTypes,
     ),
     MethodItem {
 
-    /**
-     * Create the [ParameterItem] list during initialization of this method to allow them to contain
-     * an immutable reference to this object.
-     *
-     * The leaking of `this` to `parameterItemsFactory` is ok as implementations follow the rules
-     * explained in the documentation of [ParameterItemsFactory].
-     */
-    @Suppress("LeakingThis") private val parameters = parameterItemsFactory(this)
-
-    override fun isConstructor(): Boolean = false
-
-    override fun returnType(): TypeItem = returnType
-
-    override fun setType(type: TypeItem) {
-        returnType = type
-    }
-
     override var inheritedFrom: ClassItem? = null
-
-    override fun parameters(): List<ParameterItem> = parameters
-
-    override fun throwsTypes(): List<ExceptionTypeItem> = throwsTypes
 
     override fun isExtensionMethod(): Boolean = false // java does not support extension methods
 
@@ -127,15 +98,15 @@ open class DefaultMethodItem(
                 fileLocation = fileLocation,
                 itemLanguage = itemLanguage,
                 modifiers = modifiers.duplicate(),
-                documentation = documentation.duplicate(),
+                documentationFactory = documentation::duplicate,
                 variantSelectorsFactory = variantSelectors::duplicate,
                 name = name(),
                 containingClass = targetContainingClass,
                 typeParameterList = typeParameterList,
                 returnType = returnType.convertType(typeVariableMap),
-                parameterItemsFactory = { methodItem ->
+                parameterItemsFactory = { containingCallable ->
                     // Duplicate the parameters
-                    parameters.map { it.duplicate(methodItem, typeVariableMap) }
+                    parameters.map { it.duplicate(containingCallable, typeVariableMap) }
                 },
                 throwsTypes = throwsTypes,
                 annotationDefault = annotationDefault,

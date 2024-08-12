@@ -17,12 +17,10 @@
 package com.android.tools.metalava.model.item
 
 import com.android.tools.metalava.model.ApiVariantSelectorsFactory
-import com.android.tools.metalava.model.DefaultCodebase
-import com.android.tools.metalava.model.DefaultItem
+import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ItemLanguage
-import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterBindings
@@ -36,7 +34,7 @@ internal class DefaultParameterItem(
     variantSelectorsFactory: ApiVariantSelectorsFactory,
     private val name: String,
     private val publicNameProvider: PublicNameProvider,
-    private val containingMethod: MethodItem,
+    private val containingCallable: CallableItem,
     override val parameterIndex: Int,
     private var type: TypeItem,
     private val defaultValue: DefaultValue,
@@ -46,7 +44,7 @@ internal class DefaultParameterItem(
         fileLocation = fileLocation,
         itemLanguage = itemLanguage,
         modifiers = modifiers,
-        documentation = ItemDocumentation.NONE,
+        documentationFactory = ItemDocumentation.NONE_FACTORY,
         variantSelectorsFactory = variantSelectorsFactory,
     ),
     ParameterItem {
@@ -55,7 +53,7 @@ internal class DefaultParameterItem(
 
     override fun publicName(): String? = publicNameProvider(this)
 
-    override fun containingMethod(): MethodItem = containingMethod
+    override fun containingCallable(): CallableItem = containingCallable
 
     override fun isVarArgs(): Boolean = modifiers.isVarArg()
 
@@ -72,7 +70,7 @@ internal class DefaultParameterItem(
     override fun defaultValue(): String? = defaultValue.value()
 
     override fun duplicate(
-        containingMethod: MethodItem,
+        containingCallable: CallableItem,
         typeVariableMap: TypeParameterBindings,
     ) =
         DefaultParameterItem(
@@ -83,7 +81,7 @@ internal class DefaultParameterItem(
             variantSelectors::duplicate,
             name(),
             publicNameProvider,
-            containingMethod,
+            containingCallable,
             parameterIndex,
             type().convertType(typeVariableMap),
             defaultValue,

@@ -54,9 +54,6 @@ interface PackageItem : Item {
         duplicate: Boolean,
     ) = codebase.findPackage(qualifiedName())
 
-    val isDefault
-        get() = qualifiedName().isEmpty()
-
     override fun parent(): PackageItem? =
         if (qualifiedName().isEmpty()) null else containingPackage()
 

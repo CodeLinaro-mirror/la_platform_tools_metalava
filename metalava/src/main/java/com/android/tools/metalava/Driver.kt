@@ -50,6 +50,7 @@ import com.android.tools.metalava.model.source.SourceSet
 import com.android.tools.metalava.model.text.ApiClassResolution
 import com.android.tools.metalava.model.text.SignatureFile
 import com.android.tools.metalava.model.visitors.FilteringApiVisitor
+import com.android.tools.metalava.reporter.DefaultReporter
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
 import com.android.tools.metalava.stub.StubWriter
@@ -127,6 +128,16 @@ internal fun processFlags(
 
     val reporter = options.reporter
     val reporterApiLint = options.reporterApiLint
+
+    // A Reporter that will redirect issues to the appropriate reporter based on the issue's
+    // Category.
+    val codebaseReporter =
+        CategoryRedirectingReporter(
+            defaultReporter = reporter,
+            apiLintReporter = reporterApiLint,
+            compatibilityReporter = options.reporterCompatibilityReleased,
+        )
+
     val annotationManager = options.annotationManager
     val modelOptions =
         // If the option was specified on the command line then use [ModelOptions] created from
@@ -143,7 +154,7 @@ internal fun processFlags(
             ?: ModelOptions.empty
     val sourceParser =
         environmentManager.createSourceParser(
-            reporter = reporter,
+            reporter = codebaseReporter,
             annotationManager = annotationManager,
             javaLanguageLevel = options.javaLanguageLevelAsString,
             kotlinLanguageLevel = options.kotlinLanguageLevelAsString,

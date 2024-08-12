@@ -19,6 +19,7 @@ package com.android.tools.metalava.stub
 import com.android.tools.metalava.ApiPredicate
 import com.android.tools.metalava.FilterPredicate
 import com.android.tools.metalava.actualItem
+import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.DelegatedVisitor
@@ -257,7 +258,7 @@ internal class StubWriter(
             // Methods are by default sorted in source order in stubs, to encourage methods
             // that are near each other in the source to show up near each other in the
             // documentation
-            methodComparator = MethodItem.sourceOrderComparator,
+            callableComparator = CallableItem.sourceOrderComparator,
             filterEmit = filterEmit,
             filterReference = filterReference,
             preFiltered = preFiltered,
@@ -271,9 +272,10 @@ internal class StubWriter(
 
 internal fun appendDocumentation(item: Item, writer: PrintWriter, config: StubWriterConfig) {
     if (config.includeDocumentationInStubs) {
-        val documentation = item.fullyQualifiedDocumentation()
-        if (documentation.isNotBlank()) {
-            val trimmed = trimDocIndent(documentation)
+        val documentation = item.documentation
+        val text = documentation.fullyQualifiedDocumentation()
+        if (text.isNotBlank()) {
+            val trimmed = trimDocIndent(text)
             val output = revertDocumentationDeprecationChange(item, trimmed)
             writer.println(output)
             writer.println()

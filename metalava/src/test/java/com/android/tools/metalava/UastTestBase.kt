@@ -668,9 +668,11 @@ abstract class UastTestBase : DriverTest() {
                     ctor public PowerMetric.Type.Battery();
                   }
                   public static final class PowerMetric.Type.Energy extends test.pkg.PowerMetric.Type {
+                    ctor public PowerMetric.Type.Energy();
                     ctor public PowerMetric.Type.Energy(optional java.util.Map<test.pkg.PowerCategory,${upperBound}test.pkg.PowerCategoryDisplayLevel> energyCategories);
                   }
                   public static final class PowerMetric.Type.Power extends test.pkg.PowerMetric.Type {
+                    ctor public PowerMetric.Type.Power();
                     ctor public PowerMetric.Type.Power(optional java.util.Map<test.pkg.PowerCategory,${upperBound}test.pkg.PowerCategoryDisplayLevel> powerCategories);
                   }
                 }

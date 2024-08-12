@@ -48,18 +48,6 @@ interface PropertyItem : MemberItem {
             it.name() == name()
         }
 
-    /** [PropertyItem]s are never inherited. */
-    override val inheritedFrom: ClassItem?
-        get() = null
-
-    /**
-     * Duplicates this property item.
-     *
-     * Override to specialize the return type.
-     */
-    override fun duplicate(targetContainingClass: ClassItem): PropertyItem =
-        codebase.unsupported("Not needed yet")
-
     override fun baselineElementId() = containingClass().qualifiedName() + "#" + name()
 
     override fun accept(visitor: ItemVisitor) {

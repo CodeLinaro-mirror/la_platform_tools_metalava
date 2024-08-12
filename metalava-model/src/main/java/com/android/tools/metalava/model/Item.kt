@@ -16,10 +16,6 @@
 
 package com.android.tools.metalava.model
 
-import com.android.tools.metalava.model.MethodItem.Companion.equals
-import com.android.tools.metalava.model.MethodItem.Companion.hashCode
-import com.android.tools.metalava.model.TypeItem.Companion.equals
-import com.android.tools.metalava.model.TypeItem.Companion.hashCode
 import com.android.tools.metalava.reporter.BaselineKey
 import com.android.tools.metalava.reporter.FileLocation
 import com.android.tools.metalava.reporter.Reportable
@@ -45,14 +41,29 @@ interface Item : Reportable {
     /**
      * Whether this element was originally hidden with @hide/@Hide. The [hidden] property tracks
      * whether it is *actually* hidden, since elements can be unhidden via show annotations, etc.
+     *
+     * @see variantSelectors
      */
     val originallyHidden: Boolean
 
     /**
      * Whether this element has been hidden with @hide/@Hide (or after propagation, in some
      * containing class/pkg)
+     *
+     * @see variantSelectors
      */
     var hidden: Boolean
+
+    /**
+     * Tracks the properties that determine whether this [Item] will be selected for each API
+     * variant.
+     *
+     * @see originallyHidden
+     * @see hidden
+     * @see docOnly
+     * @see removed
+     */
+    val variantSelectors: ApiVariantSelectors
 
     /** Whether this element will be printed in the signature file */
     var emit: Boolean
@@ -79,6 +90,8 @@ interface Item : Reportable {
     /**
      * Whether this element has been removed with @removed/@Remove (or after propagation, in some
      * containing class)
+     *
+     * @see variantSelectors
      */
     var removed: Boolean
 
@@ -91,7 +104,11 @@ interface Item : Reportable {
      */
     val effectivelyDeprecated: Boolean
 
-    /** True if this element is only intended for documentation */
+    /**
+     * True if this element is only intended for documentation
+     *
+     * @see variantSelectors
+     */
     var docOnly: Boolean
 
     /** True if this item is either hidden or removed */
@@ -106,16 +123,10 @@ interface Item : Reportable {
     /**
      * The javadoc/KDoc comment for this code element, if any. This is the original content of the
      * documentation, including lexical tokens to begin, continue and end the comment (such as /+*).
-     * See [fullyQualifiedDocumentation] to look up the documentation with fully qualified
-     * references to classes.
+     * See [ItemDocumentation.fullyQualifiedDocumentation] to look up the documentation with fully
+     * qualified references to classes.
      */
     val documentation: ItemDocumentation
-
-    /**
-     * Looks up docs for the first instance of a specific javadoc tag having the (optionally)
-     * provided value (e.g. parameter name).
-     */
-    fun findTagDocumentation(tag: String, value: String? = null): String?
 
     /**
      * A rank used for sorting. This allows signature files etc to sort similar items by a natural
@@ -178,11 +189,25 @@ interface Item : Reportable {
      */
     fun isFromClassPath(): Boolean = false
 
-    /** Is this element declared in Java (rather than Kotlin) ? */
-    fun isJava(): Boolean = true
+    /**
+     * The language in which this was written, or [ItemLanguage.UNKNOWN] if not known, e.g. when
+     * created from a signature file.
+     */
+    val itemLanguage: ItemLanguage
 
-    /** Is this element declared in Kotlin (rather than Java) ? */
-    fun isKotlin() = !isJava()
+    /**
+     * Is this element declared in Java (rather than Kotlin) ?
+     *
+     * See [itemLanguage].
+     */
+    fun isJava() = itemLanguage.isJava()
+
+    /**
+     * Is this element declared in Kotlin (rather than Java) ?
+     *
+     * See [itemLanguage].
+     */
+    fun isKotlin() = itemLanguage.isKotlin()
 
     /** Determines whether this item will be shown as part of the API or not. */
     val showability: Showability
@@ -215,17 +240,6 @@ interface Item : Reportable {
 
     override val fileLocation: FileLocation
         get() = FileLocation.UNKNOWN
-
-    /**
-     * Returns the [documentation], but with fully qualified links (except for the same package, and
-     * when turning a relative reference into a fully qualified reference, use the javadoc syntax
-     * for continuing to display the relative text, e.g. instead of {@link java.util.List}, use
-     * {@link java.util.List List}.
-     */
-    fun fullyQualifiedDocumentation(): String = documentation.text
-
-    /** Expands the given documentation comment in the current name context */
-    fun fullyQualifiedDocumentation(documentation: String): String = documentation
 
     /**
      * Produces a user visible description of this item, including a label such as "class" or
@@ -284,7 +298,7 @@ interface Item : Reportable {
      * @param superMethods if true and this is a [MethodItem] then this method will search for super
      *   methods. If this is a [ParameterItem] then the value of this parameter will be passed to
      *   the [findCorrespondingItemIn] call which is used to find the [MethodItem] corresponding to
-     *   the [ParameterItem.containingMethod].
+     *   the [ParameterItem.containingCallable].
      * @param duplicate if true, and this is a [MemberItem] (or [ParameterItem]) then the returned
      *   [Item], if any, will be in the [ClassItem] that corresponds to the [Item.containingClass].
      *   This should be `true` if the returned [Item] is going to be compared to the original [Item]
@@ -322,7 +336,7 @@ interface Item : Reportable {
                 is PackageItem -> describe(item, capitalize = capitalize)
                 is ClassItem -> describe(item, capitalize = capitalize)
                 is FieldItem -> describe(item, capitalize = capitalize)
-                is MethodItem ->
+                is CallableItem ->
                     describe(
                         item,
                         includeParameterNames = false,
@@ -341,7 +355,7 @@ interface Item : Reportable {
         }
 
         fun describe(
-            item: MethodItem,
+            item: CallableItem,
             includeParameterNames: Boolean = false,
             includeParameterTypes: Boolean = false,
             includeReturnValue: Boolean = false,
@@ -358,7 +372,7 @@ interface Item : Reportable {
                 builder.append(item.returnType().toSimpleType())
                 builder.append(' ')
             }
-            appendMethodSignature(builder, item, includeParameterNames, includeParameterTypes)
+            appendCallableSignature(builder, item, includeParameterNames, includeParameterTypes)
             return builder.toString()
         }
 
@@ -373,14 +387,14 @@ interface Item : Reportable {
             builder.append(' ')
             builder.append(item.name())
             builder.append(" in ")
-            val method = item.containingMethod()
-            appendMethodSignature(builder, method, includeParameterNames, includeParameterTypes)
+            val callable = item.containingCallable()
+            appendCallableSignature(builder, callable, includeParameterNames, includeParameterTypes)
             return builder.toString()
         }
 
-        private fun appendMethodSignature(
+        private fun appendCallableSignature(
             builder: StringBuilder,
-            item: MethodItem,
+            item: CallableItem,
             includeParameterNames: Boolean,
             includeParameterTypes: Boolean
         ) {
@@ -436,14 +450,27 @@ interface Item : Reportable {
 /** Base [Item] implementation that is common to all models. */
 abstract class AbstractItem(
     final override val fileLocation: FileLocation,
+    final override val itemLanguage: ItemLanguage,
     final override val modifiers: DefaultModifierList,
-    final override val documentation: ItemDocumentation,
+    documentationFactory: ItemDocumentationFactory,
     variantSelectorsFactory: ApiVariantSelectorsFactory,
 ) : Item {
+
+    /**
+     * Create a [ItemDocumentation] appropriate for this [Item].
+     *
+     * The leaking of `this` is safe as the implementations do not do access anything that has not
+     * been initialized.
+     */
+    final override val documentation = @Suppress("LeakingThis") documentationFactory(this)
 
     init {
         @Suppress("LeakingThis")
         modifiers.owner = this
+
+        if (documentation.contains("@deprecated")) {
+            modifiers.setDeprecated(true)
+        }
     }
 
     /**
@@ -452,7 +479,7 @@ abstract class AbstractItem(
      * The leaking of `this` is safe as the implementations do not do access anything that has not
      * been initialized.
      */
-    internal val variantSelectors = @Suppress("LeakingThis") variantSelectorsFactory(this)
+    override val variantSelectors = @Suppress("LeakingThis") variantSelectorsFactory(this)
 
     /**
      * Manually delegate to [ApiVariantSelectors.originallyHidden] as property delegates are
@@ -481,6 +508,9 @@ abstract class AbstractItem(
         set(value) {
             variantSelectors.removed = value
         }
+
+    final override val showability: Showability
+        get() = variantSelectors.showability
 
     final override val sortingRank: Int = nextRank.getAndIncrement()
 
@@ -512,10 +542,6 @@ abstract class AbstractItem(
         private var nextRank = AtomicInteger()
     }
 
-    final override val showability: Showability by lazy {
-        codebase.annotationManager.getShowabilityForItem(this)
-    }
-
     final override fun suppressedIssues(): Set<String> {
         return buildSet {
             for (annotation in modifiers.annotations()) {
@@ -540,9 +566,6 @@ abstract class AbstractItem(
         }
     }
 
-    final override fun findTagDocumentation(tag: String, value: String?): String? =
-        documentation.findTagDocumentation(tag, value)
-
     final override fun appendDocumentation(comment: String, tagSection: String?) {
         if (comment.isBlank()) {
             return
@@ -556,7 +579,7 @@ abstract class AbstractItem(
             // For parameters, the documentation goes into the surrounding method's documentation!
             // Find the right parameter location!
             val parameterName = name()
-            val target = containingMethod()
+            val target = containingCallable()
             target.appendDocumentation(comment, parameterName)
             return
         }
@@ -569,32 +592,4 @@ abstract class AbstractItem(
     final override fun hashCode() = hashCodeForItem()
 
     final override fun toString() = toStringForItem()
-}
-
-/**
- * Base class that is common to models that do not incorporate their underlying model, if any, into
- * their [Item] implementations.
- */
-abstract class DefaultItem(
-    final override val codebase: DefaultCodebase,
-    fileLocation: FileLocation,
-    internal val itemLanguage: ItemLanguage,
-    modifiers: DefaultModifierList,
-    documentation: ItemDocumentation,
-    variantSelectorsFactory: ApiVariantSelectorsFactory,
-) :
-    AbstractItem(
-        fileLocation,
-        modifiers,
-        documentation,
-        variantSelectorsFactory,
-    ) {
-
-    final override fun isJava(): Boolean {
-        return itemLanguage.isJava()
-    }
-
-    final override fun isKotlin(): Boolean {
-        return itemLanguage.isKotlin()
-    }
 }

@@ -22,11 +22,9 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.ConstructorItem
-import com.android.tools.metalava.model.DefaultCodebase
-import com.android.tools.metalava.model.DefaultItem
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.FieldItem
-import com.android.tools.metalava.model.ItemDocumentation
+import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
@@ -37,12 +35,12 @@ import com.android.tools.metalava.model.computeAllInterfaces
 import com.android.tools.metalava.model.type.DefaultResolvedClassTypeItem
 import com.android.tools.metalava.reporter.FileLocation
 
-abstract class DefaultClassItem(
+open class DefaultClassItem(
     codebase: DefaultCodebase,
     fileLocation: FileLocation,
     itemLanguage: ItemLanguage,
     modifiers: DefaultModifierList,
-    documentation: ItemDocumentation,
+    documentationFactory: ItemDocumentationFactory,
     variantSelectorsFactory: ApiVariantSelectorsFactory,
     private val source: SourceFile?,
     final override val classKind: ClassKind,
@@ -57,7 +55,7 @@ abstract class DefaultClassItem(
         fileLocation = fileLocation,
         itemLanguage = itemLanguage,
         modifiers = modifiers,
-        documentation = documentation,
+        documentationFactory = documentationFactory,
         variantSelectorsFactory = variantSelectorsFactory,
     ),
     ClassItem {
@@ -135,18 +133,28 @@ abstract class DefaultClassItem(
     /** Add a constructor to this class. */
     fun addConstructor(constructor: ConstructorItem) {
         mutableConstructors += constructor
+
+        // Keep track of whether any implicit constructors were added.
+        if (constructor.isImplicitConstructor()) {
+            hasImplicitDefaultConstructor = true
+        }
     }
 
     final override var stubConstructor: ConstructorItem? = null
 
-    /**
-     * Tracks whether the class has an implicit default constructor.
-     *
-     * TODO(b/345775012): Stop it from being public.
-     */
-    var hasImplicitDefaultConstructor = false
+    /** Tracks whether the class has an implicit default constructor. */
+    private var hasImplicitDefaultConstructor = false
 
     final override fun hasImplicitDefaultConstructor(): Boolean = hasImplicitDefaultConstructor
+
+    final override fun createDefaultConstructor(): ConstructorItem {
+        return DefaultConstructorItem.createDefaultConstructor(
+            codebase = codebase,
+            itemLanguage = itemLanguage,
+            variantSelectorsFactory = variantSelectors::duplicate,
+            containingClass = this,
+        )
+    }
 
     /** The mutable list of [MethodItem] that backs [methods]. */
     private val mutableMethods = mutableListOf<MethodItem>()

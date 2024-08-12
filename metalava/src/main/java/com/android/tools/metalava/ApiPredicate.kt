@@ -100,9 +100,7 @@ class ApiPredicate(
 
         val visibleForAdditionalOverridePurpose =
             if (config.addAdditionalOverrides) {
-                member is MethodItem &&
-                    !member.isConstructor() &&
-                    member.isRequiredOverridingMethodForTextStub()
+                member is MethodItem && member.isRequiredOverridingMethodForTextStub()
             } else {
                 false
             }

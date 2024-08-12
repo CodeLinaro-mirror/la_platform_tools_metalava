@@ -17,20 +17,23 @@
 package com.android.tools.metalava.model.item
 
 import com.android.tools.metalava.model.ApiVariantSelectorsFactory
+import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.ConstructorItem
-import com.android.tools.metalava.model.DefaultCodebase
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.ItemDocumentation
+import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PropertyItem
+import com.android.tools.metalava.model.SourceFile
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VisibilityLevel
@@ -56,7 +59,7 @@ class DefaultItemFactory(
     fun createPackageItem(
         fileLocation: FileLocation = FileLocation.UNKNOWN,
         modifiers: DefaultModifierList = DefaultModifierList(codebase),
-        documentation: ItemDocumentation = ItemDocumentation.NONE,
+        documentationFactory: ItemDocumentationFactory = ItemDocumentation.NONE_FACTORY,
         qualifiedName: String,
     ): DefaultPackageItem {
         modifiers.setVisibilityLevel(VisibilityLevel.PUBLIC)
@@ -65,30 +68,60 @@ class DefaultItemFactory(
             fileLocation,
             defaultItemLanguage,
             modifiers,
-            documentation,
+            documentationFactory,
             defaultVariantSelectorsFactory,
             qualifiedName,
         )
     }
 
     /** Create a [ConstructorItem]. */
+    fun createClassItem(
+        fileLocation: FileLocation,
+        modifiers: DefaultModifierList,
+        documentationFactory: ItemDocumentationFactory = ItemDocumentation.NONE_FACTORY,
+        source: SourceFile? = null,
+        classKind: ClassKind,
+        containingClass: ClassItem?,
+        qualifiedName: String = "",
+        simpleName: String = qualifiedName.substring(qualifiedName.lastIndexOf('.') + 1),
+        fullName: String = simpleName,
+        typeParameterList: TypeParameterList,
+    ) =
+        DefaultClassItem(
+            codebase,
+            fileLocation,
+            defaultItemLanguage,
+            modifiers,
+            documentationFactory,
+            defaultVariantSelectorsFactory,
+            source,
+            classKind,
+            containingClass,
+            qualifiedName,
+            simpleName,
+            fullName,
+            typeParameterList,
+        )
+
+    /** Create a [ConstructorItem]. */
     fun createConstructorItem(
         fileLocation: FileLocation,
         modifiers: DefaultModifierList,
-        documentation: ItemDocumentation,
+        documentationFactory: ItemDocumentationFactory,
         name: String,
         containingClass: ClassItem,
         typeParameterList: TypeParameterList,
         returnType: ClassTypeItem,
         parameterItemsFactory: ParameterItemsFactory,
         throwsTypes: List<ExceptionTypeItem>,
+        implicitConstructor: Boolean,
     ): ConstructorItem =
         DefaultConstructorItem(
             codebase,
             fileLocation,
             defaultItemLanguage,
             modifiers,
-            documentation,
+            documentationFactory,
             defaultVariantSelectorsFactory,
             name,
             containingClass,
@@ -96,13 +129,14 @@ class DefaultItemFactory(
             returnType,
             parameterItemsFactory,
             throwsTypes,
+            implicitConstructor,
         )
 
     /** Create a [FieldItem]. */
     fun createFieldItem(
         fileLocation: FileLocation,
         modifiers: DefaultModifierList,
-        documentation: ItemDocumentation,
+        documentationFactory: ItemDocumentationFactory,
         name: String,
         containingClass: ClassItem,
         type: TypeItem,
@@ -115,7 +149,7 @@ class DefaultItemFactory(
             defaultItemLanguage,
             defaultVariantSelectorsFactory,
             modifiers,
-            documentation,
+            documentationFactory,
             name,
             containingClass,
             type,
@@ -127,7 +161,7 @@ class DefaultItemFactory(
     fun createMethodItem(
         fileLocation: FileLocation,
         modifiers: DefaultModifierList,
-        documentation: ItemDocumentation,
+        documentationFactory: ItemDocumentationFactory,
         name: String,
         containingClass: ClassItem,
         typeParameterList: TypeParameterList,
@@ -141,7 +175,7 @@ class DefaultItemFactory(
             fileLocation,
             defaultItemLanguage,
             modifiers,
-            documentation,
+            documentationFactory,
             defaultVariantSelectorsFactory,
             name,
             containingClass,
@@ -158,7 +192,7 @@ class DefaultItemFactory(
         modifiers: DefaultModifierList,
         name: String,
         publicNameProvider: PublicNameProvider,
-        containingMethod: MethodItem,
+        containingCallable: CallableItem,
         parameterIndex: Int,
         type: TypeItem,
         defaultValue: DefaultValue,
@@ -171,7 +205,7 @@ class DefaultItemFactory(
             defaultVariantSelectorsFactory,
             name,
             publicNameProvider,
-            containingMethod,
+            containingCallable,
             parameterIndex,
             type,
             defaultValue,

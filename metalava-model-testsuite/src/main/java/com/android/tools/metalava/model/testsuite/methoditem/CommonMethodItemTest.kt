@@ -147,51 +147,6 @@ class CommonMethodItemTest : BaseModelTest() {
     }
 
     @Test
-    fun `MethodItem superMethods() on constructor`() {
-        runCodebaseTest(
-            inputSet(
-                signature(
-                    """
-                        // Signature format: 2.0
-                        package test.pkg {
-                          public class Base {
-                            ctor public Base();
-                          }
-                          public class Test extends test.pkg.Base {
-                            ctor public Test();
-                          }
-                        }
-                    """
-                ),
-            ),
-            inputSet(
-                java(
-                    """
-                        package test.pkg;
-
-                        public class Base {
-                            public Base() {}
-                        }
-                    """
-                ),
-                java(
-                    """
-                        package test.pkg;
-
-                        public class Test extends Base {
-                            public Test() {}
-                        }
-                    """
-                ),
-            ),
-        ) {
-            val testClass = codebase.assertClass("test.pkg.Test")
-            val testConstructor = testClass.constructors().single()
-            assertEquals(emptyList(), testConstructor.superMethods())
-        }
-    }
-
-    @Test
     fun `MethodItem superMethods() on simple method`() {
         runCodebaseTest(
             inputSet(

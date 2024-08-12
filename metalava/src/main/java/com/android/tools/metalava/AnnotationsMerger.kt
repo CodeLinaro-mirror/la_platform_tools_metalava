@@ -54,7 +54,6 @@ import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.DefaultAnnotationAttribute
 import com.android.tools.metalava.model.DefaultAnnotationItem
 import com.android.tools.metalava.model.Item
-import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ModifierList
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.TraversingVisitor
@@ -510,8 +509,8 @@ class AnnotationsMerger(
     ) {
         @Suppress("NAME_SHADOWING") val parameters = fixParameterString(parameters)
 
-        val methodItem: MethodItem? = classItem.findMethod(methodName, parameters)
-        if (methodItem == null) {
+        val callableItem = classItem.findCallable(methodName, parameters)
+        if (callableItem == null) {
             if (wellKnownIgnoredImport(containingClass)) {
                 return
             }
@@ -523,11 +522,11 @@ class AnnotationsMerger(
         }
 
         if (parameterIndex != -1) {
-            val parameterItem = methodItem.parameters()[parameterIndex]
+            val parameterItem = callableItem.parameters()[parameterIndex]
             mergeAnnotations(item, parameterItem)
         } else {
             // Annotation on the method itself
-            mergeAnnotations(item, methodItem)
+            mergeAnnotations(item, callableItem)
         }
     }
 

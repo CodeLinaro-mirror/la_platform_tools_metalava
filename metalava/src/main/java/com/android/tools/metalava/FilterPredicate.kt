@@ -25,8 +25,7 @@ class FilterPredicate(private val wrapped: Predicate<Item>) : Predicate<Item> {
     override fun test(method: Item): Boolean {
         return when {
             wrapped.test(method) -> true
-            method is MethodItem ->
-                !method.isConstructor() && method.findPredicateSuperMethod(wrapped) != null
+            method is MethodItem -> method.findPredicateSuperMethod(wrapped) != null
             else -> false
         }
     }

@@ -18,8 +18,6 @@ package com.android.tools.metalava.model.item
 
 import com.android.tools.metalava.model.ApiVariantSelectorsFactory
 import com.android.tools.metalava.model.BoundsTypeItem
-import com.android.tools.metalava.model.DefaultCodebase
-import com.android.tools.metalava.model.DefaultItem
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ItemLanguage
@@ -43,7 +41,7 @@ class DefaultTypeParameterItem(
         fileLocation = FileLocation.UNKNOWN,
         itemLanguage = itemLanguage,
         modifiers = modifiers,
-        documentation = ItemDocumentation.NONE,
+        documentationFactory = ItemDocumentation.NONE_FACTORY,
         variantSelectorsFactory = variantSelectorsFactory,
     ),
     TypeParameterItem {

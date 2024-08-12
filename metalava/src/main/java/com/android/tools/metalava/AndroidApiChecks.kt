@@ -18,6 +18,7 @@ package com.android.tools.metalava
 
 import com.android.tools.metalava.model.ANDROIDX_INT_DEF
 import com.android.tools.metalava.model.AnnotationAttributeValue
+import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.FieldItem
@@ -37,7 +38,7 @@ class AndroidApiChecks(val reporter: Reporter) {
             object :
                 ApiVisitor(
                     // Sort by source order such that warnings follow source line number order
-                    methodComparator = MethodItem.sourceOrderComparator,
+                    callableComparator = CallableItem.sourceOrderComparator,
                     config = @Suppress("DEPRECATION") options.apiVisitorConfig,
                 ) {
                 override fun skip(item: Item): Boolean {
@@ -53,16 +54,17 @@ class AndroidApiChecks(val reporter: Reporter) {
                     checkTodos(item)
                 }
 
+                override fun visitCallable(callable: CallableItem) {
+                    checkRequiresPermission(callable)
+                }
+
                 override fun visitMethod(method: MethodItem) {
-                    checkRequiresPermission(method)
-                    if (!method.isConstructor()) {
-                        checkVariable(
-                            method,
-                            "@return",
-                            "Return value of '" + method.name() + "'",
-                            method.returnType()
-                        )
-                    }
+                    checkVariable(
+                        method,
+                        "@return",
+                        "Return value of '" + method.name() + "'",
+                        method.returnType()
+                    )
                 }
 
                 override fun visitField(field: FieldItem) {
@@ -79,7 +81,7 @@ class AndroidApiChecks(val reporter: Reporter) {
                         "Parameter '" +
                             parameter.name() +
                             "' of '" +
-                            parameter.containingMethod().name() +
+                            parameter.containingCallable().name() +
                             "'",
                         parameter.type()
                     )
@@ -106,7 +108,7 @@ class AndroidApiChecks(val reporter: Reporter) {
 
     private fun findDocumentation(item: Item, tag: String?): String {
         if (item is ParameterItem) {
-            return findDocumentation(item.containingMethod(), item.name())
+            return findDocumentation(item.containingCallable(), item.name())
         }
 
         val doc = item.documentation.text
@@ -187,10 +189,10 @@ class AndroidApiChecks(val reporter: Reporter) {
         }
     }
 
-    private fun checkRequiresPermission(method: MethodItem) {
-        val text = method.documentation
+    private fun checkRequiresPermission(callable: CallableItem) {
+        val text = callable.documentation
 
-        val annotation = method.modifiers.findAnnotation("androidx.annotation.RequiresPermission")
+        val annotation = callable.modifiers.findAnnotation("androidx.annotation.RequiresPermission")
         if (annotation != null) {
             for (attribute in annotation.attributes) {
                 var values: List<AnnotationAttributeValue>? = null
@@ -214,9 +216,9 @@ class AndroidApiChecks(val reporter: Reporter) {
                             // Why is that a problem? Sometimes you want to describe
                             // particular use cases.
                             Issues.REQUIRES_PERMISSION,
-                            method,
+                            callable,
                             "Method '" +
-                                method.name() +
+                                callable.name() +
                                 "' documentation mentions permissions already declared by @RequiresPermission"
                         )
                     }
@@ -227,9 +229,9 @@ class AndroidApiChecks(val reporter: Reporter) {
         ) {
             reporter.report(
                 Issues.REQUIRES_PERMISSION,
-                method,
+                callable,
                 "Method '" +
-                    method.name() +
+                    callable.name() +
                     "' documentation mentions permissions without declaring @RequiresPermission"
             )
         }

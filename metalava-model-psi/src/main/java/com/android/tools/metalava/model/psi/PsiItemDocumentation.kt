@@ -17,7 +17,10 @@
 package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.model.AbstractItemDocumentation
+import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.ItemDocumentation
+import com.android.tools.metalava.model.ItemDocumentation.Companion.toItemDocumentationFactory
+import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.intellij.psi.PsiCompiledElement
 import com.intellij.psi.PsiDocCommentOwner
 import com.intellij.psi.PsiElement
@@ -28,8 +31,8 @@ import org.jetbrains.uast.sourcePsiElement
 
 /** A Psi specialization of [ItemDocumentation]. */
 internal class PsiItemDocumentation(
+    private val item: PsiItem,
     private val psi: PsiElement,
-    private val codebase: PsiBasedCodebase,
     private val extraDocs: String?,
 ) : AbstractItemDocumentation() {
 
@@ -44,16 +47,13 @@ internal class PsiItemDocumentation(
 
     /** Lazy initializer for [_text]. */
     private fun initializeText(): String {
-        _text =
-            javadoc(psi, codebase.allowReadingComments).let {
-                if (extraDocs != null) it + "\n$extraDocs" else it
-            }
+        _text = javadoc(psi).let { if (extraDocs != null) it + "\n$extraDocs" else it }
         return _text
     }
 
-    override fun duplicate() = PsiItemDocumentation(psi, codebase, extraDocs)
+    override fun duplicate(item: Item) = PsiItemDocumentation(item as PsiItem, psi, extraDocs)
 
-    final override fun findTagDocumentation(tag: String, value: String?): String? {
+    override fun findTagDocumentation(tag: String, value: String?): String? {
         if (psi is PsiCompiledElement) {
             return null
         }
@@ -64,7 +64,7 @@ internal class PsiItemDocumentation(
         // We can't just use element.docComment here because we may have modified
         // the comment and then the comment snapshot in PSI isn't up to date with our
         // latest changes
-        val docComment = codebase.getComment(text)
+        val docComment = item.codebase.getComment(text)
         val tagComment =
             if (value == null) {
                 docComment.findTagByName(tag)
@@ -100,18 +100,50 @@ internal class PsiItemDocumentation(
 
     override fun findMainDocumentation(): String {
         if (text == "") return text
-        val comment = codebase.getComment(text)
+        val comment = item.codebase.getComment(text)
         val end = findFirstTag(comment)?.textRange?.startOffset ?: text.length
         return comment.text.substring(0, end)
     }
 
+    override fun fullyQualifiedDocumentation(documentation: String) =
+        item.codebase.docQualifier.toFullyQualifiedDocumentation(item, documentation)
+
     companion object {
-        // Gets the javadoc of the current element, unless reading comments is
-        // disabled via allowReadingComments
-        private fun javadoc(element: PsiElement, allowReadingComments: Boolean): String {
-            if (!allowReadingComments) {
-                return ""
+        /**
+         * Get an [ItemDocumentationFactory] for the [psi].
+         *
+         * If [PsiBasedCodebase.allowReadingComments] is `true` then this will return a factory that
+         * creates a [PsiItemDocumentation] instance. If [extraDocs] is not-null then this will
+         * return a factory that will create an [ItemDocumentation] wrapper around [extraDocs],
+         * otherwise it will return [ItemDocumentation.NONE_FACTORY].
+         *
+         * @param psi the underlying element from which the documentation will be retrieved.
+         *   Although this is usually accessible through the [PsiItem.psi] property, that is not
+         *   true within the [ItemDocumentationFactory] as that is called during initialization of
+         *   the [PsiItem] before [PsiItem.psi] has been initialized.
+         */
+        internal fun factory(
+            psi: PsiElement,
+            codebase: PsiBasedCodebase,
+            extraDocs: String? = null,
+        ) =
+            if (codebase.allowReadingComments) {
+                // When reading comments provide full access to them.
+                { item ->
+                    val psiItem = item as PsiItem
+                    PsiItemDocumentation(psiItem, psi, extraDocs)
+                }
+            } else {
+                // If extraDocs are provided then they most likely contain documentation for the
+                // package from a `package-info.java` or `package.html` file. Make sure that they
+                // are included in the `ItemDocumentation`, otherwise package hiding will not work.
+                extraDocs?.toItemDocumentationFactory()
+                // Otherwise, there is no documentation to use.
+                ?: ItemDocumentation.NONE_FACTORY
             }
+
+        // Gets the javadoc of the current element
+        private fun javadoc(element: PsiElement): String {
             if (element is PsiCompiledElement) {
                 return ""
             }

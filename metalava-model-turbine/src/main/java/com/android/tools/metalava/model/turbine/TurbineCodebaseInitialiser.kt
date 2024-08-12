@@ -22,6 +22,7 @@ import com.android.tools.metalava.model.AnnotationAttributeValue
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ApiVariantSelectors
 import com.android.tools.metalava.model.BoundsTypeItem
+import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.DefaultAnnotationArrayAttributeValue
@@ -31,11 +32,10 @@ import com.android.tools.metalava.model.DefaultAnnotationSingleAttributeValue
 import com.android.tools.metalava.model.DefaultTypeParameterList
 import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.Item
-import com.android.tools.metalava.model.ItemDocumentation
-import com.android.tools.metalava.model.ItemDocumentation.Companion.toItemDocumentation
+import com.android.tools.metalava.model.ItemDocumentation.Companion.toItemDocumentationFactory
+import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.JAVA_PACKAGE_INFO
-import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.TypeParameterList
@@ -237,7 +237,7 @@ internal open class TurbineCodebaseInitialiser(
             val source = unit.source().source()
             val sourceFile = createTurbineSourceFile(unit)
             val doc = getHeaderComments(source)
-            createPackage(getPackageName(unit), sourceFile, doc.toItemDocumentation())
+            createPackage(getPackageName(unit), sourceFile, doc.toItemDocumentationFactory())
         }
 
         // Secondly, create package items for package.html files.
@@ -268,16 +268,16 @@ internal open class TurbineCodebaseInitialiser(
     private fun createPackage(
         name: String,
         sourceFile: TurbineSourceFile?,
-        documentation: ItemDocumentation,
+        documentationFactory: ItemDocumentationFactory,
     ): PackageItem {
         codebase.findPackage(name)?.let {
             error("Duplicate package-info.java files found for $name")
         }
 
-        val modifiers = TurbineModifierItem.create(codebase, 0, null, false)
+        val modifiers = TurbineModifierItem.create(codebase, 0, null)
         val fileLocation = TurbineFileLocation.forTree(sourceFile)
         val turbinePkgItem =
-            itemFactory.createPackageItem(fileLocation, modifiers, documentation, name)
+            itemFactory.createPackageItem(fileLocation, modifiers, documentationFactory, name)
         codebase.addPackage(turbinePkgItem)
         return turbinePkgItem
     }
@@ -288,7 +288,7 @@ internal open class TurbineCodebaseInitialiser(
      */
     private fun findOrCreatePackage(name: String): DefaultPackageItem {
         codebase.findPackage(name)?.let {
-            return it as DefaultPackageItem
+            return it
         }
 
         val turbinePkgItem = itemFactory.createPackageItem(qualifiedName = name)
@@ -404,7 +404,6 @@ internal open class TurbineCodebaseInitialiser(
                 codebase,
                 cls.access(),
                 annotations,
-                isDeprecated(documentation)
             )
         val (typeParameters, classTypeItemFactory) =
             createTypeParameters(
@@ -413,11 +412,10 @@ internal open class TurbineCodebaseInitialiser(
                 "class $qualifiedName",
             )
         val classItem =
-            TurbineClassItem(
-                codebase = codebase,
+            itemFactory.createClassItem(
                 fileLocation = fileLocation,
                 modifiers = modifierItem,
-                documentation = getCommentedDoc(documentation),
+                documentationFactory = getCommentedDoc(documentation),
                 source = sourceFile,
                 classKind = getClassKind(cls.kind()),
                 containingClass = containingClassItem,
@@ -452,7 +450,7 @@ internal open class TurbineCodebaseInitialiser(
         createConstructors(classItem, cls.methods(), classTypeItemFactory)
 
         // Add to the codebase
-        codebase.registerClass(classItem, isTopClass)
+        codebase.registerClass(classItem)
 
         // Add the class to corresponding PackageItem
         if (isTopClass) {
@@ -676,7 +674,7 @@ internal open class TurbineCodebaseInitialiser(
      */
     private fun createTypeParameter(sym: TyVarSymbol, param: TyVarInfo): DefaultTypeParameterItem {
         val modifiers =
-            TurbineModifierItem.create(codebase, 0, createAnnotations(param.annotations()), false)
+            TurbineModifierItem.create(codebase, 0, createAnnotations(param.annotations()))
         val typeParamItem =
             itemFactory.createTypeParameterItem(
                 modifiers,
@@ -729,7 +727,6 @@ internal open class TurbineCodebaseInitialiser(
                     codebase,
                     flags,
                     annotations,
-                    isDeprecated(javadoc(decl))
                 )
             val isEnumConstant = (flags and TurbineFlag.ACC_ENUM) != 0
             val fieldValue = createInitialValue(field)
@@ -751,7 +748,7 @@ internal open class TurbineCodebaseInitialiser(
                 itemFactory.createFieldItem(
                     fileLocation = TurbineFileLocation.forTree(classItem, decl),
                     modifiers = fieldModifierItem,
-                    documentation = getCommentedDoc(documentation),
+                    documentationFactory = getCommentedDoc(documentation),
                     name = field.name(),
                     containingClass = classItem,
                     type = type,
@@ -779,7 +776,6 @@ internal open class TurbineCodebaseInitialiser(
                     codebase,
                     method.access(),
                     annotations,
-                    isDeprecated(javadoc(decl))
                 )
             val name = method.name()
             val (typeParams, methodTypeItemFactory) =
@@ -810,14 +806,14 @@ internal open class TurbineCodebaseInitialiser(
                 itemFactory.createMethodItem(
                     fileLocation = TurbineFileLocation.forTree(classItem, decl),
                     modifiers = methodModifierItem,
-                    documentation = getCommentedDoc(documentation),
+                    documentationFactory = getCommentedDoc(documentation),
                     name = name,
                     containingClass = classItem,
                     typeParameterList = typeParams,
                     returnType = returnType,
-                    parameterItemsFactory = { methodItem ->
+                    parameterItemsFactory = { containingCallable ->
                         createParameters(
-                            methodItem,
+                            containingCallable,
                             decl?.params(),
                             parameters,
                             methodTypeItemFactory,
@@ -835,12 +831,12 @@ internal open class TurbineCodebaseInitialiser(
     }
 
     private fun createParameters(
-        methodItem: MethodItem,
+        containingCallable: CallableItem,
         parameterDecls: List<Tree.VarDecl>?,
         parameters: List<ParamInfo>,
         typeItemFactory: TurbineTypeItemFactory,
     ): List<ParameterItem> {
-        val fingerprint = MethodFingerprint(methodItem.name(), parameters.size)
+        val fingerprint = MethodFingerprint(containingCallable.name(), parameters.size)
         // Some parameters in [parameters] are implicit parameters that do not have a corresponding
         // entry in the [parameterDecls] list. The number of implicit parameters is the total
         // number of [parameters] minus the number of declared parameters [parameterDecls]. The
@@ -851,7 +847,7 @@ internal open class TurbineCodebaseInitialiser(
         return parameters.mapIndexed { idx, parameter ->
             val annotations = createAnnotations(parameter.annotations())
             val parameterModifierItem =
-                TurbineModifierItem.create(codebase, parameter.access(), annotations, false)
+                TurbineModifierItem.create(codebase, parameter.access(), annotations)
             val type =
                 typeItemFactory.getMethodParameterType(
                     underlyingParameterType = parameter.type(),
@@ -868,7 +864,7 @@ internal open class TurbineCodebaseInitialiser(
 
             val parameterItem =
                 itemFactory.createParameterItem(
-                    TurbineFileLocation.forTree(methodItem.containingClass(), decl),
+                    TurbineFileLocation.forTree(containingCallable.containingClass(), decl),
                     parameterModifierItem,
                     parameter.name(),
                     { item ->
@@ -877,7 +873,7 @@ internal open class TurbineCodebaseInitialiser(
                         val annotation = modifiers.findAnnotation(AnnotationItem::isParameterName)
                         annotation?.attributes?.firstOrNull()?.value?.value()?.toString()
                     },
-                    methodItem,
+                    containingCallable,
                     idx,
                     type,
                     TurbineDefaultValue(parameterModifierItem),
@@ -891,7 +887,6 @@ internal open class TurbineCodebaseInitialiser(
         methods: List<MethodInfo>,
         enclosingClassTypeItemFactory: TurbineTypeItemFactory,
     ) {
-        var hasImplicitDefaultConstructor = false
         for (constructor in methods) {
             // Skip real methods.
             if (constructor.sym().name() != "<init>") continue
@@ -903,7 +898,6 @@ internal open class TurbineCodebaseInitialiser(
                     codebase,
                     constructor.access(),
                     annotations,
-                    isDeprecated(javadoc(decl))
                 )
             val (typeParams, constructorTypeItemFactory) =
                 createTypeParameters(
@@ -911,7 +905,7 @@ internal open class TurbineCodebaseInitialiser(
                     enclosingClassTypeItemFactory,
                     constructor.name(),
                 )
-            hasImplicitDefaultConstructor =
+            val isImplicitDefaultConstructor =
                 (constructor.access() and TurbineFlag.ACC_SYNTH_CTOR) != 0
             val name = classItem.simpleName()
             val documentation = javadoc(decl)
@@ -919,7 +913,7 @@ internal open class TurbineCodebaseInitialiser(
                 itemFactory.createConstructorItem(
                     fileLocation = TurbineFileLocation.forTree(classItem, decl),
                     modifiers = constructorModifierItem,
-                    documentation = getCommentedDoc(documentation),
+                    documentationFactory = getCommentedDoc(documentation),
                     // Turbine's Binder gives return type of constructors as void but the
                     // model expects it to the type of object being created. So, use the
                     // containing [ClassItem]'s type as the constructor return type.
@@ -937,11 +931,11 @@ internal open class TurbineCodebaseInitialiser(
                     },
                     throwsTypes =
                         getThrowsList(constructor.exceptions(), constructorTypeItemFactory),
+                    implicitConstructor = isImplicitDefaultConstructor,
                 )
 
             classItem.addConstructor(constructorItem)
         }
-        classItem.hasImplicitDefaultConstructor = hasImplicitDefaultConstructor
     }
 
     internal fun getQualifiedName(binaryName: String): String {
@@ -990,7 +984,7 @@ internal open class TurbineCodebaseInitialiser(
         return throwsTypes.map { type -> enclosingTypeItemFactory.getExceptionType(type) }
     }
 
-    private fun getCommentedDoc(doc: String): ItemDocumentation {
+    private fun getCommentedDoc(doc: String): ItemDocumentationFactory {
         return buildString {
                 if (doc != "") {
                     append("/**")
@@ -998,7 +992,7 @@ internal open class TurbineCodebaseInitialiser(
                     append("*/")
                 }
             }
-            .toItemDocumentation()
+            .toItemDocumentationFactory()
     }
 
     private fun createInitialValue(field: FieldInfo): TurbineFieldValue {

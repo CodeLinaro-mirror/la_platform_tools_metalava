@@ -29,7 +29,4 @@ interface SourceCodebase : Codebase {
      * classpath).
      */
     fun getTopLevelClassesFromSource(): List<ClassItem>
-
-    // False since this codebase would be reading from source
-    override fun trustedApi(): Boolean = false
 }

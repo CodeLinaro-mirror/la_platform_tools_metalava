@@ -237,7 +237,7 @@ private constructor(
         val separateLines =
             target != AnnotationTarget.SIGNATURE_FILE &&
                 when (item) {
-                    is MethodItem,
+                    is CallableItem,
                     is ClassItem,
                     is PackageItem -> true
                     is FieldItem -> item.isEnumConstant()

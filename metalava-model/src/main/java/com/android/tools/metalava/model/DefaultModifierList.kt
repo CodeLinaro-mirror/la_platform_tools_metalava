@@ -290,12 +290,33 @@ class DefaultModifierList(
     fun duplicate(): DefaultModifierList {
         val annotations = this.annotations
         val newAnnotations =
-            if (annotations == null || annotations.isEmpty()) {
+            if (annotations.isNullOrEmpty()) {
                 null
             } else {
                 annotations.toMutableList()
             }
         return DefaultModifierList(codebase, flags, newAnnotations)
+    }
+
+    /**
+     * Take a snapshot of this for use in [targetCodebase].
+     *
+     * While [duplicate] makes a shallow copy for use within the same [Codebase] this method creates
+     * a deep snapshot, including snapshots of each annotation for use in [targetCodebase].
+     *
+     * @param targetCodebase The [Codebase] of which the snapshot will be part.
+     */
+    fun snapshot(targetCodebase: Codebase): DefaultModifierList {
+        val annotations = this.annotations
+        val newAnnotations =
+            if (annotations.isNullOrEmpty()) {
+                null
+            } else {
+                mutableListOf<AnnotationItem>().apply {
+                    annotations.mapTo(this) { it.snapshot(targetCodebase) }
+                }
+            }
+        return DefaultModifierList(targetCodebase, flags, newAnnotations)
     }
 
     // Rename? It's not a full equality, it's whether an override's modifier set is significant

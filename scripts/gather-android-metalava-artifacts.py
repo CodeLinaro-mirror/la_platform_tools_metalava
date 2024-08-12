@@ -93,11 +93,26 @@ def default_api_version_files():
 def default_jdiff_files():
     """:return: A representative sample list of JDiff files created by the Android build using Metalava."""
     return [
+        # JDiff files generated from jar files.
         "out/target/common/obj/api.xml",
         "out/target/common/obj/system-api.xml",
         "out/target/common/obj/module-lib-api.xml",
         "out/target/common/obj/system-server-api.xml",
         "out/target/common/obj/test-api.xml",
+        # JDiff files generated from txt files.
+        "out/soong/.intermediates/packages/services/Car/car-lib/android.car-test-stubs-jdiff/gen/car-test-api.xml",
+        "out/soong/.intermediates/packages/services/Car/car-lib/android.car-stubs-jdiff/gen/car-api.xml",
+        "out/soong/.intermediates/packages/services/Car/car-lib/android.car-system-stubs-jdiff/gen/car-system-api.xml",
+        ""# JDiff files generated from txt files and then compressed using gzip..
+        "out/soong/.intermediates/cts/tests/signature/api/cts-android-test-base-current-api-gz/gen/android-test-base-current.api.gz",
+        "out/soong/.intermediates/cts/tests/signature/api/cts-android-test-mock-current-api-gz/gen/android-test-mock-current.api.gz",
+        "out/soong/.intermediates/cts/tests/signature/api/cts-android-test-runner-current-api-gz/gen/android-test-runner-current.api.gz",
+        "out/soong/.intermediates/cts/tests/signature/api/cts-apache-http-legacy-current-api-gz/gen/apache-http-legacy-current.api.gz",
+        "out/soong/.intermediates/cts/tests/signature/api/cts-car-system-current-api-gz/gen/car-system-current.api.gz",
+        "out/soong/.intermediates/cts/tests/signature/api/cts-current-api-gz/gen/current.api.gz",
+        "out/soong/.intermediates/cts/tests/signature/api/cts-system-current-api-gz/gen/system-current.api.gz",
+        "out/soong/.intermediates/cts/tests/signature/api/cts-system-removed-api-gz/gen/system-removed.api.gz",
+
     ]
 
 

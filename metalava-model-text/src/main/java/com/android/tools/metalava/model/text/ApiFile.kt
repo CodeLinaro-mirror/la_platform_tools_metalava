@@ -21,6 +21,7 @@ import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.AnnotationItem.Companion.unshortenAnnotation
 import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.ArrayTypeItem
+import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassResolver
@@ -28,7 +29,6 @@ import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.DefaultAnnotationItem
-import com.android.tools.metalava.model.DefaultCodebase
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.DefaultTypeParameterList
 import com.android.tools.metalava.model.ExceptionTypeItem
@@ -45,6 +45,8 @@ import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VisibilityLevel
+import com.android.tools.metalava.model.item.DefaultClassItem
+import com.android.tools.metalava.model.item.DefaultCodebase
 import com.android.tools.metalava.model.item.DefaultPackageItem
 import com.android.tools.metalava.model.item.DefaultTypeParameterItem
 import com.android.tools.metalava.model.item.DefaultValue
@@ -596,11 +598,10 @@ private constructor(
             return
         }
 
-        // Create the TextClassItem and set its package but do not add it to the package or
+        // Create the DefaultClassItem and set its package but do not add it to the package or
         // register it.
         val cl =
-            TextClassItem(
-                codebase = codebase,
+            itemFactory.createClassItem(
                 fileLocation = classPosition,
                 modifiers = modifiers,
                 classKind = classKind,
@@ -703,7 +704,7 @@ private constructor(
     /** Parse the class body, adding members to [cl]. */
     private fun parseClassBody(
         tokenizer: Tokenizer,
-        cl: TextClassItem,
+        cl: DefaultClassItem,
         classTypeItemFactory: TextTypeItemFactory,
     ) {
         var token = tokenizer.requireToken()
@@ -771,7 +772,7 @@ private constructor(
         /** The fully qualified name, including package and full name. */
         val qualifiedName: String,
         /** The optional, resolved outer [ClassItem]. */
-        val outerClass: TextClassItem?,
+        val outerClass: DefaultClassItem?,
         /** The set of type parameters. */
         val typeParameterList: TypeParameterList,
         /**
@@ -822,7 +823,7 @@ private constructor(
                 // always precedes its nested classes.
                 val outerClass =
                     codebase.getOrCreateClass(qualifiedOuterClassName, isOuterClass = true)
-                        as TextClassItem
+                        as DefaultClassItem
 
                 val nestedClassName = fullName.substring(nestedClassIndex + 1)
                 Pair(outerClass, nestedClassName)
@@ -964,25 +965,25 @@ private constructor(
     }
 
     /**
-     * Create [ParameterItem]s for the [containingMethod] from the [parameters] using the
+     * Create [ParameterItem]s for the [containingCallable] from the [parameters] using the
      * [typeItemFactory] to create types.
      *
-     * This is called from within the constructor of the [containingMethod] so must only access its
-     * `name` and its reference. In particularly it must not access its [MethodItem.parameters]
-     * property as this is called during its initialization.
+     * This is called from within the constructor of the [containingCallable] so must only access
+     * its `name` and its reference. In particularly it must not access its
+     * [CallableItem.parameters] property as this is called during its initialization.
      */
     private fun createParameterItems(
-        containingMethod: MethodItem,
+        containingCallable: CallableItem,
         parameters: List<ParameterInfo>,
         typeItemFactory: TextTypeItemFactory
     ): List<ParameterItem> {
-        val methodFingerprint = MethodFingerprint(containingMethod.name(), parameters.size)
-        return parameters.map { it.create(containingMethod, typeItemFactory, methodFingerprint) }
+        val methodFingerprint = MethodFingerprint(containingCallable.name(), parameters.size)
+        return parameters.map { it.create(containingCallable, typeItemFactory, methodFingerprint) }
     }
 
     private fun parseConstructor(
         tokenizer: Tokenizer,
-        containingClass: TextClassItem,
+        containingClass: DefaultClassItem,
         classTypeItemFactory: TextTypeItemFactory,
         startingToken: String
     ) {
@@ -1025,7 +1026,7 @@ private constructor(
             itemFactory.createConstructorItem(
                 fileLocation = tokenizer.fileLocation(),
                 modifiers = modifiers,
-                documentation = ItemDocumentation.NONE,
+                documentationFactory = ItemDocumentation.NONE_FACTORY,
                 name = name,
                 containingClass = containingClass,
                 typeParameterList = typeParameterList,
@@ -1034,6 +1035,10 @@ private constructor(
                     createParameterItems(methodItem, parameters, typeItemFactory)
                 },
                 throwsTypes = throwsList,
+                // Signature files do not track implicit constructors, all constructors are treated
+                // the same as whether it was created by the compiler or in the source has no effect
+                // on the API surface.
+                implicitConstructor = false,
             )
         method.markForCurrentApiSurface()
 
@@ -1044,7 +1049,7 @@ private constructor(
 
     private fun parseMethod(
         tokenizer: Tokenizer,
-        cl: TextClassItem,
+        cl: DefaultClassItem,
         classTypeItemFactory: TextTypeItemFactory,
         startingToken: String
     ) {
@@ -1131,13 +1136,13 @@ private constructor(
             itemFactory.createMethodItem(
                 fileLocation = tokenizer.fileLocation(),
                 modifiers = modifiers,
-                documentation = ItemDocumentation.NONE,
+                documentationFactory = ItemDocumentation.NONE_FACTORY,
                 name = name,
                 containingClass = cl,
                 typeParameterList = typeParameterList,
                 returnType = returnType,
-                parameterItemsFactory = { methodItem ->
-                    createParameterItems(methodItem, parameters, typeItemFactory)
+                parameterItemsFactory = { containingCallable ->
+                    createParameterItems(containingCallable, parameters, typeItemFactory)
                 },
                 throwsTypes = throwsList,
                 annotationDefault = defaultAnnotationMethodValue,
@@ -1157,7 +1162,7 @@ private constructor(
 
     private fun parseField(
         tokenizer: Tokenizer,
-        cl: TextClassItem,
+        cl: DefaultClassItem,
         classTypeItemFactory: TextTypeItemFactory,
         startingToken: String,
         isEnumConstant: Boolean,
@@ -1216,7 +1221,7 @@ private constructor(
             itemFactory.createFieldItem(
                 fileLocation = tokenizer.fileLocation(),
                 modifiers = modifiers,
-                documentation = ItemDocumentation.NONE,
+                documentationFactory = ItemDocumentation.NONE_FACTORY,
                 name = name,
                 containingClass = cl,
                 type = type,
@@ -1412,7 +1417,7 @@ private constructor(
 
     private fun parseProperty(
         tokenizer: Tokenizer,
-        cl: TextClassItem,
+        cl: DefaultClassItem,
         classTypeItemFactory: TextTypeItemFactory,
         startingToken: String
     ) {
@@ -1741,7 +1746,7 @@ private constructor(
     ) {
         /** Turn this [ParameterInfo] into a [ParameterItem] by parsing the [typeString]. */
         fun create(
-            containingMethod: MethodItem,
+            containingCallable: CallableItem,
             typeItemFactory: TextTypeItemFactory,
             methodFingerprint: MethodFingerprint
         ): ParameterItem {
@@ -1761,7 +1766,7 @@ private constructor(
                     modifiers,
                     name,
                     { publicName },
-                    containingMethod,
+                    containingCallable,
                     index,
                     type,
                     defaultValue,

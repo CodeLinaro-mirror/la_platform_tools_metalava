@@ -20,6 +20,7 @@ import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.noOpAnnotationManager
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.provider.InputFormat
+import com.android.tools.metalava.model.testing.transformer.CodebaseTransformer
 import com.android.tools.metalava.model.testsuite.ModelSuiteRunner
 import com.android.tools.metalava.model.testsuite.ModelSuiteRunner.TestConfiguration
 import com.android.tools.metalava.reporter.BasicReporter
@@ -70,7 +71,11 @@ class SourceModelSuiteRunner : ModelSuiteRunner {
                     inputs,
                     classPath,
                 )
-            test(codebase)
+
+            // If available, transform the codebase for testing, otherwise use the one provided.
+            val transformedCodebase = CodebaseTransformer.transformIfAvailable(codebase)
+
+            test(transformedCodebase)
         }
     }
 

@@ -26,8 +26,8 @@ class BinaryCompatibilityInterfaceFieldsTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                load-api.txt:4: error: Attempted to remove nullability from java.lang.String (was NONNULL) in field test.pkg.Foo.bar [InvalidNullConversion]
                 load-api.txt:4: error: Field test.pkg.Foo.bar has changed type from int to java.lang.String [ChangedType]
+                load-api.txt:4: error: Attempted to remove nullability from java.lang.String (was NONNULL) in field test.pkg.Foo.bar [InvalidNullConversion]
             """,
             signatureSource =
                 """

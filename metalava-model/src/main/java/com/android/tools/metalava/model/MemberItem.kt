@@ -53,33 +53,4 @@ interface MemberItem : Item {
     fun canBeExternallyOverridden(): Boolean {
         return !modifiers.isFinal() && containingClass().isExtensible()
     }
-
-    /** True if this member was inherited from an ancestor class or interface. */
-    val inheritedFromAncestor
-        get() = inheritedFrom != null
-
-    /**
-     * If this member is inherited from a super class (typically via [duplicate]) this field points
-     * to the original class it was inherited from
-     */
-    val inheritedFrom: ClassItem?
-
-    /**
-     * Duplicates this member item.
-     *
-     * This is only used when comparing two [Codebase]s, in which case it is called to inherit a
-     * member from a super class/interface when it exists in the other [Codebase]. The resulting
-     * [MemberItem] is expected to behave as if it was part of the [targetContainingClass] but is
-     * otherwise identical to `this`, e.g. if [targetContainingClass] is [hidden] then so should the
-     * returned [MemberItem].
-     *
-     * The [MemberItem.inheritedFrom] property in the returned [MemberItem] is set to
-     * [containingClass] of this [MemberItem].
-     *
-     * @param targetContainingClass the [ClassItem] that will be used as
-     *   [MemberItem.containingClass]. Note, this may be from a different [Codebase] implementation
-     *   than the [MemberItem] so implementations must be careful to avoid an unconditional
-     *   downcast.
-     */
-    fun duplicate(targetContainingClass: ClassItem): MemberItem
 }

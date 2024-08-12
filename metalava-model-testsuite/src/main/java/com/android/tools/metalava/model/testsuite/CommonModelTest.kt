@@ -21,6 +21,7 @@ import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
+import com.google.common.truth.Truth.assertThat
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNotSame
@@ -83,14 +84,21 @@ class CommonModelTest : BaseModelTest() {
             ),
         ) {
             // Iterate over the codebase and try and find every item that is visited.
+            val items = mutableListOf<Item>()
             codebase.accept(
                 object : BaseItemVisitor() {
                     override fun visitItem(item: Item) {
                         val foundItem = item.findCorrespondingItemIn(codebase)
                         assertSame(item, foundItem)
+                        foundItem?.let { items += it }
                     }
                 }
             )
+
+            // Make sure that at least 11 items were found, that is every item listed in the input
+            // but does not include implicit items that may be found from elsewhere, e.g. classpath.
+            // TODO: The actual number varies from model to model which needs rectifying.
+            assertThat(items.size).isAtLeast(11)
         }
     }
 
@@ -323,11 +331,19 @@ class CommonModelTest : BaseModelTest() {
                 ),
             ),
         ) {
-            // Iterate over the codebase and try and find every item that is visited.
+            // Iterate over the codebase classes and resolve the super class of every class visited.
+            val items = mutableListOf<Item>()
             for (classItem in codebase.getPackages().allClasses()) {
+                items += classItem
                 // Resolve the super class which might trigger a change in the packages/classes.
-                classItem.superClass()
+                classItem.superClass()?.let { items += it }
             }
+
+            // Make sure that at least 2 items were found, that is every item listed in the input
+            // but does not include undefined classes which are treated differently in text model to
+            // other models.
+            // TODO: The actual number varies from model to model which needs rectifying.
+            assertThat(items.size).isAtLeast(2)
         }
     }
 
@@ -367,14 +383,23 @@ class CommonModelTest : BaseModelTest() {
                 ),
             ),
         ) {
-            // Iterate over the codebase and try and find every item that is visited.
+            // Iterate over the codebase classes and resolve the super interfaces of every class
+            // visited.
+            val items = mutableListOf<Item>()
             for (classItem in codebase.getPackages().allClasses()) {
+                items += classItem
                 for (interfaceType in classItem.interfaceTypes()) {
                     // Resolve the interface type which might trigger a change in the
                     // packages/classes.
-                    interfaceType.asClass()
+                    interfaceType.asClass()?.let { items += it }
                 }
             }
+
+            // Make sure that at least 2 items were found, that is every item listed in the input
+            // but does not include undefined classes which are treated differently in text model to
+            // other models.
+            // TODO: The actual number varies from model to model which needs rectifying.
+            assertThat(items.size).isAtLeast(2)
         }
     }
 
