@@ -22,38 +22,35 @@ package com.android.tools.metalava.model
  */
 interface TypeModifiers {
     /** The type-use annotations applied to the owning type. */
-    fun annotations(): List<AnnotationItem>
-
-    /** Adds the [annotation] to the list of annotations for the type. */
-    fun addAnnotation(annotation: AnnotationItem)
-
-    /** Removes the [annotation] from the list of annotations for the type, if it was present. */
-    fun removeAnnotation(annotation: AnnotationItem)
+    val annotations: List<AnnotationItem>
 
     /** The nullability of the type. */
-    fun nullability(): TypeNullability
+    val nullability: TypeNullability
 
     /**
-     * Updates the nullability of the type to [newNullability]. Does not add or remove any nullness
-     * annotations, so those should be handled separately through [addAnnotation] and/or
-     * [removeAnnotation], if needed.
+     * Return a [TypeModifiers] instance identical to this one except its
+     * [TypeModifiers.nullability] and [TypeModifiers.annotations] properties are the same as the
+     * [nullability] and [annotations] parameters respectively.
+     *
+     * If the parameters are the same as this instance's properties then it will just return this
+     * instance, otherwise it will return a new instance.
      */
-    fun setNullability(newNullability: TypeNullability)
-
-    /** Create a copy of this to which modifications can be made. */
-    fun duplicate(withNullability: TypeNullability? = null): TypeModifiers
+    fun substitute(
+        nullability: TypeNullability = this.nullability,
+        annotations: List<AnnotationItem> = this.annotations,
+    ): TypeModifiers
 
     /** Whether the [nullability] is [TypeNullability.NULLABLE]. */
     val isNullable
-        get() = nullability() == TypeNullability.NULLABLE
+        get() = nullability == TypeNullability.NULLABLE
 
     /** Whether the [nullability] is [TypeNullability.NONNULL]. */
     val isNonNull
-        get() = nullability() == TypeNullability.NONNULL
+        get() = nullability == TypeNullability.NONNULL
 
     /** Whether the [nullability] is [TypeNullability.PLATFORM]. */
     val isPlatformNullability
-        get() = nullability() == TypeNullability.PLATFORM
+        get() = nullability == TypeNullability.PLATFORM
 }
 
 /** An enum representing the possible nullness values of a type. */

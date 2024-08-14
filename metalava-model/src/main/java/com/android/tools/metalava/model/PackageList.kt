@@ -26,7 +26,7 @@ class PackageList(val codebase: Codebase, val packages: List<PackageItem>) {
         return packages.asSequence().flatMap { it.topLevelClasses() }
     }
 
-    /** All top level classes **and inner classes** in all packages */
+    /** All top level classes **and nested classes** in all packages */
     fun allClasses(): Sequence<ClassItem> {
         return packages.asSequence().flatMap { it.allClasses() }
     }

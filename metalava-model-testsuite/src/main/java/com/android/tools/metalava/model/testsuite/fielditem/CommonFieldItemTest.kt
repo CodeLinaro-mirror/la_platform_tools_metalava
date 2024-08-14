@@ -295,7 +295,9 @@ class CommonFieldItemTest : BaseModelTest() {
                     "field4" to "T",
                     "field5" to "java.util.Map.Entry<T!,java.lang.String!>",
                 )
-            for (field in codebase.assertClass("test.pkg.Foo").fields()) {
+            val fields = codebase.assertClass("test.pkg.Foo").fields()
+            assertEquals(expectedTypes.size, fields.size, message = "field count")
+            for (field in fields) {
                 val name = field.name()
                 val expectedType = expectedTypes[name]!!
                 // Compare the kotlin style format of the field to ensure that only the outermost
@@ -354,7 +356,9 @@ class CommonFieldItemTest : BaseModelTest() {
                     "field4" to "T?",
                     "field5" to "java.util.Map.Entry<T!,java.lang.String!>?",
                 )
-            for (field in codebase.assertClass("test.pkg.Foo").fields()) {
+            val fields = codebase.assertClass("test.pkg.Foo").fields()
+            assertEquals(expectedTypes.size, fields.size, message = "field count")
+            for (field in fields) {
                 val name = field.name()
                 val expectedType = expectedTypes[name]!!
                 // Compare the kotlin style format of the field to ensure that only the outermost
@@ -491,7 +495,9 @@ class CommonFieldItemTest : BaseModelTest() {
             val testClass = codebase.assertClass("test.pkg.Test")
 
             val minNormalBits = java.lang.Float.MIN_NORMAL.toBits()
-            for (field in testClass.fields()) {
+            val fields = testClass.fields()
+            assertEquals(3, fields.size, message = "field count")
+            for (field in fields) {
                 val value = field.initialValue(true) as Float
                 val valueBits = value.toBits()
                 assertEquals(

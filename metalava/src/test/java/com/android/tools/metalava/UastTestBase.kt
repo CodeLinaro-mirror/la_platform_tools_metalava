@@ -21,6 +21,7 @@ import com.android.tools.metalava.model.testing.FilterAction.EXCLUDE
 import com.android.tools.metalava.model.testing.FilterByProvider
 import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.model.text.FileFormat
+import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import org.junit.Test
@@ -469,9 +470,10 @@ abstract class UastTestBase : DriverTest() {
                         fun foo(p: Int) {}
                     """
                     ),
-                    requiresApiSource
+                    requiresApiSource,
+                    // Hide androidx.annotation classes.
+                    KnownSourceFiles.androidxAnnotationHide,
                 ),
-            extraArguments = arrayOf(ARG_HIDE_PACKAGE, "androidx.annotation"),
             api =
                 """
                 package test.pkg {
@@ -666,9 +668,11 @@ abstract class UastTestBase : DriverTest() {
                     ctor public PowerMetric.Type.Battery();
                   }
                   public static final class PowerMetric.Type.Energy extends test.pkg.PowerMetric.Type {
+                    ctor public PowerMetric.Type.Energy();
                     ctor public PowerMetric.Type.Energy(optional java.util.Map<test.pkg.PowerCategory,${upperBound}test.pkg.PowerCategoryDisplayLevel> energyCategories);
                   }
                   public static final class PowerMetric.Type.Power extends test.pkg.PowerMetric.Type {
+                    ctor public PowerMetric.Type.Power();
                     ctor public PowerMetric.Type.Power(optional java.util.Map<test.pkg.PowerCategory,${upperBound}test.pkg.PowerCategoryDisplayLevel> powerCategories);
                   }
                 }

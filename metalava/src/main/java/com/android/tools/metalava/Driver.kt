@@ -49,6 +49,8 @@ import com.android.tools.metalava.model.source.SourceParser
 import com.android.tools.metalava.model.source.SourceSet
 import com.android.tools.metalava.model.text.ApiClassResolution
 import com.android.tools.metalava.model.text.SignatureFile
+import com.android.tools.metalava.model.visitors.FilteringApiVisitor
+import com.android.tools.metalava.reporter.DefaultReporter
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
 import com.android.tools.metalava.stub.StubWriter
@@ -126,6 +128,16 @@ internal fun processFlags(
 
     val reporter = options.reporter
     val reporterApiLint = options.reporterApiLint
+
+    // A Reporter that will redirect issues to the appropriate reporter based on the issue's
+    // Category.
+    val codebaseReporter =
+        CategoryRedirectingReporter(
+            defaultReporter = reporter,
+            apiLintReporter = reporterApiLint,
+            compatibilityReporter = options.reporterCompatibilityReleased,
+        )
+
     val annotationManager = options.annotationManager
     val modelOptions =
         // If the option was specified on the command line then use [ModelOptions] created from
@@ -142,7 +154,7 @@ internal fun processFlags(
             ?: ModelOptions.empty
     val sourceParser =
         environmentManager.createSourceParser(
-            reporter = reporter,
+            reporter = codebaseReporter,
             annotationManager = annotationManager,
             javaLanguageLevel = options.javaLanguageLevelAsString,
             kotlinLanguageLevel = options.kotlinLanguageLevelAsString,
@@ -301,14 +313,16 @@ internal fun processFlags(
 
         createReportFile(progressTracker, codebase, apiFile, "API") { printWriter ->
             SignatureWriter(
-                writer = printWriter,
-                filterEmit = apiEmit,
-                filterReference = apiReference,
-                preFiltered = codebase.preFiltered,
-                fileFormat = options.signatureFileFormat,
-                showUnannotated = options.showUnannotated,
-                apiVisitorConfig = options.apiVisitorConfig
-            )
+                    writer = printWriter,
+                    fileFormat = options.signatureFileFormat,
+                )
+                .createFilteringVisitor(
+                    filterEmit = apiEmit,
+                    filterReference = apiReference,
+                    preFiltered = codebase.preFiltered,
+                    showUnannotated = options.showUnannotated,
+                    apiVisitorConfig = options.apiVisitorConfig
+                )
         }
     }
 
@@ -325,32 +339,36 @@ internal fun processFlags(
             options.deleteEmptyRemovedSignatures
         ) { printWriter ->
             SignatureWriter(
-                writer = printWriter,
-                filterEmit = removedEmit,
-                filterReference = removedReference,
-                preFiltered = false,
-                emitHeader = options.includeSignatureFormatVersionRemoved,
-                fileFormat = options.signatureFileFormat,
-                showUnannotated = options.showUnannotated,
-                apiVisitorConfig = options.apiVisitorConfig,
-            )
-        }
-    }
-
-    val apiPredicateConfigIgnoreShown = options.apiPredicateConfig.copy(ignoreShown = true)
-    val apiReferenceIgnoreShown = ApiPredicate(config = apiPredicateConfigIgnoreShown)
-    options.dexApiFile?.let { apiFile ->
-        val apiFilter = FilterPredicate(ApiPredicate())
-
-        createReportFile(progressTracker, codebase, apiFile, "DEX API") { printWriter ->
-            DexApiWriter(printWriter, apiFilter, apiReferenceIgnoreShown, options.apiVisitorConfig)
+                    writer = printWriter,
+                    emitHeader = options.includeSignatureFormatVersionRemoved,
+                    fileFormat = options.signatureFileFormat,
+                )
+                .createFilteringVisitor(
+                    filterEmit = removedEmit,
+                    filterReference = removedReference,
+                    preFiltered = false,
+                    showUnannotated = options.showUnannotated,
+                    apiVisitorConfig = options.apiVisitorConfig,
+                )
         }
     }
 
     options.proguard?.let { proguard ->
+        val apiPredicateConfigIgnoreShown = options.apiPredicateConfig.copy(ignoreShown = true)
+        val apiReferenceIgnoreShown = ApiPredicate(config = apiPredicateConfigIgnoreShown)
         val apiEmit = FilterPredicate(ApiPredicate())
         createReportFile(progressTracker, codebase, proguard, "Proguard file") { printWriter ->
-            ProguardWriter(printWriter, apiEmit, apiReferenceIgnoreShown)
+            ProguardWriter(printWriter).let { proguardWriter ->
+                FilteringApiVisitor(
+                    proguardWriter,
+                    preserveClassNesting = false,
+                    inlineInheritedFields = true,
+                    filterEmit = apiEmit,
+                    filterReference = apiReferenceIgnoreShown,
+                    preFiltered = codebase.preFiltered,
+                    config = options.apiVisitorConfig,
+                )
+            }
         }
     }
 
@@ -509,6 +527,7 @@ private fun ActionContext.checkCompatibility(
         apiType,
         options.reporterCompatibilityReleased,
         options.issueConfiguration,
+        options.apiCompatAnnotations,
     )
 }
 
@@ -748,12 +767,18 @@ private fun createStubFiles(
         StubWriter(
             stubsDir = stubDir,
             generateAnnotations = options.generateAnnotations,
-            preFiltered = codebase.preFiltered,
             docStubs = docStubs,
             reporter = options.reporter,
             config = stubWriterConfig,
         )
-    codebase.accept(stubWriter)
+
+    val filteringApiVisitor =
+        stubWriter.createFilteringVisitor(
+            preFiltered = codebase.preFiltered,
+            apiVisitorConfig = stubWriterConfig.apiVisitorConfig,
+        )
+
+    codebase.accept(filteringApiVisitor)
 
     if (docStubs) {
         // Overview docs? These are generally in the empty package.

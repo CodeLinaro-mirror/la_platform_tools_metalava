@@ -136,9 +136,9 @@ class AndroidApiChecksTest : DriverTest() {
             expectedFail = DefaultLintErrorMessage,
             expectedIssues =
                 """
-                src/android/pkg/IntentActionTest.java:30: error: Field 'BAR_FOO_ERROR_ACTION' is missing @SdkConstant(SdkConstantType.ACTIVITY_INTENT_ACTION) [SdkConstant]
                 src/android/pkg/IntentActionTest.java:19: error: Field 'FOO_BAR_ERROR_ACTION' is missing @BroadcastBehavior [BroadcastBehavior]
                 src/android/pkg/IntentActionTest.java:19: error: Field 'FOO_BAR_ERROR_ACTION' is missing @SdkConstant(SdkConstantType.BROADCAST_INTENT_ACTION) [SdkConstant]
+                src/android/pkg/IntentActionTest.java:30: error: Field 'BAR_FOO_ERROR_ACTION' is missing @SdkConstant(SdkConstantType.ACTIVITY_INTENT_ACTION) [SdkConstant]
                 """,
             sourceFiles =
                 arrayOf(
@@ -188,9 +188,9 @@ class AndroidApiChecksTest : DriverTest() {
         check(
             expectedIssues =
                 """
+                src/android/pkg/NullMentions.java:9: warning: Field 'field2' documentation mentions 'null' without declaring @NonNull or @Nullable [Nullable]
                 src/android/pkg/NullMentions.java:18: warning: Parameter 'param1' of 'method3' documentation mentions 'null' without declaring @NonNull or @Nullable [Nullable]
                 src/android/pkg/NullMentions.java:21: warning: Return value of 'method4' documentation mentions 'null' without declaring @NonNull or @Nullable [Nullable]
-                src/android/pkg/NullMentions.java:9: warning: Field 'field2' documentation mentions 'null' without declaring @NonNull or @Nullable [Nullable]
                 """,
             extraArguments = arrayOf(ARG_WARNING, "Nullable"), // Hidden by default
             sourceFiles =

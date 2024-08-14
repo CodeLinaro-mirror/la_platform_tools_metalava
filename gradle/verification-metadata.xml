@@ -3,15 +3,20 @@
    <configuration>
       <verify-metadata>true</verify-metadata>
       <verify-signatures>true</verify-signatures>
-      <key-servers enabled="false"/>
+      <keyring-format>armored</keyring-format>
+      <key-servers enabled="false">
+         <key-server uri="https://keyserver.ubuntu.com"/>
+         <key-server uri="https://keys.openpgp.org"/>
+      </key-servers>
       <trusted-artifacts>
          <trust group="androidx.databinding"/>
+         <trust group="com.android.tools.build" name="bundletool" reason="b/215430394"/>
+         <trust group="com.android.tools.build.jetifier" reason="b/215430394"/>
          <trust group="com.google.testing.platform"/>
          <trust group="gradle" name="gradle"/>
          <trust file=".*-javadoc[.]jar" regex="true"/>
          <trust file=".*-sources[.]jar" regex="true"/>
          <trust group="^androidx($|([.].*))" regex="true" reason="not signed yet"/>
-         <trust group="^com.android($|([.].*))" regex="true"/>
       </trusted-artifacts>
       <trusted-keys>
          <trusted-key id="03C123038C20AAE9E286C857479D601F3A7B5C1A" group="com.github.ajalt.clikt" name="clikt-jvm"/>
@@ -171,6 +176,22 @@
          <trusted-key id="E85AED155021AF8A6C6B7A4A7C7D8456294423BA" group="org.objenesis"/>
          <trusted-key id="EA23DB1360D9029481E7F2EFECDFEA3CB4493B94" group="jline"/>
          <trusted-key id="EB1B3DE71713C9EC2E87CC26EE92349AD86DE446" group="com.google.j2objc"/>
+         <trusted-key id="A5F483CD733A4EBAEA378B2AE88979FB9B30ACF2">
+            <trusting group="com.android"/>
+            <trusting group="com.android.databinding"/>
+            <trusting group="com.android.kotlin.multiplatform.library"/>
+            <trusting group="com.android.tools"/>
+            <trusting group="com.android.tools.analytics-library"/>
+            <trusting group="com.android.tools.build"/>
+            <trusting group="com.android.tools.build.jetifier"/>
+            <trusting group="com.android.tools.ddms"/>
+            <trusting group="com.android.tools.emulator"/>
+            <trusting group="com.android.tools.external.com-intellij"/>
+            <trusting group="com.android.tools.external.org-jetbrains"/>
+            <trusting group="com.android.tools.layoutlib"/>
+            <trusting group="com.android.tools.lint"/>
+            <trusting group="com.android.tools.utp"/>
+         </trusted-key>
          <trusted-key id="EE0CA873074092F806F59B65D364ABAA39A47320">
             <trusting group="com.google.errorprone"/>
             <trusting group="com.google.turbine"/>

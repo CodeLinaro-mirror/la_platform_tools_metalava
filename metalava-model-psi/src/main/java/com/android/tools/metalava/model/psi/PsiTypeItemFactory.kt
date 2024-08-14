@@ -16,9 +16,9 @@
 
 package com.android.tools.metalava.model.psi
 
+import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassTypeItem
-import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.ReferenceTypeItem
 import com.android.tools.metalava.model.TypeArgumentTypeItem
@@ -68,9 +68,9 @@ internal class PsiTypeItemFactory(
         return if (scope.isEmpty()) this else PsiTypeItemFactory(codebase, scope)
     }
 
-    /** Construct a [PsiTypeItemFactory] suitable for creating types within [methodItem]. */
-    fun from(methodItem: MethodItem): PsiTypeItemFactory {
-        val scope = TypeParameterScope.from(methodItem)
+    /** Construct a [PsiTypeItemFactory] suitable for creating types within [callableItem]. */
+    fun from(callableItem: CallableItem): PsiTypeItemFactory {
+        val scope = TypeParameterScope.from(callableItem)
         return if (scope.isEmpty()) this else PsiTypeItemFactory(codebase, scope)
     }
 
@@ -155,7 +155,7 @@ internal class PsiTypeItemFactory(
         // Compute the nullability, factoring in any context nullability, kotlin types and
         // type annotations.
         val nullability = contextNullability.compute(kotlinType?.nullability(), typeAnnotations)
-        return DefaultTypeModifiers.create(typeAnnotations.toMutableList(), nullability)
+        return DefaultTypeModifiers.create(typeAnnotations, nullability)
     }
 
     /** Create a [PsiTypeItem]. */
@@ -467,7 +467,7 @@ internal class PsiTypeItemFactory(
         // TODO(b/300081840): this drops annotations on the outer class
         return PsiNameHelper.getOuterClassReference(psiType.canonicalText).let { outerClassName ->
             // [PsiNameHelper.getOuterClassReference] returns an empty string if there is no
-            // outer class reference. If the type is not an inner type, it returns the package
+            // outer class reference. If the type is not a nested type, it returns the package
             // name (e.g. for "java.lang.String" it returns "java.lang").
             if (outerClassName == "" || codebase.findPsiPackage(outerClassName) != null) {
                 null
@@ -511,7 +511,7 @@ internal class PsiTypeItemFactory(
     /** If the type item is not nullable and is a boxed type then map it to the unboxed type. */
     private fun unboxTypeWherePossible(typeItem: TypeItem): TypeItem {
         if (
-            typeItem is ClassTypeItem && typeItem.modifiers.nullability() == TypeNullability.NONNULL
+            typeItem is ClassTypeItem && typeItem.modifiers.nullability == TypeNullability.NONNULL
         ) {
             boxedToPsiPrimitiveType[typeItem.qualifiedName]?.let { psiPrimitiveType ->
                 return createPrimitiveTypeItem(psiPrimitiveType, null)

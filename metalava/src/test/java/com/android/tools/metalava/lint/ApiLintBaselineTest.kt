@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.lint
 
-import com.android.tools.metalava.ARG_HIDE_PACKAGE
 import com.android.tools.metalava.DriverTest
 import com.android.tools.metalava.androidxNonNullSource
 import com.android.tools.metalava.androidxNullableSource
@@ -24,6 +23,7 @@ import com.android.tools.metalava.cli.common.ARG_HIDE
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.restrictToSource
+import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
 import org.junit.Test
 
@@ -224,8 +224,6 @@ class ApiLintBaselineTest : DriverTest() {
                 ),
             extraArguments =
                 arrayOf(
-                    ARG_HIDE_PACKAGE,
-                    "androidx",
                     ARG_HIDE,
                     "HiddenSuperclass",
                     ARG_HIDE,
@@ -288,6 +286,8 @@ class ApiLintBaselineTest : DriverTest() {
                     androidxNonNullSource,
                     androidxNullableSource,
                     restrictToSource,
+                    // Hide androidx.annotation classes.
+                    KnownSourceFiles.androidxAnnotationHide,
                 ),
         )
     }

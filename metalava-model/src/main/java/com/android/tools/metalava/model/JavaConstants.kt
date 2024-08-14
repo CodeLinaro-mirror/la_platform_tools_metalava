@@ -40,3 +40,5 @@ const val KT_RETENTION = "kotlin.annotation.Retention"
 /** True if the annotation name represents @Retention (either the Java or Kotlin version) */
 fun isRetention(qualifiedName: String?): Boolean =
     JAVA_RETENTION == qualifiedName || KT_RETENTION == qualifiedName
+
+const val JAVA_PACKAGE_INFO = "package-info.java"

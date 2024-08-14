@@ -18,17 +18,11 @@ package com.android.tools.metalava.model
 
 open class BaseItemVisitor(
     /**
-     * Whether constructors should be visited as part of a [#visitMethod] call instead of just a
-     * [#visitConstructor] call. Helps simplify visitors that don't care to distinguish between the
-     * two cases. Defaults to true.
-     */
-    val visitConstructorsAsMethods: Boolean = true,
-    /**
-     * Whether inner classes should be visited "inside" a class; when this property is true, inner
+     * Whether nested classes should be visited "inside" a class; when this property is true, nested
      * classes are visited before the [#afterVisitClass] method is called; when false, it's done
      * afterwards. Defaults to false.
      */
-    val nestInnerClasses: Boolean = false,
+    val preserveClassNesting: Boolean = false,
 ) : ItemVisitor {
     override fun visit(cls: ClassItem) {
         if (skip(cls)) {
@@ -68,20 +62,14 @@ open class BaseItemVisitor(
             }
         }
 
-        if (nestInnerClasses) {
-            for (innerCls in cls.innerClasses()) {
-                innerCls.accept(this)
+        if (preserveClassNesting) {
+            for (nestedCls in cls.nestedClasses()) {
+                nestedCls.accept(this)
             }
-        } // otherwise done below
+        } // otherwise done in visit(PackageItem)
 
         afterVisitClass(cls)
         afterVisitItem(cls)
-
-        if (!nestInnerClasses) {
-            for (innerCls in cls.innerClasses()) {
-                innerCls.accept(this)
-            }
-        }
     }
 
     override fun visit(field: FieldItem) {
@@ -91,34 +79,48 @@ open class BaseItemVisitor(
 
         visitItem(field)
         visitField(field)
-
-        afterVisitField(field)
         afterVisitItem(field)
     }
 
+    override fun visit(constructor: ConstructorItem) {
+        visitMethodOrConstructor(constructor) { visitConstructor(it) }
+    }
+
     override fun visit(method: MethodItem) {
-        if (skip(method)) {
+        visitMethodOrConstructor(method) { visitMethod(it) }
+    }
+
+    private inline fun <T : CallableItem> visitMethodOrConstructor(
+        callable: T,
+        dispatch: (T) -> Unit
+    ) {
+        if (skip(callable)) {
             return
         }
 
-        visitItem(method)
-        if (method.isConstructor()) {
-            visitConstructor(method as ConstructorItem)
-        } else {
-            visitMethod(method)
-        }
+        visitItem(callable)
+        visitCallable(callable)
 
-        for (parameter in method.parameters()) {
+        // Call the specific visitX method for the CallableItem subclass.
+        dispatch(callable)
+
+        for (parameter in callable.parameters()) {
             parameter.accept(this)
         }
 
-        if (method.isConstructor()) {
-            afterVisitConstructor(method as ConstructorItem)
-        } else {
-            afterVisitMethod(method)
-        }
-        afterVisitItem(method)
+        afterVisitItem(callable)
     }
+
+    /**
+     * Get the package's classes to visit directly.
+     *
+     * If nested classes are to appear as nested within their containing classes then this will just
+     * return the package's top level classes. It will then be the responsibility of
+     * `visit(ClassItem)` to visit the nested classes. Otherwise, this will return a flattened
+     * sequence of each class followed by its nested classes.
+     */
+    protected fun packageClassesAsSequence(pkg: PackageItem) =
+        if (preserveClassNesting) pkg.topLevelClasses().asSequence() else pkg.allClasses()
 
     override fun visit(pkg: PackageItem) {
         if (skip(pkg)) {
@@ -128,7 +130,7 @@ open class BaseItemVisitor(
         visitItem(pkg)
         visitPackage(pkg)
 
-        for (cls in pkg.topLevelClasses()) {
+        for (cls in packageClassesAsSequence(pkg)) {
             cls.accept(this)
         }
 
@@ -149,8 +151,6 @@ open class BaseItemVisitor(
 
         visitItem(parameter)
         visitParameter(parameter)
-
-        afterVisitParameter(parameter)
         afterVisitItem(parameter)
     }
 
@@ -161,8 +161,6 @@ open class BaseItemVisitor(
 
         visitItem(property)
         visitProperty(property)
-
-        afterVisitProperty(property)
         afterVisitItem(property)
     }
 
@@ -180,15 +178,13 @@ open class BaseItemVisitor(
 
     open fun visitClass(cls: ClassItem) {}
 
-    open fun visitConstructor(constructor: ConstructorItem) {
-        if (visitConstructorsAsMethods) {
-            visitMethod(constructor)
-        }
-    }
+    open fun visitCallable(callable: CallableItem) {}
 
-    open fun visitField(field: FieldItem) {}
+    open fun visitConstructor(constructor: ConstructorItem) {}
 
     open fun visitMethod(method: MethodItem) {}
+
+    open fun visitField(field: FieldItem) {}
 
     open fun visitParameter(parameter: ParameterItem) {}
 
@@ -201,18 +197,4 @@ open class BaseItemVisitor(
     open fun afterVisitPackage(pkg: PackageItem) {}
 
     open fun afterVisitClass(cls: ClassItem) {}
-
-    open fun afterVisitConstructor(constructor: ConstructorItem) {
-        if (visitConstructorsAsMethods) {
-            afterVisitMethod(constructor)
-        }
-    }
-
-    open fun afterVisitField(field: FieldItem) {}
-
-    open fun afterVisitMethod(method: MethodItem) {}
-
-    open fun afterVisitParameter(parameter: ParameterItem) {}
-
-    open fun afterVisitProperty(property: PropertyItem) {}
 }

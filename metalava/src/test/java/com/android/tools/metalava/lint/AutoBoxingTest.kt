@@ -35,11 +35,11 @@ class AutoBoxingTest : DriverTest() {
                 """
                 src/test/pkg/KotlinClass.kt:4: error: Must avoid boxed primitives (`java.lang.Double`) [AutoBoxing]
                 src/test/pkg/KotlinClass.kt:6: error: Must avoid boxed primitives (`java.lang.Boolean`) [AutoBoxing]
-                src/test/pkg/MyClass.java:9: error: Must avoid boxed primitives (`java.lang.Long`) [AutoBoxing]
-                src/test/pkg/MyClass.java:12: error: Must avoid boxed primitives (`java.lang.Short`) [AutoBoxing]
-                src/test/pkg/MyClass.java:12: error: Must avoid boxed primitives (`java.lang.Double`) [AutoBoxing]
-                src/test/pkg/MyClass.java:14: error: Must avoid boxed primitives (`java.lang.Boolean`) [AutoBoxing]
                 src/test/pkg/MyClass.java:7: error: Must avoid boxed primitives (`java.lang.Integer`) [AutoBoxing]
+                src/test/pkg/MyClass.java:9: error: Must avoid boxed primitives (`java.lang.Long`) [AutoBoxing]
+                src/test/pkg/MyClass.java:12: error: Must avoid boxed primitives (`java.lang.Double`) [AutoBoxing]
+                src/test/pkg/MyClass.java:12: error: Must avoid boxed primitives (`java.lang.Short`) [AutoBoxing]
+                src/test/pkg/MyClass.java:14: error: Must avoid boxed primitives (`java.lang.Boolean`) [AutoBoxing]
                 """,
             expectedFail = DefaultLintErrorMessage,
             sourceFiles =

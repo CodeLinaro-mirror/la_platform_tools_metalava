@@ -298,7 +298,7 @@ class ApiFileTest : BaseTextCodebaseTest() {
     /** Dump the package structure of [codebase] to a string for easy comparison. */
     private fun dumpPackageStructure(codebase: Codebase) = buildString {
         codebase.getPackages().packages.map { packageItem ->
-            append("${packageItem.qualifiedName()}\n")
+            append("${packageItem.qualifiedName().let {if (it == "") "<root>" else it}}\n")
             for (classItem in packageItem.allClasses()) {
                 append("    ${classItem.qualifiedName()}\n")
             }
@@ -312,6 +312,7 @@ class ApiFileTest : BaseTextCodebaseTest() {
 
             assertEquals(
                 """
+                    <root>
                     test.pkg
                         test.pkg.Outer
                         test.pkg.Outer.Middle
@@ -540,6 +541,7 @@ class ApiFileTest : BaseTextCodebaseTest() {
 
         assertEquals(
             """
+                package <root>
                 package test.pkg
                 class test.pkg.Foo
                 constructor test.pkg.Foo.Foo(int)

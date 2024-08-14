@@ -58,8 +58,10 @@ class SignatureToJDiffCommand :
         option(
                 help =
                     """
-                        Determines whether duplicate inherited methods should be stripped from the
-                        output or not.
+                        Determines whether types that are not defined within the input signature
+                        file should be stripped from the output or not. This does not include
+                        super class types, i.e. the `extends` attribute in the generated JDiff file.
+                        Historically, they have not been filtered.
                     """
                         .trimIndent()
             )
@@ -160,14 +162,17 @@ class SignatureToJDiffCommand :
         val apiName = xmlFile.nameWithoutExtension.replace(' ', '_')
         createReportFile(progressTracker, outputApi, xmlFile, "JDiff File") { printWriter ->
             JDiffXmlWriter(
-                printWriter,
-                apiEmit,
-                apiReference,
-                signatureApi.preFiltered && !strip,
-                apiName,
-                showUnannotated = false,
-                ApiVisitor.Config(),
-            )
+                    writer = printWriter,
+                    apiName = apiName,
+                )
+                .createFilteringVisitor(
+                    filterEmit = apiEmit,
+                    filterReference = apiReference,
+                    preFiltered = signatureApi.preFiltered && !strip,
+                    showUnannotated = false,
+                    // Historically, the super class type has not been filtered.
+                    filterSuperClassType = false,
+                )
         }
     }
 }

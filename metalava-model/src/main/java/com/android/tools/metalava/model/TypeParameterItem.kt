@@ -25,6 +25,9 @@ interface TypeParameterItem : Item {
     /** The [VariableTypeItem] representing the type of this type parameter. */
     override fun type(): VariableTypeItem
 
+    override fun setType(type: TypeItem) =
+        error("Cannot call setType(TypeItem) on TypeParameterItem: $this")
+
     fun typeBounds(): List<BoundsTypeItem>
 
     /**
@@ -60,6 +63,17 @@ interface TypeParameterItem : Item {
                 }
             }
         }
+    }
+
+    override fun equalsToItem(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is TypeParameterItem) return false
+
+        return name() == other.name()
+    }
+
+    override fun hashCodeForItem(): Int {
+        return name().hashCode()
     }
 
     override fun toStringForItem(): String =

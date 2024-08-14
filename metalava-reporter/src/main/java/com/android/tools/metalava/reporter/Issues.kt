@@ -30,11 +30,13 @@ object Issues {
     val PARSE_ERROR by Issue(Severity.ERROR)
     val DUPLICATE_SOURCE_CLASS by Issue(Severity.WARNING)
     // Compatibility issues
+    val ADDED_ANNOTATION by Issue(Severity.ERROR, Category.COMPATIBILITY)
     val ADDED_PACKAGE by Issue(Severity.HIDDEN, Category.COMPATIBILITY)
     val ADDED_CLASS by Issue(Severity.HIDDEN, Category.COMPATIBILITY)
     val ADDED_METHOD by Issue(Severity.HIDDEN, Category.COMPATIBILITY)
     val ADDED_FIELD by Issue(Severity.HIDDEN, Category.COMPATIBILITY)
     val ADDED_INTERFACE by Issue(Severity.HIDDEN, Category.COMPATIBILITY)
+    val REMOVED_ANNOTATION by Issue(Severity.ERROR, Category.COMPATIBILITY)
     val REMOVED_PACKAGE by Issue(Severity.ERROR, Category.COMPATIBILITY)
     val REMOVED_CLASS by Issue(Severity.ERROR, Category.COMPATIBILITY)
     val REMOVED_METHOD by Issue(Severity.ERROR, Category.COMPATIBILITY)

@@ -52,20 +52,23 @@ class ModelTestSuiteRunner(clazz: Class<*>) :
             if (modelSuiteRunners.isEmpty()) {
                 fail("No runners found")
             }
-            val runner = modelSuiteRunners.single()
 
-            return runner.testConfigurations.map {
-                CodebaseCreatorConfig(
-                    creator = runner,
-                    inputFormat = it.inputFormat,
-                    modelOptions = it.modelOptions,
-                    // There is only a single runner for a single provider so ignore the
-                    // provider name.
-                    includeProviderNameInTestName = false,
-                    // Only include the input format in the test name if the runner supports
-                    // more than one.
-                    includeInputFormatInTestName = runner.supportedInputFormats.size > 1,
-                )
+            // If there is only a single runner for a single provider then ignore the provider name,
+            // otherwise include it.
+            val includeProviderNameInTestName = modelSuiteRunners.size > 1
+
+            return modelSuiteRunners.flatMap { runner ->
+                runner.testConfigurations.map {
+                    CodebaseCreatorConfig(
+                        creator = runner,
+                        inputFormat = it.inputFormat,
+                        modelOptions = it.modelOptions,
+                        includeProviderNameInTestName = includeProviderNameInTestName,
+                        // Only include the input format in the test name if the runner supports
+                        // more than one.
+                        includeInputFormatInTestName = runner.supportedInputFormats.size > 1,
+                    )
+                }
             }
         }
     }

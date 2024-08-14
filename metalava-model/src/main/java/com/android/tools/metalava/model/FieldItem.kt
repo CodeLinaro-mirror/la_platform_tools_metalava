@@ -19,7 +19,7 @@ package com.android.tools.metalava.model
 import java.io.PrintWriter
 
 @MetalavaApi
-interface FieldItem : MemberItem {
+interface FieldItem : MemberItem, InheritableItem {
     /** The property this field backs; inverse of [PropertyItem.backingField] */
     val property: PropertyItem?
         get() = null
@@ -56,6 +56,17 @@ interface FieldItem : MemberItem {
 
     override fun accept(visitor: ItemVisitor) {
         visitor.visit(this)
+    }
+
+    override fun equalsToItem(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is FieldItem) return false
+
+        return name() == other.name() && containingClass() == other.containingClass()
+    }
+
+    override fun hashCodeForItem(): Int {
+        return name().hashCode()
     }
 
     override fun toStringForItem() = "field ${containingClass().fullName()}.${name()}"
@@ -98,6 +109,13 @@ interface FieldItem : MemberItem {
         val comparator: java.util.Comparator<FieldItem> = Comparator { a, b ->
             a.name().compareTo(b.name())
         }
+
+        /**
+         * Comparator that will order [FieldItem]s such that those for which
+         * [FieldItem.isEnumConstant] returns `true` will come before those for which it is `false`.
+         */
+        val comparatorEnumConstantFirst =
+            Comparator.comparing(FieldItem::isEnumConstant).reversed().thenComparing(comparator)
     }
 
     /**

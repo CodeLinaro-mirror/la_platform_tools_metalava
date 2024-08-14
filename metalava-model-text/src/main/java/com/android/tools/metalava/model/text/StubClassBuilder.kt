@@ -16,27 +16,24 @@
 
 package com.android.tools.metalava.model.text
 
+import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.DefaultModifierList
-import com.android.tools.metalava.model.bestGuessAtFullName
+import com.android.tools.metalava.model.TypeParameterList
+import com.android.tools.metalava.model.item.DefaultClassItem
+import com.android.tools.metalava.reporter.FileLocation
 
 /**
- * A builder for stub classes, i.e. [TextClassItem]s fabricated because [ApiFile] has no definition
- * of the class but a [TextClassItem] is still needed.
+ * A builder for stub classes, i.e. [DefaultClassItem]s fabricated because [ApiFile] has no
+ * definition of the class but a [DefaultClassItem] is still needed.
  */
 internal class StubClassBuilder(
     val codebase: TextCodebase,
     val qualifiedName: String,
+    private val fullName: String,
+    private val containingClass: ClassItem?,
 ) {
-    /**
-     * The full name can be ambiguous in theory, but where the naming conventions for packages and
-     * classes are followed it is not. So, assuming that the conventions are followed then produce
-     * the best guess for the full name. This is not really that important as the full name only
-     * really affects the partial ordering of some classes, like in a `throws` list.
-     */
-    val fullName: String = bestGuessAtFullName(qualifiedName)
-
     /** The default [ClassKind] can be modified. */
     var classKind = ClassKind.CLASS
 
@@ -45,27 +42,38 @@ internal class StubClassBuilder(
 
     var superClassType: ClassTypeItem? = null
 
-    private fun build(): TextClassItem =
-        TextClassItem(
-                codebase = codebase,
+    private fun build(): DefaultClassItem =
+        codebase.itemFactory
+            .createClassItem(
+                fileLocation = FileLocation.UNKNOWN,
+                modifiers = modifiers,
+                classKind = classKind,
                 qualifiedName = qualifiedName,
                 fullName = fullName,
-                classKind = classKind,
-                modifiers = modifiers,
+                containingClass = containingClass,
+                typeParameterList = TypeParameterList.NONE,
             )
             .also { item -> item.setSuperClassType(superClassType) }
 
     companion object {
         /**
-         * Create a [TextClassItem] in the specified [codebase] and with the specific
+         * Create a [DefaultClassItem] in the specified [codebase] and with the specific
          * [qualifiedName], after applying the specified mutator.
          */
         fun build(
             codebase: TextCodebase,
             qualifiedName: String,
+            fullName: String,
+            containingClass: ClassItem?,
             mutator: StubClassBuilder.() -> Unit
-        ): TextClassItem {
-            val builder = StubClassBuilder(codebase, qualifiedName)
+        ): DefaultClassItem {
+            val builder =
+                StubClassBuilder(
+                    codebase = codebase,
+                    qualifiedName = qualifiedName,
+                    fullName = fullName,
+                    containingClass = containingClass,
+                )
             builder.mutator()
             return builder.build()
         }

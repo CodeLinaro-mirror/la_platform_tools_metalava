@@ -527,24 +527,24 @@ class BinaryCompatibilityClassesTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                load-api.txt:4: error: Constructor test.pkg.Foo has removed 'final' qualifier [RemovedFinalStrict]
-            """,
+                    load-api.txt:4: error: Method test.pkg.Foo.foo has removed 'final' qualifier [RemovedFinalStrict]
+                """,
             signatureSource =
                 """
-                package test.pkg {
-                    public class Foo {
-                        ctor public Foo();
+                    package test.pkg {
+                        public class Foo {
+                            method public void foo();
+                        }
                     }
-                }
-            """,
+                """,
             checkCompatibilityApiReleased =
                 """
-                package test.pkg {
-                    public final class Foo {
-                        ctor public Foo();
+                    package test.pkg {
+                        public final class Foo {
+                            method public void foo();
+                        }
                     }
-                }
-            """
+                """
         )
     }
 
@@ -554,7 +554,6 @@ class BinaryCompatibilityClassesTest : DriverTest() {
             expectedIssues =
                 """
                 load-api.txt:3: error: Class test.pkg.Foo added 'final' qualifier [AddedFinal]
-                load-api.txt:4: error: Constructor test.pkg.Foo has added 'final' qualifier [AddedFinal]
             """,
             signatureSource =
                 """

@@ -19,33 +19,21 @@ package com.android.tools.metalava
 import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ConstructorItem
+import com.android.tools.metalava.model.DelegatedVisitor
 import com.android.tools.metalava.model.FieldItem
-import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.VisibilityLevel
-import com.android.tools.metalava.model.visitors.ApiVisitor
 import java.io.PrintWriter
-import java.util.function.Predicate
 
 class ProguardWriter(
     private val writer: PrintWriter,
-    filterEmit: Predicate<Item>,
-    filterReference: Predicate<Item>
-) :
-    ApiVisitor(
-        visitConstructorsAsMethods = false,
-        nestInnerClasses = false,
-        inlineInheritedFields = true,
-        filterEmit = filterEmit,
-        filterReference = filterReference,
-        config = @Suppress("DEPRECATION") options.apiVisitorConfig,
-    ) {
+) : DelegatedVisitor {
 
     override fun visitClass(cls: ClassItem) {
         writer.print("-keep class ")
-        writer.print(cls.qualifiedNameWithDollarInnerClasses())
+        writer.print(cls.qualifiedNameWithDollarNestedClasses())
         writer.print(" {\n")
     }
 
@@ -132,6 +120,6 @@ class ProguardWriter(
         t ?: return ""
         if (t is ArrayTypeItem) return getCleanTypeName(t.componentType) + "[]"
         val cls = t.asClass() ?: return t.toCanonicalType()
-        return cls.qualifiedNameWithDollarInnerClasses()
+        return cls.qualifiedNameWithDollarNestedClasses()
     }
 }

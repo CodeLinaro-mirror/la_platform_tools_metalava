@@ -61,6 +61,7 @@ if (!System.getenv("INTEGRATION").isNullOrBlank()) {
 include(":metalava")
 include(":metalava-model")
 include(":metalava-model-psi")
+include(":metalava-model-snapshot-testing")
 include(":metalava-model-source")
 include(":metalava-model-testsuite")
 include(":metalava-model-testsuite-cli")

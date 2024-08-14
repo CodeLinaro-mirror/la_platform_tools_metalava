@@ -19,5 +19,4 @@ package com.android.tools.metalava.model.psi
 internal data class PackageDocs(
     val packageDocs: MutableMap<String, String>,
     val overviewDocs: MutableMap<String, String>,
-    val hiddenPackages: MutableSet<String>
 )

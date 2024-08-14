@@ -19,6 +19,7 @@ package com.android.tools.metalava
 import com.android.tools.metalava.cli.common.ARG_WARNING
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.reporter.Issues
+import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
 import org.junit.Test
 
@@ -55,15 +56,11 @@ class AnnotationsMergerTest : DriverTest() {
                     uiThreadSource,
                     intRangeAnnotationSource,
                     androidxNonNullSource,
-                    androidxNullableSource
-                ),
-            // Skip the annotations themselves from the output
-            extraArguments =
-                arrayOf(
-                    ARG_HIDE_PACKAGE,
-                    "android.annotation",
-                    ARG_HIDE_PACKAGE,
-                    "androidx.annotation",
+                    androidxNullableSource,
+                    // Hide android.annotation classes.
+                    KnownSourceFiles.androidAnnotationHide,
+                    // Hide androidx.annotation classes.
+                    KnownSourceFiles.androidxAnnotationHide,
                 ),
             api =
                 """
@@ -204,7 +201,9 @@ class AnnotationsMergerTest : DriverTest() {
                     """
                     ),
                     libcoreNonNullSource,
-                    libcoreNullableSource
+                    libcoreNullableSource,
+                    // Hide libcore.util classes.
+                    KnownSourceFiles.libcodeUtilHide,
                 ),
             mergeJavaStubAnnotations =
                 """
@@ -229,8 +228,6 @@ class AnnotationsMergerTest : DriverTest() {
                 """,
             extraArguments =
                 arrayOf(
-                    ARG_HIDE_PACKAGE,
-                    "libcore.util",
                     ARG_WARNING,
                     Issues.UNMATCHED_MERGE_ANNOTATION.name,
                 ),
@@ -313,7 +310,6 @@ class AnnotationsMergerTest : DriverTest() {
                   }
                 }
                 """,
-            extraArguments = arrayOf(ARG_HIDE_PACKAGE, "libcore.util")
         )
     }
 
@@ -335,7 +331,9 @@ class AnnotationsMergerTest : DriverTest() {
                 """
                     ),
                     libcoreNonNullSource,
-                    libcoreNullableSource
+                    libcoreNullableSource,
+                    // Hide libcore.util classes.
+                    KnownSourceFiles.libcodeUtilHide,
                 ),
             mergeJavaStubAnnotations =
                 """
@@ -353,7 +351,6 @@ class AnnotationsMergerTest : DriverTest() {
                   }
                 }
                 """,
-            extraArguments = arrayOf(ARG_HIDE_PACKAGE, "libcore.util")
         )
     }
 
@@ -380,7 +377,9 @@ class AnnotationsMergerTest : DriverTest() {
                     """
                     ),
                     libcoreNonNullSource,
-                    libcoreNullableSource
+                    libcoreNullableSource,
+                    // Hide libcore.util classes.
+                    KnownSourceFiles.libcodeUtilHide,
                 ),
             mergeJavaStubAnnotations =
                 """
@@ -402,7 +401,6 @@ class AnnotationsMergerTest : DriverTest() {
                   }
                 }
                 """,
-            extraArguments = arrayOf(ARG_HIDE_PACKAGE, "libcore.util")
         )
     }
 

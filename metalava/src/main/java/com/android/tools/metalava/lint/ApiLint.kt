@@ -53,11 +53,13 @@ import com.android.tools.metalava.lint.ResourceType.XML
 import com.android.tools.metalava.manifest.Manifest
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ArrayTypeItem
+import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.FieldItem
+import com.android.tools.metalava.model.InheritableItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.JAVA_LANG_DEPRECATED
 import com.android.tools.metalava.model.JAVA_LANG_THROWABLE
@@ -74,8 +76,6 @@ import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.findAnnotation
 import com.android.tools.metalava.model.hasAnnotation
-import com.android.tools.metalava.model.psi.PsiFileLocation
-import com.android.tools.metalava.model.psi.PsiMethodItem
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.options
 import com.android.tools.metalava.reporter.FileLocation
@@ -179,21 +179,10 @@ import com.android.tools.metalava.reporter.Issues.VISIBLY_SYNCHRONIZED
 import com.android.tools.metalava.reporter.Reportable
 import com.android.tools.metalava.reporter.Reporter
 import com.android.tools.metalava.reporter.Severity
-import com.intellij.psi.JavaRecursiveElementVisitor
-import com.intellij.psi.PsiClassObjectAccessExpression
-import com.intellij.psi.PsiElement
-import com.intellij.psi.PsiSynchronizedStatement
-import com.intellij.psi.PsiThisExpression
 import java.io.StringWriter
 import java.util.Locale
 import java.util.function.Predicate
 import org.jetbrains.kotlin.util.capitalizeDecapitalize.toUpperCaseAsciiOnly
-import org.jetbrains.uast.UCallExpression
-import org.jetbrains.uast.UClassLiteralExpression
-import org.jetbrains.uast.UMethod
-import org.jetbrains.uast.UQualifiedReferenceExpression
-import org.jetbrains.uast.UThisExpression
-import org.jetbrains.uast.visitor.AbstractUastVisitor
 
 /**
  * The [ApiLint] analyzer checks the API against a known set of preferred API practices by the
@@ -215,7 +204,7 @@ private constructor(
         filterReference = ApiType.PUBLIC_API.getReferenceFilter(config.apiPredicateConfig),
         config = config,
         // Sort by source order such that warnings follow source line number order.
-        methodComparator = MethodItem.sourceOrderComparator,
+        callableComparator = CallableItem.sourceOrderComparator,
     ) {
 
     /** Predicate that checks if the item appears in the signature file. */
@@ -255,7 +244,7 @@ private constructor(
 
                 // With show annotations we might be flagging API that is filtered out: hide these
                 // here
-                val testItem = if (item is ParameterItem) item.containingMethod() else item
+                val testItem = if (item is ParameterItem) item.containingCallable() else item
                 if (!filterEmit.test(testItem)) {
                     return false
                 }
@@ -367,23 +356,40 @@ private constructor(
         val constructors = cls.filteredConstructors(filterReference)
         val superClass = cls.filteredSuperclass(filterReference)
         val interfaces = cls.filteredInterfaceTypes(filterReference).asSequence()
-        val allMethods = methods.asSequence() + constructors.asSequence()
+        val allCallables = methods.asSequence() + constructors.asSequence()
         reporter.withContext(cls) {
-            checkClass(cls, methods, constructors, allMethods, fields, superClass, interfaces)
+            checkClass(cls, methods, constructors, allCallables, fields, superClass, interfaces)
+        }
+    }
+
+    override fun visitCallable(callable: CallableItem) {
+        reporter.withContext(callable) {
+            checkExceptions(callable, filterReference)
+            checkContextFirst(callable)
+            checkListenerLast(callable)
+            checkHasFlaggedApi(callable)
+            checkFlaggedApiLiteral(callable)
+            val returnType = callable.returnType()
+            checkType(returnType, callable)
+            checkNullableCollections(returnType, callable)
+            for (parameter in callable.parameters()) {
+                checkType(parameter.type(), parameter)
+            }
+            checkParameterOrder(callable)
         }
     }
 
     override fun visitMethod(method: MethodItem) {
         reporter.withContext(method) {
-            checkMethod(method, filterReference)
-            val returnType = method.returnType()
-            checkType(returnType, method)
-            checkNullableCollections(returnType, method)
-            checkMethodSuffixListenableFutureReturn(returnType, method)
-            for (parameter in method.parameters()) {
-                checkType(parameter.type(), parameter)
-            }
-            checkParameterOrder(method)
+            checkMethodNames(method)
+            checkProtected(method)
+            checkSynchronized(method)
+            checkIntentBuilder(method)
+            checkUnits(method)
+            checkTense(method)
+            checkClone(method)
+            checkCallbackOrListenerMethod(method)
+            checkMethodSuffixListenableFutureReturn(method)
             kotlinInterop.checkMethod(method)
         }
     }
@@ -414,7 +420,7 @@ private constructor(
         cls: ClassItem,
         methods: Sequence<MethodItem>,
         constructors: Sequence<ConstructorItem>,
-        methodsAndConstructors: Sequence<MethodItem>,
+        callables: Sequence<CallableItem>,
         fields: Sequence<FieldItem>,
         superClass: ClassItem?,
         interfaces: Sequence<TypeItem>
@@ -430,16 +436,16 @@ private constructor(
         checkBuilder(cls, methods, constructors, superClass, interfaces)
         checkAidl(cls, superClass, interfaces)
         checkInternal(cls)
-        checkLayering(cls, methodsAndConstructors, fields)
+        checkLayering(cls, callables, fields)
         checkBooleans(methods)
         checkFlags(fields)
         checkGoogle(cls, methods, fields)
         checkManager(cls, methods, constructors)
         checkStaticUtils(cls, methods, constructors, fields)
-        checkCallbackHandlers(cls, methodsAndConstructors, superClass)
+        checkCallbackHandlers(cls, callables, superClass)
         checkGenericCallbacks(cls, methods, constructors, fields)
         checkResourceNames(cls, fields)
-        checkFiles(methodsAndConstructors)
+        checkFiles(callables)
         checkManagerList(cls, methods)
         checkAbstractInner(cls)
         checkError(cls, superClass)
@@ -469,24 +475,6 @@ private constructor(
         checkNullableCollections(field.type(), field)
         checkHasFlaggedApi(field)
         checkFlaggedApiLiteral(field)
-    }
-
-    private fun checkMethod(method: MethodItem, filterReference: Predicate<Item>) {
-        if (!method.isConstructor()) {
-            checkMethodNames(method)
-            checkProtected(method)
-            checkSynchronized(method)
-            checkIntentBuilder(method)
-            checkUnits(method)
-            checkTense(method)
-            checkClone(method)
-            checkCallbackOrListenerMethod(method)
-        }
-        checkExceptions(method, filterReference)
-        checkContextFirst(method)
-        checkListenerLast(method)
-        checkHasFlaggedApi(method)
-        checkFlaggedApiLiteral(method)
     }
 
     private fun checkFlaggedApiLiteral(item: Item) {
@@ -694,7 +682,7 @@ private constructor(
     }
 
     private fun checkCallbackOrListenerMethod(method: MethodItem) {
-        if (method.isConstructor() || method.modifiers.isStatic() || method.modifiers.isFinal()) {
+        if (method.modifiers.isStatic() || method.modifiers.isFinal()) {
             return
         }
         val cls = method.containingClass()
@@ -908,7 +896,7 @@ private constructor(
     private fun checkParcelable(
         cls: ClassItem,
         methods: Sequence<MethodItem>,
-        constructors: Sequence<MethodItem>,
+        constructors: Sequence<ConstructorItem>,
         fields: Sequence<FieldItem>
     ) {
         if (!cls.implements("android.os.Parcelable")) {
@@ -1076,64 +1064,36 @@ private constructor(
     }
 
     private fun checkSynchronized(method: MethodItem) {
-        fun reportError(method: MethodItem, psi: PsiElement? = null) {
+
+        /**
+         * Report an error.
+         *
+         * @param synchronizedStatementLocation an optional [FileLocation] of the synchronized
+         *   statement that is the root of the problem.
+         */
+        fun reportError(synchronizedStatementLocation: FileLocation? = null) {
             val message = StringBuilder("Internal locks must not be exposed")
-            if (psi != null) {
+            if (synchronizedStatementLocation != null) {
                 message.append(" (synchronizing on this or class is still externally observable)")
             }
             message.append(": ")
             message.append(method.describe())
-            val location = PsiFileLocation.fromPsiElement(psi)
+            val location = synchronizedStatementLocation ?: FileLocation.UNKNOWN
             report(VISIBLY_SYNCHRONIZED, method, message.toString(), location)
         }
 
         if (method.modifiers.isSynchronized()) {
-            reportError(method)
-        } else if (method is PsiMethodItem) {
-            val psiMethod = method.psiMethod
-            if (psiMethod is UMethod) {
-                psiMethod.accept(
-                    object : AbstractUastVisitor() {
-                        override fun afterVisitCallExpression(node: UCallExpression) {
-                            super.afterVisitCallExpression(node)
+            // The synchronizing is being done implicitly bny the method so there is no more
+            // specific location to provide.
+            reportError()
+        } else {
+            // Find any visible synchronized statements in the method body.
+            val synchronizedLocations = method.body.findVisiblySynchronizedLocations()
 
-                            if (node.methodName == "synchronized" && node.receiver == null) {
-                                val arg = node.valueArguments.firstOrNull()
-                                if (
-                                    arg is UThisExpression ||
-                                        arg is UClassLiteralExpression ||
-                                        arg is UQualifiedReferenceExpression &&
-                                            arg.receiver is UClassLiteralExpression
-                                ) {
-                                    reportError(
-                                        method,
-                                        arg.sourcePsi ?: node.sourcePsi ?: node.javaPsi
-                                    )
-                                }
-                            }
-                        }
-                    }
-                )
-            } else {
-                psiMethod.body?.accept(
-                    object : JavaRecursiveElementVisitor() {
-                        override fun visitSynchronizedStatement(
-                            statement: PsiSynchronizedStatement
-                        ) {
-                            super.visitSynchronizedStatement(statement)
-
-                            val lock = statement.lockExpression
-                            if (
-                                lock == null ||
-                                    lock is PsiThisExpression ||
-                                    // locking on any class is visible
-                                    lock is PsiClassObjectAccessExpression
-                            ) {
-                                reportError(method, lock ?: statement)
-                            }
-                        }
-                    }
-                )
+            for (location in synchronizedLocations) {
+                // Report the location of the synchronized statement that is synchronizing on
+                // `this` or the `class` object and causing the problem.
+                reportError(location)
             }
         }
     }
@@ -1423,7 +1383,7 @@ private constructor(
 
     private fun checkLayering(
         cls: ClassItem,
-        methodsAndConstructors: Sequence<MethodItem>,
+        callables: Sequence<CallableItem>,
         fields: Sequence<FieldItem>
     ) {
         fun packageRank(pkg: PackageItem): Int {
@@ -1485,8 +1445,8 @@ private constructor(
             }
         }
 
-        for (method in methodsAndConstructors) {
-            val returnType = method.returnType()
+        for (callable in callables) {
+            val returnType = callable.returnType()
             val returnTypeRank = getTypeRank(returnType)
             if (returnTypeRank != -1 && returnTypeRank < classRank) {
                 report(
@@ -1498,7 +1458,7 @@ private constructor(
                 )
             }
 
-            for (parameter in method.parameters()) {
+            for (parameter in callable.parameters()) {
                 val parameterTypeRank = getTypeRank(parameter.type())
                 if (parameterTypeRank != -1 && parameterTypeRank < classRank) {
                     report(
@@ -1717,8 +1677,8 @@ private constructor(
                 is MethodItem -> item.findPredicateSuperMethod(filterReference)
                 is ParameterItem ->
                     item
-                        .containingMethod()
-                        .findPredicateSuperMethod(filterReference)
+                        .possibleContainingMethod()
+                        ?.findPredicateSuperMethod(filterReference)
                         ?.parameters()
                         ?.find { it.parameterIndex == item.parameterIndex }
                 else -> null
@@ -1837,14 +1797,14 @@ private constructor(
         }
     }
 
-    private fun checkExceptions(method: MethodItem, filterReference: Predicate<Item>) {
-        for (throwableType in method.filteredThrowsTypes(filterReference)) {
+    private fun checkExceptions(callable: CallableItem, filterReference: Predicate<Item>) {
+        for (throwableType in callable.filteredThrowsTypes(filterReference)) {
             // Get the throwable class, which for a type parameter will be the lower bound. A
             // method that throws a type parameter is treated as if it throws its lower bound, so
             // it makes sense for this check to treat it as if it was replaced with its lower bound.
             val throwableClass = throwableType.erasedClass ?: continue
             if (isUncheckedException(throwableClass)) {
-                report(BANNED_THROW, method, "Methods must not throw unchecked exceptions")
+                report(BANNED_THROW, callable, "Methods must not throw unchecked exceptions")
             } else if (throwableType is VariableTypeItem) {
                 // Preserve legacy behavior where the following check did nothing for type
                 // parameters as a type parameters qualifiedName(), which is just its name without
@@ -1856,12 +1816,12 @@ private constructor(
                     "java.lang.Error" -> {
                         report(
                             GENERIC_EXCEPTION,
-                            method,
+                            callable,
                             "Methods must not throw generic exceptions (`$qualifiedName`)"
                         )
                     }
                     "android.os.RemoteException" -> {
-                        when (method.containingClass().qualifiedName()) {
+                        when (callable.containingClass().qualifiedName()) {
                             "android.content.ContentProviderClient",
                             "android.os.Binder",
                             "android.os.IBinder" -> {
@@ -1870,7 +1830,7 @@ private constructor(
                             else -> {
                                 report(
                                     RETHROW_REMOTE_EXCEPTION,
-                                    method,
+                                    callable,
                                     "Methods calling system APIs should rethrow `RemoteException` as `RuntimeException` (but do not list it in the throws clause)"
                                 )
                             }
@@ -1950,7 +1910,7 @@ private constructor(
 
     private fun checkHasFlaggedApi(item: Item) {
         // Cannot flag an implicit constructor.
-        if (item is MethodItem && item.isImplicitConstructor()) return
+        if (item is ConstructorItem && item.isImplicitConstructor()) return
 
         fun itemOrAnyContainingClasses(predicate: Predicate<Item>): Boolean {
             var it: Item? = item
@@ -2080,19 +2040,19 @@ private constructor(
         val itemType = item.type() ?: return
         val inherited =
             when (item) {
-                is ParameterItem -> item.containingMethod().inheritedFromAncestor
-                is FieldItem -> item.inheritedFromAncestor
-                is MethodItem -> item.inheritedFromAncestor
+                is ParameterItem -> item.possibleContainingMethod()?.inheritedFromAncestor == true
+                is InheritableItem -> item.inheritedFromAncestor
                 else -> false
             }
         val superItems =
             when (item) {
                 is ParameterItem ->
-                    item.containingMethod().superMethods().mapNotNull {
+                    item.possibleContainingMethod()?.superMethods()?.mapNotNull {
                         it.parameters().find { param ->
                             item.parameterIndex == param.parameterIndex
                         }
                     }
+                        ?: emptyList()
                 is MethodItem -> item.superMethods()
                 else -> emptyList()
             }
@@ -2157,7 +2117,7 @@ private constructor(
             when (item) {
                 is ParameterItem -> {
                     // We don't enforce this check on constructor params
-                    if (item.containingMethod().isConstructor()) return
+                    if (item.containingCallable().isConstructor()) return
                     if (type.modifiers.isNonNull) {
                         // TODO (b/344859664): Skip warning for inner type
                         if (supers.anyTypeHasNullability(TypeNullability.PLATFORM) && !isInner) {
@@ -2177,7 +2137,7 @@ private constructor(
                         }
                     }
                 }
-                is MethodItem -> {
+                is CallableItem -> {
                     if (type.modifiers.isNullable) {
                         // TODO (b/344859664): Skip warning for inner type
                         if (supers.anyTypeHasNullability(TypeNullability.PLATFORM) && !isInner) {
@@ -2206,7 +2166,7 @@ private constructor(
         return any { type ->
             // Variable types have been excluded from the check because of previous inconsistency
             // in modeling their nullability.
-            type !is VariableTypeItem && type.modifiers.nullability() == nullability
+            type !is VariableTypeItem && type.modifiers.nullability == nullability
         }
     }
 
@@ -2279,7 +2239,7 @@ private constructor(
 
     private fun checkCallbackHandlers(
         cls: ClassItem,
-        methodsAndConstructors: Sequence<MethodItem>,
+        callables: Sequence<CallableItem>,
         superClass: ClassItem?
     ) {
         fun packageContainsSegment(packageName: String?, segment: String): Boolean {
@@ -2334,10 +2294,10 @@ private constructor(
             }
         }
 
-        val found = mutableMapOf<String, MethodItem>()
-        val byName = mutableMapOf<String, MutableList<MethodItem>>()
-        for (method in methodsAndConstructors) {
-            val name = method.name()
+        val found = mutableMapOf<String, CallableItem>()
+        val byName = mutableMapOf<String, MutableList<CallableItem>>()
+        for (callable in callables) {
+            val name = callable.name()
             if (name.startsWith("unregister")) {
                 continue
             }
@@ -2351,20 +2311,20 @@ private constructor(
             val list =
                 byName[name]
                     ?: run {
-                        val new = mutableListOf<MethodItem>()
+                        val new = mutableListOf<CallableItem>()
                         byName[name] = new
                         new
                     }
-            list.add(method)
+            list.add(callable)
 
-            for (parameter in method.parameters()) {
+            for (parameter in callable.parameters()) {
                 val type = parameter.type().toTypeString()
                 if (
                     type.endsWith("Listener") ||
                         type.endsWith("Callback") ||
                         type.endsWith("Callbacks")
                 ) {
-                    found[name] = method
+                    found[name] = callable
                 }
             }
         }
@@ -2400,10 +2360,11 @@ private constructor(
         }
     }
 
-    private fun checkContextFirst(method: MethodItem) {
-        val parameters = method.parameters()
+    private fun checkContextFirst(callable: CallableItem) {
+        val parameters = callable.parameters()
         // The first parameter for a Kotlin extension method is the receiver
-        val effectivelyFirstParameterPosition = if (method.isExtensionMethod()) 1 else 0
+        val effectivelyFirstParameterPosition =
+            if (callable is MethodItem && callable.isExtensionMethod()) 1 else 0
         val effectivelySecondParameterPosition = effectivelyFirstParameterPosition + 1
         if (parameters.size <= effectivelySecondParameterPosition) return
         val firstParameterTypeString =
@@ -2415,7 +2376,7 @@ private constructor(
                     report(
                         CONTEXT_FIRST,
                         p,
-                        "Context is distinct, so it must be the first argument (method `${method.name()}`)"
+                        "Context is distinct, so it must be the first argument (method `${callable.name()}`)"
                     )
                 }
             }
@@ -2427,15 +2388,15 @@ private constructor(
                     report(
                         CONTEXT_FIRST,
                         p,
-                        "ContentResolver is distinct, so it must be the first argument (method `${method.name()}`)"
+                        "ContentResolver is distinct, so it must be the first argument (method `${callable.name()}`)"
                     )
                 }
             }
         }
     }
 
-    private fun checkListenerLast(method: MethodItem) {
-        val name = method.name()
+    private fun checkListenerLast(callable: CallableItem) {
+        val name = callable.name()
         if (name.contains("Listener") || name.contains("Callback")) {
             return
         }
@@ -2443,10 +2404,10 @@ private constructor(
         // Suspend functions add a synthetic `Continuation` parameter at the end - this is invisible
         // to Kotlin callers so just ignore it.
         val parameters =
-            if (method.modifiers.isSuspend()) {
-                method.parameters().dropLast(1)
+            if (callable.modifiers.isSuspend()) {
+                callable.parameters().dropLast(1)
             } else {
-                method.parameters()
+                callable.parameters()
             }
         if (parameters.size > 1) {
             var found = false
@@ -2462,7 +2423,7 @@ private constructor(
                     report(
                         LISTENER_LAST,
                         parameter,
-                        "Listeners should always be at end of argument list (method `${method.name()}`)"
+                        "Listeners should always be at end of argument list (method `${callable.name()}`)"
                     )
                 }
             }
@@ -2574,21 +2535,21 @@ private constructor(
         }
     }
 
-    private fun checkFiles(methodsAndConstructors: Sequence<MethodItem>) {
-        var hasFile: MutableSet<MethodItem>? = null
+    private fun checkFiles(callables: Sequence<CallableItem>) {
+        var hasFile: MutableSet<CallableItem>? = null
         var hasStream: MutableSet<String>? = null
-        for (method in methodsAndConstructors) {
-            for (parameter in method.parameters()) {
+        for (callable in callables) {
+            for (parameter in callable.parameters()) {
                 when (parameter.type().toTypeString()) {
                     "java.io.File" -> {
                         val set =
                             hasFile
                                 ?: run {
-                                    val new = mutableSetOf<MethodItem>()
+                                    val new = mutableSetOf<CallableItem>()
                                     hasFile = new
                                     new
                                 }
-                        set.add(method)
+                        set.add(callable)
                     }
                     "java.io.FileDescriptor",
                     "android.os.ParcelFileDescriptor",
@@ -2601,7 +2562,7 @@ private constructor(
                                     hasStream = new
                                     new
                                 }
-                        set.add(method.name())
+                        set.add(callable.name())
                     }
                 }
             }
@@ -3242,12 +3203,9 @@ private constructor(
             }
     }
 
-    private fun checkMethodSuffixListenableFutureReturn(type: TypeItem, method: MethodItem) {
-        if (
-            type.toTypeString().contains(listenableFuture) &&
-                !method.isConstructor() &&
-                !method.name().endsWith("Async")
-        ) {
+    private fun checkMethodSuffixListenableFutureReturn(method: MethodItem) {
+        val typeString = method.returnType().toTypeString()
+        if (typeString.contains(listenableFuture) && !method.name().endsWith("Async")) {
             report(
                 ASYNC_SUFFIX_FUTURE,
                 method,
@@ -3261,18 +3219,18 @@ private constructor(
      * Make sure that any parameters with default values (in Kotlin) come after all required,
      * non-trailing-lambda parameters.
      */
-    private fun checkParameterOrder(method: MethodItem) {
-        // Ignore Java / non-PSI backed MethodItems
-        if (!method.isKotlin() || method !is PsiMethodItem) {
+    private fun checkParameterOrder(callable: CallableItem) {
+        // Ignore Java
+        if (!callable.isKotlin()) {
             return
         }
         // Suspend functions add a synthetic `Continuation` parameter at the end - this is invisible
         // to Kotlin callers so just ignore it.
         val parameters =
-            if (method.modifiers.isSuspend()) {
-                method.parameters().dropLast(1)
+            if (callable.modifiers.isSuspend()) {
+                callable.parameters().dropLast(1)
             } else {
-                method.parameters()
+                callable.parameters()
             }
         val (optionalParameters, requiredParameters) = parameters.partition { it.hasDefaultValue() }
         if (requiredParameters.isEmpty() || optionalParameters.isEmpty()) return
@@ -3311,7 +3269,7 @@ private constructor(
         getter: MethodItem,
         setter: MethodItem
     ) {
-        if (getterType.modifiers.nullability() != setterType.modifiers.nullability()) {
+        if (getterType.modifiers.nullability != setterType.modifiers.nullability) {
             val getterTypeString = getterType.toTypeString(kotlinStyleNulls = true)
             val setterTypeString = setterType.toTypeString(kotlinStyleNulls = true)
             report(
@@ -3506,7 +3464,8 @@ private constructor(
         private fun isServiceDumpMethod(item: Item) =
             when (item) {
                 is MethodItem -> isServiceDumpMethod(item)
-                is ParameterItem -> isServiceDumpMethod(item.containingMethod())
+                is ParameterItem -> item.possibleContainingMethod()?.let { isServiceDumpMethod(it) }
+                        ?: false
                 else -> false
             }
 

@@ -36,7 +36,7 @@ class ElidingPredicate(
     override fun test(method: Item): Boolean {
         // This method should be included, but if it's an exact duplicate
         // override then we can elide it.
-        return if (method is MethodItem && !method.isConstructor()) {
+        return if (method is MethodItem) {
             val differentSuper =
                 method.findPredicateSuperMethod(
                     // This predicate returns true if

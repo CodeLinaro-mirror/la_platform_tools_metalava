@@ -63,6 +63,14 @@ object KnownSourceFiles {
             """
         )
 
+    val androidAnnotationHide: TestFile =
+        TestFiles.java(
+            """
+                /** @hide */
+                package android.annotation;
+            """
+        )
+
     val nonNullSource: TestFile =
         TestFiles.java(
             """
@@ -105,6 +113,14 @@ object KnownSourceFiles {
     """
         )
 
+    val libcodeUtilHide: TestFile =
+        TestFiles.java(
+            """
+                /** @hide */
+                package libcore.util;
+            """
+        )
+
     val libcoreNonNullSource: TestFile =
         TestFiles.java(
             """
@@ -145,6 +161,14 @@ object KnownSourceFiles {
     package org.jetbrains.annotations;
     @java.lang.annotation.Target({ java.lang.annotation.ElementType.METHOD, java.lang.annotation.ElementType.FIELD, java.lang.annotation.ElementType.PARAMETER, java.lang.annotation.ElementType.LOCAL_VARIABLE, java.lang.annotation.ElementType.TYPE_USE })
     public @interface Nullable {}
+            """
+        )
+
+    val androidxAnnotationHide: TestFile =
+        TestFiles.java(
+            """
+                /** @hide */
+                package androidx.annotation;
             """
         )
 

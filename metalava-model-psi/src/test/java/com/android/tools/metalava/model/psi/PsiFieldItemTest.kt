@@ -75,11 +75,11 @@ class PsiFieldItemTest : BaseModelTest() {
         ) {
             val fooClass = codebase.assertClass("test.pkg.Foo")
             val fooField = fooClass.fields().single()
-            assertEquals(TypeNullability.NONNULL, fooField.type().modifiers.nullability())
+            assertEquals(TypeNullability.NONNULL, fooField.type().modifiers.nullability)
 
             val barClass = codebase.assertClass("test.pkg.Bar")
             val duplicated = fooField.duplicate(barClass)
-            assertEquals(TypeNullability.NONNULL, duplicated.type().modifiers.nullability())
+            assertEquals(TypeNullability.NONNULL, duplicated.type().modifiers.nullability)
         }
     }
 }

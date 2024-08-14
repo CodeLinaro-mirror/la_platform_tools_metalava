@@ -17,10 +17,10 @@
 package com.android.tools.metalava
 
 import com.android.tools.metalava.model.AnnotationItem
+import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
-import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.SUPPORT_TYPE_USE_ANNOTATIONS
 import com.android.tools.metalava.model.TypeItem
@@ -46,7 +46,7 @@ class NullnessMigration : ComparisonVisitor() {
     // having nullness annotations: those APIs are themselves new, so there's no reason
     // to mark the nullness contract as migration (warning- rather than error-severity)
 
-    override fun compare(old: MethodItem, new: MethodItem) {
+    override fun compare(old: CallableItem, new: CallableItem) {
         @Suppress("ConstantConditionIf")
         if (SUPPORT_TYPE_USE_ANNOTATIONS) {
             val newType = new.returnType()

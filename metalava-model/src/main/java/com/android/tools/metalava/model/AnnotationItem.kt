@@ -41,7 +41,7 @@ fun isJvmSyntheticAnnotation(qualifiedName: String): Boolean {
     return qualifiedName == "kotlin.jvm.JvmSynthetic"
 }
 
-interface AnnotationItem {
+sealed interface AnnotationItem {
     val codebase: Codebase
 
     /**
@@ -196,6 +196,9 @@ interface AnnotationItem {
 
             return AnnotationRetention.getDefault()
         }
+
+    /** Take a snapshot of this [AnnotationItem] suitable for use in [Codebase]. */
+    fun snapshot(targetCodebase: Codebase): AnnotationItem
 
     companion object {
         /**
@@ -437,6 +440,17 @@ protected constructor(
 
     override fun isShowabilityAnnotation(): Boolean = info.showability != Showability.NO_EFFECT
 
+    override fun snapshot(targetCodebase: Codebase): AnnotationItem {
+        return DefaultAnnotationItem(
+            targetCodebase,
+            fileLocation,
+            originalName,
+            qualifiedName,
+        ) {
+            attributes.map { DefaultAnnotationAttribute(it.name, it.value.snapshot()) }
+        }
+    }
+
     override fun equals(other: Any?): Boolean {
         if (other !is AnnotationItem) return false
         return qualifiedName == other.qualifiedName && attributes == other.attributes
@@ -541,7 +555,7 @@ protected constructor(
 const val ANNOTATION_ATTR_VALUE = "value"
 
 /** An attribute of an annotation, such as "value" */
-interface AnnotationAttribute {
+sealed interface AnnotationAttribute {
     /** The name of the annotation */
     val name: String
     /** The annotation value */
@@ -562,7 +576,7 @@ const val ANNOTATION_VALUE_FALSE = "false"
 const val ANNOTATION_VALUE_TRUE = "true"
 
 /** An annotation value */
-interface AnnotationAttributeValue {
+sealed interface AnnotationAttributeValue {
     /** Generates source code for this annotation value */
     fun toSource(): String
 
@@ -573,6 +587,11 @@ interface AnnotationAttributeValue {
      * If the annotation declaration references a field (or class etc.), return the resolved class
      */
     fun resolve(): Item?
+
+    /**
+     * Take a snapshot of this [AnnotationAttributeValue] suitable for use in a snapshot [Codebase].
+     */
+    fun snapshot(): AnnotationAttributeValue
 
     companion object {
         fun addValues(
@@ -591,14 +610,14 @@ interface AnnotationAttributeValue {
 }
 
 /** An annotation value (for a single item, not an array) */
-interface AnnotationSingleAttributeValue : AnnotationAttributeValue {
+sealed interface AnnotationSingleAttributeValue : AnnotationAttributeValue {
     val value: Any?
 
     override fun value() = value
 }
 
 /** An annotation value for an array of items */
-interface AnnotationArrayAttributeValue : AnnotationAttributeValue {
+sealed interface AnnotationArrayAttributeValue : AnnotationAttributeValue {
     /** The annotation values */
     val values: List<AnnotationAttributeValue>
 
@@ -768,6 +787,18 @@ open class DefaultAnnotationSingleAttributeValue(
 
     override fun resolve(): Item? = null
 
+    override fun snapshot(): AnnotationSingleAttributeValue {
+        // Take a snapshot of the value and sources by immediately forcing them to be initialized
+        // from their respective getters. That way there will be no connection to the original
+        // attribute value.
+        val newValue = value
+        val newSource = toSource()
+        return DefaultAnnotationSingleAttributeValue(
+            sourceGetter = { newSource },
+            valueGetter = { newValue },
+        )
+    }
+
     override fun equals(other: Any?): Boolean {
         if (other !is AnnotationSingleAttributeValue) return false
         return value == other.value
@@ -784,6 +815,18 @@ class DefaultAnnotationArrayAttributeValue(
 ) : DefaultAnnotationValue(sourceGetter), AnnotationArrayAttributeValue {
 
     override val values by lazy(LazyThreadSafetyMode.NONE, valuesGetter)
+
+    override fun snapshot(): AnnotationArrayAttributeValue {
+        // Take a snapshot of the values and sources by immediately forcing them to be initialized
+        // from their respective getters. That way there will be no connection to the original
+        // attribute value.
+        val newValues = values.map { it.snapshot() }
+        val newSource = toSource()
+        return DefaultAnnotationArrayAttributeValue(
+            sourceGetter = { newSource },
+            valuesGetter = { newValues },
+        )
+    }
 
     override fun equals(other: Any?): Boolean {
         if (other !is AnnotationArrayAttributeValue) return false

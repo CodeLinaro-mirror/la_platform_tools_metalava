@@ -17,6 +17,7 @@
 package com.android.tools.metalava
 
 import com.android.tools.metalava.model.text.FileFormat
+import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
 import org.junit.Test
 
@@ -62,12 +63,9 @@ class NormalizeOutputAnnotationTest : DriverTest() {
                     """
                         )
                         .indented(),
-                    requiresPermissionSource
-                ),
-            extraArguments =
-                arrayOf(
-                    ARG_HIDE_PACKAGE,
-                    "android.annotation",
+                    requiresPermissionSource,
+                    // Hide android.annotation classes.
+                    KnownSourceFiles.androidAnnotationHide,
                 ),
             format = FileFormat.V4,
             api =

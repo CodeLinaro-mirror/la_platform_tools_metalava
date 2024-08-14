@@ -19,6 +19,7 @@ package com.android.tools.metalava.model.psi
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.FieldItem
+import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.isNonNullAnnotation
@@ -37,15 +38,15 @@ class PsiFieldItem(
     containingClass: PsiClassItem,
     name: String,
     modifiers: DefaultModifierList,
-    documentation: String,
-    private val fieldType: TypeItem,
+    documentationFactory: ItemDocumentationFactory,
+    private var fieldType: TypeItem,
     private val isEnumConstant: Boolean,
     private val fieldValue: PsiFieldValue?,
 ) :
     PsiMemberItem(
         codebase = codebase,
         modifiers = modifiers,
-        documentation = documentation,
+        documentationFactory = documentationFactory,
         element = psiField,
         containingClass = containingClass,
         name = name,
@@ -55,6 +56,10 @@ class PsiFieldItem(
     override var property: PsiPropertyItem? = null
 
     override fun type(): TypeItem = fieldType
+
+    override fun setType(type: TypeItem) {
+        fieldType = type
+    }
 
     override fun initialValue(requireConstant: Boolean): Any? {
         return fieldValue?.initialValue(requireConstant)
@@ -90,19 +95,6 @@ class PsiFieldItem(
 
     override var inheritedFrom: ClassItem? = null
 
-    override fun equals(other: Any?): Boolean {
-        if (this === other) {
-            return true
-        }
-        return other is FieldItem &&
-            name == other.name() &&
-            containingClass == other.containingClass()
-    }
-
-    override fun hashCode(): Int {
-        return name.hashCode()
-    }
-
     companion object {
         internal fun create(
             codebase: PsiBasedCodebase,
@@ -111,8 +103,7 @@ class PsiFieldItem(
             enclosingClassTypeItemFactory: PsiTypeItemFactory,
         ): PsiFieldItem {
             val name = psiField.name
-            val commentText = javadoc(psiField, codebase.allowReadingComments)
-            val modifiers = modifiers(codebase, psiField, commentText)
+            val modifiers = modifiers(codebase, psiField)
 
             val isEnumConstant = psiField is PsiEnumConstant
 
@@ -141,7 +132,7 @@ class PsiFieldItem(
                 psiField = psiField,
                 containingClass = containingClass,
                 name = name,
-                documentation = commentText,
+                documentationFactory = PsiItemDocumentation.factory(psiField, codebase),
                 modifiers = modifiers,
                 fieldType = fieldType,
                 isEnumConstant = isEnumConstant,

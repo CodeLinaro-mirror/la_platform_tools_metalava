@@ -17,18 +17,24 @@
 package com.android.tools.metalava.model.testsuite.typeitem
 
 import com.android.tools.metalava.model.ArrayTypeItem
+import com.android.tools.metalava.model.BaseTypeTransformer
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.ReferenceTypeItem
 import com.android.tools.metalava.model.TypeArgumentTypeItem
+import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.TypeModifiers
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.WildcardTypeItem
+import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.testsuite.BaseModelTest
+import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import com.google.common.truth.Truth.assertThat
 import com.google.common.truth.Truth.assertWithMessage
+import kotlin.test.assertEquals
 import org.junit.Test
 
 class CommonTypeItemTest : BaseModelTest() {
@@ -1470,6 +1476,349 @@ class CommonTypeItemTest : BaseModelTest() {
                     .that(fieldType.convertType(nonMatchingBindings))
                     .isEqualTo(fieldType)
             }
+        }
+    }
+
+    @Test
+    fun `Test convertType's creation of duplicate objects`() {
+        runCodebaseTest(
+            inputSet(
+                signature(
+                    """
+                        // Signature format: 2.0
+                        package test.pkg {
+                          public interface Input<T,Unused> {
+                            // Field from which the type to be substituted for a type variable will
+                            // be retrieved.
+                            field public @NonNull Long javaLongType;
+
+                            // One for each TypeItem subinterface supported in signature files.
+                            method public @NonNull T @Nullable [] arrayTypeItem();
+                            method public @Nullable java.util.List<@NonNull T> classTypeItem();
+                            method public int primitiveTypeItem();
+                            method public @Nullable T variableTypeItem();
+                            method public @Nullable java.util.List<? extends @NonNull T> wildcardTypeItem_extendsBound();
+                            method public @Nullable java.util.List<? super @NonNull T> wildcardTypeItem_superBound();
+                          }
+                        }
+                    """
+                ),
+            ),
+            inputSet(
+                KnownSourceFiles.nonNullSource,
+                KnownSourceFiles.nullableSource,
+                java(
+                    """
+                        package test.pkg;
+                        import android.annotation.NonNull;
+                        import android.annotation.Nullable;
+                        import java.util.List;
+                        public interface Input<T,Unused> {
+                            // Field from which the type to be substituted for a type variable will
+                            // be retrieved.
+                            @NonNull Long javaLongType;
+
+                            // One for each TypeItem subinterface supported in signature files.
+                            @NonNull T @Nullable [] arrayTypeItem();
+                            @Nullable List<@NonNull T> classTypeItem();
+                            int primitiveTypeItem();
+                            @Nullable T variableTypeItem();
+                            @Nullable List<? extends @NonNull T> wildcardTypeItem_extendsBound();
+                            @Nullable List<? super @NonNull T> wildcardTypeItem_superBound();
+                        }
+                    """
+                ),
+            ),
+            inputSet(
+                kotlin(
+                    """
+                        package test.pkg
+                        import java.util.List
+                        interface Input<T,Unused> {
+                            // Field from which the type to be substituted for a type variable will
+                            // be retrieved.
+                            companion object {
+                                @JvmField val javaLongType: java.lang.Long
+                            }
+
+                            // One for each TypeItem subinterface supported in signature files.
+                            fun arrayTypeItem(): Array<T>?
+                            fun classTypeItem(): List<T>?
+                            fun lambdaTypeItem(): ((T) -> Int)?
+                            fun primitiveTypeItem(): Int
+                            fun variableTypeItem(): T?
+                            fun wildcardTypeItem_extendsBound(): List<out T>?
+                            fun wildcardTypeItem_superBound(): List<in T>?
+                        }
+                    """
+                ),
+            ),
+        ) {
+            val inputClass = codebase.assertClass("test.pkg.Input")
+
+            // Get the type variables from the class.
+            val (usedTypeVariable, unusedTypeVariable) = inputClass.typeParameterList
+
+            // Get the type to substitute
+            val javaLongType = inputClass.assertField("javaLongType").type() as ReferenceTypeItem
+
+            // Iterate over the methods
+            val types = buildString {
+                for (method in inputClass.methods()) {
+                    val name = method.name()
+                    val typeToTest = method.returnType()
+
+                    fun TypeItem.typeInfo() =
+                        toTypeString(
+                            annotations = true,
+                            kotlinStyleNulls = true,
+                        )
+
+                    append(name).append("\n")
+                    append("    original: ${typeToTest.typeInfo()}\n")
+
+                    // Map the Unused type variable to java.lang.Long. This should have no effect of
+                    // on the test type.
+                    typeToTest.convertType(mapOf(unusedTypeVariable to javaLongType)).also { result
+                        ->
+                        append("${"    no change"}: ${result.typeInfo()}\n")
+                        val unusedMessage =
+                            "conversion of ${unusedTypeVariable.name()} to $javaLongType in $name"
+                        assertWithMessage(unusedMessage).that(result).isSameInstanceAs(typeToTest)
+                    }
+
+                    // Map the T type variable to java.lang.Long. This should change every type
+                    // except the primitive type.
+                    typeToTest.convertType(mapOf(usedTypeVariable to javaLongType)).also { result ->
+                        append("${"    T -> java.lang.Long"}: ${result.typeInfo()}\n")
+                        val usedMessage =
+                            "conversion of ${usedTypeVariable.name()} to $javaLongType in $name"
+                        if (name == "primitiveTypeItem") {
+                            assertWithMessage(usedMessage).that(result).isSameInstanceAs(typeToTest)
+                        } else {
+                            assertWithMessage(usedMessage)
+                                .that(result)
+                                .isNotSameInstanceAs(typeToTest)
+                        }
+                    }
+
+                    append("\n")
+                }
+            }
+
+            val optionalLambda =
+                """
+                    lambdaTypeItem
+                        original: kotlin.jvm.functions.Function1<T,java.lang.Integer>?
+                        no change: kotlin.jvm.functions.Function1<T,java.lang.Integer>?
+                        T -> java.lang.Long: kotlin.jvm.functions.Function1<java.lang.Long,java.lang.Integer>?
+                """
+
+            assertEquals(
+                """
+                    arrayTypeItem
+                        original: T[]?
+                        no change: T[]?
+                        T -> java.lang.Long: java.lang.Long[]?
+
+                    classTypeItem
+                        original: java.util.List<T>?
+                        no change: java.util.List<T>?
+                        T -> java.lang.Long: java.util.List<java.lang.Long>?
+                    ${if (inputFormat == InputFormat.KOTLIN) optionalLambda else ""}
+                    primitiveTypeItem
+                        original: int
+                        no change: int
+                        T -> java.lang.Long: int
+
+                    variableTypeItem
+                        original: T?
+                        no change: T?
+                        T -> java.lang.Long: java.lang.Long?
+
+                    wildcardTypeItem_extendsBound
+                        original: java.util.List<? extends T>?
+                        no change: java.util.List<? extends T>?
+                        T -> java.lang.Long: java.util.List<? extends java.lang.Long>?
+
+                    wildcardTypeItem_superBound
+                        original: java.util.List<? super T>?
+                        no change: java.util.List<? super T>?
+                        T -> java.lang.Long: java.util.List<? super java.lang.Long>?
+                """
+                    .trimIndent(),
+                types.trim()
+            )
+        }
+    }
+
+    @Test
+    fun `Test transform's creation of duplicate objects`() {
+        val typeUseAnnotation =
+            java(
+                """
+            package test.annotation;
+            import java.lang.annotation.ElementType;
+            import java.lang.annotation.Target;
+
+            @Target(ElementType.TYPE_USE)
+            public @interface TypeUse {}
+        """
+            )
+        runCodebaseTest(
+            inputSet(
+                signature(
+                    """
+                        // Signature format: 5.0
+                        // - kotlin-style-nulls=yes
+                        // - kotlin-name-type-order=yes
+                        // - include-type-use-annotations=yes
+                        package test.pkg {
+                          public interface Input<T> {
+                            // One for each TypeItem subinterface supported in signature files.
+                            method public arrayTypeItem(): T @test.annotation.TypeUse []?;
+                            method public classTypeItem(): @test.annotation.TypeUse java.util.List<@test.annotation.TypeUse T>?;
+                            method public primitiveTypeItem(): @test.annotation.TypeUse int;
+                            method public variableTypeItem(): @test.annotation.TypeUse T?;
+                            method public wildcardTypeItem_extendsBound(): java.util.List<? extends @test.annotation.TypeUse T>?;
+                            method public wildcardTypeItem_superBound(): java.util.List<? super @test.annotation.TypeUse T>?;
+                          }
+                        }
+                        package test.annotation {
+                          public @interface TypeUse {
+                          }
+                        }
+                    """
+                ),
+            ),
+            inputSet(
+                KnownSourceFiles.nonNullSource,
+                KnownSourceFiles.nullableSource,
+                typeUseAnnotation,
+                java(
+                    """
+                        package test.pkg;
+                        import android.annotation.NonNull;
+                        import android.annotation.Nullable;
+                        import java.util.List;
+                        import test.annotation.TypeUse;
+                        public interface Input<T,Unused> {
+                            @NonNull T @TypeUse @Nullable [] arrayTypeItem();
+                            @TypeUse @Nullable List<@TypeUse @NonNull T> classTypeItem();
+                            @TypeUse int primitiveTypeItem();
+                            @TypeUse @Nullable T variableTypeItem();
+                            @Nullable List<? extends @TypeUse @NonNull T> wildcardTypeItem_extendsBound();
+                            @Nullable List<? super @TypeUse @NonNull T> wildcardTypeItem_superBound();
+                        }
+                    """
+                ),
+            ),
+            inputSet(
+                typeUseAnnotation,
+                kotlin(
+                    """
+                        package test.pkg
+                        import java.util.List
+                        import test.annotation.TypeUse
+                        interface Input<T,Unused> {
+                            fun arrayTypeItem(): @TypeUse Array<T>?
+                            fun classTypeItem(): @TypeUse List<@TypeUse T>?
+                            fun lambdaTypeItem(): ((@TypeUse T) -> @TypeUse Int)?
+                            fun primitiveTypeItem(): @TypeUse Int
+                            fun variableTypeItem(): @TypeUse T?
+                            fun wildcardTypeItem_extendsBound(): List<out @TypeUse T>?
+                            fun wildcardTypeItem_superBound(): List<in @TypeUse T>?
+                        }
+                    """
+                ),
+            ),
+        ) {
+            val inputClass = codebase.assertClass("test.pkg.Input")
+
+            // Iterate over the methods
+            val types = buildString {
+                for (method in inputClass.methods()) {
+                    val name = method.name()
+                    val typeToTest = method.returnType()
+
+                    fun TypeItem.typeInfo() =
+                        toTypeString(
+                            annotations = true,
+                            kotlinStyleNulls = true,
+                        )
+
+                    append(name).append("\n")
+                    append("    original: ${typeToTest.typeInfo()}\n")
+
+                    // Check that a no-op transformation returns the TypeItem on which it is called.
+                    typeToTest.transform(BaseTypeTransformer()).also { result ->
+                        append("${"    no change"}: ${result.typeInfo()}\n")
+                        val unusedMessage = "no-op transformation in $name"
+                        assertWithMessage(unusedMessage).that(result).isSameInstanceAs(typeToTest)
+                    }
+
+                    // A TypeTransformer that will discard all type annotations.
+                    val annotationsRemover =
+                        object : BaseTypeTransformer() {
+                            override fun transform(modifiers: TypeModifiers): TypeModifiers {
+                                return modifiers.substitute(annotations = emptyList())
+                            }
+                        }
+
+                    // Check that an actual transformation returns different objects.
+                    typeToTest.transform(annotationsRemover).also { result ->
+                        append("    discarded annotations: ${result.typeInfo()}\n")
+                        val usedMessage = "discarded annotations in $name"
+                        assertWithMessage(usedMessage).that(result).isNotSameInstanceAs(typeToTest)
+                    }
+
+                    append("\n")
+                }
+            }
+
+            val optionalLambda =
+                """
+                    lambdaTypeItem
+                        original: kotlin.jvm.functions.Function1<@test.annotation.TypeUse T,java.lang.@test.annotation.TypeUse Integer>?
+                        no change: kotlin.jvm.functions.Function1<@test.annotation.TypeUse T,java.lang.@test.annotation.TypeUse Integer>?
+                        discarded annotations: kotlin.jvm.functions.Function1<T,java.lang.Integer>?
+                """
+
+            assertEquals(
+                """
+                    arrayTypeItem
+                        original: T @test.annotation.TypeUse []?
+                        no change: T @test.annotation.TypeUse []?
+                        discarded annotations: T[]?
+
+                    classTypeItem
+                        original: java.util.@test.annotation.TypeUse List<@test.annotation.TypeUse T>?
+                        no change: java.util.@test.annotation.TypeUse List<@test.annotation.TypeUse T>?
+                        discarded annotations: java.util.List<T>?
+                    ${if (inputFormat == InputFormat.KOTLIN) optionalLambda else ""}
+                    primitiveTypeItem
+                        original: @test.annotation.TypeUse int
+                        no change: @test.annotation.TypeUse int
+                        discarded annotations: int
+
+                    variableTypeItem
+                        original: @test.annotation.TypeUse T?
+                        no change: @test.annotation.TypeUse T?
+                        discarded annotations: T?
+
+                    wildcardTypeItem_extendsBound
+                        original: java.util.List<? extends @test.annotation.TypeUse T>?
+                        no change: java.util.List<? extends @test.annotation.TypeUse T>?
+                        discarded annotations: java.util.List<? extends T>?
+
+                    wildcardTypeItem_superBound
+                        original: java.util.List<? super @test.annotation.TypeUse T>?
+                        no change: java.util.List<? super @test.annotation.TypeUse T>?
+                        discarded annotations: java.util.List<? super T>?
+                """
+                    .trimIndent(),
+                types.trim()
+            )
         }
     }
 

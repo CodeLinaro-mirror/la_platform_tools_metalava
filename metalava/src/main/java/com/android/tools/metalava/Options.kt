@@ -45,12 +45,16 @@ import com.android.tools.metalava.cli.signature.SignatureFormatOptions
 import com.android.tools.metalava.manifest.Manifest
 import com.android.tools.metalava.manifest.emptyManifest
 import com.android.tools.metalava.model.AnnotationManager
+import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.TypedefMode
 import com.android.tools.metalava.model.source.DEFAULT_JAVA_LANGUAGE_LEVEL
 import com.android.tools.metalava.model.source.DEFAULT_KOTLIN_LANGUAGE_LEVEL
 import com.android.tools.metalava.model.text.ApiClassResolution
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.reporter.Baseline
+import com.android.tools.metalava.reporter.DefaultReporter
+import com.android.tools.metalava.reporter.Reportable
 import com.android.tools.metalava.reporter.Reporter
 import com.android.tools.metalava.stub.StubWriterConfig
 import com.android.utils.SdkUtils.wrap
@@ -69,6 +73,7 @@ import java.io.IOException
 import java.io.PrintWriter
 import java.io.StringWriter
 import java.util.Optional
+import java.util.function.Predicate
 import kotlin.properties.ReadWriteProperty
 import kotlin.reflect.KProperty
 import org.jetbrains.jps.model.java.impl.JavaSdkUtil
@@ -139,7 +144,6 @@ private const val INDENT_WIDTH = 45
 const val ARG_CLASS_PATH = "--classpath"
 const val ARG_SOURCE_FILES = "--source-files"
 const val ARG_API_CLASS_RESOLUTION = "--api-class-resolution"
-const val ARG_DEX_API = "--dex-api"
 const val ARG_SDK_VALUES = "--sdk-values"
 const val ARG_MERGE_QUALIFIER_ANNOTATIONS = "--merge-qualifier-annotations"
 const val ARG_MERGE_INCLUSION_ANNOTATIONS = "--merge-inclusion-annotations"
@@ -155,7 +159,6 @@ const val ARG_EXTRACT_ANNOTATIONS = "--extract-annotations"
 const val ARG_EXCLUDE_DOCUMENTATION_FROM_STUBS = "--exclude-documentation-from-stubs"
 const val ARG_ENHANCE_DOCUMENTATION = "--enhance-documentation"
 const val ARG_SKIP_READING_COMMENTS = "--ignore-comments"
-const val ARG_HIDE_PACKAGE = "--hide-package"
 const val ARG_MANIFEST = "--manifest"
 const val ARG_MIGRATE_NULLNESS = "--migrate-nullness"
 const val ARG_HIDE_ANNOTATION = "--hide-annotation"
@@ -183,7 +186,6 @@ const val ARG_INCLUDE_SOURCE_RETENTION = "--include-source-retention"
 const val ARG_PASS_THROUGH_ANNOTATION = "--pass-through-annotation"
 const val ARG_EXCLUDE_ANNOTATION = "--exclude-annotation"
 const val ARG_STUB_PACKAGES = "--stub-packages"
-const val ARG_STUB_IMPORT_PACKAGES = "--stub-import-packages"
 const val ARG_DELETE_EMPTY_REMOVED_SIGNATURES = "--delete-empty-removed-signatures"
 const val ARG_SUBTRACT_API = "--subtract-api"
 const val ARG_TYPEDEFS_IN_SIGNATURES = "--typedefs-in-signatures"
@@ -224,14 +226,10 @@ class Options(
     private val hideAnnotationsBuilder = AnnotationFilterBuilder()
     /** Internal builder backing [revertAnnotations] */
     private val revertAnnotationsBuilder = AnnotationFilterBuilder()
-    /** Internal list backing [stubImportPackages] */
-    private val mutableStubImportPackages: MutableSet<String> = mutableSetOf()
     /** Internal list backing [mergeQualifierAnnotations] */
     private val mutableMergeQualifierAnnotations: MutableList<File> = mutableListOf()
     /** Internal list backing [mergeInclusionAnnotations] */
     private val mutableMergeInclusionAnnotations: MutableList<File> = mutableListOf()
-    /** Internal list backing [hidePackages] */
-    private val mutableHidePackages: MutableList<String> = mutableListOf()
     /** Internal list backing [passThroughAnnotations] */
     private val mutablePassThroughAnnotations: MutableSet<String> = mutableSetOf()
     /** Internal list backing [excludeAnnotations] */
@@ -342,11 +340,25 @@ class Options(
     /** Packages to include (if null, include all) */
     private var stubPackages: PackageFilter? = null
 
-    /** Packages to import (if empty, include all) */
-    private var stubImportPackages: Set<String> = mutableStubImportPackages
-
-    /** Packages to exclude/hide */
-    var hidePackages: List<String> = mutableHidePackages
+    /**
+     * An optional [Reportable] predicate that will ignore issues from (i.e. return false for)
+     * [Item]s that do not match the [stubPackages] filter. If no [stubPackages] filter is provided
+     * then this will be `null`.
+     */
+    private val reportableFilter: Predicate<Reportable>? by
+        lazy(LazyThreadSafetyMode.NONE) {
+            stubPackages?.let { packageFilter ->
+                Predicate { reportable ->
+                    // If we are only emitting some packages (--stub-packages), don't report
+                    // issues from other packages
+                    (reportable as? Item)?.let { item ->
+                        val pkg = (item as? PackageItem) ?: item.containingPackage()
+                        pkg == null || packageFilter.matches(pkg)
+                    }
+                        ?: true
+                }
+            }
+        }
 
     /** Packages that we should skip generating even if not hidden; typically only used by tests */
     val skipEmitPackages
@@ -419,11 +431,9 @@ class Options(
     val apiAnalyzerConfig by lazy {
         ApiAnalyzer.Config(
             manifest = manifest,
-            hidePackages = hidePackages,
             skipEmitPackages = skipEmitPackages,
             mergeQualifierAnnotations = mergeQualifierAnnotations,
             mergeInclusionAnnotations = mergeInclusionAnnotations,
-            stubImportPackages = stubImportPackages,
             allShowAnnotations = allShowAnnotations,
             apiPredicateConfig = apiPredicateConfig,
         )
@@ -482,9 +492,6 @@ class Options(
 
     /** Like [apiFile], but with JDiff xml format. */
     var apiXmlFile: File? = null
-
-    /** If set, a file to write the DEX signatures to. Corresponds to [ARG_DEX_API]. */
-    var dexApiFile: File? = null
 
     /** Path to directory to write SDK values to */
     var sdkValueDir: File? = null
@@ -545,6 +552,9 @@ class Options(
 
     /** The list of compatibility checks to run */
     val compatibilityChecks: List<CheckRequest> by compatibilityCheckOptions::compatibilityChecks
+
+    /** The set of annotation classes that should be treated as API compatibility important */
+    val apiCompatAnnotations by compatibilityCheckOptions::apiCompatAnnotations
 
     /** Existing external annotation files to merge in */
     private var mergeQualifierAnnotations: List<File> = mutableMergeQualifierAnnotations
@@ -759,7 +769,6 @@ class Options(
                     nullabilityWarningsTxt = stringToNewFile(getValue(args, ++index))
                 ARG_NULLABILITY_ERRORS_NON_FATAL -> nullabilityErrorsFatal = false
                 ARG_SDK_VALUES -> sdkValueDir = stringToNewDir(getValue(args, ++index))
-                ARG_DEX_API -> dexApiFile = stringToNewFile(getValue(args, ++index))
                 ARG_SHOW_UNANNOTATED -> showUnannotated = true
                 ARG_HIDE_ANNOTATION -> hideAnnotationsBuilder.add(getValue(args, ++index))
                 ARG_REVERT_ANNOTATION -> revertAnnotationsBuilder.add(getValue(args, ++index))
@@ -779,7 +788,6 @@ class Options(
                     annotations.split(",").forEach { path -> mutableExcludeAnnotations.add(path) }
                 }
                 ARG_PROGUARD -> proguard = stringToNewFile(getValue(args, ++index))
-                ARG_HIDE_PACKAGE -> mutableHidePackages.add(getValue(args, ++index))
                 ARG_STUB_PACKAGES -> {
                     val packages = getValue(args, ++index)
                     val filter =
@@ -790,13 +798,6 @@ class Options(
                                 newFilter
                             }
                     filter.addPackages(packages)
-                }
-                ARG_STUB_IMPORT_PACKAGES -> {
-                    val packages = getValue(args, ++index)
-                    for (pkg in packages.split(File.pathSeparatorChar)) {
-                        mutableStubImportPackages.add(pkg)
-                        mutableHidePackages.add(pkg)
-                    }
                 }
                 ARG_IGNORE_CLASSES_ON_CLASSPATH -> {
                     allowClassesFromClasspath = false
@@ -959,30 +960,24 @@ class Options(
         // Initialize the reporters.
         val baseline = generalReportingOptions.baseline
         reporter =
-            DefaultReporter(
-                environment = executionEnvironment.reporterEnvironment,
-                issueConfiguration = issueConfiguration,
+            createReporter(
+                executionEnvironment = executionEnvironment,
                 baseline = baseline,
-                packageFilter = stubPackages,
-                config = issueReportingOptions.reporterConfig,
+                errorMessage = null,
             )
+
         reporterApiLint =
-            DefaultReporter(
-                environment = executionEnvironment.reporterEnvironment,
-                issueConfiguration = issueConfiguration,
+            createReporter(
+                executionEnvironment = executionEnvironment,
                 baseline = apiLintOptions.baseline ?: baseline,
                 errorMessage = apiLintOptions.errorMessage,
-                packageFilter = stubPackages,
-                config = issueReportingOptions.reporterConfig,
             )
+
         reporterCompatibilityReleased =
-            DefaultReporter(
-                environment = executionEnvironment.reporterEnvironment,
-                issueConfiguration = issueConfiguration,
+            createReporter(
+                executionEnvironment = executionEnvironment,
                 baseline = compatibilityCheckOptions.baseline ?: baseline,
                 errorMessage = compatibilityCheckOptions.errorMessage,
-                packageFilter = stubPackages,
-                config = issueReportingOptions.reporterConfig,
             )
 
         // Build "all baselines" and "all reporters"
@@ -1004,6 +999,24 @@ class Options(
 
         updateClassPath()
     }
+
+    /**
+     * Create a [Reporter] that checks for known issues in [baseline] and prints [errorMessage], if
+     * provided, when errors have been reported.
+     */
+    private fun createReporter(
+        executionEnvironment: ExecutionEnvironment,
+        baseline: Baseline?,
+        errorMessage: String?,
+    ) =
+        DefaultReporter(
+            environment = executionEnvironment.reporterEnvironment,
+            issueConfiguration = issueConfiguration,
+            baseline = baseline,
+            errorMessage = errorMessage,
+            reportableFilter = reportableFilter,
+            config = issueReportingOptions.reporterConfig,
+        )
 
     fun isDeveloperPreviewBuild(): Boolean = currentCodeName != null
 
@@ -1063,9 +1076,7 @@ class Options(
         }
 
         // Get all the android.jar. They are in platforms-#
-        var apiLevel = minApi - 1
-        while (true) {
-            apiLevel++
+        for (apiLevel in minApi.rangeTo(currentApiLevel)) {
             try {
                 var jar: File? = null
                 if (apiLevel == currentApiLevel) {
@@ -1223,9 +1234,6 @@ object OptionsHelp {
                 "Specifies that errors encountered during validation of " +
                     "nullability annotations should not be treated as errors. They will be written out to the " +
                     "file specified in $ARG_NULLABILITY_WARNINGS_TXT instead.",
-                "$ARG_HIDE_PACKAGE <package>",
-                "Remove the given packages from the API even if they have not been " +
-                    "marked with @hide",
                 "$ARG_HIDE_ANNOTATION <annotation class>",
                 "Treat any elements annotated with the given annotation " + "as hidden",
                 ARG_SHOW_UNANNOTATED,
@@ -1258,8 +1266,6 @@ object OptionsHelp {
                 "",
                 "Extracting Signature Files:",
                 // TODO: Document --show-annotation!
-                "$ARG_DEX_API <file>",
-                "Generate a DEX signature descriptor file listing the APIs",
                 "$ARG_PROGUARD <file>",
                 "Write a ProGuard keep file for the API",
                 "$ARG_SDK_VALUES <dir>",

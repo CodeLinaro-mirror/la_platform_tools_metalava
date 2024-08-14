@@ -18,5 +18,5 @@ package com.android.tools.metalava.model
 
 enum class Language {
     KOTLIN,
-    JAVA
+    JAVA,
 }

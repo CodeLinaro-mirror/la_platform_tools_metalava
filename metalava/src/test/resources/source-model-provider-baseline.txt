@@ -10,7 +10,6 @@ com.android.tools.metalava.AnnotationsMergerTest
 
 com.android.tools.metalava.ApiAnalyzerTest
   Test PrivateSuperclass for inner class[turbine]
-  Test deprecated status not propagated to removed items[turbine]
   Test references deprecated errors do not apply to inner class of deprecated class[turbine]
   Test that usage of effectively deprecated class is flagged[turbine]
 
@@ -23,16 +22,11 @@ com.android.tools.metalava.ApiFileTest
   Check skipping implicit final or deprecated override[turbine]
   Check various generics signature subtleties[turbine]
   Kotlin expect-actual with JvmOverloads[psi,k2]
-  Subclass definition is not included in removed api file[turbine]
-  Test KDoc suppress[turbine]
   Type-use annotations can be included in signature files[turbine]
 
 com.android.tools.metalava.CoreApiTest
   Hidden with --hide-annotation[turbine]
   Hidden with package javadoc and hiding default constructor explicitly[turbine]
-
-com.android.tools.metalava.DeprecatedTestCase
-  Test deprecated not written out for contents of a removed class[turbine]
 
 com.android.tools.metalava.ExtractAnnotationsTest
   Check java typedef extraction and warning about non-source retention of typedefs[turbine]
@@ -62,26 +56,12 @@ com.android.tools.metalava.FlaggedApiTest
   Test that method overrides are handled correctly when flagged APIs are hidden[turbine,public without flagged api, with foo_bar]
   Test that method overrides are handled correctly when flagged APIs are hidden[turbine,system with flagged api]
   Test that method overrides are handled correctly when flagged APIs are hidden[turbine,system without flagged api, with foo_bar]
-  Test that previously released APIs which are now public and flagged are not removed[turbine,module_lib with flagged api]
-  Test that previously released APIs which are now public and flagged are not removed[turbine,module_lib without  flagged api]
-  Test that previously released APIs which are now public and flagged are not removed[turbine,module_lib without flagged api, with foo_bar]
-  Test that previously released APIs which are now public and flagged are not removed[turbine,public with flagged api]
-  Test that previously released APIs which are now public and flagged are not removed[turbine,public without  flagged api]
-  Test that previously released APIs which are now public and flagged are not removed[turbine,public without flagged api, with foo_bar]
-  Test that previously released APIs which are now public and flagged are not removed[turbine,system with flagged api]
-  Test that previously released APIs which are now public and flagged are not removed[turbine,system without  flagged api]
-  Test that previously released APIs which are now public and flagged are not removed[turbine,system without flagged api, with foo_bar]
   Test that previously released APIs which are now system and flagged are not removed[turbine,module_lib with flagged api]
-  Test that previously released APIs which are now system and flagged are not removed[turbine,module_lib without  flagged api]
   Test that previously released APIs which are now system and flagged are not removed[turbine,module_lib without flagged api, with foo_bar]
   Test that previously released APIs which are now system and flagged are not removed[turbine,system with flagged api]
-  Test that previously released APIs which are now system and flagged are not removed[turbine,system without  flagged api]
   Test that previously released APIs which are now system and flagged are not removed[turbine,system without flagged api, with foo_bar]
   Test that pulling method up into super class can be reverted[turbine,public with flagged api]
   Test that pulling method up into super class can be reverted[turbine,public without flagged api, with foo_bar]
-
-com.android.tools.metalava.HideAnnotationTest
-  Using hide annotation interface order[turbine]
 
 com.android.tools.metalava.Java9LanguageFeaturesTest
   Basic class signature extraction[turbine]
@@ -149,6 +129,9 @@ com.android.tools.metalava.SystemServiceCheckTest
   SystemService OK, loaded from source[turbine]
   Warning suppressed via annotation[turbine]
 
+com.android.tools.metalava.TypeUseAnnotationFilteringTest
+  Keep type use annotations[turbine]
+
 com.android.tools.metalava.UnhideApisTest
   Including private interfaces from types[turbine]
 
@@ -170,7 +153,6 @@ com.android.tools.metalava.compatibility.CheckAndroidApisShard3Test
   Test All Android API levels[turbine,25 to 26]
 
 com.android.tools.metalava.compatibility.CompatibilityCheckTest
-  Change item in nested SystemApi[turbine]
   Conversion from AutoCloseable to Closeable is not API-breaking[turbine]
   Conversion from MutableCollection to AbstractMutableCollection is not API-breaking[turbine]
   Empty bundle files[turbine]
@@ -179,12 +161,6 @@ com.android.tools.metalava.compatibility.CompatibilityCheckTest
   Incompatible method change -- final[turbine]
   No issues using the same classpath class twice[turbine]
   Removed method from classpath[turbine]
-
-com.android.tools.metalava.compatibility.FastPathTest
-  Check fast path not taken for removed[turbine]
-  Check fast path not taken[turbine]
-  Check fast path taken for removed[turbine]
-  Check fast path taken[turbine]
 
 com.android.tools.metalava.compatibility.ParameterNameChangeTest
   Flag renaming a parameter from the classpath[turbine]
@@ -228,7 +204,6 @@ com.android.tools.metalava.doc.DocAnalyzerTest
 
 com.android.tools.metalava.lint.ApiLintTest
   Check package layering[turbine]
-  Check suppress works on inherited methods[turbine]
   CompletableFuture and plain Future not allowed[turbine]
   Listener replaceable with OutcomeReceiver or ListenableFuture[turbine]
   Typedef must be hidden[turbine]
@@ -237,8 +212,6 @@ com.android.tools.metalava.lint.CheckBuilderTest
   Check builders[turbine]
 
 com.android.tools.metalava.lint.FlaggedApiLintTest
-  Dont require @FlaggedApi on existing items inherited into new SystemApi classes[turbine]
-  Require @FlaggedApi on APIs whose modifiers have changed[turbine]
   Require @FlaggedApi on new APIs[turbine]
   Require @FlaggedApi to reference generated fields[turbine]
 
@@ -264,7 +237,6 @@ com.android.tools.metalava.stub.StubsInterfaceTest
 
 com.android.tools.metalava.stub.StubsPackageInfoTest
   Check writing package info file[turbine]
-  Check writing package info from package html file[turbine]
   Test package-info documentation in doc stubs[turbine]
   Test package-info documentation in stubs[turbine]
 

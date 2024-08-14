@@ -16,7 +16,7 @@
 
 package com.android.tools.metalava.model.text
 
-import com.android.tools.metalava.model.MethodItem
+import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.reporter.FileLocation
 import java.io.LineNumberReader
 import java.io.Reader
@@ -304,12 +304,12 @@ data class FileFormat(
         }
     }
 
-    enum class OverloadedMethodOrder(val comparator: Comparator<MethodItem>) {
+    enum class OverloadedMethodOrder(val comparator: Comparator<CallableItem>) {
         /** Sort overloaded methods according to source order. */
-        SOURCE(MethodItem.sourceOrderForOverloadedMethodsComparator),
+        SOURCE(CallableItem.sourceOrderForOverloadedMethodsComparator),
 
         /** Sort overloaded methods by their signature. */
-        SIGNATURE(MethodItem.comparator)
+        SIGNATURE(CallableItem.comparator)
     }
 
     /**

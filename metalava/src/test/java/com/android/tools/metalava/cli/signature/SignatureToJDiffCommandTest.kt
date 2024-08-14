@@ -30,8 +30,10 @@ Usage: metalava signature-to-jdiff [options] <api-file> <xml-file>
   Convert an API signature file into a file in the JDiff XML format.
 
 Options:
-  --strip / --no-strip                       Determines whether duplicate inherited methods should be stripped from the
-                                             output or not. (default: false)
+  --strip / --no-strip                       Determines whether types that are not defined within the input signature
+                                             file should be stripped from the output or not. This does not include super
+                                             class types, i.e. the `extends` attribute in the generated JDiff file.
+                                             Historically, they have not been filtered. (default: false)
   --format-for-legacy-files <format-specifier>
                                              Optional format to use when reading legacy, i.e. no longer supported,
                                              format versions. Forces the signature file to be parsed as if it was in

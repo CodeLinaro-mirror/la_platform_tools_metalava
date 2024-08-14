@@ -19,6 +19,7 @@ package com.android.tools.metalava
 import com.android.tools.metalava.cli.common.MetalavaCliException
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ArrayTypeItem
+import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MethodItem
@@ -49,16 +50,16 @@ class NullabilityAnnotationsValidator(
     }
 
     private interface Issue {
-        val method: MethodItem
+        val callable: CallableItem
     }
 
     private data class Error(
-        override val method: MethodItem,
+        override val callable: CallableItem,
         val label: String,
         val type: ErrorType
     ) : Issue {
         override fun toString(): String {
-            return "ERROR: $method, $label, $type"
+            return "ERROR: $callable, $label, $type"
         }
     }
 
@@ -67,12 +68,12 @@ class NullabilityAnnotationsValidator(
     }
 
     private data class Warning(
-        override val method: MethodItem,
+        override val callable: CallableItem,
         val label: String,
         val type: WarningType
     ) : Issue {
         override fun toString(): String {
-            return "WARNING: $method, $label, $type"
+            return "WARNING: $callable, $label, $type"
         }
     }
 
@@ -80,8 +81,8 @@ class NullabilityAnnotationsValidator(
     private val warnings: MutableList<Warning> = mutableListOf()
 
     /**
-     * Validate all of the methods in the classes named in [topLevelClassNames] and in all their
-     * nested classes. Violations are stored by the validator and will be reported by [report].
+     * Validate all the methods in the classes named in [topLevelClassNames] and in all their nested
+     * classes. Violations are stored by the validator and will be reported by [report].
      */
     fun validateAll(codebase: Codebase, topLevelClassNames: List<String>) {
         for (topLevelClassName in topLevelClassNames) {
@@ -92,11 +93,10 @@ class NullabilityAnnotationsValidator(
                     )
             // Visit methods to check their return type, and parameters to check them. Don't visit
             // constructors as we don't want to check their return types. This visits members of
-            // inner classes as well.
+            // nested classes as well.
             topLevelClass.accept(
                 object :
                     ApiVisitor(
-                        visitConstructorsAsMethods = false,
                         config = @Suppress("DEPRECATION") options.apiVisitorConfig,
                     ) {
 
@@ -106,7 +106,7 @@ class NullabilityAnnotationsValidator(
 
                     override fun visitParameter(parameter: ParameterItem) {
                         checkItem(
-                            parameter.containingMethod(),
+                            parameter.containingCallable(),
                             parameter.toString(),
                             parameter.type(),
                             parameter
@@ -134,17 +134,17 @@ class NullabilityAnnotationsValidator(
         }
     }
 
-    private fun checkItem(method: MethodItem, label: String, type: TypeItem?, item: Item) {
+    private fun checkItem(callable: CallableItem, label: String, type: TypeItem?, item: Item) {
         if (type == null) {
-            throw MetalavaCliException("Missing type on $method item $label")
+            throw MetalavaCliException("Missing type on $callable item $label")
         }
         val annotations = item.modifiers.annotations()
         val nullabilityAnnotations = annotations.filter(this::isAnyNullabilityAnnotation)
         if (nullabilityAnnotations.size > 1) {
-            errors.add(Error(method, label, ErrorType.MULTIPLE))
+            errors.add(Error(callable, label, ErrorType.MULTIPLE))
             return
         }
-        checkItemNullability(type, nullabilityAnnotations.firstOrNull(), method, label)
+        checkItemNullability(type, nullabilityAnnotations.firstOrNull(), callable, label)
         // TODO: When type annotations are supported, we should check all the type parameters too.
         // We can do invoke this method recursively, using a suitably descriptive label.
         assert(!SUPPORT_TYPE_USE_ANNOTATIONS)
@@ -159,22 +159,22 @@ class NullabilityAnnotationsValidator(
     private fun checkItemNullability(
         type: TypeItem,
         nullability: AnnotationItem?,
-        method: MethodItem,
+        callable: CallableItem,
         label: String
     ) {
         when {
             // Primitive (may not have nullability):
             type is PrimitiveTypeItem -> {
                 if (nullability != null) {
-                    errors.add(Error(method, label, ErrorType.ON_PRIMITIVE))
+                    errors.add(Error(callable, label, ErrorType.ON_PRIMITIVE))
                 }
             }
             // Array (see comment):
             type is ArrayTypeItem -> {
                 // TODO: When type annotations are supported, we should check the annotation on both
                 // the array itself and the component type. Until then, there's nothing we can
-                // safely do, because e.g. a method parameter declared as '@NonNull Object[]' means
-                // a non-null array of unspecified-nullability Objects if that is a PARAMETER
+                // safely do, because e.g. a callable parameter declared as '@NonNull Object[]'
+                // means a non-null array of unspecified-nullability Objects if that is a PARAMETER
                 // annotation, but an unspecified-nullability array of non-null Objects if that is a
                 // TYPE_USE annotation.
                 assert(!SUPPORT_TYPE_USE_ANNOTATIONS)
@@ -182,15 +182,16 @@ class NullabilityAnnotationsValidator(
             // Type parameter reference (should have nullability):
             type is VariableTypeItem -> {
                 if (nullability == null) {
-                    warnings.add(Warning(method, label, WarningType.MISSING))
+                    warnings.add(Warning(callable, label, WarningType.MISSING))
                 }
             }
             // Anything else (should have nullability, may not be null-from-type-param):
             else -> {
                 when {
-                    nullability == null -> warnings.add(Warning(method, label, WarningType.MISSING))
+                    nullability == null ->
+                        warnings.add(Warning(callable, label, WarningType.MISSING))
                     isNullFromTypeParam(nullability) ->
-                        errors.add(Error(method, label, ErrorType.BAD_TYPE_PARAM))
+                        errors.add(Error(callable, label, ErrorType.BAD_TYPE_PARAM))
                 }
             }
         }
@@ -222,7 +223,7 @@ class NullabilityAnnotationsValidator(
         // Fatal issues are thrown.
         if (fatalIssues.isNotEmpty()) {
             fatalIssues.forEach {
-                reporter.report(Issues.INVALID_NULLABILITY_ANNOTATION, it.method, it.toString())
+                reporter.report(Issues.INVALID_NULLABILITY_ANNOTATION, it.callable, it.toString())
             }
         }
 
@@ -235,7 +236,7 @@ class NullabilityAnnotationsValidator(
             nonFatalIssues.forEach {
                 reporter.report(
                     Issues.INVALID_NULLABILITY_ANNOTATION_WARNING,
-                    it.method,
+                    it.callable,
                     "Nullability issue: $it"
                 )
             }

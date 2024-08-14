@@ -19,17 +19,20 @@ package com.android.tools.metalava.stub
 import com.android.tools.metalava.ApiPredicate
 import com.android.tools.metalava.FilterPredicate
 import com.android.tools.metalava.actualItem
-import com.android.tools.metalava.model.BaseItemVisitor
+import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ConstructorItem
+import com.android.tools.metalava.model.DelegatedVisitor
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.model.ItemVisitor
 import com.android.tools.metalava.model.Language
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ModifierListWriter
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.psi.trimDocIndent
 import com.android.tools.metalava.model.visitors.ApiVisitor
+import com.android.tools.metalava.model.visitors.FilteringApiVisitor
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
 import java.io.BufferedWriter
@@ -43,23 +46,10 @@ import java.util.regex.Pattern
 internal class StubWriter(
     private val stubsDir: File,
     private val generateAnnotations: Boolean = false,
-    private val preFiltered: Boolean = true,
     private val docStubs: Boolean,
     private val reporter: Reporter,
     private val config: StubWriterConfig,
-) :
-    ApiVisitor(
-        visitConstructorsAsMethods = false,
-        nestInnerClasses = true,
-        inlineInheritedFields = true,
-        // Methods are by default sorted in source order in stubs, to encourage methods
-        // that are near each other in the source to show up near each other in the documentation
-        methodComparator = MethodItem.sourceOrderComparator,
-        filterEmit = FilterPredicate(apiPredicate(docStubs, config)),
-        filterReference = apiPredicate(docStubs, config),
-        includeEmptyOuterClasses = true,
-        config = config.apiVisitorConfig,
-    ) {
+) : DelegatedVisitor {
 
     override fun visitPackage(pkg: PackageItem) {
         getPackageDir(pkg, create = true)
@@ -185,7 +175,7 @@ internal class StubWriter(
     /** The writer to write the stubs file to */
     private var textWriter: PrintWriter = errorTextWriter
 
-    private var stubWriter: BaseItemVisitor? = null
+    private var stubWriter: DelegatedVisitor? = null
 
     override fun visitClass(cls: ClassItem) {
         if (cls.isTopLevelClass()) {
@@ -211,22 +201,9 @@ internal class StubWriter(
 
             stubWriter =
                 if (kotlin) {
-                    KotlinStubWriter(
-                        textWriter,
-                        modifierListWriter,
-                        filterReference,
-                        preFiltered,
-                        config,
-                    )
+                    error("Generating Kotlin stubs is not supported")
                 } else {
-                    JavaStubWriter(
-                        textWriter,
-                        modifierListWriter,
-                        filterEmit,
-                        filterReference,
-                        preFiltered,
-                        config,
-                    )
+                    JavaStubWriter(textWriter, modifierListWriter, config)
                 }
 
             // Copyright statements from the original file?
@@ -250,38 +227,55 @@ internal class StubWriter(
         stubWriter?.visitConstructor(constructor)
     }
 
-    override fun afterVisitConstructor(constructor: ConstructorItem) {
-        stubWriter?.afterVisitConstructor(constructor)
-    }
-
     override fun visitMethod(method: MethodItem) {
         stubWriter?.visitMethod(method)
-    }
-
-    override fun afterVisitMethod(method: MethodItem) {
-        stubWriter?.afterVisitMethod(method)
     }
 
     override fun visitField(field: FieldItem) {
         stubWriter?.visitField(field)
     }
 
-    override fun afterVisitField(field: FieldItem) {
-        stubWriter?.afterVisitField(field)
+    /**
+     * Create an [ApiVisitor] that will filter the [Item] to which is applied according to the
+     * supplied parameters and in a manner appropriate for writing signatures, e.g. not nesting
+     * classes. It will delegate any visitor calls that pass through its filter to this [StubWriter]
+     * instance.
+     */
+    fun createFilteringVisitor(
+        preFiltered: Boolean,
+        apiVisitorConfig: ApiVisitor.Config,
+    ): ItemVisitor {
+        val filterReference =
+            ApiPredicate(
+                includeDocOnly = docStubs,
+                config = config.apiVisitorConfig.apiPredicateConfig.copy(ignoreShown = true),
+            )
+        val filterEmit = FilterPredicate(filterReference)
+        return FilteringApiVisitor(
+            delegate = this,
+            preserveClassNesting = true,
+            inlineInheritedFields = true,
+            // Methods are by default sorted in source order in stubs, to encourage methods
+            // that are near each other in the source to show up near each other in the
+            // documentation
+            callableComparator = CallableItem.sourceOrderComparator,
+            filterEmit = filterEmit,
+            filterReference = filterReference,
+            preFiltered = preFiltered,
+            // Make sure that package private constructors that are needed to compile safely are
+            // visited, so they will appear in the stubs.
+            visitStubsConstructorIfNeeded = true,
+            config = apiVisitorConfig,
+        )
     }
 }
 
-private fun apiPredicate(docStubs: Boolean, config: StubWriterConfig) =
-    ApiPredicate(
-        includeDocOnly = docStubs,
-        config = config.apiVisitorConfig.apiPredicateConfig.copy(ignoreShown = true),
-    )
-
 internal fun appendDocumentation(item: Item, writer: PrintWriter, config: StubWriterConfig) {
     if (config.includeDocumentationInStubs) {
-        val documentation = item.fullyQualifiedDocumentation()
-        if (documentation.isNotBlank()) {
-            val trimmed = trimDocIndent(documentation)
+        val documentation = item.documentation
+        val text = documentation.fullyQualifiedDocumentation()
+        if (text.isNotBlank()) {
+            val trimmed = trimDocIndent(text)
             val output = revertDocumentationDeprecationChange(item, trimmed)
             writer.println(output)
             writer.println()

@@ -109,16 +109,16 @@ sealed class TypeParameterScope private constructor() {
         }
 
         /**
-         * Collect all the type parameters in scope for the given [methodItem] then wrap them in an
+         * Collect all the type parameters in scope for the given [callableItem] then wrap them in a
          * [TypeParameterScope].
          */
-        fun from(methodItem: MethodItem): TypeParameterScope {
+        fun from(callableItem: CallableItem): TypeParameterScope {
             // Construct a scope from the owner.
-            return from(methodItem.containingClass())
+            return from(callableItem.containingClass())
                 // Nest this inside it.
                 .nestedScope(
-                    description = "method ${methodItem.name()}",
-                    methodItem.typeParameterList,
+                    description = "method/constructor ${callableItem.name()}",
+                    callableItem.typeParameterList,
                 )
         }
     }

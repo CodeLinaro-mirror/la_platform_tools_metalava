@@ -17,6 +17,7 @@
 package com.android.tools.metalava
 
 import com.android.tools.metalava.model.AnnotationItem
+import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ConstructorItem
@@ -34,14 +35,7 @@ import java.util.function.Predicate
  * Visitor which visits all items in two matching codebases and matches up the items and invokes
  * [compare] on each pair, or [added] or [removed] when items are not matched
  */
-open class ComparisonVisitor(
-    /**
-     * Whether constructors should be visited as part of a [#visitMethod] call instead of just a
-     * [#visitConstructor] call. Helps simplify visitors that don't care to distinguish between the
-     * two cases. Defaults to true.
-     */
-    val visitConstructorsAsMethods: Boolean = true,
-) {
+open class ComparisonVisitor {
     open fun compare(old: Item, new: Item) {}
 
     open fun added(new: Item) {}
@@ -51,6 +45,8 @@ open class ComparisonVisitor(
     open fun compare(old: PackageItem, new: PackageItem) {}
 
     open fun compare(old: ClassItem, new: ClassItem) {}
+
+    open fun compare(old: CallableItem, new: CallableItem) {}
 
     open fun compare(old: ConstructorItem, new: ConstructorItem) {}
 
@@ -66,6 +62,8 @@ open class ComparisonVisitor(
 
     open fun added(new: ClassItem) {}
 
+    open fun added(new: CallableItem) {}
+
     open fun added(new: ConstructorItem) {}
 
     open fun added(new: MethodItem) {}
@@ -79,6 +77,8 @@ open class ComparisonVisitor(
     open fun removed(old: PackageItem, from: Item?) {}
 
     open fun removed(old: ClassItem, from: Item?) {}
+
+    open fun removed(old: CallableItem, from: ClassItem?) {}
 
     open fun removed(old: ConstructorItem, from: ClassItem?) {}
 
@@ -307,22 +307,15 @@ class CodebaseComparator(
     private fun dispatchToAdded(visitor: ComparisonVisitor, item: Item) {
         visitor.added(item)
 
+        if (item is CallableItem) {
+            visitor.added(item)
+        }
+
         when (item) {
             is PackageItem -> visitor.added(item)
             is ClassItem -> visitor.added(item)
-            is MethodItem -> {
-                if (visitor.visitConstructorsAsMethods) {
-                    visitor.added(item)
-                } else {
-                    // Overloaded visitor methods: be explicit about which one is being invoked
-                    @Suppress("USELESS_CAST")
-                    if (item is ConstructorItem) {
-                        visitor.added(item as ConstructorItem)
-                    } else {
-                        visitor.added(item as MethodItem)
-                    }
-                }
-            }
+            is ConstructorItem -> visitor.added(item)
+            is MethodItem -> visitor.added(item)
             is FieldItem -> visitor.added(item)
             is ParameterItem -> visitor.added(item)
             is PropertyItem -> visitor.added(item)
@@ -346,7 +339,7 @@ class CodebaseComparator(
         // class was hidden then the signature file may have listed the method as being
         // declared on the subclass
         val inheritedMethod =
-            if (old is MethodItem && !old.isConstructor() && newParent is ClassItem) {
+            if (old is MethodItem && newParent is ClassItem) {
                 val superMethod = newParent.findPredicateMethodWithSuper(old, filter)
 
                 if (superMethod != null && (filter == null || filter.test(superMethod))) {
@@ -405,22 +398,15 @@ class CodebaseComparator(
     private fun dispatchToRemoved(visitor: ComparisonVisitor, item: Item, from: Item?) {
         visitor.removed(item, from)
 
+        if (item is CallableItem) {
+            visitor.removed(item, from as ClassItem?)
+        }
+
         when (item) {
             is PackageItem -> visitor.removed(item, from)
             is ClassItem -> visitor.removed(item, from)
-            is MethodItem -> {
-                if (visitor.visitConstructorsAsMethods) {
-                    visitor.removed(item, from as ClassItem?)
-                } else {
-                    // Overloaded visitor methods: be explicit about which one is being invoked
-                    @Suppress("USELESS_CAST")
-                    if (item is ConstructorItem) {
-                        visitor.removed(item as ConstructorItem, from as ClassItem?)
-                    } else {
-                        visitor.removed(item as MethodItem, from as ClassItem?)
-                    }
-                }
-            }
+            is ConstructorItem -> visitor.removed(item, from as ClassItem?)
+            is MethodItem -> visitor.removed(item, from as ClassItem?)
             is FieldItem -> visitor.removed(item, from as ClassItem?)
             is ParameterItem -> visitor.removed(item, from as MethodItem?)
             is PropertyItem -> visitor.removed(item, from as ClassItem?)
@@ -431,22 +417,15 @@ class CodebaseComparator(
     private fun dispatchToCompare(visitor: ComparisonVisitor, old: Item, new: Item) {
         visitor.compare(old, new)
 
+        if (old is CallableItem) {
+            visitor.compare(old, new as CallableItem)
+        }
+
         when (old) {
             is PackageItem -> visitor.compare(old, new as PackageItem)
             is ClassItem -> visitor.compare(old, new as ClassItem)
-            is MethodItem -> {
-                if (visitor.visitConstructorsAsMethods) {
-                    visitor.compare(old, new as MethodItem)
-                } else {
-                    // Overloaded visitor methods: be explicit about which one is being invoked
-                    @Suppress("USELESS_CAST")
-                    if (old is ConstructorItem) {
-                        visitor.compare(old as ConstructorItem, new as MethodItem)
-                    } else {
-                        visitor.compare(old as MethodItem, new as MethodItem)
-                    }
-                }
-            }
+            is ConstructorItem -> visitor.compare(old, new as ConstructorItem)
+            is MethodItem -> visitor.compare(old, new as MethodItem)
             is FieldItem -> visitor.compare(old, new as FieldItem)
             is ParameterItem -> visitor.compare(old, new as ParameterItem)
             is PropertyItem -> visitor.compare(old, new as PropertyItem)
@@ -460,7 +439,8 @@ class CodebaseComparator(
         private fun typeRank(item: Item): Int {
             return when (item) {
                 is PackageItem -> 0
-                is MethodItem -> if (item.isConstructor()) 1 else 2
+                is ConstructorItem -> 1
+                is MethodItem -> 2
                 is FieldItem -> 3
                 is ClassItem -> 4
                 is ParameterItem -> 5
@@ -483,13 +463,13 @@ class CodebaseComparator(
                         is ClassItem -> {
                             item1.qualifiedName().compareTo((item2 as ClassItem).qualifiedName())
                         }
-                        is MethodItem -> {
+                        is CallableItem -> {
                             // Try to incrementally match aspects of the method until you can
                             // conclude
                             // whether they are the same or different.
                             // delta is 0 when the methods are the same, else not 0
                             // Start by comparing the names
-                            var delta = item1.name().compareTo((item2 as MethodItem).name())
+                            var delta = item1.name().compareTo((item2 as CallableItem).name())
                             if (delta == 0) {
                                 // If the names are the same then compare the number of parameters
                                 val parameters1 = item1.parameters()
@@ -643,7 +623,7 @@ class CodebaseComparator(
             codebase.accept(
                 object :
                     ApiVisitor(
-                        nestInnerClasses = true,
+                        preserveClassNesting = true,
                         inlineInheritedFields = true,
                         filterEmit = predicate,
                         filterReference = predicate,
@@ -673,12 +653,6 @@ class CodebaseComparator(
 
                     override fun include(cls: ClassItem): Boolean =
                         if (acceptAll) true else super.include(cls)
-
-                    /**
-                     * Include all classes in the tree, even implicitly defined classes (such as
-                     * containing classes)
-                     */
-                    override fun shouldEmitClass(vc: VisitCandidate): Boolean = true
 
                     override fun afterVisitItem(item: Item) {
                         stack.pop()

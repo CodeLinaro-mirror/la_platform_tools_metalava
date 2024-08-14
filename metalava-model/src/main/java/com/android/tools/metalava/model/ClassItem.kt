@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.model
 
-import java.util.ArrayList
 import java.util.LinkedHashSet
 import java.util.function.Predicate
 
@@ -28,27 +27,27 @@ import java.util.function.Predicate
  */
 @MetalavaApi
 interface ClassItem : Item, TypeParameterListOwner {
-    /** The simple name of a class. In class foo.bar.Outer.Inner, the simple name is "Inner" */
-    fun simpleName(): String
-
-    /** The full name of a class. In class foo.bar.Outer.Inner, the full name is "Outer.Inner" */
-    fun fullName(): String
-
     /**
      * The qualified name of a class. In class foo.bar.Outer.Inner, the qualified name is the whole
      * thing.
      */
     @MetalavaApi fun qualifiedName(): String
 
-    /** Is this an innerclass? */
-    @MetalavaApi fun isInnerClass(): Boolean = containingClass() != null
+    /** The simple name of a class. In class foo.bar.Outer.Inner, the simple name is "Inner" */
+    fun simpleName(): String
+
+    /** The full name of a class. In class foo.bar.Outer.Inner, the full name is "Outer.Inner" */
+    fun fullName(): String
+
+    /** Is this a nested class? */
+    @MetalavaApi fun isNestedClass() = containingClass() != null
 
     /** Is this a top level class? */
     fun isTopLevelClass(): Boolean = containingClass() == null
 
-    /** This [ClassItem] and all of its inner classes, recursively */
+    /** This [ClassItem] and all of its nested classes, recursively */
     fun allClasses(): Sequence<ClassItem> {
-        return sequenceOf(this).plus(innerClasses().asSequence().flatMap { it.allClasses() })
+        return sequenceOf(this).plus(nestedClasses().asSequence().flatMap { it.allClasses() })
     }
 
     override fun parent(): Item? = containingClass() ?: containingPackage()
@@ -57,11 +56,11 @@ interface ClassItem : Item, TypeParameterListOwner {
         get() = originallyDeprecated || containingClass()?.effectivelyDeprecated == true
 
     /**
-     * The qualified name where inner classes use $ as a separator. In class foo.bar.Outer.Inner,
+     * The qualified name where nested classes use $ as a separator. In class foo.bar.Outer.Inner,
      * this method will return foo.bar.Outer$Inner. (This is the name format used in ProGuard keep
      * files for example.)
      */
-    fun qualifiedNameWithDollarInnerClasses(): String {
+    fun qualifiedNameWithDollarNestedClasses(): String {
         var curr: ClassItem? = this
         while (curr?.containingClass() != null) {
             curr = curr.containingClass()
@@ -159,8 +158,11 @@ interface ClassItem : Item, TypeParameterListOwner {
      */
     fun allInterfaces(): Sequence<ClassItem>
 
-    /** Any inner classes of this class */
-    fun innerClasses(): List<ClassItem>
+    /**
+     * Any classes nested in this class, that includes inner classes which are just non-static
+     * nested classes.
+     */
+    fun nestedClasses(): List<ClassItem>
 
     /** The constructors in this class */
     @MetalavaApi fun constructors(): List<ConstructorItem>
@@ -196,7 +198,7 @@ interface ClassItem : Item, TypeParameterListOwner {
     /** Whether this class is a regular class (not an interface, not an enum, etc) */
     fun isClass() = classKind == ClassKind.CLASS
 
-    /** The containing class, for inner classes */
+    /** The containing class, for nested classes */
     @MetalavaApi override fun containingClass(): ClassItem?
 
     /** The containing package */
@@ -204,6 +206,9 @@ interface ClassItem : Item, TypeParameterListOwner {
 
     /** Gets the type for this class */
     override fun type(): ClassTypeItem
+
+    override fun setType(type: TypeItem) =
+        error("Cannot call setType(TypeItem) on PackageItem: $this")
 
     override fun findCorrespondingItemIn(
         codebase: Codebase,
@@ -223,22 +228,25 @@ interface ClassItem : Item, TypeParameterListOwner {
     // This replaces the interface types implemented by this class
     fun setInterfaceTypes(interfaceTypes: List<ClassTypeItem>)
 
-    var hasPrivateConstructor: Boolean
-
     /** The primary constructor for this class in Kotlin, if present. */
     val primaryConstructor: ConstructorItem?
         get() = constructors().singleOrNull { it.isPrimary }
-
-    /**
-     * Maven artifact of this class, if any. (Not used for the Android SDK, but used in for example
-     * support libraries.
-     */
-    var artifact: String?
 
     override fun baselineElementId() = qualifiedName()
 
     override fun accept(visitor: ItemVisitor) {
         visitor.visit(this)
+    }
+
+    override fun equalsToItem(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is ClassItem) return false
+
+        return qualifiedName() == other.qualifiedName()
+    }
+
+    override fun hashCodeForItem(): Int {
+        return qualifiedName().hashCode()
     }
 
     override fun toStringForItem() = "class ${qualifiedName()}"
@@ -292,10 +300,6 @@ interface ClassItem : Item, TypeParameterListOwner {
         includeSuperClasses: Boolean = false,
         includeInterfaces: Boolean = false
     ): MethodItem? {
-        if (template.isConstructor()) {
-            return findConstructor(template as ConstructorItem)
-        }
-
         methods()
             .asSequence()
             .filter { it.matches(template) }
@@ -375,12 +379,11 @@ interface ClassItem : Item, TypeParameterListOwner {
     /**
      * Find the [MethodItem] in this.
      *
-     * If [methodName] is the same as [simpleName] then this will look for [ConstructorItem]s,
-     * otherwise it will look for [MethodItem]s whose [MethodItem.name] is equal to [methodName].
+     * It will look for [MethodItem]s whose [MethodItem.name] is equal to [methodName].
      *
-     * Out of those matching items it will select the first [MethodItem] (or [ConstructorItem]
-     * subclass) whose parameters match the supplied parameters string. Parameters are matched
-     * against a candidate [MethodItem] as follows:
+     * Out of those matching items it will select the first [MethodItem] whose parameters match the
+     * supplied parameters string. Parameters are matched against a candidate [MethodItem] as
+     * follows:
      * * The [parameters] string is split on `,` and trimmed and then each item in the list is
      *   matched with the corresponding [ParameterItem] in `candidate.parameters()` as follows:
      * * Everything after `<` is removed.
@@ -393,29 +396,41 @@ interface ClassItem : Item, TypeParameterListOwner {
      * @param methodName the name of the method or [simpleName] if looking for constructors.
      * @param parameters the comma separated erased types of the parameters.
      */
-    fun findMethod(methodName: String, parameters: String): MethodItem? {
-        if (methodName == simpleName()) {
-            // Constructor
-            constructors()
-                .filter { parametersMatch(it, parameters) }
-                .forEach {
-                    return it
-                }
-        } else {
-            methods()
-                .filter { it.name() == methodName && parametersMatch(it, parameters) }
-                .forEach {
-                    return it
-                }
-        }
+    fun findMethod(methodName: String, parameters: String) =
+        methods().firstOrNull { it.name() == methodName && parametersMatch(it, parameters) }
 
-        return null
-    }
+    /**
+     * Find the [ConstructorItem] in this.
+     *
+     * Out of those matching items it will select the first [ConstructorItem] whose parameters match
+     * the supplied parameters string. Parameters are matched against a candidate [ConstructorItem]
+     * as follows:
+     * * The [parameters] string is split on `,` and trimmed and then each item in the list is
+     *   matched with the corresponding [ParameterItem] in `candidate.parameters()` as follows:
+     * * Everything after `<` is removed.
+     * * The result is compared to the result of calling [TypeItem.toErasedTypeString]`(candidate)`
+     *   on the [ParameterItem.type].
+     *
+     * If every parameter matches then the matched [ConstructorItem] is returned. If no `candidate`
+     * matches then it returns 'null`.
+     *
+     * @param parameters the comma separated erased types of the parameters.
+     */
+    fun findConstructor(parameters: String) =
+        constructors().firstOrNull { parametersMatch(it, parameters) }
 
-    private fun parametersMatch(method: MethodItem, description: String): Boolean {
+    /**
+     * Find the [CallableItem] in this.
+     *
+     * If [name] is [simpleName] then call [findConstructor] else call [findMethod].
+     */
+    fun findCallable(name: String, parameters: String) =
+        if (name == simpleName()) findConstructor(parameters) else findMethod(name, parameters)
+
+    private fun parametersMatch(callable: CallableItem, description: String): Boolean {
         val parameterStrings =
             description.splitToSequence(",").map(String::trim).filter(String::isNotEmpty).toList()
-        val parameters = method.parameters()
+        val parameters = callable.parameters()
         if (parameters.size != parameterStrings.size) {
             return false
         }
@@ -435,7 +450,7 @@ interface ClassItem : Item, TypeParameterListOwner {
     }
 
     /** Returns the corresponding source file, if any */
-    fun getSourceFile(): SourceFile? = null
+    fun getSourceFile(): SourceFile?
 
     /** If this class is an annotation type, returns the retention of this class */
     fun getRetention(): AnnotationRetention
@@ -453,7 +468,7 @@ interface ClassItem : Item, TypeParameterListOwner {
         }
     }
 
-    fun filteredSuperClassType(predicate: Predicate<Item>): TypeItem? {
+    fun filteredSuperClassType(predicate: Predicate<Item>): ClassTypeItem? {
         var superClassType: ClassTypeItem? = superClassType() ?: return null
         var prev: ClassItem? = null
         while (superClassType != null) {
@@ -468,7 +483,7 @@ interface ClassItem : Item, TypeParameterListOwner {
                     return superClassType
                 }
 
-                return superClassType.convertType(this, prev)
+                return superClassType.convertType(this, prev) as ClassTypeItem
             }
 
             prev = superClass
@@ -572,7 +587,7 @@ interface ClassItem : Item, TypeParameterListOwner {
         return list
     }
 
-    fun filteredInterfaceTypes(predicate: Predicate<Item>): Collection<TypeItem> {
+    fun filteredInterfaceTypes(predicate: Predicate<Item>): Collection<ClassTypeItem> {
         val interfaceTypes =
             filteredInterfaceTypes(
                 predicate,
@@ -581,9 +596,6 @@ interface ClassItem : Item, TypeParameterListOwner {
                 includeParents = false,
                 target = this
             )
-        if (interfaceTypes.isEmpty()) {
-            return interfaceTypes
-        }
 
         return interfaceTypes
     }
@@ -606,11 +618,11 @@ interface ClassItem : Item, TypeParameterListOwner {
 
     private fun filteredInterfaceTypes(
         predicate: Predicate<Item>,
-        types: LinkedHashSet<TypeItem>,
+        types: LinkedHashSet<ClassTypeItem>,
         includeSelf: Boolean,
         includeParents: Boolean,
         target: ClassItem
-    ): LinkedHashSet<TypeItem> {
+    ): LinkedHashSet<ClassTypeItem> {
         val superClassType = superClassType()
         if (superClassType != null) {
             val superClass = superClassType.asClass()
@@ -657,26 +669,6 @@ interface ClassItem : Item, TypeParameterListOwner {
             }
         }
         return types
-    }
-
-    fun allInnerClasses(includeSelf: Boolean = false): Sequence<ClassItem> {
-        if (!includeSelf && innerClasses().isEmpty()) {
-            return emptySequence()
-        }
-
-        val list = ArrayList<ClassItem>()
-        if (includeSelf) {
-            list.add(this)
-        }
-        addInnerClasses(list, this)
-        return list.asSequence()
-    }
-
-    private fun addInnerClasses(list: MutableList<ClassItem>, cls: ClassItem) {
-        for (innerClass in cls.innerClasses()) {
-            list.add(innerClass)
-            addInnerClasses(list, innerClass)
-        }
     }
 
     /**
@@ -754,7 +746,7 @@ interface ClassItem : Item, TypeParameterListOwner {
         val classTypeArguments =
             classTypeItem.arguments.map {
                 if (it is ClassTypeItem && it.arguments.isNotEmpty()) {
-                    it.duplicate(it.outerClassType, arguments = emptyList())
+                    it.substitute(arguments = emptyList())
                 } else {
                     it
                 }
@@ -770,20 +762,7 @@ interface ClassItem : Item, TypeParameterListOwner {
     /** Creates a constructor in this class */
     fun createDefaultConstructor(): ConstructorItem = codebase.unsupported()
 
-    /**
-     * Creates a method corresponding to the given method signature in this class.
-     *
-     * This is used to inherit a [MethodItem] from a super class that will not be part of the API
-     * into a class that will be part of the API.
-     *
-     * The [MethodItem.inheritedFrom] property in the returned [MethodItem] is set to
-     * [MethodItem.containingClass] of the [template].
-     */
-    fun inheritMethodFromNonApiAncestor(template: MethodItem): MethodItem = codebase.unsupported()
-
     fun addMethod(method: MethodItem): Unit = codebase.unsupported()
-
-    fun addInnerClass(cls: ClassItem): Unit = codebase.unsupported()
 
     /**
      * Return true if a [ClassItem] could be subclassed, i.e. is not final or sealed and has at
@@ -793,4 +772,21 @@ interface ClassItem : Item, TypeParameterListOwner {
         !modifiers.isFinal() &&
             !modifiers.isSealed() &&
             constructors().any { it.isPublic || it.isProtected }
+}
+
+/** Compute the value for [ClassItem.allInterfaces]. */
+fun ClassItem.computeAllInterfaces() = buildList {
+    // Add self as interface if applicable
+    if (isInterface()) {
+        add(this@computeAllInterfaces)
+    }
+
+    // Add all the interfaces of super class
+    superClass()?.let { superClass -> superClass.allInterfaces().forEach { add(it) } }
+
+    // Add all the interfaces of direct interfaces
+    interfaceTypes().forEach { interfaceType ->
+        val itf = interfaceType.asClass()
+        itf?.allInterfaces()?.forEach { add(it) }
+    }
 }

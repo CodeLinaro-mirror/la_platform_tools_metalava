@@ -16,8 +16,11 @@
 
 package com.android.tools.metalava
 
+import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.ConstructorItem
+import com.android.tools.metalava.model.DelegatedVisitor
 import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
@@ -29,35 +32,53 @@ import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.model.visitors.ApiVisitor
+import com.android.tools.metalava.model.visitors.FilteringApiVisitor
 import java.io.PrintWriter
 import java.util.BitSet
 import java.util.function.Predicate
 
 class SignatureWriter(
     private val writer: PrintWriter,
-    filterEmit: Predicate<Item>,
-    filterReference: Predicate<Item>,
-    private val preFiltered: Boolean,
     private var emitHeader: EmitFileHeader = EmitFileHeader.ALWAYS,
     private val fileFormat: FileFormat,
-    showUnannotated: Boolean,
-    apiVisitorConfig: Config,
-) :
-    ApiVisitor(
-        visitConstructorsAsMethods = false,
-        nestInnerClasses = false,
-        inlineInheritedFields = true,
-        methodComparator = fileFormat.overloadedMethodOrder.comparator,
-        filterEmit = filterEmit,
-        filterReference = filterReference,
-        showUnannotated = showUnannotated,
-        config = apiVisitorConfig,
-    ) {
+) : DelegatedVisitor {
+
     init {
         // If a header must always be written out (even if the file is empty) then write it here.
         if (emitHeader == EmitFileHeader.ALWAYS) {
             writer.print(fileFormat.header())
         }
+    }
+
+    /**
+     * Create an [ApiVisitor] that will filter the [Item] to which is applied according to the
+     * supplied parameters and in a manner appropriate for writing signatures, e.g. not nesting
+     * nested classes. It will delegate any visitor calls that pass through its filter to this
+     * [SignatureWriter] instance.
+     */
+    fun createFilteringVisitor(
+        filterEmit: Predicate<Item>,
+        filterReference: Predicate<Item>,
+        preFiltered: Boolean,
+        showUnannotated: Boolean,
+        apiVisitorConfig: ApiVisitor.Config,
+    ): ApiVisitor {
+        val (interfaceListSorter, interfaceListComparator) =
+            if (fileFormat.sortWholeExtendsList) Pair(null, TypeItem.totalComparator)
+            else Pair(::getInterfacesInOrder, null)
+        return FilteringApiVisitor(
+            delegate = this,
+            preserveClassNesting = false,
+            inlineInheritedFields = true,
+            callableComparator = fileFormat.overloadedMethodOrder.comparator,
+            interfaceListSorter = interfaceListSorter,
+            interfaceListComparator = interfaceListComparator,
+            filterEmit = filterEmit,
+            filterReference = filterReference,
+            preFiltered = preFiltered,
+            showUnannotated = showUnannotated,
+            config = apiVisitorConfig,
+        )
     }
 
     private val modifierListWriter =
@@ -224,23 +245,17 @@ class SignatureWriter(
         modifierListWriter.write(item.actualItem)
     }
 
-    /** Get the filtered super class type, ignoring java.lang.Object. */
-    private fun getFilteredSuperClassTypeFor(cls: ClassItem): TypeItem? {
-        val superClassItem =
-            if (preFiltered) cls.superClassType() else cls.filteredSuperClassType(filterReference)
-        return if (superClassItem == null || superClassItem.isJavaLangObject()) null
-        else superClassItem
-    }
-
     private fun writeSuperClassStatement(cls: ClassItem) {
         if (cls.isEnum() || cls.isAnnotationType() || cls.isInterface()) {
             return
         }
 
-        getFilteredSuperClassTypeFor(cls)?.let { superClassType ->
-            write(" extends")
-            writeExtendsOrImplementsType(superClassType)
-        }
+        /** Get the super class type, ignoring java.lang.Object. */
+        val superClassType = cls.superClassType()
+        if (superClassType == null || superClassType.isJavaLangObject()) return
+
+        write(" extends")
+        writeExtendsOrImplementsType(superClassType)
     }
 
     private fun writeExtendsOrImplementsType(typeItem: TypeItem) {
@@ -248,7 +263,6 @@ class SignatureWriter(
             typeItem.toTypeString(
                 annotations = fileFormat.includeTypeUseAnnotations,
                 kotlinStyleNulls = fileFormat.kotlinStyleNulls,
-                filter = filterReference
             )
         write(" ")
         write(superClassString)
@@ -258,57 +272,16 @@ class SignatureWriter(
         if (cls.isAnnotationType()) {
             return
         }
-        val isInterface = cls.isInterface()
 
-        val unfilteredInterfaceTypes = cls.interfaceTypes()
-        val interfaces =
-            if (preFiltered) unfilteredInterfaceTypes
-            else cls.filteredInterfaceTypes(filterReference)
-        if (interfaces.isEmpty()) {
-            return
-        }
+        // There is no need to sort the interface types as that is done by the `interfaceTypes()`
+        // method, using the `interfaceListAccessor(...)` method.
+        val orderedInterfaces = cls.interfaceTypes()
+        if (orderedInterfaces.isEmpty()) return
 
-        // Sort before prepending the super class (if this is an interface) as the super class
-        // always comes first because it was previously written out by writeSuperClassStatement.
-        @Suppress("DEPRECATION")
-        val comparator =
-            if (fileFormat.sortWholeExtendsList) TypeItem.totalComparator
-            else TypeItem.partialComparator
-        val sortedInterfaces = interfaces.sortedWith(comparator)
-
-        // Combine the super class and interfaces into a full list of them.
-        val fullInterfaces =
-            if (isInterface && !fileFormat.sortWholeExtendsList) {
-                // Previously, when the first interface in the extends list was stored in
-                // superClass, if that interface was visible in the signature then it would always
-                // be first even though the other interfaces are sorted in alphabetical order. This
-                // implements similar logic.
-                val firstUnfilteredInterfaceType = unfilteredInterfaceTypes.first()
-                val firstFilteredInterfaceType = interfaces.first()
-                if (firstFilteredInterfaceType == firstUnfilteredInterfaceType) {
-                    buildList {
-                        // The first interface in the interfaces list is also the first interface in
-                        // the filtered interfaces list so add it first.
-                        add(firstFilteredInterfaceType)
-
-                        // Add the remaining interfaces in sorted order.
-                        if (sortedInterfaces.size > 1) {
-                            for (interfaceType in sortedInterfaces) {
-                                if (interfaceType != firstFilteredInterfaceType) {
-                                    add(interfaceType)
-                                }
-                            }
-                        }
-                    }
-                } else {
-                    sortedInterfaces
-                }
-            } else sortedInterfaces
-
-        val label = if (isInterface) " extends" else " implements"
+        val label = if (cls.isInterface()) " extends" else " implements"
         write(label)
 
-        fullInterfaces.forEach { typeItem -> writeExtendsOrImplementsType(typeItem) }
+        orderedInterfaces.forEach { typeItem -> writeExtendsOrImplementsType(typeItem) }
     }
 
     private fun writeTypeParameterList(typeList: TypeParameterList, addSpace: Boolean) {
@@ -321,10 +294,10 @@ class SignatureWriter(
         }
     }
 
-    private fun writeParameterList(method: MethodItem, skipMask: BitSet? = null) {
+    private fun writeParameterList(callable: CallableItem, skipMask: BitSet? = null) {
         write("(")
         var writtenParams = 0
-        method.parameters().asSequence().forEachIndexed { i, parameter ->
+        callable.parameters().asSequence().forEachIndexed { i, parameter ->
             // skip over defaults when generating @JvmOverloads permutations
             if (skipMask != null && skipMask.get(i)) return@forEachIndexed
 
@@ -376,7 +349,6 @@ class SignatureWriter(
             type.toTypeString(
                 annotations = fileFormat.includeTypeUseAnnotations,
                 kotlinStyleNulls = fileFormat.kotlinStyleNulls,
-                filter = filterReference
             )
 
         // Strip java.lang. prefix
@@ -385,17 +357,11 @@ class SignatureWriter(
         write(typeString)
     }
 
-    private fun writeThrowsList(method: MethodItem) {
-        val throws =
-            when {
-                preFiltered -> method.throwsTypes().asSequence()
-                else -> method.filteredThrowsTypes(filterReference).asSequence()
-            }
-        if (throws.any()) {
+    private fun writeThrowsList(callable: CallableItem) {
+        val throws = callable.throwsTypes()
+        if (throws.isNotEmpty()) {
             write(" throws ")
-            throws.asSequence().sortedWith(ExceptionTypeItem.fullNameComparator).forEachIndexed {
-                i,
-                type ->
+            throws.sortedWith(ExceptionTypeItem.fullNameComparator).forEachIndexed { i, type ->
                 if (i > 0) {
                     write(", ")
                 }
@@ -409,4 +375,48 @@ enum class EmitFileHeader {
     ALWAYS,
     NEVER,
     IF_NONEMPTY_FILE
+}
+
+/**
+ * Get the filtered list of [ClassItem.interfaceTypes], in the correct legacy order.
+ *
+ * Historically, on interface classes its first implemented interface type was stored in the
+ * [ClassItem.superClassType] and if it was not filtered out it was always written out first in the
+ * signature files, while the rest of the interface types were sorted by their [ClassItem.fullName].
+ * This implements that behavior.
+ */
+private fun getInterfacesInOrder(
+    classItem: ClassItem,
+    filteredInterfaceTypes: List<ClassTypeItem>,
+    unfilteredInterfaceTypes: List<ClassTypeItem>,
+): List<ClassTypeItem> {
+    // Sort before prepending the super class (if this is an interface) as the super class
+    // always comes first because it was previously written out by writeSuperClassStatement.
+    @Suppress("DEPRECATION")
+    val sortedInterfaces = filteredInterfaceTypes.sortedWith(TypeItem.partialComparator)
+
+    // Combine the super class and interfaces into a full list of them.
+    if (classItem.isInterface()) {
+        // Previously, when the first interface in the extends list was stored in
+        // superClass, if that interface was visible in the signature then it would always
+        // be first even though the other interfaces are sorted in alphabetical order. This
+        // implements similar logic.
+        val firstUnfilteredInterfaceType = unfilteredInterfaceTypes.first()
+
+        // Check to see whether the first unfiltered interface type is in the sorted set of
+        // interfaces. If it is, and it is not the first then it needs moving to the beginning.
+        val index = sortedInterfaces.indexOf(firstUnfilteredInterfaceType)
+        if (index > 0) {
+            // Create a mutable list and move the first unfiltered interface type to the beginning.
+            return sortedInterfaces.toMutableList().also { mutable ->
+                // Remove it from its existing position.
+                mutable.removeAt(index)
+
+                // Add it at the beginning.
+                mutable.add(0, firstUnfilteredInterfaceType)
+            }
+        }
+    }
+
+    return sortedInterfaces
 }

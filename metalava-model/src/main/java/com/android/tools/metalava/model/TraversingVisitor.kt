@@ -70,8 +70,8 @@ abstract class TraversingVisitor : ItemVisitor {
                     if (traversalFinished) return
                 }
 
-                for (innerCls in cls.innerClasses()) {
-                    innerCls.accept(this)
+                for (nestedCls in cls.nestedClasses()) {
+                    nestedCls.accept(this)
                     if (traversalFinished) return
                 }
             }
@@ -80,6 +80,11 @@ abstract class TraversingVisitor : ItemVisitor {
 
     final override fun visit(field: FieldItem) {
         val action = visitItem(field)
+        traversalFinished = action == TraversalAction.SKIP_TRAVERSAL
+    }
+
+    final override fun visit(constructor: ConstructorItem) {
+        val action = visitItem(constructor)
         traversalFinished = action == TraversalAction.SKIP_TRAVERSAL
     }
 
