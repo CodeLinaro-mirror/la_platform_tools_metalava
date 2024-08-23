@@ -186,6 +186,13 @@ data class Showability(
     fun showForStubsOnly() = forStubsOnly.show(revertItem)
 
     /**
+     * Check whether the annotations on this item affect nested `Item`s.
+     *
+     * Returns `true` if they do, `false` if they do not affect nested `Item`s.
+     */
+    fun showRecursive() = recursive.show(revertItem) || forStubsOnly.show(revertItem)
+
+    /**
      * Check whether the annotations on this item only affect the current `Item`.
      *
      * Returns `true` if they do, `false` if they can also affect nested `Item`s.

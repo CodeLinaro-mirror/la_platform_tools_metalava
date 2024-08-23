@@ -2,7 +2,6 @@ com.android.tools.metalava.AndroidApiChecksTest
   Document Permissions[turbine]
 
 com.android.tools.metalava.AnnotationsMergerTest
-  Merge @FlaggedApi inclusion annotations from Java stub files[turbine]
   Merge Contract and Language annotations from XML files[turbine]
   Merge Contract and Language annotations from signature files[turbine]
   Merge type use qualifier annotations from Java stub files[turbine]

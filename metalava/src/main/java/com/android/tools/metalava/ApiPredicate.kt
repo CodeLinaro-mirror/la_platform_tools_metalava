@@ -21,8 +21,7 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.MethodItem
-import com.android.tools.metalava.model.PackageItem
-import com.android.tools.metalava.model.TypeParameterItem
+import com.android.tools.metalava.model.SelectableItem
 import java.util.function.Predicate
 
 /**
@@ -82,39 +81,43 @@ class ApiPredicate(
         val addAdditionalOverrides: Boolean = false,
     )
 
-    override fun test(member: Item): Boolean {
+    override fun test(item: Item): Boolean {
         // non-class, i.e., (literally) member declaration w/o emit flag, e.g., due to `expect`
         // Some [ClassItem], e.g., JvmInline, java.lang.* classes, may not set the emit flag.
-        if (member !is ClassItem && !member.emit) {
+        if (item !is ClassItem && !item.emit) {
             return false
         }
 
-        // Type Parameter references (e.g. T) aren't actual types, skip all visibility checks
-        if (member is TypeParameterItem) {
+        // If the item is not individually selectable (i.e. ParameterItem and TypeParameterItem)
+        // then whether it is included will always be determined by its owner. If it got to this
+        // point the chances are that its owner was selected, so just assume this is too.
+        if (item !is SelectableItem) {
             return true
         }
 
-        if (!config.allowClassesFromClasspath && member.isFromClassPath()) {
+        if (!config.allowClassesFromClasspath && item.isFromClassPath()) {
             return false
         }
 
         val visibleForAdditionalOverridePurpose =
             if (config.addAdditionalOverrides) {
-                member is MethodItem && member.isRequiredOverridingMethodForTextStub()
+                item is MethodItem && item.isRequiredOverridingMethodForTextStub()
             } else {
                 false
             }
 
+        val itemSelectors = item.variantSelectors
+
         var visible =
-            member.isPublic ||
-                member.isProtected ||
-                (member.isInternal &&
-                    member.hasShowAnnotation()) // TODO: Should this use checkLevel instead?
-        var hidden = member.hidden && !visibleForAdditionalOverridePurpose
+            item.isPublic ||
+                item.isProtected ||
+                (item.isInternal &&
+                    item.hasShowAnnotation()) // TODO: Should this use checkLevel instead?
+        var hidden = itemSelectors.hidden && !visibleForAdditionalOverridePurpose
         if (!visible || hidden) {
             return false
         }
-        if (!includeApisForStubPurposes && includeOnlyForStubPurposes(member)) {
+        if (!includeApisForStubPurposes && includeOnlyForStubPurposes(item)) {
             return false
         }
 
@@ -125,34 +128,25 @@ class ApiPredicate(
         // Only the class definition is marked visible, and class attributes are
         // not affected.
         if (
-            member is ClassItem &&
-                member.superClass()?.let {
+            item is ClassItem &&
+                item.superClass()?.let {
                     it.hasShowAnnotation() && !includeOnlyForStubPurposes(it)
                 } == true
         ) {
-            return member.removed == matchRemoved
+            return itemSelectors.removed == matchRemoved
         }
 
-        var hasShowAnnotation = config.ignoreShown || member.hasShowAnnotation()
-        var docOnly = member.docOnly
-        var removed = member.removed
+        var hasShowAnnotation = config.ignoreShown || item.hasShowAnnotation()
+        var docOnly = itemSelectors.docOnly
+        var removed = itemSelectors.removed
 
         var clazz: ClassItem? =
-            when (member) {
-                is MemberItem -> member.containingClass()
-                is ClassItem -> member
+            when (item) {
+                is MemberItem -> item.containingClass()
+                is ClassItem -> item
                 else -> null
             }
 
-        if (clazz != null) {
-            var pkg: PackageItem? = clazz.containingPackage()
-            while (pkg != null) {
-                hidden = hidden or pkg.hidden
-                docOnly = docOnly or pkg.docOnly
-                removed = removed or pkg.removed
-                pkg = pkg.containingPackage()
-            }
-        }
         while (clazz != null) {
             visible =
                 visible and

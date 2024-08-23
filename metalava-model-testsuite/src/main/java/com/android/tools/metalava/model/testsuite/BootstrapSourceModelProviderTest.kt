@@ -904,7 +904,7 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
             assertEquals("TestParam", paramItem.publicName())
             assertEquals(true, paramItem.hasDefaultValue())
             assertEquals(true, paramItem.isDefaultValueKnown())
-            assertEquals("5", paramItem.defaultValue())
+            assertEquals("5", paramItem.defaultValueAsString())
         }
     }
 
@@ -1047,10 +1047,10 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
             val fieldItem = classItem.assertField("Field")
             val innerFieldItem = innerClassItem.assertField("InnerField")
 
-            assertEquals(false, classItem.docOnly)
-            assertEquals(true, innerClassItem.docOnly)
-            assertEquals(false, innerFieldItem.docOnly)
-            assertEquals(true, fieldItem.docOnly)
+            assertEquals(false, classItem.docOnly, message = "classItem.docOnly")
+            assertEquals(true, innerClassItem.docOnly, message = "innerClassItem.docOnly")
+            assertEquals(true, innerFieldItem.docOnly, message = "innerFieldItem.docOnly")
+            assertEquals(true, fieldItem.docOnly, message = "fieldItem.docOnly")
         }
     }
 }

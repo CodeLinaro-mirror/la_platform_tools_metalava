@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.psi
 
+import com.android.tools.metalava.model.ApiVariantSelectors
 import com.android.tools.metalava.model.BoundsTypeItem
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.ItemDocumentation
@@ -38,6 +39,7 @@ internal class PsiTypeParameterItem(
         element = psiClass,
         modifiers = modifiers,
         documentationFactory = ItemDocumentation.NONE_FACTORY,
+        variantSelectorsFactory = ApiVariantSelectors.IMMUTABLE_FACTORY,
     ),
     TypeParameterItem {
 

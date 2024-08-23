@@ -36,7 +36,7 @@ class DefaultFieldItem(
     containingClass: ClassItem,
     private var type: TypeItem,
     private val isEnumConstant: Boolean,
-    private val fieldValue: FieldValue?,
+    override val fieldValue: FieldValue?,
 ) :
     DefaultMemberItem(
         codebase = codebase,

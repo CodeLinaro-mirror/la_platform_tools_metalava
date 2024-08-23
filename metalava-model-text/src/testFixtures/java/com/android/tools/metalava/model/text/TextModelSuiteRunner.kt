@@ -126,6 +126,7 @@ internal class ClassLoaderBasedClassResolver(jar: File) : ClassResolver {
                         qualifiedName = cls.canonicalName,
                         classKind = ClassKind.CLASS,
                         containingClass = null,
+                        containingPackage = packageItem,
                         typeParameterList = TypeParameterList.NONE,
                     )
                     .also { newClassItem ->

@@ -23,6 +23,7 @@ import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.isNonNullAnnotation
+import com.android.tools.metalava.model.item.FieldValue
 import com.intellij.psi.PsiCallExpression
 import com.intellij.psi.PsiClassType
 import com.intellij.psi.PsiEnumConstant
@@ -41,7 +42,7 @@ class PsiFieldItem(
     documentationFactory: ItemDocumentationFactory,
     private var fieldType: TypeItem,
     private val isEnumConstant: Boolean,
-    private val fieldValue: PsiFieldValue?,
+    override val fieldValue: PsiFieldValue?,
 ) :
     PsiMemberItem(
         codebase = codebase,
@@ -171,9 +172,9 @@ private fun PsiField.isFieldInitializerNonNull(): Boolean {
  * Wrapper around a [PsiField] that will provide access to the initial value of the field, if
  * available, or `null` otherwise.
  */
-class PsiFieldValue(private val psiField: PsiField) {
+class PsiFieldValue(private val psiField: PsiField) : FieldValue {
 
-    fun initialValue(requireConstant: Boolean): Any? {
+    override fun initialValue(requireConstant: Boolean): Any? {
         val constant = psiField.computeConstantValue()
         // Offset [ClsFieldImpl#computeConstantValue] for [TYPE] field in boxed primitive types.
         // Those fields hold [Class] object, but the constant value should not be of [PsiType].

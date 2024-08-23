@@ -206,8 +206,12 @@ com.android.tools.metalava.model.testsuite.methoditem.CommonMethodItemTest
 com.android.tools.metalava.model.testsuite.methoditem.CommonParameterItemTest
   Test deprecated parameter by annotation[text]
   Test deprecated parameter by annotation[turbine]
+  Test no default value[text]
+  Test no default value[turbine]
   Test not deprecated parameter[text]
   Test not deprecated parameter[turbine]
+  Test null default value[text]
+  Test null default value[turbine]
   Test nullability of Kotlin varargs last[text]
   Test nullability of parameter annotated with @not-type-use-NonNull[text]
   Test nullability of parameter annotated with @not-type-use-NonNull[turbine]
@@ -219,6 +223,7 @@ com.android.tools.metalava.model.testsuite.methoditem.CommonParameterItemTest
   Test publicName reports correct name when not specified[turbine]
   Test publicName reports correct name when specified[text]
   Test publicName reports correct name when specified[turbine]
+  Test unknown default value[text]
 
 com.android.tools.metalava.model.testsuite.methoditem.CommonSuperMethodsTest
   Test inherit method impl from hidden parent class and default from interface[turbine]

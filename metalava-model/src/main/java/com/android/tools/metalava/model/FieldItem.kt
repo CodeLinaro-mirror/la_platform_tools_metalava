@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model
 
+import com.android.tools.metalava.model.item.FieldValue
 import java.io.PrintWriter
 
 @MetalavaApi
@@ -32,6 +33,9 @@ interface FieldItem : MemberItem, InheritableItem {
         superMethods: Boolean,
         duplicate: Boolean,
     ) = containingClass().findCorrespondingItemIn(codebase)?.findField(name())
+
+    /** The optional value of this [FieldItem]. */
+    val fieldValue: FieldValue?
 
     /**
      * The initial/constant value, if any. If [requireConstant] the initial value will only be

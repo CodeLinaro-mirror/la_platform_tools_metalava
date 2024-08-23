@@ -20,6 +20,7 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.DefaultModifierList
+import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.item.DefaultClassItem
 import com.android.tools.metalava.reporter.FileLocation
@@ -33,6 +34,7 @@ internal class StubClassBuilder(
     val qualifiedName: String,
     private val fullName: String,
     private val containingClass: ClassItem?,
+    val containingPackage: PackageItem,
 ) {
     /** The default [ClassKind] can be modified. */
     var classKind = ClassKind.CLASS
@@ -51,6 +53,7 @@ internal class StubClassBuilder(
                 qualifiedName = qualifiedName,
                 fullName = fullName,
                 containingClass = containingClass,
+                containingPackage = containingPackage,
                 typeParameterList = TypeParameterList.NONE,
             )
             .also { item -> item.setSuperClassType(superClassType) }
@@ -65,7 +68,8 @@ internal class StubClassBuilder(
             qualifiedName: String,
             fullName: String,
             containingClass: ClassItem?,
-            mutator: StubClassBuilder.() -> Unit
+            containingPackage: PackageItem,
+            mutator: StubClassBuilder.() -> Unit,
         ): DefaultClassItem {
             val builder =
                 StubClassBuilder(
@@ -73,6 +77,7 @@ internal class StubClassBuilder(
                     qualifiedName = qualifiedName,
                     fullName = fullName,
                     containingClass = containingClass,
+                    containingPackage = containingPackage,
                 )
             builder.mutator()
             return builder.build()

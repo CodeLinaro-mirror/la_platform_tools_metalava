@@ -329,7 +329,7 @@ class SignatureWriter(
 
             if (parameter.isDefaultValueKnown() && !fileFormat.conciseDefaultValues) {
                 write(" = ")
-                val defaultValue = parameter.defaultValue()
+                val defaultValue = parameter.defaultValueAsString()
                 if (defaultValue != null) {
                     write(defaultValue)
                 } else {

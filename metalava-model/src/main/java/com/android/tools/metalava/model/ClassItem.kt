@@ -26,7 +26,7 @@ import java.util.function.Predicate
  * com.android.tools.metalava.model.TypeItem} instead
  */
 @MetalavaApi
-interface ClassItem : Item, TypeParameterListOwner {
+interface ClassItem : SelectableItem, TypeParameterListOwner {
     /**
      * The qualified name of a class. In class foo.bar.Outer.Inner, the qualified name is the whole
      * thing.

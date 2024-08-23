@@ -33,7 +33,7 @@ sealed class ApiVariantSelectors {
      *
      * Initially set to [originallyHidden] but updated due to inheritance.
      */
-    protected abstract var inheritableHidden: Boolean
+    internal abstract var inheritableHidden: Boolean
 
     /**
      * Indicates whether the [Item] should be hidden, i.e. should not be included in ANY API surface
@@ -81,9 +81,15 @@ sealed class ApiVariantSelectors {
 
         /**
          * An [ApiVariantSelectors] factory that will return a new, mutable, [ApiVariantSelectors]
-         * for each [Item].
+         * for each [SelectableItem].
+         *
+         * This cannot be used on an [Item] that is not a [SelectableItem], use [IMMUTABLE_FACTORY]
+         * instead.
          */
-        val MUTABLE_FACTORY: ApiVariantSelectorsFactory = { Mutable(it) }
+        val MUTABLE_FACTORY: ApiVariantSelectorsFactory = {
+            if (it is SelectableItem) Mutable(it)
+            else error("Cannot create Mutable for non-SelectableItem, use Immutable instead")
+        }
     }
 
     /**
@@ -134,7 +140,7 @@ sealed class ApiVariantSelectors {
      * A mutable [ApiVariantSelectors].
      *
      * [originallyHidden] will be `true` if it's [item]'s documentation contains one of `@hide`,
-     * `@pending` or `@suppress` or its [Item] has a hide annotation associated with it.
+     * `@pending` or `@suppress` or its [SelectableItem] has a hide annotation associated with it.
      *
      * Unless [hidden] is written before reading then it will default to `true` if
      * [originallyHidden] is `true` and it does not have any show annotations.
@@ -149,7 +155,7 @@ sealed class ApiVariantSelectors {
      * support lazy initialization with optional setters without duplicating lots of complicated
      * code.
      */
-    private class Mutable(private val item: Item) : ApiVariantSelectors() {
+    private class Mutable(private val item: SelectableItem) : ApiVariantSelectors() {
 
         /**
          * Contains a bit for each lazy boolean property indicating whether it has been set, either
@@ -195,6 +201,31 @@ sealed class ApiVariantSelectors {
             }
 
         /**
+         * Like [lazyGet] except that if the flag is not set it will invoke [inheritInto] if it has
+         * not already been called. It will then check to see if the property has been set and if it
+         * has then the value will be returned. Otherwise, it will invoke the [initialValueProvider]
+         * just as [lazyGet] does.
+         */
+        private inline fun lazyGetAfterInherit(
+            propertyBitMask: Int,
+            initialValueProvider: () -> Boolean
+        ): Boolean {
+            if ((propertyHasBeenSetBits and propertyBitMask) == 0) {
+                // The property has not been set so first call `inheritInto()` to give it a chance
+                // to initialize the property. It will return immediately if it had nothing to do.
+                inheritInto()
+
+                // At this point inheritInfo may have been called and may have set the property,
+                // but it also may not so check again and if it has not then set it to its initial
+                // value.
+                return lazyGet(propertyBitMask, initialValueProvider)
+            } else {
+                // The property has been set so return its value.
+                return (propertyValueBits and propertyBitMask) != 0
+            }
+        }
+
+        /**
          * Set the value of a property in [propertyValueBits], skipping initializing it that has not
          * already been done.
          *
@@ -218,50 +249,80 @@ sealed class ApiVariantSelectors {
         override val originallyHidden: Boolean
             get() =
                 lazyGet(ORIGINALLY_HIDDEN_BIT_MASK) {
+                    // The item is originally hidden if the javadoc contains @hide or similar, or
+                    // it is tagged with a hide annotation. That is true even if the hide annotation
+                    // is superseded by a show annotation.
                     item.documentation.isHidden || item.hasHideAnnotation()
                 }
 
         override var inheritableHidden: Boolean
             get() =
-                lazyGet(INHERITABLE_HIDDEN_BIT_MASK) {
-                    originallyHidden && !item.hasShowAnnotation()
+                lazyGetAfterInherit(INHERITABLE_HIDDEN_BIT_MASK) {
+                    // By default, i.e. if the property has not been set, the contents of this item
+                    // will be hidden if this item was originally hidden and this item did not have
+                    // a show annotation that applies recursively to its contents. Otherwise, the
+                    // item's contents will be visible.
+                    originallyHidden && !showability.showRecursive()
                 }
             set(value) {
                 lazySet(INHERITABLE_HIDDEN_BIT_MASK, value)
             }
 
         override var hidden: Boolean
-            get() = lazyGet(HIDDEN_BIT_MASK) { inheritableHidden }
+            get() =
+                lazyGetAfterInherit(HIDDEN_BIT_MASK) {
+                    // By default, i.e. if the property has not been set, this item will be hidden
+                    // if it inherits hidden from its parent (or was originally hidden) and this
+                    // item does not have a show annotation of any sort. Otherwise, this item is
+                    // visible.
+                    inheritableHidden && !showability.show()
+                }
             set(value) {
                 lazySet(HIDDEN_BIT_MASK, value)
             }
 
         override var docOnly: Boolean
-            get() = lazyGet(DOCONLY_BIT_MASK) { item.documentation.isDocOnly }
+            get() = lazyGetAfterInherit(DOCONLY_BIT_MASK) { item.documentation.isDocOnly }
             set(value) {
                 lazySet(DOCONLY_BIT_MASK, value)
             }
 
         override var removed: Boolean
-            get() = lazyGet(REMOVED_BIT_MASK) { item.documentation.isRemoved }
+            get() = lazyGetAfterInherit(REMOVED_BIT_MASK) { item.documentation.isRemoved }
             set(value) {
                 lazySet(REMOVED_BIT_MASK, value)
             }
 
         /** Cache of [showability]. */
-        private lateinit var _showability: Showability
+        internal var _showability: Showability? = null
 
         override val showability: Showability
             get() =
-                if (::_showability.isInitialized) _showability
-                else {
-                    _showability = item.codebase.annotationManager.getShowabilityForItem(item)
-                    _showability
-                }
+                _showability
+                    ?: let {
+                        _showability = item.codebase.annotationManager.getShowabilityForItem(item)
+                        _showability!!
+                    }
 
-        override fun duplicate(item: Item): ApiVariantSelectors = Mutable(item)
+        override fun duplicate(item: Item): ApiVariantSelectors = Mutable(item as SelectableItem)
+
+        /**
+         * Records whether [inheritInto] was called as it must only be called once.
+         *
+         * This uses [lazyGet] and [lazySet] to be consistent with other properties and makes it
+         * easy to include the information in the [toString] result.
+         */
+        internal var inheritIntoWasCalled
+            get() = lazyGet(INHERIT_INTO_BIT_MASK) { false }
+            set(value) {
+                lazySet(INHERIT_INTO_BIT_MASK, value)
+            }
 
         override fun inheritInto() {
+            // This must only be called once.
+            if (inheritIntoWasCalled) return
+            inheritIntoWasCalled = true
+
             // PackageItem behaves quite differently to the other Item types so do it first.
             if (item is PackageItem) {
                 showability.let { showability ->
@@ -285,7 +346,14 @@ sealed class ApiVariantSelectors {
             if (item !is ClassItem && item !is CallableItem && item !is FieldItem) return
 
             if (showability.show()) {
-                inheritableHidden = false
+                // If the showability is recursive then set inheritableHidden to false, that will
+                // unhide any contents of this item too, unless they hide themselves.
+                if (showability.showRecursive()) {
+                    inheritableHidden = false
+                }
+                // Whether the showability is recursive or not a show annotation of any sort will
+                // always unhide this item.
+                hidden = false
 
                 if (item is ClassItem) {
                     // Make containing package non-hidden if it contains a show-annotation class.
@@ -299,16 +367,19 @@ sealed class ApiVariantSelectors {
             } else {
                 val containingClassSelectors = item.containingClass()?.variantSelectors
                 if (containingClassSelectors != null) {
-                    // FieldItem does not inherit hidden status from its containing class.
-                    if (item !is FieldItem && containingClassSelectors.inheritableHidden) {
-                        inheritableHidden = true
-                    } else if (
-                        containingClassSelectors.originallyHidden &&
-                            containingClassSelectors.showability.showNonRecursive()
-                    ) {
-                        // This is a member in a class that was hidden but then unhidden; but it was
-                        // unhidden by a non-recursive (single) show annotation, so don't inherit
-                        // the show annotation into this item.
+                    if (item is FieldItem) {
+                        if (
+                            containingClassSelectors.originallyHidden &&
+                                containingClassSelectors.showability.showNonRecursive()
+                        ) {
+                            // This is a member in a class that was hidden but then unhidden; but it
+                            // was
+                            // unhidden by a non-recursive (single) show annotation, so don't
+                            // inherit
+                            // the show annotation into this item.
+                            inheritableHidden = true
+                        }
+                    } else if (containingClassSelectors.inheritableHidden) {
                         inheritableHidden = true
                     }
                     if (containingClassSelectors.docOnly) {
@@ -337,27 +408,50 @@ sealed class ApiVariantSelectors {
         override fun toString(): String {
             return buildString {
                 append(item.describe())
-                append(" {")
+                append(" {\n")
                 for ((bitPosition, propertyName) in propertyNamePerBit.withIndex()) {
+                    val bitMask = 1 shl bitPosition
+                    append("    ")
                     append(propertyName)
                     append("=")
-                    if ((propertyHasBeenSetBits and bitPosition) == 0) {
+                    if ((propertyHasBeenSetBits and bitMask) == 0) {
                         append("<not-set>")
-                    } else if ((propertyValueBits and bitPosition) == 0) {
+                    } else if ((propertyValueBits and bitMask) == 0) {
                         append("false")
                     } else {
                         append("true")
                     }
-                    append(",")
+                    append(",\n")
                 }
-                append("showability=")
-                if (::_showability.isInitialized) {
-                    append(_showability)
-                } else {
+                append("    showability=")
+                if (_showability == null) {
                     append("<not-set>")
+                } else {
+                    append(_showability)
                 }
+                append(",\n")
                 append("}")
             }
+        }
+
+        override fun equals(other: Any?): Boolean {
+            if (this === other) return true
+            if (other !is Mutable) return false
+
+            if (item != other.item) return false
+            if (propertyHasBeenSetBits != other.propertyHasBeenSetBits) return false
+            if (propertyValueBits != other.propertyValueBits) return false
+            if (_showability != other._showability) return false
+
+            return true
+        }
+
+        override fun hashCode(): Int {
+            var result = item.hashCode()
+            result = 31 * result + propertyHasBeenSetBits
+            result = 31 * result + propertyValueBits
+            result = 31 * result + _showability.hashCode()
+            return result
         }
 
         companion object {
@@ -383,8 +477,15 @@ sealed class ApiVariantSelectors {
             private const val REMOVED_BIT_POSITION: Int = DOCONLY_BIT_POSITION + 1
             private const val REMOVED_BIT_MASK: Int = 1 shl REMOVED_BIT_POSITION
 
+            /**
+             * Bit mask in [propertyHasBeenSetBits] that indicates whether [inheritInto] has been
+             * called.
+             */
+            private const val INHERIT_INTO_BIT_POSITION = REMOVED_BIT_POSITION + 1
+            private const val INHERIT_INTO_BIT_MASK = 1 shl INHERIT_INTO_BIT_POSITION
+
             /** The count of the number of bits used. */
-            private const val COUNT_BITS_USED = REMOVED_BIT_POSITION + 1
+            private const val COUNT_BITS_USED = INHERIT_INTO_BIT_POSITION + 1
 
             /** Map from bit to the associated property name, used in toString() */
             private val propertyNamePerBit =
@@ -395,7 +496,57 @@ sealed class ApiVariantSelectors {
                         array[HIDDEN_BIT_POSITION] = "hidden"
                         array[DOCONLY_BIT_POSITION] = "docOnly"
                         array[REMOVED_BIT_POSITION] = "removed"
+                        array[INHERIT_INTO_BIT_POSITION] = "inheritIntoWasCalled"
                     }
         }
+    }
+
+    /**
+     * Encapsulates the expected state of a [Mutable] instance.
+     *
+     * A data class was chosen for this because the nature of the [Mutable] class is such that
+     * generally, once a property has been set it is not changed (not strictly true for packages).
+     * Tests will typically, test the state, make a change (e.g. get the value of a property), check
+     * the new state and so on. The [copy] method generated for data classes makes it easy to
+     * incrementally modify the state without having to repeat all the previous changes.
+     *
+     * For `var` properties in [Mutable] each corresponding optional parameter will have no effect
+     * if `null` but otherwise will be used to set the corresponding `var` property in the returned
+     * object.
+     *
+     * The `val` properties like [originallyHidden] cannot be set to a specific value. So, all that
+     * this can do is force it to be initialized. That means that the [ApiVariantSelectors] returned
+     * from [createSelectorsforTesting] will only verify whether it is set or not-set as expected.
+     * It cannot test if the value is expected. That will need to be done by the caller.
+     */
+    data class TestableSelectorsState(
+        val item: SelectableItem,
+        val originallyHidden: Boolean? = null,
+        val inheritIntoWasCalled: Boolean = false,
+        val inheritableHidden: Boolean? = null,
+        val hidden: Boolean? = null,
+        val docOnly: Boolean? = null,
+        val removed: Boolean? = null,
+        val showability: Showability? = null,
+    ) {
+
+        /**
+         * Create a [Mutable] instance whose state matches this that can be used as the expected
+         * state in a test.
+         */
+        fun createSelectorsforTesting(): ApiVariantSelectors =
+            Mutable(item).also { selectors ->
+                // If originally hidden is set then force it to be initialized.
+                originallyHidden?.let {
+                    // It is expected to be set so force it to be initialized.
+                    selectors.originallyHidden
+                }
+                if (inheritIntoWasCalled) selectors.inheritIntoWasCalled = true
+                inheritableHidden?.let { selectors.inheritableHidden = it }
+                hidden?.let { selectors.hidden = it }
+                docOnly?.let { selectors.docOnly = it }
+                removed?.let { selectors.removed = it }
+                showability?.let { selectors._showability = it }
+            }
     }
 }

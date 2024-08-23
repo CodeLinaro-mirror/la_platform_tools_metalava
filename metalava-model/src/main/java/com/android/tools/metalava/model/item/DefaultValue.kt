@@ -16,6 +16,8 @@
 
 package com.android.tools.metalava.model.item
 
+import com.android.tools.metalava.model.FixedDefaultValue
+
 /**
  * Represents a parameter's default value.
  *
@@ -25,11 +27,7 @@ package com.android.tools.metalava.model.item
  */
 interface DefaultValue {
 
-    /**
-     * A [DefaultValue] to use for a parameter that has no default value.
-     *
-     * TODO: Investigate whether using `null` would be better.
-     */
+    /** A [DefaultValue] to use for a parameter that has no default value. */
     @Suppress("ConvertObjectToDataObject") // Requires language level 1.9
     object NONE : DefaultValue {
         override fun hasDefaultValue() = false
@@ -54,6 +52,13 @@ interface DefaultValue {
         override fun value() = error("cannot call on UNKNOWN DefaultValue")
 
         override fun toString() = "UNKNOWN"
+    }
+
+    companion object {
+        /** Get a [DefaultValue] wrapper around a fixed [String] value. */
+        fun fixedDefaultValue(value: String?): DefaultValue {
+            return FixedDefaultValue(value)
+        }
     }
 
     /**

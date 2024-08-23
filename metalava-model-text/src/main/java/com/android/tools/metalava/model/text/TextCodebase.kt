@@ -28,6 +28,7 @@ import com.android.tools.metalava.model.bestGuessAtFullName
 import com.android.tools.metalava.model.item.DefaultClassItem
 import com.android.tools.metalava.model.item.DefaultCodebase
 import com.android.tools.metalava.model.item.DefaultItemFactory
+import com.android.tools.metalava.model.item.DefaultPackageItem
 import java.io.File
 import java.util.HashMap
 
@@ -195,6 +196,22 @@ internal class TextCodebase(
                 null
             }
 
+        // Find/create package
+        val pkg =
+            if (outerClass == null) {
+                val endIndex = qualifiedName.lastIndexOf('.')
+                val pkgPath = if (endIndex != -1) qualifiedName.substring(0, endIndex) else ""
+                findPackage(pkgPath)
+                    ?: run {
+                        val newPkg = itemFactory.createPackageItem(qualifiedName = pkgPath)
+                        addPackage(newPkg)
+                        newPkg.emit = false
+                        newPkg
+                    }
+            } else {
+                outerClass.containingPackage() as DefaultPackageItem
+            }
+
         // Build a stub class of the required kind.
         val requiredStubKind = requiredStubKindForClass.remove(qualifiedName) ?: StubKind.CLASS
         val stubClass =
@@ -203,6 +220,7 @@ internal class TextCodebase(
                 qualifiedName = qualifiedName,
                 fullName = fullName,
                 containingClass = outerClass,
+                containingPackage = pkg,
             ) {
                 // Apply stub kind specific mutations to the stub class being built.
                 requiredStubKind.mutator(this)
@@ -214,18 +232,6 @@ internal class TextCodebase(
         if (outerClass != null) {
             outerClass.addNestedClass(stubClass)
         } else {
-            // Add to package
-            val endIndex = qualifiedName.lastIndexOf('.')
-            val pkgPath = if (endIndex != -1) qualifiedName.substring(0, endIndex) else ""
-            val pkg =
-                findPackage(pkgPath)
-                    ?: run {
-                        val newPkg = itemFactory.createPackageItem(qualifiedName = pkgPath)
-                        addPackage(newPkg)
-                        newPkg.emit = false
-                        newPkg
-                    }
-            stubClass.setContainingPackage(pkg)
             pkg.addTopClass(stubClass)
         }
         return stubClass

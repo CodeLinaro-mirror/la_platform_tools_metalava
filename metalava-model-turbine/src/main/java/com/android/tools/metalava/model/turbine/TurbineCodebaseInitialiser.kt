@@ -31,6 +31,7 @@ import com.android.tools.metalava.model.DefaultAnnotationItem
 import com.android.tools.metalava.model.DefaultAnnotationSingleAttributeValue
 import com.android.tools.metalava.model.DefaultTypeParameterList
 import com.android.tools.metalava.model.ExceptionTypeItem
+import com.android.tools.metalava.model.FixedFieldValue
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.ItemDocumentation.Companion.toItemDocumentationFactory
 import com.android.tools.metalava.model.ItemDocumentationFactory
@@ -45,6 +46,7 @@ import com.android.tools.metalava.model.item.DefaultClassItem
 import com.android.tools.metalava.model.item.DefaultItemFactory
 import com.android.tools.metalava.model.item.DefaultPackageItem
 import com.android.tools.metalava.model.item.DefaultTypeParameterItem
+import com.android.tools.metalava.model.item.FieldValue
 import com.android.tools.metalava.model.source.SourceItemDocumentation
 import com.android.tools.metalava.model.type.MethodFingerprint
 import com.android.tools.metalava.reporter.FileLocation
@@ -419,6 +421,7 @@ internal open class TurbineCodebaseInitialiser(
                 source = sourceFile,
                 classKind = getClassKind(cls.kind()),
                 containingClass = containingClassItem,
+                containingPackage = pkgItem,
                 qualifiedName = qualifiedName,
                 simpleName = simpleName,
                 fullName = fullName,
@@ -454,7 +457,6 @@ internal open class TurbineCodebaseInitialiser(
 
         // Add the class to corresponding PackageItem
         if (isTopClass) {
-            classItem.setContainingPackage(pkgItem)
             pkgItem.addTopClass(classItem)
         }
 
@@ -526,8 +528,14 @@ internal open class TurbineCodebaseInitialiser(
                     }
                     else -> {
                         val name = ANNOTATION_ATTR_VALUE
+                        val value =
+                            attrs[name]
+                                ?: (exp as? Literal)?.value()
+                                    ?: error(
+                                    "Cannot find value for default 'value' attribute from $exp"
+                                )
                         attributes.add(
-                            DefaultAnnotationAttribute(name, createAttrValue(attrs[name]!!, exp))
+                            DefaultAnnotationAttribute(name, createAttrValue(value, exp))
                         )
                     }
                 }
@@ -995,7 +1003,7 @@ internal open class TurbineCodebaseInitialiser(
             .toItemDocumentationFactory()
     }
 
-    private fun createInitialValue(field: FieldInfo): TurbineFieldValue {
+    private fun createInitialValue(field: FieldInfo): FieldValue {
         val optExpr = field.decl()?.init()
         val expr = if (optExpr != null && optExpr.isPresent()) optExpr.get() else null
         val constantValue = field.value()?.getValue()
@@ -1019,7 +1027,7 @@ internal open class TurbineCodebaseInitialiser(
                     }
             }
 
-        return TurbineFieldValue(constantValue, initialValueWithoutRequiredConstant)
+        return FixedFieldValue(constantValue, initialValueWithoutRequiredConstant)
     }
 
     /**

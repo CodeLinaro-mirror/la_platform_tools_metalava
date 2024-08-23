@@ -32,6 +32,7 @@ import com.android.tools.metalava.model.DefaultAnnotationItem
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.DefaultTypeParameterList
 import com.android.tools.metalava.model.ExceptionTypeItem
+import com.android.tools.metalava.model.FixedFieldValue
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.JAVA_LANG_DEPRECATED
@@ -606,6 +607,7 @@ private constructor(
                 modifiers = modifiers,
                 classKind = classKind,
                 containingClass = outerClass,
+                containingPackage = pkg,
                 qualifiedName = qualifiedClassName,
                 simpleName = className,
                 fullName = fullName,
@@ -628,7 +630,6 @@ private constructor(
             classToTypeItemFactory[cl] = typeItemFactory
         }
 
-        cl.setContainingPackage(pkg)
         if (outerClass == null) {
             // Add the class to the package, it will only be added to the TextCodebase once the
             // package body has been parsed.
@@ -1212,7 +1213,7 @@ private constructor(
 
         // Parse the value string.
         val fieldValue =
-            valueString?.let { TextFieldValue(parseValue(type, valueString, tokenizer)) }
+            valueString?.let { FixedFieldValue(parseValue(type, valueString, tokenizer)) }
 
         if (";" != token) {
             throw ApiParseException("expected ; found $token", tokenizer)
@@ -1704,15 +1705,14 @@ private constructor(
                 when {
                     hasOptionalKeyword ->
                         // It has an optional keyword, so it has a default value but the actual
-                        // value is
-                        // not known.
+                        // value is not known.
                         DefaultValue.UNKNOWN
                     defaultValueString == null ->
-                        // It has neither an optional keyword or an actual default value.
+                        // It has neither an optional keyword nor an actual default value.
                         DefaultValue.NONE
                     else ->
                         // It has an actual default value.
-                        TextDefaultValue(defaultValueString)
+                        DefaultValue.fixedDefaultValue(defaultValueString)
                 }
             parameters.add(
                 ParameterInfo(

@@ -18,6 +18,7 @@ package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.model.AbstractItem
 import com.android.tools.metalava.model.ApiVariantSelectors
+import com.android.tools.metalava.model.ApiVariantSelectorsFactory
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.ItemLanguage
@@ -34,13 +35,14 @@ internal constructor(
     fileLocation: FileLocation = PsiFileLocation(element),
     modifiers: DefaultModifierList,
     documentationFactory: ItemDocumentationFactory,
+    variantSelectorsFactory: ApiVariantSelectorsFactory = ApiVariantSelectors.MUTABLE_FACTORY,
 ) :
     AbstractItem(
         fileLocation = fileLocation,
         itemLanguage = element.itemLanguage,
         modifiers = modifiers,
         documentationFactory = documentationFactory,
-        variantSelectorsFactory = ApiVariantSelectors.MUTABLE_FACTORY,
+        variantSelectorsFactory = variantSelectorsFactory,
     ) {
 
     /** The source PSI provided by UAST */

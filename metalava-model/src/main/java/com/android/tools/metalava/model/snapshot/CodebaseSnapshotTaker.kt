@@ -90,6 +90,7 @@ class CodebaseSnapshotTaker : DelegatedVisitor {
 
     override fun visitClass(cls: ClassItem) {
         val containingClass = currentClass
+        val containingPackage = currentPackage!!
         val newClass =
             DefaultClassItem(
                 codebase = codebase,
@@ -101,6 +102,7 @@ class CodebaseSnapshotTaker : DelegatedVisitor {
                 source = null,
                 classKind = cls.classKind,
                 containingClass = currentClass,
+                containingPackage = containingPackage,
                 qualifiedName = cls.qualifiedName(),
                 simpleName = cls.simpleName(),
                 fullName = cls.fullName(),

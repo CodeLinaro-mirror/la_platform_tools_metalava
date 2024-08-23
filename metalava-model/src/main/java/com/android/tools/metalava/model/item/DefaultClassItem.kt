@@ -45,6 +45,7 @@ open class DefaultClassItem(
     private val source: SourceFile?,
     final override val classKind: ClassKind,
     private val containingClass: ClassItem?,
+    private val containingPackage: PackageItem,
     private val qualifiedName: String,
     private val simpleName: String,
     private val fullName: String,
@@ -62,14 +63,7 @@ open class DefaultClassItem(
 
     final override fun getSourceFile() = source
 
-    private lateinit var containingPackage: PackageItem
-
-    fun setContainingPackage(containingPackage: PackageItem) {
-        this.containingPackage = containingPackage
-    }
-
-    final override fun containingPackage(): PackageItem =
-        containingClass()?.containingPackage() ?: containingPackage
+    final override fun containingPackage(): PackageItem = containingPackage
 
     final override fun containingClass() = containingClass
 
