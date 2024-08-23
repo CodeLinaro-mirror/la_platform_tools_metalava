@@ -119,20 +119,15 @@ internal class ClassLoaderBasedClassResolver(jar: File) : ClassResolver {
                             .createPackageItem(qualifiedName = packageName)
                             .also { newPackageItem -> codebase.addPackage(newPackageItem) }
 
-                codebase.itemFactory
-                    .createClassItem(
-                        fileLocation = FileLocation.UNKNOWN,
-                        modifiers = DefaultModifierList(codebase),
-                        qualifiedName = cls.canonicalName,
-                        classKind = ClassKind.CLASS,
-                        containingClass = null,
-                        containingPackage = packageItem,
-                        typeParameterList = TypeParameterList.NONE,
-                    )
-                    .also { newClassItem ->
-                        codebase.registerClass(newClassItem)
-                        packageItem.addTopClass(newClassItem)
-                    }
+                codebase.itemFactory.createClassItem(
+                    fileLocation = FileLocation.UNKNOWN,
+                    modifiers = DefaultModifierList(codebase),
+                    qualifiedName = cls.canonicalName,
+                    classKind = ClassKind.CLASS,
+                    containingClass = null,
+                    containingPackage = packageItem,
+                    typeParameterList = TypeParameterList.NONE,
+                )
             }
     }
 }

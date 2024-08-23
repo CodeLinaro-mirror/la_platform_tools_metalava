@@ -45,6 +45,12 @@ interface Codebase {
     /** The rough size of the codebase (package count) */
     fun size(): Int
 
+    /**
+     * Returns a list of the top-level classes declared in the codebase's source (rather than on its
+     * classpath).
+     */
+    fun getTopLevelClassesFromSource(): List<ClassItem>
+
     /** Returns a class identified by fully qualified name, if in the codebase */
     fun findClass(className: String): ClassItem?
 

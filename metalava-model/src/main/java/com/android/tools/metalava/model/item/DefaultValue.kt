@@ -36,6 +36,9 @@ interface DefaultValue {
 
         override fun value() = error("cannot call on NONE DefaultValue")
 
+        /** This is suitable for use in the snapshot as it has no model or codebase dependencies. */
+        override fun snapshot() = this
+
         override fun toString() = "NONE"
     }
 
@@ -50,6 +53,8 @@ interface DefaultValue {
         override fun isDefaultValueKnown() = false
 
         override fun value() = error("cannot call on UNKNOWN DefaultValue")
+        /** This is suitable for use in the snapshot as it has no model or codebase dependencies. */
+        override fun snapshot() = this
 
         override fun toString() = "UNKNOWN"
     }
@@ -92,4 +97,17 @@ interface DefaultValue {
      * would be surrounded by quotes, Booleans are the strings "true" or "false", and so on.
      */
     fun value(): String?
+
+    /**
+     * Creates a snapshot of this.
+     *
+     * The default implementation assumes that this is either dependent on a model or the codebase
+     * and so creates a new [DefaultValue] based on the functions above.
+     */
+    fun snapshot() =
+        when {
+            !hasDefaultValue() -> NONE
+            !isDefaultValueKnown() -> UNKNOWN
+            else -> fixedDefaultValue(value())
+        }
 }

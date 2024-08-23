@@ -18,20 +18,19 @@ package com.android.tools.metalava.model.testsuite
 
 import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.metalava.model.AnnotationItem
-import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.testing.KnownSourceFiles
 import com.google.common.truth.Truth.*
 
 class NullabilityCodebaseContext(
-    codebaseContext: BaseModelTest.CodebaseContext<Codebase>,
+    codebaseContext: BaseModelTest.CodebaseContext,
     /**
      * True if nullness information came from annotations, false if it came from kotlin null
      * suffixes.
      */
     val nullabilityFromAnnotations: Boolean,
-) : BaseModelTest.CodebaseContext<Codebase> by codebaseContext
+) : BaseModelTest.CodebaseContext by codebaseContext
 
 /**
  * Runs a test where it matters whether nullability is provided by annotations (which it is in

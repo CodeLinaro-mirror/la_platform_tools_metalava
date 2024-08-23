@@ -58,9 +58,8 @@ class DefaultFieldItem(
         this.type = type
     }
 
-    override fun duplicate(targetContainingClass: ClassItem): FieldItem {
-        val duplicated =
-            DefaultFieldItem(
+    override fun duplicate(targetContainingClass: ClassItem) =
+        DefaultFieldItem(
                 codebase = codebase,
                 fileLocation = fileLocation,
                 itemLanguage = itemLanguage,
@@ -73,21 +72,7 @@ class DefaultFieldItem(
                 isEnumConstant = isEnumConstant,
                 fieldValue = fieldValue,
             )
-        duplicated.inheritedFrom = containingClass()
-
-        // Preserve flags that may have been inherited (propagated) from surrounding packages
-        if (targetContainingClass.hidden) {
-            duplicated.hidden = true
-        }
-        if (targetContainingClass.removed) {
-            duplicated.removed = true
-        }
-        if (targetContainingClass.docOnly) {
-            duplicated.docOnly = true
-        }
-
-        return duplicated
-    }
+            .also { duplicated -> duplicated.inheritedFrom = containingClass() }
 
     override fun initialValue(requireConstant: Boolean) = fieldValue?.initialValue(requireConstant)
 

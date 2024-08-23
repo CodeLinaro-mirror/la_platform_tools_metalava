@@ -122,8 +122,6 @@ class TextCodebaseBuilder private constructor(private val codebase: TextCodebase
 
         newClass.setSuperClassType(textClass.superClassType())
 
-        pkg.addTopClass(newClass)
-        codebase.registerClass(newClass)
         return newClass
     }
 }

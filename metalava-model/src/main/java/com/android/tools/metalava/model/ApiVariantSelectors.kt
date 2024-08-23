@@ -33,7 +33,7 @@ sealed class ApiVariantSelectors {
      *
      * Initially set to [originallyHidden] but updated due to inheritance.
      */
-    internal abstract var inheritableHidden: Boolean
+    internal abstract val inheritableHidden: Boolean
 
     /**
      * Indicates whether the [Item] should be hidden, i.e. should not be included in ANY API surface
@@ -41,7 +41,7 @@ sealed class ApiVariantSelectors {
      *
      * Initially set to [inheritableHidden] but updated due to show annotations.
      */
-    abstract var hidden: Boolean
+    abstract val hidden: Boolean
 
     /**
      * Indicates whether the [Item] should be included in the doc only API surface variant.
@@ -49,7 +49,7 @@ sealed class ApiVariantSelectors {
      * Initially set to `true` if the [Item.documentation] contains `@doconly` but updated due to
      * inheritance.
      */
-    abstract var docOnly: Boolean
+    abstract val docOnly: Boolean
 
     /**
      * Indicates whether the [Item] should be in the removed API surface variant.
@@ -57,7 +57,7 @@ sealed class ApiVariantSelectors {
      * Initially set to `true` if the [Item.documentation] contains `@removed` but updated due to
      * inheritance.
      */
-    abstract var removed: Boolean
+    abstract val removed: Boolean
 
     /** Determines whether this item will be shown as part of the API or not. */
     abstract val showability: Showability
@@ -102,23 +102,14 @@ sealed class ApiVariantSelectors {
         override val originallyHidden: Boolean
             get() = false
 
-        override var inheritableHidden: Boolean
+        override val inheritableHidden: Boolean
             get() = false
-            set(value) {
-                error("Cannot set `inheritableHidden` to $value")
-            }
 
-        override var hidden: Boolean
+        override val hidden: Boolean
             get() = false
-            set(value) {
-                error("Cannot set `hidden` to $value")
-            }
 
-        override var docOnly: Boolean
+        override val docOnly: Boolean
             get() = false
-            set(value) {
-                error("Cannot set `docOnly` to $value")
-            }
 
         override var removed: Boolean
             get() = false
@@ -281,14 +272,20 @@ sealed class ApiVariantSelectors {
                 lazySet(HIDDEN_BIT_MASK, value)
             }
 
-        override var docOnly: Boolean
-            get() = lazyGetAfterInherit(DOCONLY_BIT_MASK) { item.documentation.isDocOnly }
-            set(value) {
-                lazySet(DOCONLY_BIT_MASK, value)
-            }
+        override val docOnly: Boolean
+            get() =
+                lazyGet(DOCONLY_BIT_MASK) {
+                    (item.parent()?.variantSelectors?.docOnly == true) ||
+                        item.documentation.isDocOnly
+                }
 
         override var removed: Boolean
-            get() = lazyGetAfterInherit(REMOVED_BIT_MASK) { item.documentation.isRemoved }
+            get() =
+                lazyGet(REMOVED_BIT_MASK) {
+                    (item.parent()?.variantSelectors?.removed == true) ||
+                        item.documentation.isRemoved
+                }
+            // This is only used for testing.
             set(value) {
                 lazySet(REMOVED_BIT_MASK, value)
             }
@@ -336,14 +333,24 @@ sealed class ApiVariantSelectors {
                 if (containingPackageSelectors.inheritableHidden) {
                     inheritableHidden = true
                 }
-                if (containingPackageSelectors.docOnly) {
-                    docOnly = true
-                }
                 return
             }
 
             // Inheritance is only done on a few Item types, ignore the rest.
             if (item !is ClassItem && item !is CallableItem && item !is FieldItem) return
+
+            if (item is ClassItem) {
+                // Workaround: we're pulling in .aidl files from .jar files. These are
+                // marked @hide, but since we only see the .class files we don't know that.
+                if (
+                    item.simpleName().startsWith("I") &&
+                        item.isFromClassPath() &&
+                        item.interfaceTypes().any { it.qualifiedName == "android.os.IInterface" }
+                ) {
+                    hidden = true
+                    return
+                }
+            }
 
             if (showability.show()) {
                 // If the showability is recursive then set inheritableHidden to false, that will
@@ -360,7 +367,7 @@ sealed class ApiVariantSelectors {
                     val containingPackageSelectors = item.containingPackage().variantSelectors
                     // Only unhide the package, do not affect anything that might inherit from that
                     // package.
-                    containingPackageSelectors.hidden = false
+                    (containingPackageSelectors as Mutable).hidden = false
                 }
             } else if (showability.hide()) {
                 inheritableHidden = true
@@ -382,24 +389,12 @@ sealed class ApiVariantSelectors {
                     } else if (containingClassSelectors.inheritableHidden) {
                         inheritableHidden = true
                     }
-                    if (containingClassSelectors.docOnly) {
-                        docOnly = true
-                    }
-                    if (containingClassSelectors.removed) {
-                        removed = true
-                    }
                 } else if (item is ClassItem) {
                     // This will only be executed for top level classes, i.e. containing class is
                     // null. They inherit their properties from the containing package.
                     val containingPackageSelectors = item.containingPackage().variantSelectors
                     if (containingPackageSelectors.inheritableHidden) {
                         inheritableHidden = true
-                    }
-                    if (containingPackageSelectors.docOnly) {
-                        docOnly = true
-                    }
-                    if (containingPackageSelectors.removed) {
-                        removed = true
                     }
                 }
             }
@@ -544,7 +539,10 @@ sealed class ApiVariantSelectors {
                 if (inheritIntoWasCalled) selectors.inheritIntoWasCalled = true
                 inheritableHidden?.let { selectors.inheritableHidden = it }
                 hidden?.let { selectors.hidden = it }
-                docOnly?.let { selectors.docOnly = it }
+                docOnly?.let {
+                    // It is expected to be set so force it to be initialized.
+                    selectors.docOnly
+                }
                 removed?.let { selectors.removed = it }
                 showability?.let { selectors._showability = it }
             }

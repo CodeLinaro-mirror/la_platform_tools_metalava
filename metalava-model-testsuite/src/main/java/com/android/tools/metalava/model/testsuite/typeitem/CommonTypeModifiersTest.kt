@@ -2258,12 +2258,12 @@ class CommonTypeModifiersTest : BaseModelTest() {
         ) {
             val foo = codebase.assertClass("test.pkg.Foo").constructors().single().returnType()
             foo.assertHasNonNullNullability()
-            val f = (foo as ClassTypeItem).arguments.single()
+            val f = foo.arguments.single()
             f.assertHasUndefinedNullability()
 
             val bar = codebase.assertClass("test.pkg.Foo.Bar").constructors().single().returnType()
             bar.assertHasNonNullNullability()
-            val b = (bar as ClassTypeItem).arguments.single()
+            val b = bar.arguments.single()
             b.assertHasUndefinedNullability()
             val outerFoo = bar.outerClassType!!
             outerFoo.assertHasNonNullNullability()

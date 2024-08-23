@@ -224,6 +224,7 @@ class DefaultItemFactory(
             codebase,
             fileLocation,
             defaultItemLanguage,
+            ItemDocumentation.NONE_FACTORY,
             defaultVariantSelectorsFactory,
             modifiers,
             name,

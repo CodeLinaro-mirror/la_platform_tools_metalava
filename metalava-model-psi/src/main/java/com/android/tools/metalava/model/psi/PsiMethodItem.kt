@@ -131,8 +131,7 @@ open class PsiMethodItem(
                 targetContainingClass.mapTypeVariables(containingClass())
             else emptyMap()
 
-        val duplicated =
-            PsiMethodItem(
+        return PsiMethodItem(
                 codebase,
                 psiMethod,
                 fileLocation,
@@ -145,23 +144,11 @@ open class PsiMethodItem(
                 typeParameterList,
                 throwsTypes,
             )
+            .also { duplicated ->
+                duplicated.inheritedFrom = containingClass
 
-        duplicated.inheritedFrom = containingClass
-
-        // Preserve flags that may have been inherited (propagated) from surrounding packages
-        if (targetContainingClass.hidden) {
-            duplicated.hidden = true
-        }
-        if (targetContainingClass.removed) {
-            duplicated.removed = true
-        }
-        if (targetContainingClass.docOnly) {
-            duplicated.docOnly = true
-        }
-
-        duplicated.updateCopiedMethodState()
-
-        return duplicated
+                duplicated.updateCopiedMethodState()
+            }
     }
 
     /* Call corresponding PSI utility method -- if I can find it!

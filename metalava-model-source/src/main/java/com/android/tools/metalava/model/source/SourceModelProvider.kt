@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.source
 
+import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ModelOptions
 import com.android.tools.metalava.model.provider.FilterableCodebaseCreator
 import java.util.ServiceLoader
@@ -25,7 +26,7 @@ interface SourceModelProvider : FilterableCodebaseCreator {
 
     /**
      * Create an [EnvironmentManager] that will manage any resources needed while creating
-     * [SourceCodebase]s from source files.
+     * [Codebase]s from source files.
      *
      * @param disableStderrDumping if false then the manager will output useful information to
      *   stderr, otherwise it will suppress the errors.

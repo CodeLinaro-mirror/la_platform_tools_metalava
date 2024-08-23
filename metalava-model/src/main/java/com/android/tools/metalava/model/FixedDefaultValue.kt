@@ -29,5 +29,8 @@ internal class FixedDefaultValue(private val value: String?) : DefaultValue {
 
     override fun value() = value
 
+    /** This is suitable for use in the snapshot as it has no model or codebase dependencies. */
+    override fun snapshot() = this
+
     override fun toString() = "DefaultValue($value)"
 }

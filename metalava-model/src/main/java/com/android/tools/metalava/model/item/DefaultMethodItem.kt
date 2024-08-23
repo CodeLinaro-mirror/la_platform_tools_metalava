@@ -92,8 +92,8 @@ open class DefaultMethodItem(
 
     override fun duplicate(targetContainingClass: ClassItem): MethodItem {
         val typeVariableMap = targetContainingClass.mapTypeVariables(containingClass())
-        val duplicated =
-            DefaultMethodItem(
+
+        return DefaultMethodItem(
                 codebase = codebase,
                 fileLocation = fileLocation,
                 itemLanguage = itemLanguage,
@@ -111,21 +111,10 @@ open class DefaultMethodItem(
                 throwsTypes = throwsTypes,
                 annotationDefault = annotationDefault,
             )
-        duplicated.inheritedFrom = containingClass()
+            .also { duplicated ->
+                duplicated.inheritedFrom = containingClass()
 
-        // Preserve flags that may have been inherited (propagated) from surrounding packages
-        if (targetContainingClass.hidden) {
-            duplicated.hidden = true
-        }
-        if (targetContainingClass.removed) {
-            duplicated.removed = true
-        }
-        if (targetContainingClass.docOnly) {
-            duplicated.docOnly = true
-        }
-
-        duplicated.updateCopiedMethodState()
-
-        return duplicated
+                duplicated.updateCopiedMethodState()
+            }
     }
 }

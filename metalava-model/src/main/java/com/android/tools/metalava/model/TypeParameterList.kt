@@ -51,7 +51,8 @@ interface TypeParameterList : List<TypeParameterItem> {
     }
 }
 
-class DefaultTypeParameterList(private val typeParameters: List<TypeParameterItem>) :
+class DefaultTypeParameterList
+private constructor(private val typeParameters: List<TypeParameterItem>) :
     TypeParameterList, List<TypeParameterItem> by typeParameters {
 
     private val toString by lazy {
@@ -80,14 +81,6 @@ class DefaultTypeParameterList(private val typeParameters: List<TypeParameterIte
     override fun hashCode() = typeParameters.hashCode()
 
     companion object {
-        /**
-         * Group up [typeParameters] and the [factory] that was used to resolve references when
-         * creating their [BoundsTypeItem]s.
-         */
-        data class TypeParametersAndFactory<F : TypeItemFactory<*, F>>(
-            val typeParameters: List<TypeParameterItem>,
-            val factory: F,
-        )
 
         /**
          * Create a list of [TypeParameterItem] and a corresponding [TypeItemFactory] from model
@@ -122,7 +115,7 @@ class DefaultTypeParameterList(private val typeParameters: List<TypeParameterIte
             inputParams: List<P>,
             paramFactory: (P) -> I,
             boundsSetter: (F, I, P) -> List<BoundsTypeItem>,
-        ): TypeParametersAndFactory<F> {
+        ): TypeParameterListAndFactory<F> {
             // First, create a Map from [TypeParameterItem] to the model specific parameter. Using
             // the [paramFactory] to convert the model specific parameter to a [TypeParameterItem].
             val typeParameterItemToBounds = inputParams.associateBy { param -> paramFactory(param) }
@@ -141,7 +134,17 @@ class DefaultTypeParameterList(private val typeParameters: List<TypeParameterIte
             }
 
             // Pair the list up with the [TypeItemFactory] so that the latter can be reused.
-            return TypeParametersAndFactory(typeParameters, typeItemFactory)
+            val typeParameterList = DefaultTypeParameterList(typeParameters)
+            return TypeParameterListAndFactory(typeParameterList, typeItemFactory)
         }
     }
 }
+
+/**
+ * Group up [typeParameterList] and the [factory] that was used to resolve references when creating
+ * their [BoundsTypeItem]s.
+ */
+data class TypeParameterListAndFactory<F : TypeItemFactory<*, F>>(
+    val typeParameterList: TypeParameterList,
+    val factory: F,
+)

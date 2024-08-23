@@ -78,9 +78,9 @@ abstract class DefaultCallableItem(
      */
     @Suppress("LeakingThis") internal val parameters = parameterItemsFactory(this)
 
-    final override fun returnType(): TypeItem = returnType
+    override fun returnType(): TypeItem = returnType
 
-    final override fun setType(type: TypeItem) {
+    override fun setType(type: TypeItem) {
         returnType = type
     }
 

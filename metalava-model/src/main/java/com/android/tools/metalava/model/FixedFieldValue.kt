@@ -27,4 +27,6 @@ class FixedFieldValue(
     override fun initialValue(requireConstant: Boolean) =
         if (requireConstant) initialValueWithRequiredConstant
         else initialValueWithoutRequiredConstant
+
+    override fun snapshot() = this
 }

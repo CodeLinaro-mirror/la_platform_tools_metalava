@@ -61,6 +61,15 @@ open class DefaultClassItem(
     ),
     ClassItem {
 
+    init {
+        if (containingClass == null) {
+            (containingPackage as DefaultPackageItem).addTopClass(this)
+        } else {
+            (containingClass as DefaultClassItem).addNestedClass(this)
+        }
+        codebase.registerClass(this)
+    }
+
     final override fun getSourceFile() = source
 
     final override fun containingPackage(): PackageItem = containingPackage
@@ -202,7 +211,7 @@ open class DefaultClassItem(
     final override fun nestedClasses(): List<ClassItem> = mutableNestedClasses
 
     /** Add a nested class to this class. */
-    fun addNestedClass(classItem: ClassItem) {
+    private fun addNestedClass(classItem: ClassItem) {
         mutableNestedClasses.add(classItem)
     }
 

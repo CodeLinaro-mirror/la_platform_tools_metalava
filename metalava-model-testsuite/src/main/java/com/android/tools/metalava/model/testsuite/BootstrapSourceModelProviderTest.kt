@@ -1043,14 +1043,16 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
             ),
         ) {
             val classItem = codebase.assertClass("test.pkg.Test")
+            val classSelectors = classItem.variantSelectors
             val innerClassItem = codebase.assertClass("test.pkg.Test.Inner")
-            val fieldItem = classItem.assertField("Field")
-            val innerFieldItem = innerClassItem.assertField("InnerField")
+            val innerClassSelectors = innerClassItem.variantSelectors
+            val fieldSelectors = classItem.assertField("Field").variantSelectors
+            val innerFieldSelectors = innerClassItem.assertField("InnerField").variantSelectors
 
-            assertEquals(false, classItem.docOnly, message = "classItem.docOnly")
-            assertEquals(true, innerClassItem.docOnly, message = "innerClassItem.docOnly")
-            assertEquals(true, innerFieldItem.docOnly, message = "innerFieldItem.docOnly")
-            assertEquals(true, fieldItem.docOnly, message = "fieldItem.docOnly")
+            assertEquals(false, classSelectors.docOnly, message = "classSelectors.docOnly")
+            assertEquals(true, innerClassSelectors.docOnly, message = "innerClassSelectors.docOnly")
+            assertEquals(true, innerFieldSelectors.docOnly, message = "innerFieldSelectors.docOnly")
+            assertEquals(true, fieldSelectors.docOnly, message = "fieldSelectors.docOnly")
         }
     }
 }

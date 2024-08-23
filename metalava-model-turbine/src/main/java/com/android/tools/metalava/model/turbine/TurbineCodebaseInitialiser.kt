@@ -40,6 +40,7 @@ import com.android.tools.metalava.model.JAVA_PACKAGE_INFO
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.TypeParameterList
+import com.android.tools.metalava.model.TypeParameterListAndFactory
 import com.android.tools.metalava.model.TypeParameterScope
 import com.android.tools.metalava.model.findAnnotation
 import com.android.tools.metalava.model.item.DefaultClassItem
@@ -312,7 +313,8 @@ internal open class TurbineCodebaseInitialiser(
                 continue
             }
 
-            createTopLevelClassAndContents(classSymbol)
+            val classItem = createTopLevelClassAndContents(classSymbol)
+            codebase.addTopLevelClassFromSource(classItem)
         }
 
         codebase.resolveSuperTypes()
@@ -326,9 +328,9 @@ internal open class TurbineCodebaseInitialiser(
      *
      * All the classes are registered by name and so can be found by [findOrCreateClass].
      */
-    private fun createTopLevelClassAndContents(classSymbol: ClassSymbol) {
+    private fun createTopLevelClassAndContents(classSymbol: ClassSymbol): ClassItem {
         if (!classSymbol.isTopClass) error("$classSymbol is not a top level class")
-        createClass(classSymbol, null, globalTypeItemFactory)
+        return createClass(classSymbol, null, globalTypeItemFactory)
     }
 
     /** Tries to create a class if not already present in codebase's classmap */
@@ -451,14 +453,6 @@ internal open class TurbineCodebaseInitialiser(
 
         // Create constructors
         createConstructors(classItem, cls.methods(), classTypeItemFactory)
-
-        // Add to the codebase
-        codebase.registerClass(classItem)
-
-        // Add the class to corresponding PackageItem
-        if (isTopClass) {
-            pkgItem.addTopClass(classItem)
-        }
 
         // Do not emit to signature file if it is from classpath
         if (isFromClassPath) {
@@ -656,23 +650,24 @@ internal open class TurbineCodebaseInitialiser(
         tyParams: ImmutableMap<TyVarSymbol, TyVarInfo>,
         enclosingClassTypeItemFactory: TurbineTypeItemFactory,
         description: String,
-    ): Pair<TypeParameterList, TurbineTypeItemFactory> {
+    ): TypeParameterListAndFactory<TurbineTypeItemFactory> {
 
-        if (tyParams.isEmpty()) return Pair(TypeParameterList.NONE, enclosingClassTypeItemFactory)
-
-        // Create a list of [TypeParameterItem]s from turbine specific classes.
-        val (typeParameters, typeItemFactory) =
-            DefaultTypeParameterList.createTypeParameterItemsAndFactory(
-                enclosingClassTypeItemFactory,
-                description,
-                tyParams.toList(),
-                { (sym, tyParam) -> createTypeParameter(sym, tyParam) },
-                { typeItemFactory, item, (_, tParam) ->
-                    createTypeParameterBounds(tParam, typeItemFactory).also { item.bounds = it }
-                },
+        if (tyParams.isEmpty())
+            return TypeParameterListAndFactory(
+                TypeParameterList.NONE,
+                enclosingClassTypeItemFactory
             )
 
-        return Pair(DefaultTypeParameterList(typeParameters), typeItemFactory)
+        // Create a list of [TypeParameterItem]s from turbine specific classes.
+        return DefaultTypeParameterList.createTypeParameterItemsAndFactory(
+            enclosingClassTypeItemFactory,
+            description,
+            tyParams.toList(),
+            { (sym, tyParam) -> createTypeParameter(sym, tyParam) },
+            { typeItemFactory, item, (_, tParam) ->
+                createTypeParameterBounds(tParam, typeItemFactory).also { item.bounds = it }
+            },
+        )
     }
 
     /**
@@ -714,9 +709,7 @@ internal open class TurbineCodebaseInitialiser(
         enclosingClassTypeItemFactory: TurbineTypeItemFactory,
     ) {
         for (nestedClassSymbol in nestedClasses) {
-            val nestedClassItem =
-                createClass(nestedClassSymbol, classItem, enclosingClassTypeItemFactory)
-            classItem.addNestedClass(nestedClassItem)
+            createClass(nestedClassSymbol, classItem, enclosingClassTypeItemFactory)
         }
     }
 

@@ -23,6 +23,7 @@ import com.android.tools.metalava.model.DefaultModifierList.Companion.PACKAGE_PR
 import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ItemDocumentationFactory
+import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.reporter.FileLocation
 import com.intellij.psi.JavaPsiFacade
@@ -66,6 +67,14 @@ private constructor(
     override fun isImplicitConstructor(): Boolean = implicitConstructor
 
     override var superConstructor: ConstructorItem? = null
+
+    /** Override to specialize the return type. */
+    override fun returnType() = super.returnType() as ClassTypeItem
+
+    /** Override to make sure that [type] is a [ClassTypeItem]. */
+    override fun setType(type: TypeItem) {
+        super.setType(type as ClassTypeItem)
+    }
 
     companion object {
         internal fun create(

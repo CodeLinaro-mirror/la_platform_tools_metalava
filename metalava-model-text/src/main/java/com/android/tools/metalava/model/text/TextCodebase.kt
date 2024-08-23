@@ -226,14 +226,8 @@ internal class TextCodebase(
                 requiredStubKind.mutator(this)
             }
 
-        registerClass(stubClass)
         stubClass.emit = false
 
-        if (outerClass != null) {
-            outerClass.addNestedClass(stubClass)
-        } else {
-            pkg.addTopClass(stubClass)
-        }
         return stubClass
     }
 

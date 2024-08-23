@@ -81,6 +81,7 @@ Available Issues                             |  Category                |   Defa
   CompileTimeConstant                        |  api_lint                |   error
   ConcreteCollection                         |  api_lint                |   error
   ConfigFieldName                            |  api_lint                |   error
+  ConfigFileProblem                          |  unknown                 |   error
   ConflictingShowAnnotations                 |  unknown                 |   error
   ContextFirst                               |  api_lint                |   error
   ContextNameSuffix                          |  api_lint                |   error

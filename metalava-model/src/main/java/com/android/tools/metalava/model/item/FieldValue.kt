@@ -16,6 +16,16 @@
 
 package com.android.tools.metalava.model.item
 
+import com.android.tools.metalava.model.FixedFieldValue
+
 interface FieldValue {
     fun initialValue(requireConstant: Boolean): Any?
+
+    /**
+     * Creates a snapshot of this.
+     *
+     * The default implementation assumes that this is either dependent on a model or the codebase
+     * and so creates a new [FixedFieldValue] based on the functions above.
+     */
+    fun snapshot(): FieldValue = FixedFieldValue(initialValue(true), initialValue(false))
 }

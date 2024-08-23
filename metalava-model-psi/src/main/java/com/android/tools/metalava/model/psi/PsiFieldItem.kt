@@ -70,29 +70,14 @@ class PsiFieldItem(
 
     override fun psi(): PsiField = psiField
 
-    override fun duplicate(targetContainingClass: ClassItem): PsiFieldItem {
-        val duplicated =
-            create(
+    override fun duplicate(targetContainingClass: ClassItem) =
+        create(
                 codebase,
                 targetContainingClass as PsiClassItem,
                 psiField,
                 codebase.globalTypeItemFactory.from(targetContainingClass),
             )
-        duplicated.inheritedFrom = containingClass
-
-        // Preserve flags that may have been inherited (propagated) from surrounding packages
-        if (targetContainingClass.hidden) {
-            duplicated.hidden = true
-        }
-        if (targetContainingClass.removed) {
-            duplicated.removed = true
-        }
-        if (targetContainingClass.docOnly) {
-            duplicated.docOnly = true
-        }
-
-        return duplicated
-    }
+            .also { duplicated -> duplicated.inheritedFrom = containingClass }
 
     override var inheritedFrom: ClassItem? = null
 

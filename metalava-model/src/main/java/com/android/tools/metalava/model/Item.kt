@@ -52,7 +52,7 @@ interface Item : Reportable {
      *
      * @see variantSelectors
      */
-    var hidden: Boolean
+    val hidden: Boolean
 
     /**
      * Tracks the properties that determine whether this [Item] will be selected for each API
@@ -60,7 +60,6 @@ interface Item : Reportable {
      *
      * @see originallyHidden
      * @see hidden
-     * @see docOnly
      * @see removed
      */
     val variantSelectors: ApiVariantSelectors
@@ -93,7 +92,7 @@ interface Item : Reportable {
      *
      * @see variantSelectors
      */
-    var removed: Boolean
+    val removed: Boolean
 
     /** True if this item has been marked deprecated. */
     val originallyDeprecated: Boolean
@@ -103,13 +102,6 @@ interface Item : Reportable {
      * has been marked as deprecated.
      */
     val effectivelyDeprecated: Boolean
-
-    /**
-     * True if this element is only intended for documentation
-     *
-     * @see variantSelectors
-     */
-    var docOnly: Boolean
 
     /** True if this item is either hidden or removed */
     fun isHiddenOrRemoved(): Boolean = hidden || removed
@@ -489,25 +481,12 @@ abstract class AbstractItem(
         get() = variantSelectors.originallyHidden
 
     /** Manually delegate to [ApiVariantSelectors.hidden] as property delegates are expensive. */
-    final override var hidden
+    final override val hidden
         get() = variantSelectors.hidden
-        set(value) {
-            variantSelectors.hidden = value
-        }
-
-    /** Manually delegate to [ApiVariantSelectors.docOnly] as property delegates are expensive. */
-    final override var docOnly: Boolean
-        get() = variantSelectors.docOnly
-        set(value) {
-            variantSelectors.docOnly = value
-        }
 
     /** Manually delegate to [ApiVariantSelectors.removed] as property delegates are expensive. */
-    final override var removed: Boolean
+    final override val removed: Boolean
         get() = variantSelectors.removed
-        set(value) {
-            variantSelectors.removed = value
-        }
 
     final override val showability: Showability
         get() = variantSelectors.showability

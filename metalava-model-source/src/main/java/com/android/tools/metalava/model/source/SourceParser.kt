@@ -31,7 +31,7 @@ interface SourceParser {
     fun getClassResolver(classPath: List<File>): ClassResolver
 
     /**
-     * Parse a set of sources into a [SourceCodebase].
+     * Parse a set of sources into a [Codebase].
      *
      * @param sourceSet the list of source files and root directories.
      * @param commonSourceSet the list of source files and root directories in the common module.
@@ -51,12 +51,12 @@ interface SourceParser {
         commonSourceSet: SourceSet,
         description: String,
         classPath: List<File>,
-    ): SourceCodebase
+    ): Codebase
 
     /**
-     * Load a [SourceCodebase] from a single jar.
+     * Load a [Codebase] from a single jar.
      *
-     * @param apiJar the jar file from which the [SourceCodebase] will be loaded.
+     * @param apiJar the jar file from which the [Codebase] will be loaded.
      */
-    fun loadFromJar(apiJar: File): SourceCodebase
+    fun loadFromJar(apiJar: File): Codebase
 }
