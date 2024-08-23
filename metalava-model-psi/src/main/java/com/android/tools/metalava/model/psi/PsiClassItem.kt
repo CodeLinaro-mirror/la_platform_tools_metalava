@@ -51,7 +51,7 @@ import org.jetbrains.uast.UClass
 import org.jetbrains.uast.UFile
 import org.jetbrains.uast.getParentOfType
 
-open class PsiClassItem
+internal class PsiClassItem
 internal constructor(
     codebase: PsiBasedCodebase,
     val psiClass: PsiClass,
@@ -68,17 +68,14 @@ internal constructor(
     /** True if this class is from the class path (dependencies). Exposed in [isFromClassPath]. */
     private val fromClassPath: Boolean
 ) :
-    PsiItem(
+    AbstractPsiItem(
         codebase = codebase,
         modifiers = modifiers,
         documentationFactory = documentationFactory,
         element = psiClass
     ),
-    ClassItem {
-
-    init {
-        emit = !modifiers.isExpect()
-    }
+    ClassItem,
+    PsiItem {
 
     lateinit var containingPackage: PsiPackageItem
 

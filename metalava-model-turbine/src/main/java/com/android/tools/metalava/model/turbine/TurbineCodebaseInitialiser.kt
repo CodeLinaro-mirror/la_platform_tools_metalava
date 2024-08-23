@@ -663,9 +663,7 @@ internal open class TurbineCodebaseInitialiser(
             description,
             tyParams.toList(),
             { (sym, tyParam) -> createTypeParameter(sym, tyParam) },
-            { typeItemFactory, item, (_, tParam) ->
-                createTypeParameterBounds(tParam, typeItemFactory).also { item.bounds = it }
-            },
+            { typeItemFactory, (_, tParam) -> createTypeParameterBounds(tParam, typeItemFactory) },
         )
     }
 

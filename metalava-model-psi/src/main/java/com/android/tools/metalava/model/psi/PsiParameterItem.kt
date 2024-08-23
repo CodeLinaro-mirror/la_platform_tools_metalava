@@ -50,7 +50,7 @@ import org.jetbrains.uast.UMethod
 import org.jetbrains.uast.UParameter
 import org.jetbrains.uast.UastFacade
 
-class PsiParameterItem
+internal class PsiParameterItem
 internal constructor(
     codebase: PsiBasedCodebase,
     private val psiParameter: PsiParameter,
@@ -60,14 +60,15 @@ internal constructor(
     modifiers: DefaultModifierList,
     private var type: PsiTypeItem,
 ) :
-    PsiItem(
+    AbstractPsiItem(
         codebase = codebase,
         element = psiParameter,
         modifiers = modifiers,
         documentationFactory = ItemDocumentation.NONE_FACTORY,
         variantSelectorsFactory = ApiVariantSelectors.IMMUTABLE_FACTORY,
     ),
-    ParameterItem {
+    ParameterItem,
+    PsiItem {
 
     override var property: PsiPropertyItem? = null
 

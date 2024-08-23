@@ -1513,9 +1513,9 @@ private constructor(
             // Create a `TextTypeParameterItem` from the type parameter string.
             { createTypeParameterItem(codebase, it) },
             // Create, set and return the [BoundsTypeItem] list.
-            { typeItemFactory, item, typeParameterString ->
+            { typeItemFactory, typeParameterString ->
                 val boundsStringList = extractTypeParameterBoundsStringList(typeParameterString)
-                boundsStringList.map { typeItemFactory.getBoundsType(it) }.also { item.bounds = it }
+                boundsStringList.map { typeItemFactory.getBoundsType(it) }
             },
         )
     }

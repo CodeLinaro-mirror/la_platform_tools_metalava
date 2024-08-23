@@ -16,54 +16,25 @@
 
 package com.android.tools.metalava.model.psi
 
-import com.android.tools.metalava.model.AbstractItem
-import com.android.tools.metalava.model.ApiVariantSelectors
-import com.android.tools.metalava.model.ApiVariantSelectorsFactory
-import com.android.tools.metalava.model.DefaultModifierList
-import com.android.tools.metalava.model.ItemDocumentationFactory
+import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.ItemLanguage
-import com.android.tools.metalava.reporter.FileLocation
 import com.intellij.psi.PsiElement
-import com.intellij.psi.PsiModifierListOwner
 import org.jetbrains.kotlin.idea.KotlinLanguage
 import org.jetbrains.uast.UElement
 
-abstract class PsiItem
-internal constructor(
-    final override val codebase: PsiBasedCodebase,
-    element: PsiElement,
-    fileLocation: FileLocation = PsiFileLocation(element),
-    modifiers: DefaultModifierList,
-    documentationFactory: ItemDocumentationFactory,
-    variantSelectorsFactory: ApiVariantSelectorsFactory = ApiVariantSelectors.MUTABLE_FACTORY,
-) :
-    AbstractItem(
-        fileLocation = fileLocation,
-        itemLanguage = element.itemLanguage,
-        modifiers = modifiers,
-        documentationFactory = documentationFactory,
-        variantSelectorsFactory = variantSelectorsFactory,
-    ) {
+internal interface PsiItem : Item {
+
+    override val codebase: PsiBasedCodebase
 
     /** The source PSI provided by UAST */
-    internal val sourcePsi
+    val sourcePsi
         get() = (psi() as? UElement)?.sourcePsi
 
     /** Returns the PSI element for this item */
-    abstract fun psi(): PsiElement
+    fun psi(): PsiElement
 
     override fun isFromClassPath(): Boolean {
         return codebase.fromClasspath || containingClass()?.isFromClassPath() ?: false
-    }
-
-    companion object {
-
-        internal fun modifiers(
-            codebase: PsiBasedCodebase,
-            element: PsiModifierListOwner,
-        ): DefaultModifierList {
-            return PsiModifierItem.create(codebase, element)
-        }
     }
 }
 

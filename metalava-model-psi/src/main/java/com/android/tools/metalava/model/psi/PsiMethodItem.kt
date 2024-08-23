@@ -39,7 +39,7 @@ import org.jetbrains.uast.UMethod
 import org.jetbrains.uast.kotlin.KotlinUMethodWithFakeLightDelegateBase
 import org.jetbrains.uast.toUElement
 
-open class PsiMethodItem(
+internal class PsiMethodItem(
     codebase: PsiBasedCodebase,
     psiMethod: PsiMethod,
     fileLocation: FileLocation = PsiFileLocation(psiMethod),
@@ -136,7 +136,7 @@ open class PsiMethodItem(
                 psiMethod,
                 fileLocation,
                 targetContainingClass,
-                name,
+                name(),
                 modifiers.duplicate(),
                 documentation::duplicate,
                 returnType.convertType(typeVariableMap),
@@ -145,7 +145,7 @@ open class PsiMethodItem(
                 throwsTypes,
             )
             .also { duplicated ->
-                duplicated.inheritedFrom = containingClass
+                duplicated.inheritedFrom = containingClass()
 
                 duplicated.updateCopiedMethodState()
             }
@@ -200,7 +200,7 @@ open class PsiMethodItem(
                 } else {
                     psiMethod.name
                 }
-            val modifiers = modifiers(codebase, psiMethod)
+            val modifiers = PsiModifierItem.create(codebase, psiMethod)
             // Create the TypeParameterList for this before wrapping any of the other types used by
             // it as they may reference a type parameter in the list.
             val (typeParameterList, methodTypeItemFactory) =

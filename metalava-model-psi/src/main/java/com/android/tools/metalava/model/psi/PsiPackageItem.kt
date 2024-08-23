@@ -24,7 +24,7 @@ import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.findClosestEnclosingNonEmptyPackage
 import com.intellij.psi.PsiPackage
 
-class PsiPackageItem
+internal class PsiPackageItem
 internal constructor(
     codebase: PsiBasedCodebase,
     private val psiPackage: PsiPackage,
@@ -35,13 +35,14 @@ internal constructor(
     /** True if this package is from the classpath (dependencies). Exposed in [isFromClassPath]. */
     private val fromClassPath: Boolean
 ) :
-    PsiItem(
+    AbstractPsiItem(
         codebase = codebase,
         modifiers = modifiers,
         documentationFactory = documentationFactory,
         element = psiPackage
     ),
-    PackageItem {
+    PackageItem,
+    PsiItem {
 
     // Note - top level classes only
     private val classes: MutableList<ClassItem> = mutableListOf()
@@ -105,7 +106,7 @@ internal constructor(
             overviewHtml: String?,
             fromClassPath: Boolean,
         ): PsiPackageItem {
-            val modifiers = modifiers(codebase, psiPackage)
+            val modifiers = PsiModifierItem.create(codebase, psiPackage)
             if (modifiers.isPackagePrivate()) {
                 // packages are always public (if not hidden explicitly with private)
                 modifiers.setVisibilityLevel(VisibilityLevel.PUBLIC)

@@ -96,7 +96,7 @@ const val METHOD_ESTIMATE = 1000
  * originate from the classpath and have [Item.emit] set to false and [Item.isFromClassPath] set to
  * true.
  */
-open class PsiBasedCodebase(
+internal class PsiBasedCodebase(
     location: File,
     description: String = "Unknown",
     annotationManager: AnnotationManager,
@@ -586,7 +586,7 @@ open class PsiBasedCodebase(
 
     override fun resolveClass(className: String): ClassItem? = findOrCreateClass(className)
 
-    open fun findClass(psiClass: PsiClass): PsiClassItem? {
+    fun findClass(psiClass: PsiClass): PsiClassItem? {
         val qualifiedName: String = psiClass.qualifiedName ?: psiClass.name!!
         return classMap[qualifiedName]
     }

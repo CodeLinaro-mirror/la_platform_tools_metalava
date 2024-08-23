@@ -42,16 +42,13 @@ internal object PsiTypeParameterList {
             psiTypeParameterList.typeParameters.toList(),
             { PsiTypeParameterItem.create(codebase, it) },
             // Create bounds and store it in the [PsiTypeParameterItem.bounds] property.
-            { typeItemFactory, item, psiTypeParameter ->
+            { typeItemFactory, psiTypeParameter ->
                 val refs = psiTypeParameter.extendsList.referencedTypes
-                val bounds =
-                    if (refs.isEmpty()) {
-                        emptyList()
-                    } else {
-                        refs.mapNotNull { typeItemFactory.getBoundsType(PsiTypeInfo(it)) }
-                    }
-                item.bounds = bounds
-                bounds
+                if (refs.isEmpty()) {
+                    emptyList()
+                } else {
+                    refs.mapNotNull { typeItemFactory.getBoundsType(PsiTypeInfo(it)) }
+                }
             },
         )
     }

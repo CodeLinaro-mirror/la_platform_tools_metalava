@@ -159,11 +159,8 @@ class CodebaseSnapshotTaker : DelegatedVisitor {
                     )
                 },
                 // Create, set and return the [BoundsTypeItem] list.
-                { typeItemFactory, item, typeParameterItem ->
-                    typeParameterItem
-                        .typeBounds()
-                        .map { typeItemFactory.getBoundsType(it) }
-                        .also { item.bounds = it }
+                { typeItemFactory, typeParameterItem ->
+                    typeParameterItem.typeBounds().map { typeItemFactory.getBoundsType(it) }
                 },
             )
 

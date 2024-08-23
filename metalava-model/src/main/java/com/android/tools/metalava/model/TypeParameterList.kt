@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model
 
+import com.android.tools.metalava.model.item.DefaultTypeParameterItem
 import com.android.tools.metalava.model.type.TypeItemFactory
 
 /**
@@ -102,19 +103,17 @@ private constructor(private val typeParameters: List<TypeParameterItem>) :
          * @param inputParams a list of the model specific type parameters.
          * @param paramFactory a function that will create a [TypeParameterItem] from the model
          *   specified parameter [P].
-         * @param boundsSetter a function that will create a list of [BoundsTypeItem] from the model
-         *   specific bounds and store it in [TypeParameterItem.typeBounds].
-         * @param I the type of the model specific [TypeParameterItem].
+         * @param boundsGetter a function that will create a list of [BoundsTypeItem] from the model
+         *   specific bounds which will be stored in [DefaultTypeParameterItem.bounds].
          * @param P the type of the underlying model specific type parameter objects.
          * @param F the type of the model specific [TypeItemFactory].
          */
-        fun <
-            I : TypeParameterItem, P, F : TypeItemFactory<*, F>> createTypeParameterItemsAndFactory(
+        fun <P, F : TypeItemFactory<*, F>> createTypeParameterItemsAndFactory(
             containingTypeItemFactory: F,
             scopeDescription: String,
             inputParams: List<P>,
-            paramFactory: (P) -> I,
-            boundsSetter: (F, I, P) -> List<BoundsTypeItem>,
+            paramFactory: (P) -> DefaultTypeParameterItem,
+            boundsGetter: (F, P) -> List<BoundsTypeItem>,
         ): TypeParameterListAndFactory<F> {
             // First, create a Map from [TypeParameterItem] to the model specific parameter. Using
             // the [paramFactory] to convert the model specific parameter to a [TypeParameterItem].
@@ -128,9 +127,8 @@ private constructor(private val typeParameters: List<TypeParameterItem>) :
             // Then, create and set the bounds in the [TypeParameterItem] passing in the
             // [TypeItemFactory] to allow cross-references to type parameters to be resolved.
             for ((typeParameter, param) in typeParameterItemToBounds) {
-                val boundsTypeItem = boundsSetter(typeItemFactory, typeParameter, param)
-                if (typeParameter.typeBounds() !== boundsTypeItem)
-                    error("boundsSetter did not set bounds")
+                val boundsTypeItems = boundsGetter(typeItemFactory, param)
+                typeParameter.bounds = boundsTypeItems
             }
 
             // Pair the list up with the [TypeItemFactory] so that the latter can be reused.

@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.psi
 
+import com.android.tools.metalava.model.ApiVariantSelectors
 import com.android.tools.metalava.model.CallableBody
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
@@ -25,6 +26,7 @@ import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
+import com.android.tools.metalava.model.item.DefaultMemberItem
 import com.android.tools.metalava.model.type.MethodFingerprint
 import com.android.tools.metalava.reporter.FileLocation
 import com.intellij.psi.PsiMethod
@@ -43,8 +45,8 @@ import org.jetbrains.uast.UMethod
  */
 internal typealias ParameterItemsFactory = (PsiCallableItem) -> List<PsiParameterItem>
 
-abstract class PsiCallableItem(
-    codebase: PsiBasedCodebase,
+internal abstract class PsiCallableItem(
+    override val codebase: PsiBasedCodebase,
     val psiMethod: PsiMethod,
     fileLocation: FileLocation = PsiFileLocation(psiMethod),
     // Takes ClassItem as this may be duplicated from a PsiBasedCodebase on the classpath into a
@@ -58,16 +60,18 @@ abstract class PsiCallableItem(
     override val typeParameterList: TypeParameterList,
     protected val throwsTypes: List<ExceptionTypeItem>
 ) :
-    PsiMemberItem(
+    DefaultMemberItem(
         codebase = codebase,
+        fileLocation = fileLocation,
+        itemLanguage = psiMethod.itemLanguage,
         modifiers = modifiers,
         documentationFactory = documentationFactory,
-        element = psiMethod,
-        fileLocation = fileLocation,
-        containingClass = containingClass,
+        variantSelectorsFactory = ApiVariantSelectors.MUTABLE_FACTORY,
         name = name,
+        containingClass = containingClass,
     ),
-    CallableItem {
+    CallableItem,
+    PsiItem {
 
     /**
      * Create the [ParameterItem] list during initialization of this method to allow them to contain
@@ -108,7 +112,7 @@ abstract class PsiCallableItem(
             enclosingTypeItemFactory: PsiTypeItemFactory,
         ): List<PsiParameterItem> {
             val psiParameters = containingCallable.psiMethod.psiParameters
-            val fingerprint = MethodFingerprint(containingCallable.name, psiParameters.size)
+            val fingerprint = MethodFingerprint(containingCallable.name(), psiParameters.size)
             return psiParameters.mapIndexed { index, parameter ->
                 PsiParameterItem.create(
                     containingCallable,
