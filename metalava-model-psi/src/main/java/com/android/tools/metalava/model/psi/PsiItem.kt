@@ -46,7 +46,8 @@ internal constructor(
     ) {
 
     /** The source PSI provided by UAST */
-    internal val sourcePsi: PsiElement? = (element as? UElement)?.sourcePsi
+    internal val sourcePsi
+        get() = (psi() as? UElement)?.sourcePsi
 
     /** Returns the PSI element for this item */
     abstract fun psi(): PsiElement

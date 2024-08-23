@@ -17,17 +17,15 @@
 package com.android.tools.metalava.model.text
 
 import com.android.tools.metalava.model.AnnotationManager
-import com.android.tools.metalava.model.ApiVariantSelectors
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Codebase
-import com.android.tools.metalava.model.Item
-import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.bestGuessAtFullName
+import com.android.tools.metalava.model.item.CodebaseAssembler
+import com.android.tools.metalava.model.item.CodebaseAssemblerFactory
 import com.android.tools.metalava.model.item.DefaultClassItem
 import com.android.tools.metalava.model.item.DefaultCodebase
-import com.android.tools.metalava.model.item.DefaultItemFactory
 import com.android.tools.metalava.model.item.DefaultPackageItem
 import java.io.File
 import java.util.HashMap
@@ -39,6 +37,9 @@ internal class TextCodebase(
     location: File,
     annotationManager: AnnotationManager,
     private val classResolver: ClassResolver?,
+    assemblerFactory: CodebaseAssemblerFactory = { codebase ->
+        TextCodebaseAssembler(codebase as TextCodebase)
+    },
 ) :
     DefaultCodebase(
         location = location,
@@ -50,28 +51,18 @@ internal class TextCodebase(
     ) {
 
     /**
+     * Create a [CodebaseAssembler] appropriate for this [Codebase].
+     *
+     * The leaking of `this` is safe as the implementations do not access anything that has not been
+     * initialized.
+     */
+    internal val assembler = assemblerFactory(this) as TextCodebaseAssembler
+
+    /**
      * Map from fully qualified class name to a [ClassItem] that has been retrieved from a
      * [ClassResolver], if any.
      */
     private val externalClassesByName = HashMap<String, ClassItem>()
-
-    /** Creates [Item] instances for this. */
-    internal val itemFactory =
-        DefaultItemFactory(
-            codebase = this,
-            // Signature files do not contain information about whether an item was originally
-            // created from Java or Kotlin.
-            defaultItemLanguage = ItemLanguage.UNKNOWN,
-            // Signature files have already been separated by API surface variants, so they can use
-            // the same immutable ApiVariantSelectors.
-            defaultVariantSelectorsFactory = ApiVariantSelectors.IMMUTABLE_FACTORY,
-        )
-
-    init {
-        // Make sure that it has a root package.
-        val rootPackage = itemFactory.createPackageItem(qualifiedName = "")
-        addPackage(rootPackage)
-    }
 
     /**
      * Override to first search within this [Codebase] and then look for classes that have been
@@ -203,7 +194,8 @@ internal class TextCodebase(
                 val pkgPath = if (endIndex != -1) qualifiedName.substring(0, endIndex) else ""
                 findPackage(pkgPath)
                     ?: run {
-                        val newPkg = itemFactory.createPackageItem(qualifiedName = pkgPath)
+                        val newPkg =
+                            assembler.itemFactory.createPackageItem(qualifiedName = pkgPath)
                         addPackage(newPkg)
                         newPkg.emit = false
                         newPkg

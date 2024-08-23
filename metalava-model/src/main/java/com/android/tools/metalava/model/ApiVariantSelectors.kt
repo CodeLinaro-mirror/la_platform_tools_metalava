@@ -16,6 +16,8 @@
 
 package com.android.tools.metalava.model
 
+import com.android.tools.metalava.reporter.Issues
+
 /** A factory that will create an [ApiVariantSelectors] for a specific [Item]. */
 typealias ApiVariantSelectorsFactory = (Item) -> ApiVariantSelectors
 
@@ -34,6 +36,17 @@ sealed class ApiVariantSelectors {
      * Initially set to [originallyHidden] but updated due to inheritance.
      */
     internal abstract val inheritableHidden: Boolean
+
+    /**
+     * Indicates whether the [Item] is accessible, and its enclosing classes are accessible.
+     *
+     * An [Item] is accessible if it is either `public` or `protected`. In Kotlin it is also
+     * accessible if it is `internal` as long as it is annotated with `@PublishedApi`. However, that
+     * annotation is not treated specially in Metalava, instead it relies on the user to specify
+     * `@PublishedApi` as a show annotation and this just assumes that any show annotation is enough
+     * to make it accessible.
+     */
+    abstract val accessible: Boolean
 
     /**
      * Indicates whether the [Item] should be hidden, i.e. should not be included in ANY API surface
@@ -104,6 +117,14 @@ sealed class ApiVariantSelectors {
 
         override val inheritableHidden: Boolean
             get() = false
+
+        /**
+         * Defaults to `true` as this is used by `Item`s loaded from an API signature file which
+         * typically only contains accessible `Item`s. It is possible that it could contain
+         * inaccessible `Item`s but at the moment that is not supported.
+         */
+        override val accessible: Boolean
+            get() = true
 
         override val hidden: Boolean
             get() = false
@@ -259,6 +280,23 @@ sealed class ApiVariantSelectors {
                 lazySet(INHERITABLE_HIDDEN_BIT_MASK, value)
             }
 
+        override val accessible: Boolean
+            get() =
+                lazyGet(ACCESSIBLE_BIT_MASK) {
+                    when (item) {
+                        // Packages are always accessible.
+                        is PackageItem -> true
+                        else ->
+                            // This is accessible if it is public, protected or internal (with show
+                            // annotation) and none of its containing classes, if any, are
+                            // inaccessible.
+                            (item.isPublic ||
+                                item.isProtected ||
+                                (item.isInternal && showability.show())) &&
+                                item.containingClass()?.variantSelectors?.accessible != false
+                    }
+                }
+
         override var hidden: Boolean
             get() =
                 lazyGetAfterInherit(HIDDEN_BIT_MASK) {
@@ -369,6 +407,10 @@ sealed class ApiVariantSelectors {
                     // package.
                     (containingPackageSelectors as Mutable).hidden = false
                 }
+
+                if (item.containingClass() != null) {
+                    ensureParentVisible()
+                }
             } else if (showability.hide()) {
                 inheritableHidden = true
             } else {
@@ -397,6 +439,35 @@ sealed class ApiVariantSelectors {
                         inheritableHidden = true
                     }
                 }
+            }
+        }
+
+        /**
+         * Ensure that the parents of a visible [Item], i.e. one whose [Item.hidden] property is
+         * `false` are themselves visible.
+         *
+         * Note: This will only be called when [item] is a class, constructor, method or field. In
+         * particular, it does not apply to [PackageItem]s as they are completely separate from one
+         * another, i.e. you do not need to have package `abc.qrs` be visible in order to have
+         * `abc.qrs.xyz` be visible.
+         */
+        private fun ensureParentVisible() {
+            val parent = item.parent() ?: return
+
+            // If the parent is not hidden then everything is fine.
+            if (!parent.hidden) {
+                return
+            }
+
+            // Otherwise, find a show annotation to blame it on and report the issue.
+            item.modifiers.findAnnotation(AnnotationItem::isShowAnnotation)?.let {
+                violatingAnnotation ->
+                item.codebase.reporter.report(
+                    Issues.SHOWING_MEMBER_IN_HIDDEN_CLASS,
+                    item,
+                    "Attempting to unhide ${item.describe()}, but surrounding ${parent.describe()} is " +
+                        "hidden and should also be annotated with $violatingAnnotation"
+                )
             }
         }
 
@@ -464,8 +535,12 @@ sealed class ApiVariantSelectors {
             private const val HIDDEN_BIT_POSITION: Int = INHERITABLE_HIDDEN_BIT_POSITION + 1
             private const val HIDDEN_BIT_MASK: Int = 1 shl HIDDEN_BIT_POSITION
 
+            // `accessible` related constants
+            private const val ACCESSIBLE_BIT_POSITION: Int = HIDDEN_BIT_POSITION + 1
+            private const val ACCESSIBLE_BIT_MASK: Int = 1 shl ACCESSIBLE_BIT_POSITION
+
             // `docOnly` related constants
-            private const val DOCONLY_BIT_POSITION: Int = HIDDEN_BIT_POSITION + 1
+            private const val DOCONLY_BIT_POSITION: Int = ACCESSIBLE_BIT_POSITION + 1
             private const val DOCONLY_BIT_MASK: Int = 1 shl DOCONLY_BIT_POSITION
 
             // `removed` related constants
@@ -489,6 +564,7 @@ sealed class ApiVariantSelectors {
                         array[ORIGINALLY_HIDDEN_BIT_POSITION] = "originallyHidden"
                         array[INHERITABLE_HIDDEN_BIT_POSITION] = "inheritableHidden"
                         array[HIDDEN_BIT_POSITION] = "hidden"
+                        array[ACCESSIBLE_BIT_POSITION] = "accessible"
                         array[DOCONLY_BIT_POSITION] = "docOnly"
                         array[REMOVED_BIT_POSITION] = "removed"
                         array[INHERIT_INTO_BIT_POSITION] = "inheritIntoWasCalled"

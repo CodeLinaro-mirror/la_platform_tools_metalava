@@ -45,7 +45,7 @@ internal class StubClassBuilder(
     var superClassType: ClassTypeItem? = null
 
     private fun build(): DefaultClassItem =
-        codebase.itemFactory
+        codebase.assembler.itemFactory
             .createClassItem(
                 fileLocation = FileLocation.UNKNOWN,
                 modifiers = modifiers,

@@ -47,14 +47,6 @@ internal class TurbineSourceParser(
         classPath: List<File>,
     ): Codebase {
         val rootDir = sourceSet.sourcePath.firstOrNull() ?: File("").canonicalFile
-        val codebase =
-            TurbineBasedCodebase(
-                rootDir,
-                description,
-                annotationManager,
-                reporter,
-                allowReadingComments,
-            )
 
         val sources = sourceSet.sources
 
@@ -64,8 +56,24 @@ internal class TurbineSourceParser(
 
         val sourceFiles = getSourceFiles(sources)
         val units = sourceFiles.map { Parser.parse(it) }
-        codebase.initialize(units, classPath, packageHtmlByPackageName)
 
+        // Create the Codebase. The initialization of the codebase has to done after the creation of
+        // the codebase and not during, i.e. in the lambda, because the codebase will not be fully
+        // initialized when it is called.
+        val codebase =
+            TurbineBasedCodebase(rootDir, description, annotationManager, reporter) { codebase ->
+                TurbineCodebaseInitialiser(
+                    units,
+                    codebase as TurbineBasedCodebase,
+                    classPath,
+                    allowReadingComments,
+                )
+            }
+
+        // Initialize the codebase.
+        (codebase.assembler as TurbineCodebaseInitialiser).initialize(packageHtmlByPackageName)
+
+        // Return the newly created and initialized codebase.
         return codebase
     }
 

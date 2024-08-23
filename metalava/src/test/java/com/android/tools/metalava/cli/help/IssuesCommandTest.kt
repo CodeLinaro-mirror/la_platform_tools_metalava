@@ -200,7 +200,7 @@ Available Issues                             |  Category                |   Defa
   SdkConstant                                |  documentation           |   error
   ServiceName                                |  api_lint                |   error
   SetterReturnsThis                          |  api_lint                |   warning
-  ShowingMemberInHiddenClass                 |  unknown                 |   error
+  ShowingMemberInHiddenClass                 |  api_lint                |   error
   SingleMethodInterface                      |  api_lint                |   error
   SingletonConstructor                       |  api_lint                |   error
   SingularCallback                           |  api_lint                |   error

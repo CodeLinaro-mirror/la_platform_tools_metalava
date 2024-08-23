@@ -41,6 +41,7 @@ import com.intellij.psi.PsiModifier
 import com.intellij.psi.PsiType
 import com.intellij.psi.PsiTypeParameter
 import com.intellij.psi.util.PsiUtil
+import org.jetbrains.kotlin.asJava.classes.KtLightClassForFacade
 import org.jetbrains.kotlin.psi.KtParameter
 import org.jetbrains.kotlin.psi.KtProperty
 import org.jetbrains.kotlin.psi.KtPropertyAccessor
@@ -213,6 +214,12 @@ internal constructor(
 
         retention = ClassItem.findRetention(this)
         return retention!!
+    }
+
+    override fun isFileFacade(): Boolean {
+        return psiClass.isKotlin() &&
+            psiClass is UClass &&
+            psiClass.javaPsi is KtLightClassForFacade
     }
 
     companion object {

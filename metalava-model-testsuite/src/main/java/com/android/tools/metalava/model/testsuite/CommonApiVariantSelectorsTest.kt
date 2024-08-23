@@ -18,6 +18,10 @@ package com.android.tools.metalava.model.testsuite
 
 import com.android.tools.metalava.model.ApiVariantSelectors
 import com.android.tools.metalava.model.ApiVariantSelectors.TestableSelectorsState
+import com.android.tools.metalava.model.BaseItemVisitor
+import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.Showability
 import com.android.tools.metalava.testing.java
 import kotlin.test.assertEquals
@@ -69,6 +73,7 @@ class CommonApiVariantSelectorsTest : BaseModelTest() {
                         originallyHidden=<not-set>,
                         inheritableHidden=<not-set>,
                         hidden=<not-set>,
+                        accessible=<not-set>,
                         docOnly=<not-set>,
                         removed=<not-set>,
                         inheritIntoWasCalled=<not-set>,
@@ -82,6 +87,7 @@ class CommonApiVariantSelectorsTest : BaseModelTest() {
 
             // Initialize the properties.
             selectors.hidden
+            selectors.accessible
             selectors.docOnly
             selectors.removed
             selectors.showability
@@ -92,6 +98,7 @@ class CommonApiVariantSelectorsTest : BaseModelTest() {
                         originallyHidden=false,
                         inheritableHidden=false,
                         hidden=false,
+                        accessible=true,
                         docOnly=false,
                         removed=false,
                         inheritIntoWasCalled=true,
@@ -357,6 +364,60 @@ class CommonApiVariantSelectorsTest : BaseModelTest() {
 
             fooSelectorsState = fooSelectorsState.copy(removed = true)
             fooSelectors.assertEquals(fooSelectorsState, message = "after foo")
+        }
+    }
+
+    @Test
+    fun `Test accessible`() {
+        runCodebaseTest(
+            inputSet(
+                java("""
+                        package test.pkg;
+                    """),
+                java(
+                    """
+                        package test.pkg;
+                        public class Outer {
+                            class PackagePrivateInaccessible {
+                                public class PublicInsideInaccessible {}
+                            }
+                            protected class Protected {
+                                public static final int FIELD = 0;
+                            }
+                            private void methodPrivateInaccessible() {}
+                        }
+                    """
+                ),
+            ),
+        ) {
+            // Get the `accessible` property for the pkg, is always `true`.
+            val pkgItem = codebase.assertPackage("test.pkg")
+            assertEquals(true, pkgItem.variantSelectors.accessible, message = "pkg accessible")
+
+            var count = 0
+            pkgItem.accept(
+                object : BaseItemVisitor() {
+                    override fun visitItem(item: Item) {
+                        val name =
+                            when (item) {
+                                is ClassItem -> item.simpleName()
+                                is MemberItem -> item.name()
+                                else -> return
+                            }
+
+                        val expectedAccessible = !name.endsWith("Inaccessible")
+                        assertEquals(
+                            expectedAccessible,
+                            item.variantSelectors.accessible,
+                            message = "$item accessible"
+                        )
+                        count += 1
+                    }
+                }
+            )
+
+            // Make sure it actually did something.
+            assertEquals(10, count, message = "item count")
         }
     }
 }

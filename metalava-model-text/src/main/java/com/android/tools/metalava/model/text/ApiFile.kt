@@ -114,8 +114,11 @@ private constructor(
     private val globalTypeItemFactory by
         lazy(LazyThreadSafetyMode.NONE) { TextTypeItemFactory(codebase, typeParser) }
 
+    /** Supports the initialization of a [TextCodebase]. */
+    private val assembler = codebase.assembler
+
     /** Creates [Item] instances for [codebase]. */
-    private val itemFactory = codebase.itemFactory
+    private val itemFactory = assembler.itemFactory
 
     /**
      * Whether types should be interpreted to be in Kotlin format (e.g. ? suffix means nullable, !

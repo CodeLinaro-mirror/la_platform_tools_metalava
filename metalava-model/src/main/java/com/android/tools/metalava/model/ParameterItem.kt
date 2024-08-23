@@ -118,7 +118,9 @@ interface ParameterItem : Item {
      * - Kotlin lambda = true
      * - Any other type = false
      */
-    fun isSamCompatibleOrKotlinLambda(): Boolean = codebase.unsupported()
+    fun isSamCompatibleOrKotlinLambda(): Boolean =
+        // TODO(b/354889186): Implement correctly
+        false
 
     /**
      * Create a duplicate of this for [containingCallable].

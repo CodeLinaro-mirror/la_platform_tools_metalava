@@ -22,7 +22,6 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.psi.PsiEnvironmentManager
 import com.android.tools.metalava.model.psi.PsiFieldItem
-import com.android.tools.metalava.model.psi.PsiParameterItem
 import com.android.tools.metalava.model.psi.report
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
@@ -346,7 +345,7 @@ class KotlinInteropChecks(val reporter: Reporter) {
             "java.lang.Iterable" -> return false
         }
 
-        return parameter is PsiParameterItem && parameter.isSamCompatibleOrKotlinLambda()
+        return parameter.isSamCompatibleOrKotlinLambda()
     }
 
     private fun isKotlinHardKeyword(keyword: String): Boolean {

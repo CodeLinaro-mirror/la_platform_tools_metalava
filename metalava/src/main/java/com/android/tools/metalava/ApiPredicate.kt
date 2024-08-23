@@ -108,15 +108,12 @@ class ApiPredicate(
 
         val itemSelectors = item.variantSelectors
 
-        var visible =
-            item.isPublic ||
-                item.isProtected ||
-                (item.isInternal &&
-                    item.hasShowAnnotation()) // TODO: Should this use checkLevel instead?
+        // If the item or any of its containing classes are inaccessible then ignore it.
+        if (!itemSelectors.accessible) return false
+
         var hidden = itemSelectors.hidden && !visibleForAdditionalOverridePurpose
-        if (!visible || hidden) {
-            return false
-        }
+        if (hidden) return false
+
         if (!includeApisForStubPurposes && includeOnlyForStubPurposes(item)) {
             return false
         }
@@ -143,28 +140,30 @@ class ApiPredicate(
         // then ignore this item.
         if (!ignoreRemoved && itemSelectors.removed != matchRemoved) return false
 
-        var hasShowAnnotation = config.ignoreShown || item.hasShowAnnotation()
-
-        var clazz: ClassItem? =
+        val closestClass: ClassItem? =
             when (item) {
                 is MemberItem -> item.containingClass()
                 is ClassItem -> item
                 else -> null
             }
 
-        while (clazz != null) {
-            visible =
-                visible and
-                    (clazz.isPublic ||
-                        clazz.isProtected ||
-                        (clazz.isInternal && clazz.hasShowAnnotation()))
-            hasShowAnnotation =
-                hasShowAnnotation or (config.ignoreShown || clazz.hasShowAnnotation())
-            hidden = hidden or clazz.hidden
-            clazz = clazz.containingClass()
+        if (!config.ignoreShown) {
+            var hasShowAnnotation = item.hasShowAnnotation()
+            var showClass = closestClass
+            while (showClass != null && !hasShowAnnotation) {
+                hasShowAnnotation = showClass.hasShowAnnotation()
+                showClass = showClass.containingClass()
+            }
+            if (!hasShowAnnotation) return false
         }
 
-        return visible && hasShowAnnotation && !hidden
+        var hiddenClass = closestClass
+        while (hiddenClass != null) {
+            if (hiddenClass.hidden) return false
+            hiddenClass = hiddenClass.containingClass()
+        }
+
+        return true
     }
 
     /**

@@ -113,13 +113,16 @@ internal class ClassLoaderBasedClassResolver(jar: File) : ClassResolver {
                 val cls = findClassInClassLoader(erasedName) ?: return null
                 val packageName = cls.`package`.name
 
+                val itemFactory = codebase.assembler.itemFactory
+
                 val packageItem =
                     codebase.findPackage(packageName)
-                        ?: codebase.itemFactory
-                            .createPackageItem(qualifiedName = packageName)
-                            .also { newPackageItem -> codebase.addPackage(newPackageItem) }
+                        ?: itemFactory.createPackageItem(qualifiedName = packageName).also {
+                            newPackageItem ->
+                            codebase.addPackage(newPackageItem)
+                        }
 
-                codebase.itemFactory.createClassItem(
+                itemFactory.createClassItem(
                     fileLocation = FileLocation.UNKNOWN,
                     modifiers = DefaultModifierList(codebase),
                     qualifiedName = cls.canonicalName,

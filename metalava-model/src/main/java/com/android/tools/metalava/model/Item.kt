@@ -451,8 +451,8 @@ abstract class AbstractItem(
     /**
      * Create a [ItemDocumentation] appropriate for this [Item].
      *
-     * The leaking of `this` is safe as the implementations do not do access anything that has not
-     * been initialized.
+     * The leaking of `this` is safe as the implementations do not access anything that has not been
+     * initialized.
      */
     final override val documentation = @Suppress("LeakingThis") documentationFactory(this)
 
@@ -468,8 +468,8 @@ abstract class AbstractItem(
     /**
      * Create a [ApiVariantSelectors] appropriate for this [Item].
      *
-     * The leaking of `this` is safe as the implementations do not do access anything that has not
-     * been initialized.
+     * The leaking of `this` is safe as the implementations do not access anything that has not been
+     * initialized.
      */
     override val variantSelectors = @Suppress("LeakingThis") variantSelectorsFactory(this)
 

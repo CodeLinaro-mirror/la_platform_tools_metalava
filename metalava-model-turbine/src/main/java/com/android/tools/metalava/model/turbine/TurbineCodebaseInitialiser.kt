@@ -43,6 +43,7 @@ import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.TypeParameterListAndFactory
 import com.android.tools.metalava.model.TypeParameterScope
 import com.android.tools.metalava.model.findAnnotation
+import com.android.tools.metalava.model.item.CodebaseAssembler
 import com.android.tools.metalava.model.item.DefaultClassItem
 import com.android.tools.metalava.model.item.DefaultItemFactory
 import com.android.tools.metalava.model.item.DefaultPackageItem
@@ -107,10 +108,11 @@ import javax.lang.model.element.TypeElement
  * parsed Tree
  */
 internal open class TurbineCodebaseInitialiser(
-    val units: List<CompUnit>,
-    val codebase: TurbineBasedCodebase,
-    val classpath: List<File>,
-) {
+    private val units: List<CompUnit>,
+    private val codebase: TurbineBasedCodebase,
+    private val classpath: List<File>,
+    private val allowReadingComments: Boolean,
+) : CodebaseAssembler {
     /** The output from Turbine Binder */
     private lateinit var bindingResult: BindingResult
 
@@ -326,43 +328,40 @@ internal open class TurbineCodebaseInitialiser(
     /**
      * Create top level classes, their nested classes and all the other members.
      *
-     * All the classes are registered by name and so can be found by [findOrCreateClass].
+     * All the classes are registered by name and so can be found by
+     * [createClassFromUnderlyingModel].
      */
     private fun createTopLevelClassAndContents(classSymbol: ClassSymbol): ClassItem {
         if (!classSymbol.isTopClass) error("$classSymbol is not a top level class")
         return createClass(classSymbol, null, globalTypeItemFactory)
     }
 
-    /** Tries to create a class if not already present in codebase's classmap */
-    internal fun findOrCreateClass(name: String): ClassItem? {
-        var classItem = codebase.findClass(name)
+    /** Tries to create a class from a Turbine class with [qualifiedName]. */
+    override fun createClassFromUnderlyingModel(qualifiedName: String): ClassItem? {
+        // This will get the symbol for the top class even if the class name is for a nested
+        // class.
+        val topClassSym = getClassSymbol(qualifiedName)
 
-        if (classItem == null) {
-            // This will get the symbol for the top class even if the class name is for a nested
-            // class.
-            val topClassSym = getClassSymbol(name)
+        // Create the top level class, if needed, along with any nested classes and register
+        // them all by name.
+        topClassSym?.let {
+            // It is possible that the top level class has already been created but just did not
+            // contain the requested nested class so check to make sure it exists before
+            // creating it.
+            val topClassName = getQualifiedName(topClassSym.binaryName())
+            codebase.findClass(topClassName)
+                ?: let {
+                    // Create and register the top level class and its nested classes.
+                    createTopLevelClassAndContents(topClassSym)
 
-            // Create the top level class, if needed, along with any nested classes and register
-            // them all by name.
-            topClassSym?.let {
-                // It is possible that the top level class has already been created but just did not
-                // contain the requested nested class so check to make sure it exists before
-                // creating it.
-                val topClassName = getQualifiedName(topClassSym.binaryName())
-                codebase.findClass(topClassName)
-                    ?: let {
-                        // Create and register the top level class and its nested classes.
-                        createTopLevelClassAndContents(topClassSym)
-
-                        // Now try and find the actual class that was requested by name. If it
-                        // exists it
-                        // should have been created in the previous call.
-                        classItem = codebase.findClass(name)
-                    }
-            }
+                    // Now try and find the actual class that was requested by name. If it exists it
+                    // should have been created in the previous call.
+                    return codebase.findClass(qualifiedName)
+                }
         }
 
-        return classItem
+        // Could not be found.
+        return null
     }
 
     private fun createClass(
@@ -960,17 +959,17 @@ internal open class TurbineCodebaseInitialiser(
     }
 
     private fun javadoc(item: Tree.TyDecl?): String {
-        if (!codebase.allowReadingComments) return ""
+        if (!allowReadingComments) return ""
         return item?.javadoc() ?: ""
     }
 
     private fun javadoc(item: Tree.VarDecl?): String {
-        if (!codebase.allowReadingComments) return ""
+        if (!allowReadingComments) return ""
         return item?.javadoc() ?: ""
     }
 
     private fun javadoc(item: Tree.MethDecl?): String {
-        if (!codebase.allowReadingComments) return ""
+        if (!allowReadingComments) return ""
         return item?.javadoc() ?: ""
     }
 
