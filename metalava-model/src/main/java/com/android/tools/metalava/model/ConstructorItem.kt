@@ -18,6 +18,12 @@ package com.android.tools.metalava.model
 
 interface ConstructorItem : CallableItem {
 
+    /** Override to specialize return type. */
+    override fun returnType(): ClassTypeItem
+
+    /** Override to specialize return type. */
+    override fun type() = returnType()
+
     override fun accept(visitor: ItemVisitor) {
         visitor.visit(this)
     }

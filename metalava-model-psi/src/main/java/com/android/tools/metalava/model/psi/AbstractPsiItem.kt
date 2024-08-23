@@ -16,37 +16,26 @@
 
 package com.android.tools.metalava.model.psi
 
-import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.AbstractItem
+import com.android.tools.metalava.model.ApiVariantSelectors
+import com.android.tools.metalava.model.ApiVariantSelectorsFactory
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.ItemDocumentationFactory
-import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.reporter.FileLocation
-import com.intellij.psi.PsiJvmMember
+import com.intellij.psi.PsiElement
 
-abstract class PsiMemberItem
-internal constructor(
-    codebase: PsiBasedCodebase,
-    element: PsiJvmMember,
+internal abstract class AbstractPsiItem(
+    final override val codebase: PsiBasedCodebase,
+    element: PsiElement,
     fileLocation: FileLocation = PsiFileLocation(element),
     modifiers: DefaultModifierList,
     documentationFactory: ItemDocumentationFactory,
-    internal val containingClass: ClassItem,
-    internal val name: String,
+    variantSelectorsFactory: ApiVariantSelectorsFactory = ApiVariantSelectors.MUTABLE_FACTORY,
 ) :
-    PsiItem(
-        codebase = codebase,
+    AbstractItem(
+        fileLocation = fileLocation,
+        itemLanguage = element.itemLanguage,
         modifiers = modifiers,
         documentationFactory = documentationFactory,
-        element = element,
-        fileLocation = fileLocation,
-    ),
-    MemberItem {
-
-    init {
-        emit = !modifiers.isExpect()
-    }
-
-    final override fun name() = name
-
-    final override fun containingClass() = containingClass
-}
+        variantSelectorsFactory = variantSelectorsFactory,
+    )

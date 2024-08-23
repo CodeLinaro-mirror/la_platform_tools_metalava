@@ -30,6 +30,7 @@ import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.Item.Companion.describe
+import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.MergedCodebase
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.MultipleTypeVisitor
@@ -38,7 +39,6 @@ import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.VariableTypeItem
-import com.android.tools.metalava.model.psi.PsiItem
 import com.android.tools.metalava.options
 import com.android.tools.metalava.reporter.FileLocation
 import com.android.tools.metalava.reporter.IssueConfiguration
@@ -923,13 +923,9 @@ class CompatibilityCheck(
                             new.modifiers.isStatic() -> Issues.ADDED_METHOD
                             new.modifiers.isDefault() -> {
                                 // Hack to always mark added Kotlin interface methods as abstract
-                                // until
-                                // we properly support JVM default methods for Kotlin. This has to
-                                // check
-                                // if it's a PsiItem because TextItem doesn't support isKotlin.
-                                //
+                                // until we properly support JVM default methods for Kotlin.
                                 // TODO(b/200077254): Remove Kotlin special case
-                                if (new is PsiItem && new.isKotlin()) {
+                                if (new.itemLanguage == ItemLanguage.KOTLIN) {
                                     Issues.ADDED_ABSTRACT_METHOD
                                 } else {
                                     Issues.ADDED_METHOD

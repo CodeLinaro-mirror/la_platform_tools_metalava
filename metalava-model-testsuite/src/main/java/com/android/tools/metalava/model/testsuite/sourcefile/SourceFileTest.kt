@@ -114,13 +114,12 @@ class CommonSourceFileTest : BaseModelTest() {
             // Method and Field imports don't seem to resolve and are not included.
             assertEquals(
                 setOf(classImport, innerClassImport, packageImport),
-                sourceFile.getImports(AlwaysTrue())
+                sourceFile.getImports(AlwaysTrue()),
+                message = "unfiltered imports"
             )
 
-            assertEquals(
-                setOf(innerClassImport, packageImport),
-                sourceFile.getImports(FilterHidden())
-            )
+            val imports = sourceFile.getImports(FilterHidden())
+            assertEquals(setOf(packageImport), imports, message = "filtered hidden")
         }
     }
 

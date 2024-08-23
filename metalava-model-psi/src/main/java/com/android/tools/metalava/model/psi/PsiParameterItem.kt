@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.model.AnnotationItem
+import com.android.tools.metalava.model.ApiVariantSelectors
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.ItemDocumentation
@@ -26,6 +27,7 @@ import com.android.tools.metalava.model.TypeParameterBindings
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.findAnnotation
 import com.android.tools.metalava.model.hasAnnotation
+import com.android.tools.metalava.model.item.DefaultValue
 import com.android.tools.metalava.model.psi.CodePrinter.Companion.constantToSource
 import com.android.tools.metalava.model.type.MethodFingerprint
 import com.intellij.psi.LambdaUtil
@@ -48,7 +50,7 @@ import org.jetbrains.uast.UMethod
 import org.jetbrains.uast.UParameter
 import org.jetbrains.uast.UastFacade
 
-class PsiParameterItem
+internal class PsiParameterItem
 internal constructor(
     codebase: PsiBasedCodebase,
     private val psiParameter: PsiParameter,
@@ -58,13 +60,15 @@ internal constructor(
     modifiers: DefaultModifierList,
     private var type: PsiTypeItem,
 ) :
-    PsiItem(
+    AbstractPsiItem(
         codebase = codebase,
         element = psiParameter,
         modifiers = modifiers,
         documentationFactory = ItemDocumentation.NONE_FACTORY,
+        variantSelectorsFactory = ApiVariantSelectors.IMMUTABLE_FACTORY,
     ),
-    ParameterItem {
+    ParameterItem,
+    PsiItem {
 
     override var property: PsiPropertyItem? = null
 
@@ -120,7 +124,7 @@ internal constructor(
 
     override fun isDefaultValueKnown(): Boolean {
         return if (psiParameter.isKotlin()) {
-            defaultValue() != INVALID_VALUE
+            defaultValueAsString() != INVALID_VALUE
         } else {
             // Java: Look for @ParameterName annotation
             modifiers.hasAnnotation(AnnotationItem::isDefaultValue)
@@ -175,14 +179,22 @@ internal constructor(
         return null
     }
 
-    private var defaultValue: String? = null
+    private var defaultValueAsString: String? = null
 
-    override fun defaultValue(): String? {
-        if (defaultValue == null) {
-            defaultValue = computeDefaultValue()
+    override fun defaultValueAsString(): String? {
+        if (defaultValueAsString == null) {
+            defaultValueAsString = computeDefaultValue()
         }
-        return defaultValue
+        return defaultValueAsString
     }
+
+    override val defaultValue: DefaultValue
+        get() =
+            when {
+                !hasDefaultValue() -> DefaultValue.NONE
+                !isDefaultValueKnown() -> DefaultValue.UNKNOWN
+                else -> DefaultValue.fixedDefaultValue(defaultValueAsString()!!)
+            }
 
     private fun computeDefaultValue(): String? {
         if (psiParameter.isKotlin()) {

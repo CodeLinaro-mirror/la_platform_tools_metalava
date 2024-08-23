@@ -16,6 +16,8 @@
 
 package com.android.tools.metalava.model
 
+import com.android.tools.metalava.model.item.DefaultValue
+
 @MetalavaApi
 interface ParameterItem : Item {
     /** The name of this field */
@@ -80,7 +82,10 @@ interface ParameterItem : Item {
      * The default value is the source string literal representation of the value, e.g. strings
      * would be surrounded by quotes, Booleans are the strings "true" or "false", and so on.
      */
-    fun defaultValue(): String?
+    fun defaultValueAsString(): String?
+
+    /** The default value of this [ParameterItem]. */
+    val defaultValue: DefaultValue
 
     /** Whether this is a varargs parameter */
     fun isVarArgs(): Boolean
@@ -113,7 +118,9 @@ interface ParameterItem : Item {
      * - Kotlin lambda = true
      * - Any other type = false
      */
-    fun isSamCompatibleOrKotlinLambda(): Boolean = codebase.unsupported()
+    fun isSamCompatibleOrKotlinLambda(): Boolean =
+        // TODO(b/354889186): Implement correctly
+        false
 
     /**
      * Create a duplicate of this for [containingCallable].

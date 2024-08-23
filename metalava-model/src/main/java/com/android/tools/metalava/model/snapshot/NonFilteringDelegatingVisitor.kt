@@ -19,8 +19,12 @@ package com.android.tools.metalava.model.snapshot
 import com.android.tools.metalava.model.BaseItemVisitor
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.DelegatedVisitor
+import com.android.tools.metalava.model.FieldItem
+import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
+import com.android.tools.metalava.model.PropertyItem
 
 /**
  * A [BaseItemVisitor] that will delegate to [delegate].
@@ -52,5 +56,21 @@ class NonFilteringDelegatingVisitor(private val delegate: DelegatedVisitor) :
 
     override fun afterVisitClass(cls: ClassItem) {
         delegate.afterVisitClass(cls)
+    }
+
+    override fun visit(constructor: ConstructorItem) {
+        delegate.visitConstructor(constructor)
+    }
+
+    override fun visitMethod(method: MethodItem) {
+        delegate.visitMethod(method)
+    }
+
+    override fun visitField(field: FieldItem) {
+        delegate.visitField(field)
+    }
+
+    override fun visitProperty(property: PropertyItem) {
+        delegate.visitProperty(property)
     }
 }

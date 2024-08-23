@@ -16,19 +16,21 @@
 
 package com.android.tools.metalava.model.psi
 
+import com.android.tools.metalava.model.ApiVariantSelectors
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.item.DefaultMemberItem
 import com.intellij.psi.PsiMethod
 import org.jetbrains.kotlin.descriptors.annotations.AnnotationUseSiteTarget
 import org.jetbrains.kotlin.psi.KtPropertyAccessor
 import org.jetbrains.uast.UAnnotation
 import org.jetbrains.uast.toUElement
 
-class PsiPropertyItem
+internal class PsiPropertyItem
 private constructor(
-    codebase: PsiBasedCodebase,
+    override val codebase: PsiBasedCodebase,
     private val psiMethod: PsiMethod,
     containingClass: PsiClassItem,
     name: String,
@@ -40,15 +42,18 @@ private constructor(
     override val constructorParameter: PsiParameterItem?,
     override val backingField: PsiFieldItem?
 ) :
-    PsiMemberItem(
+    DefaultMemberItem(
         codebase = codebase,
+        fileLocation = PsiFileLocation(psiMethod),
+        itemLanguage = psiMethod.itemLanguage,
         modifiers = modifiers,
         documentationFactory = documentationFactory,
-        element = psiMethod,
-        containingClass = containingClass,
+        variantSelectorsFactory = ApiVariantSelectors.MUTABLE_FACTORY,
         name = name,
+        containingClass = containingClass,
     ),
-    PropertyItem {
+    PropertyItem,
+    PsiItem {
 
     override fun type(): TypeItem = fieldType
 
@@ -95,7 +100,7 @@ private constructor(
                     is KtPropertyAccessor -> sourcePsi.property
                     else -> sourcePsi ?: psiMethod
                 }
-            val modifiers = modifiers(codebase, psiMethod)
+            val modifiers = PsiModifierItem.create(codebase, psiMethod)
             // Alas, annotations whose target is property won't be bound to anywhere in LC/UAST,
             // if the property doesn't need a backing field. Same for unspecified use-site target.
             // To preserve such annotations, our last resort is to examine source PSI directly.

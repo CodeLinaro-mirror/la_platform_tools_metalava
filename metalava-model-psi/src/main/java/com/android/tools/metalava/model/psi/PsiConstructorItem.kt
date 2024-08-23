@@ -23,6 +23,7 @@ import com.android.tools.metalava.model.DefaultModifierList.Companion.PACKAGE_PR
 import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ItemDocumentationFactory
+import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.reporter.FileLocation
 import com.intellij.psi.JavaPsiFacade
@@ -32,7 +33,7 @@ import org.jetbrains.kotlin.psi.KtClassOrObject
 import org.jetbrains.kotlin.psi.KtPrimaryConstructor
 import org.jetbrains.uast.UMethod
 
-class PsiConstructorItem
+internal class PsiConstructorItem
 private constructor(
     codebase: PsiBasedCodebase,
     psiMethod: PsiMethod,
@@ -67,6 +68,14 @@ private constructor(
 
     override var superConstructor: ConstructorItem? = null
 
+    /** Override to specialize the return type. */
+    override fun returnType() = super.returnType() as ClassTypeItem
+
+    /** Override to make sure that [type] is a [ClassTypeItem]. */
+    override fun setType(type: TypeItem) {
+        super.setType(type as ClassTypeItem)
+    }
+
     companion object {
         internal fun create(
             codebase: PsiBasedCodebase,
@@ -76,7 +85,7 @@ private constructor(
         ): PsiConstructorItem {
             assert(psiMethod.isConstructor)
             val name = psiMethod.name
-            val modifiers = modifiers(codebase, psiMethod)
+            val modifiers = PsiModifierItem.create(codebase, psiMethod)
             // Create the TypeParameterList for this before wrapping any of the other types used by
             // it as they may reference a type parameter in the list.
             val (typeParameterList, constructorTypeItemFactory) =

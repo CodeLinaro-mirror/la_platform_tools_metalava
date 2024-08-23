@@ -42,6 +42,7 @@ import com.android.tools.metalava.cli.compatibility.CompatibilityCheckOptions
 import com.android.tools.metalava.cli.compatibility.CompatibilityCheckOptions.CheckRequest
 import com.android.tools.metalava.cli.lint.ApiLintOptions
 import com.android.tools.metalava.cli.signature.SignatureFormatOptions
+import com.android.tools.metalava.config.ConfigParser
 import com.android.tools.metalava.manifest.Manifest
 import com.android.tools.metalava.manifest.emptyManifest
 import com.android.tools.metalava.model.AnnotationManager
@@ -195,6 +196,8 @@ const val ARG_SDK_INFO_FILE = "--sdk-extensions-info"
 const val ARG_USE_K2_UAST = "--Xuse-k2-uast"
 const val ARG_SOURCE_MODEL_PROVIDER = "--source-model-provider"
 
+const val ARG_CONFIG_FILE = "--config-file"
+
 class Options(
     private val commonOptions: CommonOptions = CommonOptions(),
     private val sourceOptions: SourceOptions = SourceOptions(),
@@ -315,6 +318,20 @@ class Options(
 
     /** All source files to parse */
     var sources: List<File> = mutableSources
+
+    val configFiles by
+        option(
+                ARG_CONFIG_FILE,
+                help =
+                    """
+                        A configuration file that can be consumed by Metalava. This can be specified
+                        multiple times in which case later config files will override/merge with
+                        earlier ones.
+                    """,
+                metavar = "<file>",
+            )
+            .existingFile()
+            .multiple(required = false)
 
     val apiClassResolution by
         enumOption(
@@ -998,6 +1015,9 @@ class Options(
                 .map { it as DefaultReporter }
 
         updateClassPath()
+
+        // Make sure that any config files are processed.
+        ConfigParser.parse(reporter, configFiles)
     }
 
     /**

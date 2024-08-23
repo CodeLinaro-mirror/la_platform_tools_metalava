@@ -16,8 +16,9 @@
 
 package com.android.tools.metalava.model.item
 
-import com.android.tools.metalava.model.ApiVariantSelectorsFactory
+import com.android.tools.metalava.model.ApiVariantSelectors
 import com.android.tools.metalava.model.BoundsTypeItem
+import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ItemLanguage
@@ -28,11 +29,10 @@ import com.android.tools.metalava.model.type.DefaultVariableTypeItem
 import com.android.tools.metalava.reporter.FileLocation
 
 /** A [TypeParameterItem] implementation suitable for use by multiple models. */
-class DefaultTypeParameterItem(
-    codebase: DefaultCodebase,
+open class DefaultTypeParameterItem(
+    codebase: Codebase,
     itemLanguage: ItemLanguage,
     modifiers: DefaultModifierList,
-    variantSelectorsFactory: ApiVariantSelectorsFactory,
     private val name: String,
     private val isReified: Boolean,
 ) :
@@ -42,19 +42,29 @@ class DefaultTypeParameterItem(
         itemLanguage = itemLanguage,
         modifiers = modifiers,
         documentationFactory = ItemDocumentation.NONE_FACTORY,
-        variantSelectorsFactory = variantSelectorsFactory,
+        variantSelectorsFactory = ApiVariantSelectors.IMMUTABLE_FACTORY,
     ),
     TypeParameterItem {
 
-    lateinit var bounds: List<BoundsTypeItem>
+    final override fun name() = name
 
-    override fun name() = name
+    /** Must only be used by [type] to cache its result. */
+    private lateinit var variableTypeItem: VariableTypeItem
 
     override fun type(): VariableTypeItem {
-        return DefaultVariableTypeItem(DefaultTypeModifiers.emptyUndefinedModifiers, this)
+        if (!::variableTypeItem.isInitialized) {
+            variableTypeItem = createVariableTypeItem()
+        }
+        return variableTypeItem
     }
 
-    override fun typeBounds(): List<BoundsTypeItem> = bounds
+    /** Create a [VariableTypeItem] for this [TypeParameterItem]. */
+    protected open fun createVariableTypeItem(): VariableTypeItem =
+        DefaultVariableTypeItem(DefaultTypeModifiers.emptyUndefinedModifiers, this)
 
-    override fun isReified(): Boolean = isReified
+    lateinit var bounds: List<BoundsTypeItem>
+
+    final override fun typeBounds(): List<BoundsTypeItem> = bounds
+
+    final override fun isReified(): Boolean = isReified
 }

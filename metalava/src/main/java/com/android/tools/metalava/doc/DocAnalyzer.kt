@@ -20,7 +20,6 @@ import com.android.tools.lint.LintCliClient
 import com.android.tools.lint.checks.ApiLookup
 import com.android.tools.lint.detector.api.ApiConstraint
 import com.android.tools.lint.detector.api.editDistance
-import com.android.tools.lint.helpers.DefaultJavaEvaluator
 import com.android.tools.metalava.PROGRAM_NAME
 import com.android.tools.metalava.SdkIdentifier
 import com.android.tools.metalava.apilevels.ApiToExtensionsMap
@@ -41,7 +40,7 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.getAttributeValue
-import com.android.tools.metalava.model.psi.PsiCallableItem
+import com.android.tools.metalava.model.getCallableParameterDescriptorUsingDots
 import com.android.tools.metalava.model.psi.containsLinkTags
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.options
@@ -867,12 +866,10 @@ fun ApiLookup.getClassVersion(cls: ClassItem): Int {
     return getClassVersions(owner).minApiLevel()
 }
 
-val defaultEvaluator = DefaultJavaEvaluator(null, null)
-
 fun ApiLookup.getCallableVersion(method: CallableItem): Int {
     val containingClass = method.containingClass()
     val owner = containingClass.qualifiedName()
-    val desc = method.getApiLookupMethodDescription()
+    val desc = method.getCallableParameterDescriptorUsingDots()
     // Metalava uses the class name as the name of the constructor but the ApiLookup uses <init>.
     val name = if (method.isConstructor()) "<init>" else method.name()
     return getMethodVersions(owner, name, desc).minApiLevel()
@@ -892,19 +889,8 @@ fun ApiLookup.getClassDeprecatedIn(cls: ClassItem): Int {
 fun ApiLookup.getCallableDeprecatedIn(callable: CallableItem): Int {
     val containingClass = callable.containingClass()
     val owner = containingClass.qualifiedName()
-    val desc = callable.getApiLookupMethodDescription() ?: return -1
+    val desc = callable.getCallableParameterDescriptorUsingDots() ?: return -1
     return getMethodDeprecatedInVersions(owner, callable.name(), desc).minApiLevel()
-}
-
-/** Get the callable description suitable for use in [ApiLookup.getMethodVersions]. */
-fun CallableItem.getApiLookupMethodDescription(): String? {
-    val psiCallableItem = this as PsiCallableItem
-    val psiMethod = psiCallableItem.psiMethod
-    return defaultEvaluator.getMethodDescription(
-        psiMethod,
-        includeName = false,
-        includeReturn = false
-    )
 }
 
 fun ApiLookup.getFieldDeprecatedIn(field: FieldItem): Int {

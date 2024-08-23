@@ -18,6 +18,7 @@ package com.android.tools.metalava.model.item
 
 import com.android.tools.metalava.model.ApiVariantSelectorsFactory
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.ItemDocumentationFactory
@@ -30,7 +31,7 @@ import com.android.tools.metalava.model.updateCopiedMethodState
 import com.android.tools.metalava.reporter.FileLocation
 
 open class DefaultMethodItem(
-    codebase: DefaultCodebase,
+    codebase: Codebase,
     fileLocation: FileLocation,
     itemLanguage: ItemLanguage,
     modifiers: DefaultModifierList,
@@ -92,8 +93,8 @@ open class DefaultMethodItem(
 
     override fun duplicate(targetContainingClass: ClassItem): MethodItem {
         val typeVariableMap = targetContainingClass.mapTypeVariables(containingClass())
-        val duplicated =
-            DefaultMethodItem(
+
+        return DefaultMethodItem(
                 codebase = codebase,
                 fileLocation = fileLocation,
                 itemLanguage = itemLanguage,
@@ -111,21 +112,10 @@ open class DefaultMethodItem(
                 throwsTypes = throwsTypes,
                 annotationDefault = annotationDefault,
             )
-        duplicated.inheritedFrom = containingClass()
+            .also { duplicated ->
+                duplicated.inheritedFrom = containingClass()
 
-        // Preserve flags that may have been inherited (propagated) from surrounding packages
-        if (targetContainingClass.hidden) {
-            duplicated.hidden = true
-        }
-        if (targetContainingClass.removed) {
-            duplicated.removed = true
-        }
-        if (targetContainingClass.docOnly) {
-            duplicated.docOnly = true
-        }
-
-        duplicated.updateCopiedMethodState()
-
-        return duplicated
+                duplicated.updateCopiedMethodState()
+            }
     }
 }

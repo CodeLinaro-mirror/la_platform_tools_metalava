@@ -34,6 +34,16 @@ interface CallableBody {
      */
     fun findVisiblySynchronizedLocations(): List<FileLocation>
 
+    /**
+     * Called on a method whose return value is annotated with [typeDefAnnotation] of class
+     * [typeDefClass].
+     *
+     * This scans the body of the method, finds `return` statements and checks to make sure that if
+     * they use a constant that it is one of the constants in the type def, reporting any which are
+     * not.
+     */
+    fun verifyReturnedConstants(typeDefAnnotation: AnnotationItem, typeDefClass: ClassItem)
+
     companion object {
         /** Indicates that the model does not provide [CallableBody] instances. */
         val UNAVAILABLE =
@@ -42,6 +52,12 @@ interface CallableBody {
 
                 /** Return an empty list as the method body is unavailable. */
                 override fun findVisiblySynchronizedLocations() = emptyList<FileLocation>()
+
+                /** Do nothing. */
+                override fun verifyReturnedConstants(
+                    typeDefAnnotation: AnnotationItem,
+                    typeDefClass: ClassItem
+                ) {}
             }
     }
 }

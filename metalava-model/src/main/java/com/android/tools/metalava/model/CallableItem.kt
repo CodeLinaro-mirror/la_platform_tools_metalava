@@ -304,3 +304,26 @@ interface CallableItem : MemberItem, TypeParameterListOwner {
             }
     }
 }
+
+/**
+ * Get the JVM-like descriptor of this [CallableItem] for just parameters (not return type) and
+ * using dots ('.') instead of slash (`/`) and dollar sign (`$`) characters.
+ *
+ * Due to legacy reasons it will return `null` for the constructor of an inner class.
+ */
+fun CallableItem.getCallableParameterDescriptorUsingDots(): String? {
+    return if (
+        isConstructor() &&
+            containingClass().isNestedClass() &&
+            !containingClass().modifiers.isStatic()
+    )
+        null
+    else
+        buildString {
+            append("(")
+            for (parameter in parameters()) {
+                append(parameter.type().internalName().replace('/', '.').replace('$', '.'))
+            }
+            append(")")
+        }
+}

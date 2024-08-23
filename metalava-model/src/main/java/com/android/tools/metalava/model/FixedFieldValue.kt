@@ -14,18 +14,19 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava.model.text
+package com.android.tools.metalava.model
 
-import com.android.tools.metalava.model.item.DefaultValue
+import com.android.tools.metalava.model.item.FieldValue
 
-/** Encapsulates information about default values retrieved from the signature file. */
-class TextDefaultValue(private val value: String) : DefaultValue {
+/** Provides access to the initial values of a field. */
+class FixedFieldValue(
+    private var initialValueWithRequiredConstant: Any?,
+    private var initialValueWithoutRequiredConstant: Any? = initialValueWithRequiredConstant,
+) : FieldValue {
 
-    /** This is always true as the text model will use [DefaultValue.NONE] for no value. */
-    override fun hasDefaultValue() = true
+    override fun initialValue(requireConstant: Boolean) =
+        if (requireConstant) initialValueWithRequiredConstant
+        else initialValueWithoutRequiredConstant
 
-    /** This is always true as the text model will use [DefaultValue.UNKNOWN] for no value. */
-    override fun isDefaultValueKnown() = true
-
-    override fun value() = value
+    override fun snapshot() = this
 }

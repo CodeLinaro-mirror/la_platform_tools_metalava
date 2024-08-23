@@ -16,7 +16,7 @@
 
 package com.android.tools.metalava.model
 
-interface PackageItem : Item {
+interface PackageItem : SelectableItem {
     /**
      * The overview documentation associated with the package; retrieved from an `overview.html`
      * file.

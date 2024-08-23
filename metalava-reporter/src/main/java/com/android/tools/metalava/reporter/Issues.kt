@@ -29,6 +29,9 @@ object Issues {
 
     val PARSE_ERROR by Issue(Severity.ERROR)
     val DUPLICATE_SOURCE_CLASS by Issue(Severity.WARNING)
+
+    val CONFIG_FILE_PROBLEM by Issue(Severity.ERROR)
+
     // Compatibility issues
     val ADDED_ANNOTATION by Issue(Severity.ERROR, Category.COMPATIBILITY)
     val ADDED_PACKAGE by Issue(Severity.HIDDEN, Category.COMPATIBILITY)
@@ -113,7 +116,7 @@ object Issues {
     // and (2) the principle is adopted by the API council
     val REFERENCES_DEPRECATED by Issue(Severity.HIDDEN)
     val UNHIDDEN_SYSTEM_API by Issue(Severity.ERROR)
-    val SHOWING_MEMBER_IN_HIDDEN_CLASS by Issue(Severity.ERROR)
+    val SHOWING_MEMBER_IN_HIDDEN_CLASS by Issue(Severity.ERROR, Category.API_LINT)
     val INVALID_NULLABILITY_ANNOTATION by Issue(Severity.ERROR)
     val REFERENCES_HIDDEN by Issue(Severity.ERROR)
     val IGNORING_SYMLINK by Issue(Severity.INFO)

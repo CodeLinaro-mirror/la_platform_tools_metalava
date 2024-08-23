@@ -254,14 +254,21 @@ class SourceFieldItemTest : BaseModelTest() {
 
             assertEquals(
                 fieldItem.modifiers.getVisibilityLevel(),
-                duplicateField.modifiers.getVisibilityLevel()
+                duplicateField.modifiers.getVisibilityLevel(),
+                message = "duplicated visibilityLevel"
             )
-            assertEquals(true, fieldItem.modifiers.equivalentTo(duplicateField.modifiers))
-            assertEquals(true, duplicateField.hidden)
-            assertEquals(false, duplicateField.docOnly)
-            assertEquals(fieldItem.type(), duplicateField.type())
-            assertEquals(fieldItem.initialValue(), duplicateField.initialValue())
-            assertEquals(classItem, duplicateField.inheritedFrom)
+            assertEquals(
+                true,
+                fieldItem.modifiers.equivalentTo(duplicateField.modifiers),
+                message = "duplicated modifiers"
+            )
+            assertEquals(fieldItem.type(), duplicateField.type(), message = "duplicated types")
+            assertEquals(
+                fieldItem.initialValue(),
+                duplicateField.initialValue(),
+                message = "duplicated initial value"
+            )
+            assertEquals(classItem, duplicateField.inheritedFrom, message = "inheritedFrom")
         }
     }
 }

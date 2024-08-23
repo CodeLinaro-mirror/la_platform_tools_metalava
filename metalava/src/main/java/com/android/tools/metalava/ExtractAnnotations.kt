@@ -30,26 +30,19 @@ import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.JAVA_LANG_PREFIX
 import com.android.tools.metalava.model.MemberItem
+import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.findAnnotation
 import com.android.tools.metalava.model.psi.CodePrinter
-import com.android.tools.metalava.model.psi.PsiAnnotationItem
-import com.android.tools.metalava.model.psi.PsiMethodItem
-import com.android.tools.metalava.model.psi.UAnnotationItem
 import com.android.tools.metalava.model.psi.report
+import com.android.tools.metalava.model.psi.uAnnotation
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
 import com.google.common.xml.XmlEscapers
-import com.intellij.psi.JavaRecursiveElementVisitor
 import com.intellij.psi.PsiAnnotation
-import com.intellij.psi.PsiElement
-import com.intellij.psi.PsiField
-import com.intellij.psi.PsiModifier
 import com.intellij.psi.PsiNameValuePair
-import com.intellij.psi.PsiReferenceExpression
-import com.intellij.psi.PsiReturnStatement
 import java.io.BufferedOutputStream
 import java.io.File
 import java.io.FileOutputStream
@@ -61,7 +54,6 @@ import kotlin.text.Charsets.UTF_8
 import org.jetbrains.uast.UAnnotation
 import org.jetbrains.uast.UCallExpression
 import org.jetbrains.uast.UExpression
-import org.jetbrains.uast.USimpleNameReferenceExpression
 import org.jetbrains.uast.UastEmptyExpression
 import org.jetbrains.uast.UastFacade
 import org.jetbrains.uast.toUElement
@@ -256,80 +248,14 @@ class ExtractAnnotations(
                     addItem(item, typeDefAnnotation)
 
                     if (
-                        item is PsiMethodItem &&
+                        item is MethodItem &&
                             !reporter.isSuppressed(Issues.RETURNING_UNEXPECTED_CONSTANT)
                     ) {
-                        verifyReturnedConstants(item, typeDefAnnotation, typeDefClass)
+                        item.body.verifyReturnedConstants(typeDefAnnotation, typeDefClass)
                     }
-                    continue
                 }
             }
         }
-    }
-
-    /**
-     * Given a method whose return value is annotated with a typedef, runs checks on the typedef and
-     * flags any returned constants not in the list.
-     */
-    private fun verifyReturnedConstants(
-        item: PsiMethodItem,
-        typeDefAnnotation: AnnotationItem,
-        typeDefClass: ClassItem,
-    ) {
-        val uAnnotation = typeDefAnnotation.uAnnotation ?: return
-
-        val method = item.psiMethod
-        if (method.body != null) {
-            method.body?.accept(
-                object : JavaRecursiveElementVisitor() {
-                    private var constants: List<String>? = null
-
-                    override fun visitReturnStatement(statement: PsiReturnStatement) {
-                        val value = statement.returnValue
-                        if (value is PsiReferenceExpression) {
-                            val resolved = value.resolve() as? PsiField ?: return
-                            val modifiers = resolved.modifierList ?: return
-                            if (
-                                modifiers.hasModifierProperty(PsiModifier.STATIC) &&
-                                    modifiers.hasModifierProperty(PsiModifier.FINAL)
-                            ) {
-                                if (resolved.type.arrayDimensions > 0) {
-                                    return
-                                }
-                                val name = resolved.name
-
-                                // Make sure this is one of the allowed annotations
-                                val names =
-                                    constants
-                                        ?: run {
-                                            constants = computeValidConstantNames(uAnnotation)
-                                            constants!!
-                                        }
-                                if (names.isNotEmpty() && !names.contains(name)) {
-                                    val expected = names.joinToString { it }
-                                    reporter.report(
-                                        Issues.RETURNING_UNEXPECTED_CONSTANT,
-                                        value as PsiElement,
-                                        "Returning unexpected constant $name; is @${typeDefClass.simpleName()} missing this constant? Expected one of $expected"
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-            )
-        }
-    }
-
-    private fun computeValidConstantNames(annotation: UAnnotation): List<String> {
-        val constants = annotation.findAttributeValue(ANNOTATION_ATTR_VALUE) ?: return emptyList()
-        if (constants is UCallExpression) {
-            return constants.valueArguments
-                .mapNotNull { (it as? USimpleNameReferenceExpression)?.identifier }
-                .toList()
-        }
-
-        return emptyList()
     }
 
     /**
@@ -543,17 +469,5 @@ class ExtractAnnotations(
 
     private fun isInlinedConstant(annotationItem: AnnotationItem): Boolean {
         return annotationItem.isTypeDefAnnotation()
-    }
-
-    companion object {
-        private val AnnotationItem.uAnnotation: UAnnotation?
-            get() =
-                when (this) {
-                    is UAnnotationItem -> uAnnotation
-                    is PsiAnnotationItem ->
-                        // Imported annotation
-                        psiAnnotation.toUElement(UAnnotation::class.java)
-                    else -> null
-                }
     }
 }

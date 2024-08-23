@@ -49,6 +49,9 @@ Usage: metalava main [options] [flags]...
   The default sub-command that is run if no sub-command is specified.
 
 Options:
+  --config-file <file>                       A configuration file that can be consumed by Metalava. This can be
+                                             specified multiple times in which case later config files will
+                                             override/merge with earlier ones.
   --api-class-resolution [api|api:classpath]
                                              Determines how class resolution is performed when loading API signature
                                              files. Any classes that cannot be found will be treated as empty.",

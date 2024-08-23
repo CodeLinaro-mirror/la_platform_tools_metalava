@@ -16,7 +16,7 @@
 
 package com.android.tools.metalava.model
 
-interface MemberItem : Item {
+interface MemberItem : SelectableItem {
     /**
      * The name of this method/field. Constructors have the same name as their containing class'
      * simple name
