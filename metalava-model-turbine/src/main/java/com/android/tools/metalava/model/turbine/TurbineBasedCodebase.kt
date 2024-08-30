@@ -17,13 +17,11 @@
 package com.android.tools.metalava.model.turbine
 
 import com.android.tools.metalava.model.AnnotationManager
-import com.android.tools.metalava.model.CLASS_ESTIMATE
-import com.android.tools.metalava.model.ClassItem
-import com.android.tools.metalava.model.item.DefaultClassItem
+import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.item.CodebaseAssembler
+import com.android.tools.metalava.model.item.CodebaseAssemblerFactory
 import com.android.tools.metalava.model.item.DefaultCodebase
-import com.android.tools.metalava.model.source.SourceCodebase
 import com.android.tools.metalava.reporter.Reporter
-import com.google.turbine.tree.Tree.CompUnit
 import java.io.File
 
 internal open class TurbineBasedCodebase(
@@ -31,7 +29,7 @@ internal open class TurbineBasedCodebase(
     description: String = "Unknown",
     annotationManager: AnnotationManager,
     override val reporter: Reporter,
-    val allowReadingComments: Boolean,
+    private val assemblerFactory: CodebaseAssemblerFactory,
 ) :
     DefaultCodebase(
         location = location,
@@ -40,40 +38,16 @@ internal open class TurbineBasedCodebase(
         annotationManager = annotationManager,
         trustedApi = false,
         supportsDocumentation = true,
-    ),
-    SourceCodebase {
+    ) {
 
     /**
-     * A list of the top-level classes declared in the codebase's source (rather than on its
-     * classpath).
+     * Create a [CodebaseAssembler] appropriate for this [Codebase].
+     *
+     * The leaking of `this` is safe as the implementations do not access anything that has not been
+     * initialized.
      */
-    private lateinit var topLevelClassesFromSource: MutableList<ClassItem>
+    internal val assembler = assemblerFactory(@Suppress("LeakingThis") this)
 
-    private lateinit var initializer: TurbineCodebaseInitialiser
-
-    override fun resolveClass(className: String) = findOrCreateClass(className)
-
-    fun findOrCreateClass(className: String): ClassItem? {
-        return initializer.findOrCreateClass(className)
-    }
-
-    override fun getTopLevelClassesFromSource(): List<ClassItem> {
-        return topLevelClassesFromSource
-    }
-
-    override fun newClassRegistered(classItem: DefaultClassItem) {
-        if (!classItem.isNestedClass()) {
-            topLevelClassesFromSource.add(classItem)
-        }
-    }
-
-    fun initialize(
-        units: List<CompUnit>,
-        classpath: List<File>,
-        packageHtmlByPackageName: Map<String, File>,
-    ) {
-        topLevelClassesFromSource = ArrayList(CLASS_ESTIMATE)
-        initializer = TurbineCodebaseInitialiser(units, this, classpath)
-        initializer.initialize(packageHtmlByPackageName)
-    }
+    override fun resolveClass(className: String) =
+        findClass(className) ?: assembler.createClassFromUnderlyingModel(className)
 }

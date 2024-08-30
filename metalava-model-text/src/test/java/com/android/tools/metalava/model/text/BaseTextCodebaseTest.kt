@@ -17,7 +17,6 @@
 package com.android.tools.metalava.model.text
 
 import com.android.tools.lint.checks.infrastructure.TestFile
-import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 
 /**
@@ -27,7 +26,7 @@ import com.android.tools.metalava.model.testsuite.BaseModelTest
 abstract class BaseTextCodebaseTest : BaseModelTest() {
 
     /** Run a single signature test with a set of signature files. */
-    fun runSignatureTest(vararg sources: TestFile, test: CodebaseContext<Codebase>.() -> Unit) {
+    fun runSignatureTest(vararg sources: TestFile, test: CodebaseContext.() -> Unit) {
         runCodebaseTest(inputSet(*sources), test = test)
     }
 }

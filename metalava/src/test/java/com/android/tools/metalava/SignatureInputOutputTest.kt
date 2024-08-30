@@ -317,7 +317,7 @@ class SignatureInputOutputTest : Assertions {
 
             assertThat(param.hasDefaultValue()).isTrue()
             assertThat(param.isDefaultValueKnown()).isTrue()
-            assertThat(param.defaultValue()).isEqualTo("3")
+            assertThat(param.defaultValueAsString()).isEqualTo("3")
         }
     }
 

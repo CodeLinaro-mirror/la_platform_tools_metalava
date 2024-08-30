@@ -59,7 +59,7 @@ class TextCodebaseBuilder private constructor(private val codebase: TextCodebase
 
     var description by codebase::description
 
-    private val itemFactory = codebase.itemFactory
+    private val itemFactory = codebase.assembler.itemFactory
 
     private fun getOrAddPackage(pkgName: String): DefaultPackageItem {
         val pkg = codebase.findPackage(pkgName)
@@ -106,12 +106,14 @@ class TextCodebaseBuilder private constructor(private val codebase: TextCodebase
             return cls
         }
         val textClass = fullClass as DefaultClassItem
+        val pkg = getOrAddPackage(fullClass.containingPackage().qualifiedName())
         val newClass =
-            codebase.itemFactory.createClassItem(
+            itemFactory.createClassItem(
                 fileLocation = FileLocation.UNKNOWN,
                 modifiers = textClass.modifiers,
                 classKind = textClass.classKind,
                 containingClass = null,
+                containingPackage = pkg,
                 qualifiedName = textClass.qualifiedName(),
                 simpleName = textClass.simpleName(),
                 fullName = textClass.fullName(),
@@ -120,10 +122,6 @@ class TextCodebaseBuilder private constructor(private val codebase: TextCodebase
 
         newClass.setSuperClassType(textClass.superClassType())
 
-        val pkg = getOrAddPackage(fullClass.containingPackage().qualifiedName())
-        pkg.addTopClass(newClass)
-        newClass.setContainingPackage(pkg)
-        codebase.registerClass(newClass)
         return newClass
     }
 }

@@ -20,6 +20,7 @@ import com.android.tools.metalava.model.ApiVariantSelectorsFactory
 import com.android.tools.metalava.model.CallableBody
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.ItemDocumentationFactory
@@ -40,7 +41,7 @@ import com.android.tools.metalava.reporter.FileLocation
 typealias ParameterItemsFactory = (CallableItem) -> List<ParameterItem>
 
 abstract class DefaultCallableItem(
-    codebase: DefaultCodebase,
+    codebase: Codebase,
     fileLocation: FileLocation,
     itemLanguage: ItemLanguage,
     modifiers: DefaultModifierList,
@@ -78,9 +79,9 @@ abstract class DefaultCallableItem(
      */
     @Suppress("LeakingThis") internal val parameters = parameterItemsFactory(this)
 
-    final override fun returnType(): TypeItem = returnType
+    override fun returnType(): TypeItem = returnType
 
-    final override fun setType(type: TypeItem) {
+    override fun setType(type: TypeItem) {
         returnType = type
     }
 

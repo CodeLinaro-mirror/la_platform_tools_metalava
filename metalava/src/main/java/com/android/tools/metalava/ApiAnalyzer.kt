@@ -43,8 +43,6 @@ import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.findAnnotation
-import com.android.tools.metalava.model.psi.PsiClassItem
-import com.android.tools.metalava.model.psi.isKotlin
 import com.android.tools.metalava.model.source.SourceParser
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.reporter.Issues
@@ -54,8 +52,6 @@ import java.util.Collections
 import java.util.IdentityHashMap
 import java.util.Locale
 import java.util.function.Predicate
-import org.jetbrains.kotlin.asJava.classes.KtLightClassForFacade
-import org.jetbrains.uast.UClass
 
 /**
  * The [ApiAnalyzer] is responsible for walking over the various classes and members and compute
@@ -555,12 +551,8 @@ class ApiAnalyzer(
     /** If a file facade class has no public members, don't add it to the api */
     private fun hideEmptyKotlinFileFacadeClasses() {
         codebase.getPackages().allClasses().forEach { cls ->
-            val psi = (cls as? PsiClassItem)?.psi()
             if (
-                psi != null &&
-                    psi.isKotlin() &&
-                    psi is UClass &&
-                    psi.javaPsi is KtLightClassForFacade &&
+                cls.isFileFacade() &&
                     // a facade class needs to be emitted if it has any top-level fun/prop to emit
                     cls.members().none { member ->
                         // a member needs to be emitted if
@@ -615,53 +607,14 @@ class ApiAnalyzer(
 
                 override fun visitClass(cls: ClassItem) {
                     cls.variantSelectors.inheritInto()
-
-                    ensureParentIsVisibleIfThisIsVisible(cls)
                 }
 
                 override fun visitCallable(callable: CallableItem) {
                     callable.variantSelectors.inheritInto()
-
-                    ensureParentIsVisibleIfThisIsVisible(callable)
                 }
 
                 override fun visitField(field: FieldItem) {
                     field.variantSelectors.inheritInto()
-
-                    ensureParentIsVisibleIfThisIsVisible(field)
-                }
-
-                private fun ensureParentIsVisibleIfThisIsVisible(item: Item) {
-                    val parent = item.parent() ?: return
-
-                    // The only way for a non-package item to be visible when its parent is not is
-                    // for it to have a show annotation, otherwise it will inherit its parent's
-                    // hidden state. So, check that first.
-                    val showability = item.showability
-                    if (!showability.show()) {
-                        return
-                    }
-
-                    // If the item is hidden then it does not matter what the parent's state is.
-                    if (item.hidden) {
-                        return
-                    }
-
-                    // If the parent is visible then everything is fine.
-                    if (!parent.hidden) {
-                        return
-                    }
-
-                    // Otherwise, find a show annotation and report the issue.
-                    item.modifiers.findAnnotation(AnnotationItem::isShowAnnotation)?.let {
-                        violatingAnnotation ->
-                        reporter.report(
-                            Issues.SHOWING_MEMBER_IN_HIDDEN_CLASS,
-                            item,
-                            "Attempting to unhide ${item.describe()}, but surrounding ${parent.describe()} is " +
-                                "hidden and should also be annotated with $violatingAnnotation"
-                        )
-                    }
                 }
             }
 

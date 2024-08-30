@@ -16,6 +16,12 @@ package {
     default_applicable_licenses: ["Android-Apache-2.0"],
 }
 
+filegroup {
+    name: "metalava-resources",
+    srcs: ["src/main/resources/**/*"],
+    path: "src/main/resources",
+}
+
 // The metalava application. This must be built in this directory because the
 // path to this is hard-coded in Bazel rules that use metalava.
 java_binary_host {
@@ -27,7 +33,10 @@ java_binary_host {
         "src/main/java/**/*.java",
         "src/main/java/**/*.kt",
     ],
-    java_resources: [":metalava-version"],
+    java_resources: [
+        ":metalava-version",
+        ":metalava-resources",
+    ],
     static_libs: [
         "jsr305",
         "jsr330",

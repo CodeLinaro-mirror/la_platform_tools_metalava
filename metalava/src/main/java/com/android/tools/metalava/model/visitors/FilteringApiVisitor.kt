@@ -324,7 +324,7 @@ class FilteringApiVisitor(
                 error("cannot set value")
             }
 
-        override fun returnType() = filteredReturnType(delegate)
+        override fun returnType() = filteredReturnType(delegate) as ClassTypeItem
 
         override fun parameters() = filteredParameters(delegate)
 

@@ -59,7 +59,6 @@ import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.TraversingVisitor
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.hasAnnotation
-import com.android.tools.metalava.model.source.SourceCodebase
 import com.android.tools.metalava.model.source.SourceParser
 import com.android.tools.metalava.model.source.SourceSet
 import com.android.tools.metalava.model.text.ApiFile
@@ -121,7 +120,7 @@ class AnnotationsMerger(
     private fun mergeAll(
         mergeAnnotations: List<File>,
         mergeFile: (File) -> Unit,
-        mergeJavaStubsCodebase: (SourceCodebase) -> Unit
+        mergeJavaStubsCodebase: (Codebase) -> Unit
     ) {
         // Process each file (which are almost certainly directories) separately. That allows for a
         // single Java class to merge in annotations from multiple separate files.
@@ -256,7 +255,7 @@ class AnnotationsMerger(
     }
 
     private fun mergeAndValidateQualifierAnnotationsFromJavaStubsCodebase(
-        javaStubsCodebase: SourceCodebase
+        javaStubsCodebase: Codebase
     ) {
         mergeQualifierAnnotationsFromCodebase(javaStubsCodebase)
         if (options.validateNullabilityFromMergedStubs) {

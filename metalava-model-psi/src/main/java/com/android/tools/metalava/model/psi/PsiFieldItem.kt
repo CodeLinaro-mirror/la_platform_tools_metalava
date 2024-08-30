@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.psi
 
+import com.android.tools.metalava.model.ApiVariantSelectors
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.FieldItem
@@ -23,6 +24,9 @@ import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.isNonNullAnnotation
+import com.android.tools.metalava.model.item.DefaultMemberItem
+import com.android.tools.metalava.model.item.FieldValue
+import com.android.tools.metalava.reporter.Issues
 import com.intellij.psi.PsiCallExpression
 import com.intellij.psi.PsiClassType
 import com.intellij.psi.PsiEnumConstant
@@ -31,9 +35,15 @@ import com.intellij.psi.PsiModifierListOwner
 import com.intellij.psi.PsiPrimitiveType
 import com.intellij.psi.PsiReference
 import com.intellij.psi.impl.JavaConstantExpressionEvaluator
+import org.jetbrains.kotlin.lexer.KtTokens
+import org.jetbrains.kotlin.psi.KtObjectDeclaration
+import org.jetbrains.kotlin.psi.KtProperty
+import org.jetbrains.kotlin.psi.psiUtil.containingClassOrObject
+import org.jetbrains.kotlin.psi.psiUtil.isPublic
+import org.jetbrains.uast.UField
 
-class PsiFieldItem(
-    codebase: PsiBasedCodebase,
+internal class PsiFieldItem(
+    override val codebase: PsiBasedCodebase,
     private val psiField: PsiField,
     containingClass: PsiClassItem,
     name: String,
@@ -41,17 +51,20 @@ class PsiFieldItem(
     documentationFactory: ItemDocumentationFactory,
     private var fieldType: TypeItem,
     private val isEnumConstant: Boolean,
-    private val fieldValue: PsiFieldValue?,
+    override val fieldValue: PsiFieldValue?,
 ) :
-    PsiMemberItem(
+    DefaultMemberItem(
         codebase = codebase,
+        fileLocation = PsiFileLocation(psiField),
+        itemLanguage = psiField.itemLanguage,
         modifiers = modifiers,
         documentationFactory = documentationFactory,
-        element = psiField,
-        containingClass = containingClass,
+        variantSelectorsFactory = ApiVariantSelectors.MUTABLE_FACTORY,
         name = name,
+        containingClass = containingClass,
     ),
-    FieldItem {
+    FieldItem,
+    PsiItem {
 
     override var property: PsiPropertyItem? = null
 
@@ -69,31 +82,85 @@ class PsiFieldItem(
 
     override fun psi(): PsiField = psiField
 
-    override fun duplicate(targetContainingClass: ClassItem): PsiFieldItem {
-        val duplicated =
-            create(
+    override fun duplicate(targetContainingClass: ClassItem) =
+        create(
                 codebase,
                 targetContainingClass as PsiClassItem,
                 psiField,
                 codebase.globalTypeItemFactory.from(targetContainingClass),
             )
-        duplicated.inheritedFrom = containingClass
-
-        // Preserve flags that may have been inherited (propagated) from surrounding packages
-        if (targetContainingClass.hidden) {
-            duplicated.hidden = true
-        }
-        if (targetContainingClass.removed) {
-            duplicated.removed = true
-        }
-        if (targetContainingClass.docOnly) {
-            duplicated.docOnly = true
-        }
-
-        return duplicated
-    }
+            .also { duplicated -> duplicated.inheritedFrom = containingClass() }
 
     override var inheritedFrom: ClassItem? = null
+
+    override fun ensureCompanionFieldJvmField() {
+        if (modifiers.isPublic() && modifiers.isFinal()) {
+            // UAST will inline const fields into the surrounding class, so we have to
+            // dip into Kotlin PSI to figure out if this field was really declared in
+            // a companion object
+            val psi = psi()
+            if (psi is UField) {
+                val sourcePsi = psi.sourcePsi
+                if (sourcePsi is KtProperty) {
+                    val companionClassName = sourcePsi.containingClassOrObject?.name
+                    if (companionClassName == "Companion") {
+                        // JvmField cannot be applied to const property
+                        // (https://github.com/JetBrains/kotlin/blob/dc7b1fbff946d1476cc9652710df85f65664baee/compiler/frontend.java/src/org/jetbrains/kotlin/resolve/jvm/checkers/JvmFieldApplicabilityChecker.kt#L46)
+                        if (!modifiers.isConst()) {
+                            if (modifiers.findAnnotation("kotlin.jvm.JvmField") == null) {
+                                codebase.reporter.report(
+                                    Issues.MISSING_JVMSTATIC,
+                                    this,
+                                    "Companion object constants like ${name()} should be marked @JvmField for Java interoperability; see https://developer.android.com/kotlin/interop#companion_constants"
+                                )
+                            } else if (modifiers.findAnnotation("kotlin.jvm.JvmStatic") != null) {
+                                codebase.reporter.report(
+                                    Issues.MISSING_JVMSTATIC,
+                                    this,
+                                    "Companion object constants like ${name()} should be using @JvmField, not @JvmStatic; see https://developer.android.com/kotlin/interop#companion_constants"
+                                )
+                            }
+                        }
+                    }
+                } else if (sourcePsi is KtObjectDeclaration && sourcePsi.isCompanion()) {
+                    // We are checking if we have public properties that we can expect to be
+                    // constant
+                    // (that is, declared via `val`) but that aren't declared 'const' in a companion
+                    // object that are not annotated with @JvmField or annotated with @JvmStatic
+                    // https://developer.android.com/kotlin/interop#companion_constants
+                    val ktProperties =
+                        sourcePsi.declarations.filter { declaration ->
+                            declaration is KtProperty &&
+                                declaration.isPublic &&
+                                !declaration.isVar &&
+                                !declaration.hasModifier(KtTokens.CONST_KEYWORD) &&
+                                declaration.annotationEntries.none { annotationEntry ->
+                                    annotationEntry.shortName?.asString() == "JvmField"
+                                }
+                        }
+                    for (ktProperty in ktProperties) {
+                        if (
+                            ktProperty.annotationEntries.none { annotationEntry ->
+                                annotationEntry.shortName?.asString() == "JvmStatic"
+                            }
+                        ) {
+                            codebase.reporter.report(
+                                Issues.MISSING_JVMSTATIC,
+                                ktProperty,
+                                "Companion object constants like ${ktProperty.name} should be marked @JvmField for Java interoperability; see https://developer.android.com/kotlin/interop#companion_constants"
+                            )
+                        } else {
+                            codebase.reporter.report(
+                                Issues.MISSING_JVMSTATIC,
+                                ktProperty,
+                                "Companion object constants like ${ktProperty.name} should be using @JvmField, not @JvmStatic; see https://developer.android.com/kotlin/interop#companion_constants"
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
 
     companion object {
         internal fun create(
@@ -103,7 +170,7 @@ class PsiFieldItem(
             enclosingClassTypeItemFactory: PsiTypeItemFactory,
         ): PsiFieldItem {
             val name = psiField.name
-            val modifiers = modifiers(codebase, psiField)
+            val modifiers = PsiModifierItem.create(codebase, psiField)
 
             val isEnumConstant = psiField is PsiEnumConstant
 
@@ -171,9 +238,9 @@ private fun PsiField.isFieldInitializerNonNull(): Boolean {
  * Wrapper around a [PsiField] that will provide access to the initial value of the field, if
  * available, or `null` otherwise.
  */
-class PsiFieldValue(private val psiField: PsiField) {
+class PsiFieldValue(private val psiField: PsiField) : FieldValue {
 
-    fun initialValue(requireConstant: Boolean): Any? {
+    override fun initialValue(requireConstant: Boolean): Any? {
         val constant = psiField.computeConstantValue()
         // Offset [ClsFieldImpl#computeConstantValue] for [TYPE] field in boxed primitive types.
         // Those fields hold [Class] object, but the constant value should not be of [PsiType].

@@ -19,17 +19,19 @@ package com.android.tools.metalava.model.item
 import com.android.tools.metalava.model.ApiVariantSelectorsFactory
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassTypeItem
+import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.ItemLanguage
+import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.reporter.FileLocation
 
 class DefaultConstructorItem(
-    codebase: DefaultCodebase,
+    codebase: Codebase,
     fileLocation: FileLocation,
     itemLanguage: ItemLanguage,
     modifiers: DefaultModifierList,
@@ -61,11 +63,19 @@ class DefaultConstructorItem(
 
     override var superConstructor: ConstructorItem? = null
 
+    /** Override to specialize the return type. */
+    override fun returnType() = super.returnType() as ClassTypeItem
+
+    /** Override to make sure that [type] is a [ClassTypeItem]. */
+    override fun setType(type: TypeItem) {
+        super.setType(type as ClassTypeItem)
+    }
+
     override fun isImplicitConstructor() = implicitConstructor
 
     companion object {
         fun createDefaultConstructor(
-            codebase: DefaultCodebase,
+            codebase: Codebase,
             itemLanguage: ItemLanguage,
             variantSelectorsFactory: ApiVariantSelectorsFactory,
             containingClass: ClassItem,

@@ -17,7 +17,6 @@
 package com.android.tools.metalava
 
 import com.android.tools.metalava.model.ANDROIDX_INT_DEF
-import com.android.tools.metalava.model.AnnotationAttributeValue
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
@@ -194,32 +193,29 @@ class AndroidApiChecks(val reporter: Reporter) {
 
         val annotation = callable.modifiers.findAnnotation("androidx.annotation.RequiresPermission")
         if (annotation != null) {
+            var conditional = false
+            val permissions = mutableListOf<String>()
             for (attribute in annotation.attributes) {
-                var values: List<AnnotationAttributeValue>? = null
                 when (attribute.name) {
                     "value",
                     "allOf",
                     "anyOf" -> {
-                        values = attribute.leafValues()
+                        attribute.leafValues().mapTo(permissions) { it.toSource() }
+                    }
+                    "conditional" -> {
+                        conditional = attribute.value.value() == true
                     }
                 }
-                if (values == null || values.isEmpty()) {
-                    continue
-                }
-
-                for (value in values) {
-                    // var perm = String.valueOf(value.value())
-                    var perm = value.toSource()
+            }
+            if (!conditional) {
+                for (item in permissions) {
+                    var perm = item
                     if (perm.indexOf('.') >= 0) perm = perm.substring(perm.lastIndexOf('.') + 1)
                     if (text.contains(perm)) {
                         reporter.report(
-                            // Why is that a problem? Sometimes you want to describe
-                            // particular use cases.
                             Issues.REQUIRES_PERMISSION,
                             callable,
-                            "Method '" +
-                                callable.name() +
-                                "' documentation mentions permissions already declared by @RequiresPermission"
+                            "Method '${callable.name()}' documentation duplicates auto-generated documentation by @RequiresPermission. If the permissions are only required under certain circumstances use conditional=true to suppress the auto-documentation"
                         )
                     }
                 }

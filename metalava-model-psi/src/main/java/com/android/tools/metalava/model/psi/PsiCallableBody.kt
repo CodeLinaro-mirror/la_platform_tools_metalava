@@ -16,25 +16,36 @@
 
 package com.android.tools.metalava.model.psi
 
+import com.android.tools.metalava.model.ANNOTATION_ATTR_VALUE
+import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.CallableBody
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.reporter.FileLocation
+import com.android.tools.metalava.reporter.Issues
 import com.intellij.psi.JavaRecursiveElementVisitor
 import com.intellij.psi.PsiClassObjectAccessExpression
+import com.intellij.psi.PsiElement
+import com.intellij.psi.PsiField
+import com.intellij.psi.PsiModifier
+import com.intellij.psi.PsiReferenceExpression
+import com.intellij.psi.PsiReturnStatement
 import com.intellij.psi.PsiSynchronizedStatement
 import com.intellij.psi.PsiThisExpression
+import org.jetbrains.uast.UAnnotation
 import org.jetbrains.uast.UCallExpression
 import org.jetbrains.uast.UClassLiteralExpression
 import org.jetbrains.uast.UElement
 import org.jetbrains.uast.UMethod
 import org.jetbrains.uast.UQualifiedReferenceExpression
+import org.jetbrains.uast.USimpleNameReferenceExpression
 import org.jetbrains.uast.UThisExpression
 import org.jetbrains.uast.UThrowExpression
 import org.jetbrains.uast.UTryExpression
 import org.jetbrains.uast.getParentOfType
+import org.jetbrains.uast.toUElement
 import org.jetbrains.uast.visitor.AbstractUastVisitor
 
-class PsiCallableBody(private val callable: PsiCallableItem) : CallableBody {
+internal class PsiCallableBody(private val callable: PsiCallableItem) : CallableBody {
 
     /**
      * Access [codebase] on demand as [callable] is not properly initialized during initialization
@@ -149,4 +160,77 @@ class PsiCallableBody(private val callable: PsiCallableItem) : CallableBody {
             }
         }
     }
+
+    /**
+     * Given a method whose return value is annotated with a typedef, runs checks on the typedef and
+     * flags any returned constants not in the list.
+     */
+    override fun verifyReturnedConstants(
+        typeDefAnnotation: AnnotationItem,
+        typeDefClass: ClassItem,
+    ) {
+        val uAnnotation = typeDefAnnotation.uAnnotation ?: return
+        val body = psiMethod.body ?: return
+
+        body.accept(
+            object : JavaRecursiveElementVisitor() {
+                private var constants: List<String>? = null
+
+                override fun visitReturnStatement(statement: PsiReturnStatement) {
+                    val value = statement.returnValue
+                    if (value is PsiReferenceExpression) {
+                        val resolved = value.resolve() as? PsiField ?: return
+                        val modifiers = resolved.modifierList ?: return
+                        if (
+                            modifiers.hasModifierProperty(PsiModifier.STATIC) &&
+                                modifiers.hasModifierProperty(PsiModifier.FINAL)
+                        ) {
+                            if (resolved.type.arrayDimensions > 0) {
+                                return
+                            }
+                            val name = resolved.name
+
+                            // Make sure this is one of the allowed annotations
+                            val names =
+                                constants
+                                    ?: run {
+                                        constants = computeValidConstantNames(uAnnotation)
+                                        constants!!
+                                    }
+                            if (names.isNotEmpty() && !names.contains(name)) {
+                                val expected = names.joinToString { it }
+                                codebase.reporter.report(
+                                    Issues.RETURNING_UNEXPECTED_CONSTANT,
+                                    value as PsiElement,
+                                    "Returning unexpected constant $name; is @${typeDefClass.simpleName()} missing this constant? Expected one of $expected"
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        )
+    }
+
+    private fun computeValidConstantNames(annotation: UAnnotation): List<String> {
+        val constants = annotation.findAttributeValue(ANNOTATION_ATTR_VALUE) ?: return emptyList()
+        if (constants is UCallExpression) {
+            return constants.valueArguments
+                .mapNotNull { (it as? USimpleNameReferenceExpression)?.identifier }
+                .toList()
+        }
+
+        return emptyList()
+    }
 }
+
+/** Public for use only in ExtractAnnotations */
+val AnnotationItem.uAnnotation: UAnnotation?
+    get() =
+        when (this) {
+            is UAnnotationItem -> uAnnotation
+            is PsiAnnotationItem ->
+                // Imported annotation
+                psiAnnotation.toUElement(UAnnotation::class.java)
+            else -> null
+        }

@@ -41,6 +41,7 @@ import com.intellij.psi.PsiModifier
 import com.intellij.psi.PsiType
 import com.intellij.psi.PsiTypeParameter
 import com.intellij.psi.util.PsiUtil
+import org.jetbrains.kotlin.asJava.classes.KtLightClassForFacade
 import org.jetbrains.kotlin.psi.KtParameter
 import org.jetbrains.kotlin.psi.KtProperty
 import org.jetbrains.kotlin.psi.KtPropertyAccessor
@@ -50,7 +51,7 @@ import org.jetbrains.uast.UClass
 import org.jetbrains.uast.UFile
 import org.jetbrains.uast.getParentOfType
 
-open class PsiClassItem
+internal class PsiClassItem
 internal constructor(
     codebase: PsiBasedCodebase,
     val psiClass: PsiClass,
@@ -67,17 +68,14 @@ internal constructor(
     /** True if this class is from the class path (dependencies). Exposed in [isFromClassPath]. */
     private val fromClassPath: Boolean
 ) :
-    PsiItem(
+    AbstractPsiItem(
         codebase = codebase,
         modifiers = modifiers,
         documentationFactory = documentationFactory,
         element = psiClass
     ),
-    ClassItem {
-
-    init {
-        emit = !modifiers.isExpect()
-    }
+    ClassItem,
+    PsiItem {
 
     lateinit var containingPackage: PsiPackageItem
 
@@ -213,6 +211,12 @@ internal constructor(
 
         retention = ClassItem.findRetention(this)
         return retention!!
+    }
+
+    override fun isFileFacade(): Boolean {
+        return psiClass.isKotlin() &&
+            psiClass is UClass &&
+            psiClass.javaPsi is KtLightClassForFacade
     }
 
     companion object {

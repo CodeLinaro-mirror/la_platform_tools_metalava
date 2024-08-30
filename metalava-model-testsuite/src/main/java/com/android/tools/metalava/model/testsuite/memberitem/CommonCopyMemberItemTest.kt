@@ -41,7 +41,7 @@ abstract class CommonCopyMemberItemTest<M : MemberItem> : BaseModelTest() {
         val targetClassItem: ClassItem,
         val sourceMemberItem: M,
         val copiedMemberItem: M,
-    ) : CodebaseContext<Codebase>
+    ) : CodebaseContext
 
     protected fun runCopyTest(
         vararg inputs: InputSet,

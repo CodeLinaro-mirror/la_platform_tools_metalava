@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.testsuite.methoditem
 
+import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.KnownSourceFiles
@@ -24,6 +25,7 @@ import com.android.tools.metalava.testing.kotlin
 import com.google.common.truth.Truth.assertWithMessage
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertThrows
 import org.junit.Test
 
 /** Common tests for implementations of [ParameterItem]. */
@@ -548,6 +550,150 @@ class CommonParameterItemTest : BaseModelTest() {
                     .that(type.toTypeString(kotlinStyleNulls = true))
                     .isEqualTo(expectedType)
             }
+        }
+    }
+
+    @Test
+    fun `Test no default value`() {
+        runCodebaseTest(
+            signature(
+                """
+                    // Signature format: 5.0
+                    // - language=kotlin
+                    // - concise-default-values=no
+                    // - kotlin-name-type-order=yes
+                    package test.pkg {
+                      public final class Foo {
+                        ctor public Foo();
+                        method public method(s: String?): void;
+                      }
+                    }
+                """
+            ),
+            java(
+                """
+                    package test.pkg;
+
+                    public class Foo {
+                        public void method(String s) {}
+                    }
+                """
+            ),
+            kotlin(
+                """
+                    package test.pkg
+
+                    class Foo {
+                        fun method(s: String?) {}
+                    }
+                """
+            ),
+        ) {
+            val parameter =
+                codebase.assertClass("test.pkg.Foo").methods().single().parameters().single()
+            assertEquals("hasDefaultValue", false, parameter.hasDefaultValue())
+            assertEquals("isDefaultValueKnown", false, parameter.isDefaultValueKnown())
+            // TODO: Improve consistency of the following.
+            when (parameter.itemLanguage) {
+                ItemLanguage.KOTLIN -> {
+                    assertEquals(
+                        "defaultValue",
+                        "__invalid_value__",
+                        parameter.defaultValueAsString()
+                    )
+                }
+                ItemLanguage.JAVA -> {
+                    assertEquals("defaultValue", null, parameter.defaultValueAsString())
+                }
+                ItemLanguage.UNKNOWN -> {
+                    val exception =
+                        assertThrows(IllegalStateException::class.java) {
+                            parameter.defaultValueAsString()
+                        }
+                    assertEquals(
+                        "defaultValue",
+                        "cannot call on NONE DefaultValue",
+                        exception.message
+                    )
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `Test null default value`() {
+        runCodebaseTest(
+            signature(
+                """
+                    // Signature format: 5.0
+                    // - language=kotlin
+                    // - concise-default-values=no
+                    // - kotlin-name-type-order=yes
+                    package test.pkg {
+                      public final class Foo {
+                        ctor public Foo();
+                        method public method(s: String? = null): void;
+                      }
+                    }
+                """
+            ),
+            java(
+                """
+                    package test.pkg;
+
+                    public class Foo {
+                        public void method(@other.DefaultValue("null") String s) {}
+                    }
+                """
+            ),
+            kotlin(
+                """
+                    package test.pkg
+
+                    class Foo {
+                        fun method(s: String? = null) {}
+                    }
+                """
+            ),
+        ) {
+            val parameter =
+                codebase.assertClass("test.pkg.Foo").methods().single().parameters().single()
+            assertEquals("hasDefaultValue", true, parameter.hasDefaultValue())
+            assertEquals("isDefaultValueKnown", true, parameter.isDefaultValueKnown())
+            assertEquals("defaultValue", "null", parameter.defaultValueAsString())
+        }
+    }
+
+    @Test
+    fun `Test unknown default value`() {
+        runCodebaseTest(
+            // Neither Kotlin nor Java has a way to specify an unknown default property. Kotlin and
+            // Java both treat no default and unknown default as the same. Only signature file can
+            // specify that it has a default but does not know what its value is. It does that by
+            // using the `optional` pseudo modifier.
+            signature(
+                """
+                    // Signature format: 5.0
+                    // - language=kotlin
+                    // - concise-default-values=yes
+                    // - kotlin-name-type-order=yes
+                    package test.pkg {
+                      public final class Foo {
+                        ctor public Foo();
+                        method public method(optional s: String?): void;
+                      }
+                    }
+                """
+            ),
+        ) {
+            val parameter =
+                codebase.assertClass("test.pkg.Foo").methods().single().parameters().single()
+            assertEquals("hasDefaultValue", true, parameter.hasDefaultValue())
+
+            assertEquals("isDefaultValueKnown", false, parameter.isDefaultValueKnown())
+            val exception =
+                assertThrows(IllegalStateException::class.java) { parameter.defaultValueAsString() }
+            assertEquals("defaultValue", "cannot call on UNKNOWN DefaultValue", exception.message)
         }
     }
 }
