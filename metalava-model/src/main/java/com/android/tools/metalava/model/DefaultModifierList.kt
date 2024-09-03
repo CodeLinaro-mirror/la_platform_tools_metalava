@@ -373,6 +373,10 @@ class DefaultModifierList(
     }
 
     companion object {
+        /** Create a public modifiers object. */
+        fun createPublic(codebase: Codebase, annotations: MutableList<AnnotationItem>? = null) =
+            DefaultModifierList(codebase, PUBLIC, annotations)
+
         /**
          * 'PACKAGE_PRIVATE' is set to 0 to act as the default visibility when no other visibility
          * flags are explicitly set.

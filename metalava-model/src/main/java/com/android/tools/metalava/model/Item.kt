@@ -67,7 +67,7 @@ interface Item : Reportable {
     /** Whether this element will be printed in the signature file */
     var emit: Boolean
 
-    fun parent(): Item?
+    fun parent(): SelectableItem?
 
     /**
      * Recursive check to see if this item or any of its parents (containing class, containing

@@ -32,10 +32,10 @@ import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PackageList
 import com.android.tools.metalava.model.TypeParameterScope
+import com.android.tools.metalava.model.item.MutablePackageDoc
+import com.android.tools.metalava.model.item.PackageDoc
+import com.android.tools.metalava.model.item.PackageDocs
 import com.android.tools.metalava.model.source.SourceSet
-import com.android.tools.metalava.model.source.utils.MutablePackageDoc
-import com.android.tools.metalava.model.source.utils.PackageDoc
-import com.android.tools.metalava.model.source.utils.PackageDocs
 import com.android.tools.metalava.model.source.utils.gatherPackageJavadoc
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
@@ -308,7 +308,8 @@ internal class PsiBasedCodebase(
                 return MutablePackageDoc(
                     qualifiedName = packageName,
                     fileLocation = PsiFileLocation.fromPsiElement(psiFile),
-                    comment = comment.text,
+                    commentFactory =
+                        PsiItemDocumentation.factory(packageStatement, this, comment.text),
                 )
             }
         }

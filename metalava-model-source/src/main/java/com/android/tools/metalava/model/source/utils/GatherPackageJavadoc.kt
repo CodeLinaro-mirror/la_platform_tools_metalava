@@ -16,59 +16,20 @@
 
 package com.android.tools.metalava.model.source.utils
 
+import com.android.tools.metalava.model.ItemDocumentation.Companion.toItemDocumentationFactory
+import com.android.tools.metalava.model.item.MutablePackageDoc
+import com.android.tools.metalava.model.item.PackageDocs
 import com.android.tools.metalava.model.source.SourceSet
 import com.android.tools.metalava.reporter.FileLocation
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
 import java.io.File
 
-/** Set of [PackageDoc] for every documented package defined in the source. */
-class PackageDocs(
-    private val packages: Map<String, PackageDoc>,
-) {
-    operator fun get(packageName: String): PackageDoc {
-        return packages[packageName] ?: PackageDoc.EMPTY
-    }
-
-    companion object {
-        val EMPTY: PackageDocs = PackageDocs(emptyMap())
-    }
-}
-
-/** Package specific documentation. */
-interface PackageDoc {
-    val fileLocation: FileLocation
-    val comment: String?
-    val overview: String?
-
-    companion object {
-        val EMPTY =
-            object : PackageDoc {
-                override val fileLocation: FileLocation
-                    get() = FileLocation.UNKNOWN
-
-                override val comment
-                    get() = null
-
-                override val overview
-                    get() = null
-            }
-    }
-}
-
-/** Mutable package specific documentation for use in [gatherPackageJavadoc]. */
-data class MutablePackageDoc(
-    val qualifiedName: String,
-    override var fileLocation: FileLocation = FileLocation.UNKNOWN,
-    override var comment: String? = null,
-    override var overview: String? = null,
-) : PackageDoc
-
 /** The kinds of package documentation file. */
 private enum class PackageDocumentationKind {
     PACKAGE {
         override fun update(packageDoc: MutablePackageDoc, contents: String, file: File) {
-            packageDoc.comment = packageHtmlToJavadoc(contents)
+            packageDoc.commentFactory = packageHtmlToJavadoc(contents).toItemDocumentationFactory()
             packageDoc.fileLocation = FileLocation.forFile(file)
         }
     },
@@ -143,11 +104,11 @@ fun <P> gatherPackageJavadoc(
 
     // Merge package-info.java documentation.
     for (packageInfoFile in packageInfoFiles) {
-        val (packageName, fileLocation, comment, _) =
+        val (packageName, fileLocation, modifiers, comment, _) =
             packageInfoDocExtractor(packageInfoFile) ?: continue
 
         val packageDoc = packages.computeIfAbsent(packageName, ::MutablePackageDoc)
-        if (packageDoc.comment != null) {
+        if (packageDoc.commentFactory != null) {
             reporter.report(
                 Issues.BOTH_PACKAGE_INFO_AND_HTML,
                 null,
@@ -159,7 +120,8 @@ fun <P> gatherPackageJavadoc(
 
         // Always set this as package-info.java is preferred over package.html.
         packageDoc.fileLocation = fileLocation
-        packageDoc.comment = comment
+        packageDoc.modifiers = modifiers
+        packageDoc.commentFactory = comment
     }
 
     return PackageDocs(packages)

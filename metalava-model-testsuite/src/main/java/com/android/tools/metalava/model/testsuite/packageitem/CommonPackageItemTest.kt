@@ -192,6 +192,26 @@ class CommonPackageItemTest : BaseModelTest() {
     }
 
     @Test
+    fun `Test package location (signature)`() {
+        runCodebaseTest(
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                        public class Foo {
+                        }
+                    }
+                """
+            ),
+        ) {
+            val packageItem = codebase.assertPackage("test.pkg")
+            val packageLocation = packageItem.fileLocation.path.toString()
+
+            assertEquals("TESTROOT/api.txt", removeTestSpecificDirectories(packageLocation))
+        }
+    }
+
+    @Test
     fun `Test package location (package-info)`() {
         runCodebaseTest(
             inputSet(

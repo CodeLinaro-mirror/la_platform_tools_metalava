@@ -34,6 +34,7 @@ open class DefaultPackageItem(
     documentationFactory: ItemDocumentationFactory,
     variantSelectorsFactory: ApiVariantSelectorsFactory,
     private val qualifiedName: String,
+    override val overviewDocumentation: String?,
 ) :
     DefaultItem(
         codebase = codebase,

@@ -14,10 +14,7 @@ com.android.tools.metalava.model.testsuite.methoditem.CommonParameterItemTest
   Test publicName reports correct name when called on binary class - ViewGroup#onLayout
 
 com.android.tools.metalava.model.testsuite.packageitem.CommonPackageItemTest
-  Test nullability annotation in package info
   Test package containment
-  Test package documentation (overview-html)
-  Test package location (package-html)
 
 com.android.tools.metalava.model.testsuite.typeitem.CommonIsAssignableFromTest
   Test assignability without unboxing[boxedInt to primitiveInt]

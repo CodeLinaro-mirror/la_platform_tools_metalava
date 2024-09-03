@@ -19,11 +19,12 @@ package com.android.tools.metalava.model.psi
 import com.android.tools.metalava.model.ApiVariantSelectors
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.DefaultModifierList
+import com.android.tools.metalava.model.ItemDocumentation.Companion.toItemDocumentationFactory
 import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.item.DefaultPackageItem
-import com.android.tools.metalava.model.source.utils.PackageDoc
+import com.android.tools.metalava.model.item.PackageDoc
 import com.android.tools.metalava.reporter.FileLocation
 import com.intellij.psi.PsiPackage
 
@@ -35,7 +36,7 @@ internal constructor(
     modifiers: DefaultModifierList,
     documentationFactory: ItemDocumentationFactory,
     qualifiedName: String,
-    override val overviewDocumentation: String?,
+    overviewDocumentation: String?,
     /** True if this package is from the classpath (dependencies). Exposed in [isFromClassPath]. */
     private val fromClassPath: Boolean
 ) :
@@ -47,6 +48,7 @@ internal constructor(
         documentationFactory = documentationFactory,
         variantSelectorsFactory = ApiVariantSelectors.MUTABLE_FACTORY,
         qualifiedName = qualifiedName,
+        overviewDocumentation = overviewDocumentation,
     ),
     PackageItem,
     PsiItem {
@@ -92,8 +94,7 @@ internal constructor(
                 psiPackage = psiPackage,
                 fileLocation = packageDoc.fileLocation,
                 modifiers = modifiers,
-                documentationFactory =
-                    PsiItemDocumentation.factory(psiPackage, codebase, packageDoc.comment),
+                documentationFactory = packageDoc.commentFactory ?: "".toItemDocumentationFactory(),
                 qualifiedName = qualifiedName,
                 overviewDocumentation = packageDoc.overview,
                 fromClassPath = fromClassPath,

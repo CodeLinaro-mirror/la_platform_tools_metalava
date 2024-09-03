@@ -157,6 +157,7 @@ class CodebaseSnapshotTaker : DelegatedVisitor, CodebaseAssembler {
                 documentationFactory = pkg.documentation::snapshot,
                 variantSelectorsFactory = pkg.variantSelectors::duplicate,
                 qualifiedName = pkg.qualifiedName(),
+                overviewDocumentation = pkg.overviewDocumentation,
             )
         codebase.addPackage(newPackage)
         currentPackage = newPackage

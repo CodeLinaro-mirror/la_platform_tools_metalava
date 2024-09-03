@@ -14,7 +14,7 @@ mkdir -p "$DIST_DIR"
 export OUT_DIR=out
 export DIST_DIR="$DIST_DIR"
 
-JAVA_HOME="$(pwd)/prebuilts/studio/jdk/jdk21/linux" tools/gradlew -p tools/ publishLocal --stacktrace
+JAVA_HOME="$(pwd)/prebuilts/studio/jdk/jbr-next/linux" tools/gradlew -p tools/ publishLocal --stacktrace
 
 # Depend on the generated version.properties file, as the version depends on
 # the release flag

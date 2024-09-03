@@ -22,7 +22,9 @@ import java.util.HashMap
 
 private const val PACKAGE_ESTIMATE = 500
 
-class PackageTracker {
+typealias PackageItemFactory = (String, PackageDoc) -> DefaultPackageItem
+
+class PackageTracker(private val packageItemFactory: PackageItemFactory) {
     /** Map from package name to [DefaultPackageItem] of all packages in this. */
     private val packagesByName = HashMap<String, DefaultPackageItem>(PACKAGE_ESTIMATE)
 
@@ -42,5 +44,19 @@ class PackageTracker {
     /** Add the package to this. */
     fun addPackage(packageItem: DefaultPackageItem) {
         packagesByName[packageItem.qualifiedName()] = packageItem
+    }
+
+    /** Create and track [PackageItem]s for every entry in [packageDocs]. */
+    fun createInitialPackages(packageDocs: PackageDocs) {
+        // Create packages for all the documentation packages.
+        for ((packageName, packageDoc) in packageDocs) {
+            // Consistency check to ensure that there are no collisions.
+            findPackage(packageName)?.let {
+                error("Duplicate package-info.java files found for $packageName")
+            }
+
+            val packageItem = packageItemFactory(packageName, packageDoc)
+            addPackage(packageItem)
+        }
     }
 }

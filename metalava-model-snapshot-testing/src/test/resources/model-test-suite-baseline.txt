@@ -30,11 +30,8 @@ com.android.tools.metalava.model.testsuite.methoditem.CommonParameterItemTest
   Test publicName reports correct name when called on binary class - ViewGroup#onLayout[turbine]
 
 com.android.tools.metalava.model.testsuite.packageitem.CommonPackageItemTest
-  Test nullability annotation in package info[turbine]
   Test package containment[text]
   Test package containment[turbine]
-  Test package documentation (overview-html)[turbine]
-  Test package location (package-html)[turbine]
 
 com.android.tools.metalava.model.testsuite.sourcefile.CommonSourceFileTest
   test sourcefile classes[turbine]
