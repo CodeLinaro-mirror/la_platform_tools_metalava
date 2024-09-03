@@ -29,8 +29,11 @@ internal class FixedDefaultValue(private val value: String?) : DefaultValue {
 
     override fun value() = value
 
+    /** This is suitable for use by [parameter] as it has no model or codebase dependencies. */
+    override fun duplicate(parameter: ParameterItem) = this
+
     /** This is suitable for use in the snapshot as it has no model or codebase dependencies. */
-    override fun snapshot() = this
+    override fun snapshot(parameter: ParameterItem) = this
 
     override fun toString() = "DefaultValue($value)"
 }

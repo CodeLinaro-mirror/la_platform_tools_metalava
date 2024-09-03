@@ -962,6 +962,12 @@ interface ClassTypeItem : TypeItem, BoundsTypeItem, ReferenceTypeItem, Exception
     override fun isJavaLangObject(): Boolean = qualifiedName == JAVA_LANG_OBJECT
 
     /**
+     * Check to see whether this type is a functional type, i.e. references a function interface,
+     * which is an interface with at most one abstract method.
+     */
+    fun isFunctionalType(): Boolean = error("unsupported")
+
+    /**
      * Duplicates this type substituting in the provided [modifiers], [outerClassType] and
      * [arguments] in place of this instance's [modifiers], [outerClassType] and [arguments].
      */

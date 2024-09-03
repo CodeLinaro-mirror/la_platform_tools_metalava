@@ -248,15 +248,6 @@ class DefaultReporter(
         }
     }
 
-    fun getBaselineDescription(): String {
-        val file = baseline?.file
-        return if (file != null) {
-            "baseline ${file.path}"
-        } else {
-            "no baseline"
-        }
-    }
-
     companion object {
         private val reportComparator =
             compareBy<Report>(

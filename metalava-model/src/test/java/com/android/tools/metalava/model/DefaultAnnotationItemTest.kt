@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model
 
+import com.android.tools.metalava.model.item.CodebaseAssembler
 import com.android.tools.metalava.model.item.DefaultCodebase
 import java.io.File
 import org.junit.Assert.assertEquals
@@ -33,6 +34,11 @@ class DefaultAnnotationItemTest {
             annotationManager = noOpAnnotationManager,
             trustedApi = false,
             supportsDocumentation = false,
+            assemblerFactory = {
+                object : CodebaseAssembler {
+                    override fun createClassFromUnderlyingModel(qualifiedName: String) = null
+                }
+            },
         )
 
     private fun createDefaultAnnotationItem(source: String) =

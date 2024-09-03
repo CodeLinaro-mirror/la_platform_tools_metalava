@@ -130,6 +130,7 @@ internal class ClassLoaderBasedClassResolver(jar: File) : ClassResolver {
                     containingClass = null,
                     containingPackage = packageItem,
                     typeParameterList = TypeParameterList.NONE,
+                    isFromClassPath = true,
                 )
             }
     }

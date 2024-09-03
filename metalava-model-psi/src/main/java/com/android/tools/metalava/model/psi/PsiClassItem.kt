@@ -31,6 +31,7 @@ import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.SourceFile
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VisibilityLevel
+import com.android.tools.metalava.model.addDefaultRetentionPolicyAnnotation
 import com.android.tools.metalava.model.computeAllInterfaces
 import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.model.isRetention
@@ -118,19 +119,6 @@ internal constructor(
         return allInterfaces!!.asSequence()
     }
 
-    private fun addInterfaces(result: MutableSet<PsiClass>, interfaces: Array<out PsiClass>) {
-        for (itf in interfaces) {
-            if (itf.isInterface && !result.contains(itf)) {
-                result.add(itf)
-                addInterfaces(result, itf.interfaces)
-                val superClass = itf.superClass
-                if (superClass != null) {
-                    addInterfaces(result, arrayOf(superClass))
-                }
-            }
-        }
-    }
-
     private lateinit var nestedClasses: List<PsiClassItem>
     private lateinit var constructors: List<PsiConstructorItem>
     private lateinit var methods: MutableList<PsiMethodItem>
@@ -154,7 +142,7 @@ internal constructor(
 
     override fun fields(): List<FieldItem> = fields
 
-    final override var primaryConstructor: PsiConstructorItem? = null
+    override var primaryConstructor: PsiConstructorItem? = null
         private set
 
     /** Must only be used by [type] to cache its result. */
@@ -306,22 +294,7 @@ internal constructor(
                 classKind == ClassKind.ANNOTATION_TYPE &&
                     !hasExplicitRetention(modifiers, psiClass, isKotlin)
             ) {
-                // By policy, include explicit retention policy annotation if missing
-                val defaultRetentionPolicy = AnnotationRetention.getDefault(isKotlin)
-                modifiers.addAnnotation(
-                    codebase.createAnnotation(
-                        buildString {
-                            append('@')
-                            append(java.lang.annotation.Retention::class.qualifiedName)
-                            append('(')
-                            append(java.lang.annotation.RetentionPolicy::class.qualifiedName)
-                            append('.')
-                            append(defaultRetentionPolicy.name)
-                            append(')')
-                        },
-                        item,
-                    )
-                )
+                modifiers.addDefaultRetentionPolicyAnnotation(item)
             }
 
             // create methods
@@ -405,6 +378,7 @@ internal constructor(
                 val constructorParameters =
                     item.primaryConstructor
                         ?.parameters()
+                        ?.map { it as PsiParameterItem }
                         ?.filter { (it.sourcePsi as? KtParameter)?.isPropertyParameter() ?: false }
                         ?.associateBy { it.name() }
                         .orEmpty()

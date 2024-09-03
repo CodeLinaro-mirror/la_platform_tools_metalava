@@ -34,6 +34,7 @@ import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.TypeParameterListAndFactory
+import com.android.tools.metalava.model.item.CodebaseAssembler
 import com.android.tools.metalava.model.item.DefaultClassItem
 import com.android.tools.metalava.model.item.DefaultCodebase
 import com.android.tools.metalava.model.item.DefaultConstructorItem
@@ -58,13 +59,23 @@ internal fun TypeItemFactoryStack.pop() {
 }
 
 /** Constructs a [Codebase] by taking a snapshot of another [Codebase] that is being visited. */
-class CodebaseSnapshotTaker : DelegatedVisitor {
+class CodebaseSnapshotTaker : DelegatedVisitor, CodebaseAssembler {
     /**
      * The [Codebase] that is under construction.
      *
      * Initialized in [visitCodebase].
      */
     private lateinit var codebase: DefaultCodebase
+
+    /**
+     * The original [Codebase] that is being snapshotted construction.
+     *
+     * Initialized in [visitCodebase].
+     */
+    private lateinit var originalCodebase: Codebase
+
+    private val globalTypeItemFactory by
+        lazy(LazyThreadSafetyMode.NONE) { SnapshotTypeItemFactory(codebase) }
 
     /**
      * Stack of [SnapshotTypeItemFactory] that contain information about the [TypeParameterItem]s
@@ -99,6 +110,7 @@ class CodebaseSnapshotTaker : DelegatedVisitor {
     private fun ClassTypeItem.snapshot() = typeItemFactory.getGeneralType(this) as ClassTypeItem
 
     override fun visitCodebase(codebase: Codebase) {
+        this.originalCodebase = codebase
         val newCodebase =
             DefaultCodebase(
                 location = codebase.location,
@@ -108,10 +120,11 @@ class CodebaseSnapshotTaker : DelegatedVisitor {
                 trustedApi = true,
                 // Supports documentation if the copied codebase does.
                 supportsDocumentation = codebase.supportsDocumentation(),
+                assemblerFactory = { this },
             )
 
-        typeItemFactoryStack.push(SnapshotTypeItemFactory(newCodebase))
         this.codebase = newCodebase
+        typeItemFactoryStack.push(globalTypeItemFactory)
     }
 
     override fun afterVisitCodebase(codebase: Codebase) {
@@ -190,6 +203,7 @@ class CodebaseSnapshotTaker : DelegatedVisitor {
                 simpleName = cls.simpleName(),
                 fullName = cls.fullName(),
                 typeParameterList = typeParameterList,
+                isFromClassPath = cls.isFromClassPath(),
             )
 
         // Snapshot the super class type, if any.
@@ -233,7 +247,7 @@ class CodebaseSnapshotTaker : DelegatedVisitor {
                 containingCallable = containingCallable,
                 parameterIndex = parameterItem.parameterIndex,
                 type = parameterItem.type().snapshot(),
-                defaultValue = parameterItem.defaultValue.snapshot(),
+                defaultValueFactory = parameterItem.defaultValue::snapshot,
             )
         }
 
@@ -263,6 +277,7 @@ class CodebaseSnapshotTaker : DelegatedVisitor {
                     },
                     throwsTypes =
                         constructor.throwsTypes().map { typeItemFactory.getExceptionType(it) },
+                    callableBodyFactory = constructor.body::snapshot,
                     implicitConstructor = constructor.isImplicitConstructor(),
                 )
 
@@ -295,6 +310,7 @@ class CodebaseSnapshotTaker : DelegatedVisitor {
                         method.parameters().snapshot(containingCallable)
                     },
                     throwsTypes = method.throwsTypes().map { typeItemFactory.getExceptionType(it) },
+                    callableBodyFactory = method.body::snapshot,
                     annotationDefault = method.defaultValue(),
                 )
 
@@ -338,6 +354,30 @@ class CodebaseSnapshotTaker : DelegatedVisitor {
             )
 
         containingClass.addProperty(newProperty)
+    }
+
+    /**
+     * Take a snapshot of [qualifiedName].
+     *
+     * TODO(b/353737744): Handle resolving nested classes.
+     */
+    override fun createClassFromUnderlyingModel(qualifiedName: String): ClassItem? {
+        // Resolve the class in the original codebase, if possible.
+        val originalClass = originalCodebase.resolveClass(qualifiedName) ?: return null
+
+        // Take a snapshot of the class, that should add a new class to the snapshot codebase.
+        val visitor = NonFilteringDelegatingVisitor(this)
+        val originalPackage = originalClass.containingPackage()
+
+        // Set up the state for taking a snapshot of a class.
+        typeItemFactoryStack.push(globalTypeItemFactory)
+        visitPackage(originalPackage)
+        originalClass.accept(visitor)
+        afterVisitPackage(originalPackage)
+        typeItemFactoryStack.pop()
+
+        // Find the newly added class.
+        return codebase.findClass(originalClass.qualifiedName())!!
     }
 
     companion object {

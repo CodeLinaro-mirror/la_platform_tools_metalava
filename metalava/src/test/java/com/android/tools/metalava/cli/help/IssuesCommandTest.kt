@@ -80,12 +80,13 @@ Available Issues                             |  Category                |   Defa
   ChangedVolatile                            |  compatibility           |   error
   CompileTimeConstant                        |  api_lint                |   error
   ConcreteCollection                         |  api_lint                |   error
+  ConditionalRequiresPermissionNotExplained  |  api_lint                |   hidden
   ConfigFieldName                            |  api_lint                |   error
   ConfigFileProblem                          |  unknown                 |   error
   ConflictingShowAnnotations                 |  unknown                 |   error
   ContextFirst                               |  api_lint                |   error
   ContextNameSuffix                          |  api_lint                |   error
-  DefaultValueChange                         |  api_lint                |   error
+  DefaultValueChange                         |  compatibility           |   error
   Deprecated                                 |  documentation           |   hidden
   DeprecatedOption                           |  unknown                 |   warning
   DeprecationMismatch                        |  documentation           |   error
@@ -96,11 +97,11 @@ Available Issues                             |  Category                |   Defa
   EqualsAndHashCode                          |  api_lint                |   error
   ExceptionName                              |  api_lint                |   error
   ExecutorRegistration                       |  api_lint                |   warning
-  ExtendsDeprecated                          |  unknown                 |   hidden
+  ExtendsDeprecated                          |  api_lint                |   hidden
   ExtendsError                               |  api_lint                |   error
   FlaggedApiLiteral                          |  api_lint                |   warning_error_when_new
   ForbiddenSuperClass                        |  api_lint                |   error
-  ForbiddenTag                               |  unknown                 |   error
+  ForbiddenTag                               |  documentation           |   error
   FractionFloat                              |  api_lint                |   error
   FunRemoval                                 |  compatibility           |   error
   GenericCallbacks                           |  api_lint                |   error
@@ -109,7 +110,7 @@ Available Issues                             |  Category                |   Defa
   GetterSetterNames                          |  api_lint                |   error
   GetterSetterNullability                    |  api_lint                |   warning_error_when_new
   HeavyBitSet                                |  api_lint                |   error
-  HiddenAbstractMethod                       |  unknown                 |   error
+  HiddenAbstractMethod                       |  api_lint                |   error
   HiddenSuperclass                           |  documentation           |   warning
   HiddenTypeParameter                        |  documentation           |   warning
   HiddenTypedefConstant                      |  unknown                 |   error
@@ -175,8 +176,8 @@ Available Issues                             |  Category                |   Defa
   ProtectedMember                            |  api_lint                |   error
   PublicTypedef                              |  api_lint                |   error
   RawAidl                                    |  api_lint                |   error
-  ReferencesDeprecated                       |  unknown                 |   hidden
-  ReferencesHidden                           |  unknown                 |   error
+  ReferencesDeprecated                       |  api_lint                |   hidden
+  ReferencesHidden                           |  api_lint                |   error
   RegistrationName                           |  api_lint                |   error
   RemovedAnnotation                          |  compatibility           |   error
   RemovedClass                               |  compatibility           |   error
@@ -214,9 +215,9 @@ Available Issues                             |  Category                |   Defa
   TopLevelBuilder                            |  api_lint                |   warning
   UnavailableSymbol                          |  documentation           |   warning
   UnflaggedApi                               |  api_lint                |   hidden
-  UnhiddenSystemApi                          |  unknown                 |   error
+  UnhiddenSystemApi                          |  api_lint                |   error
   UniqueKotlinOperator                       |  api_lint                |   error
-  UnmatchedMergeAnnotation                   |  unknown                 |   error
+  UnmatchedMergeAnnotation                   |  api_lint                |   error
   UnresolvedClass                            |  documentation           |   error
   UnresolvedImport                           |  unknown                 |   info
   UnresolvedLink                             |  documentation           |   error

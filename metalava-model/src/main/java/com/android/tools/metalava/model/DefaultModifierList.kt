@@ -16,6 +16,9 @@
 
 package com.android.tools.metalava.model
 
+import java.lang.annotation.Retention
+import java.lang.annotation.RetentionPolicy
+
 class DefaultModifierList(
     override val codebase: Codebase,
     private var flags: Int = PACKAGE_PRIVATE,
@@ -455,4 +458,30 @@ class DefaultModifierList(
                 SUSPEND or
                 COMPANION
     }
+}
+
+/**
+ * Add a [Retention] annotation with the default [RetentionPolicy] suitable for [item].
+ *
+ * The caller must ensure that the annotation does not already have a [Retention] annotation before
+ * calling this.
+ */
+fun DefaultModifierList.addDefaultRetentionPolicyAnnotation(item: ClassItem) {
+    // By policy, include explicit retention policy annotation if missing
+    val isKotlin = item.itemLanguage == ItemLanguage.KOTLIN
+    val defaultRetentionPolicy = AnnotationRetention.getDefault(isKotlin)
+    addAnnotation(
+        codebase.createAnnotation(
+            buildString {
+                append('@')
+                append(Retention::class.qualifiedName)
+                append('(')
+                append(RetentionPolicy::class.qualifiedName)
+                append('.')
+                append(defaultRetentionPolicy.name)
+                append(')')
+            },
+            item,
+        )
+    )
 }

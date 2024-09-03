@@ -126,7 +126,7 @@ internal class PsiBasedCodebase(
      * Printer which can convert PSI, UAST and constants into source code, with ability to filter
      * out elements that are not part of a codebase etc
      */
-    @Suppress("LeakingThis") internal val printer = CodePrinter(this, reporter)
+    internal val printer = CodePrinter(this, reporter)
 
     /** Supports fully qualifying Javadoc. */
     internal val docQualifier = DocQualifier(reporter)
@@ -145,8 +145,7 @@ internal class PsiBasedCodebase(
 
     /**
      * Map from package name to list of classes in that package. Initialized in [initializeFromJar]
-     * and [initializeFromSources], updated by [registerPackageClass], and used and cleared in
-     * [fixUpTypeNullability].
+     * and [initializeFromSources], updated by [registerPackageClass].
      */
     private var packageClasses: MutableMap<String, MutableList<PsiClassItem>>? = null
 
@@ -169,8 +168,6 @@ internal class PsiBasedCodebase(
      */
     private var initializing = false
 
-    private var hideClassesFromJars = true
-
     /** [PsiTypeItemFactory] used to create [PsiTypeItem]s. */
     internal val globalTypeItemFactory = PsiTypeItemFactory(this, TypeParameterScope.empty)
 
@@ -182,7 +179,6 @@ internal class PsiBasedCodebase(
         packages: PackageDocs,
     ) {
         initializing = true
-        this.units = psiFiles
 
         this.uastEnvironment = uastEnvironment
         val packageDocs = packages.packageDocs
@@ -444,7 +440,6 @@ internal class PsiBasedCodebase(
         jarFile: File,
     ) {
         initializing = true
-        hideClassesFromJars = false
 
         this.uastEnvironment = uastEnvironment
 
@@ -505,8 +500,6 @@ internal class PsiBasedCodebase(
         } catch (e: IOException) {
             reporter.report(Issues.IO_ERROR, jarFile, e.message ?: e.toString())
         }
-
-        hideClassesFromJars = true
 
         // When loading from a jar there is no package documentation.
         finishInitialization(null)
@@ -795,9 +788,6 @@ internal class PsiBasedCodebase(
     override fun getTopLevelClassesFromSource(): List<ClassItem> {
         return topLevelClassesFromSource
     }
-
-    internal fun createPsiMethod(s: String, parent: PsiElement? = null): PsiMethod =
-        getFactory().createMethodFromText(s, parent)
 
     internal fun createPsiType(s: String, parent: PsiElement? = null): PsiType =
         getFactory().createTypeFromText(s, parent)

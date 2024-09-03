@@ -17,11 +17,15 @@
 package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.model.ApiVariantSelectors
+import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.DefaultModifierList
+import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.ItemDocumentationFactory
+import com.android.tools.metalava.model.MethodItem
+import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.TypeItem
-import com.android.tools.metalava.model.item.DefaultMemberItem
+import com.android.tools.metalava.model.item.DefaultPropertyItem
 import com.intellij.psi.PsiMethod
 import org.jetbrains.kotlin.descriptors.annotations.AnnotationUseSiteTarget
 import org.jetbrains.kotlin.psi.KtPropertyAccessor
@@ -32,17 +36,19 @@ internal class PsiPropertyItem
 private constructor(
     override val codebase: PsiBasedCodebase,
     private val psiMethod: PsiMethod,
-    containingClass: PsiClassItem,
-    name: String,
     modifiers: DefaultModifierList,
+    // This needs to be passed in because the documentation may come from the property, or it may
+    // come from the getter method.
     documentationFactory: ItemDocumentationFactory,
-    private var fieldType: PsiTypeItem,
-    override val getter: PsiMethodItem,
-    override val setter: PsiMethodItem?,
-    override val constructorParameter: PsiParameterItem?,
-    override val backingField: PsiFieldItem?
+    name: String,
+    containingClass: ClassItem,
+    type: TypeItem,
+    override val getter: MethodItem,
+    override val setter: MethodItem?,
+    override val constructorParameter: ParameterItem?,
+    override val backingField: FieldItem?
 ) :
-    DefaultMemberItem(
+    DefaultPropertyItem(
         codebase = codebase,
         fileLocation = PsiFileLocation(psiMethod),
         itemLanguage = psiMethod.itemLanguage,
@@ -51,15 +57,10 @@ private constructor(
         variantSelectorsFactory = ApiVariantSelectors.MUTABLE_FACTORY,
         name = name,
         containingClass = containingClass,
+        type = type,
     ),
     PropertyItem,
     PsiItem {
-
-    override fun type(): TypeItem = fieldType
-
-    override fun setType(type: TypeItem) {
-        fieldType = type as PsiTypeItem
-    }
 
     override fun psi() = psiMethod
 
@@ -87,7 +88,7 @@ private constructor(
             codebase: PsiBasedCodebase,
             containingClass: PsiClassItem,
             name: String,
-            type: PsiTypeItem,
+            type: TypeItem,
             getter: PsiMethodItem,
             setter: PsiMethodItem? = null,
             constructorParameter: PsiParameterItem? = null,
@@ -128,11 +129,11 @@ private constructor(
                 PsiPropertyItem(
                     codebase = codebase,
                     psiMethod = psiMethod,
-                    containingClass = containingClass,
-                    name = name,
-                    documentationFactory = PsiItemDocumentation.factory(psiElement, codebase),
                     modifiers = modifiers,
-                    fieldType = type,
+                    documentationFactory = PsiItemDocumentation.factory(psiElement, codebase),
+                    name = name,
+                    containingClass = containingClass,
+                    type = type,
                     getter = getter,
                     setter = setter,
                     constructorParameter = constructorParameter,

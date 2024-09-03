@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model.item
 
 import com.android.tools.metalava.model.ApiVariantSelectorsFactory
+import com.android.tools.metalava.model.CallableBody
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
@@ -87,6 +88,7 @@ class DefaultItemFactory(
         simpleName: String = qualifiedName.substring(qualifiedName.lastIndexOf('.') + 1),
         fullName: String = simpleName,
         typeParameterList: TypeParameterList,
+        isFromClassPath: Boolean,
     ) =
         DefaultClassItem(
             codebase,
@@ -103,6 +105,7 @@ class DefaultItemFactory(
             simpleName,
             fullName,
             typeParameterList,
+            isFromClassPath,
         )
 
     /** Create a [ConstructorItem]. */
@@ -131,6 +134,7 @@ class DefaultItemFactory(
             returnType,
             parameterItemsFactory,
             throwsTypes,
+            CallableBody.UNAVAILABLE_FACTORY,
             implicitConstructor,
         )
 
@@ -185,6 +189,7 @@ class DefaultItemFactory(
             returnType,
             parameterItemsFactory,
             throwsTypes,
+            CallableBody.UNAVAILABLE_FACTORY,
             annotationDefault,
         )
 
@@ -209,8 +214,9 @@ class DefaultItemFactory(
             containingCallable,
             parameterIndex,
             type,
-            defaultValue,
-        )
+        ) {
+            defaultValue
+        }
 
     /** Create a [PropertyItem]. */
     fun createPropertyItem(

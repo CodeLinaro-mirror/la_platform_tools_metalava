@@ -39,7 +39,7 @@ internal class TextCodebaseAssembler(
             defaultVariantSelectorsFactory = ApiVariantSelectors.IMMUTABLE_FACTORY,
         )
 
-    init {
+    fun initialize() {
         // Make sure that it has a root package.
         val rootPackage = itemFactory.createPackageItem(qualifiedName = "")
         codebase.addPackage(rootPackage)

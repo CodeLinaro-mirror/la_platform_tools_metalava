@@ -16,7 +16,18 @@
 
 package com.android.tools.metalava.model.item
 
+import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.FixedDefaultValue
+import com.android.tools.metalava.model.ParameterItem
+
+/**
+ * A lamda that given a [ParameterItem] will create a [DefaultValue] for it.
+ *
+ * This is called from within the constructor of the [ParameterItem] and should not access any
+ * properties of [ParameterItem] as they may not have been initialized. This should just store a
+ * reference for later use.
+ */
+typealias DefaultValueFactory = (ParameterItem) -> DefaultValue
 
 /**
  * Represents a parameter's default value.
@@ -36,8 +47,11 @@ interface DefaultValue {
 
         override fun value() = error("cannot call on NONE DefaultValue")
 
+        /** This is suitable for use by [parameter] as it has no model or codebase dependencies. */
+        override fun duplicate(parameter: ParameterItem) = this
+
         /** This is suitable for use in the snapshot as it has no model or codebase dependencies. */
-        override fun snapshot() = this
+        override fun snapshot(parameter: ParameterItem) = this
 
         override fun toString() = "NONE"
     }
@@ -53,8 +67,12 @@ interface DefaultValue {
         override fun isDefaultValueKnown() = false
 
         override fun value() = error("cannot call on UNKNOWN DefaultValue")
+
+        /** This is suitable for use by [parameter] as it has no model or codebase dependencies. */
+        override fun duplicate(parameter: ParameterItem) = this
+
         /** This is suitable for use in the snapshot as it has no model or codebase dependencies. */
-        override fun snapshot() = this
+        override fun snapshot(parameter: ParameterItem) = this
 
         override fun toString() = "UNKNOWN"
     }
@@ -99,12 +117,18 @@ interface DefaultValue {
     fun value(): String?
 
     /**
+     * Return a duplicate of this instance to use by [parameter] which will be in the same type of
+     * [Codebase] as this.
+     */
+    fun duplicate(parameter: ParameterItem): DefaultValue
+
+    /**
      * Creates a snapshot of this.
      *
      * The default implementation assumes that this is either dependent on a model or the codebase
      * and so creates a new [DefaultValue] based on the functions above.
      */
-    fun snapshot() =
+    fun snapshot(parameter: ParameterItem) =
         when {
             !hasDefaultValue() -> NONE
             !isDefaultValueKnown() -> UNKNOWN

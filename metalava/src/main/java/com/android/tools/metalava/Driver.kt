@@ -50,7 +50,6 @@ import com.android.tools.metalava.model.source.SourceSet
 import com.android.tools.metalava.model.text.ApiClassResolution
 import com.android.tools.metalava.model.text.SignatureFile
 import com.android.tools.metalava.model.visitors.FilteringApiVisitor
-import com.android.tools.metalava.reporter.DefaultReporter
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
 import com.android.tools.metalava.stub.StubWriter
@@ -127,16 +126,6 @@ internal fun processFlags(
     val stopwatch = Stopwatch.createStarted()
 
     val reporter = options.reporter
-    val reporterApiLint = options.reporterApiLint
-
-    // A Reporter that will redirect issues to the appropriate reporter based on the issue's
-    // Category.
-    val codebaseReporter =
-        CategoryRedirectingReporter(
-            defaultReporter = reporter,
-            apiLintReporter = reporterApiLint,
-            compatibilityReporter = options.reporterCompatibilityReleased,
-        )
 
     val annotationManager = options.annotationManager
     val modelOptions =
@@ -154,7 +143,7 @@ internal fun processFlags(
             ?: ModelOptions.empty
     val sourceParser =
         environmentManager.createSourceParser(
-            reporter = codebaseReporter,
+            reporter = reporter,
             annotationManager = annotationManager,
             javaLanguageLevel = options.javaLanguageLevelAsString,
             kotlinLanguageLevel = options.kotlinLanguageLevelAsString,
@@ -169,7 +158,7 @@ internal fun processFlags(
         ActionContext(
             progressTracker = progressTracker,
             reporter = reporter,
-            reporterApiLint = reporterApiLint,
+            reporterApiLint = reporter,
             sourceParser = sourceParser,
         )
 
@@ -201,11 +190,7 @@ internal fun processFlags(
             // If this codebase was loaded in order to generate stubs then they will need some
             // additional items to be added that were purposely removed from the signature files.
             if (options.stubsDir != null) {
-                addMissingItemsRequiredForGeneratingStubs(
-                    sourceParser,
-                    textCodebase,
-                    reporterApiLint
-                )
+                addMissingItemsRequiredForGeneratingStubs(sourceParser, textCodebase, reporter)
             }
             textCodebase
         } else if (sources.size == 1 && sources[0].path.endsWith(DOT_JAR)) {
@@ -263,7 +248,7 @@ internal fun processFlags(
             error("Codebase does not support documentation, so it cannot be enhanced.")
         }
         progressTracker.progress("Enhancing docs: ")
-        val docAnalyzer = DocAnalyzer(executionEnvironment, codebase, reporterApiLint)
+        val docAnalyzer = DocAnalyzer(executionEnvironment, codebase, reporter)
         docAnalyzer.enhance()
         val applyApiLevelsXml = options.applyApiLevelsXml
         if (applyApiLevelsXml != null) {
@@ -525,7 +510,7 @@ private fun ActionContext.checkCompatibility(
         newCodebase,
         oldCodebase,
         apiType,
-        options.reporterCompatibilityReleased,
+        reporter,
         options.issueConfiguration,
         options.apiCompatAnnotations,
     )
@@ -666,16 +651,15 @@ private fun ActionContext.loadFromSources(
                 }
             )
 
-        val apiLintReporter = reporterApiLint as DefaultReporter
         ApiLint.check(
             codebase,
             previouslyReleasedApi,
-            apiLintReporter,
+            reporter,
             options.manifest,
             options.apiVisitorConfig,
         )
         progressTracker.progress(
-            "$PROGRAM_NAME ran api-lint in ${localTimer.elapsed(SECONDS)} seconds with ${apiLintReporter.getBaselineDescription()}"
+            "$PROGRAM_NAME ran api-lint in ${localTimer.elapsed(SECONDS)} seconds"
         )
     }
 

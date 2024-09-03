@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.psi
 
+import com.android.tools.metalava.model.ApiVariantSelectors
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.ExceptionTypeItem
@@ -23,9 +24,11 @@ import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
-import com.android.tools.metalava.model.computeSuperMethods
+import com.android.tools.metalava.model.item.DefaultMethodItem
+import com.android.tools.metalava.model.item.ParameterItemsFactory
+import com.android.tools.metalava.model.psi.PsiCallableItem.Companion.parameterList
+import com.android.tools.metalava.model.psi.PsiCallableItem.Companion.throwsTypes
 import com.android.tools.metalava.model.type.MethodFingerprint
-import com.android.tools.metalava.model.updateCopiedMethodState
 import com.android.tools.metalava.reporter.FileLocation
 import com.intellij.psi.PsiAnnotationMethod
 import com.intellij.psi.PsiMethod
@@ -40,8 +43,8 @@ import org.jetbrains.uast.kotlin.KotlinUMethodWithFakeLightDelegateBase
 import org.jetbrains.uast.toUElement
 
 internal class PsiMethodItem(
-    codebase: PsiBasedCodebase,
-    psiMethod: PsiMethod,
+    override val codebase: PsiBasedCodebase,
+    override val psiMethod: PsiMethod,
     fileLocation: FileLocation = PsiFileLocation(psiMethod),
     // Takes ClassItem as this may be duplicated from a PsiBasedCodebase on the classpath into a
     // TextClassItem.
@@ -54,44 +57,31 @@ internal class PsiMethodItem(
     typeParameterList: TypeParameterList,
     throwsTypes: List<ExceptionTypeItem>,
 ) :
-    PsiCallableItem(
+    DefaultMethodItem(
         codebase = codebase,
-        psiMethod = psiMethod,
         fileLocation = fileLocation,
-        containingClass = containingClass,
-        name = name,
+        itemLanguage = psiMethod.itemLanguage,
         modifiers = modifiers,
         documentationFactory = documentationFactory,
+        variantSelectorsFactory = ApiVariantSelectors.MUTABLE_FACTORY,
+        name = name,
+        containingClass = containingClass,
+        typeParameterList = typeParameterList,
         returnType = returnType,
         parameterItemsFactory = parameterItemsFactory,
-        typeParameterList = typeParameterList,
         throwsTypes = throwsTypes,
+        callableBodyFactory = { PsiCallableBody(it as PsiCallableItem) },
     ),
-    MethodItem {
-
-    override var inheritedFrom: ClassItem? = null
+    PsiCallableItem {
 
     override var property: PsiPropertyItem? = null
-
-    @Deprecated("This property should not be accessed directly.")
-    override var _requiresOverride: Boolean? = null
-
-    private var superMethods: List<MethodItem>? = null
-
-    override fun superMethods(): List<MethodItem> {
-        if (superMethods == null) {
-            superMethods = computeSuperMethods()
-        }
-
-        return superMethods!!
-    }
 
     override fun isExtensionMethod(): Boolean {
         if (isKotlin()) {
             val ktParameters =
                 ((psiMethod as? UMethod)?.sourcePsi as? KtNamedFunction)?.valueParameters
                     ?: return false
-            return ktParameters.size < parameters.size
+            return ktParameters.size < parameters().size
         }
 
         return false
@@ -140,9 +130,13 @@ internal class PsiMethodItem(
                 modifiers.duplicate(),
                 documentation::duplicate,
                 returnType.convertType(typeVariableMap),
-                { methodItem -> parameters.map { it.duplicate(methodItem, typeVariableMap) } },
+                { methodItem ->
+                    parameters().map {
+                        (it as PsiParameterItem).duplicate(methodItem, typeVariableMap)
+                    }
+                },
                 typeParameterList,
-                throwsTypes,
+                throwsTypes(),
             )
             .also { duplicated ->
                 duplicated.inheritedFrom = containingClass()
@@ -230,7 +224,12 @@ internal class PsiMethodItem(
                     modifiers = modifiers,
                     returnType = returnType,
                     parameterItemsFactory = { containingCallable ->
-                        parameterList(containingCallable, methodTypeItemFactory)
+                        parameterList(
+                            codebase,
+                            psiMethod,
+                            containingCallable as PsiCallableItem,
+                            methodTypeItemFactory,
+                        )
                     },
                     typeParameterList = typeParameterList,
                     throwsTypes = throwsTypes(psiMethod, methodTypeItemFactory),

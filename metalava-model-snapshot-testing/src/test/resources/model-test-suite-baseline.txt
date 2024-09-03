@@ -1,6 +1,5 @@
 com.android.tools.metalava.model.testsuite.BootstrapSourceModelProviderTest
   130 - check classes from classpath[turbine]
-  210 Test Method exception list[turbine]
   240 test documentations[turbine]
 
 com.android.tools.metalava.model.testsuite.annotationitem.CommonAnnotationItemTest
@@ -15,25 +14,8 @@ com.android.tools.metalava.model.testsuite.annotationitem.CommonAnnotationItemTe
   annotation with negative number values[text]
   annotation with type cast values[text]
 
-com.android.tools.metalava.model.testsuite.classitem.CommonClassItemTest
-  Test class no super class but implements lists[text]
-  Test class no super class or implements lists[text]
-
 com.android.tools.metalava.model.testsuite.codebase.CommonCodebaseTest
   Test getTopLevelClassesFromSource[turbine]
-
-com.android.tools.metalava.model.testsuite.codebase.ParameterizedFindClassTest
-  test findClass()[text,java.io.File]
-  test findClass()[text,java.lang.Comparable]
-  test findClass()[text,java.lang.Enum]
-  test findClass()[text,java.lang.Object]
-  test findClass()[text,java.lang.Throwable]
-  test findClass()[text,java.lang.annotation.Annotation]
-  test findClass()[turbine,java.io.File]
-  test findClass()[turbine,java.lang.Comparable]
-  test findClass()[turbine,java.lang.Enum]
-  test findClass()[turbine,java.lang.Throwable]
-  test findClass()[turbine,java.lang.annotation.Annotation]
 
 com.android.tools.metalava.model.testsuite.fielditem.CommonFieldItemTest
   Test implicit nullability of constant field initialized from @NonNull method[turbine]
@@ -41,11 +23,6 @@ com.android.tools.metalava.model.testsuite.fielditem.CommonFieldItemTest
 com.android.tools.metalava.model.testsuite.fielditem.SourceFieldItemTest
   test default value of an enum constant field[turbine]
   test non final field with default value as constant expression[turbine]
-
-com.android.tools.metalava.model.testsuite.methoditem.CommonMethodItemTest
-  Test throws method type parameter does not extend Throwable[text]
-  Test throws method type parameter extends Throwable[text]
-  Test throws method type parameter extends Throwable[turbine]
 
 com.android.tools.metalava.model.testsuite.methoditem.CommonParameterItemTest
   Test no default value[turbine]
@@ -68,22 +45,6 @@ com.android.tools.metalava.model.testsuite.typeitem.CommonIsAssignableFromTest
   Test assignability without unboxing[turbine,number to boxedInt]
   Test assignability without unboxing[turbine,number to primitiveInt]
   Test assignability without unboxing[turbine,obj to string]
-
-com.android.tools.metalava.model.testsuite.typeitem.CommonParameterizedTypeItemTest
-  Test asClass[text,Comparable<Integer>[]]
-  Test asClass[text,Comparable<String>]
-  Test asClass[text,String[]...]
-  Test asClass[text,T extends Comparable]
-  Test asClass[text,T[]]
-  Test asClass[text,T]
-  Test asClass[text,java.util.Map.Entry<String, T>]
-  Test asClass[turbine,Comparable<Integer>[]]
-  Test asClass[turbine,Comparable<String>]
-  Test asClass[turbine,String[]...]
-  Test asClass[turbine,T extends Comparable]
-  Test asClass[turbine,T[]]
-  Test asClass[turbine,T]
-  Test asClass[turbine,java.util.Map.Entry<String, T>]
 
 com.android.tools.metalava.model.testsuite.typeitem.CommonTypeModifiersTest
   Test interface types[turbine]

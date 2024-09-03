@@ -616,6 +616,7 @@ private constructor(
                 simpleName = className,
                 fullName = fullName,
                 typeParameterList = typeParameterList,
+                isFromClassPath = false,
             )
         cl.markForCurrentApiSurface()
 
@@ -1763,9 +1764,6 @@ private constructor(
                 )
 
             parameter.markForCurrentApiSurface()
-            if (type is ArrayTypeItem && type.isVarargs) {
-                modifiers.setVarArg(true)
-            }
 
             return parameter
         }

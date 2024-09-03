@@ -244,6 +244,7 @@ class CommonParameterItemTest : BaseModelTest() {
             // actual parameter name. Probably, because it was compiled with an older version of
             // javac, and/or without the appropriate options to record the parameter name.
             val expectedNames = listOf("p", "p1", "p2", "p3", "p4")
+            assertEquals("parameter count", parameterItems.size, expectedNames.size)
             for (i in parameterItems.indices) {
                 val parameterItem = parameterItems[i]
                 val expectedName = expectedNames[i]
@@ -419,7 +420,9 @@ class CommonParameterItemTest : BaseModelTest() {
                     "nonNull" to "java.lang.String!...",
                     "platform" to "java.lang.String!...!",
                 )
-            for (method in codebase.assertClass("test.pkg.Foo").methods()) {
+            val methods = codebase.assertClass("test.pkg.Foo").methods()
+            assertEquals("method count", expectedTypes.size, methods.size)
+            for (method in methods) {
                 val name = method.name()
                 val expectedType = expectedTypes[name]!!
                 // Compare the kotlin style format of the parameter to ensure that only the
@@ -500,7 +503,9 @@ class CommonParameterItemTest : BaseModelTest() {
                     "nullable" to "java.lang.Object?[]",
                     "nonNull" to "java.lang.Object[]",
                 )
-            for (method in codebase.assertClass("test.pkg.TestKt").methods()) {
+            val methods = codebase.assertClass("test.pkg.TestKt").methods()
+            assertEquals("method count", expectedTypes.size, methods.size)
+            for (method in methods) {
                 val name = method.name()
                 val parameterItem = method.parameters().first()
 
@@ -535,7 +540,9 @@ class CommonParameterItemTest : BaseModelTest() {
                     "nullable" to "T?...",
                     "nonNull" to "T...",
                 )
-            for (method in codebase.assertClass("test.pkg.TestKt").methods()) {
+            val methods = codebase.assertClass("test.pkg.TestKt").methods()
+            assertEquals("method count", expectedTypes.size, methods.size)
+            for (method in methods) {
                 val name = method.name()
                 val parameterItem = method.parameters().single()
 
@@ -549,6 +556,61 @@ class CommonParameterItemTest : BaseModelTest() {
                 assertWithMessage("$name type")
                     .that(type.toTypeString(kotlinStyleNulls = true))
                     .isEqualTo(expectedType)
+            }
+        }
+    }
+
+    @Test
+    fun `Test parameter isVarArgs`() {
+        runCodebaseTest(
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public class Foo {
+                        method public void varArgsMethod(String... p);
+                        method public void nonVarArgsMethod(String[] p);
+                      }
+                    }
+                """
+            ),
+            java(
+                """
+                    package test.pkg;
+
+                    public class Foo {
+                        public void varArgsMethod(String... p) {}
+                        public void nonVarArgsMethod(String[] p) {}
+                    }
+                """
+            ),
+            kotlin(
+                """
+                    package test.pkg
+
+                    class Foo {
+                        fun varArgsMethod(vararg p: String) {}
+                        fun nonVarArgsMethod(p: Array<String>) {}
+                    }
+                """
+            ),
+        ) {
+            val expectedTypes =
+                mapOf(
+                    "varArgsMethod" to true,
+                    "nonVarArgsMethod" to false,
+                )
+            val methods = codebase.assertClass("test.pkg.Foo").methods()
+            assertEquals("method count", expectedTypes.size, methods.size)
+            for (method in methods) {
+                val name = method.name()
+                val parameterItem = method.parameters().single()
+
+                // Make sure that it is modelled as a varargs parameter if expected
+                val expectedVarArgs = expectedTypes[name]
+                assertWithMessage("$name isVarArgs")
+                    .that(parameterItem.isVarArgs())
+                    .isEqualTo(expectedVarArgs)
             }
         }
     }

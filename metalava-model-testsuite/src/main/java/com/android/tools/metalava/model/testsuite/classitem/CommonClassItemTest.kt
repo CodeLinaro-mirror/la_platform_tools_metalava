@@ -1628,4 +1628,43 @@ class CommonClassItemTest : BaseModelTest() {
             assertThat(modifiers.annotations).isEmpty()
         }
     }
+
+    @Test
+    fun `Test isFromClassPath`() {
+        runCodebaseTest(
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public class Test {
+                      }
+                    }
+                """
+            ),
+            java(
+                """
+                    package test.pkg;
+
+                    public class Test {
+                        private Test() {}
+                    }
+                """
+            ),
+        ) {
+            fun checkIsFromClassPath(name: String, expectedIsFromClassPath: Boolean) {
+                // Make sure to resolve any class requested just in case it is on the class path.
+                val testClass = codebase.assertResolvedClass(name)
+                assertEquals(expectedIsFromClassPath, testClass.isFromClassPath(), message = name)
+            }
+
+            checkIsFromClassPath("test.pkg.Test", expectedIsFromClassPath = false)
+            checkIsFromClassPath("java.lang.String", expectedIsFromClassPath = true)
+
+            // Some models may not return an unknown class but those that do should not treat it as
+            // coming from the class path.
+            codebase.resolveClass("Unknown")?.let { testClass ->
+                assertEquals(false, testClass.isFromClassPath(), message = "Unknown")
+            }
+        }
+    }
 }

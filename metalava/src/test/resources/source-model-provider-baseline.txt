@@ -13,7 +13,6 @@ com.android.tools.metalava.ApiAnalyzerTest
   Test that usage of effectively deprecated class is flagged[turbine]
 
 com.android.tools.metalava.ApiFileTest
-  Annotation class extraction[turbine]
   Annotation value visibility[turbine]
   Check @remove class[turbine]
   Check basic @remove scenarios[turbine]
@@ -21,7 +20,6 @@ com.android.tools.metalava.ApiFileTest
   Check skipping implicit final or deprecated override[turbine]
   Check various generics signature subtleties[turbine]
   Kotlin expect-actual with JvmOverloads[psi,k2]
-  Type-use annotations can be included in signature files[turbine]
 
 com.android.tools.metalava.CoreApiTest
   Hidden with --hide-annotation[turbine]
@@ -183,7 +181,6 @@ com.android.tools.metalava.doc.DocAnalyzerTest
   Add to existing multi-line method documentation[turbine]
   Add to existing single-line method documentation[turbine]
   Add to method when there are existing parameter docs and appear before these[turbine]
-  Annotation annotating itself indirectly[turbine]
   Api levels around current and preview[turbine]
   Basic documentation generation test[turbine]
   Check RequiresApi handling[turbine]
@@ -202,7 +199,6 @@ com.android.tools.metalava.doc.DocAnalyzerTest
   memberDoc crash[turbine]
 
 com.android.tools.metalava.lint.ApiLintTest
-  Check package layering[turbine]
   CompletableFuture and plain Future not allowed[turbine]
   Listener replaceable with OutcomeReceiver or ListenableFuture[turbine]
   Typedef must be hidden[turbine]
@@ -251,4 +247,3 @@ com.android.tools.metalava.stub.StubsTest
   Picking super class throwables[turbine]
   Skip type variables in casts[turbine]
   Translate DeprecatedForSdk to Deprecated[turbine]
-  Type-use annotations are not included in stubs[turbine]

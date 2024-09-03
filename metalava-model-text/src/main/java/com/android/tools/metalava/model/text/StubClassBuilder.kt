@@ -55,6 +55,10 @@ internal class StubClassBuilder(
                 containingClass = containingClass,
                 containingPackage = containingPackage,
                 typeParameterList = TypeParameterList.NONE,
+                // If this was from the class path then it would have been provided by the external
+                // `ClassResolver`. So, while this does not come from the signature file it also
+                // does not come from the class path either.
+                isFromClassPath = false,
             )
             .also { item -> item.setSuperClassType(superClassType) }
 
