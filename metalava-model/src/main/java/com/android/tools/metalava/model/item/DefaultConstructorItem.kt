@@ -85,7 +85,7 @@ open class DefaultConstructorItem(
             containingClass: ClassItem,
         ): ConstructorItem {
             val name = containingClass.simpleName()
-            val modifiers = DefaultModifierList(codebase, DefaultModifierList.PACKAGE_PRIVATE, null)
+            val modifiers = DefaultModifierList(DefaultModifierList.PACKAGE_PRIVATE)
             modifiers.setVisibilityLevel(containingClass.modifiers.getVisibilityLevel())
 
             val ctorItem =

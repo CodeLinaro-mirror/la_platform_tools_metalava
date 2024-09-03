@@ -259,7 +259,7 @@ class SourceFieldItemTest : BaseModelTest() {
             )
             assertEquals(
                 true,
-                fieldItem.modifiers.equivalentTo(duplicateField.modifiers),
+                fieldItem.modifiers.equivalentTo(fieldItem, duplicateField.modifiers),
                 message = "duplicated modifiers"
             )
             assertEquals(fieldItem.type(), duplicateField.type(), message = "duplicated types")

@@ -123,7 +123,7 @@ private constructor(
 
             val factory = JavaPsiFacade.getInstance(psiClass.project).elementFactory
             val psiMethod = factory.createConstructor(name, psiClass)
-            val modifiers = DefaultModifierList(codebase, PACKAGE_PRIVATE, null)
+            val modifiers = DefaultModifierList(PACKAGE_PRIVATE)
             modifiers.setVisibilityLevel(containingClass.modifiers.getVisibilityLevel())
 
             val item =

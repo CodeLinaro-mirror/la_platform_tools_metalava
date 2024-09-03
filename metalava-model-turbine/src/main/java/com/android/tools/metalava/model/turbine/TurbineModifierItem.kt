@@ -16,7 +16,6 @@
 package com.android.tools.metalava.model.turbine
 
 import com.android.tools.metalava.model.AnnotationItem
-import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.DefaultModifierList.Companion.ABSTRACT
 import com.android.tools.metalava.model.DefaultModifierList.Companion.DEFAULT
@@ -35,18 +34,14 @@ import com.android.tools.metalava.model.DefaultModifierList.Companion.VOLATILE
 import com.google.turbine.model.TurbineFlag
 
 internal object TurbineModifierItem {
-    fun create(
-        codebase: Codebase,
-        flag: Int,
-        annotations: List<AnnotationItem>?,
-    ): DefaultModifierList {
+    fun create(flag: Int, annotations: List<AnnotationItem>): DefaultModifierList {
         val modifierItem =
             when (flag) {
                 0 -> { // No Modifier. Default modifier is PACKAGE_PRIVATE in such case
-                    DefaultModifierList(codebase, annotations = annotations?.toMutableList())
+                    DefaultModifierList(annotations = annotations)
                 }
                 else -> {
-                    DefaultModifierList(codebase, computeFlag(flag), annotations?.toMutableList())
+                    DefaultModifierList(computeFlag(flag), annotations)
                 }
             }
         modifierItem.setDeprecated(isDeprecated(annotations))

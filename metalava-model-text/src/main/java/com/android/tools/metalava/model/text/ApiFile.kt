@@ -48,7 +48,6 @@ import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.TypeParameterListAndFactory
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.item.DefaultClassItem
-import com.android.tools.metalava.model.item.DefaultCodebase
 import com.android.tools.metalava.model.item.DefaultPackageItem
 import com.android.tools.metalava.model.item.DefaultTypeParameterItem
 import com.android.tools.metalava.model.item.DefaultValue
@@ -941,24 +940,19 @@ private constructor(
 
     /**
      * Collects all the sequential annotations from the [tokenizer] beginning with [startingToken],
-     * returning them as a (possibly empty) mutable list.
+     * returning them as a (possibly empty) list.
      *
      * When the method returns, the [tokenizer] will point to the token after the annotation list.
      */
-    private fun getAnnotations(
-        tokenizer: Tokenizer,
-        startingToken: String
-    ): MutableList<AnnotationItem> {
-        val annotations: MutableList<AnnotationItem> = mutableListOf()
+    private fun getAnnotations(tokenizer: Tokenizer, startingToken: String) = buildList {
         var token = startingToken
         while (true) {
             val annotationSource = getAnnotationSource(tokenizer, token) ?: break
             token = tokenizer.current
             DefaultAnnotationItem.create(codebase, annotationSource)?.let { annotationItem ->
-                annotations.add(annotationItem)
+                add(annotationItem)
             }
         }
-        return annotations
     }
 
     /**
@@ -1232,7 +1226,7 @@ private constructor(
     private fun parseModifiers(
         tokenizer: Tokenizer,
         startingToken: String?,
-        annotations: MutableList<AnnotationItem>
+        annotations: List<AnnotationItem>
     ): DefaultModifierList {
         var token = startingToken
         val modifiers = createModifiers(DefaultModifierList.PACKAGE_PRIVATE, annotations)
@@ -1341,9 +1335,9 @@ private constructor(
     /** Creates a [DefaultModifierList], setting the deprecation based on the [annotations]. */
     private fun createModifiers(
         visibility: Int,
-        annotations: MutableList<AnnotationItem>
+        annotations: List<AnnotationItem>
     ): DefaultModifierList {
-        val modifiers = DefaultModifierList(codebase, visibility, annotations)
+        val modifiers = DefaultModifierList(visibility, annotations)
         // @Deprecated is also treated as a "modifier"
         if (annotations.any { it.qualifiedName == JAVA_LANG_DEPRECATED }) {
             modifiers.setDeprecated(true)
@@ -1512,7 +1506,7 @@ private constructor(
             scopeDescription,
             typeParameterStrings,
             // Create a `TextTypeParameterItem` from the type parameter string.
-            { createTypeParameterItem(codebase, it) },
+            { createTypeParameterItem(it) },
             // Create, set and return the [BoundsTypeItem] list.
             { typeItemFactory, typeParameterString ->
                 val boundsStringList = extractTypeParameterBoundsStringList(typeParameterString)
@@ -1528,10 +1522,7 @@ private constructor(
      * [typeParameterString] and creates a [DefaultTypeParameterItem] with those properties
      * initialized but the [DefaultTypeParameterItem.bounds] is not.
      */
-    private fun createTypeParameterItem(
-        codebase: DefaultCodebase,
-        typeParameterString: String,
-    ): DefaultTypeParameterItem {
+    private fun createTypeParameterItem(typeParameterString: String): DefaultTypeParameterItem {
         val length = typeParameterString.length
         var nameEnd = length
 
@@ -1553,7 +1544,7 @@ private constructor(
         val name = typeParameterString.substring(nameStart, nameEnd)
 
         // TODO: Type use annotations support will need to handle annotations on the parameter.
-        val modifiers = DefaultModifierList(codebase, DefaultModifierList.PUBLIC)
+        val modifiers = DefaultModifierList(DefaultModifierList.PUBLIC)
 
         return itemFactory.createTypeParameterItem(
             modifiers = modifiers,

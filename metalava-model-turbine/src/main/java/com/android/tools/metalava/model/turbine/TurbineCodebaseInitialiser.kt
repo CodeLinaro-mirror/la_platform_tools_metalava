@@ -236,8 +236,7 @@ internal open class TurbineCodebaseInitialiser(
                 createTurbineSourceFile(unit)
                 val annotations = createAnnotations(sourceTypeBoundClass.annotations())
 
-                val modifiers =
-                    DefaultModifierList.createPublic(codebase, annotations.toMutableList())
+                val modifiers = DefaultModifierList.createPublic(annotations.toMutableList())
                 MutablePackageDoc(packageName, fileLocation, modifiers, comment)
             }
 
@@ -454,7 +453,6 @@ internal open class TurbineCodebaseInitialiser(
         val documentation = javadoc(decl)
         val modifierItem =
             TurbineModifierItem.create(
-                codebase,
                 cls.access(),
                 annotations,
             )
@@ -730,8 +728,7 @@ internal open class TurbineCodebaseInitialiser(
      * the same [TypeParameterList] can be resolved.
      */
     private fun createTypeParameter(sym: TyVarSymbol, param: TyVarInfo): DefaultTypeParameterItem {
-        val modifiers =
-            TurbineModifierItem.create(codebase, 0, createAnnotations(param.annotations()))
+        val modifiers = TurbineModifierItem.create(0, createAnnotations(param.annotations()))
         val typeParamItem =
             itemFactory.createTypeParameterItem(
                 modifiers,
@@ -779,7 +776,6 @@ internal open class TurbineCodebaseInitialiser(
             val decl = field.decl()
             val fieldModifierItem =
                 TurbineModifierItem.create(
-                    codebase,
                     flags,
                     annotations,
                 )
@@ -828,7 +824,6 @@ internal open class TurbineCodebaseInitialiser(
             val decl: MethDecl? = method.decl()
             val methodModifierItem =
                 TurbineModifierItem.create(
-                    codebase,
                     method.access(),
                     annotations,
                 )
@@ -901,8 +896,7 @@ internal open class TurbineCodebaseInitialiser(
         val declaredParameterOffset = parameters.size - (parameterDecls?.size ?: 0)
         return parameters.mapIndexed { idx, parameter ->
             val annotations = createAnnotations(parameter.annotations())
-            val parameterModifierItem =
-                TurbineModifierItem.create(codebase, parameter.access(), annotations)
+            val parameterModifierItem = TurbineModifierItem.create(parameter.access(), annotations)
             val type =
                 typeItemFactory.getMethodParameterType(
                     underlyingParameterType = parameter.type(),
@@ -950,7 +944,6 @@ internal open class TurbineCodebaseInitialiser(
             val decl: MethDecl? = constructor.decl()
             val constructorModifierItem =
                 TurbineModifierItem.create(
-                    codebase,
                     constructor.access(),
                     annotations,
                 )

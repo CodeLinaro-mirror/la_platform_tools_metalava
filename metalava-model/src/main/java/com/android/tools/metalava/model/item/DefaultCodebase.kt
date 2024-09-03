@@ -69,7 +69,7 @@ open class DefaultCodebase(
         val documentationFactory = packageDoc.commentFactory ?: "".toItemDocumentationFactory()
         assembler.itemFactory.createPackageItem(
             packageDoc.fileLocation,
-            packageDoc.modifiers ?: DefaultModifierList.createPublic(this),
+            packageDoc.modifiers ?: DefaultModifierList.createPublic(),
             documentationFactory,
             packageName,
             packageDoc.overview,

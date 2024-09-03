@@ -158,7 +158,7 @@ interface MethodItem : CallableItem, InheritableItem {
 
             // Compare modifier lists; note that here we need to
             // skip modifiers that don't apply in compat mode if set
-            if (!method.modifiers.equivalentTo(superMethod.modifiers)) {
+            if (!method.modifiers.equivalentTo(method, superMethod.modifiers)) {
                 return false
             }
 

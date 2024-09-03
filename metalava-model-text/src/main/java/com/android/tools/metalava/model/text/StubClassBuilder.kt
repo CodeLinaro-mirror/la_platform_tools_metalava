@@ -40,7 +40,7 @@ internal class StubClassBuilder(
     var classKind = ClassKind.CLASS
 
     /** The modifiers are set to `public` because otherwise there is no point in creating it. */
-    val modifiers = DefaultModifierList(codebase, DefaultModifierList.PUBLIC)
+    val modifiers = DefaultModifierList(DefaultModifierList.PUBLIC)
 
     var superClassType: ClassTypeItem? = null
 

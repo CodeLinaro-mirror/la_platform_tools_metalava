@@ -18,6 +18,7 @@ package com.android.tools.metalava
 
 import com.android.tools.metalava.manifest.Manifest
 import com.android.tools.metalava.manifest.emptyManifest
+import com.android.tools.metalava.model.ANDROIDX_REQUIRES_PERMISSION
 import com.android.tools.metalava.model.ANDROID_ANNOTATION_PREFIX
 import com.android.tools.metalava.model.ANDROID_DEPRECATED_FOR_SDK
 import com.android.tools.metalava.model.ANNOTATION_ATTR_VALUE
@@ -623,7 +624,7 @@ class ApiAnalyzer(
     }
 
     private fun checkSystemPermissions(method: MethodItem) {
-        val annotation = method.modifiers.findAnnotation(ANDROID_REQUIRES_PERMISSION)
+        val annotation = method.modifiers.findAnnotation(ANDROIDX_REQUIRES_PERMISSION)
         var hasAnnotation = false
 
         if (annotation != null) {

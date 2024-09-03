@@ -124,7 +124,7 @@ internal class ClassLoaderBasedClassResolver(jar: File) : ClassResolver {
 
                 itemFactory.createClassItem(
                     fileLocation = FileLocation.UNKNOWN,
-                    modifiers = DefaultModifierList(codebase),
+                    modifiers = DefaultModifierList(),
                     qualifiedName = cls.canonicalName,
                     classKind = ClassKind.CLASS,
                     containingClass = null,
