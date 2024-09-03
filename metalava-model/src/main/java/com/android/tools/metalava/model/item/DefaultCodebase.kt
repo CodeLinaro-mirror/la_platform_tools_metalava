@@ -25,13 +25,9 @@ import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.DefaultAnnotationItem
 import com.android.tools.metalava.model.Item
-import com.android.tools.metalava.model.PackageItem
-import com.android.tools.metalava.model.PackageList
 import com.android.tools.metalava.reporter.Reporter
 import java.io.File
 import java.util.HashMap
-
-private const val PACKAGE_ESTIMATE = 500
 
 /**
  * Base class of [Codebase]s for the models that do not incorporate their underlying model, if any,
@@ -61,31 +57,23 @@ open class DefaultCodebase(
      * The leaking of `this` is safe as the implementations do not access anything that has not been
      * initialized.
      */
-    open val assembler = assemblerFactory(@Suppress("LeakingThis") this)
+    val assembler = assemblerFactory(@Suppress("LeakingThis") this)
 
     override val reporter: Reporter
         get() = unsupported("reporter is not available")
 
-    /** Map from package name to [DefaultPackageItem] of all packages in this. */
-    private val packagesByName = HashMap<String, DefaultPackageItem>(PACKAGE_ESTIMATE)
+    /** Tracks [DefaultPackageItem] use in this [Codebase]. */
+    private val packageTracker = PackageTracker()
 
-    final override fun getPackages(): PackageList {
-        val list = packagesByName.values.toMutableList()
-        list.sortWith(PackageItem.comparator)
-        return PackageList(this, list)
-    }
+    final override fun getPackages() = packageTracker.getPackages()
 
-    final override fun size(): Int {
-        return packagesByName.size
-    }
+    final override fun size() = packageTracker.size
 
-    final override fun findPackage(pkgName: String): DefaultPackageItem? {
-        return packagesByName[pkgName]
-    }
+    final override fun findPackage(pkgName: String) = packageTracker.findPackage(pkgName)
 
     /** Add the package to this. */
     fun addPackage(packageItem: DefaultPackageItem) {
-        packagesByName[packageItem.qualifiedName()] = packageItem
+        packageTracker.addPackage(packageItem)
     }
 
     /**

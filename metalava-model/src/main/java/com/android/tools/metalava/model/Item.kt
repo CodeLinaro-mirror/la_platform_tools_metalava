@@ -434,7 +434,8 @@ interface Item : Reportable {
         }
 
         private fun describe(item: PackageItem, capitalize: Boolean = false): String {
-            return "${if (capitalize) "Package" else "package"} ${item.qualifiedName()}"
+            val suffix = item.qualifiedName().let { if (it.isEmpty()) "<root>" else it }
+            return "${if (capitalize) "Package" else "package"} $suffix"
         }
     }
 }

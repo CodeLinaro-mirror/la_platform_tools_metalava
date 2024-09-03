@@ -50,11 +50,8 @@ internal class TextCodebase(
         assemblerFactory = assemblerFactory
     ) {
 
-    override val assembler
-        get() = super.assembler as TextCodebaseAssembler
-
     init {
-        assembler.initialize()
+        (assembler as TextCodebaseAssembler).initialize()
     }
 
     /**

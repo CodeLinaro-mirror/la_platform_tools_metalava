@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.snapshot
 
+import com.android.tools.metalava.model.ApiVariantSelectors
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassTypeItem
@@ -25,6 +26,7 @@ import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.DefaultTypeParameterList
 import com.android.tools.metalava.model.DelegatedVisitor
 import com.android.tools.metalava.model.FieldItem
+import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ModifierList
 import com.android.tools.metalava.model.PackageItem
@@ -39,6 +41,7 @@ import com.android.tools.metalava.model.item.DefaultClassItem
 import com.android.tools.metalava.model.item.DefaultCodebase
 import com.android.tools.metalava.model.item.DefaultConstructorItem
 import com.android.tools.metalava.model.item.DefaultFieldItem
+import com.android.tools.metalava.model.item.DefaultItemFactory
 import com.android.tools.metalava.model.item.DefaultMethodItem
 import com.android.tools.metalava.model.item.DefaultPackageItem
 import com.android.tools.metalava.model.item.DefaultParameterItem
@@ -60,12 +63,25 @@ internal fun TypeItemFactoryStack.pop() {
 
 /** Constructs a [Codebase] by taking a snapshot of another [Codebase] that is being visited. */
 class CodebaseSnapshotTaker : DelegatedVisitor, CodebaseAssembler {
+
     /**
      * The [Codebase] that is under construction.
      *
      * Initialized in [visitCodebase].
      */
     private lateinit var codebase: DefaultCodebase
+
+    override val itemFactory: DefaultItemFactory by
+        lazy(LazyThreadSafetyMode.NONE) {
+            DefaultItemFactory(
+                codebase,
+                // Snapshots currently only support java.
+                defaultItemLanguage = ItemLanguage.JAVA,
+                // Snapshots have already been separated by API surface variants, so they can use
+                // the same immutable ApiVariantSelectors.
+                ApiVariantSelectors.IMMUTABLE_FACTORY,
+            )
+        }
 
     /**
      * The original [Codebase] that is being snapshotted construction.

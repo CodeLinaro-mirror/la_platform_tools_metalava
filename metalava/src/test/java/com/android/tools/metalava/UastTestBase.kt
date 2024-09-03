@@ -809,6 +809,36 @@ abstract class UastTestBase : DriverTest() {
     }
 
     @Test
+    fun `Upper bound wildcards -- suspend continuation with generic collection`() {
+        val wildcard = if (isK2) "" else "? extends "
+        check(
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                        package test.pkg
+
+                        class Test {
+                          suspend fun foo(): Set<String> {
+                            return setOf("blah")
+                          }
+                        }
+                        """
+                    )
+                ),
+            api =
+                """
+                package test.pkg {
+                  public final class Test {
+                    ctor public Test();
+                    method public suspend Object? foo(kotlin.coroutines.Continuation<? super java.util.Set<${wildcard}java.lang.String>>);
+                  }
+                }
+                """
+        )
+    }
+
+    @Test
     fun `boxed type argument as method return type`() {
         // https://youtrack.jetbrains.com/issue/KT-57579
         check(

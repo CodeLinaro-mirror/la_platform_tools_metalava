@@ -618,7 +618,7 @@ class ApiAnalyzer(
                 }
             }
 
-        packages.accept(visitor)
+        codebase.accept(visitor)
     }
 
     private fun checkSystemPermissions(method: MethodItem) {
@@ -720,7 +720,7 @@ class ApiAnalyzer(
             !reporter.isSuppressed(Issues.UNHIDDEN_SYSTEM_API) &&
                 config.allShowAnnotations.isNotEmpty()
 
-        packages.accept(
+        codebase.accept(
             object :
                 ApiVisitor(
                     config = @Suppress("DEPRECATION") options.apiVisitorConfig,

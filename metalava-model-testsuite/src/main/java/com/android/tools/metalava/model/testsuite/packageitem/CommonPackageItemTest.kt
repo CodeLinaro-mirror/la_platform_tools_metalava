@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.testsuite.packageitem
 
+import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.KnownSourceFiles.nonNullSource
 import com.android.tools.metalava.testing.html
@@ -137,6 +138,226 @@ class CommonPackageItemTest : BaseModelTest() {
             assertEquals(
                 "@android.annotation.NonNull",
                 packageItem.modifiers.annotations().single().toString()
+            )
+        }
+    }
+
+    private fun dumpPackageContainment(start: Item): String {
+        return buildString {
+            val packageContainment = generateSequence(start) { it.containingPackage() }
+            for (item in packageContainment) {
+                if (isNotEmpty()) append("-> ")
+                append(item.describe())
+                append("\n")
+            }
+        }
+    }
+
+    @Test
+    fun `Test package containment`() {
+        runCodebaseTest(
+            signature(
+                """
+                    // Signature format: 2.0
+                    package java.lang.invoke.mine {
+                        public class Foo {
+                        }
+                    }
+                """
+            ),
+            java(
+                """
+                    package java.lang.invoke.mine;
+
+                    public class Foo {
+                    }
+                """
+            ),
+        ) {
+            val classItem = codebase.assertClass("java.lang.invoke.mine.Foo")
+
+            assertEquals(
+                """
+                    class java.lang.invoke.mine.Foo
+                    -> package java.lang.invoke.mine
+                    -> package java.lang.invoke
+                    -> package java.lang
+                    -> package java
+                    -> package <root>
+                """
+                    .trimIndent(),
+                dumpPackageContainment(classItem).trim()
+            )
+        }
+    }
+
+    @Test
+    fun `Test package location (package-info)`() {
+        runCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+
+                        public class Foo {
+                        }
+                    """
+                ),
+                java(
+                    """
+                        /** Some text. */
+                        package test.pkg;
+                    """
+                ),
+            ),
+        ) {
+            val packageItem = codebase.assertPackage("test.pkg")
+            val packageLocation = packageItem.fileLocation.path.toString()
+
+            assertEquals(
+                "TESTROOT/src/test/pkg/package-info.java",
+                removeTestSpecificDirectories(packageLocation)
+            )
+        }
+    }
+
+    @Test
+    fun `Test package documentation (package-info)`() {
+        runCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+
+                        public class Foo {
+                        }
+                    """
+                ),
+                java(
+                    """
+                        /** Some text. */
+                        package test.pkg;
+                    """
+                ),
+            ),
+        ) {
+            val packageItem = codebase.assertPackage("test.pkg")
+
+            assertEquals(
+                "/** Some text. */",
+                packageItem.documentation.text.trim(),
+            )
+        }
+    }
+
+    @Test
+    fun `Test package location (package-html)`() {
+        runCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+
+                        public class Foo {
+                        }
+                    """
+                ),
+                html(
+                    "src/test/pkg/package.html",
+                    """
+                        <HTML>
+                        <BODY>
+                        Some text.
+                        </BODY>
+                        </HTML>
+                    """
+                ),
+            ),
+        ) {
+            val packageItem = codebase.assertPackage("test.pkg")
+            val packageLocation = packageItem.fileLocation.path.toString()
+
+            assertEquals(
+                "TESTROOT/src/test/pkg/package.html",
+                removeTestSpecificDirectories(packageLocation)
+            )
+        }
+    }
+
+    @Test
+    fun `Test package documentation (package-html)`() {
+        runCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+
+                        public class Foo {
+                        }
+                    """
+                ),
+                html(
+                    "src/test/pkg/package.html",
+                    """
+                        <HTML>
+                        <BODY>
+                        Some text.
+                        </BODY>
+                        </HTML>
+                    """
+                ),
+            ),
+        ) {
+            val packageItem = codebase.assertPackage("test.pkg")
+
+            assertEquals(
+                """
+                    /**
+                     * Some text.
+                     */
+                """
+                    .trimIndent(),
+                packageItem.documentation.text.trim(),
+            )
+        }
+    }
+
+    @Test
+    fun `Test package documentation (overview-html)`() {
+        runCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+
+                        public class Foo {
+                        }
+                    """
+                ),
+                html(
+                    "src/test/pkg/overview.html",
+                    """
+                        <HTML>
+                        <BODY>
+                        Overview.
+                        </BODY>
+                        </HTML>
+                    """
+                ),
+            ),
+        ) {
+            val packageItem = codebase.assertPackage("test.pkg")
+
+            assertEquals(
+                """
+                    <HTML>
+                    <BODY>
+                    Overview.
+                    </BODY>
+                    </HTML>
+                """
+                    .trimIndent(),
+                packageItem.overviewDocumentation?.trim(),
             )
         }
     }

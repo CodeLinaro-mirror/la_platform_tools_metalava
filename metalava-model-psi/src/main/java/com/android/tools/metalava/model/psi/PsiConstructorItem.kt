@@ -49,7 +49,7 @@ private constructor(
     returnType: ClassTypeItem,
     typeParameterList: TypeParameterList,
     throwsTypes: List<ExceptionTypeItem>,
-    val implicitConstructor: Boolean = false,
+    implicitConstructor: Boolean = false,
     override val isPrimary: Boolean = false
 ) :
     DefaultConstructorItem(
@@ -95,8 +95,8 @@ private constructor(
                     psiMethod = psiMethod,
                     containingClass = containingClass,
                     name = name,
-                    documentationFactory = PsiItemDocumentation.factory(psiMethod, codebase),
                     modifiers = modifiers,
+                    documentationFactory = PsiItemDocumentation.factory(psiMethod, codebase),
                     parameterItemsFactory = { containingCallable ->
                         parameterList(
                             codebase,
@@ -106,10 +106,10 @@ private constructor(
                         )
                     },
                     returnType = containingClass.type(),
-                    implicitConstructor = false,
-                    isPrimary = (psiMethod as? UMethod)?.isPrimaryConstructor ?: false,
                     typeParameterList = typeParameterList,
                     throwsTypes = throwsTypes(psiMethod, constructorTypeItemFactory),
+                    implicitConstructor = false,
+                    isPrimary = (psiMethod as? UMethod)?.isPrimaryConstructor ?: false,
                 )
             return constructor
         }
@@ -135,13 +135,13 @@ private constructor(
                     fileLocation = containingClass.fileLocation,
                     containingClass = containingClass,
                     name = name,
-                    documentationFactory = ItemDocumentation.NONE_FACTORY,
                     modifiers = modifiers,
+                    documentationFactory = ItemDocumentation.NONE_FACTORY,
                     parameterItemsFactory = { emptyList() },
                     returnType = containingClass.type(),
-                    implicitConstructor = true,
                     typeParameterList = TypeParameterList.NONE,
                     throwsTypes = emptyList(),
+                    implicitConstructor = true,
                 )
             return item
         }
