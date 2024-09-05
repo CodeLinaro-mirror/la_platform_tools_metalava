@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model.item
 
 import com.android.tools.metalava.model.ApiVariantSelectors
+import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.DefaultModifierList
@@ -27,17 +28,17 @@ import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterBindings
 import com.android.tools.metalava.reporter.FileLocation
 
-internal class DefaultParameterItem(
+open class DefaultParameterItem(
     codebase: Codebase,
     fileLocation: FileLocation,
     itemLanguage: ItemLanguage,
     modifiers: DefaultModifierList,
     private val name: String,
-    private val publicNameProvider: PublicNameProvider,
+    protected val publicNameProvider: PublicNameProvider,
     private val containingCallable: CallableItem,
     override val parameterIndex: Int,
     private var type: TypeItem,
-    override val defaultValue: DefaultValue,
+    defaultValueFactory: DefaultValueFactory,
 ) :
     DefaultItem(
         codebase = codebase,
@@ -49,25 +50,34 @@ internal class DefaultParameterItem(
     ),
     ParameterItem {
 
-    override fun name(): String = name
+    init {
+        // Set the varargs modifier to true if the type is a varargs.
+        type.let { if (it is ArrayTypeItem && it.isVarargs) modifiers.setVarArg(true) }
+    }
 
-    override fun publicName(): String? = publicNameProvider(this)
+    /**
+     * Create the [DefaultValue] during initialization of this parameter to allow it to contain an
+     * immutable reference to this object.
+     */
+    final override val defaultValue = defaultValueFactory(this)
 
-    override fun containingCallable(): CallableItem = containingCallable
+    final override fun name(): String = name
 
-    override fun isVarArgs(): Boolean = modifiers.isVarArg()
+    final override fun publicName(): String? = publicNameProvider(this)
 
-    override fun type(): TypeItem = type
+    final override fun containingCallable(): CallableItem = containingCallable
 
-    override fun setType(type: TypeItem) {
+    final override fun type(): TypeItem = type
+
+    final override fun setType(type: TypeItem) {
         this.type = type
     }
 
-    override fun hasDefaultValue(): Boolean = defaultValue.hasDefaultValue()
+    final override fun hasDefaultValue(): Boolean = defaultValue.hasDefaultValue()
 
-    override fun isDefaultValueKnown(): Boolean = defaultValue.isDefaultValueKnown()
+    final override fun isDefaultValueKnown(): Boolean = defaultValue.isDefaultValueKnown()
 
-    override fun defaultValueAsString(): String? = defaultValue.value()
+    final override fun defaultValueAsString(): String? = defaultValue.value()
 
     override fun duplicate(
         containingCallable: CallableItem,
@@ -83,6 +93,6 @@ internal class DefaultParameterItem(
             containingCallable,
             parameterIndex,
             type().convertType(typeVariableMap),
-            defaultValue,
+            defaultValue::duplicate,
         )
 }

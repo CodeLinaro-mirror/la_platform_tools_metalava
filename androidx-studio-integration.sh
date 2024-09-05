@@ -14,7 +14,7 @@ mkdir -p "$DIST_DIR"
 export OUT_DIR=out
 export DIST_DIR="$DIST_DIR"
 
-JAVA_HOME="$(pwd)/prebuilts/studio/jdk/jdk17/linux" tools/gradlew -p tools/ publishLocal --stacktrace
+JAVA_HOME="$(pwd)/prebuilts/studio/jdk/jbr-next/linux" tools/gradlew -p tools/ publishLocal --stacktrace
 
 # Depend on the generated version.properties file, as the version depends on
 # the release flag
@@ -23,7 +23,7 @@ versionProperties="$OUT_DIR/build/base/builder-model/build/resources/main/com/an
 export LINT_VERSION=`perl -nle'print $& while m{(?<=baseVersion=).*}g' $versionProperties`
 export LINT_REPO="$(pwd)/out/repo"
 
-JAVA_HOME="$(pwd)/prebuilts/jdk/jdk17/linux-x86/" tools/gradlew -p tools/metalava \
+JAVA_HOME="$(pwd)/prebuilts/jdk/jdk21/linux-x86/" tools/gradlew -p tools/metalava \
   --no-daemon \
   --stacktrace \
    --dependency-verification=off

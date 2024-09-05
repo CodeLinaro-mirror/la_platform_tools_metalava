@@ -29,6 +29,7 @@ import com.android.tools.metalava.model.TypeModifiers
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.WildcardTypeItem
+import com.intellij.psi.LambdaUtil
 import com.intellij.psi.PsiArrayType
 import com.intellij.psi.PsiClassType
 import com.intellij.psi.PsiPrimitiveType
@@ -101,6 +102,10 @@ internal open class PsiClassTypeItem(
         lazy(LazyThreadSafetyMode.NONE) { codebase.resolveClass(qualifiedName) }
 
     override fun asClass() = asClassCache
+
+    override fun isFunctionalType(): Boolean {
+        return LambdaUtil.isFunctionalType(psiType)
+    }
 
     @Deprecated(
         "implementation detail of this class",

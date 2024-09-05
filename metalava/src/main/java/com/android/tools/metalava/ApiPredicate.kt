@@ -171,7 +171,7 @@ class ApiPredicate(
      * have at least one [AnnotationItem.isShowAnnotation] annotation and all those annotations are
      * also an [AnnotationItem.isShowForStubPurposes] annotation.
      */
-    private fun includeOnlyForStubPurposes(item: Item): Boolean {
+    private fun includeOnlyForStubPurposes(item: SelectableItem): Boolean {
         if (!item.codebase.annotationManager.hasAnyStubPurposesAnnotations()) {
             return false
         }
@@ -179,7 +179,7 @@ class ApiPredicate(
         return includeOnlyForStubPurposesRecursive(item)
     }
 
-    private fun includeOnlyForStubPurposesRecursive(item: Item): Boolean {
+    private fun includeOnlyForStubPurposesRecursive(item: SelectableItem): Boolean {
         // Get the item's API membership. If it belongs to an API surface then return `true` if the
         // API surface to which it belongs is the base API, and false otherwise.
         val membership = item.apiMembership()
@@ -223,7 +223,7 @@ class ApiPredicate(
     }
 
     /** Get the API to which this [Item] belongs, according to the annotations. */
-    private fun Item.apiMembership(): ApiMembership {
+    private fun SelectableItem.apiMembership(): ApiMembership {
         // If the item has a "show" annotation, then return whether it *only* has a "for stubs"
         // show annotation or not.
         //

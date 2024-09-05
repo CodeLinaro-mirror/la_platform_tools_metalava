@@ -18,6 +18,7 @@ package com.android.tools.metalava
 
 import com.android.tools.metalava.cli.common.ARG_WARNING
 import com.android.tools.metalava.lint.DefaultLintErrorMessage
+import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.testing.java
 import org.junit.Test
 
@@ -76,6 +77,7 @@ class AndroidApiChecksTest : DriverTest() {
                 """
                 src/android/pkg/PermissionTest.java:14: error: Method 'test0' documentation mentions permissions without declaring @RequiresPermission [RequiresPermission]
                 src/android/pkg/PermissionTest.java:21: error: Method 'test1' documentation duplicates auto-generated documentation by @RequiresPermission. If the permissions are only required under certain circumstances use conditional=true to suppress the auto-documentation [RequiresPermission]
+                src/android/pkg/PermissionTest.java:41: warning: Method 'conditionalBad' documentation does not explain when the conditional permission 'ACCESS_COARSE_LOCATION' is required. [ConditionalRequiresPermissionNotExplained]
                 """,
             sourceFiles =
                 arrayOf(
@@ -116,6 +118,13 @@ class AndroidApiChecksTest : DriverTest() {
                         @RequiresPermission(allOf = Manifest.permission.ACCESS_COARSE_LOCATION, conditional = true)
                         public void conditionalOk() {
                         }
+
+                        /**
+                         * Not documenting the conditional permission.
+                         */
+                        @RequiresPermission(allOf = Manifest.permission.ACCESS_COARSE_LOCATION, conditional = true)
+                        public void conditionalBad() {
+                        }
                     }
                     """
                     ),
@@ -133,7 +142,9 @@ class AndroidApiChecksTest : DriverTest() {
                     """
                     ),
                     requiresPermissionSource
-                )
+                ),
+            extraArguments =
+                arrayOf(ARG_WARNING, Issues.CONDITIONAL_REQUIRES_PERMISSION_NOT_EXPLAINED.name),
         )
     }
 

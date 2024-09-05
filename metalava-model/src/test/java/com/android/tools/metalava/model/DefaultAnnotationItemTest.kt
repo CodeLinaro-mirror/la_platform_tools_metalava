@@ -16,7 +16,9 @@
 
 package com.android.tools.metalava.model
 
+import com.android.tools.metalava.model.item.CodebaseAssembler
 import com.android.tools.metalava.model.item.DefaultCodebase
+import com.android.tools.metalava.model.item.DefaultItemFactory
 import java.io.File
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
@@ -33,6 +35,14 @@ class DefaultAnnotationItemTest {
             annotationManager = noOpAnnotationManager,
             trustedApi = false,
             supportsDocumentation = false,
+            assemblerFactory = {
+                object : CodebaseAssembler {
+                    override val itemFactory: DefaultItemFactory
+                        get() = error("unsupported")
+
+                    override fun createClassFromUnderlyingModel(qualifiedName: String) = null
+                }
+            },
         )
 
     private fun createDefaultAnnotationItem(source: String) =

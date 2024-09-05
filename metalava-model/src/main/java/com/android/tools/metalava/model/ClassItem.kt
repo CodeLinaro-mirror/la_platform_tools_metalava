@@ -50,7 +50,7 @@ interface ClassItem : SelectableItem, TypeParameterListOwner {
         return sequenceOf(this).plus(nestedClasses().asSequence().flatMap { it.allClasses() })
     }
 
-    override fun parent(): Item? = containingClass() ?: containingPackage()
+    override fun parent(): SelectableItem? = containingClass() ?: containingPackage()
 
     override val effectivelyDeprecated: Boolean
         get() = originallyDeprecated || containingClass()?.effectivelyDeprecated == true

@@ -207,17 +207,22 @@ class AndroidApiChecks(val reporter: Reporter) {
                     }
                 }
             }
-            if (!conditional) {
-                for (item in permissions) {
-                    var perm = item
-                    if (perm.indexOf('.') >= 0) perm = perm.substring(perm.lastIndexOf('.') + 1)
-                    if (text.contains(perm)) {
-                        reporter.report(
-                            Issues.REQUIRES_PERMISSION,
-                            callable,
-                            "Method '${callable.name()}' documentation duplicates auto-generated documentation by @RequiresPermission. If the permissions are only required under certain circumstances use conditional=true to suppress the auto-documentation"
-                        )
-                    }
+            for (item in permissions) {
+                var perm = item
+                if (perm.indexOf('.') >= 0) perm = perm.substring(perm.lastIndexOf('.') + 1)
+                val mentioned = text.contains(perm)
+                if (mentioned && !conditional) {
+                    reporter.report(
+                        Issues.REQUIRES_PERMISSION,
+                        callable,
+                        "Method '${callable.name()}' documentation duplicates auto-generated documentation by @RequiresPermission. If the permissions are only required under certain circumstances use conditional=true to suppress the auto-documentation"
+                    )
+                } else if (!mentioned && conditional) {
+                    reporter.report(
+                        Issues.CONDITIONAL_REQUIRES_PERMISSION_NOT_EXPLAINED,
+                        callable,
+                        "Method '${callable.name()}' documentation does not explain when the conditional permission '$perm' is required."
+                    )
                 }
             }
         } else if (

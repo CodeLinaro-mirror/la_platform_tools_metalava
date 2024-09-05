@@ -28,7 +28,7 @@ internal class TextCodebaseAssembler(
 ) : CodebaseAssembler {
 
     /** Creates [Item] instances for this. */
-    internal val itemFactory =
+    override val itemFactory =
         DefaultItemFactory(
             codebase = codebase,
             // Signature files do not contain information about whether an item was originally
@@ -39,7 +39,7 @@ internal class TextCodebaseAssembler(
             defaultVariantSelectorsFactory = ApiVariantSelectors.IMMUTABLE_FACTORY,
         )
 
-    init {
+    fun initialize() {
         // Make sure that it has a root package.
         val rootPackage = itemFactory.createPackageItem(qualifiedName = "")
         codebase.addPackage(rootPackage)

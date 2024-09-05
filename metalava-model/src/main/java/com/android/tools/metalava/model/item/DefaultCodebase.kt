@@ -24,14 +24,12 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.DefaultAnnotationItem
+import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.Item
-import com.android.tools.metalava.model.PackageItem
-import com.android.tools.metalava.model.PackageList
+import com.android.tools.metalava.model.ItemDocumentation.Companion.toItemDocumentationFactory
 import com.android.tools.metalava.reporter.Reporter
 import java.io.File
 import java.util.HashMap
-
-private const val PACKAGE_ESTIMATE = 500
 
 /**
  * Base class of [Codebase]s for the models that do not incorporate their underlying model, if any,
@@ -44,6 +42,7 @@ open class DefaultCodebase(
     annotationManager: AnnotationManager,
     trustedApi: Boolean,
     supportsDocumentation: Boolean,
+    assemblerFactory: CodebaseAssemblerFactory,
 ) :
     AbstractCodebase(
         location,
@@ -54,29 +53,38 @@ open class DefaultCodebase(
         supportsDocumentation,
     ) {
 
+    /**
+     * Create a [CodebaseAssembler] appropriate for this [Codebase].
+     *
+     * The leaking of `this` is safe as the implementations do not access anything that has not been
+     * initialized.
+     */
+    val assembler = assemblerFactory(@Suppress("LeakingThis") this)
+
     override val reporter: Reporter
         get() = unsupported("reporter is not available")
 
-    /** Map from package name to [DefaultPackageItem] of all packages in this. */
-    private val packagesByName = HashMap<String, DefaultPackageItem>(PACKAGE_ESTIMATE)
-
-    final override fun getPackages(): PackageList {
-        val list = packagesByName.values.toMutableList()
-        list.sortWith(PackageItem.comparator)
-        return PackageList(this, list)
+    /** Tracks [DefaultPackageItem] use in this [Codebase]. */
+    val packageTracker = PackageTracker { packageName, packageDoc ->
+        val documentationFactory = packageDoc.commentFactory ?: "".toItemDocumentationFactory()
+        assembler.itemFactory.createPackageItem(
+            packageDoc.fileLocation,
+            packageDoc.modifiers ?: DefaultModifierList.createPublic(),
+            documentationFactory,
+            packageName,
+            packageDoc.overview,
+        )
     }
 
-    final override fun size(): Int {
-        return packagesByName.size
-    }
+    final override fun getPackages() = packageTracker.getPackages()
 
-    final override fun findPackage(pkgName: String): DefaultPackageItem? {
-        return packagesByName[pkgName]
-    }
+    final override fun size() = packageTracker.size
+
+    final override fun findPackage(pkgName: String) = packageTracker.findPackage(pkgName)
 
     /** Add the package to this. */
     fun addPackage(packageItem: DefaultPackageItem) {
-        packagesByName[packageItem.qualifiedName()] = packageItem
+        packageTracker.addPackage(packageItem)
     }
 
     /**
@@ -131,10 +139,11 @@ open class DefaultCodebase(
     open fun newClassRegistered(classItem: DefaultClassItem) {}
 
     /**
-     * Provide a simple implementation that just looks for an existing class in this [Codebase].
-     * Subclasses can override this to search other sources for the class.
+     * Looks for an existing class in this [Codebase] and if that cannot be found then delegate to
+     * the [assembler] to see if it can create a class from the underlying model.
      */
-    override fun resolveClass(className: String) = findClass(className)
+    override fun resolveClass(className: String) =
+        findClass(className) ?: assembler.createClassFromUnderlyingModel(className)
 
     final override fun createAnnotation(
         source: String,

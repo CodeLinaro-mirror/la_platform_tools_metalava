@@ -16,14 +16,13 @@
 
 package com.android.tools.metalava.model
 
-class DefaultModifierList(
-    override val codebase: Codebase,
-    private var flags: Int = PACKAGE_PRIVATE,
-    private var annotations: MutableList<AnnotationItem>? = null
-) : MutableModifierList {
-    /** Set in [DefaultItem] initialization. */
-    internal lateinit var owner: Item
+import java.lang.annotation.Retention
+import java.lang.annotation.RetentionPolicy
 
+class DefaultModifierList(
+    private var flags: Int = PACKAGE_PRIVATE,
+    private var annotations: List<AnnotationItem> = emptyList(),
+) : MutableModifierList {
     private operator fun set(mask: Int, set: Boolean) {
         flags =
             if (set) {
@@ -38,11 +37,7 @@ class DefaultModifierList(
     }
 
     override fun annotations(): List<AnnotationItem> {
-        return annotations ?: emptyList()
-    }
-
-    override fun owner(): Item {
-        return owner
+        return annotations
     }
 
     override fun getVisibilityLevel(): VisibilityLevel {
@@ -255,28 +250,10 @@ class DefaultModifierList(
         set(ACTUAL, actual)
     }
 
-    override fun addAnnotation(annotation: AnnotationItem?) {
-        annotation ?: return
-        if (annotations == null) {
-            annotations = mutableListOf()
-        }
-        annotations?.add(annotation)
-    }
-
-    override fun removeAnnotation(annotation: AnnotationItem) {
-        annotations?.remove(annotation)
-    }
-
-    override fun removeAnnotations(predicate: (AnnotationItem) -> Boolean) {
-        annotations?.removeAll(predicate)
-    }
-
-    override fun clearAnnotations(annotation: AnnotationItem) {
-        annotations?.clear()
-    }
-
-    override fun isEmpty(): Boolean {
-        return flags and DEPRECATED.inv() == 0 // deprecated isn't a real modifier
+    override fun mutateAnnotations(mutator: MutableList<AnnotationItem>.() -> Unit) {
+        val mutable = annotations.toMutableList()
+        mutable.mutator()
+        annotations = mutable.toList()
     }
 
     override fun isPackagePrivate(): Boolean {
@@ -288,14 +265,7 @@ class DefaultModifierList(
      * codebase.
      */
     fun duplicate(): DefaultModifierList {
-        val annotations = this.annotations
-        val newAnnotations =
-            if (annotations.isNullOrEmpty()) {
-                null
-            } else {
-                annotations.toMutableList()
-            }
-        return DefaultModifierList(codebase, flags, newAnnotations)
+        return DefaultModifierList(flags, this.annotations)
     }
 
     /**
@@ -309,45 +279,45 @@ class DefaultModifierList(
     fun snapshot(targetCodebase: Codebase): DefaultModifierList {
         val annotations = this.annotations
         val newAnnotations =
-            if (annotations.isNullOrEmpty()) {
-                null
+            if (annotations.isEmpty()) {
+                annotations
             } else {
                 mutableListOf<AnnotationItem>().apply {
                     annotations.mapTo(this) { it.snapshot(targetCodebase) }
                 }
             }
-        return DefaultModifierList(targetCodebase, flags, newAnnotations)
+        return DefaultModifierList(flags, newAnnotations)
     }
 
-    // Rename? It's not a full equality, it's whether an override's modifier set is significant
-    override fun equivalentTo(other: ModifierList): Boolean {
-        if (other is DefaultModifierList) {
-            val flags2 = other.flags
-            val mask = EQUIVALENCE_MASK
+    override fun equivalentTo(owner: Item?, other: ModifierList): Boolean {
+        other as DefaultModifierList
 
-            val masked1 = flags and mask
-            val masked2 = flags2 and mask
-            val same = masked1 xor masked2
-            if (same == 0) {
+        val flags2 = other.flags
+        val mask = EQUIVALENCE_MASK
+
+        val masked1 = flags and mask
+        val masked2 = flags2 and mask
+        val same = masked1 xor masked2
+        if (same == 0) {
+            return true
+        } else {
+            if (
+                same == FINAL &&
+                    // Only differ in final: not significant if implied by containing class
+                    isFinal() &&
+                    (owner as? MethodItem)?.containingClass()?.modifiers?.isFinal() == true
+            ) {
                 return true
-            } else {
-                if (
-                    same == FINAL &&
-                        // Only differ in final: not significant if implied by containing class
-                        isFinal() &&
-                        (owner as? MethodItem)?.containingClass()?.modifiers?.isFinal() == true
-                ) {
-                    return true
-                } else if (
-                    same == DEPRECATED &&
-                        // Only differ in deprecated: not significant if implied by containing class
-                        isDeprecated() &&
-                        (owner as? MethodItem)?.containingClass()?.effectivelyDeprecated == true
-                ) {
-                    return true
-                }
+            } else if (
+                same == DEPRECATED &&
+                    // Only differ in deprecated: not significant if implied by containing class
+                    isDeprecated() &&
+                    (owner as? MethodItem)?.containingClass()?.effectivelyDeprecated == true
+            ) {
+                return true
             }
         }
+
         return false
     }
 
@@ -365,11 +335,20 @@ class DefaultModifierList(
 
     override fun hashCode(): Int {
         var result = flags
-        result = 31 * result + (annotations?.hashCode() ?: 0)
+        result = 31 * result + annotations.hashCode()
         return result
     }
 
+    override fun toString(): String {
+        val binaryFlags = Integer.toBinaryString(flags)
+        return "ModifierList(flags = 0b$binaryFlags, annotations = $annotations)"
+    }
+
     companion object {
+        /** Create a public modifiers object. */
+        fun createPublic(annotations: List<AnnotationItem> = emptyList()) =
+            DefaultModifierList(PUBLIC, annotations)
+
         /**
          * 'PACKAGE_PRIVATE' is set to 0 to act as the default visibility when no other visibility
          * flags are explicitly set.
@@ -455,4 +434,30 @@ class DefaultModifierList(
                 SUSPEND or
                 COMPANION
     }
+}
+
+/**
+ * Add a [Retention] annotation with the default [RetentionPolicy] suitable for [item].
+ *
+ * The caller must ensure that the annotation does not already have a [Retention] annotation before
+ * calling this.
+ */
+fun DefaultModifierList.addDefaultRetentionPolicyAnnotation(item: ClassItem) {
+    // By policy, include explicit retention policy annotation if missing
+    val isKotlin = item.itemLanguage == ItemLanguage.KOTLIN
+    val defaultRetentionPolicy = AnnotationRetention.getDefault(isKotlin)
+    addAnnotation(
+        item.codebase.createAnnotation(
+            buildString {
+                append('@')
+                append(Retention::class.qualifiedName)
+                append('(')
+                append(RetentionPolicy::class.qualifiedName)
+                append('.')
+                append(defaultRetentionPolicy.name)
+                append(')')
+            },
+            item,
+        )
+    )
 }

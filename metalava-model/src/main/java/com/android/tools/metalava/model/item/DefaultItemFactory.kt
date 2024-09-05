@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model.item
 
 import com.android.tools.metalava.model.ApiVariantSelectorsFactory
+import com.android.tools.metalava.model.CallableBody
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
@@ -27,6 +28,7 @@ import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.ItemDocumentation
+import com.android.tools.metalava.model.ItemDocumentation.Companion.toItemDocumentationFactory
 import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.MethodItem
@@ -58,9 +60,10 @@ class DefaultItemFactory(
     /** Create a [PackageItem]. */
     fun createPackageItem(
         fileLocation: FileLocation = FileLocation.UNKNOWN,
-        modifiers: DefaultModifierList = DefaultModifierList(codebase),
-        documentationFactory: ItemDocumentationFactory = ItemDocumentation.NONE_FACTORY,
+        modifiers: DefaultModifierList = DefaultModifierList(),
+        documentationFactory: ItemDocumentationFactory = "".toItemDocumentationFactory(),
         qualifiedName: String,
+        overviewDocumentation: String? = null,
     ): DefaultPackageItem {
         modifiers.setVisibilityLevel(VisibilityLevel.PUBLIC)
         return DefaultPackageItem(
@@ -71,6 +74,7 @@ class DefaultItemFactory(
             documentationFactory,
             defaultVariantSelectorsFactory,
             qualifiedName,
+            overviewDocumentation,
         )
     }
 
@@ -87,6 +91,7 @@ class DefaultItemFactory(
         simpleName: String = qualifiedName.substring(qualifiedName.lastIndexOf('.') + 1),
         fullName: String = simpleName,
         typeParameterList: TypeParameterList,
+        isFromClassPath: Boolean,
     ) =
         DefaultClassItem(
             codebase,
@@ -103,6 +108,7 @@ class DefaultItemFactory(
             simpleName,
             fullName,
             typeParameterList,
+            isFromClassPath,
         )
 
     /** Create a [ConstructorItem]. */
@@ -131,6 +137,7 @@ class DefaultItemFactory(
             returnType,
             parameterItemsFactory,
             throwsTypes,
+            CallableBody.UNAVAILABLE_FACTORY,
             implicitConstructor,
         )
 
@@ -185,6 +192,7 @@ class DefaultItemFactory(
             returnType,
             parameterItemsFactory,
             throwsTypes,
+            CallableBody.UNAVAILABLE_FACTORY,
             annotationDefault,
         )
 
@@ -209,8 +217,9 @@ class DefaultItemFactory(
             containingCallable,
             parameterIndex,
             type,
-            defaultValue,
-        )
+        ) {
+            defaultValue
+        }
 
     /** Create a [PropertyItem]. */
     fun createPropertyItem(

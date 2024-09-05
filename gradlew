@@ -83,7 +83,7 @@ if [ $darwin == "true" ]; then
 else
     plat="linux"
 fi
-export JAVA_HOME="$APP_HOME/../../prebuilts/jdk/jdk17/$plat-x86"
+export JAVA_HOME="$APP_HOME/../../prebuilts/jdk/jdk21/$plat-x86"
 # --------------------- end of metalava changes ------------------------
 
 # Determine the Java command to use to start the JVM.

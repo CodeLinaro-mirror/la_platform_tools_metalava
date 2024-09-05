@@ -16,94 +16,70 @@
 
 package com.android.tools.metalava.model.psi
 
+import com.android.tools.metalava.model.ApiVariantSelectors
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.DefaultModifierList
+import com.android.tools.metalava.model.ItemDocumentation.Companion.toItemDocumentationFactory
 import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.VisibilityLevel
-import com.android.tools.metalava.model.findClosestEnclosingNonEmptyPackage
+import com.android.tools.metalava.model.item.DefaultPackageItem
+import com.android.tools.metalava.model.item.PackageDoc
+import com.android.tools.metalava.reporter.FileLocation
 import com.intellij.psi.PsiPackage
 
 internal class PsiPackageItem
 internal constructor(
-    codebase: PsiBasedCodebase,
+    override val codebase: PsiBasedCodebase,
     private val psiPackage: PsiPackage,
-    private val qualifiedName: String,
+    fileLocation: FileLocation,
     modifiers: DefaultModifierList,
     documentationFactory: ItemDocumentationFactory,
-    override val overviewDocumentation: String?,
+    qualifiedName: String,
+    overviewDocumentation: String?,
     /** True if this package is from the classpath (dependencies). Exposed in [isFromClassPath]. */
     private val fromClassPath: Boolean
 ) :
-    AbstractPsiItem(
+    DefaultPackageItem(
         codebase = codebase,
+        fileLocation = fileLocation,
+        itemLanguage = psiPackage.itemLanguage,
         modifiers = modifiers,
         documentationFactory = documentationFactory,
-        element = psiPackage
+        variantSelectorsFactory = ApiVariantSelectors.MUTABLE_FACTORY,
+        qualifiedName = qualifiedName,
+        overviewDocumentation = overviewDocumentation,
     ),
     PackageItem,
     PsiItem {
 
-    // Note - top level classes only
-    private val classes: MutableList<ClassItem> = mutableListOf()
-
-    override fun topLevelClasses(): List<ClassItem> =
-        // Return a copy to avoid a ConcurrentModificationException.
-        classes.toList()
-
-    override fun containingClass(): ClassItem? = null
-
     override fun psi() = psiPackage
 
-    lateinit var containingPackageField: PackageItem
+    override fun isFromClassPath(): Boolean = fromClassPath
 
-    override fun containingPackage(): PackageItem? {
-        return if (qualifiedName.isEmpty()) null
-        else {
-            if (!::containingPackageField.isInitialized) {
-                containingPackageField = codebase.findClosestEnclosingNonEmptyPackage(qualifiedName)
-            }
-            containingPackageField
-        }
-    }
+    // N.A. a package cannot be contained in a class
+    override fun containingClass(): ClassItem? = null
 
-    fun addClass(cls: PsiClassItem) {
-        if (!cls.isTopLevelClass()) {
-            // TODO: Stash in a list somewhere to make allClasses() faster?
+    fun addTopClass(classItem: PsiClassItem) {
+        if (!classItem.isTopLevelClass()) {
             return
         }
 
-        /*
-        // Temp debugging:
-        val q = cls.qualifiedName()
-        for (c in classes) {
-            if (q == c.qualifiedName()) {
-                assert(false, { "Unexpectedly found class $q already listed in $this" })
-                return
-            }
-        }
-        */
-
-        classes.add(cls)
-        cls.containingPackage = this
+        super.addTopClass(classItem)
+        classItem.containingPackage = this
     }
 
     fun addClasses(classList: List<PsiClassItem>) {
         for (cls in classList) {
-            addClass(cls)
+            addTopClass(cls)
         }
     }
-
-    override fun qualifiedName(): String = qualifiedName
-
-    override fun isFromClassPath(): Boolean = fromClassPath
 
     companion object {
         fun create(
             codebase: PsiBasedCodebase,
             psiPackage: PsiPackage,
-            extraDocs: String?,
-            overviewHtml: String?,
+            packageDoc: PackageDoc,
             fromClassPath: Boolean,
         ): PsiPackageItem {
             val modifiers = PsiModifierItem.create(codebase, psiPackage)
@@ -113,18 +89,16 @@ internal constructor(
             }
             val qualifiedName = psiPackage.qualifiedName
 
-            val pkg =
-                PsiPackageItem(
-                    codebase = codebase,
-                    psiPackage = psiPackage,
-                    qualifiedName = qualifiedName,
-                    documentationFactory =
-                        PsiItemDocumentation.factory(psiPackage, codebase, extraDocs),
-                    overviewDocumentation = overviewHtml,
-                    modifiers = modifiers,
-                    fromClassPath = fromClassPath
-                )
-            return pkg
+            return PsiPackageItem(
+                codebase = codebase,
+                psiPackage = psiPackage,
+                fileLocation = packageDoc.fileLocation,
+                modifiers = modifiers,
+                documentationFactory = packageDoc.commentFactory ?: "".toItemDocumentationFactory(),
+                qualifiedName = qualifiedName,
+                overviewDocumentation = packageDoc.overview,
+                fromClassPath = fromClassPath,
+            )
         }
     }
 }

@@ -77,7 +77,7 @@ interface Codebase {
     fun trustedApi(): Boolean
 
     fun accept(visitor: ItemVisitor) {
-        getPackages().accept(visitor)
+        visitor.visit(this)
     }
 
     /**

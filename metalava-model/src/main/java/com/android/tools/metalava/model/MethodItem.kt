@@ -158,7 +158,7 @@ interface MethodItem : CallableItem, InheritableItem {
 
             // Compare modifier lists; note that here we need to
             // skip modifiers that don't apply in compat mode if set
-            if (!method.modifiers.equivalentTo(superMethod.modifiers)) {
+            if (!method.modifiers.equivalentTo(method, superMethod.modifiers)) {
                 return false
             }
 
@@ -221,7 +221,7 @@ interface MethodItem : CallableItem, InheritableItem {
     }
 
     /** If annotation method, returns the default value as a source expression */
-    fun defaultValue(): String = ""
+    fun defaultValue(): String
 
     fun hasDefaultValue(): Boolean {
         return defaultValue() != ""
@@ -353,121 +353,5 @@ interface MethodItem : CallableItem, InheritableItem {
             // See https://docs.oracle.com/javase/specs/jls/se8/html/jls-9.html#jls-9.4.1.3
             (containingClass().isInterface() &&
                 superMethods().count { it.modifiers.isAbstract() || it.modifiers.isDefault() } > 1)
-    }
-}
-
-/**
- * Check to see if the method is overrideable.
- *
- * Private and static methods cannot be overridden.
- */
-private fun MethodItem.isOverrideable(): Boolean = !modifiers.isPrivate() && !modifiers.isStatic()
-
-/**
- * Compute the super methods of this method.
- *
- * A super method is a method from a super class or super interface that is directly overridden by
- * this method.
- */
-fun MethodItem.computeSuperMethods(): List<MethodItem> {
-    // Methods that are not overrideable will have no super methods.
-    if (!isOverrideable()) {
-        return emptyList()
-    }
-
-    // TODO(b/321216636): Remove this awful hack.
-    // For some reason `psiMethod.findSuperMethods()` would return an empty list for this
-    // specific method. That is incorrect as it clearly overrides a method in `DrawScope` in
-    // the same package. However, it is unclear what makes this method distinct from any
-    // other method including overloaded methods in the same class that also override
-    // methods in`DrawScope`. Returning a correct non-empty list for that method results in
-    // the method being removed from an API signature file even though the super method is
-    // abstract and this is concrete. That is because AndroidX does not yet set
-    // `add-additional-overrides=yes`. When it does then this hack can be removed.
-    if (
-        containingClass().qualifiedName() ==
-            "androidx.compose.ui.graphics.drawscope.CanvasDrawScope" &&
-            name() == "drawImage" &&
-            toString() ==
-                "method androidx.compose.ui.graphics.drawscope.CanvasDrawScope.drawImage(androidx.compose.ui.graphics.ImageBitmap, long, long, long, long, float, androidx.compose.ui.graphics.drawscope.DrawStyle, androidx.compose.ui.graphics.ColorFilter, int)"
-    ) {
-        return emptyList()
-    }
-
-    // Ideally, the search for super methods would start from this method's ClassItem.
-    // Unfortunately, due to legacy reasons for methods that were inherited from another ClassItem
-    // it is necessary to start the search from the original ClassItem. That is because the psi
-    // model's implementation behaved this way and the code that is built of top of superMethods,
-    // like the code to determine if overriding methods should be elided from the API signature file
-    // relied on that behavior.
-    val startingClass = inheritedFrom ?: containingClass()
-    return buildSet { appendSuperMethods(this, startingClass) }.toList()
-}
-
-/**
- * Append the super methods of this method from the [cls] hierarchy to the [methods] set.
- *
- * @param methods the mutable, order preserving set of super [MethodItem].
- * @param cls the [ClassItem] whose super class and implemented interfaces will be searched for
- *   matching methods.
- */
-private fun MethodItem.appendSuperMethods(methods: MutableSet<MethodItem>, cls: ClassItem) {
-    // Method from SuperClass or its ancestors
-    cls.superClass()?.let { superClass ->
-        // Search for a matching method in the super class.
-        val superMethod = superClass.findMethod(this)
-        if (superMethod == null) {
-            // No matching method was found so continue searching in the super class.
-            appendSuperMethods(methods, superClass)
-        } else {
-            // Matching does not check modifiers match so make sure that the matched method is
-            // overrideable.
-            if (superMethod.isOverrideable()) {
-                methods.add(superMethod)
-            }
-        }
-    }
-
-    // Methods implemented from direct interfaces or its ancestors
-    appendSuperMethodsFromInterfaces(methods, cls)
-}
-
-/**
- * Append the super methods of this method from the interface hierarchy of [cls] to the [methods]
- * set.
- *
- * @param methods the mutable, order preserving set of super [MethodItem].
- * @param cls the [ClassItem] whose implemented interfaces will be searched for matching methods.
- */
-private fun MethodItem.appendSuperMethodsFromInterfaces(
-    methods: MutableSet<MethodItem>,
-    cls: ClassItem
-) {
-    for (itf in cls.interfaceTypes()) {
-        val itfClass = itf.asClass() ?: continue
-
-        // Find the method in the interface.
-        itfClass.findMethod(this)?.let { superMethod ->
-            // A matching method was found so add it to the super methods if it is overrideable.
-            if (superMethod.isOverrideable()) {
-                methods.add(superMethod)
-            }
-        }
-        // A method could not be found in this interface so search its interfaces.
-        ?: appendSuperMethodsFromInterfaces(methods, itfClass)
-    }
-}
-
-/**
- * Update the state of a [MethodItem] that has been copied from one [ClassItem] to another.
- *
- * This will update the [MethodItem] on which it is called to ensure that it is consistent with the
- * [ClassItem] to which it now belongs. Called from the implementations of [MethodItem.duplicate]
- * and [ClassItem.inheritMethodFromNonApiAncestor].
- */
-fun MethodItem.updateCopiedMethodState() {
-    val mutableModifiers = mutableModifiers()
-    if (mutableModifiers.isDefault() && !containingClass().isInterface()) {
-        mutableModifiers.setDefault(false)
     }
 }

@@ -55,6 +55,7 @@ import com.android.tools.metalava.model.text.ApiClassResolution
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.reporter.Baseline
 import com.android.tools.metalava.reporter.DefaultReporter
+import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reportable
 import com.android.tools.metalava.reporter.Reporter
 import com.android.tools.metalava.stub.StubWriterConfig
@@ -654,15 +655,9 @@ class Options(
     /** [IssueConfiguration] used by all reporters. */
     val issueConfiguration by issueReportingOptions::issueConfiguration
 
-    /** [Reporter] for general use. */
+    /** [Reporter] that will redirect [Issues.Issue] depending on their [Issues.Category]. */
     lateinit var reporter: Reporter
-
-    /**
-     * [Reporter] for "api-lint".
-     *
-     * Initialized in [parse].
-     */
-    lateinit var reporterApiLint: Reporter
+        private set
 
     /**
      * [Reporter] for "check-compatibility:*:released". (i.e. [ARG_CHECK_COMPATIBILITY_API_RELEASED]
@@ -670,7 +665,7 @@ class Options(
      *
      * Initialized in [parse].
      */
-    lateinit var reporterCompatibilityReleased: Reporter
+    private lateinit var reporterCompatibilityReleased: Reporter
 
     internal var allReporters: List<DefaultReporter> = emptyList()
 
@@ -976,25 +971,38 @@ class Options(
 
         // Initialize the reporters.
         val baseline = generalReportingOptions.baseline
-        reporter =
+        val reporterUnknown =
             createReporter(
                 executionEnvironment = executionEnvironment,
                 baseline = baseline,
                 errorMessage = null,
             )
 
-        reporterApiLint =
+        val reporterApiLint =
             createReporter(
                 executionEnvironment = executionEnvironment,
                 baseline = apiLintOptions.baseline ?: baseline,
                 errorMessage = apiLintOptions.errorMessage,
             )
 
-        reporterCompatibilityReleased =
+        // [Reporter] for "check-compatibility:*:released".
+        // i.e.
+        //      [ARG_CHECK_COMPATIBILITY_API_RELEASED] and
+        //      [ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED].
+        val reporterCompatibilityReleased =
             createReporter(
                 executionEnvironment = executionEnvironment,
                 baseline = compatibilityCheckOptions.baseline ?: baseline,
                 errorMessage = compatibilityCheckOptions.errorMessage,
+            )
+
+        // A Reporter that will redirect issues to the appropriate reporter based on the issue's
+        // Category.
+        reporter =
+            CategoryRedirectingReporter(
+                defaultReporter = reporterUnknown,
+                apiLintReporter = reporterApiLint,
+                compatibilityReporter = reporterCompatibilityReleased,
             )
 
         // Build "all baselines" and "all reporters"
@@ -1004,15 +1012,13 @@ class Options(
             listOfNotNull(baseline, apiLintOptions.baseline, compatibilityCheckOptions.baseline)
 
         // Reporters are non-null.
-        // Downcast to DefaultReporter to gain access to some implementation specific functionality.
         allReporters =
             listOf(
-                    issueReportingOptions.bootstrapReporter,
-                    reporter,
-                    reporterApiLint,
-                    reporterCompatibilityReleased,
-                )
-                .map { it as DefaultReporter }
+                issueReportingOptions.bootstrapReporter,
+                reporterUnknown,
+                reporterApiLint,
+                reporterCompatibilityReleased,
+            )
 
         updateClassPath()
 

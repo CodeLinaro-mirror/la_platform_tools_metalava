@@ -111,24 +111,24 @@ object Issues {
     val RETURNING_UNEXPECTED_CONSTANT by Issue(Severity.WARNING)
     val DEPRECATED_OPTION by Issue(Severity.WARNING)
     val BOTH_PACKAGE_INFO_AND_HTML by Issue(Severity.WARNING, Category.DOCUMENTATION)
-    val UNMATCHED_MERGE_ANNOTATION by Issue(Severity.ERROR)
+    val UNMATCHED_MERGE_ANNOTATION by Issue(Severity.ERROR, Category.API_LINT)
     // The plan is for this to be set as an error once (1) existing code is marked as @deprecated
     // and (2) the principle is adopted by the API council
-    val REFERENCES_DEPRECATED by Issue(Severity.HIDDEN)
-    val UNHIDDEN_SYSTEM_API by Issue(Severity.ERROR)
+    val REFERENCES_DEPRECATED by Issue(Severity.HIDDEN, Category.API_LINT)
+    val UNHIDDEN_SYSTEM_API by Issue(Severity.ERROR, Category.API_LINT)
     val SHOWING_MEMBER_IN_HIDDEN_CLASS by Issue(Severity.ERROR, Category.API_LINT)
     val INVALID_NULLABILITY_ANNOTATION by Issue(Severity.ERROR)
-    val REFERENCES_HIDDEN by Issue(Severity.ERROR)
+    val REFERENCES_HIDDEN by Issue(Severity.ERROR, Category.API_LINT)
     val IGNORING_SYMLINK by Issue(Severity.INFO)
     val INVALID_NULLABILITY_ANNOTATION_WARNING by Issue(Severity.WARNING)
     // The plan is for this to be set as an error once (1) existing code is marked as @deprecated
     // and (2) the principle is adopted by the API council
-    val EXTENDS_DEPRECATED by Issue(Severity.HIDDEN)
-    val FORBIDDEN_TAG by Issue(Severity.ERROR)
+    val EXTENDS_DEPRECATED by Issue(Severity.HIDDEN, Category.API_LINT)
+    val FORBIDDEN_TAG by Issue(Severity.ERROR, Category.DOCUMENTATION)
     val MISSING_COLUMN by Issue(Severity.WARNING, Category.DOCUMENTATION)
     val INVALID_SYNTAX by Issue(Severity.ERROR)
     val UNRESOLVED_IMPORT by Issue(Severity.INFO)
-    val HIDDEN_ABSTRACT_METHOD by Issue(Severity.ERROR)
+    val HIDDEN_ABSTRACT_METHOD by Issue(Severity.ERROR, Category.API_LINT)
 
     // API lint
     val START_WITH_LOWER by Issue(Severity.ERROR, Category.API_LINT)
@@ -211,7 +211,7 @@ object Issues {
     val UNIQUE_KOTLIN_OPERATOR by Issue(Severity.ERROR, Category.API_LINT)
     val SAM_SHOULD_BE_LAST by Issue(Severity.WARNING, Category.API_LINT)
     val MISSING_JVMSTATIC by Issue(Severity.WARNING, Category.API_LINT)
-    val DEFAULT_VALUE_CHANGE by Issue(Severity.ERROR, Category.API_LINT)
+    val DEFAULT_VALUE_CHANGE by Issue(Severity.ERROR, Category.COMPATIBILITY)
     val DOCUMENT_EXCEPTIONS by Issue(Severity.ERROR, Category.API_LINT)
     val FORBIDDEN_SUPER_CLASS by Issue(Severity.ERROR, Category.API_LINT)
     val MISSING_NULLABILITY by Issue(Severity.ERROR, Category.API_LINT)
@@ -236,6 +236,7 @@ object Issues {
     val UNFLAGGED_API by Issue(Severity.HIDDEN, Category.API_LINT)
     val FLAGGED_API_LITERAL by Issue(Severity.WARNING_ERROR_WHEN_NEW, Category.API_LINT)
     val GETTER_SETTER_NULLABILITY by Issue(Severity.WARNING_ERROR_WHEN_NEW, Category.API_LINT)
+    val CONDITIONAL_REQUIRES_PERMISSION_NOT_EXPLAINED by Issue(Severity.HIDDEN, Category.API_LINT)
 
     fun findIssueById(id: String?): Issue? {
         return nameToIssue[id]

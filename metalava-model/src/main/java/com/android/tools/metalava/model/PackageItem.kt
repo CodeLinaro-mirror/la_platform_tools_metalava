@@ -19,7 +19,10 @@ package com.android.tools.metalava.model
 interface PackageItem : SelectableItem {
     /**
      * The overview documentation associated with the package; retrieved from an `overview.html`
-     * file.
+     * file listed in the source files.
+     *
+     * If present this is copied to an `overview.html` in the stubs package directory when
+     * generating documentation stubs.
      */
     val overviewDocumentation: String?
         get() = null

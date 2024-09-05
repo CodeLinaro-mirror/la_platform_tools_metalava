@@ -17,245 +17,59 @@
 package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.model.AnnotationItem
-import com.android.tools.metalava.model.ApiVariantSelectors
 import com.android.tools.metalava.model.CallableItem
+import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.DefaultModifierList
-import com.android.tools.metalava.model.ItemDocumentation
-import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterBindings
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.findAnnotation
-import com.android.tools.metalava.model.hasAnnotation
-import com.android.tools.metalava.model.item.DefaultValue
-import com.android.tools.metalava.model.psi.CodePrinter.Companion.constantToSource
+import com.android.tools.metalava.model.item.DefaultParameterItem
+import com.android.tools.metalava.model.item.DefaultValueFactory
+import com.android.tools.metalava.model.item.PublicNameProvider
 import com.android.tools.metalava.model.type.MethodFingerprint
-import com.intellij.psi.LambdaUtil
 import com.intellij.psi.PsiArrayType
 import com.intellij.psi.PsiEllipsisType
 import com.intellij.psi.PsiParameter
 import com.intellij.psi.impl.compiled.ClsParameterImpl
 import org.jetbrains.kotlin.analysis.api.analyze
-import org.jetbrains.kotlin.analysis.api.symbols.KtFunctionLikeSymbol
-import org.jetbrains.kotlin.analysis.api.symbols.KtFunctionSymbol
-import org.jetbrains.kotlin.analysis.api.symbols.KtParameterSymbol
-import org.jetbrains.kotlin.analysis.api.symbols.KtValueParameterSymbol
 import org.jetbrains.kotlin.analysis.api.types.KtTypeNullability
-import org.jetbrains.kotlin.psi.KtConstantExpression
-import org.jetbrains.kotlin.psi.KtFunction
 import org.jetbrains.kotlin.psi.KtParameter
-import org.jetbrains.kotlin.psi.psiUtil.hasActualModifier
-import org.jetbrains.uast.UExpression
-import org.jetbrains.uast.UMethod
 import org.jetbrains.uast.UParameter
-import org.jetbrains.uast.UastFacade
 
 internal class PsiParameterItem
 internal constructor(
-    codebase: PsiBasedCodebase,
-    private val psiParameter: PsiParameter,
-    private val name: String,
-    private val containingCallable: PsiCallableItem,
-    override val parameterIndex: Int,
+    override val codebase: PsiBasedCodebase,
+    internal val psiParameter: PsiParameter,
     modifiers: DefaultModifierList,
-    private var type: PsiTypeItem,
+    name: String,
+    publicNameProvider: PublicNameProvider,
+    containingCallable: PsiCallableItem,
+    parameterIndex: Int,
+    type: TypeItem,
+    defaultValueFactory: DefaultValueFactory,
 ) :
-    AbstractPsiItem(
+    DefaultParameterItem(
         codebase = codebase,
-        element = psiParameter,
+        fileLocation = PsiFileLocation.fromPsiElement(psiParameter),
+        itemLanguage = psiParameter.itemLanguage,
         modifiers = modifiers,
-        documentationFactory = ItemDocumentation.NONE_FACTORY,
-        variantSelectorsFactory = ApiVariantSelectors.IMMUTABLE_FACTORY,
+        name = name,
+        publicNameProvider = publicNameProvider,
+        containingCallable = containingCallable,
+        parameterIndex = parameterIndex,
+        type = type,
+        defaultValueFactory = defaultValueFactory,
     ),
-    ParameterItem,
     PsiItem {
 
     override var property: PsiPropertyItem? = null
 
-    override fun name(): String = name
-
     override fun psi() = psiParameter
-
-    override fun publicName(): String? {
-        if (psiParameter.isKotlin()) {
-            // Omit names of some special parameters in Kotlin. None of these parameters may be
-            // set through Kotlin keyword arguments, so there's no need to track their names for
-            // compatibility. This also helps avoid signature file churn if PSI or the compiler
-            // change what name they're using for these parameters.
-
-            // Receiver parameter of extension function
-            if (isReceiver()) {
-                return null
-            }
-            // Property setter parameter
-            if (possibleContainingMethod()?.isKotlinProperty() == true) {
-                return null
-            }
-            // Continuation parameter of suspend function
-            if (
-                containingCallable.modifiers.isSuspend() &&
-                    "kotlin.coroutines.Continuation" == type.asClass()?.qualifiedName() &&
-                    containingCallable.parameters().size - 1 == parameterIndex
-            ) {
-                return null
-            }
-            return name
-        } else {
-            // Java: Look for @ParameterName annotation
-            val annotation = modifiers.findAnnotation(AnnotationItem::isParameterName)
-            if (annotation != null) {
-                return annotation.attributes.firstOrNull()?.value?.value()?.toString()
-            }
-
-            // Parameter names from classpath jars are not present as annotations
-            if (
-                isFromClassPath() &&
-                    (psiParameter is ClsParameterImpl) &&
-                    !psiParameter.isAutoGeneratedName
-            ) {
-                return name()
-            }
-        }
-
-        return null
-    }
-
-    override fun hasDefaultValue(): Boolean = isDefaultValueKnown()
-
-    override fun isDefaultValueKnown(): Boolean {
-        return if (psiParameter.isKotlin()) {
-            defaultValueAsString() != INVALID_VALUE
-        } else {
-            // Java: Look for @ParameterName annotation
-            modifiers.hasAnnotation(AnnotationItem::isDefaultValue)
-        }
-    }
 
     // Note receiver parameter used to be named $receiver in previous UAST versions, now it is
     // $this$functionName
-    private fun isReceiver(): Boolean = parameterIndex == 0 && name.startsWith("\$this\$")
-
-    private fun getKtParameterSymbol(functionSymbol: KtFunctionLikeSymbol): KtParameterSymbol? {
-        if (isReceiver()) {
-            return functionSymbol.receiverParameter
-        }
-
-        // Perform matching based on parameter names, because indices won't work in the
-        // presence of @JvmOverloads where UAST generates multiple permutations of the
-        // method from the same KtParameters array.
-        val parameters = functionSymbol.valueParameters
-
-        val index = if (functionSymbol.isExtension) parameterIndex - 1 else parameterIndex
-        val isSuspend = functionSymbol is KtFunctionSymbol && functionSymbol.isSuspend
-        if (isSuspend && index >= parameters.size) {
-            // suspend functions have continuation as a last parameter, which is not
-            // defined in the symbol
-            return null
-        }
-
-        // Quick lookup first which usually works
-        if (index >= 0) {
-            val parameter = parameters[index]
-            if (parameter.name.asString() == name) {
-                return parameter
-            }
-        }
-
-        for (parameter in parameters) {
-            if (parameter.name.asString() == name) {
-                return parameter
-            }
-        }
-
-        // Fallback to handle scenario where the real parameter names are hidden by
-        // UAST (see UastKotlinPsiParameter which replaces parameter names to p$index)
-        if (index >= 0) {
-            val parameter = parameters[index]
-            if (!isReceiver()) {
-                return parameter
-            }
-        }
-
-        return null
-    }
-
-    private var defaultValueAsString: String? = null
-
-    override fun defaultValueAsString(): String? {
-        if (defaultValueAsString == null) {
-            defaultValueAsString = computeDefaultValue()
-        }
-        return defaultValueAsString
-    }
-
-    override val defaultValue: DefaultValue
-        get() =
-            when {
-                !hasDefaultValue() -> DefaultValue.NONE
-                !isDefaultValueKnown() -> DefaultValue.UNKNOWN
-                else -> DefaultValue.fixedDefaultValue(defaultValueAsString()!!)
-            }
-
-    private fun computeDefaultValue(): String? {
-        if (psiParameter.isKotlin()) {
-            val ktFunction =
-                ((containingCallable.psiMethod as? UMethod)?.sourcePsi as? KtFunction)
-                    ?: return INVALID_VALUE
-
-            analyze(ktFunction) {
-                val function =
-                    if (ktFunction.hasActualModifier()) {
-                        ktFunction.getSymbol().getExpectsForActual().singleOrNull()
-                    } else {
-                        ktFunction.getSymbol()
-                    }
-                if (function !is KtFunctionLikeSymbol) return INVALID_VALUE
-                val symbol = getKtParameterSymbol(function) ?: return INVALID_VALUE
-                if (symbol is KtValueParameterSymbol && symbol.hasDefaultValue) {
-                    val defaultValue =
-                        (symbol.psi as? KtParameter)?.defaultValue ?: return INVALID_VALUE
-                    if (defaultValue is KtConstantExpression) {
-                        return defaultValue.text
-                    }
-
-                    val defaultExpression =
-                        UastFacade.convertElement(defaultValue, null, UExpression::class.java)
-                            as? UExpression
-                            ?: return INVALID_VALUE
-                    val constant = defaultExpression.evaluate()
-                    return if (constant != null && constant !is Pair<*, *>) {
-                        constantToSource(constant)
-                    } else {
-                        // Expression: Compute from UAST rather than just using the source text
-                        // such that we can ensure references are fully qualified etc.
-                        codebase.printer.toSourceString(defaultExpression)
-                    }
-                }
-            }
-
-            return INVALID_VALUE
-        } else {
-            // Java: Look for @ParameterName annotation
-            val annotation = modifiers.findAnnotation(AnnotationItem::isDefaultValue)
-            if (annotation != null) {
-                return annotation.attributes.firstOrNull()?.value?.value()?.toString()
-            }
-        }
-
-        return null
-    }
-
-    override fun type(): TypeItem = type
-
-    override fun setType(type: TypeItem) {
-        this.type = type as PsiTypeItem
-    }
-
-    override fun containingCallable(): CallableItem = containingCallable
-
-    override fun isVarArgs(): Boolean {
-        return psiParameter.isVarArgs || modifiers.isVarArg()
-    }
+    internal fun isReceiver(): Boolean = parameterIndex == 0 && name().startsWith("\$this\$")
 
     override fun isSamCompatibleOrKotlinLambda(): Boolean {
         // Method is defined in Java source
@@ -269,13 +83,13 @@ internal constructor(
             // with trailing lambda syntax), but in reality the amount of Java methods with a Kotlin
             // interface with a single abstract method from an external dependency should be
             // minimal, so just checking source will make this easier to maintain in the future.
-            val cls = type.asClass()
+            val cls = type().asClass()
             if (cls != null && cls.isKotlin()) {
                 return cls.isInterface() && cls.modifiers.isFunctional()
             }
             // Note: this will return `true` if the interface is defined in Kotlin, hence why we
             // need the prior check as well
-            return LambdaUtil.isFunctionalType(type.psiType)
+            return type().let { it is ClassTypeItem && it.isFunctionalType() }
             // Method is defined in Kotlin source
         } else {
             // For Kotlin declarations we can re-use the existing utilities for calculating whether
@@ -302,22 +116,24 @@ internal constructor(
         PsiParameterItem(
             codebase = codebase,
             psiParameter = psiParameter,
-            name = name,
+            modifiers = modifiers.duplicate(),
+            name = name(),
+            publicNameProvider = publicNameProvider,
             containingCallable = containingCallable as PsiCallableItem,
             parameterIndex = parameterIndex,
-            modifiers = modifiers.duplicate(),
-            type = type.convertType(typeVariableMap) as PsiTypeItem,
+            type = type().convertType(typeVariableMap) as PsiTypeItem,
+            defaultValueFactory = defaultValue::duplicate,
         )
 
     companion object {
         internal fun create(
+            codebase: PsiBasedCodebase,
             containingCallable: PsiCallableItem,
             fingerprint: MethodFingerprint,
             psiParameter: PsiParameter,
             parameterIndex: Int,
             enclosingMethodTypeItemFactory: PsiTypeItemFactory,
         ): PsiParameterItem {
-            val codebase = containingCallable.codebase
             val name = psiParameter.name
             val modifiers = createParameterModifiers(codebase, psiParameter)
             val psiType = psiParameter.type
@@ -359,13 +175,15 @@ internal constructor(
                 PsiParameterItem(
                     codebase = codebase,
                     psiParameter = psiParameter,
+                    modifiers = modifiers,
                     name = name,
+                    publicNameProvider = { (it as PsiParameterItem).getPublicName() },
                     containingCallable = containingCallable,
                     parameterIndex = parameterIndex,
-                    modifiers = modifiers,
                     // Need to down cast as [isSamCompatibleOrKotlinLambda] needs access to the
                     // underlying PsiType.
-                    type = type as PsiTypeItem
+                    type = type as PsiTypeItem,
+                    defaultValueFactory = { PsiDefaultValue(it as PsiParameterItem) }
                 )
             return parameter
         }
@@ -386,12 +204,50 @@ internal constructor(
             modifiers.setVisibilityLevel(VisibilityLevel.PACKAGE_PRIVATE)
             return modifiers
         }
-
-        /**
-         * Private marker return value from [#computeDefaultValue] signifying that the parameter has
-         * a default value but we were unable to compute a suitable static string representation for
-         * it
-         */
-        private const val INVALID_VALUE = "__invalid_value__"
     }
+}
+
+/** Get the public name of this parameter. */
+internal fun PsiParameterItem.getPublicName(): String? {
+    if (psiParameter.isKotlin()) {
+        // Omit names of some special parameters in Kotlin. None of these parameters may be set
+        // through Kotlin keyword arguments, so there's no need to track their names for
+        // compatibility. This also helps avoid signature file churn if PSI or the compiler change
+        // what name they're using for these parameters.
+
+        // Receiver parameter of extension function
+        if (isReceiver()) {
+            return null
+        }
+        // Property setter parameter
+        if (possibleContainingMethod()?.isKotlinProperty() == true) {
+            return null
+        }
+        // Continuation parameter of suspend function
+        if (
+            containingCallable().modifiers.isSuspend() &&
+                "kotlin.coroutines.Continuation" == type().asClass()?.qualifiedName() &&
+                containingCallable().parameters().size - 1 == parameterIndex
+        ) {
+            return null
+        }
+        return name()
+    } else {
+        // Java: Look for @ParameterName annotation
+        val annotation = modifiers.findAnnotation(AnnotationItem::isParameterName)
+        if (annotation != null) {
+            return annotation.attributes.firstOrNull()?.value?.value()?.toString()
+        }
+
+        // Parameter names from classpath jars are not present as annotations
+        if (
+            isFromClassPath() &&
+                (psiParameter is ClsParameterImpl) &&
+                !psiParameter.isAutoGeneratedName
+        ) {
+            return name()
+        }
+    }
+
+    return null
 }

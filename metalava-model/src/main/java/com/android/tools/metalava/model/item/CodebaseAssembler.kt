@@ -18,6 +18,7 @@ package com.android.tools.metalava.model.item
 
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.Item
 
 /**
  * A factory that will create an [CodebaseAssembler] for a specific [Codebase].
@@ -36,6 +37,9 @@ typealias CodebaseAssemblerFactory = (Codebase) -> CodebaseAssembler
  * mapping an underlying model's representation of the API to a [Codebase], if not all of it.
  */
 interface CodebaseAssembler {
+    /** Factory for creating appropriate [Item] subclasses for the [Codebase] this is assembling. */
+    val itemFactory: DefaultItemFactory
+
     /**
      * A [ClassItem] with [qualifiedName] could not be found in the associated [Codebase] so look in
      * the underlying model's set of classes to see if one could be found there. If it could then

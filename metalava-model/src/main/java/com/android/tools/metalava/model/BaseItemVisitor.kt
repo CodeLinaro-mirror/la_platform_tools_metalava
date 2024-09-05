@@ -122,6 +122,12 @@ open class BaseItemVisitor(
     protected fun packageClassesAsSequence(pkg: PackageItem) =
         if (preserveClassNesting) pkg.topLevelClasses().asSequence() else pkg.allClasses()
 
+    override fun visit(codebase: Codebase) {
+        visitCodebase(codebase)
+        codebase.getPackages().packages.forEach { it.accept(this) }
+        afterVisitCodebase(codebase)
+    }
+
     override fun visit(pkg: PackageItem) {
         if (skip(pkg)) {
             return
@@ -136,12 +142,6 @@ open class BaseItemVisitor(
 
         afterVisitPackage(pkg)
         afterVisitItem(pkg)
-    }
-
-    override fun visit(packageList: PackageList) {
-        visitCodebase(packageList.codebase)
-        packageList.packages.forEach { it.accept(this) }
-        afterVisitCodebase(packageList.codebase)
     }
 
     override fun visit(parameter: ParameterItem) {

@@ -295,11 +295,6 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
             assertEquals(false, fieldMod2.isPrivate())
             assertEquals(true, fieldMod2.asAccessibleAs(fieldMod1))
             assertEquals(true, fieldMod3.isPackagePrivate())
-            assertEquals(packageItem, packageMod.owner())
-            assertEquals(classItem1, classMod1.owner())
-            assertEquals(fieldItem1, fieldMod1.owner())
-            assertEquals(fieldItem2, fieldMod2.owner())
-            assertEquals(fieldItem3, fieldMod3.owner())
         }
     }
 

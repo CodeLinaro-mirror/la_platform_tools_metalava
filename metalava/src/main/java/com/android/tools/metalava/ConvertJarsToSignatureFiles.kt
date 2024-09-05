@@ -101,14 +101,12 @@ class ConvertJarsToSignatureFiles(
                                 if (annotation.isNullable()) ANDROIDX_NULLABLE else ANDROIDX_NONNULL
 
                             val modifiers = new.mutableModifiers()
-                            modifiers.removeAnnotation(annotation)
-
-                            modifiers.addAnnotation(
-                                new.codebase.createAnnotation(
-                                    "@$annotationClass",
-                                    new,
-                                )
-                            )
+                            val replacementAnnotation =
+                                new.codebase.createAnnotation("@$annotationClass", new)
+                            modifiers.mutateAnnotations {
+                                remove(annotation)
+                                replacementAnnotation?.let { add(it) }
+                            }
                         }
                     }
                 )

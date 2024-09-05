@@ -118,6 +118,7 @@ class TextCodebaseBuilder private constructor(private val codebase: TextCodebase
                 simpleName = textClass.simpleName(),
                 fullName = textClass.fullName(),
                 typeParameterList = textClass.typeParameterList,
+                isFromClassPath = fullClass.isFromClassPath(),
             )
 
         newClass.setSuperClassType(textClass.superClassType())

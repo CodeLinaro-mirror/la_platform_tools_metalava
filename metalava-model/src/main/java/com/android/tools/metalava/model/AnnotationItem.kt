@@ -422,7 +422,7 @@ protected constructor(
         get() = info.showability
 
     override fun resolve(): ClassItem? {
-        return codebase.findClass(originalName)
+        return codebase.resolveClass(originalName)
     }
 
     /** If this annotation has a typedef annotation associated with it, return it */
