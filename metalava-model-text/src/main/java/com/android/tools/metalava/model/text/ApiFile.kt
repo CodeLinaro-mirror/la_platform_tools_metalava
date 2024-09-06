@@ -509,7 +509,6 @@ private constructor(
 
         // Extract lots of information from the declared class type.
         val (
-            className,
             fullName,
             qualifiedClassName,
             outerClass,
@@ -607,8 +606,6 @@ private constructor(
                 containingClass = outerClass,
                 containingPackage = pkg,
                 qualifiedName = qualifiedClassName,
-                simpleName = className,
-                fullName = fullName,
                 typeParameterList = typeParameterList,
                 isFromClassPath = false,
                 superClassType = superClassType,
@@ -751,8 +748,6 @@ private constructor(
 
     /** Encapsulates multiple return values from [parseDeclaredClassType]. */
     private data class DeclaredClassTypeComponents(
-        /** The simple name of the class, i.e. not including any outer class prefix. */
-        val simpleName: String,
         /** The full name of the class, including outer class prefix. */
         val fullName: String,
         /** The fully qualified name, including package and full name. */
@@ -798,23 +793,19 @@ private constructor(
 
         // Split the full name into an optional outer class and a simple name.
         val nestedClassIndex = fullName.lastIndexOf('.')
-        val (outerClass, simpleName) =
+        val outerClass =
             if (nestedClassIndex == -1) {
-                Pair(null, fullName)
+                null
             } else {
                 val outerClassFullName = fullName.substring(0, nestedClassIndex)
                 val qualifiedOuterClassName = qualifiedName(pkgName, outerClassFullName)
 
                 // Search for the outer class in the codebase. This is safe as the outer class
                 // always precedes its nested classes.
-                val outerClass =
-                    assembler.getOrCreateClass(
-                        qualifiedOuterClassName,
-                        isOuterClassOfClassInThisCodebase = true
-                    ) as DefaultClassItem
-
-                val nestedClassName = fullName.substring(nestedClassIndex + 1)
-                Pair(outerClass, nestedClassName)
+                assembler.getOrCreateClass(
+                    qualifiedOuterClassName,
+                    isOuterClassOfClassInThisCodebase = true
+                ) as DefaultClassItem
             }
 
         // Get the [TextTypeItemFactory] for the outer class, if any, from a previously stored one,
@@ -860,7 +851,6 @@ private constructor(
                 ?: Pair(typeParameterList, typeItemFactory)
 
         return DeclaredClassTypeComponents(
-            simpleName = simpleName,
             fullName = fullName,
             qualifiedName = qualifiedName,
             outerClass = outerClass,

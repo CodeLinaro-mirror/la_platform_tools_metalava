@@ -24,6 +24,10 @@ com.android.tools.metalava.model.testsuite.annotationitem.CommonAnnotationItemTe
   annotation with negative number values[text]
   annotation with type cast values[text]
 
+com.android.tools.metalava.model.testsuite.classitem.CommonDuplicateClassItemTest
+  Test duplicate classes with snapshot[turbine]
+  Test duplicate classes[turbine]
+
 com.android.tools.metalava.model.testsuite.codebase.CommonCodebaseTest
   Test getTopLevelClassesFromSource[turbine]
 

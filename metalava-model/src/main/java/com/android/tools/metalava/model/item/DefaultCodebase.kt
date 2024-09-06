@@ -25,6 +25,7 @@ import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.DefaultAnnotationItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MutableCodebase
+import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
 import java.io.File
 import java.util.HashMap
@@ -116,19 +117,30 @@ open class DefaultCodebase(
         findClassInCodebase(className) ?: externalClassesByName[className]
 
     /** Register [DefaultClassItem] with this [Codebase]. */
-    override fun registerClass(classItem: DefaultClassItem) {
+    override fun registerClass(classItem: DefaultClassItem): Boolean {
+        // Check for duplicates, ignore the class if it is a duplicate.
         val qualifiedName = classItem.qualifiedName()
-        val existing = allClassesByName.put(qualifiedName, classItem)
+        val existing = allClassesByName[qualifiedName]
         if (existing != null) {
-            error(
+            reporter.report(
+                Issues.DUPLICATE_SOURCE_CLASS,
+                classItem,
                 "Attempted to register $qualifiedName twice; once from ${existing.fileLocation.path} and this one from ${classItem.fileLocation.path}"
             )
+            // The class was not registered.
+            return false
         }
+
+        // Register it by name.
+        allClassesByName[qualifiedName] = classItem
 
         addClass(classItem)
 
         // Perform any subclass specific processing on the newly registered class.
         assembler.newClassRegistered(classItem)
+
+        // The class was registered.
+        return true
     }
 
     /** Map from name to an external class that was registered using [] */

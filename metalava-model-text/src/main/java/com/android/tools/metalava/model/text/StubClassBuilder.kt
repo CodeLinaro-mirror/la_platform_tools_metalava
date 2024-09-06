@@ -33,7 +33,6 @@ import com.android.tools.metalava.reporter.FileLocation
 internal class StubClassBuilder(
     internal val assembler: TextCodebaseAssembler,
     internal val qualifiedName: String,
-    private val fullName: String,
     private val containingClass: ClassItem?,
     val containingPackage: PackageItem,
 ) {
@@ -53,7 +52,6 @@ internal class StubClassBuilder(
             containingClass = containingClass,
             containingPackage = containingPackage,
             qualifiedName = qualifiedName,
-            fullName = fullName,
             typeParameterList = TypeParameterList.NONE,
             // Always treat stubs as if they are from the class path. While that is not strictly
             // true stubs classes should be treated as if they did come from there, i.e. they can be
@@ -71,7 +69,6 @@ internal class StubClassBuilder(
         fun build(
             assembler: TextCodebaseAssembler,
             qualifiedName: String,
-            fullName: String,
             containingClass: ClassItem?,
             containingPackage: PackageItem,
             mutator: StubClassBuilder.() -> Unit,
@@ -80,7 +77,6 @@ internal class StubClassBuilder(
                 StubClassBuilder(
                     assembler = assembler,
                     qualifiedName = qualifiedName,
-                    fullName = fullName,
                     containingClass = containingClass,
                     containingPackage = containingPackage,
                 )

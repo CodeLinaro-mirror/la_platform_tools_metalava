@@ -25,6 +25,9 @@ com.android.tools.metalava.CoreApiTest
   Hidden with --hide-annotation[turbine]
   Hidden with package javadoc and hiding default constructor explicitly[turbine]
 
+com.android.tools.metalava.DuplicateClassTest
+  Test duplicate classes[turbine]
+
 com.android.tools.metalava.ExtractAnnotationsTest
   Check java typedef extraction and warning about non-source retention of typedefs[turbine]
   Check warning about unexpected returns from typedef method[turbine]

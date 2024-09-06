@@ -1325,6 +1325,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                         public final void method(@android.annotation.Nullable java.lang.String p) { throw new RuntimeException("Stub!"); }
                         public void nativeMethod() { throw new RuntimeException("Stub!"); }
                         public static final int field;
+                        static { field = 0; }
                         }
                     """
                 ),

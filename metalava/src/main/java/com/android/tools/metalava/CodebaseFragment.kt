@@ -33,4 +33,10 @@ class CodebaseFragment(
      * [delegate].
      */
     fun createVisitor(delegate: DelegatedVisitor) = factory(delegate)
+
+    /** Visit this fragment, delegating to [delegate]. */
+    fun accept(delegate: DelegatedVisitor) {
+        val visitor = createVisitor(delegate)
+        codebase.accept(visitor)
+    }
 }

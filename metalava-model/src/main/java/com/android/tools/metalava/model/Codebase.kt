@@ -198,5 +198,9 @@ abstract class AbstractCodebase(
 }
 
 interface MutableCodebase : Codebase {
-    fun registerClass(classItem: DefaultClassItem)
+    /**
+     * Register the class by name, return `true` if the class was registered and `false` if it was
+     * not, i.e. because it is a duplicate.
+     */
+    fun registerClass(classItem: DefaultClassItem): Boolean
 }

@@ -57,8 +57,6 @@ internal constructor(
     containingClass: ClassItem?,
     containingPackage: PackageItem,
     qualifiedName: String,
-    simpleName: String,
-    fullName: String,
     typeParameterList: TypeParameterList,
     /** True if this class is from the class path (dependencies). Exposed in [isFromClassPath]. */
     isFromClassPath: Boolean,
@@ -77,8 +75,6 @@ internal constructor(
         containingClass = containingClass,
         containingPackage = containingPackage,
         qualifiedName = qualifiedName,
-        simpleName = simpleName,
-        fullName = fullName,
         typeParameterList = typeParameterList,
         isFromClassPath = isFromClassPath,
         superClassType = superClassType,
@@ -164,7 +160,6 @@ internal constructor(
                 )
             }
             val simpleName = psiClass.name!!
-            val fullName = computeFullClassName(psiClass)
             val qualifiedName = psiClass.qualifiedName ?: simpleName
             val classKind = getClassKind(psiClass)
 
@@ -202,8 +197,6 @@ internal constructor(
                     containingClass = containingClassItem,
                     containingPackage = containingPackage,
                     qualifiedName = qualifiedName,
-                    simpleName = simpleName,
-                    fullName = fullName,
                     typeParameterList = typeParameterList,
                     isFromClassPath = fromClassPath,
                     superClassType = superClassType,
@@ -395,31 +388,6 @@ internal constructor(
                 psiClass is PsiTypeParameter ->
                     error("Must not call this with a PsiTypeParameter - $psiClass")
                 else -> ClassKind.CLASS
-            }
-        }
-
-        /**
-         * Computes the "full" class name; this is not the qualified class name (e.g. with package)
-         * but for a nested class it includes all the outer classes
-         */
-        fun computeFullClassName(cls: PsiClass): String {
-            if (cls.containingClass == null) {
-                val name = cls.name
-                return name!!
-            } else {
-                val list = mutableListOf<String>()
-                var curr: PsiClass? = cls
-                while (curr != null) {
-                    val name = curr.name
-                    curr =
-                        if (name != null) {
-                            list.add(name)
-                            curr.containingClass
-                        } else {
-                            break
-                        }
-                }
-                return list.asReversed().joinToString(separator = ".") { it }
             }
         }
 

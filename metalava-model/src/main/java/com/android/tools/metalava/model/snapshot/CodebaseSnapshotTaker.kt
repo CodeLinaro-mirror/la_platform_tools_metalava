@@ -25,12 +25,15 @@ import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.DefaultTypeParameterList
 import com.android.tools.metalava.model.DelegatedVisitor
 import com.android.tools.metalava.model.FieldItem
+import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ModifierList
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PropertyItem
+import com.android.tools.metalava.model.Showability
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.TypeParameterList
@@ -140,6 +143,7 @@ class CodebaseSnapshotTaker private constructor() : DefaultCodebaseAssembler(), 
                 trustedApi = true,
                 // Supports documentation if the copied codebase does.
                 supportsDocumentation = codebase.supportsDocumentation(),
+                reporter = codebase.reporter,
                 assembler = this,
             )
 
@@ -211,39 +215,71 @@ class CodebaseSnapshotTaker private constructor() : DefaultCodebaseAssembler(), 
                 },
             )
 
+    /**
+     * Take a snapshot of the documentation.
+     *
+     * If necessary revert the documentation change that accompanied a deprecation change.
+     *
+     * Deprecating an API requires adding an `@Deprecated` annotation and an `@deprecated` Javadoc
+     * tag with text that explains why it is being deprecated and what will replace it. When the
+     * deprecation change is being reverted then this will remove the `@deprecated` tag and its
+     * associated text to avoid warnings when compiling and misleading information being written
+     * into the Javadoc.
+     */
+    private fun snapshotDocumentation(
+        itemToSnapshot: Item,
+        documentedItem: Item,
+    ): ItemDocumentationFactory {
+        // The documentation does not need to be reverted if...
+        if (
+            // the item is not being reverted
+            itemToSnapshot === documentedItem
+            // or if the deprecation status has not changed
+            ||
+                itemToSnapshot.effectivelyDeprecated == documentedItem.effectivelyDeprecated
+                // or if the item was previously deprecated
+                ||
+                itemToSnapshot.effectivelyDeprecated
+        )
+            return documentedItem.documentation::snapshot
+
+        val documentation = documentedItem.documentation
+        return { item -> documentation.snapshot(item).apply { removeDeprecatedSection() } }
+    }
+
     override fun visitClass(cls: ClassItem) {
+        val classToSnapshot = cls.actualItemToSnapshot
+
         // Create a TypeParameterList and SnapshotTypeItemFactory for the class.
         val (typeParameterList, classTypeItemFactory) =
-            cls.typeParameterList.snapshot("class ${cls.qualifiedName()}")
+            classToSnapshot.typeParameterList.snapshot("class ${classToSnapshot.qualifiedName()}")
 
         // Push on the stack before resolving any types just in case they refer to a type parameter.
         typeItemFactoryStack.push(classTypeItemFactory)
 
         // Snapshot the super class type, if any.
         val snapshotSuperClassType =
-            cls.superClassType()?.let { superClassType ->
+            classToSnapshot.superClassType()?.let { superClassType ->
                 typeItemFactory.getSuperClassType(superClassType)
             }
         val snapshotInterfaceTypes =
-            cls.interfaceTypes().map { typeItemFactory.getInterfaceType(it) }
+            classToSnapshot.interfaceTypes().map { typeItemFactory.getInterfaceType(it) }
 
         val containingClass = currentClass
         val containingPackage = currentPackage!!
         val newClass =
             itemFactory.createClassItem(
-                fileLocation = cls.fileLocation,
-                itemLanguage = cls.itemLanguage,
-                modifiers = cls.modifiers.snapshot(),
-                documentationFactory = cls.documentation::snapshot,
+                fileLocation = classToSnapshot.fileLocation,
+                itemLanguage = classToSnapshot.itemLanguage,
+                modifiers = classToSnapshot.modifiers.snapshot(),
+                documentationFactory = snapshotDocumentation(classToSnapshot, cls),
                 source = null,
-                classKind = cls.classKind,
+                classKind = classToSnapshot.classKind,
                 containingClass = containingClass,
                 containingPackage = containingPackage,
-                qualifiedName = cls.qualifiedName(),
-                simpleName = cls.simpleName(),
-                fullName = cls.fullName(),
+                qualifiedName = classToSnapshot.qualifiedName(),
                 typeParameterList = typeParameterList,
-                isFromClassPath = cls.isFromClassPath(),
+                isFromClassPath = classToSnapshot.isFromClassPath(),
                 superClassType = snapshotSuperClassType,
                 interfaceTypes = snapshotInterfaceTypes,
             )
@@ -264,16 +300,37 @@ class CodebaseSnapshotTaker private constructor() : DefaultCodebaseAssembler(), 
     }
 
     /** Return a factory that will create a snapshot of this list of [ParameterItem]s. */
-    private fun List<ParameterItem>.snapshot(containingCallable: CallableItem) =
-        map { parameterItem ->
+    private fun List<ParameterItem>.snapshot(
+        containingCallable: CallableItem,
+        currentCallable: CallableItem
+    ): List<ParameterItem> {
+        return map { parameterItem ->
             // Retrieve the public name immediately to remove any dependencies on this in the
             // lambda passed to publicNameProvider.
             val publicName = parameterItem.publicName()
+
+            // The parameter being snapshot may be from a previously released API, which may not
+            // track parameter names and so may have to auto-generate them. This code tries to avoid
+            // using the auto-generated names if possible. If the `publicName()` of the parameter
+            // being snapshot is not `null` then get its `name()` as that will either be set to the
+            // public name or another developer supplied name. Either way it will not be
+            // auto-generated. However, if its `publicName()` is `null` then its `name()` will be
+            // auto-generated so try and avoid that is possible. Instead, use the name of the
+            // corresponding parameter from `currentCallable` as that is more likely to have a
+            // developer supplied name, although it will be the same as `parameterItem` if
+            // `currentCallable` is not being reverted.
+            val name =
+                if (publicName != null) parameterItem.name()
+                else {
+                    val namedParameter = currentCallable.parameters()[parameterItem.parameterIndex]
+                    namedParameter.name()
+                }
+
             itemFactory.createParameterItem(
                 fileLocation = parameterItem.fileLocation,
                 itemLanguage = parameterItem.itemLanguage,
                 modifiers = parameterItem.modifiers.snapshot(),
-                name = parameterItem.name(),
+                name = name,
                 publicNameProvider = { publicName },
                 containingCallable = containingCallable,
                 parameterIndex = parameterItem.parameterIndex,
@@ -281,11 +338,14 @@ class CodebaseSnapshotTaker private constructor() : DefaultCodebaseAssembler(), 
                 defaultValueFactory = parameterItem.defaultValue::snapshot,
             )
         }
+    }
 
     override fun visitConstructor(constructor: ConstructorItem) {
+        val constructorToSnapshot = constructor.actualItemToSnapshot
+
         // Create a TypeParameterList and SnapshotTypeItemFactory for the constructor.
         val (typeParameterList, constructorTypeItemFactory) =
-            constructor.typeParameterList.snapshot(constructor.describe())
+            constructorToSnapshot.typeParameterList.snapshot(constructorToSnapshot.describe())
 
         // Resolve any type parameters used in the constructor's parameter items within the scope of
         // the constructor's SnapshotTypeItemFactory.
@@ -293,21 +353,24 @@ class CodebaseSnapshotTaker private constructor() : DefaultCodebaseAssembler(), 
             val containingClass = currentClass!!
             val newConstructor =
                 itemFactory.createConstructorItem(
-                    fileLocation = constructor.fileLocation,
-                    itemLanguage = constructor.itemLanguage,
-                    modifiers = constructor.modifiers.snapshot(),
-                    documentationFactory = constructor.documentation::snapshot,
-                    name = constructor.name(),
+                    fileLocation = constructorToSnapshot.fileLocation,
+                    itemLanguage = constructorToSnapshot.itemLanguage,
+                    modifiers = constructorToSnapshot.modifiers.snapshot(),
+                    documentationFactory =
+                        snapshotDocumentation(constructorToSnapshot, constructor),
+                    name = constructorToSnapshot.name(),
                     containingClass = containingClass,
                     typeParameterList = typeParameterList,
-                    returnType = constructor.returnType().snapshot(),
+                    returnType = constructorToSnapshot.returnType().snapshot(),
                     parameterItemsFactory = { containingCallable ->
-                        constructor.parameters().snapshot(containingCallable)
+                        constructorToSnapshot.parameters().snapshot(containingCallable, constructor)
                     },
                     throwsTypes =
-                        constructor.throwsTypes().map { typeItemFactory.getExceptionType(it) },
-                    callableBodyFactory = constructor.body::snapshot,
-                    implicitConstructor = constructor.isImplicitConstructor(),
+                        constructorToSnapshot.throwsTypes().map {
+                            typeItemFactory.getExceptionType(it)
+                        },
+                    callableBodyFactory = constructorToSnapshot.body::snapshot,
+                    implicitConstructor = constructorToSnapshot.isImplicitConstructor(),
                 )
 
             containingClass.addConstructor(newConstructor)
@@ -315,9 +378,11 @@ class CodebaseSnapshotTaker private constructor() : DefaultCodebaseAssembler(), 
     }
 
     override fun visitMethod(method: MethodItem) {
+        val methodToSnapshot = method.actualItemToSnapshot
+
         // Create a TypeParameterList and SnapshotTypeItemFactory for the method.
         val (typeParameterList, methodTypeItemFactory) =
-            method.typeParameterList.snapshot(method.describe())
+            methodToSnapshot.typeParameterList.snapshot(methodToSnapshot.describe())
 
         // Resolve any type parameters used in the method's parameter items within the scope of
         // the method's SnapshotTypeItemFactory.
@@ -325,20 +390,21 @@ class CodebaseSnapshotTaker private constructor() : DefaultCodebaseAssembler(), 
             val containingClass = currentClass!!
             val newMethod =
                 itemFactory.createMethodItem(
-                    fileLocation = method.fileLocation,
-                    itemLanguage = method.itemLanguage,
-                    modifiers = method.modifiers.snapshot(),
-                    documentationFactory = method.documentation::snapshot,
-                    name = method.name(),
+                    fileLocation = methodToSnapshot.fileLocation,
+                    itemLanguage = methodToSnapshot.itemLanguage,
+                    modifiers = methodToSnapshot.modifiers.snapshot(),
+                    documentationFactory = snapshotDocumentation(methodToSnapshot, method),
+                    name = methodToSnapshot.name(),
                     containingClass = containingClass,
                     typeParameterList = typeParameterList,
-                    returnType = method.returnType().snapshot(),
+                    returnType = methodToSnapshot.returnType().snapshot(),
                     parameterItemsFactory = { containingCallable ->
-                        method.parameters().snapshot(containingCallable)
+                        methodToSnapshot.parameters().snapshot(containingCallable, method)
                     },
-                    throwsTypes = method.throwsTypes().map { typeItemFactory.getExceptionType(it) },
-                    callableBodyFactory = method.body::snapshot,
-                    annotationDefault = method.defaultValue(),
+                    throwsTypes =
+                        methodToSnapshot.throwsTypes().map { typeItemFactory.getExceptionType(it) },
+                    callableBodyFactory = methodToSnapshot.body::snapshot,
+                    annotationDefault = methodToSnapshot.defaultValue(),
                 )
 
             containingClass.addMethod(newMethod)
@@ -346,34 +412,38 @@ class CodebaseSnapshotTaker private constructor() : DefaultCodebaseAssembler(), 
     }
 
     override fun visitField(field: FieldItem) {
+        val fieldToSnapshot = field.actualItemToSnapshot
+
         val containingClass = currentClass!!
         val newField =
             itemFactory.createFieldItem(
-                fileLocation = field.fileLocation,
-                itemLanguage = field.itemLanguage,
-                modifiers = field.modifiers.snapshot(),
-                documentationFactory = field.documentation::snapshot,
-                name = field.name(),
+                fileLocation = fieldToSnapshot.fileLocation,
+                itemLanguage = fieldToSnapshot.itemLanguage,
+                modifiers = fieldToSnapshot.modifiers.snapshot(),
+                documentationFactory = snapshotDocumentation(fieldToSnapshot, field),
+                name = fieldToSnapshot.name(),
                 containingClass = containingClass,
-                type = field.type().snapshot(),
-                isEnumConstant = field.isEnumConstant(),
-                fieldValue = field.fieldValue?.snapshot(),
+                type = fieldToSnapshot.type().snapshot(),
+                isEnumConstant = fieldToSnapshot.isEnumConstant(),
+                fieldValue = fieldToSnapshot.fieldValue?.snapshot(),
             )
 
         containingClass.addField(newField)
     }
 
     override fun visitProperty(property: PropertyItem) {
+        val propertyToSnapshot = property.actualItemToSnapshot
+
         val containingClass = currentClass!!
         val newProperty =
             itemFactory.createPropertyItem(
-                fileLocation = property.fileLocation,
-                itemLanguage = property.itemLanguage,
-                modifiers = property.modifiers.snapshot(),
-                documentationFactory = property.documentation::snapshot,
-                name = property.name(),
+                fileLocation = propertyToSnapshot.fileLocation,
+                itemLanguage = propertyToSnapshot.itemLanguage,
+                modifiers = propertyToSnapshot.modifiers.snapshot(),
+                documentationFactory = snapshotDocumentation(propertyToSnapshot, property),
+                name = propertyToSnapshot.name(),
                 containingClass = containingClass,
-                type = property.type().snapshot(),
+                type = propertyToSnapshot.type().snapshot(),
             )
 
         containingClass.addProperty(newProperty)
@@ -418,3 +488,16 @@ class CodebaseSnapshotTaker private constructor() : DefaultCodebaseAssembler(), 
         }
     }
 }
+
+/**
+ * Get the actual item to snapshot, this takes into account whether the item has been reverted.
+ *
+ * The [Showability.revertItem] is only set to a non-null value if changes to this [Item] have been
+ * reverted AND this [Item] existed in the previously released API.
+ *
+ * This casts the [Showability.revertItem] to the same type as this is called upon. That is safe as,
+ * if set to a non-null value the [Showability.revertItem] will always point to an [Item] of the
+ * same type.
+ */
+val <reified T : Item> T.actualItemToSnapshot: T
+    inline get() = (showability.revertItem ?: this) as T
