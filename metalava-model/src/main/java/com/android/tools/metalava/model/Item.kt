@@ -109,8 +109,14 @@ interface Item : Reportable {
     /** Visits this element using the given [visitor] */
     fun accept(visitor: ItemVisitor)
 
-    /** Get a mutable version of modifiers for this item */
-    fun mutableModifiers(): MutableModifierList
+    /**
+     * Mutate the [modifiers] list.
+     *
+     * Provides a [MutableModifierList] of the [modifiers] that can be modified by [mutator]. Once
+     * the mutator exits the [modifiers] will be updated. The [MutableModifierList] must not be
+     * accessed from outside [mutator].
+     */
+    fun mutateModifiers(mutator: MutableModifierList.() -> Unit)
 
     /**
      * The javadoc/KDoc comment for this code element, if any. This is the original content of the
@@ -463,8 +469,8 @@ abstract class AbstractItem(
     final override val documentation = @Suppress("LeakingThis") documentationFactory(this)
 
     init {
-        if (documentation.contains("@deprecated")) {
-            modifiers.setDeprecated(true)
+        if (documentation.contains("@deprecated") && !modifiers.isDeprecated()) {
+            mutateModifiers { setDeprecated(true) }
         }
     }
 
@@ -501,7 +507,9 @@ abstract class AbstractItem(
         // the value of this and [Item.effectivelyDeprecated] which delegates to this.
         get() = modifiers.isDeprecated()
 
-    final override fun mutableModifiers(): MutableModifierList = modifiers
+    final override fun mutateModifiers(mutator: MutableModifierList.() -> Unit) {
+        modifiers.mutator()
+    }
 
     final override val isPublic: Boolean
         get() = modifiers.isPublic()

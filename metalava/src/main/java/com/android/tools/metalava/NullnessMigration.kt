@@ -128,9 +128,10 @@ fun Item.markRecent() {
 
     val replacementAnnotation = codebase.createAnnotation("@$annotationClass", this)
 
-    val modifiers = mutableModifiers()
-    modifiers.mutateAnnotations {
-        remove(annotation)
-        replacementAnnotation?.let { add(it) }
+    mutateModifiers {
+        mutateAnnotations {
+            remove(annotation)
+            replacementAnnotation?.let { add(it) }
+        }
     }
 }

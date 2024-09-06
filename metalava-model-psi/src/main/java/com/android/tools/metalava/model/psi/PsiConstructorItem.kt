@@ -19,11 +19,11 @@ package com.android.tools.metalava.model.psi
 import com.android.tools.metalava.model.ApiVariantSelectors
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.DefaultModifierList
-import com.android.tools.metalava.model.DefaultModifierList.Companion.PACKAGE_PRIVATE
 import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.TypeParameterList
+import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.item.DefaultConstructorItem
 import com.android.tools.metalava.model.item.ParameterItemsFactory
 import com.android.tools.metalava.model.psi.PsiCallableItem.Companion.parameterList
@@ -80,6 +80,20 @@ private constructor(
             assert(psiMethod.isConstructor)
             val name = psiMethod.name
             val modifiers = PsiModifierItem.create(codebase, psiMethod)
+
+            // After KT-13495, "all constructors of `sealed` classes now have `protected`
+            // visibility by default," and (S|U)LC follows that (hence the same in UAST).
+            // However, that change was made to allow more flexible class hierarchy and
+            // nesting. If they're compiled to JVM bytecode, sealed class's ctor is still
+            // technically `private` to block instantiation from outside class hierarchy.
+            // Another synthetic constructor, along with an internal ctor marker, is added
+            // for subclasses of a sealed class. Therefore, from Metalava's perspective,
+            // it is not necessary to track such semantically protected ctor. Here we force
+            // set the visibility to `private` back to ignore it during signature writing.
+            if (containingClass.modifiers.isSealed()) {
+                modifiers.setVisibilityLevel(VisibilityLevel.PRIVATE)
+            }
+
             // Create the TypeParameterList for this before wrapping any of the other types used by
             // it as they may reference a type parameter in the list.
             val (typeParameterList, constructorTypeItemFactory) =
@@ -118,13 +132,13 @@ private constructor(
             codebase: PsiBasedCodebase,
             containingClass: PsiClassItem,
             psiClass: PsiClass,
+            visibilityLevel: VisibilityLevel,
         ): PsiConstructorItem {
             val name = psiClass.name!!
 
             val factory = JavaPsiFacade.getInstance(psiClass.project).elementFactory
             val psiMethod = factory.createConstructor(name, psiClass)
-            val modifiers = DefaultModifierList(PACKAGE_PRIVATE)
-            modifiers.setVisibilityLevel(containingClass.modifiers.getVisibilityLevel())
+            val modifiers = DefaultModifierList(visibilityLevel)
 
             val item =
                 PsiConstructorItem(

@@ -30,6 +30,7 @@ import com.android.tools.metalava.model.Language
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ModifierListWriter
 import com.android.tools.metalava.model.PackageItem
+import com.android.tools.metalava.model.item.ResourceFile
 import com.android.tools.metalava.model.psi.trimDocIndent
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.model.visitors.FilteringApiVisitor
@@ -61,7 +62,8 @@ internal class StubWriter(
         }
     }
 
-    fun writeDocOverview(pkg: PackageItem, content: String) {
+    fun writeDocOverview(pkg: PackageItem, resourceFile: ResourceFile) {
+        val content = resourceFile.content
         if (content.isBlank()) {
             return
         }

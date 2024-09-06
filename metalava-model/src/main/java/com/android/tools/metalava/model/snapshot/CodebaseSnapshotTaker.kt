@@ -47,6 +47,9 @@ import com.android.tools.metalava.model.item.DefaultPackageItem
 import com.android.tools.metalava.model.item.DefaultParameterItem
 import com.android.tools.metalava.model.item.DefaultPropertyItem
 import com.android.tools.metalava.model.item.DefaultTypeParameterItem
+import com.android.tools.metalava.model.item.MutablePackageDoc
+import com.android.tools.metalava.model.item.PackageDoc
+import com.android.tools.metalava.model.item.PackageDocs
 
 /** Stack of [SnapshotTypeItemFactory] */
 internal typealias TypeItemFactoryStack = ArrayList<SnapshotTypeItemFactory>
@@ -62,7 +65,7 @@ internal fun TypeItemFactoryStack.pop() {
 }
 
 /** Constructs a [Codebase] by taking a snapshot of another [Codebase] that is being visited. */
-class CodebaseSnapshotTaker : DelegatedVisitor, CodebaseAssembler {
+class CodebaseSnapshotTaker private constructor() : DelegatedVisitor, CodebaseAssembler {
 
     /**
      * The [Codebase] that is under construction.
@@ -147,19 +150,32 @@ class CodebaseSnapshotTaker : DelegatedVisitor, CodebaseAssembler {
         typeItemFactoryStack.pop()
     }
 
-    override fun visitPackage(pkg: PackageItem) {
-        val newPackage =
-            DefaultPackageItem(
-                codebase = codebase,
-                fileLocation = pkg.fileLocation,
-                itemLanguage = pkg.itemLanguage,
-                modifiers = pkg.modifiers.snapshot(),
-                documentationFactory = pkg.documentation::snapshot,
-                variantSelectorsFactory = pkg.variantSelectors::duplicate,
-                qualifiedName = pkg.qualifiedName(),
-                overviewDocumentation = pkg.overviewDocumentation,
+    /**
+     * Construct a [PackageDocs] that contains a [PackageDoc] that in turn contains information
+     * extracted from [packageItem] that can be used to create a new [PackageItem] that is a
+     * snapshot of [packageItem].
+     */
+    private fun packageDocsForPackageItem(packageItem: PackageItem) =
+        MutablePackageDoc(
+                qualifiedName = packageItem.qualifiedName(),
+                fileLocation = packageItem.fileLocation,
+                modifiers = packageItem.modifiers.snapshot(),
+                commentFactory = packageItem.documentation::snapshot,
+                overview = packageItem.overviewDocumentation,
             )
-        codebase.addPackage(newPackage)
+            .let { PackageDocs(mapOf(it.qualifiedName to it)) }
+
+    override fun visitPackage(pkg: PackageItem) {
+        // Get a PackageDocs that contains a PackageDoc that contains information extracted from the
+        // PackageItem being visited. This is needed to ensure that the findOrCreatePackage(...)
+        // call below will use the correct information when creating the package. As only a single
+        // PackageDoc is provided for this package it means that if findOrCreatePackage(...) had to
+        // created a containing package that package would not have a PackageDocs and might be
+        // incorrect. However, that should not be a problem as the packages are visited in order
+        // such that a containing package is visited before any contained packages.
+        val packageDocs = packageDocsForPackageItem(pkg)
+        val packageName = pkg.qualifiedName()
+        val newPackage = codebase.findOrCreatePackage(packageName, packageDocs)
         currentPackage = newPackage
     }
 

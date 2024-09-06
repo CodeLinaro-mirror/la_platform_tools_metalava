@@ -18,12 +18,14 @@ package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.model.ApiVariantSelectors
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
+import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.item.DefaultMethodItem
 import com.android.tools.metalava.model.item.ParameterItemsFactory
 import com.android.tools.metalava.model.psi.PsiCallableItem.Companion.parameterList
@@ -195,6 +197,15 @@ internal class PsiMethodItem(
                     psiMethod.name
                 }
             val modifiers = PsiModifierItem.create(codebase, psiMethod)
+
+            if (containingClass.classKind == ClassKind.INTERFACE) {
+                // All interface methods are implicitly public (except in Java 1.9, where they can
+                // be private.
+                if (!modifiers.isPrivate()) {
+                    modifiers.setVisibilityLevel(VisibilityLevel.PUBLIC)
+                }
+            }
+
             // Create the TypeParameterList for this before wrapping any of the other types used by
             // it as they may reference a type parameter in the list.
             val (typeParameterList, methodTypeItemFactory) =

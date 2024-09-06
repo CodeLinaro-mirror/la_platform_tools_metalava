@@ -23,7 +23,6 @@ import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.PackageItem
-import com.android.tools.metalava.model.findClosestEnclosingNonEmptyPackage
 import com.android.tools.metalava.reporter.FileLocation
 
 open class DefaultPackageItem(
@@ -34,7 +33,8 @@ open class DefaultPackageItem(
     documentationFactory: ItemDocumentationFactory,
     variantSelectorsFactory: ApiVariantSelectorsFactory,
     private val qualifiedName: String,
-    override val overviewDocumentation: String?,
+    val containingPackage: PackageItem?,
+    override val overviewDocumentation: ResourceFile?,
 ) :
     DefaultItem(
         codebase = codebase,
@@ -57,20 +57,11 @@ open class DefaultPackageItem(
     // N.A. a package cannot be contained in a class
     override fun containingClass(): ClassItem? = null
 
-    // TODO(b/352480646): Make private again.
-    lateinit var containingPackageField: PackageItem
-
     final override fun containingPackage(): PackageItem? {
-        return if (qualifiedName.isEmpty()) null
-        else {
-            if (!::containingPackageField.isInitialized) {
-                containingPackageField = codebase.findClosestEnclosingNonEmptyPackage(qualifiedName)
-            }
-            containingPackageField
-        }
+        return containingPackage
     }
 
-    open fun addTopClass(classItem: ClassItem) {
+    fun addTopClass(classItem: ClassItem) {
         topClasses.add(classItem)
     }
 }

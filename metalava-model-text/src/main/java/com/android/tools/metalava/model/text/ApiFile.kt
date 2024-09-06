@@ -425,7 +425,7 @@ private constructor(
 
         // Metalava: including annotations in file now
         val annotations = getAnnotations(tokenizer, token)
-        val modifiers = createModifiers(DefaultModifierList.PUBLIC, annotations)
+        val modifiers = createModifiers(VisibilityLevel.PUBLIC, annotations)
         token = tokenizer.current
         tokenizer.assertIdent(token)
         val name: String = token
@@ -664,8 +664,10 @@ private constructor(
         // Add new annotations to the existing class
         val newClassAnnotations = newClassCharacteristics.modifiers.annotations().toSet()
         val existingClassAnnotations = existingCharacteristics.modifiers.annotations().toSet()
-        for (annotation in newClassAnnotations.subtract(existingClassAnnotations)) {
-            existingClass.modifiers.addAnnotation(annotation)
+
+        val extraAnnotations = newClassAnnotations.subtract(existingClassAnnotations)
+        if (extraAnnotations.isNotEmpty()) {
+            existingClass.mutateModifiers { mutateAnnotations { addAll(extraAnnotations) } }
         }
 
         // Use the latest super class.
@@ -1224,7 +1226,7 @@ private constructor(
         annotations: List<AnnotationItem>
     ): DefaultModifierList {
         var token = startingToken
-        val modifiers = createModifiers(DefaultModifierList.PACKAGE_PRIVATE, annotations)
+        val modifiers = createModifiers(VisibilityLevel.PACKAGE_PRIVATE, annotations)
 
         processModifiers@ while (true) {
             token =
@@ -1329,7 +1331,7 @@ private constructor(
 
     /** Creates a [DefaultModifierList], setting the deprecation based on the [annotations]. */
     private fun createModifiers(
-        visibility: Int,
+        visibility: VisibilityLevel,
         annotations: List<AnnotationItem>
     ): DefaultModifierList {
         val modifiers = DefaultModifierList(visibility, annotations)
@@ -1539,7 +1541,7 @@ private constructor(
         val name = typeParameterString.substring(nameStart, nameEnd)
 
         // TODO: Type use annotations support will need to handle annotations on the parameter.
-        val modifiers = DefaultModifierList(DefaultModifierList.PUBLIC)
+        val modifiers = DefaultModifierList(VisibilityLevel.PUBLIC)
 
         return itemFactory.createTypeParameterItem(
             modifiers = modifiers,

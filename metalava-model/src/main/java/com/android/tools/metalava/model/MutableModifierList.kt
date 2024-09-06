@@ -16,7 +16,7 @@
 
 package com.android.tools.metalava.model
 
-interface MutableModifierList : ModifierList {
+interface MutableModifierList : BaseModifierList {
     fun setVisibilityLevel(level: VisibilityLevel)
 
     fun setStatic(static: Boolean)

@@ -49,6 +49,7 @@ import com.android.tools.metalava.model.DefaultModifierList.Companion.VISIBILITY
 import com.android.tools.metalava.model.DefaultModifierList.Companion.VOLATILE
 import com.android.tools.metalava.model.JAVA_LANG_ANNOTATION_TARGET
 import com.android.tools.metalava.model.JAVA_LANG_TYPE_USE_TARGET
+import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.model.isNullnessAnnotation
 import com.android.tools.metalava.model.psi.KotlinTypeInfo.Companion.isInheritedGenericType
@@ -442,7 +443,8 @@ internal object PsiModifierItem {
         element: PsiModifierListOwner,
         annotated: UAnnotated
     ): DefaultModifierList {
-        val modifierList = element.modifierList ?: return DefaultModifierList()
+        val modifierList =
+            element.modifierList ?: return DefaultModifierList(VisibilityLevel.PACKAGE_PRIVATE)
         val uAnnotations = annotated.uAnnotations
         val psiAnnotations =
             modifierList.annotations.takeIf { it.isNotEmpty() }

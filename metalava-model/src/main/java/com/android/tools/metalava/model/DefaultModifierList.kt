@@ -20,9 +20,19 @@ import java.lang.annotation.Retention
 import java.lang.annotation.RetentionPolicy
 
 class DefaultModifierList(
-    private var flags: Int = PACKAGE_PRIVATE,
+    private var flags: Int,
     private var annotations: List<AnnotationItem> = emptyList(),
-) : MutableModifierList {
+) : ModifierList, MutableModifierList {
+
+    /**
+     * Secondary constructor that avoids the caller having to use flags directly which are
+     * implementation details of the [DefaultModifierList].
+     */
+    constructor(
+        visibility: VisibilityLevel,
+        annotations: List<AnnotationItem> = emptyList()
+    ) : this(visibility.visibilityFlagValue, annotations)
+
     private operator fun set(mask: Int, set: Boolean) {
         flags =
             if (set) {
@@ -260,23 +270,11 @@ class DefaultModifierList(
         return flags and VISIBILITY_MASK == PACKAGE_PRIVATE
     }
 
-    /**
-     * Copy this, so it can be used on (and possibly modified by) another [Item] from the same
-     * codebase.
-     */
-    fun duplicate(): DefaultModifierList {
+    override fun duplicate(): DefaultModifierList {
         return DefaultModifierList(flags, this.annotations)
     }
 
-    /**
-     * Take a snapshot of this for use in [targetCodebase].
-     *
-     * While [duplicate] makes a shallow copy for use within the same [Codebase] this method creates
-     * a deep snapshot, including snapshots of each annotation for use in [targetCodebase].
-     *
-     * @param targetCodebase The [Codebase] of which the snapshot will be part.
-     */
-    fun snapshot(targetCodebase: Codebase): DefaultModifierList {
+    override fun snapshot(targetCodebase: Codebase): DefaultModifierList {
         val annotations = this.annotations
         val newAnnotations =
             if (annotations.isEmpty()) {
@@ -289,7 +287,7 @@ class DefaultModifierList(
         return DefaultModifierList(flags, newAnnotations)
     }
 
-    override fun equivalentTo(owner: Item?, other: ModifierList): Boolean {
+    override fun equivalentTo(owner: Item?, other: BaseModifierList): Boolean {
         other as DefaultModifierList
 
         val flags2 = other.flags
@@ -347,7 +345,7 @@ class DefaultModifierList(
     companion object {
         /** Create a public modifiers object. */
         fun createPublic(annotations: List<AnnotationItem> = emptyList()) =
-            DefaultModifierList(PUBLIC, annotations)
+            DefaultModifierList(VisibilityLevel.PUBLIC, annotations)
 
         /**
          * 'PACKAGE_PRIVATE' is set to 0 to act as the default visibility when no other visibility

@@ -52,7 +52,7 @@ open class DefaultParameterItem(
 
     init {
         // Set the varargs modifier to true if the type is a varargs.
-        type.let { if (it is ArrayTypeItem && it.isVarargs) modifiers.setVarArg(true) }
+        type.let { if (it is ArrayTypeItem && it.isVarargs) mutateModifiers { setVarArg(true) } }
     }
 
     /**

@@ -30,6 +30,7 @@ import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
+import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.reporter.FileLocation
 
 open class DefaultConstructorItem(
@@ -83,10 +84,10 @@ open class DefaultConstructorItem(
             itemLanguage: ItemLanguage,
             variantSelectorsFactory: ApiVariantSelectorsFactory,
             containingClass: ClassItem,
+            visibility: VisibilityLevel,
         ): ConstructorItem {
             val name = containingClass.simpleName()
-            val modifiers = DefaultModifierList(DefaultModifierList.PACKAGE_PRIVATE)
-            modifiers.setVisibilityLevel(containingClass.modifiers.getVisibilityLevel())
+            val modifiers = DefaultModifierList(visibility)
 
             val ctorItem =
                 DefaultConstructorItem(

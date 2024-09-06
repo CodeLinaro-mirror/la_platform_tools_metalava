@@ -31,6 +31,7 @@ import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.SourceFile
 import com.android.tools.metalava.model.TypeParameterList
+import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.computeAllInterfaces
 import com.android.tools.metalava.model.type.DefaultResolvedClassTypeItem
 import com.android.tools.metalava.reporter.FileLocation
@@ -145,12 +146,13 @@ open class DefaultClassItem(
 
     final override fun hasImplicitDefaultConstructor(): Boolean = hasImplicitDefaultConstructor
 
-    final override fun createDefaultConstructor(): ConstructorItem {
+    final override fun createDefaultConstructor(visibility: VisibilityLevel): ConstructorItem {
         return DefaultConstructorItem.createDefaultConstructor(
             codebase = codebase,
             itemLanguage = itemLanguage,
             variantSelectorsFactory = variantSelectors::duplicate,
             containingClass = this,
+            visibility = visibility,
         )
     }
 

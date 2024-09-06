@@ -61,6 +61,7 @@ internal constructor(
     documentationFactory: ItemDocumentationFactory,
     override val classKind: ClassKind,
     private val containingClass: ClassItem?,
+    private val containingPackage: PackageItem,
     private val qualifiedName: String,
     private val simpleName: String,
     private val fullName: String,
@@ -82,7 +83,14 @@ internal constructor(
     ClassItem,
     PsiItem {
 
-    lateinit var containingPackage: DefaultPackageItem
+    init {
+        if (containingClass == null) {
+            (containingPackage as DefaultPackageItem).addTopClass(this)
+        } else {
+            (containingClass as PsiClassItem).addNestedClass(this)
+        }
+        codebase.registerClass(this)
+    }
 
     override fun containingPackage(): PackageItem =
         containingClass?.containingPackage() ?: containingPackage
@@ -121,13 +129,13 @@ internal constructor(
         return allInterfaces!!.asSequence()
     }
 
-    private lateinit var nestedClasses: List<PsiClassItem>
+    private val mutableNestedClasses = mutableListOf<ClassItem>()
     private lateinit var constructors: List<PsiConstructorItem>
     private lateinit var methods: MutableList<PsiMethodItem>
     private lateinit var properties: List<PsiPropertyItem>
     private lateinit var fields: List<FieldItem>
 
-    override fun nestedClasses(): List<PsiClassItem> = nestedClasses
+    override fun nestedClasses(): List<ClassItem> = mutableNestedClasses
 
     override fun constructors(): List<ConstructorItem> = constructors
 
@@ -173,12 +181,17 @@ internal constructor(
     }
 
     /** Creates a constructor in this class */
-    override fun createDefaultConstructor(): ConstructorItem {
-        return PsiConstructorItem.createDefaultConstructor(codebase, this, psiClass)
+    override fun createDefaultConstructor(visibility: VisibilityLevel): PsiConstructorItem {
+        return PsiConstructorItem.createDefaultConstructor(codebase, this, psiClass, visibility)
     }
 
     override fun addMethod(method: MethodItem) {
         methods.add(method as PsiMethodItem)
+    }
+
+    /** Add a nested class to this class. */
+    private fun addNestedClass(classItem: ClassItem) {
+        mutableNestedClasses.add(classItem)
     }
 
     private var retention: AnnotationRetention? = null
@@ -230,6 +243,7 @@ internal constructor(
             codebase: PsiBasedCodebase,
             psiClass: PsiClass,
             containingClassItem: PsiClassItem?,
+            containingPackage: PackageItem,
             enclosingClassTypeItemFactory: PsiTypeItemFactory,
             fromClassPath: Boolean,
         ): PsiClassItem {
@@ -267,6 +281,7 @@ internal constructor(
                     documentationFactory = PsiItemDocumentation.factory(psiClass, codebase),
                     classKind = classKind,
                     containingClass = containingClassItem,
+                    containingPackage = containingPackage,
                     qualifiedName = qualifiedName,
                     simpleName = simpleName,
                     fullName = fullName,
@@ -276,9 +291,6 @@ internal constructor(
                     superClassType = superClassType,
                     interfaceTypes = interfaceTypes,
                 )
-
-            // Register this class now.
-            codebase.registerClass(item)
 
             // Construct the children
             val psiMethods = psiClass.methods
@@ -303,18 +315,6 @@ internal constructor(
                             psiMethod,
                             classTypeItemFactory,
                         )
-                    // After KT-13495, "all constructors of `sealed` classes now have `protected`
-                    // visibility by default," and (S|U)LC follows that (hence the same in UAST).
-                    // However, that change was made to allow more flexible class hierarchy and
-                    // nesting. If they're compiled to JVM bytecode, sealed class's ctor is still
-                    // technically `private` to block instantiation from outside class hierarchy.
-                    // Another synthetic constructor, along with an internal ctor marker, is added
-                    // for subclasses of a sealed class. Therefore, from Metalava's perspective,
-                    // it is not necessary to track such semantically protected ctor. Here we force
-                    // set the visibility to `private` back to ignore it during signature writing.
-                    if (item.modifiers.isSealed()) {
-                        constructor.modifiers.setVisibilityLevel(VisibilityLevel.PRIVATE)
-                    }
                     constructors.add(constructor)
                 } else {
                     val method =
@@ -331,9 +331,7 @@ internal constructor(
 
             if (hasImplicitDefaultConstructor) {
                 assert(constructors.isEmpty())
-                constructors.add(
-                    PsiConstructorItem.createDefaultConstructor(codebase, item, psiClass)
-                )
+                constructors.add(item.createDefaultConstructor())
             }
 
             val fields: MutableList<PsiFieldItem> = mutableListOf()
@@ -341,22 +339,6 @@ internal constructor(
             if (psiFields.isNotEmpty()) {
                 psiFields.asSequence().mapTo(fields) {
                     PsiFieldItem.create(codebase, item, it, classTypeItemFactory)
-                }
-            }
-
-            if (classKind == ClassKind.INTERFACE) {
-                // All members are implicitly public, fields are implicitly static, non-static
-                // methods are abstract
-                // (except in Java 1.9, where they can be private
-                for (method in methods) {
-                    if (!method.isPrivate) {
-                        method.mutableModifiers().setVisibilityLevel(VisibilityLevel.PUBLIC)
-                    }
-                }
-                for (method in fields) {
-                    val m = method.mutableModifiers()
-                    m.setVisibilityLevel(VisibilityLevel.PUBLIC)
-                    m.setStatic(true)
                 }
             }
 
@@ -420,23 +402,13 @@ internal constructor(
             // This actually gets all nested classes not just inner, i.e. non-static nested,
             // classes.
             val psiNestedClasses = psiClass.innerClasses
-            item.nestedClasses =
-                if (psiNestedClasses.isEmpty()) {
-                    emptyList()
-                } else {
-                    val result =
-                        psiNestedClasses
-                            .asSequence()
-                            .map {
-                                codebase.createClass(
-                                    psiClass = it,
-                                    containingClassItem = item,
-                                    enclosingClassTypeItemFactory = classTypeItemFactory
-                                )
-                            }
-                            .toMutableList()
-                    result
-                }
+            for (psiNestedClass in psiNestedClasses) {
+                codebase.createClass(
+                    psiClass = psiNestedClass,
+                    containingClassItem = item,
+                    enclosingClassTypeItemFactory = classTypeItemFactory,
+                )
+            }
 
             return item
         }

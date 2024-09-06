@@ -22,7 +22,7 @@ import java.util.HashMap
 
 private const val PACKAGE_ESTIMATE = 500
 
-typealias PackageItemFactory = (String, PackageDoc) -> DefaultPackageItem
+typealias PackageItemFactory = (String, PackageDoc, PackageItem?) -> DefaultPackageItem
 
 class PackageTracker(private val packageItemFactory: PackageItemFactory) {
     /** Map from package name to [DefaultPackageItem] of all packages in this. */
@@ -99,7 +99,23 @@ class PackageTracker(private val packageItemFactory: PackageItemFactory) {
             return existing
         }
 
-        val packageItem = packageItemFactory(packageName, packageDoc)
+        // Unless this is the root package, it has a containing package so get that before creating
+        // this package, so it can be passed into the `packageItemFactory`.
+        val containingPackageName = getContainingPackageName(packageName)
+        val containingPackage =
+            if (containingPackageName == null) null
+            else
+                findOrCreatePackage(
+                    containingPackageName,
+                    packageDocs,
+                    // A package should not be included in the API surface unless it contains
+                    // classes that belong to that API surface. This call passes in `emit = false`
+                    // to ensure that a package which is created solely as a containing package will
+                    // not be included in the API surface.
+                    emit = false,
+                )
+
+        val packageItem = packageItemFactory(packageName, packageDoc, containingPackage)
         addPackage(packageItem)
 
         // Newly created package's `emit` property is determined completely by the `emit` parameter
@@ -108,6 +124,21 @@ class PackageTracker(private val packageItemFactory: PackageItemFactory) {
 
         return packageItem
     }
+
+    /**
+     * Gets the name of [packageName]'s containing package or `null` if [packageName] is `""`, i.e.
+     * the root package.
+     */
+    private fun getContainingPackageName(packageName: String): String? =
+        if (packageName == "") null
+        else
+            packageName.lastIndexOf('.').let { index ->
+                if (index == -1) {
+                    ""
+                } else {
+                    packageName.substring(0, index)
+                }
+            }
 
     /** Add the package to this. */
     fun addPackage(packageItem: DefaultPackageItem) {

@@ -222,9 +222,8 @@ open class DefaultMethodItem(
      * [MethodItem.duplicate].
      */
     protected fun updateCopiedMethodState() {
-        val mutableModifiers = mutableModifiers()
-        if (mutableModifiers.isDefault() && !containingClass().isInterface()) {
-            mutableModifiers.setDefault(false)
+        if (modifiers.isDefault() && !containingClass().isInterface()) {
+            mutateModifiers { setDefault(false) }
         }
     }
 }

@@ -765,8 +765,20 @@ interface ClassItem : ClassContentItem, SelectableItem, TypeParameterListOwner {
         return declaringClass.typeParameterList.zip(classTypeArguments).toMap()
     }
 
-    /** Creates a constructor in this class */
-    fun createDefaultConstructor(): ConstructorItem = codebase.unsupported()
+    /**
+     * Creates a default constructor in this class.
+     *
+     * Default constructors that are added by Java have the same visibility as their class which is
+     * the default behavior of this method if no [visibility] is provided. However, this is also
+     * used to create default constructors in order for stub classes to compile and as they do not
+     * appear in the API they need to be marked as package private so this method allows the
+     * [visibility] to be explicitly specified by the caller.
+     *
+     * @param visibility the visibility of the constructor, defaults to the same as this class.
+     */
+    fun createDefaultConstructor(
+        visibility: VisibilityLevel = modifiers.getVisibilityLevel()
+    ): ConstructorItem = codebase.unsupported()
 
     fun addMethod(method: MethodItem): Unit = codebase.unsupported()
 

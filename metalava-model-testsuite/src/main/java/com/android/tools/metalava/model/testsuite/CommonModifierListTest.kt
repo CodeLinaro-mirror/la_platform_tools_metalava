@@ -20,6 +20,7 @@ import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.DefaultAnnotationItem
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.JAVA_LANG_DEPRECATED
+import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.reporter.FileLocation
 import com.android.tools.metalava.testing.java
 import kotlin.test.assertEquals
@@ -61,10 +62,10 @@ class CommonModifierListTest : BaseModelTest() {
                 DefaultAnnotationItem.create(codebase, JAVA_LANG_DEPRECATED, emptyList())!!
 
             // Create an empty set of modifiers
-            val modifiers = DefaultModifierList(flags = DefaultModifierList.PUBLIC)
+            val modifiers = DefaultModifierList(VisibilityLevel.PUBLIC)
 
             // Create another empty set of modifiers.
-            val anotherModifiers = DefaultModifierList(flags = DefaultModifierList.PUBLIC)
+            val anotherModifiers = DefaultModifierList(VisibilityLevel.PUBLIC)
 
             // They compare equal both directly and in their string representation.
             assertEquals(modifiers, anotherModifiers, message = "modifiers before")
@@ -103,7 +104,7 @@ class CommonModifierListTest : BaseModelTest() {
                 }!!
             val modifiers =
                 DefaultModifierList(
-                    flags = DefaultModifierList.PUBLIC,
+                    visibility = VisibilityLevel.PUBLIC,
                     annotations = listOf(annotation),
                 )
             assertEquals(
@@ -116,12 +117,12 @@ class CommonModifierListTest : BaseModelTest() {
     @Test
     fun `test equivalentTo()`() {
         assertTrue {
-            DefaultModifierList(flags = DefaultModifierList.PUBLIC)
-                .equivalentTo(null, DefaultModifierList(flags = DefaultModifierList.PUBLIC))
+            DefaultModifierList(VisibilityLevel.PUBLIC)
+                .equivalentTo(null, DefaultModifierList(VisibilityLevel.PUBLIC))
         }
         assertFalse {
-            DefaultModifierList(flags = DefaultModifierList.PRIVATE)
-                .equivalentTo(null, DefaultModifierList(flags = DefaultModifierList.PUBLIC))
+            DefaultModifierList(VisibilityLevel.PRIVATE)
+                .equivalentTo(null, DefaultModifierList(VisibilityLevel.PUBLIC))
         }
     }
 }

@@ -16,6 +16,8 @@
 
 package com.android.tools.metalava.model
 
+import com.android.tools.metalava.model.item.ResourceFile
+
 interface PackageItem : SelectableItem {
     /**
      * The overview documentation associated with the package; retrieved from an `overview.html`
@@ -24,7 +26,7 @@ interface PackageItem : SelectableItem {
      * If present this is copied to an `overview.html` in the stubs package directory when
      * generating documentation stubs.
      */
-    val overviewDocumentation: String?
+    val overviewDocumentation: ResourceFile?
         get() = null
 
     /** The qualified name of this package */
@@ -63,9 +65,6 @@ interface PackageItem : SelectableItem {
     override val effectivelyDeprecated: Boolean
         get() = originallyDeprecated
 
-    /** Whether this package is empty */
-    fun empty() = topLevelClasses().isEmpty()
-
     override fun baselineElementId() = qualifiedName()
 
     override fun accept(visitor: ItemVisitor) {
@@ -89,30 +88,6 @@ interface PackageItem : SelectableItem {
     companion object {
         val comparator: Comparator<PackageItem> = Comparator { a, b ->
             a.qualifiedName().compareTo(b.qualifiedName())
-        }
-    }
-}
-
-/**
- * Find the closest enclosing, non-empty, package of the package called [qualifiedName].
- *
- * If the package name is `A.B.C` and `A.B` is empty of classes (and so was not added in the
- * [Codebase]) but `A` was not then this will skip `A.B` and return `A`.
- */
-fun Codebase.findClosestEnclosingNonEmptyPackage(qualifiedName: String): PackageItem {
-    if (qualifiedName.isEmpty()) error("Must not be called on root package")
-    else {
-        var parentPackage = qualifiedName
-        while (true) {
-            val index = parentPackage.lastIndexOf('.')
-            if (index == -1) {
-                return findPackage("") ?: error("Cannot find root package")
-            }
-            parentPackage = parentPackage.substring(0, index)
-            val pkg = findPackage(parentPackage)
-            if (pkg != null) {
-                return pkg
-            }
         }
     }
 }

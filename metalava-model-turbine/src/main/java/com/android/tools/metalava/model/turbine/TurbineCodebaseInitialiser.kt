@@ -240,7 +240,7 @@ internal open class TurbineCodebaseInitialiser(
                 createTurbineSourceFile(unit)
                 val annotations = createAnnotations(sourceTypeBoundClass.annotations())
 
-                val modifiers = DefaultModifierList.createPublic(annotations.toMutableList())
+                val modifiers = DefaultModifierList.createPublic(annotations)
                 MutablePackageDoc(packageName, fileLocation, modifiers, comment)
             }
 

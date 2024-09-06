@@ -19,6 +19,7 @@ package com.android.tools.metalava.model.source.utils
 import com.android.tools.metalava.model.ItemDocumentation.Companion.toItemDocumentationFactory
 import com.android.tools.metalava.model.item.MutablePackageDoc
 import com.android.tools.metalava.model.item.PackageDocs
+import com.android.tools.metalava.model.item.ResourceFile
 import com.android.tools.metalava.model.source.SourceSet
 import com.android.tools.metalava.reporter.FileLocation
 import com.android.tools.metalava.reporter.Issues
@@ -28,19 +29,20 @@ import java.io.File
 /** The kinds of package documentation file. */
 private enum class PackageDocumentationKind {
     PACKAGE {
-        override fun update(packageDoc: MutablePackageDoc, contents: String, file: File) {
+        override fun update(packageDoc: MutablePackageDoc, file: File) {
+            val contents = file.readText(Charsets.UTF_8)
             packageDoc.commentFactory = packageHtmlToJavadoc(contents).toItemDocumentationFactory()
             packageDoc.fileLocation = FileLocation.forFile(file)
         }
     },
     OVERVIEW {
-        override fun update(packageDoc: MutablePackageDoc, contents: String, file: File) {
-            packageDoc.overview = contents
+        override fun update(packageDoc: MutablePackageDoc, file: File) {
+            packageDoc.overview = ResourceFile(file)
         }
     };
 
     /** Update kind appropriate property in [packageDoc] with [contents]. */
-    abstract fun update(packageDoc: MutablePackageDoc, contents: String, file: File)
+    abstract fun update(packageDoc: MutablePackageDoc, file: File)
 }
 
 /**
@@ -105,8 +107,7 @@ fun <P> gatherPackageJavadoc(
 
         val packageDoc = packages.computeIfAbsent(pkg, ::MutablePackageDoc)
 
-        val contents = file.readText(Charsets.UTF_8)
-        documentationFile.update(packageDoc, contents, file)
+        documentationFile.update(packageDoc, file)
     }
 
     // Merge package-info.java documentation.

@@ -22,6 +22,7 @@ import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.TypeParameterList
+import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.item.DefaultClassItem
 import com.android.tools.metalava.reporter.FileLocation
 
@@ -40,7 +41,7 @@ internal class StubClassBuilder(
     var classKind = ClassKind.CLASS
 
     /** The modifiers are set to `public` because otherwise there is no point in creating it. */
-    val modifiers = DefaultModifierList(DefaultModifierList.PUBLIC)
+    val modifiers = DefaultModifierList(VisibilityLevel.PUBLIC)
 
     var superClassType: ClassTypeItem? = null
 

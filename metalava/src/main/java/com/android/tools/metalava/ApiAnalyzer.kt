@@ -247,8 +247,7 @@ class ApiAnalyzer(
                 // created. Technically, the stub now has a constructor that isn't available at
                 // runtime, but apps creating subclasses inside the android.* package is not
                 // supported.
-                cls.createDefaultConstructor().also {
-                    it.mutableModifiers().setVisibilityLevel(VisibilityLevel.PACKAGE_PRIVATE)
+                cls.createDefaultConstructor(VisibilityLevel.PACKAGE_PRIVATE).also {
                     it.superConstructor = superDefaultConstructor
                 }
             } else {

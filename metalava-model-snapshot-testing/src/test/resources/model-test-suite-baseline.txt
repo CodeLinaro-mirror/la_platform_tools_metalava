@@ -2,6 +2,10 @@ com.android.tools.metalava.model.testsuite.BootstrapSourceModelProviderTest
   130 - check classes from classpath[turbine]
   240 test documentations[turbine]
 
+com.android.tools.metalava.model.testsuite.CommonApiVariantSelectorsTest
+  Test docOnly[turbine]
+  Test removed[turbine]
+
 com.android.tools.metalava.model.testsuite.annotationitem.CommonAnnotationItemTest
   annotation toSource() with char values[text]
   annotation toSource() with class values[text]
@@ -30,8 +34,9 @@ com.android.tools.metalava.model.testsuite.methoditem.CommonParameterItemTest
   Test publicName reports correct name when called on binary class - ViewGroup#onLayout[turbine]
 
 com.android.tools.metalava.model.testsuite.packageitem.CommonPackageItemTest
-  Test package containment[text]
-  Test package containment[turbine]
+  Test @hide in package html[turbine]
+  Test @hide in package info processed first[turbine]
+  Test @hide in package info processed last[turbine]
 
 com.android.tools.metalava.model.testsuite.sourcefile.CommonSourceFileTest
   test sourcefile classes[turbine]
