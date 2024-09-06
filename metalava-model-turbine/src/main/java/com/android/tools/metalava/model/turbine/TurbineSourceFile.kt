@@ -20,13 +20,14 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Import
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.SourceFile
+import com.android.tools.metalava.model.item.DefaultCodebase
 import com.google.turbine.diag.LineMap
 import com.google.turbine.tree.Tree.CompUnit
 import java.util.TreeSet
 import java.util.function.Predicate
 
 internal class TurbineSourceFile(
-    val codebase: TurbineBasedCodebase,
+    val codebase: DefaultCodebase,
     val compUnit: CompUnit,
 ) : SourceFile {
 

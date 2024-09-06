@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.cli.signature
 
+import com.android.tools.metalava.ApiType
 import com.android.tools.metalava.OptionsDelegate
 import com.android.tools.metalava.SignatureWriter
 import com.android.tools.metalava.cli.common.MetalavaCliException
@@ -89,8 +90,7 @@ class MergeSignaturesCommand :
                         fileFormat = signatureFormat.fileFormat,
                     )
                     .createFilteringVisitor(
-                        filterEmit = { true },
-                        filterReference = { true },
+                        apiType = ApiType.ALL,
                         preFiltered = true,
                         showUnannotated = false,
                         apiVisitorConfig = ApiVisitor.Config(),

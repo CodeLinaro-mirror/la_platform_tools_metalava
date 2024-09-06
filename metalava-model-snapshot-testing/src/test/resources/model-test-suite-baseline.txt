@@ -1,10 +1,17 @@
 com.android.tools.metalava.model.testsuite.BootstrapSourceModelProviderTest
   130 - check classes from classpath[turbine]
   240 test documentations[turbine]
+  260 - test doconly members[turbine]
 
 com.android.tools.metalava.model.testsuite.CommonApiVariantSelectorsTest
+  Test accessible[turbine]
   Test docOnly[turbine]
+  Test not docOnly[turbine]
+  Test not hidden[turbine]
+  Test not removed[turbine]
+  Test originallyHidden hidden[turbine]
   Test removed[turbine]
+  Test toString[turbine]
 
 com.android.tools.metalava.model.testsuite.annotationitem.CommonAnnotationItemTest
   annotation toSource() with char values[text]

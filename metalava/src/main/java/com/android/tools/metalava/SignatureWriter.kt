@@ -35,7 +35,6 @@ import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.model.visitors.FilteringApiVisitor
 import java.io.PrintWriter
 import java.util.BitSet
-import java.util.function.Predicate
 
 class SignatureWriter(
     private val writer: PrintWriter,
@@ -52,17 +51,19 @@ class SignatureWriter(
 
     /**
      * Create an [ApiVisitor] that will filter the [Item] to which is applied according to the
-     * supplied parameters and in a manner appropriate for writing signatures, e.g. not nesting
+     * supplied parameters and in a manner appropriate for writing signatures, e.g. flattening
      * nested classes. It will delegate any visitor calls that pass through its filter to this
      * [SignatureWriter] instance.
      */
     fun createFilteringVisitor(
-        filterEmit: Predicate<Item>,
-        filterReference: Predicate<Item>,
+        apiType: ApiType,
         preFiltered: Boolean,
         showUnannotated: Boolean,
         apiVisitorConfig: ApiVisitor.Config,
     ): ApiVisitor {
+        val filterEmit = apiType.getEmitFilter(apiVisitorConfig.apiPredicateConfig)
+        val filterReference = apiType.getReferenceFilter(apiVisitorConfig.apiPredicateConfig)
+
         val (interfaceListSorter, interfaceListComparator) =
             if (fileFormat.sortWholeExtendsList) Pair(null, TypeItem.totalComparator)
             else Pair(::getInterfacesInOrder, null)

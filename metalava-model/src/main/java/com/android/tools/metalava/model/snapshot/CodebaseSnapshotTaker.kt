@@ -35,16 +35,11 @@ import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.TypeParameterListAndFactory
-import com.android.tools.metalava.model.item.CodebaseAssembler
 import com.android.tools.metalava.model.item.DefaultClassItem
 import com.android.tools.metalava.model.item.DefaultCodebase
-import com.android.tools.metalava.model.item.DefaultConstructorItem
-import com.android.tools.metalava.model.item.DefaultFieldItem
+import com.android.tools.metalava.model.item.DefaultCodebaseAssembler
 import com.android.tools.metalava.model.item.DefaultItemFactory
-import com.android.tools.metalava.model.item.DefaultMethodItem
 import com.android.tools.metalava.model.item.DefaultPackageItem
-import com.android.tools.metalava.model.item.DefaultParameterItem
-import com.android.tools.metalava.model.item.DefaultPropertyItem
 import com.android.tools.metalava.model.item.DefaultTypeParameterItem
 import com.android.tools.metalava.model.item.MutablePackageDoc
 import com.android.tools.metalava.model.item.PackageDoc
@@ -64,7 +59,7 @@ internal fun TypeItemFactoryStack.pop() {
 }
 
 /** Constructs a [Codebase] by taking a snapshot of another [Codebase] that is being visited. */
-class CodebaseSnapshotTaker private constructor() : DelegatedVisitor, CodebaseAssembler {
+class CodebaseSnapshotTaker private constructor() : DefaultCodebaseAssembler(), DelegatedVisitor {
 
     /**
      * The [Codebase] that is under construction.
@@ -138,7 +133,7 @@ class CodebaseSnapshotTaker private constructor() : DelegatedVisitor, CodebaseAs
                 trustedApi = true,
                 // Supports documentation if the copied codebase does.
                 supportsDocumentation = codebase.supportsDocumentation(),
-                assemblerFactory = { this },
+                assembler = this,
             )
 
         this.codebase = newCodebase
@@ -228,13 +223,11 @@ class CodebaseSnapshotTaker private constructor() : DelegatedVisitor, CodebaseAs
         val containingClass = currentClass
         val containingPackage = currentPackage!!
         val newClass =
-            DefaultClassItem(
-                codebase = codebase,
+            itemFactory.createClassItem(
                 fileLocation = cls.fileLocation,
                 itemLanguage = cls.itemLanguage,
                 modifiers = cls.modifiers.snapshot(),
                 documentationFactory = cls.documentation::snapshot,
-                variantSelectorsFactory = cls.variantSelectors::duplicate,
                 source = null,
                 classKind = cls.classKind,
                 containingClass = containingClass,
@@ -269,8 +262,7 @@ class CodebaseSnapshotTaker private constructor() : DelegatedVisitor, CodebaseAs
             // Retrieve the public name immediately to remove any dependencies on this in the
             // lambda passed to publicNameProvider.
             val publicName = parameterItem.publicName()
-            DefaultParameterItem(
-                codebase = codebase,
+            itemFactory.createParameterItem(
                 fileLocation = parameterItem.fileLocation,
                 itemLanguage = parameterItem.itemLanguage,
                 modifiers = parameterItem.modifiers.snapshot(),
@@ -293,13 +285,11 @@ class CodebaseSnapshotTaker private constructor() : DelegatedVisitor, CodebaseAs
         constructorTypeItemFactory.inScope {
             val containingClass = currentClass!!
             val newConstructor =
-                DefaultConstructorItem(
-                    codebase = codebase,
+                itemFactory.createConstructorItem(
                     fileLocation = constructor.fileLocation,
                     itemLanguage = constructor.itemLanguage,
                     modifiers = constructor.modifiers.snapshot(),
                     documentationFactory = constructor.documentation::snapshot,
-                    variantSelectorsFactory = constructor.variantSelectors::duplicate,
                     name = constructor.name(),
                     containingClass = containingClass,
                     typeParameterList = typeParameterList,
@@ -327,13 +317,11 @@ class CodebaseSnapshotTaker private constructor() : DelegatedVisitor, CodebaseAs
         methodTypeItemFactory.inScope {
             val containingClass = currentClass!!
             val newMethod =
-                DefaultMethodItem(
-                    codebase = codebase,
+                itemFactory.createMethodItem(
                     fileLocation = method.fileLocation,
                     itemLanguage = method.itemLanguage,
                     modifiers = method.modifiers.snapshot(),
                     documentationFactory = method.documentation::snapshot,
-                    variantSelectorsFactory = method.variantSelectors::duplicate,
                     name = method.name(),
                     containingClass = containingClass,
                     typeParameterList = typeParameterList,
@@ -353,13 +341,11 @@ class CodebaseSnapshotTaker private constructor() : DelegatedVisitor, CodebaseAs
     override fun visitField(field: FieldItem) {
         val containingClass = currentClass!!
         val newField =
-            DefaultFieldItem(
-                codebase = codebase,
+            itemFactory.createFieldItem(
                 fileLocation = field.fileLocation,
                 itemLanguage = field.itemLanguage,
                 modifiers = field.modifiers.snapshot(),
                 documentationFactory = field.documentation::snapshot,
-                variantSelectorsFactory = field.variantSelectors::duplicate,
                 name = field.name(),
                 containingClass = containingClass,
                 type = field.type().snapshot(),
@@ -373,13 +359,11 @@ class CodebaseSnapshotTaker private constructor() : DelegatedVisitor, CodebaseAs
     override fun visitProperty(property: PropertyItem) {
         val containingClass = currentClass!!
         val newProperty =
-            DefaultPropertyItem(
-                codebase = codebase,
+            itemFactory.createPropertyItem(
                 fileLocation = property.fileLocation,
                 itemLanguage = property.itemLanguage,
                 modifiers = property.modifiers.snapshot(),
                 documentationFactory = property.documentation::snapshot,
-                variantSelectorsFactory = property.variantSelectors::duplicate,
                 name = property.name(),
                 containingClass = containingClass,
                 type = property.type().snapshot(),

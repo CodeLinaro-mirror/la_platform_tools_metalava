@@ -23,6 +23,7 @@ import com.android.tools.metalava.model.TypeArgumentTypeItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeModifiers
 import com.android.tools.metalava.model.TypeParameterScope
+import com.android.tools.metalava.model.item.DefaultCodebase
 import com.android.tools.metalava.model.type.ContextNullability
 import com.android.tools.metalava.model.type.DefaultArrayTypeItem
 import com.android.tools.metalava.model.type.DefaultClassTypeItem
@@ -40,15 +41,16 @@ import javax.lang.model.type.TypeKind
 
 /** Creates [TypeItem]s from [Type]s. */
 internal class TurbineTypeItemFactory(
-    private val codebase: TurbineBasedCodebase,
     private val initializer: TurbineCodebaseInitialiser,
     typeParameterScope: TypeParameterScope,
 ) : DefaultTypeItemFactory<Type, TurbineTypeItemFactory>(typeParameterScope) {
 
+    private val codebase: DefaultCodebase = initializer.codebase
+
     override fun self() = this
 
     override fun createNestedFactory(scope: TypeParameterScope) =
-        TurbineTypeItemFactory(codebase, initializer, scope)
+        TurbineTypeItemFactory(initializer, scope)
 
     override fun getType(
         underlyingType: Type,

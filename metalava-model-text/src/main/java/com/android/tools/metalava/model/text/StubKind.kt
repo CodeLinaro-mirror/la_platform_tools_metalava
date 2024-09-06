@@ -29,7 +29,7 @@ internal enum class StubKind(
     THROWABLE({
         // Throwables must extend `java.lang.Throwable`, unless they are `java.lang.Throwable`.
         if (qualifiedName != JAVA_LANG_THROWABLE) {
-            superClassType = codebase.resolveClass(JAVA_LANG_THROWABLE).type()
+            superClassType = assembler.codebase.resolveClass(JAVA_LANG_THROWABLE)!!.type()
         }
     }),
 }

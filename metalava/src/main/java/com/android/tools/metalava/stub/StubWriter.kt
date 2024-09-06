@@ -239,9 +239,8 @@ internal class StubWriter(
 
     /**
      * Create an [ApiVisitor] that will filter the [Item] to which is applied according to the
-     * supplied parameters and in a manner appropriate for writing signatures, e.g. not nesting
-     * classes. It will delegate any visitor calls that pass through its filter to this [StubWriter]
-     * instance.
+     * supplied parameters and in a manner appropriate for writing stubs, e.g. nesting classes. It
+     * will delegate any visitor calls that pass through its filter to this [StubWriter] instance.
      */
     fun createFilteringVisitor(
         preFiltered: Boolean,
@@ -250,7 +249,7 @@ internal class StubWriter(
         val filterReference =
             ApiPredicate(
                 includeDocOnly = docStubs,
-                config = config.apiVisitorConfig.apiPredicateConfig.copy(ignoreShown = true),
+                config = apiVisitorConfig.apiPredicateConfig.copy(ignoreShown = true),
             )
         val filterEmit = FilterPredicate(filterReference)
         return FilteringApiVisitor(

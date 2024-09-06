@@ -17,11 +17,12 @@
 package com.android.tools.metalava.model.text
 
 import com.android.tools.lint.checks.infrastructure.TestFile
+import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 
 /**
- * Base class for text test classes that parse signature files to create a [TextCodebase] that can
- * then be introspected.
+ * Base class for text test classes that parse signature files to create a [Codebase] that can then
+ * be introspected.
  */
 abstract class BaseTextCodebaseTest : BaseModelTest() {
 

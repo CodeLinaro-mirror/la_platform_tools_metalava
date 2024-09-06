@@ -46,8 +46,9 @@ import com.android.tools.metalava.model.addDefaultRetentionPolicyAnnotation
 import com.android.tools.metalava.model.createImmutableModifiers
 import com.android.tools.metalava.model.findAnnotation
 import com.android.tools.metalava.model.hasAnnotation
-import com.android.tools.metalava.model.item.CodebaseAssembler
 import com.android.tools.metalava.model.item.DefaultClassItem
+import com.android.tools.metalava.model.item.DefaultCodebaseAssembler
+import com.android.tools.metalava.model.item.DefaultCodebaseFactory
 import com.android.tools.metalava.model.item.DefaultItemFactory
 import com.android.tools.metalava.model.item.DefaultPackageItem
 import com.android.tools.metalava.model.item.DefaultTypeParameterItem
@@ -114,11 +115,14 @@ import javax.lang.model.element.TypeElement
  * This is used for populating all the classes,packages and other items from the data present in the
  * parsed Tree
  */
-internal open class TurbineCodebaseInitialiser(
-    private val codebase: TurbineBasedCodebase,
+internal class TurbineCodebaseInitialiser(
+    codebaseFactory: DefaultCodebaseFactory,
     private val classpath: List<File>,
     private val allowReadingComments: Boolean,
-) : CodebaseAssembler {
+) : DefaultCodebaseAssembler() {
+
+    internal val codebase = codebaseFactory(this)
+
     /** The output from Turbine Binder */
     private lateinit var bindingResult: BindingResult
 
@@ -133,8 +137,7 @@ internal open class TurbineCodebaseInitialiser(
     /** Map between Class declaration and the corresponding source CompUnit */
     private val classSourceMap: MutableMap<TyDecl, CompUnit> = mutableMapOf()
 
-    private val globalTypeItemFactory =
-        TurbineTypeItemFactory(codebase, this, TypeParameterScope.empty)
+    private val globalTypeItemFactory = TurbineTypeItemFactory(this, TypeParameterScope.empty)
 
     /** Creates [Item] instances for [codebase]. */
     override val itemFactory =
@@ -898,21 +901,23 @@ internal open class TurbineCodebaseInitialiser(
                     parameterDecls.get(idx - declaredParameterOffset)
                 else null
 
+            val fileLocation =
+                TurbineFileLocation.forTree(containingCallable.containingClass(), decl)
             val parameterItem =
                 itemFactory.createParameterItem(
-                    TurbineFileLocation.forTree(containingCallable.containingClass(), decl),
-                    parameterModifierItem,
-                    parameter.name(),
-                    { item ->
+                    fileLocation = fileLocation,
+                    modifiers = parameterModifierItem,
+                    name = parameter.name(),
+                    publicNameProvider = { item ->
                         // Java: Look for @ParameterName annotation
                         val modifiers = item.modifiers
                         val annotation = modifiers.findAnnotation(AnnotationItem::isParameterName)
                         annotation?.attributes?.firstOrNull()?.value?.value()?.toString()
                     },
-                    containingCallable,
-                    idx,
-                    type,
-                    TurbineDefaultValue(parameterModifierItem),
+                    containingCallable = containingCallable,
+                    parameterIndex = idx,
+                    type = type,
+                    defaultValueFactory = { TurbineDefaultValue(parameterModifierItem) },
                 )
             parameterItem
         }

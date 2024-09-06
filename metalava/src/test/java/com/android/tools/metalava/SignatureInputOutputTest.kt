@@ -60,8 +60,7 @@ class SignatureInputOutputTest : Assertions {
                         )
                     codebase.accept(
                         signatureWriter.createFilteringVisitor(
-                            filterEmit = { true },
-                            filterReference = { true },
+                            apiType = ApiType.ALL,
                             preFiltered = true,
                             showUnannotated = false,
                             apiVisitorConfig = ApiVisitor.Config(),

@@ -481,7 +481,6 @@ class Options(
 
     internal val stubWriterConfig by lazy {
         StubWriterConfig(
-            apiVisitorConfig = apiVisitorConfig,
             kotlinStubs = kotlinStubs,
             includeDocumentationInStubs = includeDocumentationInStubs,
         )

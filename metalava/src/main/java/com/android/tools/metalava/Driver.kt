@@ -292,18 +292,13 @@ internal fun processFlags(
     // Based on the input flags, generates various output files such
     // as signature files and/or stubs files
     options.apiFile?.let { apiFile ->
-        val apiType = ApiType.PUBLIC_API
-        val apiEmit = apiType.getEmitFilter(options.apiPredicateConfig)
-        val apiReference = apiType.getReferenceFilter(options.apiPredicateConfig)
-
         createReportFile(progressTracker, codebase, apiFile, "API") { printWriter ->
             SignatureWriter(
                     writer = printWriter,
                     fileFormat = options.signatureFileFormat,
                 )
                 .createFilteringVisitor(
-                    filterEmit = apiEmit,
-                    filterReference = apiReference,
+                    apiType = ApiType.PUBLIC_API,
                     preFiltered = codebase.preFiltered,
                     showUnannotated = options.showUnannotated,
                     apiVisitorConfig = options.apiVisitorConfig
@@ -312,10 +307,6 @@ internal fun processFlags(
     }
 
     options.removedApiFile?.let { apiFile ->
-        val apiType = ApiType.REMOVED
-        val removedEmit = apiType.getEmitFilter(options.apiPredicateConfig)
-        val removedReference = apiType.getReferenceFilter(options.apiPredicateConfig)
-
         createReportFile(
             progressTracker,
             codebase,
@@ -329,8 +320,7 @@ internal fun processFlags(
                     fileFormat = options.signatureFileFormat,
                 )
                 .createFilteringVisitor(
-                    filterEmit = removedEmit,
-                    filterReference = removedReference,
+                    apiType = ApiType.REMOVED,
                     preFiltered = false,
                     showUnannotated = options.showUnannotated,
                     apiVisitorConfig = options.apiVisitorConfig,
@@ -759,7 +749,7 @@ private fun createStubFiles(
     val filteringApiVisitor =
         stubWriter.createFilteringVisitor(
             preFiltered = codebase.preFiltered,
-            apiVisitorConfig = stubWriterConfig.apiVisitorConfig,
+            apiVisitorConfig = options.apiVisitorConfig,
         )
 
     codebase.accept(filteringApiVisitor)

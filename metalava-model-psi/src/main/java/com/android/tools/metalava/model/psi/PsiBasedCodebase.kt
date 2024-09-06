@@ -30,8 +30,10 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.JAVA_PACKAGE_INFO
+import com.android.tools.metalava.model.MutableCodebase
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.TypeParameterScope
+import com.android.tools.metalava.model.item.DefaultClassItem
 import com.android.tools.metalava.model.item.DefaultPackageItem
 import com.android.tools.metalava.model.item.MutablePackageDoc
 import com.android.tools.metalava.model.item.PackageDocs
@@ -116,7 +118,8 @@ internal class PsiBasedCodebase(
         annotationManager = annotationManager,
         trustedApi = false,
         supportsDocumentation = true,
-    ) {
+    ),
+    MutableCodebase {
     private lateinit var uastEnvironment: UastEnvironment
     internal val project: Project
         get() = uastEnvironment.ideaProject
@@ -769,7 +772,8 @@ internal class PsiBasedCodebase(
     }
 
     /** Add a class to the codebase. Called from [PsiClassItem.create]. */
-    internal fun registerClass(classItem: PsiClassItem) {
+    override fun registerClass(classItem: DefaultClassItem) {
+        classItem as PsiClassItem
         val qualifiedName = classItem.qualifiedName()
         val existing = classMap.put(qualifiedName, classItem)
         if (existing != null) {

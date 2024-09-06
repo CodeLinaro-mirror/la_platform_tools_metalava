@@ -21,13 +21,10 @@ import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.CLASS_ESTIMATE
 import com.android.tools.metalava.model.ClassItem
-import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.DefaultAnnotationItem
 import com.android.tools.metalava.model.Item
-import com.android.tools.metalava.model.ItemDocumentation.Companion.toItemDocumentationFactory
-import com.android.tools.metalava.model.VisibilityLevel
-import com.android.tools.metalava.model.createImmutableModifiers
+import com.android.tools.metalava.model.MutableCodebase
 import com.android.tools.metalava.reporter.Reporter
 import java.io.File
 import java.util.HashMap
@@ -43,7 +40,8 @@ open class DefaultCodebase(
     annotationManager: AnnotationManager,
     trustedApi: Boolean,
     supportsDocumentation: Boolean,
-    assemblerFactory: CodebaseAssemblerFactory,
+    reporter: Reporter? = null,
+    val assembler: CodebaseAssembler,
 ) :
     AbstractCodebase(
         location,
@@ -52,31 +50,16 @@ open class DefaultCodebase(
         annotationManager,
         trustedApi,
         supportsDocumentation,
-    ) {
+    ),
+    MutableCodebase {
 
-    /**
-     * Create a [CodebaseAssembler] appropriate for this [Codebase].
-     *
-     * The leaking of `this` is safe as the implementations do not access anything that has not been
-     * initialized.
-     */
-    val assembler = assemblerFactory(@Suppress("LeakingThis") this)
+    private val optionalReporter = reporter
 
     override val reporter: Reporter
-        get() = unsupported("reporter is not available")
+        get() = optionalReporter ?: unsupported("reporter is not available")
 
     /** Tracks [DefaultPackageItem] use in this [Codebase]. */
-    val packageTracker = PackageTracker { packageName, packageDoc, containingPackage ->
-        val documentationFactory = packageDoc.commentFactory ?: "".toItemDocumentationFactory()
-        assembler.itemFactory.createPackageItem(
-            packageDoc.fileLocation,
-            packageDoc.modifiers ?: createImmutableModifiers(VisibilityLevel.PUBLIC),
-            documentationFactory,
-            packageName,
-            containingPackage,
-            packageDoc.overview,
-        )
-    }
+    val packageTracker = PackageTracker(assembler::createPackageItem)
 
     final override fun getPackages() = packageTracker.getPackages()
 
@@ -122,13 +105,19 @@ open class DefaultCodebase(
     /**
      * Look for classes in this [Codebase].
      *
-     * This is left open so that subclasses can extend this to look for classes from elsewhere, e.g.
-     * classes provided by a [ClassResolver] which would come from a separate [Codebase].
+     * A class can be added to this [Codebase] in two ways:
+     * * Created specifically for this [Codebase], i.e. its [ClassItem.codebase] is this. That can
+     *   happen during initialization or because [CodebaseAssembler.createClassFromUnderlyingModel]
+     *   creates a [ClassItem] in this [Codebase].
+     * * Created by another [Codebase] and returned by
+     *   [CodebaseAssembler.createClassFromUnderlyingModel], i.e. its [ClassItem.codebase] is NOT
+     *   this.
      */
-    override fun findClass(className: String): ClassItem? = findClassInCodebase(className)
+    final override fun findClass(className: String): ClassItem? =
+        findClassInCodebase(className) ?: externalClassesByName[className]
 
     /** Register [DefaultClassItem] with this [Codebase]. */
-    internal fun registerClass(classItem: DefaultClassItem) {
+    override fun registerClass(classItem: DefaultClassItem) {
         val qualifiedName = classItem.qualifiedName()
         val existing = allClassesByName.put(qualifiedName, classItem)
         if (existing != null) {
@@ -140,18 +129,29 @@ open class DefaultCodebase(
         addClass(classItem)
 
         // Perform any subclass specific processing on the newly registered class.
-        newClassRegistered(classItem)
+        assembler.newClassRegistered(classItem)
     }
 
-    /** Overrideable hook, called from [registerClass] for each new [DefaultClassItem]. */
-    open fun newClassRegistered(classItem: DefaultClassItem) {}
+    /** Map from name to an external class that was registered using [] */
+    private val externalClassesByName = mutableMapOf<String, ClassItem>()
 
     /**
      * Looks for an existing class in this [Codebase] and if that cannot be found then delegate to
      * the [assembler] to see if it can create a class from the underlying model.
      */
-    override fun resolveClass(className: String) =
-        findClass(className) ?: assembler.createClassFromUnderlyingModel(className)
+    final override fun resolveClass(className: String): ClassItem? {
+        findClass(className)?.let {
+            return it
+        }
+        val created = assembler.createClassFromUnderlyingModel(className) ?: return null
+        // If the returned class was not created as part of this Codebase then register it as an
+        // external class so that findClass(...) will find it next time.
+        if (created.codebase !== this) {
+            // Register as an external class.
+            externalClassesByName[className] = created
+        }
+        return created
+    }
 
     final override fun createAnnotation(
         source: String,

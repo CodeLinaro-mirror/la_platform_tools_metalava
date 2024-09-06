@@ -78,15 +78,20 @@ class TextModelSuiteRunner : ModelSuiteRunner {
  */
 internal class ClassLoaderBasedClassResolver(jar: File) : ClassResolver {
 
-    private val codebase by lazy {
-        TextCodebase(
-            location = jar,
-            annotationManager = noOpAnnotationManager,
-            classResolver = null,
-        )
-    }
+    private val assembler by
+        lazy(LazyThreadSafetyMode.NONE) {
+            TextCodebaseAssembler.createAssembler(
+                location = jar,
+                description = "Codebase for resolving classes in $jar for tests",
+                annotationManager = noOpAnnotationManager,
+                classResolver = null,
+            )
+        }
 
-    private val classLoader by lazy { URLClassLoader(arrayOf(jar.toURI().toURL()), null) }
+    private val codebase by lazy(LazyThreadSafetyMode.NONE) { assembler.codebase }
+
+    private val classLoader by
+        lazy(LazyThreadSafetyMode.NONE) { URLClassLoader(arrayOf(jar.toURI().toURL()), null) }
 
     private fun findClassInClassLoader(qualifiedName: String): Class<*>? {
         var binaryName = qualifiedName
@@ -114,7 +119,7 @@ internal class ClassLoaderBasedClassResolver(jar: File) : ClassResolver {
                 val cls = findClassInClassLoader(erasedName) ?: return null
                 val packageName = cls.`package`.name
 
-                val itemFactory = codebase.assembler.itemFactory
+                val itemFactory = assembler.itemFactory
 
                 val packageItem = codebase.findOrCreatePackage(packageName)
                 itemFactory.createClassItem(

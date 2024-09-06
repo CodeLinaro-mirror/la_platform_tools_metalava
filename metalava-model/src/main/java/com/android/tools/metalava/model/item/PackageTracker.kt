@@ -18,6 +18,7 @@ package com.android.tools.metalava.model.item
 
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PackageList
+import com.android.tools.metalava.model.VisibilityLevel
 import java.util.HashMap
 
 private const val PACKAGE_ESTIMATE = 500
@@ -111,6 +112,12 @@ class PackageTracker(private val packageItemFactory: PackageItemFactory) {
                 )
 
         val packageItem = packageItemFactory(packageName, packageDoc, containingPackage)
+
+        // The packageItemFactory may provide its own modifiers so check to make sure that they are
+        // public.
+        if (packageItem.modifiers.getVisibilityLevel() != VisibilityLevel.PUBLIC)
+            error("Package $packageItem is not public")
+
         addPackage(packageItem)
 
         // Newly created package's `emit` property is determined completely by the `emit` parameter

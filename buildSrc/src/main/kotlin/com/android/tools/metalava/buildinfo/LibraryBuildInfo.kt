@@ -48,6 +48,7 @@ abstract class CreateLibraryBuildInfoTask : DefaultTask() {
     @get:Input abstract val projectZipPath: Property<String>
     @get:Input abstract val projectDirectoryRelativeToRootProject: Property<String>
     @get:Input abstract val dependencyList: ListProperty<LibraryBuildInfoFile.Dependency>
+    @get:Input abstract val target: Property<String>
 
     @get:OutputFile abstract val outputFile: Property<File>
 
@@ -62,6 +63,7 @@ abstract class CreateLibraryBuildInfoTask : DefaultTask() {
         info.sha = sha.get()
         info.projectZipPath = projectZipPath.get()
         info.dependencies = dependencyList.get()
+        info.target = target.get()
         info.checks = arrayListOf()
         val gson = GsonBuilder().setPrettyPrinting().create()
         val serializedInfo: String = gson.toJson(info)
@@ -107,6 +109,8 @@ internal fun configureBuildInfoTask(
                 )
             }
         )
+        // This should always be "metalava" unless the target changes
+        it.target.set("metalava")
     }
 }
 
@@ -138,6 +142,7 @@ fun List<Dependency>.asBuildInfoDependencies() =
  *   the same version
  * @property dependencies a list of dependencies on other androidx libraries
  * @property checks arraylist of [Check]s that is used by Jetpad
+ * @property target the target for metalava, used by Jetpad
  */
 class LibraryBuildInfoFile {
     var groupId: String? = null
@@ -149,6 +154,7 @@ class LibraryBuildInfoFile {
     var groupIdRequiresSameVersion: Boolean? = null
     var dependencies: List<Dependency> = arrayListOf()
     var checks: ArrayList<Check> = arrayListOf()
+    var target: String? = null
 
     /** @property isTipOfTree boolean that specifies whether the dependency is tip-of-tree */
     class Dependency : Serializable {

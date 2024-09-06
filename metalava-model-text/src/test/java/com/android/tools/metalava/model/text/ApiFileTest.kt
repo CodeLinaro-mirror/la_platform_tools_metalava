@@ -564,9 +564,8 @@ class ApiFileTest : BaseTextCodebaseTest() {
     class TestClassItem private constructor(delegate: ClassItem) : ClassItem by delegate {
         companion object {
             fun create(name: String): TestClassItem {
-                val codebase =
-                    ApiFile.parseApi("other.txt", "// Signature format: 2.0") as TextCodebase
-                val delegate = codebase.getOrCreateClass(name)
+                val codebase = ApiFile.parseApi("other.txt", "// Signature format: 2.0")
+                val delegate = codebase.resolveClass(name)!!
                 return TestClassItem(delegate)
             }
         }

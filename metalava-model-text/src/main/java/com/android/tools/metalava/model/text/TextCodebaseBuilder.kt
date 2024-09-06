@@ -25,41 +25,40 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.item.DefaultClassItem
+import com.android.tools.metalava.model.item.DefaultCodebase
 import com.android.tools.metalava.model.item.DefaultPackageItem
 import com.android.tools.metalava.reporter.FileLocation
 import java.io.File
 
-/**
- * Supports building a [TextCodebase] that is a subset of another [TextCodebase].
- *
- * The purposely uses generic model classes in the API and down casts any items provided to the
- * appropriate text model item. That is to avoid external dependencies on the text model item
- * implementation classes.
- */
-class TextCodebaseBuilder private constructor(private val codebase: TextCodebase) {
+/** Supports building a [DefaultCodebase] that is a subset of another [DefaultCodebase]. */
+class TextCodebaseBuilder private constructor(private val assembler: TextCodebaseAssembler) {
 
     companion object {
         fun build(
             location: File,
+            description: String,
             annotationManager: AnnotationManager,
             block: TextCodebaseBuilder.() -> Unit
         ): Codebase {
-            val codebase =
-                TextCodebase(
+            val assembler =
+                TextCodebaseAssembler.createAssembler(
                     location = location,
+                    description = description,
                     annotationManager = annotationManager,
                     classResolver = null,
                 )
-            val builder = TextCodebaseBuilder(codebase)
+            val builder = TextCodebaseBuilder(assembler)
             builder.block()
 
-            return codebase
+            return assembler.codebase
         }
     }
 
-    var description by codebase::description
+    val codebase = assembler.codebase
 
-    private val itemFactory = codebase.assembler.itemFactory
+    val description by codebase::description
+
+    private val itemFactory = assembler.itemFactory
 
     private fun getOrAddPackage(pkgName: String) = codebase.findOrCreatePackage(pkgName)
 
