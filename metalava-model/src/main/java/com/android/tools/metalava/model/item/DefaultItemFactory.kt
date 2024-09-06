@@ -17,13 +17,13 @@
 package com.android.tools.metalava.model.item
 
 import com.android.tools.metalava.model.ApiVariantSelectorsFactory
+import com.android.tools.metalava.model.BaseModifierList
 import com.android.tools.metalava.model.CallableBody
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.ConstructorItem
-import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
@@ -59,7 +59,7 @@ class DefaultItemFactory(
     /** Create a [PackageItem]. */
     fun createPackageItem(
         fileLocation: FileLocation,
-        modifiers: DefaultModifierList,
+        modifiers: BaseModifierList,
         documentationFactory: ItemDocumentationFactory,
         qualifiedName: String,
         containingPackage: PackageItem?,
@@ -82,7 +82,7 @@ class DefaultItemFactory(
     /** Create a [ConstructorItem]. */
     fun createClassItem(
         fileLocation: FileLocation,
-        modifiers: DefaultModifierList,
+        modifiers: BaseModifierList,
         documentationFactory: ItemDocumentationFactory = ItemDocumentation.NONE_FACTORY,
         source: SourceFile? = null,
         classKind: ClassKind,
@@ -119,7 +119,7 @@ class DefaultItemFactory(
     /** Create a [ConstructorItem]. */
     fun createConstructorItem(
         fileLocation: FileLocation,
-        modifiers: DefaultModifierList,
+        modifiers: BaseModifierList,
         documentationFactory: ItemDocumentationFactory,
         name: String,
         containingClass: ClassItem,
@@ -149,7 +149,7 @@ class DefaultItemFactory(
     /** Create a [FieldItem]. */
     fun createFieldItem(
         fileLocation: FileLocation,
-        modifiers: DefaultModifierList,
+        modifiers: BaseModifierList,
         documentationFactory: ItemDocumentationFactory,
         name: String,
         containingClass: ClassItem,
@@ -174,7 +174,7 @@ class DefaultItemFactory(
     /** Create a [MethodItem]. */
     fun createMethodItem(
         fileLocation: FileLocation,
-        modifiers: DefaultModifierList,
+        modifiers: BaseModifierList,
         documentationFactory: ItemDocumentationFactory,
         name: String,
         containingClass: ClassItem,
@@ -204,7 +204,7 @@ class DefaultItemFactory(
     /** Create a [ParameterItem]. */
     fun createParameterItem(
         fileLocation: FileLocation,
-        modifiers: DefaultModifierList,
+        modifiers: BaseModifierList,
         name: String,
         publicNameProvider: PublicNameProvider,
         containingCallable: CallableItem,
@@ -229,7 +229,7 @@ class DefaultItemFactory(
     /** Create a [PropertyItem]. */
     fun createPropertyItem(
         fileLocation: FileLocation,
-        modifiers: DefaultModifierList,
+        modifiers: BaseModifierList,
         name: String,
         containingClass: ClassItem,
         type: TypeItem,
@@ -256,7 +256,7 @@ class DefaultItemFactory(
      * TODO(b/351410134): Provide support in this factory for two stage initialization.
      */
     fun createTypeParameterItem(
-        modifiers: DefaultModifierList,
+        modifiers: BaseModifierList,
         name: String,
         isReified: Boolean,
     ) =

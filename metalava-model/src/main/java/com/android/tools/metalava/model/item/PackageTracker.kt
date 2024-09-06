@@ -31,11 +31,6 @@ class PackageTracker(private val packageItemFactory: PackageItemFactory) {
     val size
         get() = packagesByName.size
 
-    /** Get the collection of [DefaultPackageItem]s that have been registered. */
-    @Deprecated(message = "temporary measure do not use")
-    val defaultPackages: Collection<DefaultPackageItem>
-        get() = packagesByName.values
-
     fun getPackages(): PackageList {
         val list = packagesByName.values.toMutableList()
         list.sortWith(PackageItem.comparator)
@@ -90,7 +85,7 @@ class PackageTracker(private val packageItemFactory: PackageItemFactory) {
             }
 
             // If this package should be emitted then set its `emit` property to `true`, otherwise
-            // leave it unchanged. That ensures that once a package has has its `emit` property to
+            // leave it unchanged. That ensures that once a package has had its `emit` property to
             // `true` it cannot become `false`.
             if (emit) {
                 existing.emit = true

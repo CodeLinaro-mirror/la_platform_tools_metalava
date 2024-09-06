@@ -151,20 +151,20 @@ interface BaseModifierList {
     }
 
     /**
-     * Copy this, so it can be used on (and possibly modified by) another [Item] from the same
-     * codebase.
+     * Get a [MutableModifierList] from this.
+     *
+     * This will return the object on which it is called if that is already mutable, otherwise it
+     * will create a separate mutable copy of this.
      */
-    fun duplicate(): ModifierList
+    fun toMutable(): MutableModifierList
 
     /**
-     * Take a snapshot of this for use in [targetCodebase].
+     * Get an immutable [ModifierList] from this.
      *
-     * While [duplicate] makes a shallow copy for use within the same [Codebase] this method creates
-     * a deep snapshot, including snapshots of each annotation for use in [targetCodebase].
-     *
-     * @param targetCodebase The [Codebase] of which the snapshot will be part.
+     * This will return the object on which it is called if that is already immutable, otherwise it
+     * will create a separate immutable copy of this.
      */
-    fun snapshot(targetCodebase: Codebase): ModifierList
+    fun toImmutable(): ModifierList
 }
 
 /**
@@ -184,4 +184,13 @@ inline fun BaseModifierList.hasAnnotation(predicate: (AnnotationItem) -> Boolean
     return annotations().any(predicate)
 }
 
-interface ModifierList : BaseModifierList
+interface ModifierList : BaseModifierList {
+    /**
+     * Take a snapshot of this for use in [targetCodebase].
+     *
+     * Creates a deep snapshot, including snapshots of each annotation for use in [targetCodebase].
+     *
+     * @param targetCodebase The [Codebase] of which the snapshot will be part.
+     */
+    fun snapshot(targetCodebase: Codebase): ModifierList
+}

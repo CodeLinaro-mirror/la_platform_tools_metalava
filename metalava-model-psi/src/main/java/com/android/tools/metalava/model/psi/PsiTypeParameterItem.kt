@@ -16,7 +16,7 @@
 
 package com.android.tools.metalava.model.psi
 
-import com.android.tools.metalava.model.DefaultModifierList
+import com.android.tools.metalava.model.BaseModifierList
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.item.DefaultTypeParameterItem
@@ -30,7 +30,7 @@ internal class PsiTypeParameterItem(
     override val codebase: PsiBasedCodebase,
     private val psiClass: PsiTypeParameter,
     name: String,
-    modifiers: DefaultModifierList
+    modifiers: BaseModifierList
 ) :
     DefaultTypeParameterItem(
         codebase = codebase,

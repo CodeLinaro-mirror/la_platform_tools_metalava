@@ -116,6 +116,7 @@ Available Issues                             |  Category                |   Defa
   HiddenTypedefConstant                      |  unknown                 |   error
   IgnoringSymlink                            |  unknown                 |   info
   IllegalStateException                      |  api_lint                |   warning
+  InconsistentMergeAnnotation                |  api_lint                |   warning_error_when_new
   InfixRemoval                               |  compatibility           |   error
   IntDef                                     |  documentation           |   hidden
   IntentBuilderName                          |  api_lint                |   warning

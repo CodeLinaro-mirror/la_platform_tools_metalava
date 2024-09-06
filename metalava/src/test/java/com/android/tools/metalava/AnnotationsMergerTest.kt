@@ -20,6 +20,7 @@ import com.android.tools.metalava.cli.common.ARG_WARNING
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.testing.KnownSourceFiles
+import com.android.tools.metalava.testing.KnownSourceFiles.androidxAnnotationHide
 import com.android.tools.metalava.testing.java
 import org.junit.Test
 
@@ -29,6 +30,108 @@ class AnnotationsMergerTest : DriverTest() {
     //   - NULLABLE_SOURCE on one non null on the other
     //   - annotation specified with different parameters (e.g @Size(4) vs @Size(6))
     // Test with jar file
+
+    @Test
+    fun `Merge conflicting nullability when merging from sources`() {
+        check(
+            format = FileFormat.V2,
+            sourceFiles =
+                arrayOf(
+                    androidxAnnotationHide,
+                    androidxNullableSource,
+                    androidxNonNullSource,
+                    java(
+                        """
+                            package test.pkg;
+                            import androidx.annotation.Nullable;
+                            import androidx.annotation.NonNull;
+                            public class MyTest {
+                                private MyTest() {}
+                                public @NonNull Number nonNull;
+                                public @Nullable Number nullable;
+                            }
+                        """
+                    )
+                ),
+            mergeJavaStubAnnotations =
+                """
+                    package test.pkg;
+                    import androidx.annotation.Nullable;
+                    import androidx.annotation.NonNull;
+                    public class MyTest {
+                        private MyTest() {}
+                        public @Nullable Number nonNull;
+                        public @NonNull Number nullable;
+                    }
+                """,
+            api =
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public class MyTest {
+                        field @NonNull public Number nonNull;
+                        field @Nullable public Number nullable;
+                      }
+                    }
+                """,
+            expectedIssues =
+                """
+                    src/test/pkg/MyTest.java:6: warning: Merge conflict, has @NonNull (or equivalent) attempting to merge @Nullable (or equivalent) (ErrorWhenNew) [InconsistentMergeAnnotation]
+                    src/test/pkg/MyTest.java:7: warning: Merge conflict, has @Nullable (or equivalent) attempting to merge @NonNull (or equivalent) (ErrorWhenNew) [InconsistentMergeAnnotation]
+                """,
+        )
+    }
+
+    @Test
+    fun `Merge conflicting nullability when merging from XML`() {
+        check(
+            format = FileFormat.V2,
+            sourceFiles =
+                arrayOf(
+                    androidxAnnotationHide,
+                    androidxNullableSource,
+                    androidxNonNullSource,
+                    java(
+                        """
+                            package test.pkg;
+                            import androidx.annotation.Nullable;
+                            import androidx.annotation.NonNull;
+                            public class MyTest {
+                                private MyTest() {}
+                                public @NonNull Number nonNull;
+                                public @Nullable Number nullable;
+                            }
+                        """
+                    )
+                ),
+            mergeXmlAnnotations =
+                """<?xml version="1.0" encoding="UTF-8"?>
+                    <root>
+                      <item name="test.pkg.MyTest nonNull">
+                        <annotation name="androidx.annotation.Nullable" />
+                      </item>
+                      <item name="test.pkg.MyTest nullable">
+                        <annotation name="androidx.annotation.NonNull" />
+                      </item>
+                    </root>
+                """,
+            api =
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public class MyTest {
+                        field @NonNull public Number nonNull;
+                        field @Nullable public Number nullable;
+                      }
+                    }
+                """,
+            expectedIssues =
+                """
+                    src/test/pkg/MyTest.java:6: warning: Merge conflict, has @NonNull (or equivalent) attempting to merge @Nullable (or equivalent) (ErrorWhenNew) [InconsistentMergeAnnotation]
+                    src/test/pkg/MyTest.java:7: warning: Merge conflict, has @Nullable (or equivalent) attempting to merge @NonNull (or equivalent) (ErrorWhenNew) [InconsistentMergeAnnotation]
+                """,
+        )
+    }
 
     @Test
     fun `Signature files contain annotations`() {

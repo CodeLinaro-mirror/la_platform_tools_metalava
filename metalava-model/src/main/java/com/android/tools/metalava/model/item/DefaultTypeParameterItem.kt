@@ -17,9 +17,9 @@
 package com.android.tools.metalava.model.item
 
 import com.android.tools.metalava.model.ApiVariantSelectors
+import com.android.tools.metalava.model.BaseModifierList
 import com.android.tools.metalava.model.BoundsTypeItem
 import com.android.tools.metalava.model.Codebase
-import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.TypeParameterItem
@@ -32,7 +32,7 @@ import com.android.tools.metalava.reporter.FileLocation
 open class DefaultTypeParameterItem(
     codebase: Codebase,
     itemLanguage: ItemLanguage,
-    modifiers: DefaultModifierList,
+    modifiers: BaseModifierList,
     private val name: String,
     private val isReified: Boolean,
 ) :

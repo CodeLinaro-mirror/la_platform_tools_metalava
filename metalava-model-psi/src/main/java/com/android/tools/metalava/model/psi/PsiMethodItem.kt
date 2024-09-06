@@ -17,9 +17,9 @@
 package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.model.ApiVariantSelectors
+import com.android.tools.metalava.model.BaseModifierList
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
-import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.MethodItem
@@ -52,7 +52,7 @@ internal class PsiMethodItem(
     // TextClassItem.
     containingClass: ClassItem,
     name: String,
-    modifiers: DefaultModifierList,
+    modifiers: BaseModifierList,
     documentationFactory: ItemDocumentationFactory,
     returnType: TypeItem,
     parameterItemsFactory: ParameterItemsFactory,
@@ -129,7 +129,7 @@ internal class PsiMethodItem(
                 fileLocation,
                 targetContainingClass,
                 name(),
-                modifiers.duplicate(),
+                modifiers,
                 documentation::duplicate,
                 returnType.convertType(typeVariableMap),
                 { methodItem ->
@@ -206,6 +206,15 @@ internal class PsiMethodItem(
                 }
             }
 
+            if (modifiers.isFinal() && containingClass.modifiers.isFinal()) {
+                // The containing class is final, so it is implied that every method is final as
+                // well.
+                // No need to apply 'final' to each method. (We do it here rather than just in the
+                // signature emit code since we want to make sure that the signature comparison
+                // methods with super methods also consider this method non-final.)
+                modifiers.setFinal(false)
+            }
+
             // Create the TypeParameterList for this before wrapping any of the other types used by
             // it as they may reference a type parameter in the list.
             val (typeParameterList, methodTypeItemFactory) =
@@ -245,14 +254,6 @@ internal class PsiMethodItem(
                     typeParameterList = typeParameterList,
                     throwsTypes = throwsTypes(psiMethod, methodTypeItemFactory),
                 )
-            if (modifiers.isFinal() && containingClass.modifiers.isFinal()) {
-                // The containing class is final, so it is implied that every method is final as
-                // well.
-                // No need to apply 'final' to each method. (We do it here rather than just in the
-                // signature emit code since we want to make sure that the signature comparison
-                // methods with super methods also consider this method non-final.)
-                modifiers.setFinal(false)
-            }
 
             return method
         }

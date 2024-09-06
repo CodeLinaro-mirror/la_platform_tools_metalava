@@ -455,7 +455,7 @@ interface Item : Reportable {
 abstract class AbstractItem(
     final override val fileLocation: FileLocation,
     final override val itemLanguage: ItemLanguage,
-    final override val modifiers: DefaultModifierList,
+    modifiers: BaseModifierList,
     documentationFactory: ItemDocumentationFactory,
     variantSelectorsFactory: ApiVariantSelectorsFactory,
 ) : Item {
@@ -467,6 +467,18 @@ abstract class AbstractItem(
      * initialized.
      */
     final override val documentation = @Suppress("LeakingThis") documentationFactory(this)
+
+    /**
+     * The immutable [modifiers].
+     *
+     * The supplied `modifiers` parameter could be either [MutableModifierList] or [ModifierList]
+     * but this requires a [ModifierList] so get one using [BaseModifierList.toImmutable].
+     *
+     * The [ModifierList] that this references is immutable but the [mutateModifiers] method can be
+     * used to change the [ModifierList] to which this refers.
+     */
+    final override var modifiers: ModifierList = modifiers.toImmutable()
+        private set
 
     init {
         if (documentation.contains("@deprecated") && !modifiers.isDeprecated()) {
@@ -508,7 +520,9 @@ abstract class AbstractItem(
         get() = modifiers.isDeprecated()
 
     final override fun mutateModifiers(mutator: MutableModifierList.() -> Unit) {
-        modifiers.mutator()
+        val mutable = modifiers.toMutable()
+        mutable.mutator()
+        modifiers = mutable.toImmutable()
     }
 
     final override val isPublic: Boolean

@@ -18,9 +18,9 @@ package com.android.tools.metalava.model.item
 
 import com.android.tools.metalava.model.ApiVariantSelectors
 import com.android.tools.metalava.model.ArrayTypeItem
+import com.android.tools.metalava.model.BaseModifierList
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.Codebase
-import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.ParameterItem
@@ -32,7 +32,7 @@ open class DefaultParameterItem(
     codebase: Codebase,
     fileLocation: FileLocation,
     itemLanguage: ItemLanguage,
-    modifiers: DefaultModifierList,
+    modifiers: BaseModifierList,
     private val name: String,
     protected val publicNameProvider: PublicNameProvider,
     private val containingCallable: CallableItem,
@@ -87,7 +87,7 @@ open class DefaultParameterItem(
             codebase,
             fileLocation,
             itemLanguage,
-            modifiers.duplicate(),
+            modifiers,
             name(),
             publicNameProvider,
             containingCallable,

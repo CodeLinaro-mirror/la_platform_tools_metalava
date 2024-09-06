@@ -24,9 +24,10 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.DefaultAnnotationItem
-import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.ItemDocumentation.Companion.toItemDocumentationFactory
+import com.android.tools.metalava.model.VisibilityLevel
+import com.android.tools.metalava.model.createImmutableModifiers
 import com.android.tools.metalava.reporter.Reporter
 import java.io.File
 import java.util.HashMap
@@ -69,7 +70,7 @@ open class DefaultCodebase(
         val documentationFactory = packageDoc.commentFactory ?: "".toItemDocumentationFactory()
         assembler.itemFactory.createPackageItem(
             packageDoc.fileLocation,
-            packageDoc.modifiers ?: DefaultModifierList.createPublic(),
+            packageDoc.modifiers ?: createImmutableModifiers(VisibilityLevel.PUBLIC),
             documentationFactory,
             packageName,
             containingPackage,

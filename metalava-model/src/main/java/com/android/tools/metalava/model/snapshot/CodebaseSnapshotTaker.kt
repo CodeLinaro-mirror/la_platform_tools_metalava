@@ -22,7 +22,6 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ConstructorItem
-import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.DefaultTypeParameterList
 import com.android.tools.metalava.model.DelegatedVisitor
 import com.android.tools.metalava.model.FieldItem
@@ -120,7 +119,7 @@ class CodebaseSnapshotTaker private constructor() : DelegatedVisitor, CodebaseAs
     private var currentClass: DefaultClassItem? = null
 
     /** Take a snapshot of this [ModifierList] for [codebase]. */
-    private fun ModifierList.snapshot() = (this as DefaultModifierList).snapshot(codebase)
+    private fun ModifierList.snapshot() = snapshot(codebase)
 
     /** General [TypeItem] specific snapshot. */
     private fun TypeItem.snapshot() = typeItemFactory.getGeneralType(this)

@@ -44,7 +44,6 @@ import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.VisibilityLevel
-import com.android.tools.metalava.model.findAnnotation
 import com.android.tools.metalava.model.source.SourceParser
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.reporter.Issues
@@ -578,7 +577,7 @@ class ApiAnalyzer(
         val mergeQualifierAnnotations = config.mergeQualifierAnnotations
         if (mergeQualifierAnnotations.isNotEmpty()) {
             AnnotationsMerger(sourceParser, codebase, reporter)
-                .mergeQualifierAnnotations(mergeQualifierAnnotations)
+                .mergeQualifierAnnotationsFromFiles(mergeQualifierAnnotations)
         }
     }
 
@@ -587,7 +586,7 @@ class ApiAnalyzer(
         val mergeInclusionAnnotations = config.mergeInclusionAnnotations
         if (mergeInclusionAnnotations.isNotEmpty()) {
             AnnotationsMerger(sourceParser, codebase, reporter)
-                .mergeInclusionAnnotations(mergeInclusionAnnotations)
+                .mergeInclusionAnnotationsFromFiles(mergeInclusionAnnotations)
         }
     }
 

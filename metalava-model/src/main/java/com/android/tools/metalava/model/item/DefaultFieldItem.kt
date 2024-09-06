@@ -17,9 +17,9 @@
 package com.android.tools.metalava.model.item
 
 import com.android.tools.metalava.model.ApiVariantSelectorsFactory
+import com.android.tools.metalava.model.BaseModifierList
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
-import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.ItemLanguage
@@ -31,7 +31,7 @@ open class DefaultFieldItem(
     fileLocation: FileLocation,
     itemLanguage: ItemLanguage,
     variantSelectorsFactory: ApiVariantSelectorsFactory,
-    modifiers: DefaultModifierList,
+    modifiers: BaseModifierList,
     documentationFactory: ItemDocumentationFactory,
     name: String,
     containingClass: ClassItem,
@@ -65,7 +65,7 @@ open class DefaultFieldItem(
                 fileLocation = fileLocation,
                 itemLanguage = itemLanguage,
                 variantSelectorsFactory = variantSelectors::duplicate,
-                modifiers = modifiers.duplicate(),
+                modifiers = modifiers,
                 documentationFactory = documentation::duplicate,
                 name = name(),
                 containingClass = targetContainingClass,

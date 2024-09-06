@@ -29,7 +29,6 @@ import com.android.tools.metalava.model.DefaultAnnotationArrayAttributeValue
 import com.android.tools.metalava.model.DefaultAnnotationAttribute
 import com.android.tools.metalava.model.DefaultAnnotationItem
 import com.android.tools.metalava.model.DefaultAnnotationSingleAttributeValue
-import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.DefaultTypeParameterList
 import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.FixedFieldValue
@@ -42,7 +41,9 @@ import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.TypeParameterListAndFactory
 import com.android.tools.metalava.model.TypeParameterScope
+import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.addDefaultRetentionPolicyAnnotation
+import com.android.tools.metalava.model.createImmutableModifiers
 import com.android.tools.metalava.model.findAnnotation
 import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.model.item.CodebaseAssembler
@@ -240,7 +241,7 @@ internal open class TurbineCodebaseInitialiser(
                 createTurbineSourceFile(unit)
                 val annotations = createAnnotations(sourceTypeBoundClass.annotations())
 
-                val modifiers = DefaultModifierList.createPublic(annotations)
+                val modifiers = createImmutableModifiers(VisibilityLevel.PUBLIC, annotations)
                 MutablePackageDoc(packageName, fileLocation, modifiers, comment)
             }
 
@@ -451,6 +452,14 @@ internal open class TurbineCodebaseInitialiser(
             )
         val classKind = getClassKind(cls.kind())
 
+        modifierItem.setSynchronized(false) // A class can not be synchronized in java
+
+        if (classKind == ClassKind.ANNOTATION_TYPE) {
+            if (!modifierItem.hasAnnotation(AnnotationItem::isRetention)) {
+                modifierItem.addDefaultRetentionPolicyAnnotation(codebase, isKotlin = false)
+            }
+        }
+
         // Setup the SuperClass
         val superClassType =
             if (classKind != ClassKind.INTERFACE) {
@@ -477,13 +486,6 @@ internal open class TurbineCodebaseInitialiser(
                 superClassType = superClassType,
                 interfaceTypes = interfaceTypes,
             )
-        modifierItem.setSynchronized(false) // A class can not be synchronized in java
-
-        if (classKind == ClassKind.ANNOTATION_TYPE) {
-            if (!modifierItem.hasAnnotation(AnnotationItem::isRetention)) {
-                modifierItem.addDefaultRetentionPolicyAnnotation(classItem)
-            }
-        }
 
         // Create fields
         createFields(classItem, cls.fields(), classTypeItemFactory)
@@ -880,7 +882,8 @@ internal open class TurbineCodebaseInitialiser(
         val declaredParameterOffset = parameters.size - (parameterDecls?.size ?: 0)
         return parameters.mapIndexed { idx, parameter ->
             val annotations = createAnnotations(parameter.annotations())
-            val parameterModifierItem = TurbineModifierItem.create(parameter.access(), annotations)
+            val parameterModifierItem =
+                TurbineModifierItem.create(parameter.access(), annotations).toImmutable()
             val type =
                 typeItemFactory.getMethodParameterType(
                     underlyingParameterType = parameter.type(),
