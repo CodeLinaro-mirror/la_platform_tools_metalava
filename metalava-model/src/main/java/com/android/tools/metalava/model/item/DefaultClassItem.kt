@@ -66,6 +66,14 @@ open class DefaultClassItem(
     ClassItem {
 
     init {
+        // Do not emit classes from the classpath.
+        emit = emit && !isFromClassPath
+
+        // If this class is emittable then make sure its package is too.
+        if (emit) {
+            containingPackage.emit = true
+        }
+
         if (containingClass == null) {
             (containingPackage as DefaultPackageItem).addTopClass(this)
         } else {

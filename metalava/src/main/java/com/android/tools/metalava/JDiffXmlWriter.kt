@@ -308,7 +308,6 @@ class JDiffXmlWriter(
     ): ApiVisitor =
         FilteringApiVisitor(
             this,
-            preserveClassNesting = false,
             inlineInheritedFields = true,
             interfaceListComparator = TypeItem.totalComparator,
             filterEmit = filterEmit,

@@ -49,39 +49,6 @@ class SignatureWriter(
         }
     }
 
-    /**
-     * Create an [ApiVisitor] that will filter the [Item] to which is applied according to the
-     * supplied parameters and in a manner appropriate for writing signatures, e.g. flattening
-     * nested classes. It will delegate any visitor calls that pass through its filter to this
-     * [SignatureWriter] instance.
-     */
-    fun createFilteringVisitor(
-        apiType: ApiType,
-        preFiltered: Boolean,
-        showUnannotated: Boolean,
-        apiVisitorConfig: ApiVisitor.Config,
-    ): ApiVisitor {
-        val filterEmit = apiType.getEmitFilter(apiVisitorConfig.apiPredicateConfig)
-        val filterReference = apiType.getReferenceFilter(apiVisitorConfig.apiPredicateConfig)
-
-        val (interfaceListSorter, interfaceListComparator) =
-            if (fileFormat.sortWholeExtendsList) Pair(null, TypeItem.totalComparator)
-            else Pair(::getInterfacesInOrder, null)
-        return FilteringApiVisitor(
-            delegate = this,
-            preserveClassNesting = false,
-            inlineInheritedFields = true,
-            callableComparator = fileFormat.overloadedMethodOrder.comparator,
-            interfaceListSorter = interfaceListSorter,
-            interfaceListComparator = interfaceListComparator,
-            filterEmit = filterEmit,
-            filterReference = filterReference,
-            preFiltered = preFiltered,
-            showUnannotated = showUnannotated,
-            config = apiVisitorConfig,
-        )
-    }
-
     private val modifierListWriter =
         ModifierListWriter.forSignature(
             writer = writer,
@@ -420,4 +387,37 @@ private fun getInterfacesInOrder(
     }
 
     return sortedInterfaces
+}
+
+/**
+ * Create an [ApiVisitor] that will filter the [Item] to which is applied according to the supplied
+ * parameters and in a manner appropriate for writing signatures, e.g. flattening nested classes. It
+ * will delegate any visitor calls that pass through its filter to this [SignatureWriter] instance.
+ */
+fun createFilteringVisitorForSignatures(
+    delegate: DelegatedVisitor,
+    fileFormat: FileFormat,
+    apiType: ApiType,
+    preFiltered: Boolean,
+    showUnannotated: Boolean,
+    apiVisitorConfig: ApiVisitor.Config,
+): ApiVisitor {
+    val filterEmit = apiType.getEmitFilter(apiVisitorConfig.apiPredicateConfig)
+    val filterReference = apiType.getReferenceFilter(apiVisitorConfig.apiPredicateConfig)
+
+    val (interfaceListSorter, interfaceListComparator) =
+        if (fileFormat.sortWholeExtendsList) Pair(null, TypeItem.totalComparator)
+        else Pair(::getInterfacesInOrder, null)
+    return FilteringApiVisitor(
+        delegate = delegate,
+        inlineInheritedFields = true,
+        callableComparator = fileFormat.overloadedMethodOrder.comparator,
+        interfaceListSorter = interfaceListSorter,
+        interfaceListComparator = interfaceListComparator,
+        filterEmit = filterEmit,
+        filterReference = filterReference,
+        preFiltered = preFiltered,
+        showUnannotated = showUnannotated,
+        config = apiVisitorConfig,
+    )
 }

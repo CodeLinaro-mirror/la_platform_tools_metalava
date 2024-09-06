@@ -76,7 +76,7 @@ class TextModelSuiteRunner : ModelSuiteRunner {
  * the [classLoader]. It is just a placeholder to indicate that it was found, although that may
  * change in the future.
  */
-internal class ClassLoaderBasedClassResolver(jar: File) : ClassResolver {
+class ClassLoaderBasedClassResolver(jar: File) : ClassResolver {
 
     private val assembler by
         lazy(LazyThreadSafetyMode.NONE) {

@@ -1,5 +1,4 @@
 com.android.tools.metalava.model.testsuite.BootstrapSourceModelProviderTest
-  130 - check classes from classpath[turbine]
   240 test documentations[turbine]
   260 - test doconly members[turbine]
 

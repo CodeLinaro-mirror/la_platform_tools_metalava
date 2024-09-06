@@ -53,21 +53,16 @@ class PackageTracker(private val packageItemFactory: PackageItemFactory) {
      *
      * @param packageName the name of the package to create.
      * @param packageDocs provides additional information needed for creating a package.
-     * @param emit if `true` then the package was created from sources that should be emitted as
-     *   part of the current API surface and so it should have its [PackageItem.emit] property set
-     *   to `true`, whether this call finds it or creates it.
      * @return the [DefaultPackageItem] that was found or created.
      */
     fun findOrCreatePackage(
         packageName: String,
         packageDocs: PackageDocs = PackageDocs.EMPTY,
-        emit: Boolean = true,
     ): DefaultPackageItem {
         // Get the `PackageDoc`, if any, to use for creating this package.
         val packageDoc = packageDocs[packageName]
 
-        // Check to see if the package already exists, if it does then return it along with
-        // `created = false` to show that this did not create the package.
+        // Check to see if the package already exists, if it does then return it.
         findPackage(packageName)?.let { existing ->
             // If the same package showed up multiple times, make sure they have the same modifiers.
             // (Packages can't have public/private/etc., but they can have annotations, which are
@@ -85,13 +80,6 @@ class PackageTracker(private val packageItemFactory: PackageItemFactory) {
                 )
             }
 
-            // If this package should be emitted then set its `emit` property to `true`, otherwise
-            // leave it unchanged. That ensures that once a package has had its `emit` property to
-            // `true` it cannot become `false`.
-            if (emit) {
-                existing.emit = true
-            }
-
             return existing
         }
 
@@ -100,16 +88,7 @@ class PackageTracker(private val packageItemFactory: PackageItemFactory) {
         val containingPackageName = getContainingPackageName(packageName)
         val containingPackage =
             if (containingPackageName == null) null
-            else
-                findOrCreatePackage(
-                    containingPackageName,
-                    packageDocs,
-                    // A package should not be included in the API surface unless it contains
-                    // classes that belong to that API surface. This call passes in `emit = false`
-                    // to ensure that a package which is created solely as a containing package will
-                    // not be included in the API surface.
-                    emit = false,
-                )
+            else findOrCreatePackage(containingPackageName, packageDocs)
 
         val packageItem = packageItemFactory(packageName, packageDoc, containingPackage)
 
@@ -119,10 +98,6 @@ class PackageTracker(private val packageItemFactory: PackageItemFactory) {
             error("Package $packageItem is not public")
 
         addPackage(packageItem)
-
-        // Newly created package's `emit` property is determined completely by the `emit` parameter
-        // supplied.
-        packageItem.emit = emit
 
         return packageItem
     }

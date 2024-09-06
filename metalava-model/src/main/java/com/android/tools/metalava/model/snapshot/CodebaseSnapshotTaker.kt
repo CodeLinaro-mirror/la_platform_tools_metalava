@@ -122,6 +122,13 @@ class CodebaseSnapshotTaker private constructor() : DefaultCodebaseAssembler(), 
     /** [ClassTypeItem] specific snapshot. */
     private fun ClassTypeItem.snapshot() = typeItemFactory.getGeneralType(this) as ClassTypeItem
 
+    /**
+     * Snapshots need to preserve class nesting when visiting otherwise [ClassItem.containingClass]
+     * will not be initialized correctly.
+     */
+    override val requiresClassNesting: Boolean
+        get() = true
+
     override fun visitCodebase(codebase: Codebase) {
         this.originalCodebase = codebase
         val newCodebase =

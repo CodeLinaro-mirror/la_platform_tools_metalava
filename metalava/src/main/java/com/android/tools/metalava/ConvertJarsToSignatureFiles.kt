@@ -138,16 +138,20 @@ class ConvertJarsToSignatureFiles(
             }
 
             createReportFile(progressTracker, jarCodebase, newApiFile, "API") { printWriter ->
-                SignatureWriter(
+                val signatureWriter =
+                    SignatureWriter(
                         writer = printWriter,
                         fileFormat = fileFormat,
                     )
-                    .createFilteringVisitor(
-                        apiType = ApiType.PUBLIC_API,
-                        preFiltered = jarCodebase.preFiltered,
-                        showUnannotated = false,
-                        apiVisitorConfig = ApiVisitor.Config(),
-                    )
+
+                createFilteringVisitorForSignatures(
+                    delegate = signatureWriter,
+                    fileFormat = fileFormat,
+                    apiType = ApiType.PUBLIC_API,
+                    preFiltered = jarCodebase.preFiltered,
+                    showUnannotated = false,
+                    apiVisitorConfig = ApiVisitor.Config()
+                )
             }
 
             // Delete older redundant .xml files

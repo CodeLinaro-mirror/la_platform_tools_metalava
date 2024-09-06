@@ -46,6 +46,13 @@ open class DefaultPackageItem(
     ),
     PackageItem {
 
+    init {
+        // Newly created package's always have `emit = false` as they should only be emitted if they
+        // have at least one class that has `emit = true`. That will be updated, if necessary, when
+        // adding a class to the package.
+        emit = false
+    }
+
     private val topClasses = mutableListOf<ClassItem>()
 
     final override fun qualifiedName(): String = qualifiedName

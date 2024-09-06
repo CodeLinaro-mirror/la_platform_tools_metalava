@@ -23,6 +23,7 @@ import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.testing.getAndroidJar
 import com.google.common.truth.Truth.assertThat
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
@@ -314,7 +315,6 @@ class ApiFileTest : BaseTextCodebaseTest() {
 
             assertEquals(
                 """
-                    <root>
                     test.pkg
                         test.pkg.Outer
                         test.pkg.Outer.Middle
@@ -527,7 +527,9 @@ class ApiFileTest : BaseTextCodebaseTest() {
             files.map { file ->
                 SignatureFile(file, forCurrentApiSurface = file.name == "current.txt")
             }
-        val codebase = ApiFile.parseApi(signatureFiles)
+
+        val classResolver = ClassLoaderBasedClassResolver(getAndroidJar())
+        val codebase = ApiFile.parseApi(signatureFiles, classResolver = classResolver)
 
         val current = buildList {
             codebase.accept(
@@ -543,7 +545,6 @@ class ApiFileTest : BaseTextCodebaseTest() {
 
         assertEquals(
             """
-                package <root>
                 package test.pkg
                 class test.pkg.Foo
                 constructor test.pkg.Foo.Foo(int)

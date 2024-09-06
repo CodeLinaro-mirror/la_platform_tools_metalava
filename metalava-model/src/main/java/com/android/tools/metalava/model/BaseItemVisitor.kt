@@ -129,6 +129,12 @@ open class BaseItemVisitor(
     }
 
     override fun visit(pkg: PackageItem) {
+        // Ignore any packages whose `emit` property is `false`. That is basically any package that
+        // does not contain at least one class that could be emitted as part of the API.
+        if (!pkg.emit) {
+            return
+        }
+
         if (skip(pkg)) {
             return
         }

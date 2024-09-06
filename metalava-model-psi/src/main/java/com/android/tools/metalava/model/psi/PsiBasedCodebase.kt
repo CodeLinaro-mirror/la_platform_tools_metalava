@@ -58,7 +58,6 @@ import com.intellij.psi.PsiField
 import com.intellij.psi.PsiFile
 import com.intellij.psi.PsiImportStatement
 import com.intellij.psi.PsiJavaFile
-import com.intellij.psi.PsiManager
 import com.intellij.psi.PsiMethod
 import com.intellij.psi.PsiPackage
 import com.intellij.psi.PsiSubstitutor
@@ -110,6 +109,7 @@ internal class PsiBasedCodebase(
     override val reporter: Reporter,
     val allowReadingComments: Boolean,
     val fromClasspath: Boolean = false,
+    private val assembler: PsiCodebaseAssembler,
 ) :
     AbstractCodebase(
         location = location,
@@ -146,23 +146,7 @@ internal class PsiBasedCodebase(
     private lateinit var methodMap: MutableMap<PsiClassItem, MutableMap<PsiMethod, PsiCallableItem>>
 
     /** Map from package name to the corresponding package item */
-    private val packageTracker = PackageTracker { packageName, packageDoc, containingPackage ->
-        val psiPackage =
-            findPsiPackage(packageName)
-                ?: run {
-                    // This can happen if a class's package statement does not match its file path.
-                    // In that case, this fakes up a PsiPackageImpl that matches the package
-                    // statement as that is the source of truth.
-                    val manager = PsiManager.getInstance(project)
-                    PsiPackageImpl(manager, packageName)
-                }
-        PsiPackageItem.create(
-            codebase = this@PsiBasedCodebase,
-            psiPackage = psiPackage,
-            packageDoc = packageDoc,
-            containingPackage = containingPackage,
-        )
-    }
+    private val packageTracker = PackageTracker(assembler::createPackageItem)
 
     /**
      * A list of the top-level classes declared in the codebase's source (rather than on its
@@ -393,7 +377,7 @@ internal class PsiBasedCodebase(
         psiPackage: PsiPackage,
     ): DefaultPackageItem {
         val pkgName = psiPackage.qualifiedName
-        return packageTracker.findOrCreatePackage(pkgName, emit = !fromClasspath && initializing)
+        return packageTracker.findOrCreatePackage(pkgName)
     }
 
     internal fun initializeFromJar(

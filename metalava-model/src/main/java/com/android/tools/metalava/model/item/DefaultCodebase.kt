@@ -70,8 +70,7 @@ open class DefaultCodebase(
     fun findOrCreatePackage(
         packageName: String,
         packageDocs: PackageDocs = PackageDocs.EMPTY,
-        emit: Boolean = true,
-    ) = packageTracker.findOrCreatePackage(packageName, packageDocs, emit)
+    ) = packageTracker.findOrCreatePackage(packageName, packageDocs)
 
     /** Add the package to this. */
     fun addPackage(packageItem: DefaultPackageItem) {
