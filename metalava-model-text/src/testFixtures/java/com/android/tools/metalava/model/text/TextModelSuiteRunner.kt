@@ -115,22 +115,18 @@ internal class ClassLoaderBasedClassResolver(jar: File) : ClassResolver {
 
                 val itemFactory = codebase.assembler.itemFactory
 
-                val packageItem =
-                    codebase.findPackage(packageName)
-                        ?: itemFactory.createPackageItem(qualifiedName = packageName).also {
-                            newPackageItem ->
-                            codebase.addPackage(newPackageItem)
-                        }
-
+                val packageItem = codebase.findOrCreatePackage(packageName)
                 itemFactory.createClassItem(
                     fileLocation = FileLocation.UNKNOWN,
                     modifiers = DefaultModifierList(),
-                    qualifiedName = cls.canonicalName,
                     classKind = ClassKind.CLASS,
                     containingClass = null,
                     containingPackage = packageItem,
+                    qualifiedName = cls.canonicalName,
                     typeParameterList = TypeParameterList.NONE,
                     isFromClassPath = true,
+                    superClassType = null,
+                    interfaceTypes = emptyList(),
                 )
             }
     }

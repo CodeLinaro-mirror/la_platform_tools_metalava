@@ -25,13 +25,13 @@ import com.android.tools.metalava.reporter.FileLocation
 /** Set of [PackageDoc] for every documented package defined in the source. */
 class PackageDocs(
     private val packages: Map<String, PackageDoc>,
-) : Iterable<Map.Entry<String, PackageDoc>> {
+) {
+    /** The set of package names. */
+    val packageNames: Collection<String> = packages.keys
 
     operator fun get(packageName: String): PackageDoc {
         return packages[packageName] ?: PackageDoc.EMPTY
     }
-
-    override fun iterator() = packages.entries.iterator()
 
     companion object {
         val EMPTY: PackageDocs = PackageDocs(emptyMap())

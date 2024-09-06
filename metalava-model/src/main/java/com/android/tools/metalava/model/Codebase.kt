@@ -51,6 +51,12 @@ interface Codebase {
      */
     fun getTopLevelClassesFromSource(): List<ClassItem>
 
+    /**
+     * Return `true` if this whole [Codebase] was created from the class path, i.e. not from
+     * sources.
+     */
+    fun isFromClassPath(): Boolean = false
+
     /** Returns a class identified by fully qualified name, if in the codebase */
     fun findClass(className: String): ClassItem?
 

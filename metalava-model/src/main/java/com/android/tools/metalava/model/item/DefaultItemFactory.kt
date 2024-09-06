@@ -92,6 +92,8 @@ class DefaultItemFactory(
         fullName: String = simpleName,
         typeParameterList: TypeParameterList,
         isFromClassPath: Boolean,
+        superClassType: ClassTypeItem?,
+        interfaceTypes: List<ClassTypeItem>,
     ) =
         DefaultClassItem(
             codebase,
@@ -109,6 +111,8 @@ class DefaultItemFactory(
             fullName,
             typeParameterList,
             isFromClassPath,
+            superClassType,
+            interfaceTypes,
         )
 
     /** Create a [ConstructorItem]. */

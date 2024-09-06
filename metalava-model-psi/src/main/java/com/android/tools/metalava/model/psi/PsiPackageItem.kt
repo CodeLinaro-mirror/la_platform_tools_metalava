@@ -37,8 +37,6 @@ internal constructor(
     documentationFactory: ItemDocumentationFactory,
     qualifiedName: String,
     overviewDocumentation: String?,
-    /** True if this package is from the classpath (dependencies). Exposed in [isFromClassPath]. */
-    private val fromClassPath: Boolean
 ) :
     DefaultPackageItem(
         codebase = codebase,
@@ -55,18 +53,18 @@ internal constructor(
 
     override fun psi() = psiPackage
 
-    override fun isFromClassPath(): Boolean = fromClassPath
-
     // N.A. a package cannot be contained in a class
     override fun containingClass(): ClassItem? = null
 
-    fun addTopClass(classItem: PsiClassItem) {
+    override fun addTopClass(classItem: ClassItem) {
         if (!classItem.isTopLevelClass()) {
             return
         }
 
         super.addTopClass(classItem)
-        classItem.containingPackage = this
+        if (classItem is PsiClassItem) {
+            classItem.containingPackage = this
+        }
     }
 
     fun addClasses(classList: List<PsiClassItem>) {
@@ -80,7 +78,6 @@ internal constructor(
             codebase: PsiBasedCodebase,
             psiPackage: PsiPackage,
             packageDoc: PackageDoc,
-            fromClassPath: Boolean,
         ): PsiPackageItem {
             val modifiers = PsiModifierItem.create(codebase, psiPackage)
             if (modifiers.isPackagePrivate()) {
@@ -97,7 +94,6 @@ internal constructor(
                 documentationFactory = packageDoc.commentFactory ?: "".toItemDocumentationFactory(),
                 qualifiedName = qualifiedName,
                 overviewDocumentation = packageDoc.overview,
-                fromClassPath = fromClassPath,
             )
         }
     }

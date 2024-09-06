@@ -56,6 +56,9 @@ private enum class PackageDocumentationKind {
  * reported as an error and the comment from the latter will win.
  *
  * @param P the model specific `package-info.java` file type.
+ * @param packageNameFilter a lambda that given a package name will return `true` if it is a valid
+ *   package and `false` otherwise. This is used to filter out any packages incorrectly inferred
+ *   from `package.html` files.
  * @param packageInfoFiles a collection of model specific `package-info.java` files.
  * @param packageInfoDocExtractor get a [MutablePackageDoc] from a model specific
  *   `package-info.java` file.
@@ -63,6 +66,7 @@ private enum class PackageDocumentationKind {
 fun <P> gatherPackageJavadoc(
     reporter: Reporter,
     sourceSet: SourceSet,
+    packageNameFilter: (String) -> Boolean,
     packageInfoFiles: Collection<P>,
     packageInfoDocExtractor: (P) -> MutablePackageDoc?,
 ): PackageDocs {
@@ -95,6 +99,9 @@ fun <P> gatherPackageJavadoc(
             val prefix = sortedSourceRoots.firstOrNull { file.startsWith(it) }?.path ?: ""
             pkg = file.parentFile.path.substring(prefix.length).trim('/').replace("/", ".")
         }
+
+        // If the package name is invalid then skip it.
+        if (!packageNameFilter(pkg)) continue
 
         val packageDoc = packages.computeIfAbsent(pkg, ::MutablePackageDoc)
 

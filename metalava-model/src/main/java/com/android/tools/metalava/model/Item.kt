@@ -176,12 +176,6 @@ interface Item : Reportable {
     fun toStringForItem(): String
 
     /**
-     * Whether this item was loaded from the classpath (e.g. jar dependencies) rather than be
-     * declared as source
-     */
-    fun isFromClassPath(): Boolean = false
-
-    /**
      * The language in which this was written, or [ItemLanguage.UNKNOWN] if not known, e.g. when
      * created from a signature file.
      */

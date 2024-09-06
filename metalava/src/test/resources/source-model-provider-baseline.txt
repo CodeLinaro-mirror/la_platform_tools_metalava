@@ -154,7 +154,6 @@ com.android.tools.metalava.compatibility.CompatibilityCheckTest
   Conversion from MutableCollection to AbstractMutableCollection is not API-breaking[turbine]
   Empty bundle files[turbine]
   Expected API changes converting collections to Kotlin[turbine]
-  Implementing undefined interface[turbine]
   Incompatible method change -- final[turbine]
   No issues using the same classpath class twice[turbine]
   Removed method from classpath[turbine]

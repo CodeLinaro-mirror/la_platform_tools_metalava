@@ -202,6 +202,14 @@ class CodebaseSnapshotTaker : DelegatedVisitor, CodebaseAssembler {
         // Push on the stack before resolving any types just in case they refer to a type parameter.
         typeItemFactoryStack.push(classTypeItemFactory)
 
+        // Snapshot the super class type, if any.
+        val snapshotSuperClassType =
+            cls.superClassType()?.let { superClassType ->
+                typeItemFactory.getSuperClassType(superClassType)
+            }
+        val snapshotInterfaceTypes =
+            cls.interfaceTypes().map { typeItemFactory.getInterfaceType(it) }
+
         val containingClass = currentClass
         val containingPackage = currentPackage!!
         val newClass =
@@ -221,17 +229,9 @@ class CodebaseSnapshotTaker : DelegatedVisitor, CodebaseAssembler {
                 fullName = cls.fullName(),
                 typeParameterList = typeParameterList,
                 isFromClassPath = cls.isFromClassPath(),
+                superClassType = snapshotSuperClassType,
+                interfaceTypes = snapshotInterfaceTypes,
             )
-
-        // Snapshot the super class type, if any.
-        cls.superClassType()?.let { superClassType ->
-            newClass.setSuperClassType(typeItemFactory.getSuperClassType(superClassType))
-        }
-
-        // Snapshot the interface types, if any.
-        newClass.setInterfaceTypes(
-            cls.interfaceTypes().map { typeItemFactory.getInterfaceType(it) }
-        )
 
         currentClass = newClass
     }

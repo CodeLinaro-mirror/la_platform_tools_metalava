@@ -51,6 +51,8 @@ open class DefaultClassItem(
     private val fullName: String,
     final override val typeParameterList: TypeParameterList,
     private val isFromClassPath: Boolean,
+    private var superClassType: ClassTypeItem?,
+    private var interfaceTypes: List<ClassTypeItem>,
 ) :
     DefaultItem(
         codebase = codebase,
@@ -95,22 +97,12 @@ open class DefaultClassItem(
         return cachedType
     }
 
-    /**
-     * The optional, mutable super class [ClassTypeItem].
-     *
-     * This could be a constructor val apart from the fact that Text needs to mutate the super class
-     * type of an existing class when merging classes that are defined in multiple API surfaces.
-     */
-    private var superClassType: ClassTypeItem? = null
-
     final override fun superClassType(): ClassTypeItem? = superClassType
 
     /** Set the super class [ClassTypeItem]. */
     fun setSuperClassType(superClassType: ClassTypeItem?) {
         this.superClassType = superClassType
     }
-
-    private var interfaceTypes = emptyList<ClassTypeItem>()
 
     final override fun interfaceTypes(): List<ClassTypeItem> = interfaceTypes
 

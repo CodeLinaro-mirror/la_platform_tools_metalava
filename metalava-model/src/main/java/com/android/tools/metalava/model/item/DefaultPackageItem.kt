@@ -70,7 +70,7 @@ open class DefaultPackageItem(
         }
     }
 
-    fun addTopClass(classItem: ClassItem) {
+    open fun addTopClass(classItem: ClassItem) {
         topClasses.add(classItem)
     }
 }

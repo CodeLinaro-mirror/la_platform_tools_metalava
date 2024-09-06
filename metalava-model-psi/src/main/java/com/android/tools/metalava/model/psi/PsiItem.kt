@@ -32,10 +32,6 @@ internal interface PsiItem : Item {
 
     /** Returns the PSI element for this item */
     fun psi(): PsiElement
-
-    override fun isFromClassPath(): Boolean {
-        return codebase.fromClasspath || containingClass()?.isFromClassPath() ?: false
-    }
 }
 
 /** Get the [ItemLanguage] for this [PsiElement]. */

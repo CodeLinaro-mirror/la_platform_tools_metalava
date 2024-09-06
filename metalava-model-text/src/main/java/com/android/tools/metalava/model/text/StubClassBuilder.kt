@@ -45,22 +45,22 @@ internal class StubClassBuilder(
     var superClassType: ClassTypeItem? = null
 
     private fun build(): DefaultClassItem =
-        codebase.assembler.itemFactory
-            .createClassItem(
-                fileLocation = FileLocation.UNKNOWN,
-                modifiers = modifiers,
-                classKind = classKind,
-                qualifiedName = qualifiedName,
-                fullName = fullName,
-                containingClass = containingClass,
-                containingPackage = containingPackage,
-                typeParameterList = TypeParameterList.NONE,
-                // If this was from the class path then it would have been provided by the external
-                // `ClassResolver`. So, while this does not come from the signature file it also
-                // does not come from the class path either.
-                isFromClassPath = false,
-            )
-            .also { item -> item.setSuperClassType(superClassType) }
+        codebase.assembler.itemFactory.createClassItem(
+            fileLocation = FileLocation.UNKNOWN,
+            modifiers = modifiers,
+            classKind = classKind,
+            containingClass = containingClass,
+            containingPackage = containingPackage,
+            qualifiedName = qualifiedName,
+            fullName = fullName,
+            typeParameterList = TypeParameterList.NONE,
+            // If this was from the class path then it would have been provided by the external
+            // `ClassResolver`. So, while this does not come from the signature file it also
+            // does not come from the class path either.
+            isFromClassPath = false,
+            superClassType = superClassType,
+            interfaceTypes = emptyList(),
+        )
 
     companion object {
         /**

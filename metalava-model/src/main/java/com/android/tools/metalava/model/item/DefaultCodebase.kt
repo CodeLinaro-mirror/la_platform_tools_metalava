@@ -82,6 +82,12 @@ open class DefaultCodebase(
 
     final override fun findPackage(pkgName: String) = packageTracker.findPackage(pkgName)
 
+    fun findOrCreatePackage(
+        packageName: String,
+        packageDocs: PackageDocs = PackageDocs.EMPTY,
+        emit: Boolean = true,
+    ) = packageTracker.findOrCreatePackage(packageName, packageDocs, emit)
+
     /** Add the package to this. */
     fun addPackage(packageItem: DefaultPackageItem) {
         packageTracker.addPackage(packageItem)

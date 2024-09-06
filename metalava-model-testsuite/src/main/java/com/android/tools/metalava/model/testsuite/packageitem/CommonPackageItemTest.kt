@@ -22,6 +22,7 @@ import com.android.tools.metalava.testing.KnownSourceFiles.nonNullSource
 import com.android.tools.metalava.testing.html
 import com.android.tools.metalava.testing.java
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 import org.junit.Test
 
 class CommonPackageItemTest : BaseModelTest() {
@@ -339,6 +340,35 @@ class CommonPackageItemTest : BaseModelTest() {
                     .trimIndent(),
                 packageItem.documentation.text.trim(),
             )
+        }
+    }
+
+    @Test
+    fun `Test invalid package (package-html)`() {
+        runCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+
+                        public class Foo {
+                        }
+                    """
+                ),
+                html(
+                    "src/other/pkg/package.html",
+                    """
+                        <HTML>
+                        <BODY>
+                        Some text.
+                        </BODY>
+                        </HTML>
+                    """
+                ),
+            ),
+        ) {
+            val packageItem = codebase.findPackage("other.pkg")
+            assertNull(packageItem)
         }
     }
 

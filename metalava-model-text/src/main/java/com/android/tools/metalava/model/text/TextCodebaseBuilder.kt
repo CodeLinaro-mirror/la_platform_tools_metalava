@@ -61,15 +61,7 @@ class TextCodebaseBuilder private constructor(private val codebase: TextCodebase
 
     private val itemFactory = codebase.assembler.itemFactory
 
-    private fun getOrAddPackage(pkgName: String): DefaultPackageItem {
-        val pkg = codebase.findPackage(pkgName)
-        if (pkg != null) {
-            return pkg
-        }
-        val newPkg = itemFactory.createPackageItem(qualifiedName = pkgName)
-        codebase.addPackage(newPkg)
-        return newPkg
-    }
+    private fun getOrAddPackage(pkgName: String) = codebase.findOrCreatePackage(pkgName)
 
     fun addPackage(pkg: PackageItem) {
         codebase.addPackage(pkg as DefaultPackageItem)
@@ -107,22 +99,20 @@ class TextCodebaseBuilder private constructor(private val codebase: TextCodebase
         }
         val textClass = fullClass as DefaultClassItem
         val pkg = getOrAddPackage(fullClass.containingPackage().qualifiedName())
-        val newClass =
-            itemFactory.createClassItem(
-                fileLocation = FileLocation.UNKNOWN,
-                modifiers = textClass.modifiers,
-                classKind = textClass.classKind,
-                containingClass = null,
-                containingPackage = pkg,
-                qualifiedName = textClass.qualifiedName(),
-                simpleName = textClass.simpleName(),
-                fullName = textClass.fullName(),
-                typeParameterList = textClass.typeParameterList,
-                isFromClassPath = fullClass.isFromClassPath(),
-            )
 
-        newClass.setSuperClassType(textClass.superClassType())
-
-        return newClass
+        return itemFactory.createClassItem(
+            fileLocation = FileLocation.UNKNOWN,
+            modifiers = textClass.modifiers,
+            classKind = textClass.classKind,
+            containingClass = null,
+            containingPackage = pkg,
+            qualifiedName = textClass.qualifiedName(),
+            simpleName = textClass.simpleName(),
+            fullName = textClass.fullName(),
+            typeParameterList = textClass.typeParameterList,
+            isFromClassPath = fullClass.isFromClassPath(),
+            superClassType = textClass.superClassType(),
+            interfaceTypes = textClass.interfaceTypes(),
+        )
     }
 }

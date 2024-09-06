@@ -37,6 +37,7 @@ import com.android.tools.metalava.model.computeAllInterfaces
 import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.model.isRetention
 import com.android.tools.metalava.model.item.DefaultItem
+import com.android.tools.metalava.model.item.DefaultPackageItem
 import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiClassType
 import com.intellij.psi.PsiCompiledFile
@@ -59,6 +60,7 @@ internal constructor(
     modifiers: DefaultModifierList,
     documentationFactory: ItemDocumentationFactory,
     override val classKind: ClassKind,
+    private val containingClass: ClassItem?,
     private val qualifiedName: String,
     private val simpleName: String,
     private val fullName: String,
@@ -80,7 +82,7 @@ internal constructor(
     ClassItem,
     PsiItem {
 
-    lateinit var containingPackage: PsiPackageItem
+    lateinit var containingPackage: DefaultPackageItem
 
     override fun containingPackage(): PackageItem =
         containingClass?.containingPackage() ?: containingPackage
@@ -101,9 +103,7 @@ internal constructor(
 
     override var stubConstructor: ConstructorItem? = null
 
-    private var containingClass: PsiClassItem? = null
-
-    override fun containingClass(): PsiClassItem? = containingClass
+    override fun containingClass() = containingClass
 
     override fun interfaceTypes(): List<ClassTypeItem> = interfaceTypes
 
@@ -266,6 +266,7 @@ internal constructor(
                     modifiers = modifiers,
                     documentationFactory = PsiItemDocumentation.factory(psiClass, codebase),
                     classKind = classKind,
+                    containingClass = containingClassItem,
                     qualifiedName = qualifiedName,
                     simpleName = simpleName,
                     fullName = fullName,
@@ -275,7 +276,6 @@ internal constructor(
                     superClassType = superClassType,
                     interfaceTypes = interfaceTypes,
                 )
-            item.containingClass = containingClassItem
 
             // Register this class now.
             codebase.registerClass(item)

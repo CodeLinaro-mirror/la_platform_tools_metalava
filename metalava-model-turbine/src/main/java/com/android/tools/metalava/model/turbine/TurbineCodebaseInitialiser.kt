@@ -224,8 +224,12 @@ internal open class TurbineCodebaseInitialiser(
         // information from package-info.java units to create a comprehensive set of package
         // documentation just in case they are needed during package creation.
         val packageDocs =
-            gatherPackageJavadoc(codebase.reporter, sourceSet, packageInfoList) {
-                (unit, packageName, sourceTypeBoundClass) ->
+            gatherPackageJavadoc(
+                codebase.reporter,
+                sourceSet,
+                packageNameFilter = { true },
+                packageInfoList
+            ) { (unit, packageName, sourceTypeBoundClass) ->
                 val source = unit.source().source()
                 val file = File(unit.source().path())
                 val fileLocation = FileLocation.forFile(file)
@@ -334,25 +338,8 @@ internal open class TurbineCodebaseInitialiser(
         source().path().let { it == JAVA_PACKAGE_INFO || it.endsWith("/" + JAVA_PACKAGE_INFO) }
 
     private fun createAllPackages(packageDocs: PackageDocs) {
-        // Create packages for all the documentation packages.
+        // Create packages for all the documentation packages and make sure there is a root package.
         codebase.packageTracker.createInitialPackages(packageDocs)
-
-        // Make sure that there is a root package.
-        findOrCreatePackage("")
-    }
-
-    /**
-     * Searches for the package with supplied name in the codebase's package map and if not found
-     * creates the corresponding TurbinePackageItem and adds it to the package map.
-     */
-    private fun findOrCreatePackage(name: String): DefaultPackageItem {
-        codebase.findPackage(name)?.let {
-            return it
-        }
-
-        val turbinePkgItem = itemFactory.createPackageItem(qualifiedName = name)
-        codebase.addPackage(turbinePkgItem)
-        return turbinePkgItem
     }
 
     private fun createAllClasses(sourceClassMap: Map<ClassSymbol, SourceTypeBoundClass>) {
@@ -428,7 +415,7 @@ internal open class TurbineCodebaseInitialiser(
 
         // Get the package item
         val pkgName = sym.packageName().replace('/', '.')
-        val pkgItem = findOrCreatePackage(pkgName)
+        val pkgItem = codebase.findOrCreatePackage(pkgName, emit = !isFromClassPath)
 
         // Create the sourcefile
         val sourceFile =
@@ -463,6 +450,16 @@ internal open class TurbineCodebaseInitialiser(
                 "class $qualifiedName",
             )
         val classKind = getClassKind(cls.kind())
+
+        // Setup the SuperClass
+        val superClassType =
+            if (classKind != ClassKind.INTERFACE) {
+                cls.superClassType()?.let { classTypeItemFactory.getSuperClassType(it) }
+            } else null
+
+        // Set interface types
+        val interfaceTypes = cls.interfaceTypes().map { classTypeItemFactory.getInterfaceType(it) }
+
         val classItem =
             itemFactory.createClassItem(
                 fileLocation = fileLocation,
@@ -477,6 +474,8 @@ internal open class TurbineCodebaseInitialiser(
                 fullName = fullName,
                 typeParameterList = typeParameters,
                 isFromClassPath = isFromClassPath,
+                superClassType = superClassType,
+                interfaceTypes = interfaceTypes,
             )
         modifierItem.setSynchronized(false) // A class can not be synchronized in java
 
@@ -485,20 +484,6 @@ internal open class TurbineCodebaseInitialiser(
                 modifierItem.addDefaultRetentionPolicyAnnotation(classItem)
             }
         }
-
-        // Setup the SuperClass
-        if (!classItem.isInterface()) {
-            val superClassType = cls.superClassType()
-            val superClassTypeItem =
-                if (superClassType == null) null
-                else classTypeItemFactory.getSuperClassType(superClassType)
-            classItem.setSuperClassType(superClassTypeItem)
-        }
-
-        // Set interface types
-        classItem.setInterfaceTypes(
-            cls.interfaceTypes().map { classTypeItemFactory.getInterfaceType(it) }
-        )
 
         // Create fields
         createFields(classItem, cls.fields(), classTypeItemFactory)
@@ -511,7 +496,6 @@ internal open class TurbineCodebaseInitialiser(
 
         // Do not emit to signature file if it is from classpath
         if (isFromClassPath) {
-            pkgItem.emit = false
             classItem.emit = false
         }
 

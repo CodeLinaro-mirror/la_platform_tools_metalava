@@ -22,6 +22,7 @@ import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.item.CodebaseAssembler
 import com.android.tools.metalava.model.item.DefaultItemFactory
+import com.android.tools.metalava.model.item.PackageDocs
 
 internal class TextCodebaseAssembler(
     private val codebase: TextCodebase,
@@ -41,8 +42,7 @@ internal class TextCodebaseAssembler(
 
     fun initialize() {
         // Make sure that it has a root package.
-        val rootPackage = itemFactory.createPackageItem(qualifiedName = "")
-        codebase.addPackage(rootPackage)
+        codebase.packageTracker.createInitialPackages(PackageDocs.EMPTY)
     }
 
     override fun createClassFromUnderlyingModel(qualifiedName: String): ClassItem? {
