@@ -20,6 +20,7 @@ import com.android.tools.metalava.model.ApiVariantSelectors
 import com.android.tools.metalava.model.BaseModifierList
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
+import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.ItemDocumentationFactory
@@ -46,8 +47,7 @@ internal constructor(
     containingPackage: PackageItem,
     qualifiedName: String,
     typeParameterList: TypeParameterList,
-    /** True if this class is from the class path (dependencies). Exposed in [isFromClassPath]. */
-    isFromClassPath: Boolean,
+    origin: ClassOrigin,
     superClassType: ClassTypeItem?,
     interfaceTypes: List<ClassTypeItem>
 ) :
@@ -64,7 +64,7 @@ internal constructor(
         containingPackage = containingPackage,
         qualifiedName = qualifiedName,
         typeParameterList = typeParameterList,
-        isFromClassPath = isFromClassPath,
+        origin = origin,
         superClassType = superClassType,
         interfaceTypes = interfaceTypes,
     ),

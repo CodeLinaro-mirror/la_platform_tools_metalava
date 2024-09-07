@@ -18,6 +18,7 @@ package com.android.tools.metalava.model.text
 
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
+import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.TypeParameterList
@@ -56,7 +57,7 @@ internal class StubClassBuilder(
             // Always treat stubs as if they are from the class path. While that is not strictly
             // true stubs classes should be treated as if they did come from there, i.e. they can be
             // referenced but not emitted.
-            isFromClassPath = true,
+            origin = ClassOrigin.CLASS_PATH,
             superClassType = superClassType,
             interfaceTypes = emptyList(),
         )

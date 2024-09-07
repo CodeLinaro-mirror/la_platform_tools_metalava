@@ -19,6 +19,7 @@ package com.android.tools.metalava.model.psi
 import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MutableCodebase
@@ -38,12 +39,12 @@ const val METHOD_ESTIMATE = 1000
  *
  * After creation, a list of PSI file is passed to [PsiCodebaseAssembler.initializeFromSources] or a
  * JAR file is passed to [PsiCodebaseAssembler.initializeFromJar]. This creates package and class
- * items along with their members. Any classes defined in those files will have
- * [ClassItem.isFromClassPath] set to [fromClasspath].
+ * items along with their members. Any classes defined in those files will have [ClassItem.origin]
+ * set based on [fromClasspath].
  *
- * Classes that are created through [findOrCreateClass] will have [ClassItem.isFromClassPath] set to
- * `true`. That will include classes defined elsewhere on the source path or found on the class
- * path.
+ * Classes that are created through [findOrCreateClass] will have [ClassItem.origin] set to
+ * [ClassOrigin.SOURCE_PATH] or [ClassOrigin.CLASS_PATH] depending on whether the class is defined
+ * on the source path or on the class path respectively.
  */
 internal class PsiBasedCodebase(
     location: File,

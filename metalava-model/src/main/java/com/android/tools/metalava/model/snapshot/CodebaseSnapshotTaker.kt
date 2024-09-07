@@ -279,7 +279,7 @@ class CodebaseSnapshotTaker private constructor() : DefaultCodebaseAssembler(), 
                 containingPackage = containingPackage,
                 qualifiedName = classToSnapshot.qualifiedName(),
                 typeParameterList = typeParameterList,
-                isFromClassPath = classToSnapshot.isFromClassPath(),
+                origin = classToSnapshot.origin,
                 superClassType = snapshotSuperClassType,
                 interfaceTypes = snapshotInterfaceTypes,
             )

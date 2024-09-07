@@ -21,6 +21,7 @@ import com.android.tools.metalava.model.ApiVariantSelectorsFactory
 import com.android.tools.metalava.model.BaseModifierList
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
+import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.FieldItem
@@ -49,7 +50,7 @@ open class DefaultClassItem(
     private val containingPackage: PackageItem,
     private val qualifiedName: String,
     final override val typeParameterList: TypeParameterList,
-    private val isFromClassPath: Boolean,
+    final override val origin: ClassOrigin,
     private var superClassType: ClassTypeItem?,
     private var interfaceTypes: List<ClassTypeItem>,
 ) :
@@ -73,8 +74,8 @@ open class DefaultClassItem(
         // the class into the containing package/containing class. If it failed, because it is a
         // duplicate, then do nothing.
         if (codebase.registerClass(@Suppress("LeakingThis") this)) {
-            // Do not emit classes from the classpath.
-            emit = emit && !isFromClassPath
+            // Only emit classes that were specified on the command line.
+            emit = emit && origin == ClassOrigin.COMMAND_LINE
 
             // If this class is emittable then make sure its package is too.
             if (emit) {
@@ -182,8 +183,6 @@ open class DefaultClassItem(
 
     /** Tracks whether the class has an implicit default constructor. */
     private var hasImplicitDefaultConstructor = false
-
-    final override fun isFromClassPath(): Boolean = isFromClassPath
 
     final override fun hasImplicitDefaultConstructor(): Boolean = hasImplicitDefaultConstructor
 

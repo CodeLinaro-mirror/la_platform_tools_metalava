@@ -25,6 +25,7 @@ import com.android.tools.metalava.model.BoundsTypeItem
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
+import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.DefaultAnnotationArrayAttributeValue
 import com.android.tools.metalava.model.DefaultAnnotationAttribute
 import com.android.tools.metalava.model.DefaultAnnotationItem
@@ -468,6 +469,7 @@ internal class TurbineCodebaseInitialiser(
         // Set interface types
         val interfaceTypes = cls.interfaceTypes().map { classTypeItemFactory.getInterfaceType(it) }
 
+        val origin = if (isFromClassPath) ClassOrigin.CLASS_PATH else ClassOrigin.COMMAND_LINE
         val classItem =
             itemFactory.createClassItem(
                 fileLocation = fileLocation,
@@ -479,7 +481,7 @@ internal class TurbineCodebaseInitialiser(
                 containingPackage = pkgItem,
                 qualifiedName = qualifiedName,
                 typeParameterList = typeParameters,
-                isFromClassPath = isFromClassPath,
+                origin = origin,
                 superClassType = superClassType,
                 interfaceTypes = interfaceTypes,
             )

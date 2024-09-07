@@ -33,16 +33,19 @@ package com.android.tools.metalava.model
 interface ClassContentItem : Item {
 
     /**
-     * Whether this item was loaded from the classpath (e.g. jar dependencies) rather than be
-     * declared as source
+     * The origin of this item.
      *
      * If this [Item] was copied from a class in the class path into a source class then this will
-     * return `true`.
+     * return [ClassOrigin.CLASS_PATH].
      */
-    fun isFromClassPath(): Boolean =
-        // Check the codebase just in case this item was copied from a class on the class path into
-        // a class on the source path.
-        codebase.isFromClassPath() ||
-            // Otherwise, check to see if its containing class is from the class path.
-            containingClass()?.isFromClassPath() ?: false
+    val origin: ClassOrigin
+        get() =
+            if (codebase.isFromClassPath()) ClassOrigin.CLASS_PATH
+            else
+                containingClass()?.origin
+                    ?:
+                    // This should never happen as this will only be called for a top level class
+                    // and
+                    // ClassItem implementation should override this method.
+                    error("unknown origin")
 }
