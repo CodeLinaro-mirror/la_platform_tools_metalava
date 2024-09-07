@@ -18,6 +18,7 @@ package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.model.ApiVariantSelectors
 import com.android.tools.metalava.model.BaseModifierList
+import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.ItemDocumentation
@@ -42,7 +43,7 @@ private constructor(
     override val codebase: PsiBasedCodebase,
     override val psiMethod: PsiMethod,
     fileLocation: FileLocation = PsiFileLocation(psiMethod),
-    containingClass: PsiClassItem,
+    containingClass: ClassItem,
     name: String,
     modifiers: BaseModifierList,
     documentationFactory: ItemDocumentationFactory,
@@ -74,7 +75,7 @@ private constructor(
     companion object {
         internal fun create(
             codebase: PsiBasedCodebase,
-            containingClass: PsiClassItem,
+            containingClass: ClassItem,
             psiMethod: PsiMethod,
             enclosingClassTypeItemFactory: PsiTypeItemFactory,
         ): PsiConstructorItem {
@@ -131,7 +132,7 @@ private constructor(
 
         fun createDefaultConstructor(
             codebase: PsiBasedCodebase,
-            containingClass: PsiClassItem,
+            containingClass: ClassItem,
             psiClass: PsiClass,
             visibilityLevel: VisibilityLevel,
         ): PsiConstructorItem {

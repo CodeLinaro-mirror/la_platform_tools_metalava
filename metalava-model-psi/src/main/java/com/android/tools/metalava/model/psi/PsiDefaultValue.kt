@@ -21,11 +21,12 @@ import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.findAnnotation
 import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.model.item.DefaultValue
+import org.jetbrains.kotlin.analysis.api.KaExperimentalApi
 import org.jetbrains.kotlin.analysis.api.analyze
-import org.jetbrains.kotlin.analysis.api.symbols.KtFunctionLikeSymbol
-import org.jetbrains.kotlin.analysis.api.symbols.KtFunctionSymbol
-import org.jetbrains.kotlin.analysis.api.symbols.KtParameterSymbol
-import org.jetbrains.kotlin.analysis.api.symbols.KtValueParameterSymbol
+import org.jetbrains.kotlin.analysis.api.symbols.KaFunctionSymbol
+import org.jetbrains.kotlin.analysis.api.symbols.KaNamedFunctionSymbol
+import org.jetbrains.kotlin.analysis.api.symbols.KaParameterSymbol
+import org.jetbrains.kotlin.analysis.api.symbols.KaValueParameterSymbol
 import org.jetbrains.kotlin.psi.KtConstantExpression
 import org.jetbrains.kotlin.psi.KtFunction
 import org.jetbrains.kotlin.psi.KtParameter
@@ -62,6 +63,7 @@ internal class PsiDefaultValue(private val item: PsiParameterItem) : DefaultValu
 
     override fun value() = defaultValueAsString()
 
+    @OptIn(KaExperimentalApi::class)
     private fun PsiParameterItem.computeDefaultValue(): String? {
         if (psiParameter.isKotlin()) {
             val psiCallableItem = item.containingCallable() as PsiCallableItem
@@ -72,13 +74,13 @@ internal class PsiDefaultValue(private val item: PsiParameterItem) : DefaultValu
             analyze(ktFunction) {
                 val function =
                     if (ktFunction.hasActualModifier()) {
-                        ktFunction.getSymbol().getExpectsForActual().singleOrNull()
+                        ktFunction.symbol.getExpectsForActual().singleOrNull()
                     } else {
-                        ktFunction.getSymbol()
+                        ktFunction.symbol
                     }
-                if (function !is KtFunctionLikeSymbol) return INVALID_VALUE
+                if (function !is KaFunctionSymbol) return INVALID_VALUE
                 val symbol = getKtParameterSymbol(function) ?: return INVALID_VALUE
-                if (symbol is KtValueParameterSymbol && symbol.hasDefaultValue) {
+                if (symbol is KaValueParameterSymbol && symbol.hasDefaultValue) {
                     val defaultValue =
                         (symbol.psi as? KtParameter)?.defaultValue ?: return INVALID_VALUE
                     if (defaultValue is KtConstantExpression) {
@@ -113,8 +115,8 @@ internal class PsiDefaultValue(private val item: PsiParameterItem) : DefaultValu
     }
 
     private fun PsiParameterItem.getKtParameterSymbol(
-        functionSymbol: KtFunctionLikeSymbol
-    ): KtParameterSymbol? {
+        functionSymbol: KaFunctionSymbol
+    ): KaParameterSymbol? {
         if (isReceiver()) {
             return functionSymbol.receiverParameter
         }
@@ -125,7 +127,7 @@ internal class PsiDefaultValue(private val item: PsiParameterItem) : DefaultValu
         val parameters = functionSymbol.valueParameters
 
         val index = if (functionSymbol.isExtension) parameterIndex - 1 else parameterIndex
-        val isSuspend = functionSymbol is KtFunctionSymbol && functionSymbol.isSuspend
+        val isSuspend = (functionSymbol as? KaNamedFunctionSymbol)?.isSuspend == true
         if (isSuspend && index >= parameters.size) {
             // suspend functions have continuation as a last parameter, which is not
             // defined in the symbol

@@ -357,8 +357,6 @@ internal class TurbineCodebaseInitialiser(
             val classItem = createTopLevelClassAndContents(classSymbol)
             codebase.addTopLevelClassFromSource(classItem)
         }
-
-        codebase.resolveSuperTypes()
     }
 
     val ClassSymbol.isTopClass

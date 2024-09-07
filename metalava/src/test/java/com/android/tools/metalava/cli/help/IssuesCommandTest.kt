@@ -130,7 +130,7 @@ Available Issues                             |  Category                |   Defa
   InvalidNullabilityAnnotation               |  unknown                 |   error
   InvalidNullabilityAnnotationWarning        |  unknown                 |   warning
   InvalidNullabilityOverride                 |  api_lint                |   error
-  InvalidPackage                             |  unknown                 |   warning_error_when_new
+  InvalidPackage                             |  unknown                 |   error
   InvalidSyntax                              |  unknown                 |   error
   IoError                                    |  unknown                 |   error
   KotlinDefaultParameterOrder                |  api_lint                |   error

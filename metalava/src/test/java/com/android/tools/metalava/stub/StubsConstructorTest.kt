@@ -140,11 +140,11 @@ class StubsConstructorTest : AbstractStubsTest() {
                     public Constructors() { throw new RuntimeException("Stub!"); }
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class Child extends test.pkg.Constructors.Parent {
-                    public Child(java.lang.String arg1, int arg2, long arg3, boolean arg4, short arg5) { super(null, 0, 0, false, (short)0); throw new RuntimeException("Stub!"); }
+                    public Child(java.lang.String arg1, int arg2, long arg3, boolean arg4, short arg5) { super("", 0, 0, false, (short)0); throw new RuntimeException("Stub!"); }
                     }
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class Child2 extends test.pkg.Constructors.Parent {
-                    Child2() { super(null, 0, 0, false, (short)0); throw new RuntimeException("Stub!"); }
+                    Child2() { super("", 0, 0, false, (short)0); throw new RuntimeException("Stub!"); }
                     }
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class Child3 extends test.pkg.Constructors.Child2 {
@@ -152,7 +152,7 @@ class StubsConstructorTest : AbstractStubsTest() {
                     }
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class Child4 extends test.pkg.Constructors.Parent {
-                    Child4() { super(null, 0, 0, false, (short)0); throw new RuntimeException("Stub!"); }
+                    Child4() { super("", 0, 0, false, (short)0); throw new RuntimeException("Stub!"); }
                     }
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class Parent {
@@ -224,11 +224,11 @@ class StubsConstructorTest : AbstractStubsTest() {
                     public Constructors() { throw new RuntimeException("Stub!"); }
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class Child extends test.pkg.Constructors.Parent {
-                    public Child(java.lang.String s, int i, long l, boolean b, short sh) { super(null, 0, 0, false, (short)0); throw new RuntimeException("Stub!"); }
+                    public Child(java.lang.String s, int i, long l, boolean b, short sh) { super("", 0, 0, false, (short)0); throw new RuntimeException("Stub!"); }
                     }
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class Child2 extends test.pkg.Constructors.Parent {
-                    Child2() { super(null, 0, 0, false, (short)0); throw new RuntimeException("Stub!"); }
+                    Child2() { super("", 0, 0, false, (short)0); throw new RuntimeException("Stub!"); }
                     }
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class Child3 extends test.pkg.Constructors.Child2 {
@@ -236,7 +236,7 @@ class StubsConstructorTest : AbstractStubsTest() {
                     }
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class Child4 extends test.pkg.Constructors.Parent {
-                    Child4() { super(null, 0, 0, false, (short)0); throw new RuntimeException("Stub!"); }
+                    Child4() { super("", 0, 0, false, (short)0); throw new RuntimeException("Stub!"); }
                     }
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class Parent {
@@ -635,7 +635,7 @@ class StubsConstructorTest : AbstractStubsTest() {
                     }
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class ClipDrawable extends test.pkg.Constructors2.DrawableWrapper {
-                    public ClipDrawable(test.pkg.Constructors2.Drawable drawable, int gravity, int orientation) { super(null); throw new RuntimeException("Stub!"); }
+                    public ClipDrawable(test.pkg.Constructors2.Drawable drawable, int gravity, int orientation) { super((test.pkg.Constructors2.Drawable)null); throw new RuntimeException("Stub!"); }
                     }
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class Drawable {
@@ -725,7 +725,7 @@ class StubsConstructorTest : AbstractStubsTest() {
                     }
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public static class PropertyChangeListenerProxy extends test.pkg.PickConstructors2.EventListenerProxy<test.pkg.PickConstructors2.PropertyChangeListener> implements test.pkg.PickConstructors2.PropertyChangeListener {
-                    public PropertyChangeListenerProxy(java.lang.String propertyName, test.pkg.PickConstructors2.PropertyChangeListener listener) { super(null); throw new RuntimeException("Stub!"); }
+                    public PropertyChangeListenerProxy(java.lang.String propertyName, test.pkg.PickConstructors2.PropertyChangeListener listener) { super((test.pkg.PickConstructors2.PropertyChangeListener)null); throw new RuntimeException("Stub!"); }
                     }
                     }
                     """

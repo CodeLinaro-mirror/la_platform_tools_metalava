@@ -14,4 +14,4 @@
 # limitations under the License.
 #
 
-com.android.tools.metalava.model.text.TextModelSuiteRunner
+com.android.tools.metalava.model.text.TextModelSuiteRunnerProvider

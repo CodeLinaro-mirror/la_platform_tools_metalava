@@ -927,7 +927,7 @@ class StubsTest : AbstractStubsTest() {
                     public Properties() { throw new RuntimeException("Stub!"); }
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public abstract class IntProperty<T> extends test.pkg.Properties.Property<T,java.lang.Integer> {
-                    public IntProperty(java.lang.String name) { super((java.lang.Class)null, (java.lang.String)null); throw new RuntimeException("Stub!"); }
+                    public IntProperty(java.lang.String name) { super((java.lang.Class)null, ""); throw new RuntimeException("Stub!"); }
                     }
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public abstract class Property<T, V> {
@@ -1520,7 +1520,7 @@ class StubsTest : AbstractStubsTest() {
                     package test.pkg;
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public static class Child extends test.pkg.Parent {
-                    protected Child(java.lang.String arg1) { super(null); throw new RuntimeException("Stub!"); }
+                    protected Child(java.lang.String arg1) { super(""); throw new RuntimeException("Stub!"); }
                     }
                     """
                     ),
@@ -1567,7 +1567,7 @@ class StubsTest : AbstractStubsTest() {
                     protected Format() { throw new RuntimeException("Stub!"); }
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public static class Field extends java.text.AttributedCharacterIterator.Attribute {
-                    protected Field(java.lang.String arg1) { super(null); throw new RuntimeException("Stub!"); }
+                    protected Field(java.lang.String arg1) { super(""); throw new RuntimeException("Stub!"); }
                     }
                     }
                     """

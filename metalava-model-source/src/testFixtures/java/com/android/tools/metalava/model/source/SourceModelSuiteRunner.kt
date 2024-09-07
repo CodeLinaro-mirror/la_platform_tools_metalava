@@ -29,17 +29,9 @@ import com.android.tools.metalava.testing.getKotlinStdlibPaths
 import java.io.File
 import java.io.PrintWriter
 
-/**
- * A [ModelSuiteRunner] that is implemented using a [SourceModelProvider].
- *
- * This expects to be loaded on a class path that contains a single [SourceModelProvider] service
- * (retrievable via [SourceModelProvider.getImplementation]).
- */
-// @AutoService(ModelSuiteRunner.class)
-class SourceModelSuiteRunner : ModelSuiteRunner {
-
-    /** Get the [SourceModelProvider] implementation that is available. */
-    private val sourceModelProvider = SourceModelProvider.getImplementation({ true }, "of any type")
+/** A [ModelSuiteRunner] that is implemented using a [SourceModelProvider]. */
+class SourceModelSuiteRunner(private val sourceModelProvider: SourceModelProvider) :
+    ModelSuiteRunner {
 
     override val providerName = sourceModelProvider.providerName
 

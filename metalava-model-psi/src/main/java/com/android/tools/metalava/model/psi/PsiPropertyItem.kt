@@ -86,7 +86,7 @@ private constructor(
          */
         internal fun create(
             codebase: PsiBasedCodebase,
-            containingClass: PsiClassItem,
+            containingClass: ClassItem,
             name: String,
             type: TypeItem,
             getter: PsiMethodItem,

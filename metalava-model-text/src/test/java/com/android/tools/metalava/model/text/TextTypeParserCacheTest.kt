@@ -104,7 +104,7 @@ class TextTypeParserCacheTest : BaseTextCodebaseTest() {
                 assertThat(stats)
                     .isEqualTo(
                         ApiFile.Stats(
-                            totalClasses = 328,
+                            totalClasses = 306,
                             typeCacheRequests = 7245,
                             typeCacheSkip = 0,
                             typeCacheHit = 6532,

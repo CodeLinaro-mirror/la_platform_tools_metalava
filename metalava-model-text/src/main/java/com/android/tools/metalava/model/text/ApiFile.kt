@@ -227,7 +227,6 @@ private constructor(
                 )
                 first = false
             }
-            parser.postProcess()
 
             apiStatsConsumer(parser.stats)
 
@@ -286,7 +285,7 @@ private constructor(
                 apiText = apiText,
                 forCurrentApiSurface = true,
             )
-            parser.postProcess()
+
             return assembler.codebase
         }
 
@@ -369,11 +368,6 @@ private constructor(
         if (!emit && forCurrentApiSurface) {
             markForCurrentApiSurface()
         }
-    }
-
-    /** Perform any final steps to initialize [codebase] after parsing the signature files. */
-    private fun postProcess() {
-        codebase.resolveSuperTypes()
     }
 
     private fun parseApiSingleFile(

@@ -23,7 +23,7 @@ import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.psi.PsiEnvironmentManager
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
-import com.intellij.lang.java.lexer.JavaLexer
+import com.intellij.psi.util.PsiUtil
 
 // Enforces the interoperability guidelines outlined in
 //   https://android.github.io/kotlin-guides/interop.html
@@ -309,6 +309,6 @@ class KotlinInteropChecks(val reporter: Reporter) {
 
     /** Returns true if the given string is a reserved Java keyword */
     private fun isJavaKeyword(keyword: String): Boolean {
-        return JavaLexer.isKeyword(keyword, javaLanguageLevel)
+        return PsiUtil.isKeyword(keyword, javaLanguageLevel)
     }
 }

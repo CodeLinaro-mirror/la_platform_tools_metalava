@@ -80,7 +80,7 @@ internal class PsiItemDocumentation(
 
         // We can't just use element.docComment here because we may have modified the comment and
         // then the comment snapshot in PSI isn't up-to-date with our latest changes
-        val docComment = item.codebase.getComment(text)
+        val docComment = item.codebase.psiAssembler.getComment(text)
         val tagComment =
             if (value == null) {
                 docComment.findTagByName(tag)
@@ -116,7 +116,7 @@ internal class PsiItemDocumentation(
 
     override fun findMainDocumentation(): String {
         if (text == "") return text
-        val comment = item.codebase.getComment(text)
+        val comment = item.codebase.psiAssembler.getComment(text)
         val end = findFirstTag(comment)?.textRange?.startOffset ?: text.length
         return comment.text.substring(0, end)
     }
@@ -126,10 +126,10 @@ internal class PsiItemDocumentation(
             return documentation
         }
 
-        val codebase = item.codebase
+        val assembler = item.codebase.psiAssembler
         val comment =
             try {
-                codebase.getComment(documentation, psi)
+                assembler.getComment(documentation, psi)
             } catch (throwable: Throwable) {
                 // TODO: Get rid of line comments as documentation
                 // Invalid comment
@@ -138,7 +138,7 @@ internal class PsiItemDocumentation(
                         documentation.substring(documentation.indexOf("/**"))
                     )
                 }
-                codebase.getComment(documentation, psi)
+                assembler.getComment(documentation, psi)
             }
         return buildString(documentation.length) { expand(comment, this) }
     }

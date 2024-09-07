@@ -79,7 +79,7 @@ internal class PsiFieldItem(
     override fun duplicate(targetContainingClass: ClassItem) =
         create(
                 codebase,
-                targetContainingClass as PsiClassItem,
+                targetContainingClass,
                 psiField,
                 codebase.globalTypeItemFactory.from(targetContainingClass),
             )
@@ -157,7 +157,7 @@ internal class PsiFieldItem(
     companion object {
         internal fun create(
             codebase: PsiBasedCodebase,
-            containingClass: PsiClassItem,
+            containingClass: ClassItem,
             psiField: PsiField,
             enclosingClassTypeItemFactory: PsiTypeItemFactory,
         ): PsiFieldItem {
